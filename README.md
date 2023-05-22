@@ -10,6 +10,8 @@ Here's the patch you need:
 ```toml
 [patch.star-atlas]
 anchor-lang = { git = "https://github.com/staratlasmeta/anchor.git", branch = "allow_more_solana_versions" }
+## Use this for any other required anchor dependencies
+#... = { git = "https://github.com/staratlasmeta/anchor.git", branch = "allow_more_solana_versions" }
 ```
 
 Put this patch into any project that uses these packages.
