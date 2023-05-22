@@ -1,0 +1,25 @@
+[package]
+name = "common_proc"
+version = "0.1.2"
+authors = ["Brett Etter <buzzec@buzzec.net>"]
+edition = "2021"
+repository = "https://github.com/staratlasmeta/star-atlas-programs"
+description = "Common procedural macros for Star Atlas programs"
+publish = ["star-atlas"]
+
+[lib]
+proc-macro = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+proc-macro2 = "1.0.27"
+syn = { version = "1.0.73", features = ["extra-traits"] }
+quote = "1.0.9"
+proc-macro-error = "1.0.4"
+proc-macro-crate = "1.0.0"
+
+[dev-dependencies]
+common_utils = { path = "../common_utils", version = "0.1.2", registry = "star-atlas" }
+anchor-lang = { version = "0.25.14", registry = "star-atlas" }
+bytemuck = "1.13.0"

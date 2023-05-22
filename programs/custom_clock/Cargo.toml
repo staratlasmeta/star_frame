@@ -1,0 +1,21 @@
+[package]
+name = "custom_clock"
+version = "0.1.2"
+edition = "2021"
+description = "Custom clock setting for development"
+publish = ["star-atlas"]
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "custom_clock"
+
+[features]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+default = []
+
+[dependencies]
+anchor-lang = { version = "0.25.14", registry = "star-atlas" }
+# We do not use common_utils in this because it would cause a circular dependency.

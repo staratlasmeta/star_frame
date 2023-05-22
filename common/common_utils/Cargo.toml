@@ -1,0 +1,45 @@
+[package]
+name = "common_utils"
+version = "0.1.2"
+authors = ["Brett Etter <buzzec@buzzec.net>"]
+edition = "2021"
+repository = "https://github.com/staratlasmeta/star-atlas-programs"
+description = "Common utilities for Star Atlas programs"
+publish = ["star-atlas"]
+
+[features]
+default = []
+development = ["custom_clock"]
+
+[dependencies]
+anchor-lang = { version = "0.25.14", registry = "star-atlas" }
+anchor-spl = { version = "0.25.14", registry = "star-atlas" }
+array-init = "2.0.0"
+bitflags = "2.2.1"
+borsh = "0.10.3"
+bytemuck = { version = "1.13.0", features = ["min_const_generics", "extern_crate_std"] }
+common_proc = { path = "../common_proc", version = "0.1.2", registry = "star-atlas" }
+derivative = "2.2.0"
+itertools = "0.10.3"
+num-traits = "0.2.15"
+solana-program = "<=1.14"
+spl-token = { version = "3.1.1", features = ["no-entrypoint" ]}
+static_assertions = "1.1.0"
+strum = "0.24.1"
+thiserror = "1.0.40"
+
+# Locked due to MSRV becoming 1.63.0 in 0.3.20
+time = "=0.3.19"
+# Locked due to MSRV becoming 1.64.0 in 0.4.2
+winnow = "=0.4.1"
+
+[dependencies.custom_clock]
+path = "../../programs/custom_clock"
+features = ["no-entrypoint"]
+optional = true
+version = "0.1.2"
+registry = "star-atlas"
+
+[dev-dependencies]
+rand = "0.8.5"
+rayon = "1.6.1"
