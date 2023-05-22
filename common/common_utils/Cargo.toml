@@ -4,6 +4,7 @@ version = "0.1.3"
 edition = "2021"
 repository = "https://github.com/staratlasmeta/common_utils"
 description = "Common utilities for Star Atlas programs"
+license = "MPL-2.0"
 publish = ["star-atlas"]
 
 [features]
