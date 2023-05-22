@@ -1,9 +1,8 @@
 [package]
 name = "common_utils"
-version = "0.1.2"
-authors = ["Brett Etter <buzzec@buzzec.net>"]
+version = "0.1.3"
 edition = "2021"
-repository = "https://github.com/staratlasmeta/star-atlas-programs"
+repository = "https://github.com/staratlasmeta/common_utils"
 description = "Common utilities for Star Atlas programs"
 publish = ["star-atlas"]
 
@@ -18,7 +17,7 @@ array-init = "2.0.0"
 bitflags = "2.2.1"
 borsh = "0.10.3"
 bytemuck = { version = "1.13.0", features = ["min_const_generics", "extern_crate_std"] }
-common_proc = { path = "../common_proc", version = "0.1.2", registry = "star-atlas" }
+common_proc = { path = "../common_proc", version = "0.1.3", registry = "star-atlas" }
 derivative = "2.2.0"
 itertools = "0.10.3"
 num-traits = "0.2.15"
@@ -37,7 +36,7 @@ winnow = "=0.4.1"
 path = "../../programs/custom_clock"
 features = ["no-entrypoint"]
 optional = true
-version = "0.1.2"
+version = "0.1.3"
 registry = "star-atlas"
 
 [dev-dependencies]
