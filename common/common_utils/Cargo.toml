@@ -1,6 +1,6 @@
 [package]
 name = "common_utils"
-version = "0.1.3"
+version = "0.1.4"
 edition = "2021"
 repository = "https://github.com/staratlasmeta/common_utils"
 description = "Common utilities for Star Atlas programs"
