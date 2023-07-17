@@ -1,5 +1,3 @@
-#![allow(clippy::extra_unused_type_parameters)]
-
 //! Token Utils.
 
 use anchor_lang::{
