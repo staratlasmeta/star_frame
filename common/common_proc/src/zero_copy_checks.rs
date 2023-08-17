@@ -13,21 +13,16 @@ pub enum ZeroCopyType {
 }
 
 struct ZeroCopyArgs {
-    skip_zero_copy: bool,
     transparent: bool,
 }
 impl Parse for ZeroCopyArgs {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let content: Punctuated<_, Token![,]> = input.parse_terminated(Ident::parse)?;
-        let mut out = ZeroCopyArgs {
-            skip_zero_copy: false,
-            transparent: false,
-        };
+        let mut out = ZeroCopyArgs { transparent: false };
         for ident in content {
             match ident.to_string().as_str() {
-                "skip_zero_copy" => out.skip_zero_copy = true,
                 "transparent" => out.transparent = true,
-                _ => abort!(ident, "expected `skip_zero_copy` or `transparent`"),
+                _ => abort!(ident, "expected `transparent`"),
             }
         }
         Ok(out)
@@ -47,11 +42,7 @@ pub fn zero_copy_checks(
     let ident = &strct.ident;
 
     let args = parse_macro_input!(args as ZeroCopyArgs);
-    let mut found_attr_index = if args.skip_zero_copy {
-        Some(None)
-    } else {
-        None
-    };
+    let mut found_attr_index = None;
     for (index, attribute) in strct.attrs.iter().enumerate() {
         match ty {
             ZeroCopyType::Account => {
@@ -61,27 +52,25 @@ pub fn zero_copy_checks(
                         .parse_args::<Ident>()
                         .map_or(false, |ident| ident.to_string().as_str() == "zero_copy")
                 {
-                    found_attr_index = Some(Some(index));
+                    found_attr_index = Some(index);
                     break;
                 }
             }
             ZeroCopyType::Struct => {
                 if attribute.path.is_ident("zero_copy") {
-                    found_attr_index = Some(Some(index));
+                    found_attr_index = Some(index);
                     break;
                 }
             }
         }
     }
     if let Some(index) = found_attr_index {
-        if let Some(index) = index {
-            input_strct.attrs.insert(
-                index + 1,
-                syn::parse_quote! {
-                    #[derive(Debug)]
-                },
-            );
-        }
+        input_strct.attrs.insert(
+            index + 1,
+            syn::parse_quote! {
+                #[derive(Debug)]
+            },
+        );
     } else {
         match ty {
             ZeroCopyType::Struct => {
@@ -162,6 +151,11 @@ pub fn zero_copy_checks(
         #crate_name::static_assertions::const_assert_eq!(
             ::std::mem::size_of::<#ident>(),
             0 #(#fields_size)*
+        );
+
+        #crate_name::static_assertions::const_assert_eq!(
+            ::std::mem::align_of::<#ident>(),
+            1
         );
 
         #(
