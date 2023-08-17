@@ -40,6 +40,8 @@ toml_datetime = "=0.6.1"
 toml_edit = "=0.19.8"
 # Locked due to MSRV becoming 1.64 in 0.6.2
 serde_spanned = "=0.6.1"
+# Locked due to MSRV becoming 1.66 in 1.4.1
+blake3 = "=1.4.0"
 
 [dependencies.custom_clock]
 path = "../../programs/custom_clock"

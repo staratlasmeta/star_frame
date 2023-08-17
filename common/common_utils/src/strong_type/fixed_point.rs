@@ -336,6 +336,36 @@ impl<U1: UnitType, U2: UnitType> FloatWithUnit<MulUnit<U1, U2>> {
     }
 }
 impl<U1: UnitType, U2: UnitType> FloatWithUnit<DivUnit<U1, U2>> {
+    /// Multiplies by a strong typed unit with the same unit as the denominator
+    #[must_use]
+    pub fn mul_by_u2(self, other: FloatWithUnit<U2>) -> FloatWithUnit<U1> {
+        FloatWithUnit(self.0 * other.0, PhantomData)
+    }
+
+    /// Multiplies by a strong typed unit with the same unit as the numerator
+    #[must_use]
+    pub fn mul_by_u1(
+        self,
+        other: FloatWithUnit<U1>,
+    ) -> FloatWithUnit<DivUnit<MulUnit<U1, U1>, U2>> {
+        FloatWithUnit(self.0 * other.0, PhantomData)
+    }
+
+    /// Divide by a strong typed unit with the same unit as the numerator
+    #[must_use]
+    pub fn div_by_u1(self, other: FloatWithUnit<U1>) -> FloatWithUnit<DivUnit<Unitless, U2>> {
+        FloatWithUnit(self.0 / other.0, PhantomData)
+    }
+
+    /// Divide by a strong typed unit with the same unit as the denominator
+    #[must_use]
+    pub fn div_by_u2(
+        self,
+        other: FloatWithUnit<U2>,
+    ) -> FloatWithUnit<DivUnit<U1, MulUnit<U2, U2>>> {
+        FloatWithUnit(self.0 / other.0, PhantomData)
+    }
+
     /// Runs an operation on the numerator of a divided unit. Treats the other value as 1
     #[must_use]
     pub fn op_numerator<UO: UnitType>(
