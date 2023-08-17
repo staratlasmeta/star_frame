@@ -47,7 +47,7 @@ blake3 = "=1.4.0"
 path = "../../programs/custom_clock"
 features = ["no-entrypoint"]
 optional = true
-version = "0.1.3"
+version = "0.1.5"
 registry = "star-atlas"
 
 [dev-dependencies]
