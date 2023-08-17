@@ -12,8 +12,8 @@ default = []
 development = ["custom_clock"]
 
 [dependencies]
-anchor-lang = { version = "0.25.14", registry = "star-atlas" }
-anchor-spl = { version = "0.25.14", registry = "star-atlas" }
+anchor-lang = { version = "0.25.19", registry = "star-atlas" }
+anchor-spl = { version = "0.25.19", registry = "star-atlas" }
 array-init = "2.0.0"
 bitflags = "2.2.1"
 borsh = "0.10.3"

@@ -19,5 +19,5 @@ cpi = ["no-entrypoint"]
 default = []
 
 [dependencies]
-anchor-lang = { version = "0.25.14", registry = "star-atlas" }
+anchor-lang = { version = "0.25.19", registry = "star-atlas" }
 # We do not use common_utils in this because it would cause a circular dependency.

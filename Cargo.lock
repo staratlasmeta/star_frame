@@ -71,9 +71,9 @@ dependencies = [
 
 [[package]]
 name = "anchor-attribute-access-control"
-version = "0.25.18"
+version = "0.25.19"
 source = "registry+ssh://git@ssh.shipyard.rs/star-atlas/crate-index.git"
-checksum = "505971df86b1446af9d9eb5f036af2f6fbc82d3799c8a4efda99090914ff353c"
+checksum = "fc59bbfbaba6b1cee5d07a9e40d9bf6382ae408c92b464fd9dc4b87560d48164"
 dependencies = [
  "anchor-syn",
  "anyhow",
@@ -85,9 +85,9 @@ dependencies = [
 
 [[package]]
 name = "anchor-attribute-account"
-version = "0.25.18"
+version = "0.25.19"
 source = "registry+ssh://git@ssh.shipyard.rs/star-atlas/crate-index.git"
-checksum = "ca7d8a2eb2093fc32d5f216e5f96e8d1977d0a37e623fa46fff06e611c2fd98a"
+checksum = "7448e8de0779a4c3959812e7c6ad6dbf93e95f27b9f8ebb7d3456200b636261b"
 dependencies = [
  "anchor-syn",
  "anyhow",
@@ -100,9 +100,9 @@ dependencies = [
 
 [[package]]
 name = "anchor-attribute-constant"
-version = "0.25.18"
+version = "0.25.19"
 source = "registry+ssh://git@ssh.shipyard.rs/star-atlas/crate-index.git"
-checksum = "9c34b0d1bb8583bc7d89a78ddd1471abdbad706e58acae8bb1082b70e2831460"
+checksum = "1e0a58141786c65ba45212f1452084947492c8fbbce54ff2700038b3cb43b1f7"
 dependencies = [
  "anchor-syn",
  "proc-macro2",
@@ -111,9 +111,9 @@ dependencies = [
 
 [[package]]
 name = "anchor-attribute-error"
-version = "0.25.18"
+version = "0.25.19"
 source = "registry+ssh://git@ssh.shipyard.rs/star-atlas/crate-index.git"
-checksum = "8857e2a60cd2d66cd5f19d0845e89db521abcecb19a19dd514e778d1ee958356"
+checksum = "2c9c34d7d67ae2d4887bb4d10334b04189b23e264d89b2da13b54ff494526e48"
 dependencies = [
  "anchor-syn",
  "proc-macro2",
@@ -123,9 +123,9 @@ dependencies = [
 
 [[package]]
 name = "anchor-attribute-event"
-version = "0.25.18"
+version = "0.25.19"
 source = "registry+ssh://git@ssh.shipyard.rs/star-atlas/crate-index.git"
-checksum = "5e4d6fefe5921868e3c8586925d7b9fa696b1b8ab100cb95e0b93b47b1519f77"
+checksum = "e0f3a682c8e43a6d9723de6f4ef3062d9f82beec1a0583c6577e842c17700010"
 dependencies = [
  "anchor-syn",
  "anyhow",
@@ -136,9 +136,9 @@ dependencies = [
 
 [[package]]
 name = "anchor-attribute-interface"
-version = "0.25.18"
+version = "0.25.19"
 source = "registry+ssh://git@ssh.shipyard.rs/star-atlas/crate-index.git"
-checksum = "f4ac37e08f0665031c779549bb49905df1f29f79e779a8730feaf81fd37b1b35"
+checksum = "97e7bd29ddfa598f4af0cfffd53af0f2964c94879bd977ce25fcc67f3ee5be43"
 dependencies = [
  "anchor-syn",
  "anyhow",
@@ -150,9 +150,9 @@ dependencies = [
 
 [[package]]
 name = "anchor-attribute-program"
-version = "0.25.18"
+version = "0.25.19"
 source = "registry+ssh://git@ssh.shipyard.rs/star-atlas/crate-index.git"
-checksum = "1eac51205c7b0783c2d140d39f77717a4e4ed5ecbcb87df5ac33763ab80c7d21"
+checksum = "5335ed7196e76d329a1e6cf7a96be78342c891dd9f2cc8da71635c8cb9ce4057"
 dependencies = [
  "anchor-syn",
  "anyhow",
@@ -163,9 +163,9 @@ dependencies = [
 
 [[package]]
 name = "anchor-attribute-state"
-version = "0.25.18"
+version = "0.25.19"
 source = "registry+ssh://git@ssh.shipyard.rs/star-atlas/crate-index.git"
-checksum = "3e88a52b270aa930d86eefc3b5c0df32c45a91b06ce2f1fcd221288846755928"
+checksum = "d01efa400ae1e77b26aa95f700b5000db0204bd74409654f6cd91ac987667fc2"
 dependencies = [
  "anchor-syn",
  "anyhow",
@@ -176,9 +176,9 @@ dependencies = [
 
 [[package]]
 name = "anchor-derive-accounts"
-version = "0.25.18"
+version = "0.25.19"
 source = "registry+ssh://git@ssh.shipyard.rs/star-atlas/crate-index.git"
-checksum = "c906af09eb932936b21b1b96bdfa8ca0c7ce03754daed52d0fd7a443d6c97c05"
+checksum = "2d0a24064a774bc526408093905d3c3794b2fd4efa4c06a272a44d24f32323fa"
 dependencies = [
  "anchor-syn",
  "anyhow",
@@ -189,9 +189,9 @@ dependencies = [
 
 [[package]]
 name = "anchor-lang"
-version = "0.25.18"
+version = "0.25.19"
 source = "registry+ssh://git@ssh.shipyard.rs/star-atlas/crate-index.git"
-checksum = "e74f82aaa4fa6d5de82f4af3219cbdd66662a8d7ba9187812e06e2019239f16b"
+checksum = "5392a125b9db2d3d073df36c3e9c476173c27e1d564fb7bb2e81df69a718add5"
 dependencies = [
  "anchor-attribute-access-control",
  "anchor-attribute-account",
@@ -213,9 +213,9 @@ dependencies = [
 
 [[package]]
 name = "anchor-spl"
-version = "0.25.18"
+version = "0.25.19"
 source = "registry+ssh://git@ssh.shipyard.rs/star-atlas/crate-index.git"
-checksum = "8e9f54b985ae2a4c29ddc1e4f8bb5a64f2dac3ade895e24205dedcacbc6f09a4"
+checksum = "91a09963ac536143753bd4a7ae442edc948a1777f3e2f02dd0a188af09bed2f5"
 dependencies = [
  "anchor-lang",
  "solana-program",
@@ -225,9 +225,9 @@ dependencies = [
 
 [[package]]
 name = "anchor-syn"
-version = "0.25.18"
+version = "0.25.19"
 source = "registry+ssh://git@ssh.shipyard.rs/star-atlas/crate-index.git"
-checksum = "81c5084a6da2b6e2508f7ca830ebc32460fd5a1d244fb9ffd94b0e9598277cdb"
+checksum = "f6ef7d0bf67b1e117defe720bb932adef293a4a88f56af9d7da8f6b7e5a7ef5e"
 dependencies = [
  "anyhow",
  "bs58 0.3.1",
