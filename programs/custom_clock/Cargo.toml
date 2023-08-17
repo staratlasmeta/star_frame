@@ -1,6 +1,6 @@
 [package]
 name = "custom_clock"
-version = "0.1.3"
+version = "0.1.5"
 edition = "2021"
 repository = "https://github.com/staratlasmeta/common_utils"
 description = "Custom clock setting for development"

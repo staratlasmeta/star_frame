@@ -1,6 +1,6 @@
 [package]
 name = "common_proc"
-version = "0.1.3"
+version = "0.1.5"
 edition = "2021"
 repository = "https://github.com/staratlasmeta/common_utils"
 description = "Common procedural macros for Star Atlas programs"
