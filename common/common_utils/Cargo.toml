@@ -1,6 +1,6 @@
 [package]
 name = "common_utils"
-version = "0.1.6"
+version = "0.2.0"
 edition = "2021"
 repository = "https://github.com/staratlasmeta/common_utils"
 description = "Common utilities for Star Atlas programs"
@@ -10,23 +10,34 @@ publish = ["star-atlas"]
 [features]
 default = []
 development = ["custom_clock"]
+client = ["anyhow", "async-trait", "futures", "solana-account-decoder", "solana-client", "solana-sdk", "solana-transaction-status", "tokio"]
 
 [dependencies]
-anchor-lang = { version = "0.25.19", registry = "star-atlas" }
-anchor-spl = { version = "0.25.19", registry = "star-atlas" }
+anchor-lang = { version = "0.25.20", registry = "star-atlas" }
+anchor-spl = { version = "0.25.20", registry = "star-atlas" }
 array-init = "2.0.0"
 bitflags = "2.2.1"
 borsh = "0.10.3"
 bytemuck = { version = "1.13.0", features = ["min_const_generics", "extern_crate_std"] }
 common_proc = { path = "../common_proc", version = "0.1.5", registry = "star-atlas" }
 derivative = "2.2.0"
+derive_more = "0.99.17"
 itertools = "0.10.3"
 num-traits = "0.2.15"
-solana-program = "1.14.22"
+solana-program = "1.16.9"
 spl-token = { version = "3.1.1", features = ["no-entrypoint" ]}
 static_assertions = "1.1.0"
 strum = "0.24.1"
 thiserror = "1.0.40"
+
+anyhow = { version = "1.0.72", optional = true }
+async-trait = { version = "0.1.72", optional = true }
+futures = { version = "0.3.28", optional = true }
+solana-account-decoder = { version = "1.16.9", optional = true }
+solana-client = { version = "1.16.9", optional = true }
+solana-sdk = { version = "1.16.9", optional = true }
+solana-transaction-status = { version = "1.16.9", optional = true }
+tokio = { version = "~1", optional = true }
 
 [dependencies.custom_clock]
 path = "../../programs/custom_clock"

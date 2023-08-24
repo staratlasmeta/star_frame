@@ -30,6 +30,8 @@ mod advance;
 mod binary_heap;
 mod boxed_error;
 mod chain_exact;
+#[cfg(feature = "client")]
+mod client;
 mod data_size;
 mod error;
 mod fixed_chunks;
