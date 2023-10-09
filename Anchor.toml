@@ -4,6 +4,7 @@ skip-lint = false
 
 [programs.localnet]
 custom_clock = "CLockX54wfiQwQoRGcMAxitSPKdNcSRousbcHEJoecou"
+exclusive_map = "SoRt3CQHw4RuakqngB6X3ZgBV5nya3c2NECg3rS8wZS"
 
 [registry]
 url = "https://api.apr.dev"

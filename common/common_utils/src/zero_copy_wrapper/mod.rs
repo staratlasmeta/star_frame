@@ -1,10 +1,12 @@
 mod chained_data;
 mod list;
+pub mod map;
 mod remaining_data;
 mod sorted_list;
 
 pub use chained_data::*;
 pub use list::*;
+pub use map::*;
 pub use remaining_data::*;
 pub use sorted_list::*;
 

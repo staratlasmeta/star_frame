@@ -1,7 +1,8 @@
 [workspace]
 members = [
     "common/*",
-    "programs/*"
+    "programs/*",
+    "test_programs/*"
 ]
 
 [profile.release]

@@ -1,0 +1,23 @@
+[package]
+name = "exclusive_map"
+version = "0.0.0"
+edition = "2021"
+repository = "https://github.com/staratlasmeta/common_utils"
+license = "MPL-2.0"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "exclusive_map"
+
+[features]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+default = []
+
+[dependencies]
+anchor-lang = { version = "0.25.20", registry = "star-atlas" }
+common_utils = { path = "../../common/common_utils" }
+bytemuck = "1.13.1"
