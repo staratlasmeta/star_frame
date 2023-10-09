@@ -117,7 +117,7 @@ where
             sol_memmove(
                 data[byte_move_end..].as_mut_ptr(),
                 data[byte_move_start..].as_mut_ptr(),
-                size_of::<T>(),
+                size_of::<T>() * (old_len - index),
             );
         }
 
