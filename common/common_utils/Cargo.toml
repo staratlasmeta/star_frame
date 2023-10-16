@@ -11,6 +11,7 @@ publish = ["star-atlas"]
 default = []
 development = ["custom_clock"]
 client = ["anyhow", "async-trait", "futures", "solana-account-decoder", "solana-client", "solana-sdk", "solana-transaction-status", "tokio"]
+testing = []
 
 [dependencies]
 anchor-lang = { version = "0.25.20", registry = "star-atlas" }

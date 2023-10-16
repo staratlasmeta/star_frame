@@ -3,7 +3,7 @@ use borsh::maybestd::io::Error as BorshIoError;
 use solana_program::program_error::ProgramError;
 
 /// A box wrapped anchor result
-pub type Result<T> = std::result::Result<T, BoxedAnchorError>;
+pub type Result<T, E = BoxedAnchorError> = std::result::Result<T, E>;
 
 /// A box wrapped anchor error
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]

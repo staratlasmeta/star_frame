@@ -57,7 +57,7 @@ pub struct CreateMintResult {
 }
 
 /// Config for [`RpcClientTokenExt::create_token_account_with_config`]
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct CreateTokenAccountConfig {
     /// The mint of the token account
     pub mint: Pubkey,

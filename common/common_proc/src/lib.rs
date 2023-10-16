@@ -19,8 +19,10 @@ use crate::unpackable::unpackable_impl;
 use crate::zero_copy_checks::{zero_copy_checks, ZeroCopyType};
 use proc_macro2::TokenStream;
 use proc_macro_crate::{crate_name, FoundCrate};
-use proc_macro_error::proc_macro_error;
-use quote::{format_ident, quote};
+use proc_macro_error::{abort, proc_macro_error};
+use quote::{format_ident, quote, ToTokens};
+use syn::parse::{Parse, ParseStream};
+use syn::token::Token;
 use syn::*;
 
 fn get_crate_name() -> TokenStream {
@@ -229,4 +231,125 @@ pub fn unpackable(derive_input: proc_macro::TokenStream) -> proc_macro::TokenStr
     let out = unpackable_impl(parse_macro_input!(derive_input as DeriveInput));
     // println!("{}", out);
     out.into()
+}
+
+struct IdentWithArgs<A> {
+    ident: Ident,
+    args: Option<IdentArg<A>>,
+}
+impl<A> Parse for IdentWithArgs<A>
+where
+    A: Parse + Token,
+{
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        Ok(Self {
+            ident: input.parse()?,
+            args: if input.peek(token::Paren) {
+                Some(input.parse()?)
+            } else {
+                None
+            },
+        })
+    }
+}
+impl<A> ToTokens for IdentWithArgs<A>
+where
+    A: ToTokens,
+{
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.ident.to_tokens(tokens);
+        self.args.to_tokens(tokens);
+    }
+}
+
+struct IdentArg<A> {
+    paren: token::Paren,
+    arg: Option<A>,
+}
+impl<A> Parse for IdentArg<A>
+where
+    A: Parse + Token,
+{
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let content;
+
+        Ok(Self {
+            paren: parenthesized!(content in input),
+            arg: content.parse()?,
+        })
+    }
+}
+impl<A> ToTokens for IdentArg<A>
+where
+    A: ToTokens,
+{
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.paren.surround(tokens, |tokens| {
+            self.arg.to_tokens(tokens);
+        });
+    }
+}
+
+/// Derives `Align1` for a valid type.
+#[proc_macro_error]
+#[proc_macro_derive(Align1)]
+pub fn derive_align1(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let crate_name = get_crate_name();
+    let derive_input = parse_macro_input!(item as DeriveInput);
+    let fields = match derive_input.data {
+        Data::Struct(strct) => strct.fields,
+        Data::Union(u) => Fields::Named(u.fields),
+        Data::Enum(e) => {
+            abort!(e.enum_token, "Align1 cannot be derived for enums");
+        }
+    };
+
+    let packed = derive_input.attrs.into_iter().any(|attr| {
+        attr.path.is_ident("repr") && {
+            let Ok(args) = attr.parse_args_with(|p: ParseStream| {
+                p.parse_terminated::<_, Token![,]>(IdentWithArgs::<LitInt>::parse)
+            }) else { abort!(attr, "Repr invalid args") };
+            // args.iter().any(|arg|arg.ident.to_string() == "packed" && {
+            //     if let Some(num) = arg.args {
+            //
+            //     }
+            // });
+            for arg in args {
+                let ident = arg.ident.to_string();
+                let arg = arg.args.as_ref().and_then(|a| a.arg.as_ref());
+                if &ident == "align" && arg.map_or(false, |align| &align.to_string() != "1") {
+                    abort!(arg, "`align` argument must be 1 to implement `Align1`");
+                }
+                if &ident == "packed" {
+                    if arg.map_or(false, |align| &align.to_string() != "1") {
+                        abort!(
+                            arg,
+                            "`packed` argument must be 1 or not present to implement `Align1`"
+                        );
+                    } else {
+                        return true;
+                    }
+                }
+            }
+            false
+        }
+    });
+
+    let ident = derive_input.ident;
+
+    let mut gen = derive_input.generics;
+    let wc = gen.make_where_clause();
+    if !packed {
+        for field in fields {
+            let ty = field.ty;
+            wc.predicates
+                .push(parse_quote!(#ty: #crate_name::align1::Align1));
+        }
+    }
+    let (impl_gen, type_gen, where_clause) = gen.split_for_impl();
+
+    (quote! {
+        unsafe impl #impl_gen #crate_name::align1::Align1 for #ident #type_gen #where_clause {}
+    })
+    .into()
 }

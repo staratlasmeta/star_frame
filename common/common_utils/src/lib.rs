@@ -1,5 +1,7 @@
+#![feature(ptr_metadata)]
 #![warn(
     missing_debug_implementations,
+    missing_copy_implementations,
     clippy::pedantic,
     missing_docs,
     clippy::undocumented_unsafe_blocks
@@ -12,12 +14,9 @@
     clippy::expl_impl_clone_on_copy,
     clippy::trait_duplication_in_bounds,
     clippy::type_repetition_in_bounds,
-    clippy::result_large_err
+    clippy::result_large_err,
+    clippy::mut_mut
 )]
-// #![cfg_attr(
-//     not(any(target_arch = "bpf", target_os = "solana")),
-//     warn(clippy::arithmetic_side_effects)
-// )]
 
 //! common utilities for `scream`
 
@@ -44,8 +43,13 @@ mod token;
 mod unpacked;
 mod zero_copy_wrapper;
 
+pub mod align1;
 pub mod custom_clock;
 pub mod prelude;
+#[cfg(any(test, feature = "testing"))]
+pub mod testing;
+pub mod util;
+pub mod versioned_account;
 
 pub use advance::*;
 pub use binary_heap::*;
@@ -76,7 +80,7 @@ use derivative::Derivative;
 use std::fmt::Debug;
 
 /// A Single packed value.
-#[derive(Copy, Derivative)]
+#[derive(Copy, Derivative, Align1)]
 #[derivative(
     Debug(bound = "T: Debug + Copy"),
     Clone(bound = "T: Copy"),

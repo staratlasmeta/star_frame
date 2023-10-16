@@ -44,6 +44,12 @@ pub enum UtilError {
     /// The key provided does not match the expected key
     #[msg("The key provided does not match the expected key")]
     InvalidKey,
+    /// Invalid pointer
+    #[msg("Invalid pointer")]
+    InvalidPointer,
+    /// Error reallocating
+    #[msg("Error reallocating")]
+    ReallocError,
 }
 impl From<UtilError> for BoxedAnchorError {
     fn from(e: UtilError) -> Self {
