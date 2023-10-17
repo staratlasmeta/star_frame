@@ -12,6 +12,7 @@ use derivative::Derivative;
 use solana_program::program_memory::sol_memmove;
 use std::fmt::Debug;
 use std::marker::PhantomData;
+use std::mem::size_of_val;
 use std::ops::DerefMut;
 use std::ptr;
 use std::ptr::{metadata, NonNull, Pointee};
@@ -231,8 +232,16 @@ unsafe impl<T: ?Sized + UnsizedData, U: ?Sized + UnsizedData> UnsizedData
         let bytes_advance = &mut &**bytes;
         let bytes_ptr_val = bytes_advance.as_ptr() as usize;
         let (t_val, t_meta) = T::from_bytes(bytes_advance)?;
+        assert_eq!(
+            bytes_advance.as_ptr() as usize,
+            (t_val as *const T).cast::<()>() as usize + size_of_val(t_val)
+        );
         let t_length = bytes_advance.as_ptr() as usize - bytes_ptr_val;
         let (u_val, u_meta) = U::from_bytes(bytes_advance)?;
+        assert_eq!(
+            bytes_advance.as_ptr() as usize,
+            (u_val as *const U).cast::<()>() as usize + size_of_val(u_val)
+        );
         let total = bytes_advance.as_ptr() as usize - bytes_ptr_val;
         Ok((
             // Safety: Pointer verified above.

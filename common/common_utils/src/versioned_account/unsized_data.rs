@@ -9,7 +9,7 @@ use std::mem::size_of;
 /// Data that can be unsized.
 ///
 /// # Safety
-/// All functions must return valid meta.
+/// All from functions must return valid meta, same pointer as given, and advance the byte pointer by the size of return.
 pub unsafe trait UnsizedData: 'static + Align1 {
     /// Metadata for the unsized data to be able to construct sub-contexts.
     /// Usually should be [`()`]
@@ -19,10 +19,12 @@ pub unsafe trait UnsizedData: 'static + Align1 {
     /// The size should be such that the data will always be invalid if the size is less than this.
     fn min_data_size() -> usize;
     /// Gets this data from the given bytes.
-    /// Will return the same pointer with maybe meta.
+    /// Will return the same pointer.
+    /// Will advance the bytes by the same amount as [`size_of_val`](std::mem::size_of_val) returns.
     fn from_bytes<'a>(bytes: &mut &'a [u8]) -> Result<(&'a Self, Self::Metadata)>;
     /// Gets this data from the given mutable bytes.
-    /// Will return the same pointer with maybe meta.
+    /// Will return the same pointer.
+    /// Will advance the bytes by the same amount as [`size_of_val`](std::mem::size_of_val) returns.
     fn from_mut_bytes<'a>(bytes: &mut &'a mut [u8]) -> Result<(&'a mut Self, Self::Metadata)>;
 }
 
