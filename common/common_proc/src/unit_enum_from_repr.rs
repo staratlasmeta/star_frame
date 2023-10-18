@@ -38,6 +38,7 @@ pub fn unit_enum_from_repr_impl(derive_input: DeriveInput) -> TokenStream {
     let input = match derive_input.data {
         Data::Enum(input) => input,
         Data::Struct(_) | Data::Union(_) => {
+            // TODO: Allow ZST fields. Maybe just explicitly phantom data.
             abort_call_site!("UnitEnumFromRepr can only be derived for enums")
         }
     };

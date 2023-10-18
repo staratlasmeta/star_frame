@@ -42,8 +42,20 @@ impl<T, L> DerefMut for List<T, L> {
 unsafe impl<T: Align1 + Pod, L: ToFromUsize + Pod> UnsizedData for List<T, L> {
     type Metadata = ();
 
-    fn min_data_size() -> usize {
+    #[inline]
+    fn init_data_size() -> usize {
         size_of::<L>() + size_of::<T>() * L::zeroed().to_usize().unwrap()
+    }
+
+    unsafe fn init(bytes: &mut [u8]) -> Result<(&mut Self, Self::Metadata)> {
+        assert_eq!(bytes.len(), Self::init_data_size());
+        Ok((
+            &mut *ptr::from_raw_parts_mut(
+                bytes.as_mut_ptr().cast(),
+                L::zeroed().to_usize().unwrap(),
+            ),
+            (),
+        ))
     }
 
     fn from_bytes<'a>(bytes: &mut &'a [u8]) -> Result<(&'a Self, Self::Metadata)> {

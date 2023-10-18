@@ -1,13 +1,12 @@
 //! Combining multiple [`UnsizedData`]s
 
 use crate::align1::Align1;
-use crate::util::MaybeMutRef;
+use crate::util::{MaybeMutRef, MaybeRef};
 use crate::versioned_account::context::{
     AccountDataContext, AccountDataMutContext, AccountDataRefContext,
 };
 use crate::versioned_account::unsized_data::UnsizedData;
-use crate::Advance;
-use common_utils::util::MaybeRef;
+use crate::{Advance, Result};
 use derivative::Derivative;
 use solana_program::program_memory::sol_memmove;
 use std::fmt::Debug;
@@ -15,7 +14,7 @@ use std::marker::PhantomData;
 use std::mem::size_of_val;
 use std::ops::DerefMut;
 use std::ptr;
-use std::ptr::{metadata, NonNull, Pointee};
+use std::ptr::{NonNull, Pointee};
 
 /// Combined unsized data, places `T` before `U`.
 #[repr(transparent)]
@@ -224,11 +223,31 @@ unsafe impl<T: ?Sized + UnsizedData, U: ?Sized + UnsizedData> UnsizedData
 {
     type Metadata = CombinedUnsizedDataMeta<T, U>;
 
-    fn min_data_size() -> usize {
-        T::min_data_size() + U::min_data_size()
+    fn init_data_size() -> usize {
+        T::init_data_size() + U::init_data_size()
     }
 
-    fn from_bytes<'a>(bytes: &mut &'a [u8]) -> common_utils::Result<(&'a Self, Self::Metadata)> {
+    unsafe fn init(mut bytes: &mut [u8]) -> Result<(&mut Self, Self::Metadata)> {
+        assert_eq!(bytes.len(), Self::init_data_size());
+        let bytes_start = bytes.as_ptr() as usize;
+        let (t, t_meta) = T::init(bytes.advance(T::init_data_size()))?;
+        let t_length = bytes.as_ptr() as usize - bytes_start;
+        let (u, u_meta) = U::init(bytes.advance(U::init_data_size()))?;
+        let total = bytes.as_ptr() as usize - bytes_start;
+        assert_eq!(bytes.len(), 0);
+        Ok((
+            &mut *ptr::from_raw_parts_mut(bytes.advance(total).as_mut_ptr().cast(), total),
+            CombinedUnsizedDataMeta {
+                t_meta,
+                t_ptr_meta: ptr::metadata(t),
+                u_meta,
+                u_ptr_meta: ptr::metadata(u),
+                t_length,
+            },
+        ))
+    }
+
+    fn from_bytes<'a>(bytes: &mut &'a [u8]) -> Result<(&'a Self, Self::Metadata)> {
         let bytes_advance = &mut &**bytes;
         let bytes_ptr_val = bytes_advance.as_ptr() as usize;
         let (t_val, t_meta) = T::from_bytes(bytes_advance)?;
@@ -248,25 +267,23 @@ unsafe impl<T: ?Sized + UnsizedData, U: ?Sized + UnsizedData> UnsizedData
             unsafe { &*ptr::from_raw_parts(bytes.advance(total).as_ptr().cast(), total) },
             CombinedUnsizedDataMeta {
                 t_meta,
-                t_ptr_meta: metadata(t_val),
+                t_ptr_meta: ptr::metadata(t_val),
                 u_meta,
-                u_ptr_meta: metadata(u_val),
+                u_ptr_meta: ptr::metadata(u_val),
                 t_length,
             },
         ))
     }
 
-    fn from_mut_bytes<'a>(
-        bytes: &mut &'a mut [u8],
-    ) -> common_utils::Result<(&'a mut Self, Self::Metadata)> {
+    fn from_mut_bytes<'a>(bytes: &mut &'a mut [u8]) -> Result<(&'a mut Self, Self::Metadata)> {
         let bytes_advance = &mut &mut **bytes;
         let bytes_ptr_val = bytes_advance.as_ptr() as usize;
         let (t_val, t_meta) = T::from_mut_bytes(bytes_advance)?;
         let t_length = bytes_advance.as_ptr() as usize - bytes_ptr_val;
         let (u_val, u_meta) = U::from_mut_bytes(bytes_advance)?;
         let total = bytes_advance.as_ptr() as usize - bytes_ptr_val;
-        let t_ptr_meta = metadata(t_val);
-        let u_ptr_meta = metadata(u_val);
+        let t_ptr_meta = ptr::metadata(t_val);
+        let u_ptr_meta = ptr::metadata(u_val);
         Ok((
             // Safety: Pointer verified above.
             unsafe {

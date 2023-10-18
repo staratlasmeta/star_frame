@@ -101,3 +101,8 @@ where
 {
     const MIN_DATA_SIZE: usize = T::MIN_DATA_SIZE;
 }
+impl<T> From<T> for PackedValue<T> {
+    fn from(value: T) -> Self {
+        Self(value)
+    }
+}

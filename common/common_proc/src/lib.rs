@@ -296,14 +296,31 @@ where
 pub fn derive_align1(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let crate_name = get_crate_name();
     let derive_input = parse_macro_input!(item as DeriveInput);
-    let fields = match derive_input.data {
-        Data::Struct(strct) => strct.fields,
-        Data::Union(u) => Fields::Named(u.fields),
+    match derive_input.data.clone() {
+        Data::Struct(DataStruct { fields, .. }) => {
+            derive_align1_for_struct(fields, derive_input, &crate_name)
+        }
+        Data::Union(DataUnion { fields, .. }) => {
+            derive_align1_for_struct(Fields::Named(fields), derive_input, &crate_name)
+        }
         Data::Enum(e) => {
+            // TODO: Derive for repr u8 and unit enums
+            for variant in e.variants {
+                if variant.fields != Fields::Unit {
+                    abort!(variant.fields, "Align1 only supports unit enums");
+                }
+            }
+
             abort!(e.enum_token, "Align1 cannot be derived for enums");
         }
-    };
+    }
+}
 
+fn derive_align1_for_struct(
+    fields: Fields,
+    derive_input: DeriveInput,
+    crate_name: &TokenStream,
+) -> proc_macro::TokenStream {
     let packed = derive_input.attrs.into_iter().any(|attr| {
         attr.path.is_ident("repr") && {
             let Ok(args) = attr.parse_args_with(|p: ParseStream| {

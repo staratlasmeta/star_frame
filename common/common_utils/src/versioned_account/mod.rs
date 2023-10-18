@@ -5,6 +5,7 @@ pub mod account_info;
 pub mod combined;
 pub mod context;
 pub mod data_section;
+pub mod enum_impl;
 pub mod list;
 pub mod to_from_usize;
 pub mod unsized_data;
@@ -46,7 +47,7 @@ mod test {
         AccountDataContext, AccountDataMutContext, AccountDataRefContext,
     };
     use crate::versioned_account::list::List;
-    use crate::{PackedValue, Result};
+    use crate::{Advance, PackedValue, Result};
     use bytemuck::{Pod, Zeroable};
     use common_proc::Align1;
     use common_utils::versioned_account::unsized_data::UnsizedData;
@@ -58,36 +59,64 @@ mod test {
 
     #[repr(C, packed)]
     #[derive(Align1, Pod, Zeroable, Copy, Clone, Debug, Eq, PartialEq)]
-    struct Data2 {
-        val1: u32,
-        val2: u64,
+    pub(crate) struct Data2 {
+        pub(crate) val1: u32,
+        pub(crate) val2: u64,
     }
 
     #[repr(C)]
     #[derive(Align1, Debug)]
-    struct AccountStuff {
-        header_val: PackedValue<u32>,
-        other_val: PackedValue<u64>,
-        key: Pubkey,
-        items: List<Data2, u32>,
+    pub(crate) struct AccountStuff {
+        pub(crate) header_val: PackedValue<u32>,
+        pub(crate) other_val: PackedValue<u64>,
+        pub(crate) key: Pubkey,
+        pub(crate) items: List<Data2, u32>,
     }
 
-    struct AccountStuffMetaData {
-        header_val: <PackedValue<u32> as UnsizedData>::Metadata,
-        other_val: <PackedValue<u64> as UnsizedData>::Metadata,
-        key: <Pubkey as UnsizedData>::Metadata,
-        items: <List<Data2, u32> as UnsizedData>::Metadata,
+    pub(crate) struct AccountStuffMetaData {
+        pub(crate) header_val: <PackedValue<u32> as UnsizedData>::Metadata,
+        pub(crate) other_val: <PackedValue<u64> as UnsizedData>::Metadata,
+        pub(crate) key: <Pubkey as UnsizedData>::Metadata,
+        pub(crate) items: <List<Data2, u32> as UnsizedData>::Metadata,
     }
 
     // Safety: Guarantees are met.
     unsafe impl UnsizedData for AccountStuff {
         type Metadata = AccountStuffMetaData;
 
-        fn min_data_size() -> usize {
-            <PackedValue<u32> as UnsizedData>::min_data_size()
-                + <PackedValue<u64> as UnsizedData>::min_data_size()
-                + <Pubkey as UnsizedData>::min_data_size()
-                + <List<Data2, u32> as UnsizedData>::min_data_size()
+        fn init_data_size() -> usize {
+            <PackedValue<u32> as UnsizedData>::init_data_size()
+                + <PackedValue<u64> as UnsizedData>::init_data_size()
+                + <Pubkey as UnsizedData>::init_data_size()
+                + <List<Data2, u32> as UnsizedData>::init_data_size()
+        }
+
+        unsafe fn init(mut bytes: &mut [u8]) -> Result<(&mut Self, Self::Metadata)> {
+            assert_eq!(bytes.len(), Self::init_data_size());
+            let bytes_ptr = bytes.as_mut_ptr();
+            let (_header_val, header_val_meta) = <PackedValue<u32> as UnsizedData>::init(
+                bytes.advance(PackedValue::<u32>::init_data_size()),
+            )?;
+            let (_other_val, other_val_meta) = <PackedValue<u64> as UnsizedData>::init(
+                bytes.advance(PackedValue::<u64>::init_data_size()),
+            )?;
+            let (_key, key_meta) =
+                <Pubkey as UnsizedData>::init(bytes.advance(Pubkey::init_data_size()))?;
+            let (items, items_meta) = <List<Data2, u32> as UnsizedData>::init(
+                bytes.advance(<List<Data2, u32> as UnsizedData>::init_data_size()),
+            )?;
+            assert_eq!(bytes.len(), 0);
+
+            Ok((
+                // Safety: This is safe because the pointers are the same as the input.
+                unsafe { &mut *ptr::from_raw_parts_mut(bytes_ptr.cast(), ptr::metadata(items)) },
+                AccountStuffMetaData {
+                    header_val: header_val_meta,
+                    other_val: other_val_meta,
+                    key: key_meta,
+                    items: items_meta,
+                },
+            ))
         }
 
         fn from_bytes<'a>(bytes: &mut &'a [u8]) -> Result<(&'a Self, Self::Metadata)> {
@@ -123,17 +152,17 @@ mod test {
                 <PackedValue<u64> as UnsizedData>::from_mut_bytes(bytes)?;
             assert_eq!(
                 bytes.as_ptr() as usize,
-                header_val as *const PackedValue<u32> as usize + size_of_val(other_val)
+                other_val as *const PackedValue<u64> as usize + size_of_val(other_val)
             );
             let (key, key_meta) = <Pubkey as UnsizedData>::from_mut_bytes(bytes)?;
             assert_eq!(
                 bytes.as_ptr() as usize,
-                other_val as *const PackedValue<u64> as usize + size_of_val(key)
+                key as *const Pubkey as usize + size_of_val(key)
             );
             let (items, items_meta) = <List<Data2, u32> as UnsizedData>::from_mut_bytes(bytes)?;
             assert_eq!(
                 bytes.as_ptr() as usize,
-                key as *const Pubkey as usize + size_of_val(items)
+                (items as *const List<Data2, u32>).cast::<()>() as usize + size_of_val(items)
             );
 
             Ok((
@@ -148,7 +177,7 @@ mod test {
             ))
         }
     }
-    trait AccountStuffExtension: AccountDataContext<AccountStuff> {
+    pub(crate) trait AccountStuffExtension: AccountDataContext<AccountStuff> {
         fn header_val(&self) -> AccountDataRefContext<PackedValue<u32>> {
             self.sub_context(|data, meta| (&data.header_val, MaybeRef::Ref(&meta.header_val)))
         }
@@ -166,7 +195,7 @@ mod test {
         }
     }
     impl<T> AccountStuffExtension for T where T: AccountDataContext<AccountStuff> {}
-    trait AccountStuffMutExtension {
+    pub(crate) trait AccountStuffMutExtension {
         fn header_val_mut(&mut self) -> AccountDataMutContext<PackedValue<u32>>;
         fn other_val_mut(&mut self) -> AccountDataMutContext<PackedValue<u64>>;
         fn key_mut(&mut self) -> AccountDataMutContext<Pubkey>;
@@ -209,12 +238,16 @@ mod test {
         fn items_mut(&mut self) -> AccountDataMutContext<List<Data2, u32>> {
             self.sub_context_mut(|args| {
                 (
-                    // This field cannot be accessed while length change is
+                    // Safety: This field cannot be accessed while length change is
                     unsafe { &mut args.data.as_mut().items },
                     MaybeMutRef::Mut(&mut args.data_meta.items),
                     Box::new(move |new_length, new_meta| {
                         *args.data = NonNull::from_raw_parts(args.data.cast(), new_meta);
-                        (args.set_length)(new_length, new_meta)
+                        (args.set_length)(
+                            AccountStuff::init_data_size() - List::<Data2, u32>::init_data_size()
+                                + new_length,
+                            new_meta,
+                        )
                     }),
                 )
             })

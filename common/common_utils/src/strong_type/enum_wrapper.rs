@@ -1,12 +1,13 @@
 use crate::UtilError;
 use bytemuck::{Pod, Zeroable};
 use common_utils::prelude::*;
+use std::fmt::Display;
 use std::marker::PhantomData;
 
 /// Trait for getting a unit enum value from its repr.
 pub trait UnitEnumFromRepr: Copy {
     /// The repr of the enum.
-    type Repr;
+    type Repr: Pod + Display;
     /// Gets the enum value from its repr.
     fn from_repr(repr: Self::Repr) -> std::result::Result<Self, Self::Repr>;
     /// Gets the enum value from its repr, or returns an error.

@@ -1,3 +1,5 @@
+//! Test helpers
+
 use crate::{Advance, AdvanceArray};
 use bytemuck::{cast_slice, cast_slice_mut, from_bytes, from_bytes_mut};
 use num_traits::ToPrimitive;
