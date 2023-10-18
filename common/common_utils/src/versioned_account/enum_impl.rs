@@ -317,9 +317,9 @@ mod test {
     #[derive(UnitEnumFromRepr, Copy, Clone, Debug, Eq, PartialEq)]
     pub(crate) enum EnumAccountStuff {
         // Type = List<Data2, u32>
-        List,
+        List = 5,
         // Type = AccountStuff
-        AccountStuff,
+        AccountStuff = 20,
     }
 
     pub(crate) struct ListMarker;

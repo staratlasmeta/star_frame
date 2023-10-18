@@ -1,9 +1,12 @@
 //! Data that can be read as unsized.
 
-use crate::Result;
-use bytemuck::{from_bytes, from_bytes_mut, AnyBitPattern, NoUninit};
+use crate::{Result, UtilError};
+use anchor_lang::error;
+use bytemuck::checked::{try_from_bytes, try_from_bytes_mut};
+use bytemuck::{CheckedBitPattern, NoUninit};
 use common_utils::align1::Align1;
 use common_utils::Advance;
+use solana_program::msg;
 use std::mem::size_of;
 
 /// Data that can be unsized.
@@ -37,7 +40,7 @@ pub unsafe trait UnsizedData: 'static + Align1 {
 }
 
 // Safety: Pointers are the same as input.
-unsafe impl<T: NoUninit + AnyBitPattern + Align1> UnsizedData for T {
+unsafe impl<T: NoUninit + CheckedBitPattern + Align1> UnsizedData for T {
     type Metadata = ();
 
     fn init_data_size() -> usize {
@@ -46,16 +49,34 @@ unsafe impl<T: NoUninit + AnyBitPattern + Align1> UnsizedData for T {
 
     unsafe fn init(bytes: &mut [u8]) -> Result<(&mut Self, Self::Metadata)> {
         assert_eq!(bytes.len(), Self::init_data_size());
-        Ok((from_bytes_mut(bytes), ()))
+        Ok((
+            try_from_bytes_mut(bytes).map_err(|e| {
+                msg!("Error Pod Init: {}", e);
+                error!(UtilError::GenericError)
+            })?,
+            (),
+        ))
     }
 
     fn from_bytes<'a>(bytes: &mut &'a [u8]) -> Result<(&'a Self, Self::Metadata)> {
-        Ok((from_bytes(bytes.try_advance(size_of::<T>())?), ()))
+        Ok((
+            try_from_bytes(bytes.try_advance(size_of::<T>())?).map_err(|e| {
+                msg!("Error Pod from_bytes: {}", e);
+                error!(UtilError::GenericError)
+            })?,
+            (),
+        ))
     }
 
     fn from_mut_bytes<'a>(bytes: &mut &'a mut [u8]) -> Result<(&'a mut Self, Self::Metadata)> {
         let start = bytes.as_ptr() as usize;
-        let out = (from_bytes_mut(bytes.try_advance(size_of::<T>())?), ());
+        let out = (
+            try_from_bytes_mut(bytes.try_advance(size_of::<T>())?).map_err(|e| {
+                msg!("Error Pod from_bytes_mut: {}", e);
+                error!(UtilError::GenericError)
+            })?,
+            (),
+        );
         let end = bytes.as_ptr() as usize;
         assert_eq!(start + size_of::<T>(), end);
         Ok(out)
