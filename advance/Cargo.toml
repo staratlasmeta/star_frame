@@ -1,0 +1,16 @@
+[package]
+name = "advance"
+version = "0.1.0"
+edition = "2021"
+publish = ["star-atlas"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[features]
+default = []
+solana = ["solana-sdk"]
+
+[dependencies]
+thiserror = "1.0.50"
+
+solana-sdk = { version = "1.16.0", optional = true }

@@ -1,13 +1,17 @@
 [workspace]
+resolver = "2"
 members = [
-    "common/*",
-    "programs/*"
+    "advance",
+#    "common/*",
+    "framework/*",
+    "programs/*",
 ]
 
 [profile.release]
 overflow-checks = true
 lto = "fat"
 codegen-units = 1
+
 [profile.release.build-override]
 opt-level = 3
 incremental = false
