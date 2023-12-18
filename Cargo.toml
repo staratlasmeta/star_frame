@@ -3,7 +3,8 @@ resolver = "2"
 members = [
     "advance",
 #    "common/*",
-    "framework/*",
+    "framework/star_*",
+    "framework/example_programs/*",
     "programs/*",
 ]
 

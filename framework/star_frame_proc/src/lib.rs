@@ -1,4 +1,5 @@
 mod account_set;
+mod instruction_set;
 mod unit_enum_from_repr;
 mod util;
 
@@ -180,4 +181,18 @@ fn derive_align1_for_struct(
         unsafe impl #impl_gen #crate_name::align1::Align1 for #ident #type_gen #where_clause {}
     })
     .into()
+}
+
+/// Derives `InstructionSet` for a valid type.
+#[proc_macro_error]
+#[proc_macro_derive(InstructionSet)]
+pub fn derive_instruction_set(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let out =
+        instruction_set::derive_instruction_set_impl(&parse_macro_input!(item as DeriveInput));
+    #[cfg(feature = "debug_instruction_set")]
+    {
+        println!("HELLO FROM THE MACRO");
+        println!("{out}");
+    }
+    out.into()
 }

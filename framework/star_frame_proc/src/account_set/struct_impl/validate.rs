@@ -1,19 +1,23 @@
 use crate::account_set::generics::AccountSetGenerics;
 use crate::account_set::{AccountSetStructArgs, StrippedDeriveInput};
-use crate::util::{BracketedGenerics, Paths};
+use crate::util::{BetterGenerics, Paths};
 use easy_proc::{find_attrs, ArgumentList};
 use proc_macro2::TokenStream;
 use proc_macro_error::abort;
 use quote::quote;
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
-use syn::{DataStruct, Expr, LitStr, Type};
+use syn::parse::Parse;
+use syn::{
+    bracketed, token, ConstParam, DataStruct, Expr, GenericParam, Generics, Ident, Lifetime,
+    LifetimeParam, LitStr, Token, Type, TypeParam,
+};
 
 #[derive(ArgumentList)]
 struct ValidateStructArgs {
     id: Option<LitStr>,
     arg: Option<Type>,
-    generics: Option<BracketedGenerics>,
+    generics: Option<BetterGenerics>,
     extra_validation: Option<Expr>,
 }
 
@@ -47,10 +51,12 @@ pub(super) fn validates(
         ..
     } = paths;
 
+    println!("Before");
     let mut validate_ids = HashMap::new();
     for validate_struct_args in
         find_attrs(&input.attrs, validate_ident).map(ValidateStructArgs::parse_arguments)
     {
+        println!("After");
         match validate_ids.entry(validate_struct_args.id.as_ref().map(LitStr::value)) {
             Entry::Vacant(entry) => {
                 entry.insert(validate_struct_args);

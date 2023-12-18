@@ -6,11 +6,11 @@ mod make_move;
 pub use make_move::*;
 
 use crate::instructions::create_duel::CreateDuel;
-use framework_test::{InstructionSet, ToBytes};
 use solana_program::entrypoint::ProgramResult;
+use star_frame::instruction::{InstructionSet, ToBytes};
 use std::fmt::Debug;
 
-use common_utils::AdvanceArray;
+use advance::AdvanceArray;
 
 #[repr(u8)]
 #[derive(InstructionSet, Debug)]

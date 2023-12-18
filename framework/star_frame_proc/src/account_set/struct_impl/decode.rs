@@ -1,6 +1,6 @@
 use crate::account_set::generics::AccountSetGenerics;
 use crate::account_set::{AccountSetStructArgs, StrippedDeriveInput};
-use crate::util::{BracketedGenerics, Paths};
+use crate::util::{BetterGenerics, Paths};
 use easy_proc::{find_attrs, ArgumentList};
 use proc_macro2::TokenStream;
 use proc_macro_error::abort;
@@ -13,7 +13,7 @@ use syn::{DataStruct, Expr, Fields, LitStr, Type};
 struct DecodeStructArgs {
     id: Option<LitStr>,
     arg: Option<Type>,
-    generics: Option<BracketedGenerics>,
+    generics: Option<BetterGenerics>,
 }
 
 #[derive(ArgumentList)]

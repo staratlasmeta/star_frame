@@ -1,13 +1,14 @@
 use crate::state::{Combatants, DuelAccount};
-use framework_test::{
-    AccountDataInit, AccountSet, DataAccountCleanup, FrameworkInstruction, InitAccount, InitArgs,
-    SafeAccountInfo, Signer, SysCallInvoke, SystemAccount, SystemProgram, ToBytes,
-};
+use solana_program::account_info::AccountInfo;
 use solana_program::entrypoint::ProgramResult;
 use solana_program::program_error::ProgramError;
 use solana_program::pubkey::Pubkey;
-use std::cell::RefMut;
-use std::ops::DerefMut;
+use star_frame::account_set::signer::Signer;
+use star_frame::account_set::system_account::SystemAccount;
+use star_frame::account_set::AccountSet;
+use star_frame::instruction::{FrameworkInstruction, ToBytes};
+use star_frame::program::system_program::SystemProgram;
+use star_frame::sys_calls::SysCallInvoke;
 
 // #[instruction]
 // mod instruction_module {
@@ -33,15 +34,16 @@ pub struct CreateDuel {
 }
 
 #[derive(Debug, AccountSet)]
+#[validate(arg = InitArgs<Combatants>)]
 pub struct CreateDuelAccounts<'info> {
-    pub player1: Signer<SafeAccountInfo<'info>>,
-    pub player2: SafeAccountInfo<'info>,
+    pub player1: Signer<AccountInfo<'info>>,
+    pub player2: AccountInfo<'info>,
     pub funder: SystemAccount<'info>,
     // TODO: Try to get Init account working? also use seeds there?
-    #[validate(ty = InitArgs<Combatants>, arg = self.init_args())]
+    #[validate(arg = self.init_args())]
     #[cleanup(arg = self.cleanup_args())]
     pub duel: InitAccount<'info, DuelAccount>,
-    pub system_program: SystemProgram<'info>,
+    pub system_program: SystemProgram,
 }
 impl<'info> CreateDuelAccounts<'info> {
     fn init_args(&self) -> InitArgs<'_, 'info, Combatants> {
@@ -77,7 +79,7 @@ impl<'a> FrameworkInstruction<'a> for CreateDuel {
     type ReturnType = ();
     type Accounts<'b, 'info> = CreateDuelAccounts<'info>;
 
-    fn from_bytes(_bytes: &'a [u8]) -> Result<Self, ProgramError> {
+    fn from_bytes_framework(_bytes: &'a [u8]) -> Result<Self, ProgramError> {
         todo!()
     }
 

@@ -4,7 +4,7 @@ use crate::account_set::struct_impl::validate::validates;
 use crate::account_set::{AccountSetStructArgs, StrippedDeriveInput};
 use crate::util::Paths;
 use proc_macro2::TokenStream;
-use quote::{quote, ToTokens};
+use quote::{format_ident, quote, ToTokens};
 use syn::{DataStruct, Index};
 
 mod cleanup;
@@ -128,7 +128,7 @@ pub(super) fn derive_account_set_impl_struct(
             }
             let (_, ty_generics, _) = main_generics.split_for_impl();
             let (impl_generics, _, where_clause) = generics.split_for_impl();
-
+            let field_name = field_name.iter().map(|field_name| format_ident!("__{}", field_name.to_string())).collect::<Vec<_>>();
             quote! {
                 #[automatically_derived]
                 impl #impl_generics #account_set_to_idl<#info_lifetime, #idl_type> for #ident #ty_generics #where_clause {

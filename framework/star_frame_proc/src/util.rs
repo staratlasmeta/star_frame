@@ -4,7 +4,11 @@ use proc_macro_error::abort;
 use quote::{format_ident, quote};
 use std::ops::{Deref, DerefMut};
 use syn::parse::{Parse, ParseStream};
-use syn::{bracketed, token, Attribute, Expr, ExprLit, Generics, Ident, Lit, Meta, MetaNameValue};
+use syn::punctuated::Punctuated;
+use syn::{
+    bracketed, token, Attribute, ConstParam, Expr, ExprLit, GenericParam, Generics, Ident,
+    Lifetime, LifetimeParam, Lit, Meta, MetaNameValue, Token, TypeParam,
+};
 
 pub struct Paths {
     pub crate_name: TokenStream,
@@ -60,32 +64,82 @@ impl Default for Paths {
     }
 }
 
-pub struct BracketedGenerics {
+#[derive(Debug)]
+pub struct BetterGenerics {
     _bracket: token::Bracket,
     generics: Generics,
 }
-impl BracketedGenerics {
+impl BetterGenerics {
     pub fn into_inner(self) -> Generics {
         self.generics
     }
 }
-impl Deref for BracketedGenerics {
+impl Deref for BetterGenerics {
     type Target = Generics;
 
     fn deref(&self) -> &Self::Target {
         &self.generics
     }
 }
-impl DerefMut for BracketedGenerics {
+impl DerefMut for BetterGenerics {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.generics
     }
 }
-impl Parse for BracketedGenerics {
+impl Parse for BetterGenerics {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let content;
         let _bracket = bracketed!(content in input);
-        let generics = content.parse()?;
+        let mut generics = if !content.peek(Token![<]) {
+            Generics::default()
+        } else {
+            let lt_token: Token![<] = content.parse()?;
+
+            let mut params = Punctuated::new();
+            loop {
+                if content.peek(Token![>]) {
+                    break;
+                }
+
+                let attrs = content.call(Attribute::parse_outer)?;
+                let lookahead = content.lookahead1();
+                if lookahead.peek(Lifetime) {
+                    params.push_value(GenericParam::Lifetime(LifetimeParam {
+                        attrs,
+                        ..content.parse()?
+                    }));
+                } else if lookahead.peek(Ident) {
+                    params.push_value(GenericParam::Type(TypeParam {
+                        attrs,
+                        ..content.parse()?
+                    }));
+                } else if lookahead.peek(Token![const]) {
+                    params.push_value(GenericParam::Const(ConstParam {
+                        attrs,
+                        ..content.parse()?
+                    }));
+                } else {
+                    return Err(lookahead.error());
+                }
+
+                if content.peek(Token![>]) {
+                    break;
+                }
+                let punct = content.parse()?;
+                params.push_punct(punct);
+            }
+
+            let gt_token: Token![>] = content.parse()?;
+
+            Generics {
+                lt_token: Some(lt_token),
+                params,
+                gt_token: Some(gt_token),
+                where_clause: None,
+            }
+        };
+        generics.where_clause = content.parse()?;
+        println!("Hello");
         Ok(Self { _bracket, generics })
     }
 }

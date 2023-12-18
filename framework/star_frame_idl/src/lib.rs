@@ -1,3 +1,5 @@
+extern crate alloc;
+
 pub mod account;
 pub mod account_discriminant;
 pub mod account_set;

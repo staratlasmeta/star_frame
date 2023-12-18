@@ -1,11 +1,13 @@
+pub mod un_callable;
+
+pub use star_frame_proc::InstructionSet;
+
 use crate::account_set::{AccountSetCleanup, AccountSetDecode, AccountSetValidate};
 use crate::sys_calls::{SysCallInvoke, SysCalls};
 use crate::Result;
 use solana_program::account_info::AccountInfo;
 use solana_program::program::MAX_RETURN_DATA;
 use solana_program::pubkey::Pubkey;
-
-pub mod un_callable;
 
 /// Writes this type to a set of bytes.
 pub trait ToBytes {
