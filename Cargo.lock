@@ -2083,15 +2083,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "tic_tac_toe"
-version = "0.1.0"
-dependencies = [
- "advance",
- "solana-program",
- "star_frame",
-]
-
-[[package]]
 name = "tiny-bip39"
 version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"

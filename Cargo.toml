@@ -4,7 +4,7 @@ members = [
     "advance",
 #    "common/*",
     "framework/star_*",
-    "framework/example_programs/*",
+#    "framework/example_programs/*",
     "programs/*",
 ]
 

@@ -33,6 +33,7 @@ pub struct Paths {
     pub decode_ident: Ident,
     pub validate_ident: Ident,
     pub cleanup_ident: Ident,
+    pub idl_ident: Ident,
 }
 impl Default for Paths {
     fn default() -> Self {
@@ -58,6 +59,7 @@ impl Default for Paths {
             decode_ident: format_ident!("decode"),
             validate_ident: format_ident!("validate"),
             cleanup_ident: format_ident!("cleanup"),
+            idl_ident: format_ident!("idl"),
 
             crate_name,
         }

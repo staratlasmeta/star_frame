@@ -4,7 +4,7 @@ use crate::account_set::struct_impl::validate::validates;
 use crate::account_set::{AccountSetStructArgs, StrippedDeriveInput};
 use crate::util::Paths;
 use proc_macro2::TokenStream;
-use quote::{format_ident, quote, ToTokens};
+use quote::{quote, ToTokens};
 use syn::{DataStruct, Index};
 
 mod cleanup;
@@ -33,17 +33,8 @@ pub(super) fn derive_account_set_impl_struct(
         account_info,
         result,
         account_set,
-        idl_account_set_def,
-        idl_account_set,
-        idl_account_set_struct_field,
-        account_set_id,
         ..
     } = &paths;
-
-    #[cfg(feature = "idl")]
-    let account_set_to_idl = &paths.account_set_to_idl;
-    #[cfg(feature = "idl")]
-    let idl_definition = &paths.idl_definition;
 
     let ident = &input.ident;
 
@@ -99,75 +90,15 @@ pub(super) fn derive_account_set_impl_struct(
     let idls: Vec<TokenStream>;
     #[cfg(feature = "idl")]
     {
-        use crate::util;
-        use proc_macro2::Span;
-        use std::iter::once;
-        use syn::{Expr, LitStr, Type, WhereClause};
-
-        let struct_docs = LitStr::new(&util::get_docs(&input.attrs), Span::call_site());
-        let ident_str = LitStr::new(&ident.to_string(), Span::call_site());
-        let field_docs: Vec<LitStr> = data_struct
-            .fields
-            .iter()
-            .map(|field| LitStr::new(&util::get_docs(&field.attrs), Span::call_site()))
-            .collect();
-        let field_str = field_name
-            .iter()
-            .map(|field_name| LitStr::new(&field_name.to_string(), Span::call_site()));
-        idls = once({
-            let idl_type: Type = syn::parse_quote!(());
-            let extra_where_clause: Option<WhereClause> = None;
-            let idl_args: Vec<Expr> = vec![syn::parse_quote!(()); field_type.len()];
-
-            let mut generics = other_generics.clone();
-            if let Some(extra_where_clause) = extra_where_clause {
-                generics
-                    .make_where_clause()
-                    .predicates
-                    .extend(extra_where_clause.predicates);
-            }
-            let (_, ty_generics, _) = main_generics.split_for_impl();
-            let (impl_generics, _, where_clause) = generics.split_for_impl();
-            let field_name = field_name.iter().map(|field_name| format_ident!("__{}", field_name.to_string())).collect::<Vec<_>>();
-            quote! {
-                #[automatically_derived]
-                impl #impl_generics #account_set_to_idl<#info_lifetime, #idl_type> for #ident #ty_generics #where_clause {
-                    fn account_set_to_idl(
-                        idl_definition: &mut #idl_definition,
-                        arg: #idl_type,
-                    ) -> #result<#idl_account_set_def> {
-                        #(let #field_name = <#field_type as #account_set_to_idl<#info_lifetime, _>>::account_set_to_idl(idl_definition, #idl_args)?;)*
-                        idl_definition.account_sets.insert(
-                            #ident_str.to_string(),
-                            #idl_account_set {
-                                name: #ident_str.to_string(),
-                                description: #struct_docs.to_string(),
-                                type_generics: vec![],
-                                account_generics: vec![],
-                                def: #idl_account_set_def::Struct(vec![#(
-                                    #idl_account_set_struct_field {
-                                        name: #field_str.to_string(),
-                                        description: #field_docs.to_string(),
-                                        path: #field_str.to_string(),
-                                        account_set: #field_name,
-                                        extension_fields: Default::default(),
-                                    },
-                                )*]),
-                                extension_fields: Default::default(),
-                            },
-                        );
-                        Ok(#idl_account_set_def::AccountSet(#account_set_id {
-                            namespace: None,
-                            account_set_id: #ident_str.to_string(),
-                            provided_type_generics: vec![],
-                            provided_account_generics: vec![],
-                            extension_fields: Default::default(),
-                        }))
-                    }
-                }
-            }
-        })
-        .collect();
+        idls = idl::idls(
+            &paths,
+            &input,
+            &account_set_struct_args,
+            &account_set_generics,
+            &data_struct,
+            &field_name,
+            &field_type,
+        );
     }
     #[cfg(not(feature = "idl"))]
     {
