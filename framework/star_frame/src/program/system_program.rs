@@ -6,7 +6,7 @@ use solana_program::program_error::ProgramError;
 use solana_program::pubkey::Pubkey;
 use solana_program::system_instruction::SystemInstruction;
 use solana_program::{msg, system_program};
-use star_frame::instruction::{InstructionSet, ToBytes};
+use star_frame::instruction::{FrameworkSerialize, InstructionSet};
 
 pub struct SystemProgram;
 impl Program for SystemProgram {
@@ -17,22 +17,21 @@ impl Program for SystemProgram {
         ProgramIds::AllNetworks(&system_program::ID)
     }
 }
-impl ToBytes for SystemInstruction {
+impl FrameworkSerialize for SystemInstruction {
     fn to_bytes(self, output: &mut &mut [u8]) -> Result<()> {
         bincode::serialize_into(output, &self).map_err(|_| {
             msg!("Failed to serialize system instruction");
             ProgramError::InvalidInstructionData
         })
     }
-}
-impl<'a> InstructionSet<'a> for SystemInstruction {
-    fn from_bytes(bytes: &'a [u8]) -> Result<Self> {
+    fn from_bytes(bytes: &[u8]) -> Result<Self> {
         bincode::deserialize(bytes).map_err(|_| {
             msg!("Failed to deserialize system instruction");
             ProgramError::InvalidInstructionData
         })
     }
-
+}
+impl<'a> InstructionSet<'a> for SystemInstruction {
     fn handle_ix(
         self,
         _program_id: &Pubkey,

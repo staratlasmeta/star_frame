@@ -1,4 +1,4 @@
-use crate::instruction::{InstructionSet, ToBytes};
+use crate::instruction::{FrameworkSerialize, InstructionSet};
 use crate::sys_calls::SysCalls;
 use crate::Result;
 use solana_program::account_info::AccountInfo;
@@ -6,17 +6,16 @@ use solana_program::pubkey::Pubkey;
 
 pub struct UnCallable;
 
-impl ToBytes for UnCallable {
+impl FrameworkSerialize for UnCallable {
     fn to_bytes(self, _output: &mut &mut [u8]) -> Result<()> {
         panic!("Cannot call to_bytes on Uncallable")
+    }
+    fn from_bytes(_bytes: &[u8]) -> Result<Self> {
+        panic!("Cannot call from_bytes on Uncallable")
     }
 }
 
 impl<'a> InstructionSet<'a> for UnCallable {
-    fn from_bytes(_bytes: &'a [u8]) -> Result<Self> {
-        panic!("Cannot call from_bytes on Uncallable")
-    }
-
     fn handle_ix(
         self,
         _program_id: &Pubkey,

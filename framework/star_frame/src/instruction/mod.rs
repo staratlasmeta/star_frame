@@ -10,15 +10,19 @@ use solana_program::program::MAX_RETURN_DATA;
 use solana_program::pubkey::Pubkey;
 
 /// Writes this type to a set of bytes.
-pub trait ToBytes {
+pub trait FrameworkSerialize: Sized {
     /// Writes this type to a set of bytes.
     fn to_bytes(self, output: &mut &mut [u8]) -> Result<()>;
+    /// Deserializes this type from a set of bytes.
+    fn from_bytes(bytes: &[u8]) -> Result<Self>
+    where
+        Self: Sized;
 }
 
 /// A set of instructions that can be used as input to a program.
-pub trait InstructionSet<'a>: Sized + ToBytes {
-    /// Gets the instruction from the instruction bytes.
-    fn from_bytes(bytes: &'a [u8]) -> Result<Self>;
+pub trait InstructionSet<'a>: FrameworkSerialize {
+    // /// Gets the instruction from the instruction bytes.
+    // fn from_bytes(bytes: &'a [u8]) -> Result<Self>;
     /// Handles the instruction obtained from [`InstructionSet::from_bytes`].
     fn handle_ix(
         self,
@@ -29,9 +33,7 @@ pub trait InstructionSet<'a>: Sized + ToBytes {
 }
 
 /// A callable instruction that can be used as input to a program.
-pub trait Instruction<'a>: Sized + ToBytes {
-    /// Decodes the instruction data from the instruction bytes.
-    fn from_bytes(bytes: &'a [u8]) -> Result<Self>;
+pub trait Instruction<'a>: Sized + FrameworkSerialize {
     /// Runs the instruction from a raw solana input.
     fn run_ix_from_raw(
         self,
@@ -50,7 +52,7 @@ pub trait Instruction<'a>: Sized + ToBytes {
 /// 4. Validate the accounts using [`Instruction::Accounts::validate_accounts`](AccountSetValidate::validate_accounts).
 /// 5. Run the instruction using [`Instruction::run_instruction`].
 /// 6. Set the solana return data using [`Instruction::ReturnType::to_bytes`].
-pub trait FrameworkInstruction<'a>: Sized + ToBytes {
+pub trait FrameworkInstruction<'a>: Sized + FrameworkSerialize {
     /// The instruction data type used to decode accounts.
     type DecodeArg;
     /// The instruction data type used to validate accounts.
@@ -61,7 +63,7 @@ pub trait FrameworkInstruction<'a>: Sized + ToBytes {
     type CleanupArg;
 
     /// The return type of this instruction.
-    type ReturnType: ToBytes;
+    type ReturnType: FrameworkSerialize;
 
     /// The [`AccountSet`] used by this instruction.
     type Accounts<'b, 'info>: AccountSetDecode<'b, 'info, Self::DecodeArg>
@@ -69,9 +71,6 @@ pub trait FrameworkInstruction<'a>: Sized + ToBytes {
         + AccountSetCleanup<'info, Self::CleanupArg>
     where
         'info: 'b;
-
-    /// Decodes the instruction data from the instruction bytes.
-    fn from_bytes_framework(bytes: &'a [u8]) -> Result<Self>;
 
     /// Splits self into decode, validate, and run args.
     fn split_to_args(
@@ -103,10 +102,6 @@ impl<'a, T> Instruction<'a> for T
 where
     T: FrameworkInstruction<'a>,
 {
-    fn from_bytes(bytes: &'a [u8]) -> Result<Self> {
-        <Self as FrameworkInstruction<'a>>::from_bytes_framework(bytes)
-    }
-
     fn run_ix_from_raw(
         self,
         program_id: &Pubkey,

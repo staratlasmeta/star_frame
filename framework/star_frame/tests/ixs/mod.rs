@@ -4,7 +4,7 @@ use advance::AdvanceArray;
 use solana_program::account_info::AccountInfo;
 use solana_program::pubkey::Pubkey;
 use star_frame::idl::{InstructionSetToIdl, InstructionToIdl};
-use star_frame::instruction::{Instruction, InstructionSet, ToBytes};
+use star_frame::instruction::{FrameworkSerialize, Instruction, InstructionSet};
 use star_frame::sys_calls::SysCalls;
 use star_frame::unit_enum_from_repr::UnitEnumFromRepr;
 use star_frame::Result;
@@ -18,11 +18,11 @@ pub mod test_ix2;
 #[derive(EnumDiscriminants)]
 #[strum_discriminants(repr(u32), derive(UnitEnumFromRepr))]
 pub enum TestProgramInstructions<'a> {
-    TestInstruction1(&'a TestInstruction1),
+    TestInstruction1(TestInstruction1),
     TestInstruction2(&'a TestInstruction2),
 }
 
-impl<'a> ToBytes for TestProgramInstructions<'a> {
+impl<'a> FrameworkSerialize for TestProgramInstructions<'a> {
     fn to_bytes(self, output: &mut &mut [u8]) -> Result<()> {
         match self {
             TestProgramInstructions::TestInstruction1(ix) => {
@@ -43,21 +43,21 @@ impl<'a> ToBytes for TestProgramInstructions<'a> {
             }
         }
     }
-}
 
-impl<'a> InstructionSet<'a> for TestProgramInstructions<'a> {
-    fn from_bytes(mut bytes: &'a [u8]) -> Result<Self> {
+    fn from_bytes(mut bytes: &[u8]) -> Result<Self> {
         let discriminant = u32::from_le_bytes(*bytes.try_advance_array()?);
         match TestProgramInstructionsDiscriminants::from_repr_or_error(discriminant)? {
             TestProgramInstructionsDiscriminants::TestInstruction1 => Ok(Self::TestInstruction1(
-                <&'a TestInstruction1>::from_bytes(bytes)?,
+                <TestInstruction1>::from_bytes(bytes)?,
             )),
             TestProgramInstructionsDiscriminants::TestInstruction2 => Ok(Self::TestInstruction2(
                 <&'a TestInstruction2>::from_bytes(bytes)?,
             )),
         }
     }
+}
 
+impl<'a> InstructionSet<'a> for TestProgramInstructions<'a> {
     fn handle_ix(
         self,
         _program_id: &Pubkey,
@@ -70,7 +70,7 @@ impl<'a> InstructionSet<'a> for TestProgramInstructions<'a> {
 
 impl<'a> InstructionSetToIdl<'a> for TestProgramInstructions<'a> {
     fn instruction_set_to_idl(idl_definition: &mut IdlDefinition) -> Result<()> {
-        let test_instruction_1 = <&'a TestInstruction1>::instruction_to_idl(idl_definition, ())?;
+        let test_instruction_1 = <TestInstruction1>::instruction_to_idl(idl_definition, ())?;
         idl_definition.instructions.insert(
             "TestInstruction1".to_string(),
             IdlInstruction {

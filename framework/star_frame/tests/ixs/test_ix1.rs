@@ -1,46 +1,55 @@
 use advance::AdvanceArray;
+use borsh::{BorshDeserialize, BorshSerialize};
 use bytemuck::{from_bytes, Pod, Zeroable};
 use solana_program::account_info::AccountInfo;
+use solana_program::program_error::ProgramError;
 use solana_program::pubkey::Pubkey;
 use star_frame::account_set::AccountSet;
 use star_frame::idl::ty::TypeToIdl;
 use star_frame::idl::{AccountSetToIdl, InstructionToIdl};
 use star_frame::impls::option::Remaining;
-use star_frame::instruction::{FrameworkInstruction, ToBytes};
-use star_frame::sys_calls::SysCallInvoke;
+use star_frame::instruction::{FrameworkInstruction, FrameworkSerialize, Instruction};
+use star_frame::sys_calls::{SysCallInvoke, SysCalls};
 use star_frame_idl::instruction::IdlInstructionDef;
 use star_frame_idl::ty::{IdlField, IdlTypeDef};
 use star_frame_idl::IdlDefinition;
 use std::mem::size_of;
 
-#[derive(Pod, Copy, Clone, Zeroable)]
-#[repr(C, packed)]
+#[derive(BorshSerialize, BorshDeserialize, Copy, Clone, Zeroable)]
+#[repr(C)]
 pub struct TestInstruction1 {
     pub val: u32,
     pub val2: u64,
     pub val3: i8,
 }
 
-impl<'a> ToBytes for &'a TestInstruction1 {
+impl FrameworkSerialize for TestInstruction1 {
     fn to_bytes(self, output: &mut &mut [u8]) -> star_frame::Result<()> {
-        let output_bytes: &mut [_; size_of::<TestInstruction1>()] = output.try_advance_array()?;
-        output_bytes.copy_from_slice(bytemuck::bytes_of(self));
-        Ok(())
+        BorshSerialize::serialize(&self, output)
+            .map_err(|_| ProgramError::BorshIoError("TestInstruction1".to_string()))
+    }
+
+    fn from_bytes(mut bytes: &[u8]) -> star_frame::Result<Self>
+    where
+        Self: Sized,
+    {
+        BorshDeserialize::deserialize(&mut bytes)
+            .map_err(|_| ProgramError::BorshIoError("TestInstruction1".to_string()))
     }
 }
 
-impl<'a> FrameworkInstruction<'a> for &'a TestInstruction1 {
+impl<'a> FrameworkInstruction<'a> for TestInstruction1 {
     type DecodeArg = i8;
     type ValidateArg = u64;
-    type RunArg = &'a i8;
+    type RunArg = i8;
     type CleanupArg = (u32, u64);
     type ReturnType = ();
     type Accounts<'b, 'info> = TestInstruction1Accounts<'b, 'info> where 'info: 'b;
-
-    fn from_bytes_framework(mut bytes: &'a [u8]) -> star_frame::Result<Self> {
-        let bytes: &[_; size_of::<TestInstruction1>()] = bytes.try_advance_array()?;
-        Ok(from_bytes(bytes))
-    }
+    //
+    // fn from_bytes_framework(mut bytes: &'a [u8]) -> star_frame::Result<Self> {
+    //     BorshDeserialize::deserialize(&mut bytes)
+    //         .map_err(|_| ProgramError::BorshIoError("TestInstruction1".to_string()))
+    // }
 
     fn split_to_args(
         self,
@@ -50,7 +59,7 @@ impl<'a> FrameworkInstruction<'a> for &'a TestInstruction1 {
         Self::RunArg,
         Self::CleanupArg,
     ) {
-        (self.val3, self.val2, &self.val3, (self.val, self.val2))
+        (self.val3, self.val2, self.val3, (self.val, self.val2))
     }
 
     fn run_instruction(
@@ -64,7 +73,7 @@ impl<'a> FrameworkInstruction<'a> for &'a TestInstruction1 {
 }
 
 #[automatically_derived]
-impl<'a> InstructionToIdl<'a, ()> for &'a TestInstruction1 {
+impl<'a> InstructionToIdl<'a, ()> for TestInstruction1 {
     fn instruction_to_idl(
         idl_definition: &mut IdlDefinition,
         arg: (),

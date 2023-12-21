@@ -141,7 +141,6 @@ impl Parse for BetterGenerics {
             }
         };
         generics.where_clause = content.parse()?;
-        println!("Hello");
         Ok(Self { _bracket, generics })
     }
 }

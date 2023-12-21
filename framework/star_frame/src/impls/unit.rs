@@ -1,5 +1,5 @@
 use crate::account_set::{AccountSet, AccountSetCleanup, AccountSetDecode, AccountSetValidate};
-use crate::instruction::ToBytes;
+use crate::instruction::FrameworkSerialize;
 use crate::sys_calls::{SysCallInvoke, SysCalls};
 use crate::Result;
 use solana_program::account_info::AccountInfo;
@@ -51,16 +51,15 @@ impl<'info> AccountSetCleanup<'info, ()> for () {
     }
 }
 
-impl ToBytes for () {
+impl FrameworkSerialize for () {
     fn to_bytes(self, _output: &mut &mut [u8]) -> Result<()> {
+        Ok(())
+    }
+    fn from_bytes(_bytes: &[u8]) -> Result<Self> {
         Ok(())
     }
 }
 impl<'a> InstructionSet<'a> for () {
-    fn from_bytes(_bytes: &'a [u8]) -> Result<Self> {
-        Ok(())
-    }
-
     fn handle_ix(
         self,
         _program_id: &Pubkey,
