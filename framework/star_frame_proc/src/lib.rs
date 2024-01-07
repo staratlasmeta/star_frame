@@ -30,7 +30,7 @@ fn get_crate_name() -> TokenStream {
 #[proc_macro_derive(AccountSet, attributes(account_set, decode, validate, cleanup))]
 pub fn derive_account_set(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let out = account_set::derive_account_set_impl(parse_macro_input!(input as DeriveInput));
-    println!("{}", out);
+    // println!("{}", out);
     out.into()
 }
 

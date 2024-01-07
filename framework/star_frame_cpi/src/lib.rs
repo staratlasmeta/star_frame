@@ -1,8 +1,9 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use proc_macro_error::{abort, proc_macro_error};
 use quote::quote;
 use star_frame_idl::verifier::verify_idl_definitions;
 use star_frame_idl::IdlDefinition;
+use std::env::current_dir;
 use std::fs::File;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
@@ -66,7 +67,12 @@ impl IdlFiles {
     fn read_files(&self) -> Result<Vec<IdlDefinition>> {
         self.files
             .iter()
-            .map(|f| Ok(serde_json::from_reader(File::open(f.value())?)?))
+            .map(|f| {
+                let path = current_dir()?.join(f.value());
+                let file = File::open(f.value())
+                    .map_err(|e| anyhow!("Could not open path {path:?}: {e}"))?;
+                Ok(serde_json::from_reader(file)?)
+            })
             .collect()
     }
 }

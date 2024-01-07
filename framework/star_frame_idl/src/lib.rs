@@ -10,7 +10,7 @@ pub mod ty;
 #[cfg(feature = "verifier")]
 pub mod verifier;
 
-use crate::serde_impls::{serde_as_option, serde_base58_pubkey};
+use crate::serde_impls::serde_base58_pubkey;
 use account::IdlAccount;
 use account_set::IdlAccountSet;
 use instruction::IdlInstruction;
@@ -44,7 +44,7 @@ pub struct IdlDefinition {
     pub types: HashMap<String, IdlType>,
     pub account_sets: HashMap<String, IdlAccountSet>,
     pub instructions: HashMap<String, IdlInstruction>,
-    #[serde(with = "serde_as_option", skip_serializing_if = "HashMap::is_empty")]
+    // #[serde(with = "serde_as_option", skip_serializing_if = "HashMap::is_empty")]
     pub extension_fields: HashMap<ExtensionClass, Value>,
 }
 impl IdlDefinition {
@@ -265,7 +265,7 @@ pub enum ProgramIds {
 pub struct NetworkKey {
     #[serde(with = "serde_base58_pubkey")]
     pub key: Pubkey,
-    #[serde(with = "serde_as_option", skip_serializing_if = "HashMap::is_empty")]
+    // #[serde(with = "serde_as_option", skip_serializing_if = "HashMap::is_empty")]
     pub extension_fields: HashMap<ExtensionClass, Value>,
 }
 impl From<Pubkey> for NetworkKey {
@@ -299,7 +299,7 @@ pub enum DiscriminantId {
     Plugin {
         plugin_id: String,
         disc_ty: String,
-        #[serde(with = "serde_as_option", skip_serializing_if = "HashMap::is_empty")]
+        // #[serde(with = "serde_as_option", skip_serializing_if = "HashMap::is_empty")]
         extension_fields: HashMap<ExtensionClass, Value>,
     },
 }
@@ -309,7 +309,7 @@ pub struct IdlGeneric {
     pub name: String,
     pub description: String,
     pub generic_id: String,
-    #[serde(with = "serde_as_option", skip_serializing_if = "HashMap::is_empty")]
+    // #[serde(with = "serde_as_option", skip_serializing_if = "HashMap::is_empty")]
     pub extension_fields: HashMap<ExtensionClass, Value>,
 }
 

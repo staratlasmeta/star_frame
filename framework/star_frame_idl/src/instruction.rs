@@ -1,5 +1,5 @@
 use crate::account_set::IdlAccountSetDef;
-use crate::serde_impls::serde_as_option;
+// use crate::serde_impls::serde_as_option;
 use crate::ty::IdlTypeDef;
 use crate::ExtensionClass;
 use serde::{Deserialize, Serialize};
@@ -12,7 +12,7 @@ pub struct IdlInstruction {
     pub description: String,
     pub discriminant: Value,
     pub definition: IdlInstructionDef,
-    #[serde(with = "serde_as_option", skip_serializing_if = "HashMap::is_empty")]
+    // #[serde(with = "serde_as_option", skip_serializing_if = "HashMap::is_empty")]
     pub extension_fields: HashMap<ExtensionClass, Value>,
 }
 

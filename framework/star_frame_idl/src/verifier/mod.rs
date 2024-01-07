@@ -6,5 +6,6 @@ where
     I: IntoIterator,
     I::IntoIter: Iterator<Item = &'a IdlDefinition> + Clone,
 {
-    todo!()
+    eprintln!("TODO: verify_idl_definitions");
+    Ok(())
 }

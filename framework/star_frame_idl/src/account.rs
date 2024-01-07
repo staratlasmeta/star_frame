@@ -1,5 +1,5 @@
 use crate::seeds::IdlSeeds;
-use crate::serde_impls::serde_as_option;
+// use crate::serde_impls::serde_as_option;
 use crate::ty::IdlTypeDef;
 use crate::ExtensionClass;
 use serde::{Deserialize, Serialize};
@@ -13,7 +13,7 @@ pub struct IdlAccount {
     pub discriminant: Value,
     pub ty: IdlTypeDef,
     pub seeds: IdlSeeds,
-    #[serde(with = "serde_as_option", skip_serializing_if = "HashMap::is_empty")]
+    // #[serde(with = "serde_as_option", skip_serializing_if = "HashMap::is_empty")]
     pub extension_fields: HashMap<ExtensionClass, Value>,
 }
 
@@ -21,6 +21,6 @@ pub struct IdlAccount {
 pub struct AccountId {
     pub namespace: Option<String>,
     pub account_id: String,
-    #[serde(with = "serde_as_option", skip_serializing_if = "HashMap::is_empty")]
+    // #[serde(with = "serde_as_option", skip_serializing_if = "HashMap::is_empty")]
     pub extension_fields: HashMap<ExtensionClass, Value>,
 }

@@ -53,27 +53,27 @@ impl<K, V, S> Len for HashMap<K, V, S> {
     }
 }
 
-pub mod serde_as_option {
-    use crate::serde_impls::Len;
-    use serde::{Deserialize, Serialize};
-
-    pub fn serialize<S, L: Len + Serialize>(val: &L, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        if val.is_empty() {
-            Option::<L>::None.serialize(serializer)
-        } else {
-            Some(val).serialize(serializer)
-        }
-    }
-
-    pub fn deserialize<'de, D, L: Deserialize<'de> + Default>(
-        deserializer: D,
-    ) -> Result<L, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        Option::<L>::deserialize(deserializer).map(|v| v.unwrap_or_default())
-    }
-}
+// pub mod serde_as_option {
+//     use crate::serde_impls::Len;
+//     use serde::{Deserialize, Serialize};
+//
+//     pub fn serialize<S, L: Len + Serialize>(val: &L, serializer: S) -> Result<S::Ok, S::Error>
+//     where
+//         S: serde::Serializer,
+//     {
+//         if val.is_empty() {
+//             Option::<L>::None.serialize(serializer)
+//         } else {
+//             Some(val).serialize(serializer)
+//         }
+//     }
+//
+//     pub fn deserialize<'de, D, L: Deserialize<'de> + Default>(
+//         deserializer: D,
+//     ) -> Result<L, D::Error>
+//     where
+//         D: serde::Deserializer<'de>,
+//     {
+//         Option::<L>::deserialize(deserializer).map(|v| v.unwrap_or_default())
+//     }
+// }

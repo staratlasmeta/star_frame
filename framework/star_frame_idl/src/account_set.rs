@@ -1,5 +1,5 @@
 use crate::account::AccountId;
-use crate::serde_impls::serde_as_option;
+// use crate::serde_impls::serde_as_option;
 use crate::ty::IdlTypeDef;
 use crate::{ExtensionClass, IdlGeneric};
 use serde::{Deserialize, Serialize};
@@ -12,7 +12,7 @@ pub struct AccountSetId {
     pub account_set_id: String,
     pub provided_type_generics: Vec<IdlTypeDef>,
     pub provided_account_generics: Vec<IdlAccountSetDef>,
-    #[serde(with = "serde_as_option", skip_serializing_if = "HashMap::is_empty")]
+    // #[serde(with = "serde_as_option", skip_serializing_if = "HashMap::is_empty")]
     pub extension_fields: HashMap<ExtensionClass, Value>,
 }
 
@@ -23,7 +23,7 @@ pub struct IdlAccountSet {
     pub type_generics: Vec<IdlGeneric>,
     pub account_generics: Vec<IdlGeneric>,
     pub def: IdlAccountSetDef,
-    #[serde(with = "serde_as_option", skip_serializing_if = "HashMap::is_empty")]
+    // #[serde(with = "serde_as_option", skip_serializing_if = "HashMap::is_empty")]
     pub extension_fields: HashMap<ExtensionClass, Value>,
 }
 
@@ -45,7 +45,7 @@ pub enum IdlAccountSetDef {
         account_set: String,
         provided_type_generics: Vec<IdlTypeDef>,
         provided_account_generics: Vec<IdlAccountSetDef>,
-        #[serde(with = "serde_as_option", skip_serializing_if = "HashMap::is_empty")]
+        // #[serde(with = "serde_as_option", skip_serializing_if = "HashMap::is_empty")]
         extension_fields: HashMap<ExtensionClass, Value>,
     },
 }
@@ -56,7 +56,7 @@ pub struct IdlAccountSetStructField {
     pub description: String,
     pub path: String,
     pub account_set: IdlAccountSetDef,
-    #[serde(with = "serde_as_option", skip_serializing_if = "HashMap::is_empty")]
+    // #[serde(with = "serde_as_option", skip_serializing_if = "HashMap::is_empty")]
     pub extension_fields: HashMap<ExtensionClass, Value>,
 }
 
@@ -67,6 +67,6 @@ pub struct IdlRawInputAccount {
     pub allow_uninitialized: bool,
     pub signer: bool,
     pub writable: bool,
-    #[serde(with = "serde_as_option", skip_serializing_if = "HashMap::is_empty")]
+    // #[serde(with = "serde_as_option", skip_serializing_if = "HashMap::is_empty")]
     pub extension_fields: HashMap<ExtensionClass, Value>,
 }
