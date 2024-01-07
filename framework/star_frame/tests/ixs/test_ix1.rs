@@ -1,6 +1,5 @@
-use advance::AdvanceArray;
 use borsh::{BorshDeserialize, BorshSerialize};
-use bytemuck::{from_bytes, Pod, Zeroable};
+use bytemuck::Zeroable;
 use solana_program::account_info::AccountInfo;
 use solana_program::program_error::ProgramError;
 use solana_program::pubkey::Pubkey;
@@ -8,12 +7,11 @@ use star_frame::account_set::AccountSet;
 use star_frame::idl::ty::TypeToIdl;
 use star_frame::idl::{AccountSetToIdl, InstructionToIdl};
 use star_frame::impls::option::Remaining;
-use star_frame::instruction::{FrameworkInstruction, FrameworkSerialize, Instruction};
-use star_frame::sys_calls::{SysCallInvoke, SysCalls};
+use star_frame::instruction::{FrameworkInstruction, FrameworkSerialize};
+use star_frame::sys_calls::SysCallInvoke;
 use star_frame_idl::instruction::IdlInstructionDef;
 use star_frame_idl::ty::{IdlField, IdlTypeDef};
 use star_frame_idl::IdlDefinition;
-use std::mem::size_of;
 
 #[derive(BorshSerialize, BorshDeserialize, Copy, Clone, Zeroable)]
 #[repr(C)]

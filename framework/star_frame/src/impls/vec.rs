@@ -311,3 +311,32 @@ where
         Ok(())
     }
 }
+
+#[cfg(feature = "idl")]
+pub mod idl_impl {
+    use crate::idl::AccountSetToIdl;
+    use star_frame_idl::account_set::IdlAccountSetDef;
+    use star_frame_idl::IdlDefinition;
+
+    pub struct VecSize {
+        pub min: usize,
+        pub max: Option<usize>,
+    }
+
+    impl<'info, T, A> AccountSetToIdl<'info, (VecSize, A)> for Vec<T>
+    where
+        T: AccountSetToIdl<'info, A>,
+    {
+        fn account_set_to_idl(
+            idl_definition: &mut IdlDefinition,
+            arg: (VecSize, A),
+        ) -> crate::Result<IdlAccountSetDef> {
+            let account = Box::new(T::account_set_to_idl(idl_definition, arg.1)?);
+            Ok(IdlAccountSetDef::Many {
+                account,
+                min: arg.0.min,
+                max: arg.0.max,
+            })
+        }
+    }
+}

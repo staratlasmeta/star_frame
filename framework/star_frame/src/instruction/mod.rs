@@ -21,8 +21,9 @@ pub trait FrameworkSerialize: Sized {
 
 /// A set of instructions that can be used as input to a program.
 pub trait InstructionSet<'a>: FrameworkSerialize {
-    // /// Gets the instruction from the instruction bytes.
-    // fn from_bytes(bytes: &'a [u8]) -> Result<Self>;
+    /// The discriminant type used by this program's accounts.
+    type Discriminant;
+
     /// Handles the instruction obtained from [`InstructionSet::from_bytes`].
     fn handle_ix(
         self,
@@ -52,7 +53,7 @@ pub trait Instruction<'a>: Sized + FrameworkSerialize {
 /// 4. Validate the accounts using [`Instruction::Accounts::validate_accounts`](AccountSetValidate::validate_accounts).
 /// 5. Run the instruction using [`Instruction::run_instruction`].
 /// 6. Set the solana return data using [`Instruction::ReturnType::to_bytes`].
-pub trait FrameworkInstruction<'a>: Sized + FrameworkSerialize {
+pub trait FrameworkInstruction<'a>: FrameworkSerialize {
     /// The instruction data type used to decode accounts.
     type DecodeArg;
     /// The instruction data type used to validate accounts.

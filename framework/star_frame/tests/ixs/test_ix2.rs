@@ -7,7 +7,7 @@ use star_frame::account_set::signer::Signer;
 use star_frame::account_set::AccountSet;
 use star_frame::idl::ty::TypeToIdl;
 use star_frame::idl::{AccountSetToIdl, InstructionToIdl};
-use star_frame::instruction::{FrameworkInstruction, FrameworkSerialize, InstructionSet};
+use star_frame::instruction::{FrameworkInstruction, FrameworkSerialize};
 use star_frame::sys_calls::SysCallInvoke;
 use star_frame::Result;
 use star_frame_idl::instruction::IdlInstructionDef;

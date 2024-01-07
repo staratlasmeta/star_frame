@@ -8,7 +8,7 @@ use proc_macro_error::abort;
 use quote::{format_ident, quote};
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
-use syn::{DataStruct, Expr, LitStr, Type, WhereClause};
+use syn::{DataStruct, Expr, LitStr, Type};
 
 #[derive(ArgumentList)]
 struct IdlStructArgs {
@@ -117,19 +117,21 @@ pub(super) fn idls(
 
     idl_ids.into_iter().map(|(id, idl_struct_args)|{
         let idl_type: Type = idl_struct_args.arg.unwrap_or_else(|| syn::parse_quote!(()));
-        let extra_where_clause: Option<WhereClause> = idl_struct_args.generics.and_then(|generics| generics.where_clause.clone());
         let idl_args: Vec<Expr> = field_idls.iter().map(|f| {
             f.iter().find(|f| f.id.as_ref().map(LitStr::value) == id).map(|f| f.arg.clone()).unwrap_or_else(|| syn::parse_quote!(()))
         }).collect();
 
-        let mut generics = other_generics.clone();
-        if let Some(extra_where_clause) = extra_where_clause {
-            generics
-                .make_where_clause()
-                .predicates
-                .extend(extra_where_clause.predicates);
-        }
         let (_, ty_generics, _) = main_generics.split_for_impl();
+        let mut generics = other_generics.clone();
+        if let Some(extra_generics) = idl_struct_args.generics.map(|g| g.into_inner()) {
+            generics.params.extend(extra_generics.params);
+            if let Some(extra_where_clause) = extra_generics.where_clause {
+                generics
+                    .make_where_clause()
+                    .predicates
+                    .extend(extra_where_clause.predicates);
+            }
+        }
         let (impl_generics, _, where_clause) = generics.split_for_impl();
         let field_name = field_name.iter().map(|field_name| format_ident!("__{}", field_name.to_string())).collect::<Vec<_>>();
         quote! {

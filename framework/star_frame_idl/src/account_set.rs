@@ -34,6 +34,11 @@ pub enum IdlAccountSetDef {
     Signer(Box<IdlAccountSetDef>),
     Writable(Box<IdlAccountSetDef>),
     Struct(Vec<IdlAccountSetStructField>),
+    Many {
+        account: Box<IdlAccountSetDef>,
+        min: usize,
+        max: Option<usize>,
+    },
     /// One of the set defs in the vec
     Or(Vec<IdlAccountSetDef>),
     Generic {

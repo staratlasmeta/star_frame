@@ -30,3 +30,7 @@ serde_json = { version = "1.0.108", optional = true }
 [dev-dependencies]
 lazy_static = "1.4.0"
 strum = { version = "0.25.0", features = ["derive"] }
+
+[[example]]
+name = "cool_example"
+crate-type = ["staticlib"]

@@ -38,7 +38,7 @@ lazy_static! {
 pub struct TestProgram;
 impl Program for TestProgram {
     type InstructionSet<'a> = TestProgramInstructions<'a>;
-    type Discriminant = u32;
+    type InstructionDiscriminant = u32;
 
     fn program_id() -> ProgramIds {
         ProgramIds::Mapped(&*TEST_PROGRAM_PUBKEYS)
@@ -92,7 +92,7 @@ pub struct TestAccount1 {
 impl ProgramAccount for TestAccount1 {
     type OwnerProgram = TestProgram;
 
-    fn discriminant() -> <Self::OwnerProgram as Program>::Discriminant {
+    fn discriminant() -> <Self::OwnerProgram as Program>::InstructionDiscriminant {
         1
     }
 }

@@ -1,4 +1,5 @@
 pub mod mutable;
+mod rest;
 pub mod signer;
 pub mod system_account;
 

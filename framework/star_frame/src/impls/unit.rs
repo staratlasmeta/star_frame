@@ -60,6 +60,8 @@ impl FrameworkSerialize for () {
     }
 }
 impl<'a> InstructionSet<'a> for () {
+    type Discriminant = ();
+
     fn handle_ix(
         self,
         _program_id: &Pubkey,

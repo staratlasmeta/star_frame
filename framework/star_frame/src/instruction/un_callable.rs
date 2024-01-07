@@ -3,6 +3,7 @@ use crate::sys_calls::SysCalls;
 use crate::Result;
 use solana_program::account_info::AccountInfo;
 use solana_program::pubkey::Pubkey;
+use std::convert::Infallible;
 
 pub struct UnCallable;
 
@@ -10,12 +11,15 @@ impl FrameworkSerialize for UnCallable {
     fn to_bytes(self, _output: &mut &mut [u8]) -> Result<()> {
         panic!("Cannot call to_bytes on Uncallable")
     }
+
     fn from_bytes(_bytes: &[u8]) -> Result<Self> {
         panic!("Cannot call from_bytes on Uncallable")
     }
 }
 
 impl<'a> InstructionSet<'a> for UnCallable {
+    type Discriminant = Infallible;
+
     fn handle_ix(
         self,
         _program_id: &Pubkey,

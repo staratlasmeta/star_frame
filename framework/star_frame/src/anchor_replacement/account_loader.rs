@@ -22,7 +22,7 @@ use std::ops::Deref;
 pub struct AccountLoader<'info, T>
 where
     T: Pod + ProgramAccount,
-    T::OwnerProgram: Program<Discriminant = [u8; 8]>,
+    T::OwnerProgram: Program<InstructionDiscriminant = [u8; 8]>,
 {
     info: AccountInfo<'info>,
     data: PhantomData<&'info T>,
@@ -31,7 +31,7 @@ where
 impl<'info, T> AccountLoader<'info, T>
 where
     T: Pod + ProgramAccount,
-    T::OwnerProgram: Program<Discriminant = [u8; 8]>,
+    T::OwnerProgram: Program<InstructionDiscriminant = [u8; 8]>,
 {
     pub fn new(acc_info: AccountInfo<'info>) -> Self {
         Self {
@@ -97,7 +97,7 @@ where
 impl<'info, T> AccountSet<'info> for AccountLoader<'info, T>
 where
     T: Pod + ProgramAccount,
-    T::OwnerProgram: Program<Discriminant = [u8; 8]>,
+    T::OwnerProgram: Program<InstructionDiscriminant = [u8; 8]>,
 {
     fn try_to_accounts<'a, E>(
         &'a self,
@@ -116,7 +116,7 @@ where
 impl<'info, T> SingleAccountSet<'info> for AccountLoader<'info, T>
 where
     T: Pod + ProgramAccount,
-    T::OwnerProgram: Program<Discriminant = [u8; 8]>,
+    T::OwnerProgram: Program<InstructionDiscriminant = [u8; 8]>,
 {
     fn account_info(&self) -> &AccountInfo<'info> {
         &self.info
@@ -126,7 +126,7 @@ where
 impl<'a, 'info, T> AccountSetDecode<'a, 'info, ()> for AccountLoader<'info, T>
 where
     T: Pod + ProgramAccount,
-    T::OwnerProgram: Program<Discriminant = [u8; 8]>,
+    T::OwnerProgram: Program<InstructionDiscriminant = [u8; 8]>,
 {
     fn decode_accounts(
         accounts: &mut &'a [AccountInfo<'info>],
@@ -143,7 +143,7 @@ impl<'a, 'info, T> AccountSetValidate<'info, AnchorValidateArgs<'a, 'info>>
     for AccountLoader<'info, T>
 where
     T: Pod + ProgramAccount,
-    T::OwnerProgram: Program<Discriminant = [u8; 8]>,
+    T::OwnerProgram: Program<InstructionDiscriminant = [u8; 8]>,
 {
     fn validate_accounts(
         &mut self,
@@ -158,7 +158,7 @@ impl<'a, 'info, T> AccountSetCleanup<'info, AnchorValidateArgs<'a, 'info>>
     for AccountLoader<'info, T>
 where
     T: Pod + ProgramAccount,
-    T::OwnerProgram: Program<Discriminant = [u8; 8]>,
+    T::OwnerProgram: Program<InstructionDiscriminant = [u8; 8]>,
 {
     fn cleanup_accounts(
         &mut self,
@@ -192,7 +192,7 @@ mod idl_impl {
         for AccountLoader<'info1, T>
     where
         T: Pod + ProgramAccount + AccountToIdl,
-        T::OwnerProgram: Program<Discriminant = [u8; 8]>,
+        T::OwnerProgram: Program<InstructionDiscriminant = [u8; 8]>,
     {
         fn account_set_to_idl(
             idl_definition: &mut IdlDefinition,

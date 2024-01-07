@@ -4,7 +4,7 @@ use advance::AdvanceArray;
 use solana_program::account_info::AccountInfo;
 use solana_program::pubkey::Pubkey;
 use star_frame::idl::{InstructionSetToIdl, InstructionToIdl};
-use star_frame::instruction::{FrameworkSerialize, Instruction, InstructionSet};
+use star_frame::instruction::{FrameworkSerialize, InstructionSet};
 use star_frame::sys_calls::SysCalls;
 use star_frame::unit_enum_from_repr::UnitEnumFromRepr;
 use star_frame::Result;
@@ -58,6 +58,8 @@ impl<'a> FrameworkSerialize for TestProgramInstructions<'a> {
 }
 
 impl<'a> InstructionSet<'a> for TestProgramInstructions<'a> {
+    type Discriminant = u32;
+
     fn handle_ix(
         self,
         _program_id: &Pubkey,

@@ -11,7 +11,7 @@ use star_frame::instruction::{FrameworkSerialize, InstructionSet};
 pub struct SystemProgram;
 impl Program for SystemProgram {
     type InstructionSet<'a> = SystemInstruction;
-    type Discriminant = ();
+    type InstructionDiscriminant = ();
 
     fn program_id() -> ProgramIds {
         ProgramIds::AllNetworks(&system_program::ID)
@@ -32,6 +32,8 @@ impl FrameworkSerialize for SystemInstruction {
     }
 }
 impl<'a> InstructionSet<'a> for SystemInstruction {
+    type Discriminant = ();
+
     fn handle_ix(
         self,
         _program_id: &Pubkey,
