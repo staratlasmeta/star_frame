@@ -12,7 +12,7 @@ pub struct IdlInstruction {
     pub description: String,
     pub discriminant: Value,
     pub definition: IdlInstructionDef,
-    // #[serde(with = "serde_as_option", skip_serializing_if = "HashMap::is_empty")]
+    #[serde(skip_serializing_if = "HashMap::is_empty")]
     pub extension_fields: HashMap<ExtensionClass, Value>,
 }
 

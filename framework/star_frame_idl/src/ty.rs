@@ -10,7 +10,7 @@ pub struct TypeId {
     pub namespace: Option<String>,
     pub type_id: String,
     pub provided_generics: Vec<IdlTypeDef>,
-    // #[serde(with = "serde_as_option", skip_serializing_if = "HashMap::is_empty")]
+    #[serde(skip_serializing_if = "HashMap::is_empty")]
     pub extension_fields: HashMap<ExtensionClass, Value>,
 }
 
@@ -20,7 +20,7 @@ pub struct IdlType {
     pub description: String,
     pub generics: Vec<IdlGeneric>,
     pub type_def: IdlTypeDef,
-    // #[serde(with = "serde_as_option", skip_serializing_if = "HashMap::is_empty")]
+    #[serde(skip_serializing_if = "HashMap::is_empty")]
     pub extension_fields: HashMap<ExtensionClass, Value>,
 }
 
@@ -44,7 +44,7 @@ pub enum IdlTypeDef {
         plugin_id: String,
         ty: String,
         provided_generics: Vec<IdlTypeDef>,
-        // #[serde(with = "serde_as_option", skip_serializing_if = "HashMap::is_empty")]
+        #[serde(skip_serializing_if = "HashMap::is_empty")]
         extension_fields: HashMap<ExtensionClass, Value>,
     },
 }
@@ -60,7 +60,7 @@ pub struct IdlField {
     pub description: String,
     pub path_id: String,
     pub type_def: IdlTypeDef,
-    // #[serde(with = "serde_as_option", skip_serializing_if = "HashMap::is_empty")]
+    #[serde(skip_serializing_if = "HashMap::is_empty")]
     pub extension_fields: HashMap<ExtensionClass, Value>,
 }
 

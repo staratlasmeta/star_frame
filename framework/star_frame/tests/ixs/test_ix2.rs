@@ -25,7 +25,7 @@ pub struct TestInstruction2 {
 }
 
 impl<'a> FrameworkSerialize for &'a TestInstruction2 {
-    fn to_bytes(self, output: &mut &mut [u8]) -> star_frame::Result<()> {
+    fn to_bytes(self, output: &mut &mut [u8]) -> Result<()> {
         *output.try_advance_array()? = self.val.to_le_bytes();
         *output.try_advance_array()? = self.val2.to_le_bytes();
         *output.try_advance_array()? = self.val3.to_bytes();
@@ -57,19 +57,6 @@ impl<'a> FrameworkInstruction<'a> for &'a TestInstruction2 {
     type CleanupArg = ();
     type ReturnType = ();
     type Accounts<'b, 'info> = TestInstruction2Accounts<'b, 'info> where 'info: 'b;
-    //
-    // fn from_bytes_framework(bytes: &'a [u8]) -> Result<Self> {
-    //     let remaining_length = bytes
-    //         .len()
-    //         .checked_sub(size_of::<u32>() + size_of::<u64>() + size_of::<Pubkey>())
-    //         .ok_or(ProgramError::InvalidInstructionData)?;
-    //     unsafe {
-    //         Ok(&*ptr::from_raw_parts(
-    //             bytes.as_ptr().cast(),
-    //             remaining_length,
-    //         ))
-    //     }
-    // }
 
     fn split_to_args(
         self,
