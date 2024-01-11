@@ -17,7 +17,7 @@ pub struct IdlAccount {
     pub extension_fields: HashMap<ExtensionClass, Value>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct AccountId {
     pub namespace: Option<String>,
     pub account_id: String,

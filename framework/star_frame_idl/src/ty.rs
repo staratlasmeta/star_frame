@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct TypeId {
     pub namespace: Option<String>,
     pub type_id: String,
@@ -24,7 +24,7 @@ pub struct IdlType {
     pub extension_fields: HashMap<ExtensionClass, Value>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub enum IdlTypeDef {
     IdlType(TypeId),
     Generic {
@@ -37,6 +37,12 @@ pub enum IdlTypeDef {
     Array {
         item_ty: Box<IdlTypeDef>,
         size: usize,
+    },
+    BorshVec {
+        item_ty: Box<IdlTypeDef>,
+    },
+    BorshOption {
+        item_ty: Box<IdlTypeDef>,
     },
     Struct(Vec<IdlField>),
     #[serde(untagged)]
@@ -54,7 +60,7 @@ impl Default for IdlTypeDef {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub struct IdlField {
     pub name: String,
     pub description: String,
@@ -64,7 +70,7 @@ pub struct IdlField {
     pub extension_fields: HashMap<ExtensionClass, Value>,
 }
 
-#[derive(Serialize, Deserialize, Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub enum IdlDefinedType {
     I8,
     I16,
@@ -76,4 +82,6 @@ pub enum IdlDefinedType {
     U32,
     U64,
     U128,
+    BorshBool,
+    BorshString,
 }

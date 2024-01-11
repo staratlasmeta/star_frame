@@ -1,5 +1,6 @@
 mod account_set;
 mod instruction_set;
+mod ty;
 mod unit_enum_from_repr;
 mod util;
 
@@ -194,5 +195,19 @@ pub fn derive_instruction_set(item: proc_macro::TokenStream) -> proc_macro::Toke
         println!("HELLO FROM THE MACRO");
         println!("{out}");
     }
+    out.into()
+}
+
+/// Derives `TypeToIdl` for a valid type.
+#[cfg(feature = "idl")]
+#[proc_macro_error]
+#[proc_macro_derive(IdlType, attributes(program))]
+pub fn derive_type_to_idl(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let out = ty::derive_type_to_idl(&parse_macro_input!(item as DeriveInput));
+    // #[cfg(feature = "debug_type_to_idl")]
+    // {
+    //     println!("HELLO FROM THE MACRO");
+    //     println!("{out}");
+    // }
     out.into()
 }

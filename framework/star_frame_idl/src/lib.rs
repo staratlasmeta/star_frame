@@ -99,7 +99,9 @@ pub struct ExtensionClass {
     pub name: String,
 }
 
-#[derive(Serialize, Deserialize, Copy, Clone, Debug, Eq, PartialEq, Hash, PartialOrd, Ord)]
+#[derive(
+    Default, Serialize, Deserialize, Copy, Clone, Debug, Eq, PartialEq, Hash, PartialOrd, Ord,
+)]
 pub struct Version {
     pub major: u8,
     pub minor: u8,

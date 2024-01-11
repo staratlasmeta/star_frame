@@ -2,12 +2,13 @@ use crate::get_crate_name;
 use proc_macro2::TokenStream;
 use proc_macro_error::abort;
 use quote::{format_ident, quote};
+use std::fmt::Debug;
 use std::ops::{Deref, DerefMut};
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::{
-    bracketed, token, Attribute, ConstParam, Expr, ExprLit, GenericParam, Generics, Ident,
-    Lifetime, LifetimeParam, Lit, Meta, MetaNameValue, Token, TypeParam,
+    bracketed, parse_quote, token, Attribute, ConstParam, Expr, ExprLit, GenericParam, Generics,
+    Ident, Lifetime, LifetimeParam, Lit, Meta, MetaNameValue, Token, Type, TypeParam,
 };
 
 pub struct Paths {
@@ -20,10 +21,16 @@ pub struct Paths {
     pub account_set_validate: TokenStream,
     pub account_set_cleanup: TokenStream,
     pub sys_call_invoke: TokenStream,
+    pub system_program: TokenStream,
     #[cfg(feature = "idl")]
     pub account_set_to_idl: TokenStream,
     #[cfg(feature = "idl")]
+    pub type_to_idl: TokenStream,
+
+    pub semver: TokenStream,
     pub idl_definition: TokenStream,
+    pub idl_type_def: TokenStream,
+    pub idl_field: TokenStream,
     pub idl_account_set_def: TokenStream,
     pub idl_account_set: TokenStream,
     pub idl_account_set_struct_field: TokenStream,
@@ -34,6 +41,8 @@ pub struct Paths {
     pub validate_ident: Ident,
     pub cleanup_ident: Ident,
     pub idl_ident: Ident,
+    pub idl_ty_program_ident: Ident,
+    pub declared_program_type: Type,
 }
 impl Default for Paths {
     fn default() -> Self {
@@ -46,10 +55,16 @@ impl Default for Paths {
             account_set_validate: quote! { #crate_name::account_set::AccountSetValidate },
             account_set_cleanup: quote! { #crate_name::account_set::AccountSetCleanup },
             sys_call_invoke: quote! { #crate_name::sys_calls::SysCallInvoke },
+            system_program: quote! { #crate_name::program::system_program::SystemProgram },
             #[cfg(feature = "idl")]
             account_set_to_idl: quote! { #crate_name::idl::AccountSetToIdl },
             #[cfg(feature = "idl")]
+            type_to_idl: quote! { #crate_name::idl::ty::TypeToIdl },
+
+            semver: quote! { #crate_name::star_frame_idl::SemVer },
             idl_definition: quote! { #crate_name::star_frame_idl::IdlDefinition },
+            idl_type_def: quote! { #crate_name::star_frame_idl::ty::IdlTypeDef },
+            idl_field: quote! { #crate_name::star_frame_idl::ty::IdlField },
             idl_account_set_def: quote! { #crate_name::star_frame_idl::account_set::IdlAccountSetDef },
             idl_account_set: quote! { #crate_name::star_frame_idl::account_set::IdlAccountSet },
             idl_account_set_struct_field: quote! { #crate_name::star_frame_idl::account_set::IdlAccountSetStructField },
@@ -60,6 +75,8 @@ impl Default for Paths {
             validate_ident: format_ident!("validate"),
             cleanup_ident: format_ident!("cleanup"),
             idl_ident: format_ident!("idl"),
+            idl_ty_program_ident: format_ident!("program"),
+            declared_program_type: parse_quote! { #crate_name::StarFrameDeclaredProgram },
 
             crate_name,
         }

@@ -23,3 +23,42 @@ pub mod util;
 pub use solana_program::instruction::Instruction as SolanaInstruction;
 
 pub type Result<T, E = solana_program::program_error::ProgramError> = std::result::Result<T, E>;
+
+#[allow(unused_imports)]
+#[cfg(test)]
+use tests::StarFrameDeclaredProgram;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::idl::{declare_program_type, ProgramToIdl};
+    use crate::program::{Program, ProgramIds};
+    use star_frame_idl::{IdlDefinition, Version};
+
+    pub struct MyProgram;
+
+    declare_program_type!(MyProgram);
+
+    impl Program for MyProgram {
+        type InstructionSet<'a> = ();
+        type InstructionDiscriminant = ();
+
+        fn program_id() -> ProgramIds {
+            todo!()
+        }
+    }
+
+    impl ProgramToIdl for MyProgram {
+        const VERSION: Version = Version {
+            major: 0,
+            minor: 0,
+            patch: 0,
+        };
+        fn idl_namespace() -> &'static str {
+            "my_program"
+        }
+        fn program_to_idl() -> Result<IdlDefinition> {
+            todo!()
+        }
+    }
+}

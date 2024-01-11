@@ -43,6 +43,8 @@ impl_type_to_idl_for_defined!(
     i32: I32,
     i64: I64,
     i128: I128,
+    bool: BorshBool,
+    String: BorshString
 );
 
 impl TypeToIdl for Pubkey {
@@ -78,5 +80,92 @@ impl TypeToIdl for Pubkey {
             provided_generics: vec![],
             extension_fields: Default::default(),
         }))
+    }
+}
+
+impl<T: TypeToIdl> TypeToIdl for Option<T> {
+    type AssociatedProgram = SystemProgram;
+    fn type_to_idl(idl_definition: &mut IdlDefinition) -> Result<IdlTypeDef> {
+        Ok(IdlTypeDef::BorshOption {
+            item_ty: Box::new(T::type_to_idl(idl_definition)?),
+        })
+    }
+}
+
+impl<T: TypeToIdl> TypeToIdl for Vec<T> {
+    type AssociatedProgram = SystemProgram;
+    fn type_to_idl(idl_definition: &mut IdlDefinition) -> Result<IdlTypeDef> {
+        Ok(IdlTypeDef::BorshVec {
+            item_ty: Box::new(T::type_to_idl(idl_definition)?),
+        })
+    }
+}
+
+impl<T: TypeToIdl, const N: usize> TypeToIdl for [T; N] {
+    type AssociatedProgram = SystemProgram;
+    fn type_to_idl(idl_definition: &mut IdlDefinition) -> Result<IdlTypeDef> {
+        Ok(IdlTypeDef::Array {
+            item_ty: Box::new(T::type_to_idl(idl_definition)?),
+            size: N,
+        })
+    }
+}
+
+#[allow(unused)]
+#[cfg(test)]
+mod tests {
+    enum InnerType {
+        Hello1,
+        Hello2,
+    }
+
+    // TODO: Generics? Should we handle this now?
+    // TODO: lifetimes?
+    // #[derive(IdlType)]
+    // struct GenericStuff<T, U> {
+    //     hello: T,
+    //     stuff: Vec<U>,
+    // }
+
+    #[derive(IdlType)]
+    struct OtherStuff {
+        string: String,
+    }
+
+    /// Description here too!
+    #[derive(IdlType)]
+    struct ExampleStruct {
+        /// This is a description of pubkey
+        pubkey: Pubkey,
+        vec_stuff: Vec<Option<OtherStuff>>,
+        hello: u8,
+        stuff: [u8; 32],
+    }
+
+    use super::*;
+    use star_frame_idl::{DiscriminantId, ProgramIds};
+    use star_frame_proc::IdlType;
+
+    #[test]
+    fn print_idl() -> Result<()> {
+        let mut idl_definition = IdlDefinition {
+            namespace: "my_program".to_string(),
+            program_ids: ProgramIds::AllNetworks(Pubkey::default().into()),
+            account_discriminant: DiscriminantId::None,
+            instruction_discriminant: DiscriminantId::None,
+            idl_std_version: Default::default(),
+            version: Default::default(),
+            name: "".to_string(),
+            description: "".to_string(),
+            required_plugins: Default::default(),
+            required_idl_definitions: Default::default(),
+            accounts: Default::default(),
+            types: Default::default(),
+            account_sets: Default::default(),
+            instructions: Default::default(),
+            extension_fields: Default::default(),
+        };
+        ExampleStruct::type_to_idl(&mut idl_definition)?;
+        Ok(())
     }
 }
