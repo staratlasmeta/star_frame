@@ -1,52 +1,25 @@
-use advance::{Advance, AdvanceArray};
+use bytemuck::{Pod, Zeroable};
 use solana_program::account_info::AccountInfo;
-use solana_program::program_error::ProgramError;
 use solana_program::pubkey::Pubkey;
 use star_frame::account_set::mutable::Writable;
 use star_frame::account_set::signer::Signer;
 use star_frame::account_set::AccountSet;
 use star_frame::idl::ty::TypeToIdl;
 use star_frame::idl::{AccountSetToIdl, InstructionToIdl};
-use star_frame::instruction::{FrameworkInstruction, FrameworkSerialize};
+use star_frame::instruction::FrameworkInstruction;
 use star_frame::sys_calls::SysCallInvoke;
 use star_frame::Result;
 use star_frame_idl::instruction::IdlInstructionDef;
 use star_frame_idl::ty::{IdlField, IdlTypeDef};
 use star_frame_idl::IdlDefinition;
-use std::mem::size_of;
-use std::ptr;
+use star_frame_proc::Align1;
 
+#[derive(Align1, Pod, Zeroable, Copy, Clone, Debug)]
 #[repr(C, packed)]
 pub struct TestInstruction2 {
     pub val: u32,
     pub val2: u64,
     pub val3: Pubkey,
-    pub remaining: [u8],
-}
-
-impl<'a> FrameworkSerialize for &'a TestInstruction2 {
-    fn to_bytes(self, output: &mut &mut [u8]) -> Result<()> {
-        *output.try_advance_array()? = self.val.to_le_bytes();
-        *output.try_advance_array()? = self.val2.to_le_bytes();
-        *output.try_advance_array()? = self.val3.to_bytes();
-        output
-            .try_advance(self.remaining.len())?
-            .copy_from_slice(&self.remaining);
-        Ok(())
-    }
-
-    fn from_bytes(bytes: &[u8]) -> Result<Self> {
-        let remaining_length = bytes
-            .len()
-            .checked_sub(size_of::<u32>() + size_of::<u64>() + size_of::<Pubkey>())
-            .ok_or(ProgramError::InvalidInstructionData)?;
-        unsafe {
-            Ok(&*ptr::from_raw_parts(
-                bytes.as_ptr().cast(),
-                remaining_length,
-            ))
-        }
-    }
 }
 
 #[automatically_derived]

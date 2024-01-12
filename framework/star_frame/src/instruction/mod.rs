@@ -1,28 +1,19 @@
 pub mod un_callable;
 
-pub use star_frame_proc::InstructionSet;
-
 use crate::account_set::{AccountSetCleanup, AccountSetDecode, AccountSetValidate};
+use crate::serialize::FrameworkSerialize;
 use crate::sys_calls::{SysCallInvoke, SysCalls};
 use crate::Result;
+use bytemuck::Pod;
 use solana_program::account_info::AccountInfo;
 use solana_program::program::MAX_RETURN_DATA;
 use solana_program::pubkey::Pubkey;
-
-/// Writes this type to a set of bytes.
-pub trait FrameworkSerialize: Sized {
-    /// Writes this type to a set of bytes.
-    fn to_bytes(self, output: &mut &mut [u8]) -> Result<()>;
-    /// Deserializes this type from a set of bytes.
-    fn from_bytes(bytes: &[u8]) -> Result<Self>
-    where
-        Self: Sized;
-}
+pub use star_frame_proc::InstructionSet;
 
 /// A set of instructions that can be used as input to a program.
-pub trait InstructionSet<'a>: FrameworkSerialize {
+pub trait InstructionSet<'a> {
     /// The discriminant type used by this program's accounts.
-    type Discriminant;
+    type Discriminant: Pod;
 
     /// Handles the instruction obtained from [`InstructionSet::from_bytes`].
     fn handle_ix(
@@ -34,7 +25,7 @@ pub trait InstructionSet<'a>: FrameworkSerialize {
 }
 
 /// A callable instruction that can be used as input to a program.
-pub trait Instruction<'a>: Sized + FrameworkSerialize {
+pub trait Instruction<'a>: FrameworkSerialize<'a> {
     /// Runs the instruction from a raw solana input.
     fn run_ix_from_raw(
         self,
@@ -53,7 +44,7 @@ pub trait Instruction<'a>: Sized + FrameworkSerialize {
 /// 4. Validate the accounts using [`Instruction::Accounts::validate_accounts`](AccountSetValidate::validate_accounts).
 /// 5. Run the instruction using [`Instruction::run_instruction`].
 /// 6. Set the solana return data using [`Instruction::ReturnType::to_bytes`].
-pub trait FrameworkInstruction<'a>: FrameworkSerialize {
+pub trait FrameworkInstruction<'a>: FrameworkSerialize<'a> {
     /// The instruction data type used to decode accounts.
     type DecodeArg;
     /// The instruction data type used to validate accounts.
@@ -64,7 +55,7 @@ pub trait FrameworkInstruction<'a>: FrameworkSerialize {
     type CleanupArg;
 
     /// The return type of this instruction.
-    type ReturnType: FrameworkSerialize;
+    type ReturnType: FrameworkSerialize<'a>;
 
     /// The [`AccountSet`] used by this instruction.
     type Accounts<'b, 'info>: AccountSetDecode<'b, 'info, Self::DecodeArg>
@@ -129,35 +120,3 @@ where
         }
     }
 }
-
-// #[cfg(feature = "idl")]
-// mod idl_impl {
-//     use super::*;
-//     use crate::idl::ty::TypeToIdl;
-//     use crate::idl::{AccountSetToIdl, InstructionToIdl};
-//     use crate::Result;
-//     use star_frame_idl::instruction::IdlInstructionDef;
-//     use star_frame_idl::IdlDefinition;
-//
-//     impl<'a, T, A> InstructionToIdl<'a, A> for T
-//     where
-//         T: FrameworkInstruction<'a> + TypeToIdl,
-//         for<'b, 'info> T::Accounts<'b, 'info>: AccountSetToIdl<'info, A>,
-//     {
-//         fn instruction_to_idl(
-//             idl_definition: &mut IdlDefinition,
-//             arg: A,
-//         ) -> Result<IdlInstructionDef> {
-//             let type_idl = T::type_to_idl(idl_definition)?;
-//             let account_set_idl =
-//                 <T::Accounts<'_, '_> as AccountSetToIdl<'_, A>>::account_set_to_idl(
-//                     idl_definition,
-//                     arg,
-//                 )?;
-//             Ok(IdlInstructionDef {
-//                 data: type_idl,
-//                 account_set: account_set_idl,
-//             })
-//         }
-//     }
-// }

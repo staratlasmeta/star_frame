@@ -1,53 +1,32 @@
-use borsh::{BorshDeserialize, BorshSerialize};
-use bytemuck::Zeroable;
+use bytemuck::{Pod, Zeroable};
 use solana_program::account_info::AccountInfo;
-use solana_program::program_error::ProgramError;
 use solana_program::pubkey::Pubkey;
 use star_frame::account_set::AccountSet;
 use star_frame::idl::ty::TypeToIdl;
 use star_frame::idl::{AccountSetToIdl, InstructionToIdl};
 use star_frame::impls::option::Remaining;
-use star_frame::instruction::{FrameworkInstruction, FrameworkSerialize};
+use star_frame::instruction::{FrameworkInstruction, Instruction};
 use star_frame::sys_calls::SysCallInvoke;
 use star_frame_idl::instruction::IdlInstructionDef;
 use star_frame_idl::ty::{IdlField, IdlTypeDef};
 use star_frame_idl::IdlDefinition;
+use star_frame_proc::Align1;
 
-#[derive(BorshSerialize, BorshDeserialize, Copy, Clone, Zeroable)]
-#[repr(C)]
+#[derive(Copy, Clone, Zeroable, Align1, Pod)]
+#[repr(C, packed)]
 pub struct TestInstruction1 {
     pub val: u32,
     pub val2: u64,
     pub val3: i8,
 }
 
-impl FrameworkSerialize for TestInstruction1 {
-    fn to_bytes(self, output: &mut &mut [u8]) -> star_frame::Result<()> {
-        BorshSerialize::serialize(&self, output)
-            .map_err(|_| ProgramError::BorshIoError("TestInstruction1".to_string()))
-    }
-
-    fn from_bytes(mut bytes: &[u8]) -> star_frame::Result<Self>
-    where
-        Self: Sized,
-    {
-        BorshDeserialize::deserialize(&mut bytes)
-            .map_err(|_| ProgramError::BorshIoError("TestInstruction1".to_string()))
-    }
-}
-
-impl<'a> FrameworkInstruction<'a> for TestInstruction1 {
+impl<'a> FrameworkInstruction<'a> for &'a TestInstruction1 {
     type DecodeArg = i8;
     type ValidateArg = u64;
     type RunArg = i8;
     type CleanupArg = (u32, u64);
     type ReturnType = ();
     type Accounts<'b, 'info> = TestInstruction1Accounts<'b, 'info> where 'info: 'b;
-    //
-    // fn from_bytes_framework(mut bytes: &'a [u8]) -> star_frame::Result<Self> {
-    //     BorshDeserialize::deserialize(&mut bytes)
-    //         .map_err(|_| ProgramError::BorshIoError("TestInstruction1".to_string()))
-    // }
 
     fn split_to_args(
         self,
@@ -71,10 +50,13 @@ impl<'a> FrameworkInstruction<'a> for TestInstruction1 {
 }
 
 #[automatically_derived]
-impl<'a> InstructionToIdl<'a, ()> for TestInstruction1 {
+impl<'a> InstructionToIdl<'a, ()> for &'a TestInstruction1
+where
+    &'a TestInstruction1: Instruction<'a>,
+{
     fn instruction_to_idl(
         idl_definition: &mut IdlDefinition,
-        arg: (),
+        _arg: (),
     ) -> star_frame::Result<IdlInstructionDef> {
         let val = <u32 as TypeToIdl>::type_to_idl(idl_definition)?;
         let val2 = <u64 as TypeToIdl>::type_to_idl(idl_definition)?;

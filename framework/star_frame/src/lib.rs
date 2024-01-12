@@ -1,5 +1,6 @@
 #![feature(ptr_metadata)]
 
+pub extern crate borsh;
 pub extern crate self as star_frame;
 pub extern crate solana_program;
 #[cfg(feature = "idl")]
@@ -19,6 +20,7 @@ pub mod program_account;
 pub mod sys_calls;
 pub mod unit_enum_from_repr;
 pub mod util;
+mod serialize;
 
 pub use solana_program::instruction::Instruction as SolanaInstruction;
 
