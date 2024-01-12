@@ -1,4 +1,4 @@
-use crate::util::Paths;
+use crate::util::{BetterGenerics, Paths};
 use easy_proc::{find_attr, ArgumentList};
 use proc_macro2::TokenStream;
 use proc_macro_error::abort;
@@ -25,6 +25,7 @@ struct AccountSetStructArgs {
     #[cfg(feature = "idl")]
     #[argument(presence)]
     skip_default_idl: bool,
+    generics: Option<BetterGenerics>,
 }
 
 pub fn derive_account_set_impl(input: DeriveInput) -> TokenStream {

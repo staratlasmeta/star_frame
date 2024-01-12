@@ -38,7 +38,18 @@ pub(super) fn derive_account_set_impl_struct(
 
     let ident = &input.ident;
 
-    let (other_impl_generics, _, other_where_clause) = other_generics.split_for_impl();
+    let mut generics = other_generics.clone();
+    if let Some(extra_generics) = &account_set_struct_args.generics {
+        generics.params.extend(extra_generics.params.clone());
+        if let Some(extra_where_clause) = &extra_generics.where_clause {
+            generics
+                .make_where_clause()
+                .predicates
+                .extend(extra_where_clause.predicates.clone());
+        }
+    }
+    let (other_impl_generics, _, other_where_clause) = generics.split_for_impl();
+
     let (_, ty_generics, _) = main_generics.split_for_impl();
 
     let field_name = data_struct

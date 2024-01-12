@@ -253,7 +253,7 @@ mod idl_impl {
                 },
                 version: Self::VERSION,
                 name: "System Program".to_string(),
-                namespace: "SystemProgram".to_string(),
+                namespace: Self::idl_namespace().to_string(),
                 description: "The Solana System Program".to_string(),
                 required_plugins: Default::default(),
                 required_idl_definitions: Default::default(),
@@ -274,6 +274,23 @@ mod idl_impl {
         }
         fn idl_namespace() -> &'static str {
             "@solana/system-program"
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        #[test]
+        fn print_idl() -> Result<(), String> {
+            let idl = SystemProgram::program_to_idl().unwrap();
+            assert!(idl.instructions.contains_key("CreateAccount"));
+            assert!(idl.account_sets.contains_key("CreateAccountSet"));
+            assert!(idl.types.contains_key("CreateAccountData"));
+            let create_account_data = idl.types.get("CreateAccountData").unwrap();
+            matches!(create_account_data.type_def, IdlTypeDef::Struct(_));
+
+            println!("{}", serde_json::to_string_pretty(&idl).unwrap());
+            Ok(())
         }
     }
 }

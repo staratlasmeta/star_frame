@@ -1,15 +1,25 @@
 use crate::account_set::{AccountSet, AccountSetDecode, AccountSetValidate, SingleAccountSet};
-use crate::sys_calls::SysCallInvoke;
 use crate::Result;
 use solana_program::account_info::AccountInfo;
-use solana_program::instruction::AccountMeta;
 use solana_program::program_error::ProgramError;
 use star_frame::account_set::AccountSetCleanup;
 use std::ops::{Deref, DerefMut};
 
-#[derive(Copy, Clone, Debug)]
+#[derive(AccountSet, Copy, Clone, Debug)]
 #[repr(transparent)]
-pub struct Signer<T>(T);
+#[account_set(skip_default_idl, generics = [where T: AccountSet<'info>])]
+#[decode(generics = [<A> where T: AccountSetDecode<'a, 'info, A>], arg = A)]
+#[validate(
+    generics = [<A> where T: AccountSetValidate<'info, A> + SingleAccountSet<'info>], arg = A,
+    extra_validation = if !self.0.is_signer() { Err(ProgramError::MissingRequiredSignature) } else { Ok(()) },
+)]
+#[cleanup(generics = [<A> where T: AccountSetCleanup<'info, A>], arg = A)]
+pub struct Signer<T>(
+    #[decode(arg = arg)]
+    #[validate(arg = arg)]
+    #[cleanup(arg = arg)]
+    T,
+);
 impl<T> Deref for Signer<T> {
     type Target = T;
 
@@ -37,73 +47,13 @@ impl<T> Signer<T> {
         Ok(Signer::new(info.clone()))
     }
 }
-impl<'info, T> AccountSet<'info> for Signer<T>
-where
-    T: AccountSet<'info>,
-{
-    fn try_to_accounts<'a, E>(
-        &'a self,
-        add_account: impl FnMut(&'a AccountInfo<'info>) -> std::result::Result<(), E>,
-    ) -> std::result::Result<(), E>
-    where
-        'info: 'a,
-    {
-        self.0.try_to_accounts(add_account)
-    }
 
-    fn to_account_metas(&self, add_account_meta: impl FnMut(AccountMeta)) {
-        self.0.to_account_metas(add_account_meta)
-    }
-}
 impl<'info, T> SingleAccountSet<'info> for Signer<T>
 where
     T: SingleAccountSet<'info>,
 {
     fn account_info(&self) -> &AccountInfo<'info> {
         self.0.account_info()
-    }
-}
-impl<'a, 'info, T, A> AccountSetDecode<'a, 'info, A> for Signer<T>
-where
-    T: AccountSetDecode<'a, 'info, A>,
-{
-    fn decode_accounts(
-        accounts: &mut &'a [AccountInfo<'info>],
-        decode_input: A,
-        sys_calls: &mut impl SysCallInvoke,
-    ) -> std::result::Result<Self, ProgramError> {
-        Ok(Self(T::decode_accounts(accounts, decode_input, sys_calls)?))
-    }
-}
-impl<'info, T, A> AccountSetValidate<'info, A> for Signer<T>
-where
-    T: AccountSetValidate<'info, A>,
-{
-    fn validate_accounts(
-        &mut self,
-        validate_input: A,
-        sys_calls: &mut impl SysCallInvoke,
-    ) -> std::result::Result<(), ProgramError> {
-        self.0.validate_accounts(validate_input, sys_calls)?;
-        self.try_to_accounts(|a| {
-            if a.is_signer {
-                Ok(())
-            } else {
-                Err(ProgramError::MissingRequiredSignature)
-            }
-        })
-    }
-}
-impl<'info, T, A> AccountSetCleanup<'info, A> for Signer<T>
-where
-    T: AccountSetCleanup<'info, A>,
-{
-    fn cleanup_accounts(
-        &mut self,
-        cleanup_input: A,
-        sys_calls: &mut impl SysCallInvoke,
-    ) -> std::result::Result<(), ProgramError> {
-        self.0.cleanup_accounts(cleanup_input, sys_calls)
     }
 }
 
