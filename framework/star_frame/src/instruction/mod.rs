@@ -4,13 +4,14 @@ pub use star_frame_proc::FrameworkInstruction;
 pub use star_frame_proc::InstructionSetToIdl;
 
 use crate::account_set::{AccountSetCleanup, AccountSetDecode, AccountSetValidate};
-use crate::serialize::FrameworkSerialize;
+use crate::serialize::FrameworkFromBytes;
 use crate::sys_calls::{SysCallInvoke, SysCalls};
 use crate::Result;
 use bytemuck::Pod;
 use solana_program::account_info::AccountInfo;
 use solana_program::program::MAX_RETURN_DATA;
 use solana_program::pubkey::Pubkey;
+use star_frame::serialize::FrameworkSerialize;
 pub use star_frame_proc::InstructionSet;
 
 /// A set of instructions that can be used as input to a program.
@@ -28,7 +29,7 @@ pub trait InstructionSet<'a> {
 }
 
 /// A callable instruction that can be used as input to a program.
-pub trait Instruction<'a>: FrameworkSerialize<'a> {
+pub trait Instruction<'a>: FrameworkFromBytes<'a> {
     /// Runs the instruction from a raw solana input.
     fn run_ix_from_raw(
         self,
@@ -47,7 +48,7 @@ pub trait Instruction<'a>: FrameworkSerialize<'a> {
 /// 4. Validate the accounts using [`Instruction::Accounts::validate_accounts`](AccountSetValidate::validate_accounts).
 /// 5. Run the instruction using [`Instruction::run_instruction`].
 /// 6. Set the solana return data using [`Instruction::ReturnType::to_bytes`].
-pub trait FrameworkInstruction<'a>: FrameworkSerialize<'a> {
+pub trait FrameworkInstruction<'a>: FrameworkFromBytes<'a> {
     /// The instruction data type used to decode accounts.
     type DecodeArg;
     /// The instruction data type used to validate accounts.
@@ -58,7 +59,7 @@ pub trait FrameworkInstruction<'a>: FrameworkSerialize<'a> {
     type CleanupArg;
 
     /// The return type of this instruction.
-    type ReturnType: FrameworkSerialize<'a>;
+    type ReturnType: FrameworkSerialize;
 
     /// The [`AccountSet`] used by this instruction.
     type Accounts<'b, 'info>: AccountSetDecode<'b, 'info, Self::DecodeArg>

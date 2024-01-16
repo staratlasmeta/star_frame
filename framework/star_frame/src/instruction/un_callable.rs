@@ -1,19 +1,21 @@
 use crate::instruction::InstructionSet;
+use crate::serialize::FrameworkFromBytes;
 use crate::sys_calls::SysCalls;
 use crate::Result;
 use solana_program::account_info::AccountInfo;
 use solana_program::pubkey::Pubkey;
+use star_frame::serialize::FrameworkSerialize;
 use star_frame_proc::Align1;
-use crate::serialize::FrameworkSerialize;
 
 #[derive(Align1)]
 pub struct UnCallable;
 
-unsafe impl<'a> FrameworkSerialize<'a> for UnCallable {
+impl FrameworkSerialize for UnCallable {
     fn to_bytes(&self, _output: &mut &mut [u8]) -> Result<()> {
-        panic!("Cannot call to_bytes on Uncallable")
+        panic!("Cannot call `to_bytes` on Uncallable")
     }
-
+}
+unsafe impl<'a> FrameworkFromBytes<'a> for UnCallable {
     fn from_bytes(_bytes: &mut &'a [u8]) -> Result<Self> {
         panic!("Cannot call `from_bytes` on Uncallable")
     }
