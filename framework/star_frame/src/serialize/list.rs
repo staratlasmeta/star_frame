@@ -141,7 +141,7 @@ where
     phantom_ref: PhantomData<&'a mut [T]>,
     ptr: *mut (),
     metadata: L,
-    resize: Box<dyn ResizeFn<'a, L>>,
+    resize: Box<dyn ResizeFn<'a, <Self as PointerBreakup>::Metadata>>,
 }
 impl<'a, T, L> Deref for ListRefMut<'a, T, L>
 where
