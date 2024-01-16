@@ -2087,6 +2087,7 @@ dependencies = [
  "bytemuck",
  "derivative",
  "lazy_static",
+ "num-traits",
  "serde",
  "serde_json",
  "solana-program",

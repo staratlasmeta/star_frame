@@ -1,5 +1,6 @@
 pub mod borsh;
 pub mod combined_unsized;
+pub mod list;
 pub mod pointer_breakup;
 pub mod serialize_with;
 

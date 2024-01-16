@@ -1,7 +1,5 @@
 use crate::align1::Align1;
-use crate::serialize::pointer_breakup::{
-    BuildPointer, BuildPointerMut, PointerBreakup, PointerBreakupMut,
-};
+use crate::serialize::pointer_breakup::{BuildPointer, BuildPointerMut, PointerBreakup};
 use crate::serialize::{FrameworkFromBytes, FrameworkFromBytesMut};
 use bytemuck::Pod;
 use std::ops::{Deref, DerefMut};
@@ -10,12 +8,14 @@ pub trait SerializeWith {
     type RefMeta: 'static + Copy;
     type Ref<'a>: FrameworkFromBytes<'a>
         + Deref<Target = Self>
-        + PointerBreakup<Metadata = Self::RefMeta>
-        + BuildPointer;
+        + BuildPointer<Metadata = Self::RefMeta>
+    where
+        Self: 'a;
     type RefMut<'a>: FrameworkFromBytesMut<'a>
         + DerefMut<Target = Self>
-        + PointerBreakupMut<Metadata = Self::RefMeta>
-        + BuildPointerMut<'a>;
+        + BuildPointerMut<'a, Metadata = Self::RefMeta>
+    where
+        Self: 'a;
 }
 impl<T> SerializeWith for T
 where

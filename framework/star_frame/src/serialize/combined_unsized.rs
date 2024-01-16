@@ -22,9 +22,9 @@ where
     T: ?Sized + SerializeWith,
     U: ?Sized + SerializeWith,
 {
-    type RefMeta = <Self::Ref<'static> as PointerBreakup>::Metadata;
-    type Ref<'a> = CombinedUnsizedDataRef<'a, T, U>;
-    type RefMut<'a> = CombinedUnsizedDataRefMut<'a, T, U>;
+    type RefMeta = CombinedUnsizedMetadata<T::RefMeta, U::RefMeta>;
+    type Ref<'a> = CombinedUnsizedDataRef<'a, T, U> where Self: 'a;
+    type RefMut<'a> = CombinedUnsizedDataRefMut<'a, T, U> where Self: 'a;
 }
 
 #[derive(Copy, Clone)]
@@ -42,10 +42,7 @@ where
 {
     phantom_ref: PhantomData<&'a ()>,
     pointer: *const (),
-    meta: CombinedUnsizedMetadata<
-        <T::Ref<'static> as PointerBreakup>::Metadata,
-        <U::Ref<'static> as PointerBreakup>::Metadata,
-    >,
+    meta: CombinedUnsizedMetadata<T::RefMeta, U::RefMeta>,
 }
 impl<'a, T, U> Deref for CombinedUnsizedDataRef<'a, T, U>
 where
