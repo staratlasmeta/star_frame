@@ -24,6 +24,9 @@ pub struct Paths {
     pub system_program: TokenStream,
     #[cfg(feature = "idl")]
     pub account_set_to_idl: TokenStream,
+    // TODO - put behind feature flag
+    pub instruction_to_idl: TokenStream,
+    pub instruction_set_to_idl: TokenStream,
     #[cfg(feature = "idl")]
     pub type_to_idl: TokenStream,
 
@@ -34,7 +37,10 @@ pub struct Paths {
     pub idl_account_set_def: TokenStream,
     pub idl_account_set: TokenStream,
     pub idl_account_set_struct_field: TokenStream,
+    pub idl_instruction_def: TokenStream,
+    pub idl_instruction: TokenStream,
     pub account_set_id: TokenStream,
+    pub framework_instruction: TokenStream,
 
     pub account_set_ident: Ident,
     pub decode_ident: Ident,
@@ -58,6 +64,8 @@ impl Default for Paths {
             system_program: quote! { #crate_name::program::system_program::SystemProgram },
             #[cfg(feature = "idl")]
             account_set_to_idl: quote! { #crate_name::idl::AccountSetToIdl },
+            instruction_to_idl: quote! { #crate_name::idl::InstructionToIdl },
+            instruction_set_to_idl: quote! { #crate_name::idl::InstructionSetToIdl },
             #[cfg(feature = "idl")]
             type_to_idl: quote! { #crate_name::idl::ty::TypeToIdl },
 
@@ -68,7 +76,11 @@ impl Default for Paths {
             idl_account_set_def: quote! { #crate_name::star_frame_idl::account_set::IdlAccountSetDef },
             idl_account_set: quote! { #crate_name::star_frame_idl::account_set::IdlAccountSet },
             idl_account_set_struct_field: quote! { #crate_name::star_frame_idl::account_set::IdlAccountSetStructField },
+            idl_instruction_def: quote! { #crate_name::star_frame_idl::instruction::IdlInstructionDef },
+            idl_instruction: quote! { #crate_name::star_frame_idl::instruction::IdlInstruction },
+
             account_set_id: quote! { #crate_name::star_frame_idl::account_set::AccountSetId },
+            framework_instruction: quote! { #crate_name::instruction::FrameworkInstruction },
 
             account_set_ident: format_ident!("account_set"),
             decode_ident: format_ident!("decode"),

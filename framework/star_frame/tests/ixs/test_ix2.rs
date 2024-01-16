@@ -4,17 +4,13 @@ use solana_program::pubkey::Pubkey;
 use star_frame::account_set::mutable::Writable;
 use star_frame::account_set::signer::Signer;
 use star_frame::account_set::AccountSet;
-use star_frame::idl::ty::TypeToIdl;
-use star_frame::idl::{AccountSetToIdl, InstructionToIdl};
+use star_frame::idl::AccountSetToIdl;
 use star_frame::instruction::FrameworkInstruction;
 use star_frame::sys_calls::SysCallInvoke;
 use star_frame::Result;
-use star_frame_idl::instruction::IdlInstructionDef;
-use star_frame_idl::ty::{IdlField, IdlTypeDef};
-use star_frame_idl::IdlDefinition;
 use star_frame_proc::Align1;
 
-#[derive(Align1, Pod, Zeroable, Copy, Clone, Debug)]
+#[derive(FrameworkInstruction, Align1, Pod, Zeroable, Copy, Clone, Debug)]
 #[repr(C, packed)]
 pub struct TestInstruction2 {
     pub val: u32,
@@ -49,46 +45,6 @@ impl<'a> FrameworkInstruction<'a> for &'a TestInstruction2 {
         sys_calls: &mut impl SysCallInvoke,
     ) -> Result<Self::ReturnType> {
         todo!()
-    }
-}
-#[automatically_derived]
-impl<'a> InstructionToIdl<'a, ()> for &'a TestInstruction2 {
-    fn instruction_to_idl(
-        idl_definition: &mut IdlDefinition,
-        arg: (),
-    ) -> Result<IdlInstructionDef> {
-        let val = <u32 as TypeToIdl>::type_to_idl(idl_definition)?;
-        let val2 = <u64 as TypeToIdl>::type_to_idl(idl_definition)?;
-        let val3 = <Pubkey as TypeToIdl>::type_to_idl(idl_definition)?;
-        Ok(IdlInstructionDef {
-            account_set: <Self as FrameworkInstruction<'a>>::Accounts::account_set_to_idl(
-                idl_definition,
-                (),
-            )?,
-            data: IdlTypeDef::Struct(vec![
-                IdlField {
-                    name: "val".to_string(),
-                    description: "The first value".to_string(),
-                    path_id: "val".to_string(),
-                    type_def: val,
-                    extension_fields: Default::default(),
-                },
-                IdlField {
-                    name: "val2".to_string(),
-                    description: "The second value".to_string(),
-                    path_id: "val2".to_string(),
-                    type_def: val2,
-                    extension_fields: Default::default(),
-                },
-                IdlField {
-                    name: "val3".to_string(),
-                    description: "The third value".to_string(),
-                    path_id: "val3".to_string(),
-                    type_def: val3,
-                    extension_fields: Default::default(),
-                },
-            ]),
-        })
     }
 }
 

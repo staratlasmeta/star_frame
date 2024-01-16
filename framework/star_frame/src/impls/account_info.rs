@@ -89,6 +89,56 @@ impl<'info> SingleAccountSet<'info> for AccountInfo<'info> {
             .map(|d| RefMut::map(d, |d| &mut **d))
     }
 }
+impl<'__a, 'info> SingleAccountSet<'info> for &'__a AccountInfo<'info> {
+    fn account_info(&self) -> &AccountInfo<'info> {
+        self
+    }
+
+    fn account_meta(&self) -> AccountMeta {
+        AccountMeta {
+            pubkey: *self.key,
+            is_signer: self.is_signer,
+            is_writable: self.is_writable,
+        }
+    }
+
+    fn is_signer(&self) -> bool {
+        self.is_signer
+    }
+
+    fn is_writable(&self) -> bool {
+        self.is_writable
+    }
+
+    fn key<'a>(&'a self) -> &'a Pubkey
+    where
+        'info: 'a,
+    {
+        self.key
+    }
+
+    fn owner<'a>(&'a self) -> &'a Pubkey
+    where
+        'info: 'a,
+    {
+        self.owner
+    }
+
+    fn info_data_bytes<'a>(&'a self) -> Result<Ref<'a, [u8]>, ProgramError>
+    where
+        'info: 'a,
+    {
+        self.try_borrow_data().map(|d| Ref::map(d, |d| &**d))
+    }
+
+    fn info_data_bytes_mut<'a>(&'a self) -> Result<RefMut<'a, [u8]>, ProgramError>
+    where
+        'info: 'a,
+    {
+        self.try_borrow_mut_data()
+            .map(|d| RefMut::map(d, |d| &mut **d))
+    }
+}
 impl<'a, 'info> AccountSetDecode<'a, 'info, ()> for AccountInfo<'info> {
     fn decode_accounts(
         accounts: &mut &'a [AccountInfo<'info>],

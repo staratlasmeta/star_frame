@@ -7,7 +7,11 @@ use proc_macro_error::abort;
 use quote::quote;
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
-use syn::{DataStruct, Expr, LitStr, Type};
+use syn::parse::Parse;
+use syn::{
+    bracketed, token, ConstParam, DataStruct, Expr, GenericParam, Generics, Ident, Lifetime,
+    LifetimeParam, LitStr, Token, Type, TypeParam,
+};
 
 #[derive(ArgumentList)]
 struct ValidateStructArgs {

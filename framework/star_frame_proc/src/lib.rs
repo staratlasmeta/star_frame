@@ -1,4 +1,5 @@
 mod account_set;
+mod framework_instruction;
 mod instruction_set;
 mod ty;
 mod unit_enum_from_repr;
@@ -28,10 +29,18 @@ fn get_crate_name() -> TokenStream {
 }
 
 #[proc_macro_error]
+#[proc_macro_derive(FrameworkInstruction)]
+pub fn derive_framework_instruction(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let out = framework_instruction::derive_framework_instruction_impl(parse_macro_input!(
+        input as DeriveInput
+    ));
+    out.into()
+}
+
+#[proc_macro_error]
 #[proc_macro_derive(AccountSet, attributes(account_set, decode, validate, cleanup, idl))]
 pub fn derive_account_set(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let out = account_set::derive_account_set_impl(parse_macro_input!(input as DeriveInput));
-    // println!("{}", out);
     out.into()
 }
 
@@ -40,7 +49,6 @@ pub fn derive_account_set(input: proc_macro::TokenStream) -> proc_macro::TokenSt
 #[proc_macro_derive(UnitEnumFromRepr)]
 pub fn derive_unit_enum_from_repr(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let out = unit_enum_from_repr_impl(parse_macro_input!(input as DeriveInput));
-    // println!("{}", out);
     out.into()
 }
 
@@ -195,6 +203,15 @@ pub fn derive_instruction_set(item: proc_macro::TokenStream) -> proc_macro::Toke
         println!("HELLO FROM THE MACRO");
         println!("{out}");
     }
+    out.into()
+}
+
+#[proc_macro_error]
+#[proc_macro_derive(InstructionSetToIdl)]
+pub fn derive_instruction_set_to_idl(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let out = instruction_set::derive_instruction_set_to_idl_impl(parse_macro_input!(
+        item as DeriveInput
+    ));
     out.into()
 }
 
