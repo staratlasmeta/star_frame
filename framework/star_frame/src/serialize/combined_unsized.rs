@@ -22,9 +22,9 @@ where
     T: ?Sized + SerializeWith,
     U: ?Sized + SerializeWith,
 {
-    type RefMeta = <Self::Ref<'static> as PointerBreakup>::Metadata;
-    type Ref<'a> = CombinedUnsizedDataRef<'a, T, U>;
-    type RefMut<'a> = CombinedUnsizedDataRefMut<'a, T, U>;
+    type RefMeta = CombinedUnsizedMetadata<T::RefMeta, U::RefMeta>;
+    type Ref<'a> = CombinedUnsizedDataRef<'a, T, U> where Self: 'a;
+    type RefMut<'a> = CombinedUnsizedDataRefMut<'a, T, U> where Self: 'a;
 }
 
 #[derive(Copy, Clone)]
@@ -42,10 +42,7 @@ where
 {
     phantom_ref: PhantomData<&'a ()>,
     pointer: *const (),
-    meta: CombinedUnsizedMetadata<
-        <T::Ref<'static> as PointerBreakup>::Metadata,
-        <U::Ref<'static> as PointerBreakup>::Metadata,
-    >,
+    meta: CombinedUnsizedMetadata<T::RefMeta, U::RefMeta>,
 }
 impl<'a, T, U> Deref for CombinedUnsizedDataRef<'a, T, U>
 where
@@ -294,20 +291,23 @@ where
                 match old_t_len.cmp(&new_size) {
                     Ordering::Equal => {
                         self.meta.t_meta = new_meta;
-                        (self.resize)(self.meta.data_len, self.meta)
+                        let new_ptr = (self.resize)(self.meta.data_len, self.meta)?;
+                        self.pointer = new_ptr;
+                        Ok(new_ptr)
                     }
                     // Old size less than new size
                     Ordering::Less => {
                         self.meta.t_meta = new_meta;
                         self.meta.t_len = new_size;
                         self.meta.data_len += new_size - old_t_len;
-                        (self.resize)(self.meta.data_len, self.meta)?;
+                        let new_ptr = (self.resize)(self.meta.data_len, self.meta)?;
+                        self.pointer = new_ptr;
                         sol_memmove(
                             self.pointer.byte_add(new_size).cast(),
                             self.pointer.byte_add(old_t_len).cast(),
                             self.meta.data_len - new_size,
                         );
-                        Ok(())
+                        Ok(new_ptr)
                     }
                     // Old size greater than new size
                     Ordering::Greater => {
@@ -319,7 +319,9 @@ where
                         self.meta.t_meta = new_meta;
                         self.meta.t_len = new_size;
                         self.meta.data_len -= old_t_len - new_size;
-                        (self.resize)(self.meta.data_len, self.meta)
+                        let new_ptr = (self.resize)(self.meta.data_len, self.meta)?;
+                        self.pointer = new_ptr;
+                        Ok(new_ptr)
                     }
                 }
             })
@@ -336,7 +338,9 @@ where
                     let new_data_len = new_size + meta.t_len;
                     self.meta.u_meta = new_meta;
                     self.meta.data_len = new_data_len;
-                    (self.resize)(new_data_len, self.meta)
+                    let new_ptr = (self.resize)(new_data_len, self.meta)?;
+                    self.pointer = new_ptr;
+                    Ok(new_ptr.byte_add(meta.t_len))
                 },
             )
         }
@@ -354,10 +358,95 @@ where
                         let new_data_len = new_size + meta.t_len;
                         self.meta.u_meta = new_meta;
                         self.meta.data_len = new_data_len;
-                        (self.resize)(new_data_len, self.meta)
+                        let new_ptr = (self.resize)(new_data_len, self.meta)?;
+                        self.pointer = new_ptr;
+                        Ok(new_ptr.byte_add(meta.t_len))
                     },
                 )
             },
         )
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::packed_value::PackedValue;
+    use crate::serialize::combined_unsized::{CombinedRefAccess, CombinedUnsizedData};
+    use crate::serialize::list::test::Cool;
+    use crate::serialize::list::List;
+    use crate::Result;
+    use star_frame::serialize::test::TestByteSet;
+    use std::ops::Deref;
+
+    #[test]
+    fn test_combined() -> Result<()> {
+        let mut test_bytes = TestByteSet::<CombinedUnsizedData<List<Cool>, List<u8>>>::new(8);
+        assert_eq!(test_bytes.immut()?.t().deref().deref(), &[]);
+        assert_eq!(test_bytes.immut()?.u().deref().deref(), &[]);
+
+        let mut mutable = test_bytes.mutable()?;
+        mutable.t_mut().push(Cool { a: 1, b: 1 })?;
+        mutable.u_mut().push_all([1, 2, 3])?;
+        assert_eq!(
+            mutable.t().deref().deref(),
+            &[PackedValue(Cool { a: 1, b: 1 })]
+        );
+        assert_eq!(
+            mutable.u().deref().deref(),
+            &[PackedValue(1), PackedValue(2), PackedValue(3)]
+        );
+        drop(mutable);
+        println!("bytes: {:?}", test_bytes.bytes);
+        println!(
+            "list1: {:#?}",
+            test_bytes.immut()?.split().0.deref().deref()
+        );
+        println!(
+            "list2: {:#?}",
+            test_bytes.immut()?.split().1.deref().deref()
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_combined_recursive() -> Result<()> {
+        let mut test_bytes = TestByteSet::<
+            CombinedUnsizedData<List<Cool>, CombinedUnsizedData<List<u8>, List<u16>>>,
+        >::new(12);
+        assert_eq!(test_bytes.immut()?.t().deref().deref(), &[]);
+        assert_eq!(test_bytes.immut()?.u().t().deref().deref(), &[]);
+        assert_eq!(test_bytes.immut()?.u().u().deref().deref(), &[]);
+
+        let mut mutable = test_bytes.mutable()?;
+        mutable.t_mut().push(Cool { a: 1, b: 1 })?;
+        mutable.u_mut().t_mut().push_all([1, 2, 3])?;
+        mutable.u_mut().u_mut().push_all([1, 2])?;
+        assert_eq!(
+            mutable.t().deref().deref(),
+            &[PackedValue(Cool { a: 1, b: 1 })]
+        );
+        assert_eq!(
+            mutable.u().t().deref().deref(),
+            &[PackedValue(1), PackedValue(2), PackedValue(3)]
+        );
+        assert_eq!(
+            mutable.u().u().deref().deref(),
+            &[PackedValue(1), PackedValue(2)]
+        );
+        drop(mutable);
+        println!("bytes: {:?}", test_bytes.bytes);
+        println!(
+            "list1: {:#?}",
+            test_bytes.immut()?.split().0.deref().deref()
+        );
+        println!(
+            "list2: {:#?}",
+            test_bytes.immut()?.split().1.t().deref().deref()
+        );
+        println!(
+            "list3: {:#?}",
+            test_bytes.immut()?.split().1.u().deref().deref()
+        );
+        Ok(())
     }
 }

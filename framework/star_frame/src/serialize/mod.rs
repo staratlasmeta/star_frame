@@ -1,5 +1,6 @@
 pub mod borsh;
 pub mod combined_unsized;
+pub mod list;
 pub mod pointer_breakup;
 pub mod serialize_with;
 
@@ -10,8 +11,8 @@ use bytemuck::{from_bytes, from_bytes_mut, Pod};
 use star_frame::serialize::pointer_breakup::PointerBreakup;
 use std::mem::size_of;
 
-pub trait ResizeFn<'a, M>: FnMut(usize, M) -> Result<()> + 'a {}
-impl<'a, T, M> ResizeFn<'a, M> for T where T: FnMut(usize, M) -> Result<()> + 'a {}
+pub trait ResizeFn<'a, M>: FnMut(usize, M) -> Result<*mut ()> + 'a {}
+impl<'a, T, M> ResizeFn<'a, M> for T where T: FnMut(usize, M) -> Result<*mut ()> + 'a {}
 
 pub trait FrameworkSerialize {
     /// Writes this type to a set of bytes.
@@ -82,5 +83,42 @@ where
         _resize: impl ResizeFn<'a, Self::Metadata>,
     ) -> Result<Self> {
         Ok(from_bytes_mut(bytes.try_advance(size_of::<T>())?))
+    }
+}
+
+#[cfg(test)]
+pub mod test {
+    use crate::serialize::serialize_with::SerializeWith;
+    use crate::serialize::{FrameworkFromBytes, FrameworkFromBytesMut};
+    use std::marker::PhantomData;
+
+    pub struct TestByteSet<T: ?Sized> {
+        pub bytes: Vec<u8>,
+        pub phantom_t: PhantomData<T>,
+    }
+    impl<T: ?Sized> TestByteSet<T> {
+        pub fn new(len: usize) -> Self {
+            Self {
+                bytes: vec![0; len],
+                phantom_t: PhantomData,
+            }
+        }
+    }
+    impl<T> TestByteSet<T>
+    where
+        T: ?Sized + SerializeWith,
+    {
+        pub fn immut(&self) -> crate::Result<T::Ref<'_>> {
+            T::Ref::from_bytes(&mut &self.bytes[..])
+        }
+
+        pub fn mutable(&mut self) -> crate::Result<T::RefMut<'_>> {
+            let bytes = &mut self.bytes as *mut Vec<u8>;
+            T::RefMut::from_bytes_mut(&mut &mut self.bytes[..], move |len, _| {
+                let bytes = unsafe { &mut *bytes };
+                bytes.resize(len, 0);
+                Ok(bytes.as_mut_ptr().cast())
+            })
+        }
     }
 }
