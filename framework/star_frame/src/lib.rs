@@ -1,4 +1,5 @@
 #![feature(ptr_metadata)]
+#![feature(pointer_byte_offsets)]
 
 pub extern crate borsh;
 pub extern crate self as star_frame;
@@ -17,10 +18,10 @@ pub mod instruction;
 pub mod packed_value;
 pub mod program;
 pub mod program_account;
+pub mod serialize;
 pub mod sys_calls;
 pub mod unit_enum_from_repr;
 pub mod util;
-mod serialize;
 
 pub use solana_program::instruction::Instruction as SolanaInstruction;
 pub use star_frame_proc::{declare_id, pubkey};

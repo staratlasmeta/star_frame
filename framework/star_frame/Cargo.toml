@@ -26,6 +26,7 @@ static_assertions = "1.1.0"
 star_frame_idl = { path = "../star_frame_idl", optional = true }
 serde = { version = "1.0.193", features = ["derive"] }
 serde_json = { version = "1.0.108", optional = true }
+num-traits = "0.2.17"
 
 [dev-dependencies]
 lazy_static = "1.4.0"
