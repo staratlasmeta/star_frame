@@ -23,6 +23,7 @@ pub mod util;
 mod serialize;
 
 pub use solana_program::instruction::Instruction as SolanaInstruction;
+pub use star_frame_proc::{declare_id, pubkey};
 
 pub type Result<T, E = solana_program::program_error::ProgramError> = std::result::Result<T, E>;
 

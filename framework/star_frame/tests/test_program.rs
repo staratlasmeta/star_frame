@@ -19,6 +19,12 @@ use star_frame_idl::{DiscriminantId, IdlDefinition, IdlDefinitionReference, Vers
 
 mod ixs;
 
+use star_frame::declare_id;
+use star_frame_proc::pubkey;
+
+declare_id!("11111111111111111111111111111111");
+const KEY: Pubkey = pubkey!("11111111111111111111111111111111");
+
 #[test]
 fn print_idl() {
     let idl = TestProgram::program_to_idl().unwrap();
