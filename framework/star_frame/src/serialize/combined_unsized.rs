@@ -1,6 +1,4 @@
-use crate::serialize::pointer_breakup::{
-    BuildPointer, BuildPointerMut, PointerBreakup, PointerBreakupMut,
-};
+use crate::serialize::pointer_breakup::{BuildPointer, BuildPointerMut, PointerBreakup};
 use crate::serialize::serialize_with::SerializeWith;
 use crate::serialize::{FrameworkFromBytes, FrameworkFromBytesMut, ResizeFn};
 use advance::Advance;
@@ -10,6 +8,7 @@ use std::cmp::Ordering;
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 use std::ptr;
+use std::ptr::NonNull;
 
 pub struct CombinedUnsizedData<T: ?Sized, U: ?Sized> {
     phantom_t: PhantomData<T>,
@@ -41,7 +40,7 @@ where
     U: ?Sized + SerializeWith,
 {
     phantom_ref: PhantomData<&'a ()>,
-    pointer: *const (),
+    pointer: NonNull<()>,
     meta: CombinedUnsizedMetadata<T::RefMeta, U::RefMeta>,
 }
 impl<'a, T, U> Deref for CombinedUnsizedDataRef<'a, T, U>
@@ -52,7 +51,7 @@ where
     type Target = CombinedUnsizedData<T, U>;
 
     fn deref(&self) -> &Self::Target {
-        unsafe { &*ptr::from_raw_parts(self.pointer, self.meta.data_len) }
+        unsafe { &*ptr::from_raw_parts(self.pointer.as_ptr(), self.meta.data_len) }
     }
 }
 impl<'a, T, U> FrameworkSerialize for CombinedUnsizedDataRef<'a, T, U>
@@ -79,7 +78,7 @@ where
         let data_len = bytes.len() - bytes_clone.len();
         Ok(Self {
             phantom_ref: PhantomData,
-            pointer: bytes.try_advance(data_len)?.as_ptr().cast(),
+            pointer: NonNull::from(bytes.try_advance(data_len)?).cast(),
             meta: CombinedUnsizedMetadata {
                 data_len,
                 t_meta: t.break_pointer().1,
@@ -99,7 +98,7 @@ where
         <U::Ref<'static> as PointerBreakup>::Metadata,
     >;
 
-    fn break_pointer(&self) -> (*const (), Self::Metadata) {
+    fn break_pointer(&self) -> (NonNull<()>, Self::Metadata) {
         (self.pointer, self.meta)
     }
 }
@@ -108,7 +107,7 @@ where
     T: ?Sized + SerializeWith,
     U: ?Sized + SerializeWith,
 {
-    unsafe fn build_pointer(pointee: *const (), metadata: Self::Metadata) -> Self {
+    unsafe fn build_pointer(pointee: NonNull<()>, metadata: Self::Metadata) -> Self {
         Self {
             phantom_ref: PhantomData,
             pointer: pointee,
@@ -123,7 +122,7 @@ where
     U: ?Sized + SerializeWith,
 {
     phantom_ref: PhantomData<&'a mut ()>,
-    pointer: *mut (),
+    pointer: NonNull<()>,
     meta: CombinedUnsizedMetadata<T::RefMeta, U::RefMeta>,
     resize: Box<dyn ResizeFn<'a, <Self as PointerBreakup>::Metadata>>,
 }
@@ -135,7 +134,7 @@ where
     type Target = CombinedUnsizedData<T, U>;
 
     fn deref(&self) -> &Self::Target {
-        unsafe { &*ptr::from_raw_parts(self.pointer, self.meta.data_len) }
+        unsafe { &*ptr::from_raw_parts(self.pointer.as_ptr(), self.meta.data_len) }
     }
 }
 impl<'a, T, U> DerefMut for CombinedUnsizedDataRefMut<'a, T, U>
@@ -144,7 +143,7 @@ where
     U: ?Sized + SerializeWith,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        unsafe { &mut *ptr::from_raw_parts_mut(self.pointer, self.meta.data_len) }
+        unsafe { &mut *ptr::from_raw_parts_mut(self.pointer.as_ptr(), self.meta.data_len) }
     }
 }
 impl<'a, T, U> FrameworkSerialize for CombinedUnsizedDataRefMut<'a, T, U>
@@ -169,21 +168,21 @@ where
     ) -> crate::Result<Self> {
         let bytes_len = bytes.len();
         let mut bytes_clone = &mut **bytes;
-        let mut t = T::RefMut::from_bytes_mut(&mut bytes_clone, |_, _| {
+        let t = T::RefMut::from_bytes_mut(&mut bytes_clone, |_, _| {
             panic!("Cannot resize during `from_bytes`")
         })?;
-        let t_meta = t.break_pointer_mut().1;
+        let t_meta = t.break_pointer().1;
         let t_len = bytes_len - bytes_clone.len();
         drop(t);
-        let mut u = U::RefMut::from_bytes_mut(&mut bytes_clone, |_, _| {
+        let u = U::RefMut::from_bytes_mut(&mut bytes_clone, |_, _| {
             panic!("Cannot resize during `from_bytes`")
         })?;
-        let u_meta = u.break_pointer_mut().1;
+        let u_meta = u.break_pointer().1;
         drop(u);
         let data_len = bytes_len - bytes_clone.len();
         Ok(Self {
             phantom_ref: PhantomData,
-            pointer: bytes.try_advance(data_len)?.as_mut_ptr().cast(),
+            pointer: NonNull::from(bytes.try_advance(data_len)?).cast(),
             meta: CombinedUnsizedMetadata {
                 data_len,
                 t_meta,
@@ -202,17 +201,7 @@ where
 {
     type Metadata = CombinedUnsizedMetadata<T::RefMeta, U::RefMeta>;
 
-    fn break_pointer(&self) -> (*const (), Self::Metadata) {
-        (self.pointer, self.meta)
-    }
-}
-
-impl<'a, T, U> PointerBreakupMut for CombinedUnsizedDataRefMut<'a, T, U>
-where
-    T: ?Sized + SerializeWith,
-    U: ?Sized + SerializeWith,
-{
-    fn break_pointer_mut(&mut self) -> (*mut (), Self::Metadata) {
+    fn break_pointer(&self) -> (NonNull<()>, Self::Metadata) {
         (self.pointer, self.meta)
     }
 }
@@ -223,7 +212,7 @@ where
     U: ?Sized + SerializeWith,
 {
     unsafe fn build_pointer_mut(
-        pointee: *mut (),
+        pointee: NonNull<()>,
         metadata: Self::Metadata,
         resize: impl ResizeFn<'a, Self::Metadata>,
     ) -> Self {
@@ -259,7 +248,12 @@ where
 
     fn u(&self) -> U::Ref<'_> {
         let (pointer, meta) = self.break_pointer();
-        unsafe { U::Ref::build_pointer(pointer.byte_add(meta.t_len), meta.u_meta) }
+        unsafe {
+            U::Ref::build_pointer(
+                NonNull::new(pointer.as_ptr().byte_add(meta.t_len)).unwrap(),
+                meta.u_meta,
+            )
+        }
     }
 }
 impl<'a, T, U> CombinedRefAccess<T, U> for CombinedUnsizedDataRefMut<'a, T, U>
@@ -274,7 +268,12 @@ where
 
     fn u(&self) -> U::Ref<'_> {
         let (pointer, meta) = self.break_pointer();
-        unsafe { U::Ref::build_pointer(pointer.byte_add(meta.t_len), meta.u_meta) }
+        unsafe {
+            U::Ref::build_pointer(
+                NonNull::new(pointer.as_ptr().byte_add(meta.t_len)).unwrap(),
+                meta.u_meta,
+            )
+        }
     }
 }
 
@@ -284,7 +283,7 @@ where
     U: ?Sized + SerializeWith,
 {
     pub fn t_mut(&mut self) -> T::RefMut<'_> {
-        let (pointer, meta) = self.break_pointer_mut();
+        let (pointer, meta) = Self::break_pointer(self);
         unsafe {
             T::RefMut::build_pointer_mut(pointer, meta.t_meta, move |new_size, new_meta| {
                 let old_t_len = self.meta.t_len;
@@ -303,8 +302,8 @@ where
                         let new_ptr = (self.resize)(self.meta.data_len, self.meta)?;
                         self.pointer = new_ptr;
                         sol_memmove(
-                            self.pointer.byte_add(new_size).cast(),
-                            self.pointer.byte_add(old_t_len).cast(),
+                            self.pointer.as_ptr().byte_add(new_size).cast(),
+                            self.pointer.as_ptr().byte_add(old_t_len).cast(),
                             self.meta.data_len - new_size,
                         );
                         Ok(new_ptr)
@@ -312,8 +311,8 @@ where
                     // Old size greater than new size
                     Ordering::Greater => {
                         sol_memmove(
-                            self.pointer.byte_add(new_size).cast(),
-                            self.pointer.byte_add(old_t_len).cast(),
+                            self.pointer.as_ptr().byte_add(new_size).cast(),
+                            self.pointer.as_ptr().byte_add(old_t_len).cast(),
                             self.meta.data_len - old_t_len,
                         );
                         self.meta.t_meta = new_meta;
@@ -329,10 +328,10 @@ where
     }
 
     pub fn u_mut(&mut self) -> U::RefMut<'_> {
-        let (pointer, meta) = self.break_pointer_mut();
+        let (pointer, meta) = Self::break_pointer(self);
         unsafe {
             U::RefMut::build_pointer_mut(
-                pointer.byte_add(meta.t_len),
+                NonNull::new(pointer.as_ptr().byte_add(meta.t_len)).unwrap(),
                 meta.u_meta,
                 move |new_size, new_meta| {
                     let new_data_len = new_size + meta.t_len;
@@ -340,19 +339,19 @@ where
                     self.meta.data_len = new_data_len;
                     let new_ptr = (self.resize)(new_data_len, self.meta)?;
                     self.pointer = new_ptr;
-                    Ok(new_ptr.byte_add(meta.t_len))
+                    Ok(NonNull::new(new_ptr.as_ptr().byte_add(meta.t_len)).unwrap())
                 },
             )
         }
     }
 
     pub fn split_mut(&mut self) -> (T::Ref<'_>, U::RefMut<'_>) {
-        let (pointer, meta) = self.break_pointer_mut();
+        let (pointer, meta) = Self::break_pointer(self);
         (
             unsafe { T::Ref::build_pointer(pointer, meta.t_meta) },
             unsafe {
                 U::RefMut::build_pointer_mut(
-                    pointer.byte_add(meta.t_len),
+                    NonNull::new(pointer.as_ptr().byte_add(meta.t_len)).unwrap(),
                     meta.u_meta,
                     move |new_size, new_meta| {
                         let new_data_len = new_size + meta.t_len;
@@ -360,7 +359,7 @@ where
                         self.meta.data_len = new_data_len;
                         let new_ptr = (self.resize)(new_data_len, self.meta)?;
                         self.pointer = new_ptr;
-                        Ok(new_ptr.byte_add(meta.t_len))
+                        Ok(NonNull::new(new_ptr.as_ptr().byte_add(meta.t_len)).unwrap())
                     },
                 )
             },

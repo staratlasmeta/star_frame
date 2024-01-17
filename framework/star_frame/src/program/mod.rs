@@ -4,6 +4,7 @@ use crate::instruction::InstructionSet;
 use crate::program_account::ProgramAccount;
 use crate::util::Network;
 use crate::Result;
+use bytemuck::Pod;
 use solana_program::msg;
 use solana_program::program_error::ProgramError;
 use solana_program::pubkey::Pubkey;
@@ -13,6 +14,9 @@ pub trait Program {
     /// The instruction set used by this program.
     type InstructionSet<'a>: InstructionSet<'a, Discriminant = Self::InstructionDiscriminant>;
     type InstructionDiscriminant;
+
+    type AccountDiscriminant: Pod + Eq;
+    const CLOSED_ACCOUNT_DISCRIMINANT: Self::AccountDiscriminant;
 
     /// Gets the program id.
     fn program_id() -> ProgramIds;

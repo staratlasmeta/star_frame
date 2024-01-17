@@ -46,6 +46,8 @@ mod tests {
     impl Program for MyProgram {
         type InstructionSet<'a> = ();
         type InstructionDiscriminant = ();
+        type AccountDiscriminant = ();
+        const CLOSED_ACCOUNT_DISCRIMINANT: Self::AccountDiscriminant = ();
 
         fn program_id() -> ProgramIds {
             todo!()

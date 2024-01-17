@@ -11,6 +11,8 @@ pub struct SystemProgram;
 impl Program for SystemProgram {
     type InstructionSet<'a> = SystemInstruction;
     type InstructionDiscriminant = ();
+    type AccountDiscriminant = ();
+    const CLOSED_ACCOUNT_DISCRIMINANT: Self::AccountDiscriminant = ();
 
     fn program_id() -> ProgramIds {
         ProgramIds::AllNetworks(&system_program::ID)

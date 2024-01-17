@@ -10,9 +10,10 @@ use advance::Advance;
 use bytemuck::{from_bytes, from_bytes_mut, Pod};
 use star_frame::serialize::pointer_breakup::PointerBreakup;
 use std::mem::size_of;
+use std::ptr::NonNull;
 
-pub trait ResizeFn<'a, M>: FnMut(usize, M) -> Result<*mut ()> + 'a {}
-impl<'a, T, M> ResizeFn<'a, M> for T where T: FnMut(usize, M) -> Result<*mut ()> + 'a {}
+pub trait ResizeFn<'a, M>: FnMut(usize, M) -> Result<NonNull<()>> + 'a {}
+impl<'a, T, M> ResizeFn<'a, M> for T where T: FnMut(usize, M) -> Result<NonNull<()>> + 'a {}
 
 pub trait FrameworkSerialize {
     /// Writes this type to a set of bytes.
@@ -91,6 +92,7 @@ pub mod test {
     use crate::serialize::serialize_with::SerializeWith;
     use crate::serialize::{FrameworkFromBytes, FrameworkFromBytesMut};
     use std::marker::PhantomData;
+    use std::ptr::NonNull;
 
     pub struct TestByteSet<T: ?Sized> {
         pub bytes: Vec<u8>,
@@ -117,7 +119,7 @@ pub mod test {
             T::RefMut::from_bytes_mut(&mut &mut self.bytes[..], move |len, _| {
                 let bytes = unsafe { &mut *bytes };
                 bytes.resize(len, 0);
-                Ok(bytes.as_mut_ptr().cast())
+                Ok(NonNull::<[u8]>::from(bytes.as_slice()).cast())
             })
         }
     }

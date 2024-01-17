@@ -1,8 +1,6 @@
 use crate::align1::Align1;
 use crate::packed_value::PackedValue;
-use crate::serialize::pointer_breakup::{
-    BuildPointer, BuildPointerMut, PointerBreakup, PointerBreakupMut,
-};
+use crate::serialize::pointer_breakup::{BuildPointer, BuildPointerMut, PointerBreakup};
 use crate::serialize::serialize_with::SerializeWith;
 use crate::serialize::{FrameworkFromBytes, FrameworkFromBytesMut, FrameworkSerialize, ResizeFn};
 use crate::Result;
@@ -15,6 +13,7 @@ use std::marker::PhantomData;
 use std::mem::size_of;
 use std::ops::{Deref, DerefMut};
 use std::ptr;
+use std::ptr::NonNull;
 
 #[derive(Align1)]
 #[repr(C)]
@@ -117,8 +116,8 @@ where
 {
     type Metadata = L;
 
-    fn break_pointer(&self) -> (*const (), Self::Metadata) {
-        ((self.list as *const List<T, L>).cast(), self.list.len.0)
+    fn break_pointer(&self) -> (NonNull<()>, Self::Metadata) {
+        (NonNull::from(&self.list).cast(), self.list.len.0)
     }
 }
 impl<'a, T, L> BuildPointer for ListRef<'a, T, L>
@@ -126,9 +125,9 @@ where
     T: Pod,
     L: Pod + ToPrimitive + FromPrimitive,
 {
-    unsafe fn build_pointer(pointee: *const (), metadata: Self::Metadata) -> Self {
+    unsafe fn build_pointer(pointee: NonNull<()>, metadata: Self::Metadata) -> Self {
         Self {
-            list: &*ptr::from_raw_parts(pointee.cast(), metadata.to_usize().unwrap()),
+            list: &*ptr::from_raw_parts(pointee.as_ptr(), metadata.to_usize().unwrap()),
         }
     }
 }
@@ -139,7 +138,7 @@ where
     L: Pod + ToPrimitive + FromPrimitive,
 {
     phantom_ref: PhantomData<&'a mut [T]>,
-    ptr: *mut (),
+    ptr: NonNull<()>,
     metadata: L,
     resize: Box<dyn ResizeFn<'a, <Self as PointerBreakup>::Metadata>>,
 }
@@ -151,7 +150,7 @@ where
     type Target = List<T, L>;
 
     fn deref(&self) -> &Self::Target {
-        unsafe { &*ptr::from_raw_parts(self.ptr.cast(), self.metadata.to_usize().unwrap()) }
+        unsafe { &*ptr::from_raw_parts(self.ptr.as_ptr(), self.metadata.to_usize().unwrap()) }
     }
 }
 impl<'a, T, L> DerefMut for ListRefMut<'a, T, L>
@@ -160,7 +159,9 @@ where
     L: Pod + ToPrimitive + FromPrimitive,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        unsafe { &mut *ptr::from_raw_parts_mut(self.ptr.cast(), self.metadata.to_usize().unwrap()) }
+        unsafe {
+            &mut *ptr::from_raw_parts_mut(self.ptr.as_ptr(), self.metadata.to_usize().unwrap())
+        }
     }
 }
 impl<'a, T, L> FrameworkSerialize for ListRefMut<'a, T, L>
@@ -187,10 +188,10 @@ where
     ) -> Result<Self> {
         let len = *from_bytes::<L>(&bytes[..size_of::<L>()]);
         let len_usize = len.to_usize().unwrap();
-        let ptr = bytes
-            .try_advance(size_of::<L>() + size_of::<PackedValue<T>>() * len_usize)?
-            .as_mut_ptr()
-            .cast();
+        let ptr = NonNull::from(
+            bytes.try_advance(size_of::<L>() + size_of::<PackedValue<T>>() * len_usize)?,
+        )
+        .cast();
         Ok(Self {
             phantom_ref: PhantomData,
             ptr,
@@ -206,16 +207,7 @@ where
 {
     type Metadata = L;
 
-    fn break_pointer(&self) -> (*const (), Self::Metadata) {
-        (self.ptr, self.metadata)
-    }
-}
-impl<'a, T, L> PointerBreakupMut for ListRefMut<'a, T, L>
-where
-    T: Pod,
-    L: Pod + ToPrimitive + FromPrimitive,
-{
-    fn break_pointer_mut(&mut self) -> (*mut (), Self::Metadata) {
+    fn break_pointer(&self) -> (NonNull<()>, Self::Metadata) {
         (self.ptr, self.metadata)
     }
 }
@@ -225,7 +217,7 @@ where
     L: Pod + ToPrimitive + FromPrimitive,
 {
     unsafe fn build_pointer_mut(
-        pointee: *mut (),
+        pointee: NonNull<()>,
         metadata: Self::Metadata,
         resize: impl ResizeFn<'a, Self::Metadata>,
     ) -> Self {
@@ -321,7 +313,9 @@ pub mod test {
         test_bytes.mutable()?.push(Cool { a: 1, b: 1 })?;
         assert_eq!(
             test_bytes.immut()?.deref().deref(),
-            &[PackedValue(Cool { a: 1, b: 1 })]
+            &[PackedValue(Cool { a: 1, b: 1 })],
+            "bytes: {:?}",
+            test_bytes.bytes
         );
         assert_eq!(
             test_bytes.mutable()?.deref().deref(),
