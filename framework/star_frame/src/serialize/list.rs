@@ -94,7 +94,7 @@ where
     L: Pod + ToPrimitive + FromPrimitive,
 {
     fn from_bytes(bytes: &mut &'a [u8]) -> Result<Self> {
-        let len = from_bytes::<L>(&bytes[..size_of::<L>()])
+        let len = { from_bytes::<PackedValue<L>>(&bytes[..size_of::<L>()]).0 }
             .to_usize()
             .unwrap();
         Ok(Self {
@@ -277,7 +277,11 @@ where
             .ok_or(ProgramError::InvalidArgument)?;
         self.len.0 = L::from_usize(new_len).unwrap();
         self.metadata = self.len.0;
-        (self.resize)(new_len * size_of::<PackedValue<T>>(), self.metadata)?;
+        let new_ptr = (self.resize)(
+            size_of::<L>() + new_len * size_of::<PackedValue<T>>(),
+            self.metadata,
+        )?;
+        self.ptr = new_ptr;
         unsafe {
             sol_memmove(
                 self.items.as_mut_ptr().add(index + iter.len()).cast(),
@@ -289,6 +293,57 @@ where
             self.items[index + i] = PackedValue(item);
         }
 
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+pub mod test {
+    use crate::packed_value::PackedValue;
+    use crate::serialize::list::List;
+    use crate::serialize::test::TestByteSet;
+    use crate::Result;
+    use bytemuck::{Pod, Zeroable};
+    use std::ops::Deref;
+
+    #[derive(Pod, Zeroable, Copy, Clone, Eq, PartialEq, Debug)]
+    #[repr(C)]
+    pub struct Cool {
+        pub a: u8,
+        pub b: u8,
+    }
+
+    #[test]
+    fn test_stuff() -> Result<()> {
+        let mut test_bytes = TestByteSet::<List<Cool>>::new(4);
+        assert_eq!(test_bytes.immut()?.deref().deref(), &[]);
+        assert_eq!(test_bytes.mutable()?.deref().deref(), &[]);
+        test_bytes.mutable()?.push(Cool { a: 1, b: 1 })?;
+        assert_eq!(
+            test_bytes.immut()?.deref().deref(),
+            &[PackedValue(Cool { a: 1, b: 1 })]
+        );
+        assert_eq!(
+            test_bytes.mutable()?.deref().deref(),
+            &[PackedValue(Cool { a: 1, b: 1 })]
+        );
+
+        let mut mutable = test_bytes.mutable()?;
+        mutable.push(Cool { a: 2, b: 2 })?;
+        mutable.push(Cool { a: 3, b: 3 })?;
+        assert_eq!(
+            mutable.deref().deref(),
+            &[
+                PackedValue(Cool { a: 1, b: 1 }),
+                PackedValue(Cool { a: 2, b: 2 }),
+                PackedValue(Cool { a: 3, b: 3 })
+            ]
+        );
+        mutable.push_all((4..=6).map(|x| Cool { a: x, b: x }))?;
+        drop(mutable);
+
+        println!("bytes: {:?}", test_bytes.bytes);
+        println!("list: {:#?}", test_bytes.immut()?.deref().deref());
         Ok(())
     }
 }
