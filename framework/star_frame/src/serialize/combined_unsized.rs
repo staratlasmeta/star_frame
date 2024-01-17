@@ -11,13 +11,13 @@ use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 use std::ptr;
 
-pub struct CombinedUnsizedData<T: ?Sized, U: ?Sized> {
+pub struct CombinedUnsized<T: ?Sized, U: ?Sized> {
     phantom_t: PhantomData<T>,
     phantom_u: PhantomData<U>,
     _data: [u8],
 }
 
-impl<T, U> SerializeWith for CombinedUnsizedData<T, U>
+impl<T, U> SerializeWith for CombinedUnsized<T, U>
 where
     T: ?Sized + SerializeWith,
     U: ?Sized + SerializeWith,
@@ -49,7 +49,7 @@ where
     T: ?Sized + SerializeWith,
     U: ?Sized + SerializeWith,
 {
-    type Target = CombinedUnsizedData<T, U>;
+    type Target = CombinedUnsized<T, U>;
 
     fn deref(&self) -> &Self::Target {
         unsafe { &*ptr::from_raw_parts(self.pointer, self.meta.data_len) }
@@ -132,7 +132,7 @@ where
     T: ?Sized + SerializeWith,
     U: ?Sized + SerializeWith,
 {
-    type Target = CombinedUnsizedData<T, U>;
+    type Target = CombinedUnsized<T, U>;
 
     fn deref(&self) -> &Self::Target {
         unsafe { &*ptr::from_raw_parts(self.pointer, self.meta.data_len) }
@@ -371,7 +371,7 @@ where
 #[cfg(test)]
 mod test {
     use crate::packed_value::PackedValue;
-    use crate::serialize::combined_unsized::{CombinedRefAccess, CombinedUnsizedData};
+    use crate::serialize::combined_unsized::{CombinedRefAccess, CombinedUnsized};
     use crate::serialize::list::test::Cool;
     use crate::serialize::list::List;
     use crate::Result;
@@ -380,7 +380,7 @@ mod test {
 
     #[test]
     fn test_combined() -> Result<()> {
-        let mut test_bytes = TestByteSet::<CombinedUnsizedData<List<Cool>, List<u8>>>::new(8);
+        let mut test_bytes = TestByteSet::<CombinedUnsized<List<Cool>, List<u8>>>::new(8);
         assert_eq!(test_bytes.immut()?.t().deref().deref(), &[]);
         assert_eq!(test_bytes.immut()?.u().deref().deref(), &[]);
 
@@ -411,7 +411,7 @@ mod test {
     #[test]
     fn test_combined_recursive() -> Result<()> {
         let mut test_bytes = TestByteSet::<
-            CombinedUnsizedData<List<Cool>, CombinedUnsizedData<List<u8>, List<u16>>>,
+            CombinedUnsized<List<Cool>, CombinedUnsized<List<u8>, List<u16>>>,
         >::new(12);
         assert_eq!(test_bytes.immut()?.t().deref().deref(), &[]);
         assert_eq!(test_bytes.immut()?.u().t().deref().deref(), &[]);
