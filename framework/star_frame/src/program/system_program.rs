@@ -276,7 +276,7 @@ mod idl_impl {
             let create_account_data = idl.types.get("CreateAccountData").unwrap();
             matches!(create_account_data.type_def, IdlTypeDef::Struct(_));
 
-            println!("{}", serde_json::to_string_pretty(&idl).unwrap());
+            // println!("{}", serde_json::to_string_pretty(&idl).unwrap());
             Ok(())
         }
     }

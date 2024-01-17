@@ -27,8 +27,8 @@ const KEY: Pubkey = pubkey!("11111111111111111111111111111111");
 
 #[test]
 fn print_idl() {
-    let idl = TestProgram::program_to_idl().unwrap();
-    println!("{}", serde_json::to_string_pretty(&idl).unwrap());
+    let _idl = TestProgram::program_to_idl().unwrap();
+    // println!("{}", serde_json::to_string_pretty(&idl).unwrap());
 }
 
 lazy_static! {

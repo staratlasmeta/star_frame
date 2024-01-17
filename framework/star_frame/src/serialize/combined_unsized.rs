@@ -381,71 +381,62 @@ mod test {
     fn test_combined() -> Result<()> {
         let mut test_bytes = TestByteSet::<CombinedUnsizedData<List<Cool>, List<u8>>>::new(8);
         assert_eq!(test_bytes.immut()?.t().deref().deref(), &[]);
-        assert_eq!(test_bytes.immut()?.u().deref().deref(), &[]);
+        assert_eq!(test_bytes.immut()?.u().deref().deref(), &[] as &[u8]);
 
         let mut mutable = test_bytes.mutable()?;
         mutable.t_mut().push(Cool { a: 1, b: 1 })?;
         mutable.u_mut().push_all([1, 2, 3])?;
-        assert_eq!(
-            mutable.t().deref().deref(),
-            &[PackedValue(Cool { a: 1, b: 1 })]
-        );
-        assert_eq!(
-            mutable.u().deref().deref(),
-            &[PackedValue(1), PackedValue(2), PackedValue(3)]
-        );
+        assert_eq!(mutable.t().deref().deref(), &[Cool { a: 1, b: 1 }]);
+        assert_eq!(mutable.u().deref().deref(), &[1, 2, 3]);
         drop(mutable);
-        println!("bytes: {:?}", test_bytes.bytes);
-        println!(
-            "list1: {:#?}",
-            test_bytes.immut()?.split().0.deref().deref()
-        );
-        println!(
-            "list2: {:#?}",
-            test_bytes.immut()?.split().1.deref().deref()
-        );
+        // println!("bytes: {:?}", test_bytes.bytes);
+        // println!(
+        //     "list1: {:#?}",
+        //     test_bytes.immut()?.split().0.deref().deref()
+        // );
+        // println!(
+        //     "list2: {:#?}",
+        //     test_bytes.immut()?.split().1.deref().deref()
+        // );
         Ok(())
     }
 
     #[test]
     fn test_combined_recursive() -> Result<()> {
         let mut test_bytes = TestByteSet::<
-            CombinedUnsizedData<List<Cool>, CombinedUnsizedData<List<u8>, List<u16>>>,
+            CombinedUnsizedData<List<Cool>, CombinedUnsizedData<List<u8>, List<PackedValue<u16>>>>,
         >::new(12);
         assert_eq!(test_bytes.immut()?.t().deref().deref(), &[]);
-        assert_eq!(test_bytes.immut()?.u().t().deref().deref(), &[]);
+        assert_eq!(test_bytes.immut()?.u().t().deref().deref(), &[] as &[u8]);
         assert_eq!(test_bytes.immut()?.u().u().deref().deref(), &[]);
 
         let mut mutable = test_bytes.mutable()?;
         mutable.t_mut().push(Cool { a: 1, b: 1 })?;
         mutable.u_mut().t_mut().push_all([1, 2, 3])?;
-        mutable.u_mut().u_mut().push_all([1, 2])?;
-        assert_eq!(
-            mutable.t().deref().deref(),
-            &[PackedValue(Cool { a: 1, b: 1 })]
-        );
-        assert_eq!(
-            mutable.u().t().deref().deref(),
-            &[PackedValue(1), PackedValue(2), PackedValue(3)]
-        );
+        mutable
+            .u_mut()
+            .u_mut()
+            .push_all([PackedValue(1), PackedValue(2)])?;
+        assert_eq!(mutable.t().deref().deref(), &[Cool { a: 1, b: 1 }]);
+        assert_eq!(mutable.u().t().deref().deref(), &[1, 2, 3]);
         assert_eq!(
             mutable.u().u().deref().deref(),
             &[PackedValue(1), PackedValue(2)]
         );
         drop(mutable);
-        println!("bytes: {:?}", test_bytes.bytes);
-        println!(
-            "list1: {:#?}",
-            test_bytes.immut()?.split().0.deref().deref()
-        );
-        println!(
-            "list2: {:#?}",
-            test_bytes.immut()?.split().1.t().deref().deref()
-        );
-        println!(
-            "list3: {:#?}",
-            test_bytes.immut()?.split().1.u().deref().deref()
-        );
+        // println!("bytes: {:?}", test_bytes.bytes);
+        // println!(
+        //     "list1: {:#?}",
+        //     test_bytes.immut()?.split().0.deref().deref()
+        // );
+        // println!(
+        //     "list2: {:#?}",
+        //     test_bytes.immut()?.split().1.t().deref().deref()
+        // );
+        // println!(
+        //     "list3: {:#?}",
+        //     test_bytes.immut()?.split().1.u().deref().deref()
+        // );
         Ok(())
     }
 }
