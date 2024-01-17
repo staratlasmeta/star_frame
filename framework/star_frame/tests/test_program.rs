@@ -1,5 +1,6 @@
 #![cfg(feature = "idl")]
 #![feature(ptr_metadata)]
+#![allow(dead_code)]
 
 use ixs::TestProgramInstructions;
 use lazy_static::lazy_static;

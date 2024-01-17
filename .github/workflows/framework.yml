@@ -1,0 +1,74 @@
+name: Lint and Test
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  merge_group:
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          path: programs
+
+      - uses: staratlasmeta/actions/setup-shipyard@latest
+        with:
+          ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
+          private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+          cargo-config: programs
+
+      - name: Cache Cargo
+        uses: staratlasmeta/actions/cache-cargo@latest
+        with:
+          key: cargo
+          cargo-workspace: programs
+
+      # fails for clippy warnings by design!
+      - name: Run strict clippy
+        run: ./scripts/strict-clippy.sh sol-programs
+        shell: bash
+        working-directory: programs
+
+      - name: Run clippy with tests
+        run: |
+          RUSTFLAGS="-Dwarnings" cargo clippy --tests --all-features
+        shell: bash
+        working-directory: programs
+
+      # fails for all lint issues!
+      - name: Run rustfmt
+        run: |
+          cargo fmt --check
+        working-directory: programs
+
+  unit-tests:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          path: programs
+
+      - uses: staratlasmeta/actions/setup-shipyard@latest
+        with:
+          ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
+          private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+          cargo-config: programs
+
+      - name: Cache Cargo
+        uses: staratlasmeta/actions/cache-cargo@latest
+        with:
+          key: cargo
+          cargo-workspace: programs
+          restore-only: true
+
+      - name: Run tests
+        run: |
+          cargo test --all-features
+        working-directory: programs
