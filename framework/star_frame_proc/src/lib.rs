@@ -1,6 +1,7 @@
 mod account_set;
 mod framework_instruction;
 mod instruction_set;
+mod solana_pubkey;
 mod ty;
 mod unit_enum_from_repr;
 mod util;
@@ -227,4 +228,15 @@ pub fn derive_type_to_idl(item: proc_macro::TokenStream) -> proc_macro::TokenStr
     //     println!("{out}");
     // }
     out.into()
+}
+
+// ---- Copied solana-program macros to use `star_frame::solana_program` path  ----
+#[proc_macro]
+pub fn declare_id(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    solana_pubkey::program_declare_id_impl(input)
+}
+
+#[proc_macro]
+pub fn pubkey(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    solana_pubkey::pubkey_impl(input)
 }

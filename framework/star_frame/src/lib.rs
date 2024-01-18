@@ -24,6 +24,7 @@ pub mod unit_enum_from_repr;
 pub mod util;
 
 pub use solana_program::instruction::Instruction as SolanaInstruction;
+pub use star_frame_proc::{declare_id, pubkey};
 
 pub type Result<T, E = solana_program::program_error::ProgramError> = std::result::Result<T, E>;
 
@@ -45,6 +46,8 @@ mod tests {
     impl Program for MyProgram {
         type InstructionSet<'a> = ();
         type InstructionDiscriminant = ();
+        type AccountDiscriminant = ();
+        const CLOSED_ACCOUNT_DISCRIMINANT: Self::AccountDiscriminant = ();
 
         fn program_id() -> ProgramIds {
             todo!()

@@ -11,6 +11,8 @@ pub struct SystemProgram;
 impl Program for SystemProgram {
     type InstructionSet<'a> = SystemInstruction;
     type InstructionDiscriminant = ();
+    type AccountDiscriminant = ();
+    const CLOSED_ACCOUNT_DISCRIMINANT: Self::AccountDiscriminant = ();
 
     fn program_id() -> ProgramIds {
         ProgramIds::AllNetworks(&system_program::ID)
@@ -274,7 +276,7 @@ mod idl_impl {
             let create_account_data = idl.types.get("CreateAccountData").unwrap();
             matches!(create_account_data.type_def, IdlTypeDef::Struct(_));
 
-            println!("{}", serde_json::to_string_pretty(&idl).unwrap());
+            // println!("{}", serde_json::to_string_pretty(&idl).unwrap());
             Ok(())
         }
     }

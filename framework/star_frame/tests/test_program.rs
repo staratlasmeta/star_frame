@@ -1,11 +1,15 @@
 #![cfg(feature = "idl")]
 #![feature(ptr_metadata)]
+#![allow(dead_code)]
+
+mod ixs;
 
 use ixs::TestProgramInstructions;
 use lazy_static::lazy_static;
 use solana_program::msg;
 use solana_program::program_error::ProgramError;
 use solana_program::pubkey::Pubkey;
+use star_frame::declare_id;
 use star_frame::idl::ty::TypeToIdl;
 use star_frame::idl::{AccountToIdl, InstructionSetToIdl, ProgramToIdl};
 use star_frame::program::{Program, ProgramIds};
@@ -16,13 +20,15 @@ use star_frame_idl::account::{AccountId, IdlAccount};
 use star_frame_idl::seeds::IdlSeeds;
 use star_frame_idl::ty::{IdlField, IdlType, IdlTypeDef, TypeId};
 use star_frame_idl::{DiscriminantId, IdlDefinition, IdlDefinitionReference, Version};
+use star_frame_proc::pubkey;
 
-mod ixs;
+declare_id!("11111111111111111111111111111111");
+const KEY: Pubkey = pubkey!("11111111111111111111111111111111");
 
 #[test]
 fn print_idl() {
-    let idl = TestProgram::program_to_idl().unwrap();
-    println!("{}", serde_json::to_string_pretty(&idl).unwrap());
+    let _idl = TestProgram::program_to_idl().unwrap();
+    // println!("{}", serde_json::to_string_pretty(&idl).unwrap());
 }
 
 lazy_static! {
@@ -39,6 +45,8 @@ pub struct TestProgram;
 impl Program for TestProgram {
     type InstructionSet<'a> = TestProgramInstructions<'a>;
     type InstructionDiscriminant = u32;
+    type AccountDiscriminant = u8;
+    const CLOSED_ACCOUNT_DISCRIMINANT: Self::AccountDiscriminant = 1;
 
     fn program_id() -> ProgramIds {
         ProgramIds::Mapped(&*TEST_PROGRAM_PUBKEYS)
