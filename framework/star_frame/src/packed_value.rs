@@ -1,4 +1,4 @@
-use bytemuck::{Pod, Zeroable};
+use bytemuck::{AnyBitPattern, CheckedBitPattern, Pod, Zeroable};
 use derivative::Derivative;
 use star_frame::align1::Align1;
 use std::fmt::Debug;
@@ -17,6 +17,30 @@ use std::fmt::Debug;
 )]
 #[repr(C, packed)]
 pub struct PackedValue<T>(pub T);
+
+#[derive(Align1, Derivative)]
+#[derivative(
+    Debug(bound = "T: Debug + Copy"),
+    Copy,
+    Clone(bound = "T: Copy"),
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord
+)]
+#[repr(C, packed)]
+pub struct PackedValueChecked<T>(pub T);
+unsafe impl<T> CheckedBitPattern for PackedValueChecked<T>
+where
+    T: CheckedBitPattern,
+    PackedValue<T::Bits>: AnyBitPattern,
+{
+    type Bits = PackedValue<T::Bits>;
+
+    fn is_valid_bit_pattern(bits: &Self::Bits) -> bool {
+        T::is_valid_bit_pattern(&{ bits.0 })
+    }
+}
 
 #[cfg(feature = "idl")]
 mod idl_impl {

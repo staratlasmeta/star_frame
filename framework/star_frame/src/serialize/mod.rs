@@ -3,6 +3,7 @@ pub mod combined_unsized;
 pub mod list;
 pub mod pointer_breakup;
 pub mod serialize_with;
+pub mod unsized_enum;
 
 use crate::align1::Align1;
 use crate::Result;

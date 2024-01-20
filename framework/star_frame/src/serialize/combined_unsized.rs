@@ -10,20 +10,20 @@ use std::ops::{Deref, DerefMut};
 use std::ptr;
 use std::ptr::NonNull;
 
-pub struct CombinedUnsizedData<T: ?Sized, U: ?Sized> {
+pub struct CombinedUnsized<T: ?Sized, U: ?Sized> {
     phantom_t: PhantomData<T>,
     phantom_u: PhantomData<U>,
     _data: [u8],
 }
 
-impl<T, U> SerializeWith for CombinedUnsizedData<T, U>
+impl<T, U> SerializeWith for CombinedUnsized<T, U>
 where
     T: ?Sized + SerializeWith,
     U: ?Sized + SerializeWith,
 {
     type RefMeta = CombinedUnsizedMetadata<T::RefMeta, U::RefMeta>;
-    type Ref<'a> = CombinedUnsizedDataRef<'a, T, U> where Self: 'a;
-    type RefMut<'a> = CombinedUnsizedDataRefMut<'a, T, U> where Self: 'a;
+    type Ref<'a> = CombinedUnsizedRef<'a, T, U> where Self: 'a;
+    type RefMut<'a> = CombinedUnsizedRefMut<'a, T, U> where Self: 'a;
 }
 
 #[derive(Copy, Clone)]
@@ -34,7 +34,7 @@ pub struct CombinedUnsizedMetadata<TMeta, UMeta> {
     t_len: usize,
 }
 
-pub struct CombinedUnsizedDataRef<'a, T, U>
+pub struct CombinedUnsizedRef<'a, T, U>
 where
     T: ?Sized + SerializeWith,
     U: ?Sized + SerializeWith,
@@ -43,18 +43,18 @@ where
     pointer: NonNull<()>,
     meta: CombinedUnsizedMetadata<T::RefMeta, U::RefMeta>,
 }
-impl<'a, T, U> Deref for CombinedUnsizedDataRef<'a, T, U>
+impl<'a, T, U> Deref for CombinedUnsizedRef<'a, T, U>
 where
     T: ?Sized + SerializeWith,
     U: ?Sized + SerializeWith,
 {
-    type Target = CombinedUnsizedData<T, U>;
+    type Target = CombinedUnsized<T, U>;
 
     fn deref(&self) -> &Self::Target {
         unsafe { &*ptr::from_raw_parts(self.pointer.as_ptr(), self.meta.data_len) }
     }
 }
-impl<'a, T, U> FrameworkSerialize for CombinedUnsizedDataRef<'a, T, U>
+impl<'a, T, U> FrameworkSerialize for CombinedUnsizedRef<'a, T, U>
 where
     T: ?Sized + SerializeWith,
     U: ?Sized + SerializeWith,
@@ -65,7 +65,7 @@ where
         u.to_bytes(output)
     }
 }
-unsafe impl<'a, T, U> FrameworkFromBytes<'a> for CombinedUnsizedDataRef<'a, T, U>
+unsafe impl<'a, T, U> FrameworkFromBytes<'a> for CombinedUnsizedRef<'a, T, U>
 where
     T: ?Sized + SerializeWith,
     U: ?Sized + SerializeWith,
@@ -88,7 +88,7 @@ where
         })
     }
 }
-impl<'a, T, U> PointerBreakup for CombinedUnsizedDataRef<'a, T, U>
+impl<'a, T, U> PointerBreakup for CombinedUnsizedRef<'a, T, U>
 where
     T: ?Sized + SerializeWith,
     U: ?Sized + SerializeWith,
@@ -102,7 +102,7 @@ where
         (self.pointer, self.meta)
     }
 }
-impl<'a, T, U> BuildPointer for CombinedUnsizedDataRef<'a, T, U>
+impl<'a, T, U> BuildPointer for CombinedUnsizedRef<'a, T, U>
 where
     T: ?Sized + SerializeWith,
     U: ?Sized + SerializeWith,
@@ -116,7 +116,7 @@ where
     }
 }
 
-pub struct CombinedUnsizedDataRefMut<'a, T, U>
+pub struct CombinedUnsizedRefMut<'a, T, U>
 where
     T: ?Sized + SerializeWith,
     U: ?Sized + SerializeWith,
@@ -126,18 +126,18 @@ where
     meta: CombinedUnsizedMetadata<T::RefMeta, U::RefMeta>,
     resize: Box<dyn ResizeFn<'a, <Self as PointerBreakup>::Metadata>>,
 }
-impl<'a, T, U> Deref for CombinedUnsizedDataRefMut<'a, T, U>
+impl<'a, T, U> Deref for CombinedUnsizedRefMut<'a, T, U>
 where
     T: ?Sized + SerializeWith,
     U: ?Sized + SerializeWith,
 {
-    type Target = CombinedUnsizedData<T, U>;
+    type Target = CombinedUnsized<T, U>;
 
     fn deref(&self) -> &Self::Target {
         unsafe { &*ptr::from_raw_parts(self.pointer.as_ptr(), self.meta.data_len) }
     }
 }
-impl<'a, T, U> DerefMut for CombinedUnsizedDataRefMut<'a, T, U>
+impl<'a, T, U> DerefMut for CombinedUnsizedRefMut<'a, T, U>
 where
     T: ?Sized + SerializeWith,
     U: ?Sized + SerializeWith,
@@ -146,7 +146,7 @@ where
         unsafe { &mut *ptr::from_raw_parts_mut(self.pointer.as_ptr(), self.meta.data_len) }
     }
 }
-impl<'a, T, U> FrameworkSerialize for CombinedUnsizedDataRefMut<'a, T, U>
+impl<'a, T, U> FrameworkSerialize for CombinedUnsizedRefMut<'a, T, U>
 where
     T: ?Sized + SerializeWith,
     U: ?Sized + SerializeWith,
@@ -157,7 +157,7 @@ where
         u.to_bytes(output)
     }
 }
-unsafe impl<'a, T, U> FrameworkFromBytesMut<'a> for CombinedUnsizedDataRefMut<'a, T, U>
+unsafe impl<'a, T, U> FrameworkFromBytesMut<'a> for CombinedUnsizedRefMut<'a, T, U>
 where
     T: ?Sized + SerializeWith,
     U: ?Sized + SerializeWith,
@@ -194,7 +194,7 @@ where
     }
 }
 
-impl<'a, T, U> PointerBreakup for CombinedUnsizedDataRefMut<'a, T, U>
+impl<'a, T, U> PointerBreakup for CombinedUnsizedRefMut<'a, T, U>
 where
     T: ?Sized + SerializeWith,
     U: ?Sized + SerializeWith,
@@ -206,7 +206,7 @@ where
     }
 }
 
-impl<'a, T, U> BuildPointerMut<'a> for CombinedUnsizedDataRefMut<'a, T, U>
+impl<'a, T, U> BuildPointerMut<'a> for CombinedUnsizedRefMut<'a, T, U>
 where
     T: ?Sized + SerializeWith,
     U: ?Sized + SerializeWith,
@@ -236,7 +236,7 @@ where
         (self.t(), self.u())
     }
 }
-impl<'a, T, U> CombinedRefAccess<T, U> for CombinedUnsizedDataRef<'a, T, U>
+impl<'a, T, U> CombinedRefAccess<T, U> for CombinedUnsizedRef<'a, T, U>
 where
     T: ?Sized + SerializeWith,
     U: ?Sized + SerializeWith,
@@ -256,7 +256,7 @@ where
         }
     }
 }
-impl<'a, T, U> CombinedRefAccess<T, U> for CombinedUnsizedDataRefMut<'a, T, U>
+impl<'a, T, U> CombinedRefAccess<T, U> for CombinedUnsizedRefMut<'a, T, U>
 where
     T: ?Sized + SerializeWith,
     U: ?Sized + SerializeWith,
@@ -277,7 +277,7 @@ where
     }
 }
 
-impl<'a, T, U> CombinedUnsizedDataRefMut<'a, T, U>
+impl<'a, T, U> CombinedUnsizedRefMut<'a, T, U>
 where
     T: ?Sized + SerializeWith,
     U: ?Sized + SerializeWith,
@@ -370,7 +370,7 @@ where
 #[cfg(test)]
 mod test {
     use crate::packed_value::PackedValue;
-    use crate::serialize::combined_unsized::{CombinedRefAccess, CombinedUnsizedData};
+    use crate::serialize::combined_unsized::{CombinedRefAccess, CombinedUnsized};
     use crate::serialize::list::test::Cool;
     use crate::serialize::list::List;
     use crate::Result;
@@ -379,7 +379,7 @@ mod test {
 
     #[test]
     fn test_combined() -> Result<()> {
-        let mut test_bytes = TestByteSet::<CombinedUnsizedData<List<Cool>, List<u8>>>::new(8);
+        let mut test_bytes = TestByteSet::<CombinedUnsized<List<Cool>, List<u8>>>::new(8);
         assert_eq!(test_bytes.immut()?.t().deref().deref(), &[]);
         assert_eq!(test_bytes.immut()?.u().deref().deref(), &[] as &[u8]);
 
@@ -404,7 +404,7 @@ mod test {
     #[test]
     fn test_combined_recursive() -> Result<()> {
         let mut test_bytes = TestByteSet::<
-            CombinedUnsizedData<List<Cool>, CombinedUnsizedData<List<u8>, List<PackedValue<u16>>>>,
+            CombinedUnsized<List<Cool>, CombinedUnsized<List<u8>, List<PackedValue<u16>>>>,
         >::new(12);
         assert_eq!(test_bytes.immut()?.t().deref().deref(), &[]);
         assert_eq!(test_bytes.immut()?.u().t().deref().deref(), &[] as &[u8]);
