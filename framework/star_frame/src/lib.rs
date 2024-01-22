@@ -1,5 +1,6 @@
 #![feature(ptr_metadata)]
 #![feature(pointer_byte_offsets)]
+#![warn(missing_debug_implementations, missing_copy_implementations)]
 
 pub extern crate borsh;
 pub extern crate self as star_frame;

@@ -61,6 +61,7 @@ where
         )
     }
 }
+#[derive(Debug, Copy, Clone)]
 pub struct Remaining<Arg>(pub Arg);
 impl<'a, 'info, A, Arg> AccountSetDecode<'a, 'info, Remaining<Arg>> for Option<A>
 where
@@ -82,6 +83,7 @@ where
         }
     }
 }
+#[derive(Debug, Copy, Clone)]
 pub struct ProgramIdOption<Arg>(Arg);
 impl<'a, 'info, A, Arg> AccountSetDecode<'a, 'info, ProgramIdOption<Arg>> for Option<A>
 where

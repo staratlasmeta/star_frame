@@ -2,14 +2,17 @@ use crate::serialize::pointer_breakup::{BuildPointer, BuildPointerMut, PointerBr
 use crate::serialize::unsized_type::UnsizedType;
 use crate::serialize::{FrameworkFromBytes, FrameworkFromBytesMut, ResizeFn};
 use advance::Advance;
+use derivative::Derivative;
 use solana_program::program_memory::sol_memmove;
 use star_frame::serialize::FrameworkSerialize;
 use std::cmp::Ordering;
+use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 use std::ptr;
 use std::ptr::NonNull;
 
+#[derive(Debug)]
 pub struct CombinedUnsized<T: ?Sized, U: ?Sized> {
     phantom_t: PhantomData<T>,
     phantom_u: PhantomData<U>,
@@ -22,11 +25,11 @@ where
     U: ?Sized + UnsizedType,
 {
     type RefMeta = CombinedUnsizedMetadata<T::RefMeta, U::RefMeta>;
-    type Ref<'a> = CombinedUnsizedRef<'a, T, U> where Self: 'a;
-    type RefMut<'a> = CombinedUnsizedRefMut<'a, T, U> where Self: 'a;
+    type Ref<'a> = CombinedUnsizedRef<'a, T, U>;
+    type RefMut<'a> = CombinedUnsizedRefMut<'a, T, U>;
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct CombinedUnsizedMetadata<TMeta, UMeta> {
     data_len: usize,
     t_meta: TMeta,
@@ -34,6 +37,8 @@ pub struct CombinedUnsizedMetadata<TMeta, UMeta> {
     t_len: usize,
 }
 
+#[derive(Debug, Derivative)]
+#[derivative(Clone(bound = ""), Copy(bound = ""))]
 pub struct CombinedUnsizedRef<'a, T, U>
 where
     T: ?Sized + UnsizedType,
@@ -116,6 +121,8 @@ where
     }
 }
 
+#[derive(Derivative)]
+#[derivative(Debug(bound = "T::RefMeta: Debug, U::RefMeta: Debug"))]
 pub struct CombinedUnsizedRefMut<'a, T, U>
 where
     T: ?Sized + UnsizedType,
@@ -124,6 +131,7 @@ where
     phantom_ref: PhantomData<&'a mut ()>,
     pointer: NonNull<()>,
     meta: CombinedUnsizedMetadata<T::RefMeta, U::RefMeta>,
+    #[derivative(Debug = "ignore")]
     resize: Box<dyn ResizeFn<'a, <Self as PointerBreakup>::Metadata>>,
 }
 impl<'a, T, U> Deref for CombinedUnsizedRefMut<'a, T, U>

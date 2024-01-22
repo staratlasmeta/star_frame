@@ -6,6 +6,7 @@ use crate::serialize::{FrameworkFromBytes, FrameworkFromBytesMut, FrameworkSeria
 use crate::Result;
 use advance::Advance;
 use bytemuck::{from_bytes, Pod};
+use derivative::Derivative;
 use num_traits::{FromPrimitive, ToPrimitive};
 use solana_program::program_error::ProgramError;
 use solana_program::program_memory::sol_memmove;
@@ -16,7 +17,7 @@ use std::ops::{Deref, DerefMut, RangeBounds};
 use std::ptr;
 use std::ptr::NonNull;
 
-#[derive(Align1)]
+#[derive(Align1, Debug)]
 #[repr(C)]
 pub struct List<T, L = u32>
 where
@@ -53,10 +54,11 @@ where
     L: Pod + ToPrimitive + FromPrimitive,
 {
     type RefMeta = L;
-    type Ref<'a> = ListRef<'a, T, L> where Self: 'a;
-    type RefMut<'a> = ListRefMut<'a, T, L> where Self: 'a;
+    type Ref<'a> = ListRef<'a, T, L>;
+    type RefMut<'a> = ListRefMut<'a, T, L>;
 }
 
+#[derive(Debug, Copy, Clone)]
 pub struct ListRef<'a, T, L>
 where
     T: Pod + Align1,
@@ -133,6 +135,8 @@ where
     }
 }
 
+#[derive(Derivative)]
+#[derivative(Debug)]
 pub struct ListRefMut<'a, T, L>
 where
     T: Pod + Align1,
@@ -141,6 +145,7 @@ where
     phantom_ref: PhantomData<&'a mut [T]>,
     ptr: NonNull<()>,
     metadata: L,
+    #[derivative(Debug = "ignore")]
     resize: Box<dyn ResizeFn<'a, <Self as PointerBreakup>::Metadata>>,
 }
 impl<'a, T, L> Deref for ListRefMut<'a, T, L>

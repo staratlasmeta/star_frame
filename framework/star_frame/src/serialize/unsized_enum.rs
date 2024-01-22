@@ -7,6 +7,7 @@ use crate::serialize::unsized_type::UnsizedType;
 use crate::serialize::{FrameworkFromBytes, FrameworkFromBytesMut, FrameworkSerialize};
 use advance::Advance;
 use bytemuck::{CheckedBitPattern, Pod, Zeroable};
+use derivative::Derivative;
 use solana_program::program_error::ProgramError;
 use star_frame::serialize::ResizeFn;
 use std::fmt::Debug;
@@ -17,15 +18,13 @@ use std::ptr;
 use std::ptr::NonNull;
 
 pub trait UnsizedEnum:
-    'static
-    + for<'a> UnsizedType<
-        Ref<'a> = Self::EnumRefWrapper<'a>,
-        RefMut<'a> = Self::EnumRefMutWrapper<'a>,
-    >
+    for<'a> UnsizedType<Ref<'a> = Self::EnumRefWrapper<'a>, RefMut<'a> = Self::EnumRefMutWrapper<'a>>
 {
     type Discriminant: 'static + Copy + Debug + CheckedBitPattern;
     type EnumRefWrapper<'a>: EnumRefWrapper;
     type EnumRefMutWrapper<'a>: EnumRefMutWrapper;
+
+    fn discriminant(&self) -> Self::Discriminant;
 }
 
 pub trait EnumRefWrapper {
@@ -45,15 +44,13 @@ pub trait EnumRefMutWrapper: EnumRefWrapper {
 
 // ---------------------------- Test Stuff ----------------------------
 
-#[derive(Pod, Zeroable, Copy, Clone, Align1)]
+#[derive(Pod, Zeroable, Copy, Clone, Align1, Debug)]
 #[repr(C, packed)]
 pub struct TestStruct {
     val1: u32,
     val2: u64,
 }
 
-// #[derive(Copy, Clone)]
-// #[repr(u8)]
 // enum TestEnum {
 //     // #[enum(PackedValue<u32>)]
 //     A,
@@ -65,14 +62,18 @@ pub struct TestStruct {
 
 // ---------------------------- Generated ----------------------------
 
-#[derive(Align1)]
+#[derive(Align1, Debug)]
 #[allow(dead_code)]
 pub struct TestEnum {
     discriminant: PackedValueChecked<TestEnumDiscriminant>,
     bytes: [u8],
 }
-impl TestEnum {
-    pub fn discriminant(&self) -> TestEnumDiscriminant {
+impl UnsizedEnum for TestEnum {
+    type Discriminant = TestEnumDiscriminant;
+    type EnumRefWrapper<'a> = TestEnumRefWrapper<'a>;
+    type EnumRefMutWrapper<'a> = TestEnumRefMutWrapper<'a>;
+
+    fn discriminant(&self) -> TestEnumDiscriminant {
         self.discriminant.0
     }
 }
@@ -93,29 +94,29 @@ unsafe impl CheckedBitPattern for TestEnumDiscriminant {
 
 impl UnsizedType for TestEnum {
     type RefMeta = TestEnumMeta;
-    type Ref<'a> = TestEnumRefWrapper<'a>
-        where Self: 'a,;
-    type RefMut<'a> = TestEnumRefMutWrapper<'a>
-        where Self: 'a,;
+    type Ref<'a> = TestEnumRefWrapper<'a>;
+    type RefMut<'a> = TestEnumRefMutWrapper<'a>;
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 enum TestEnumMetaInner {
     A(<PackedValue<u32> as UnsizedType>::RefMeta),
     B(<CombinedUnsized<TestStruct, List<u8, u8>> as UnsizedType>::RefMeta),
     C(<List<PackedValue<u32>> as UnsizedType>::RefMeta),
 }
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct TestEnumMeta {
     byte_len: usize,
     inner: TestEnumMetaInner,
 }
 
+#[derive(Debug)]
 pub enum TestEnumRef<'a> {
     A(<PackedValue<u32> as UnsizedType>::Ref<'a>),
     B(<CombinedUnsized<TestStruct, List<u8, u8>> as UnsizedType>::Ref<'a>),
     C(<List<PackedValue<u32>> as UnsizedType>::Ref<'a>),
 }
+#[derive(Debug, Copy, Clone)]
 pub struct TestEnumRefWrapper<'a> {
     phantom_ref: PhantomData<&'a ()>,
     ptr: NonNull<()>,
@@ -128,6 +129,31 @@ impl<'a> TestEnumRefWrapper<'a> {
                 .as_ptr()
                 .byte_add(size_of::<PackedValueChecked<TestEnumDiscriminant>>()),
         )
+    }
+}
+impl EnumRefWrapper for TestEnumRefWrapper<'_> {
+    type Ref<'a> = TestEnumRef<'a> where Self: 'a;
+
+    fn value<'b>(&'b self) -> Self::Ref<'b> {
+        unsafe {
+            let data_ptr = self.data_ptr();
+
+            match self.meta.inner {
+                TestEnumMetaInner::A(meta) => TestEnumRef::A(<<PackedValue<u32> as UnsizedType>::Ref<
+                    'b,
+                > as BuildPointer>::build_pointer(
+                    data_ptr, meta
+                )),
+                TestEnumMetaInner::B(meta) => TestEnumRef::B(
+                    <<CombinedUnsized<TestStruct, List<u8, u8>> as UnsizedType>::Ref<'b>
+                    as BuildPointer>::build_pointer(data_ptr, meta),
+                ),
+                TestEnumMetaInner::C(meta) => TestEnumRef::C(
+                    <<List<PackedValue<u32>> as UnsizedType>::Ref<'b>
+                    as BuildPointer>::build_pointer(data_ptr, meta),
+                ),
+            }
+        }
     }
 }
 impl Deref for TestEnumRefWrapper<'_> {
@@ -246,14 +272,18 @@ impl BuildPointer for TestEnumRefWrapper<'_> {
     }
 }
 
+#[derive(Debug)]
 pub enum TestEnumRefMut<'a> {
     A(<PackedValue<u32> as UnsizedType>::RefMut<'a>),
     B(<CombinedUnsized<TestStruct, List<u8, u8>> as UnsizedType>::RefMut<'a>),
     C(<List<PackedValue<u32>> as UnsizedType>::RefMut<'a>),
 }
+#[derive(Derivative)]
+#[derivative(Debug)]
 pub struct TestEnumRefMutWrapper<'a> {
     ptr: NonNull<()>,
     meta: TestEnumMeta,
+    #[derivative(Debug = "ignore")]
     resize: Box<dyn ResizeFn<'a, TestEnumMeta>>,
 }
 impl<'a> TestEnumRefMutWrapper<'a> {
@@ -263,6 +293,76 @@ impl<'a> TestEnumRefMutWrapper<'a> {
                 .as_ptr()
                 .byte_add(size_of::<PackedValueChecked<TestEnumDiscriminant>>()),
         )
+    }
+}
+impl EnumRefWrapper for TestEnumRefMutWrapper<'_> {
+    type Ref<'a> = TestEnumRef<'a> where Self: 'a;
+
+    fn value<'b>(&'b self) -> Self::Ref<'b> {
+        unsafe {
+            let data_ptr = self.data_ptr();
+
+            match self.meta.inner {
+                TestEnumMetaInner::A(meta) => TestEnumRef::A(<<PackedValue<u32> as UnsizedType>::Ref<
+                    'b,
+                > as BuildPointer>::build_pointer(
+                    data_ptr, meta
+                )),
+                TestEnumMetaInner::B(meta) => TestEnumRef::B(
+                    <<CombinedUnsized<TestStruct, List<u8, u8>> as UnsizedType>::Ref<'b>
+                    as BuildPointer>::build_pointer(data_ptr, meta),
+                ),
+                TestEnumMetaInner::C(meta) => TestEnumRef::C(
+                    <<List<PackedValue<u32>> as UnsizedType>::Ref<'b>
+                    as BuildPointer>::build_pointer(data_ptr, meta),
+                ),
+            }
+        }
+    }
+}
+impl EnumRefMutWrapper for TestEnumRefMutWrapper<'_> {
+    type RefMut<'a> = TestEnumRefMut<'a> where Self: 'a;
+
+    fn value_mut<'b>(&'b mut self) -> Self::RefMut<'b> {
+        unsafe {
+            let data_ptr = self.data_ptr();
+            let Self { ptr, meta, resize } = self;
+            match meta.inner {
+                TestEnumMetaInner::A(inner_meta) => TestEnumRefMut::A(
+                    <<PackedValue<u32> as UnsizedType>::RefMut<'b> as BuildPointerMut>::
+                    build_pointer_mut(
+                        data_ptr, inner_meta, move |new_len, new_meta| {
+                            meta.inner = TestEnumMetaInner::A(new_meta);
+                            meta.byte_len = new_len + size_of::<PackedValueChecked<TestEnumDiscriminant>>();
+                            *ptr = resize(meta.byte_len, *meta)?;
+                            Ok(NonNull::new(ptr.as_ptr().byte_add(size_of::<PackedValueChecked<TestEnumDiscriminant>>())).unwrap())
+                        }
+                    ),
+                ),
+                TestEnumMetaInner::B(inner_meta) => TestEnumRefMut::B(
+                    <<CombinedUnsized<TestStruct, List<u8, u8>> as UnsizedType>::RefMut<'b>
+                    as BuildPointerMut>::build_pointer_mut(
+                        data_ptr, inner_meta, move |new_len, new_meta| {
+                            meta.inner = TestEnumMetaInner::B(new_meta);
+                            meta.byte_len = new_len + size_of::<PackedValueChecked<TestEnumDiscriminant>>();
+                            *ptr = resize(meta.byte_len, *meta)?;
+                            Ok(NonNull::new(ptr.as_ptr().byte_add(size_of::<PackedValueChecked<TestEnumDiscriminant>>())).unwrap())
+                        }
+                    ),
+                ),
+                TestEnumMetaInner::C(inner_meta) => TestEnumRefMut::C(
+                    <<List<PackedValue<u32>> as UnsizedType>::RefMut<'b> as BuildPointerMut>::
+                    build_pointer_mut(
+                        data_ptr, inner_meta, move |new_len, new_meta| {
+                            meta.inner = TestEnumMetaInner::C(new_meta);
+                            meta.byte_len = new_len + size_of::<PackedValueChecked<TestEnumDiscriminant>>();
+                            *ptr = resize(meta.byte_len, *meta)?;
+                            Ok(NonNull::new(ptr.as_ptr().byte_add(size_of::<PackedValueChecked<TestEnumDiscriminant>>())).unwrap())
+                        }
+                    ),
+                ),
+            }
+        }
     }
 }
 impl Deref for TestEnumRefMutWrapper<'_> {
@@ -389,95 +489,6 @@ impl<'a> BuildPointerMut<'a> for TestEnumRefMutWrapper<'a> {
             ptr: pointee,
             meta: metadata,
             resize: Box::new(resize),
-        }
-    }
-}
-
-impl<'a> TestEnumRefWrapper<'a> {
-    pub fn value<'b>(&'b self) -> TestEnumRef<'b> {
-        unsafe {
-            let data_ptr = self.data_ptr();
-
-            match self.meta.inner {
-                TestEnumMetaInner::A(meta) => TestEnumRef::A(<<PackedValue<u32> as UnsizedType>::Ref<
-                    'b,
-                > as BuildPointer>::build_pointer(
-                    data_ptr, meta
-                )),
-                TestEnumMetaInner::B(meta) => TestEnumRef::B(
-                    <<CombinedUnsized<TestStruct, List<u8, u8>> as UnsizedType>::Ref<'b>
-                        as BuildPointer>::build_pointer(data_ptr, meta),
-                ),
-                TestEnumMetaInner::C(meta) => TestEnumRef::C(
-                    <<List<PackedValue<u32>> as UnsizedType>::Ref<'b>
-                        as BuildPointer>::build_pointer(data_ptr, meta),
-                ),
-            }
-        }
-    }
-}
-impl<'a> TestEnumRefMutWrapper<'a> {
-    pub fn value<'b>(&'b self) -> TestEnumRef<'b> {
-        unsafe {
-            let data_ptr = self.data_ptr();
-
-            match self.meta.inner {
-                TestEnumMetaInner::A(meta) => TestEnumRef::A(<<PackedValue<u32> as UnsizedType>::Ref<
-                    'b,
-                > as BuildPointer>::build_pointer(
-                    data_ptr, meta
-                )),
-                TestEnumMetaInner::B(meta) => TestEnumRef::B(
-                    <<CombinedUnsized<TestStruct, List<u8, u8>> as UnsizedType>::Ref<'b>
-                        as BuildPointer>::build_pointer(data_ptr, meta),
-                ),
-                TestEnumMetaInner::C(meta) => TestEnumRef::C(
-                    <<List<PackedValue<u32>> as UnsizedType>::Ref<'b>
-                        as BuildPointer>::build_pointer(data_ptr, meta),
-                ),
-            }
-        }
-    }
-
-    pub fn value_mut<'b>(&'b mut self) -> TestEnumRefMut<'b> {
-        unsafe {
-            let data_ptr = self.data_ptr();
-            let Self { ptr, meta, resize } = self;
-            match meta.inner {
-                TestEnumMetaInner::A(inner_meta) => TestEnumRefMut::A(
-                    <<PackedValue<u32> as UnsizedType>::RefMut<'b> as BuildPointerMut>::
-                        build_pointer_mut(
-                        data_ptr, inner_meta, move |new_len, new_meta| {
-                            meta.inner = TestEnumMetaInner::A(new_meta);
-                            meta.byte_len = new_len + size_of::<PackedValueChecked<TestEnumDiscriminant>>();
-                            *ptr = resize(meta.byte_len, *meta)?;
-                            Ok(NonNull::new(ptr.as_ptr().byte_add(size_of::<PackedValueChecked<TestEnumDiscriminant>>())).unwrap())
-                        }
-                    ),
-                ),
-                TestEnumMetaInner::B(inner_meta) => TestEnumRefMut::B(
-                    <<CombinedUnsized<TestStruct, List<u8, u8>> as UnsizedType>::RefMut<'b>
-                        as BuildPointerMut>::build_pointer_mut(
-                        data_ptr, inner_meta, move |new_len, new_meta| {
-                            meta.inner = TestEnumMetaInner::B(new_meta);
-                            meta.byte_len = new_len + size_of::<PackedValueChecked<TestEnumDiscriminant>>();
-                            *ptr = resize(meta.byte_len, *meta)?;
-                            Ok(NonNull::new(ptr.as_ptr().byte_add(size_of::<PackedValueChecked<TestEnumDiscriminant>>())).unwrap())
-                        }
-                    ),
-                ),
-                TestEnumMetaInner::C(inner_meta) => TestEnumRefMut::C(
-                    <<List<PackedValue<u32>> as UnsizedType>::RefMut<'b> as BuildPointerMut>::
-                        build_pointer_mut(
-                        data_ptr, inner_meta, move |new_len, new_meta| {
-                            meta.inner = TestEnumMetaInner::C(new_meta);
-                            meta.byte_len = new_len + size_of::<PackedValueChecked<TestEnumDiscriminant>>();
-                            *ptr = resize(meta.byte_len, *meta)?;
-                            Ok(NonNull::new(ptr.as_ptr().byte_add(size_of::<PackedValueChecked<TestEnumDiscriminant>>())).unwrap())
-                        }
-                    ),
-                ),
-            }
         }
     }
 }

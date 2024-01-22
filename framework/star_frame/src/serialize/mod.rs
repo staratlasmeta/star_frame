@@ -130,6 +130,7 @@ pub mod test {
     use std::marker::PhantomData;
     use std::ptr::NonNull;
 
+    #[derive(Debug)]
     pub struct TestByteSet<T: ?Sized> {
         pub bytes: Vec<u8>,
         pub phantom_t: PhantomData<T>,

@@ -4,18 +4,15 @@ use crate::serialize::{FrameworkFromBytes, FrameworkFromBytesMut};
 use bytemuck::Pod;
 use std::ops::{Deref, DerefMut};
 
-pub trait UnsizedType {
+pub trait UnsizedType: 'static {
     type RefMeta: 'static + Copy;
     type Ref<'a>: FrameworkFromBytes<'a>
         + Deref<Target = Self>
         + BuildPointer<Metadata = Self::RefMeta>
-    where
-        Self: 'a;
+        + Copy;
     type RefMut<'a>: FrameworkFromBytesMut<'a>
         + DerefMut<Target = Self>
-        + BuildPointerMut<'a, Metadata = Self::RefMeta>
-    where
-        Self: 'a;
+        + BuildPointerMut<'a, Metadata = Self::RefMeta>;
 }
 impl<T> UnsizedType for T
 where

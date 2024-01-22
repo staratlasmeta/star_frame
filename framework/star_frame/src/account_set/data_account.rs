@@ -45,7 +45,7 @@ where
     Ok(())
 }
 
-#[derive(AccountSet)]
+#[derive(AccountSet, Debug)]
 #[validate(
     generics = [<> where T: AccountData],
     extra_validation = validate_data_account(self),
@@ -136,6 +136,7 @@ where
     }
 }
 
+#[derive(Debug)]
 pub struct DataRef<'a, T>
 where
     T: 'a + AccountData,
@@ -154,6 +155,7 @@ where
     }
 }
 
+#[derive(Debug)]
 pub struct DataRefMut<'a, T>
 where
     T: 'a + AccountData,

@@ -7,7 +7,7 @@ use solana_program::pubkey::Pubkey;
 use star_frame::serialize::FrameworkSerialize;
 use star_frame_proc::Align1;
 
-#[derive(Align1)]
+#[derive(Align1, Debug, Copy, Clone)]
 pub struct UnCallable;
 
 impl FrameworkSerialize for UnCallable {

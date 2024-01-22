@@ -318,6 +318,7 @@ pub mod idl_impl {
     use star_frame_idl::account_set::IdlAccountSetDef;
     use star_frame_idl::IdlDefinition;
 
+    #[derive(Debug, Copy, Clone)]
     pub struct VecSize {
         pub min: usize,
         pub max: Option<usize>,
