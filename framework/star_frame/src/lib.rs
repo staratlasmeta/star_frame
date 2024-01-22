@@ -36,22 +36,19 @@ use tests::StarFrameDeclaredProgram;
 mod tests {
     use super::*;
     use crate::idl::{declare_program_type, ProgramToIdl};
-    use crate::program::{Program, ProgramIds};
+    use crate::program::{ProgramIds, StarFrameProgram};
     use star_frame_idl::{IdlDefinition, Version};
 
     pub struct MyProgram;
 
     declare_program_type!(MyProgram);
 
-    impl Program for MyProgram {
+    impl StarFrameProgram for MyProgram {
         type InstructionSet<'a> = ();
         type InstructionDiscriminant = ();
+        const PROGRAM_IDS: ProgramIds = todo!();
         type AccountDiscriminant = ();
         const CLOSED_ACCOUNT_DISCRIMINANT: Self::AccountDiscriminant = ();
-
-        fn program_id() -> ProgramIds {
-            todo!()
-        }
     }
 
     impl ProgramToIdl for MyProgram {

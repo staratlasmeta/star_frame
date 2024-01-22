@@ -1,6 +1,6 @@
 use crate::account_set::AccountSet;
 use crate::instruction::Instruction;
-use crate::program::Program;
+use crate::program::StarFrameProgram;
 use crate::program_account::ProgramAccount;
 use crate::Result;
 use star_frame::instruction::InstructionSet;
@@ -33,17 +33,20 @@ pub trait InstructionSetToIdl<'a>: InstructionSet<'a> {
     /// Returns the idl of this instruction set.
     fn instruction_set_to_idl(idl_definition: &mut IdlDefinition) -> Result<()>;
 }
-pub trait ProgramToIdl: Program {
+pub trait ProgramToIdl: StarFrameProgram {
     const VERSION: Version;
     fn program_to_idl() -> Result<IdlDefinition>;
     fn idl_namespace() -> &'static str;
 }
 
+// TODO: make this a derive macro
 #[macro_export]
 macro_rules! _declare_program_type {
     ($program:ty) => {
         pub type StarFrameDeclaredProgram = $program;
-        static_assertions::assert_impl_all!(StarFrameDeclaredProgram: $crate::idl::ProgramToIdl);
+        $crate::static_assertions::assert_impl_all!(
+            StarFrameDeclaredProgram: $crate::idl::ProgramToIdl
+        );
     };
 }
 pub use _declare_program_type as declare_program_type;

@@ -2,6 +2,7 @@ pub mod system_program;
 
 use crate::instruction::InstructionSet;
 use crate::program_account::ProgramAccount;
+use crate::sys_calls::SysCallCore;
 use crate::util::Network;
 use crate::Result;
 use bytemuck::Pod;
@@ -10,7 +11,7 @@ use solana_program::program_error::ProgramError;
 use solana_program::pubkey::Pubkey;
 
 /// A Solana program's definition.
-pub trait Program {
+pub trait StarFrameProgram {
     /// The instruction set used by this program.
     type InstructionSet<'a>: InstructionSet<'a, Discriminant = Self::InstructionDiscriminant>;
     type InstructionDiscriminant;
@@ -18,10 +19,13 @@ pub trait Program {
     type AccountDiscriminant: Pod + Eq;
     const CLOSED_ACCOUNT_DISCRIMINANT: Self::AccountDiscriminant;
 
-    /// Gets the program id.
-    fn program_id() -> ProgramIds;
+    const PROGRAM_IDS: ProgramIds;
+    fn program_id(syscalls: &impl SysCallCore) -> Result<Pubkey> {
+        Self::PROGRAM_IDS
+            .find_network(syscalls.current_network())
+            .map(|k| *k)
+    }
 }
-
 #[derive(Debug, Clone, Copy)]
 pub enum ProgramIds {
     Mapped(&'static [(Network, &'static Pubkey)]),
@@ -75,4 +79,7 @@ mod idl_impl {
 }
 
 /// An account registered to a program.
-pub trait ProgramAccountEntry<A: ?Sized + ProgramAccount<OwnerProgram = Self>>: Program {}
+pub trait ProgramAccountEntry<A: ?Sized + ProgramAccount<OwnerProgram = Self>>:
+    StarFrameProgram
+{
+}

@@ -2,7 +2,7 @@ use crate::account_set::{
     AccountSet, AccountSetCleanup, AccountSetDecode, AccountSetValidate, SingleAccountSet,
 };
 use crate::anchor_replacement::{AnchorValidateArgs, ANCHOR_CLOSED_ACCOUNT_DISCRIMINATOR};
-use crate::program::Program;
+use crate::program::StarFrameProgram;
 use crate::program_account::ProgramAccount;
 use crate::sys_calls::{SysCallCore, SysCallInvoke};
 use crate::Result;
@@ -17,7 +17,7 @@ use std::ops::Deref;
 pub struct Account<'info, T>
 where
     T: BorshSerialize + BorshDeserialize + ProgramAccount,
-    T::OwnerProgram: Program<InstructionDiscriminant = [u8; 8]>,
+    T::OwnerProgram: StarFrameProgram<InstructionDiscriminant = [u8; 8]>,
 {
     info: AccountInfo<'info>,
     data: Option<T>,
@@ -25,7 +25,7 @@ where
 impl<'info, T> Account<'info, T>
 where
     T: BorshSerialize + BorshDeserialize + ProgramAccount,
-    T::OwnerProgram: Program<InstructionDiscriminant = [u8; 8]>,
+    T::OwnerProgram: StarFrameProgram<InstructionDiscriminant = [u8; 8]>,
 {
     pub fn new(info: AccountInfo<'info>, data: T) -> Self {
         Self {
@@ -35,7 +35,7 @@ where
     }
 
     pub fn try_from(info: AccountInfo<'info>, runtime: impl SysCallCore) -> Result<Self> {
-        if info.owner != T::OwnerProgram::program_id().find_network(runtime.current_network())? {
+        if info.owner != T::OwnerProgram::PROGRAM_IDS.find_network(runtime.current_network())? {
             return Err(ProgramError::IncorrectProgramId);
         }
         let data = Self::check_data(&info.info_data_bytes()?)?;
@@ -68,7 +68,7 @@ where
 impl<'info, T> AccountSet<'info> for Account<'info, T>
 where
     T: BorshSerialize + BorshDeserialize + ProgramAccount,
-    T::OwnerProgram: Program<InstructionDiscriminant = [u8; 8]>,
+    T::OwnerProgram: StarFrameProgram<InstructionDiscriminant = [u8; 8]>,
 {
     fn try_to_accounts<'a, E>(
         &'a self,
@@ -87,7 +87,7 @@ where
 impl<'info, T> SingleAccountSet<'info> for Account<'info, T>
 where
     T: BorshSerialize + BorshDeserialize + ProgramAccount,
-    T::OwnerProgram: Program<InstructionDiscriminant = [u8; 8]>,
+    T::OwnerProgram: StarFrameProgram<InstructionDiscriminant = [u8; 8]>,
 {
     fn account_info(&self) -> &AccountInfo<'info> {
         &self.info
@@ -96,7 +96,7 @@ where
 impl<'a, 'info, T> AccountSetDecode<'a, 'info, ()> for Account<'info, T>
 where
     T: BorshSerialize + BorshDeserialize + ProgramAccount,
-    T::OwnerProgram: Program<InstructionDiscriminant = [u8; 8]>,
+    T::OwnerProgram: StarFrameProgram<InstructionDiscriminant = [u8; 8]>,
 {
     fn decode_accounts(
         accounts: &mut &'a [AccountInfo<'info>],
@@ -112,7 +112,7 @@ where
 impl<'a, 'info, T> AccountSetValidate<'info, AnchorValidateArgs<'a, 'info>> for Account<'info, T>
 where
     T: BorshSerialize + BorshDeserialize + ProgramAccount,
-    T::OwnerProgram: Program<InstructionDiscriminant = [u8; 8]>,
+    T::OwnerProgram: StarFrameProgram<InstructionDiscriminant = [u8; 8]>,
 {
     fn validate_accounts(
         &mut self,
@@ -128,7 +128,7 @@ where
 impl<'a, 'info, T> AccountSetCleanup<'info, AnchorValidateArgs<'a, 'info>> for Account<'info, T>
 where
     T: BorshSerialize + BorshDeserialize + ProgramAccount,
-    T::OwnerProgram: Program<InstructionDiscriminant = [u8; 8]>,
+    T::OwnerProgram: StarFrameProgram<InstructionDiscriminant = [u8; 8]>,
 {
     fn cleanup_accounts(
         &mut self,
