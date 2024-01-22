@@ -3,17 +3,45 @@ use crate::packed_value::{PackedValue, PackedValueChecked};
 use crate::serialize::combined_unsized::CombinedUnsized;
 use crate::serialize::list::List;
 use crate::serialize::pointer_breakup::{BuildPointer, BuildPointerMut, PointerBreakup};
-use crate::serialize::serialize_with::SerializeWith;
+use crate::serialize::unsized_type::UnsizedType;
 use crate::serialize::{FrameworkFromBytes, FrameworkFromBytesMut, FrameworkSerialize};
 use advance::Advance;
 use bytemuck::{CheckedBitPattern, Pod, Zeroable};
 use solana_program::program_error::ProgramError;
 use star_frame::serialize::ResizeFn;
+use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::mem::size_of;
 use std::ops::{Deref, DerefMut};
 use std::ptr;
 use std::ptr::NonNull;
+
+pub trait UnsizedEnum:
+    'static
+    + for<'a> UnsizedType<
+        Ref<'a> = Self::EnumRefWrapper<'a>,
+        RefMut<'a> = Self::EnumRefMutWrapper<'a>,
+    >
+{
+    type Discriminant: 'static + Copy + Debug + CheckedBitPattern;
+    type EnumRefWrapper<'a>: EnumRefWrapper;
+    type EnumRefMutWrapper<'a>: EnumRefMutWrapper;
+}
+
+pub trait EnumRefWrapper {
+    type Ref<'a>
+    where
+        Self: 'a;
+
+    fn value(&self) -> Self::Ref<'_>;
+}
+pub trait EnumRefMutWrapper: EnumRefWrapper {
+    type RefMut<'a>
+    where
+        Self: 'a;
+
+    fn value_mut(&mut self) -> Self::RefMut<'_>;
+}
 
 // ---------------------------- Test Stuff ----------------------------
 
@@ -63,7 +91,7 @@ unsafe impl CheckedBitPattern for TestEnumDiscriminant {
     }
 }
 
-impl SerializeWith for TestEnum {
+impl UnsizedType for TestEnum {
     type RefMeta = TestEnumMeta;
     type Ref<'a> = TestEnumRefWrapper<'a>
         where Self: 'a,;
@@ -73,9 +101,9 @@ impl SerializeWith for TestEnum {
 
 #[derive(Copy, Clone)]
 enum TestEnumMetaInner {
-    A(<PackedValue<u32> as SerializeWith>::RefMeta),
-    B(<CombinedUnsized<TestStruct, List<u8, u8>> as SerializeWith>::RefMeta),
-    C(<List<PackedValue<u32>> as SerializeWith>::RefMeta),
+    A(<PackedValue<u32> as UnsizedType>::RefMeta),
+    B(<CombinedUnsized<TestStruct, List<u8, u8>> as UnsizedType>::RefMeta),
+    C(<List<PackedValue<u32>> as UnsizedType>::RefMeta),
 }
 #[derive(Copy, Clone)]
 pub struct TestEnumMeta {
@@ -84,9 +112,9 @@ pub struct TestEnumMeta {
 }
 
 pub enum TestEnumRef<'a> {
-    A(<PackedValue<u32> as SerializeWith>::Ref<'a>),
-    B(<CombinedUnsized<TestStruct, List<u8, u8>> as SerializeWith>::Ref<'a>),
-    C(<List<PackedValue<u32>> as SerializeWith>::Ref<'a>),
+    A(<PackedValue<u32> as UnsizedType>::Ref<'a>),
+    B(<CombinedUnsized<TestStruct, List<u8, u8>> as UnsizedType>::Ref<'a>),
+    C(<List<PackedValue<u32>> as UnsizedType>::Ref<'a>),
 }
 pub struct TestEnumRefWrapper<'a> {
     phantom_ref: PhantomData<&'a ()>,
@@ -115,8 +143,8 @@ impl FrameworkSerialize for TestEnumRefWrapper<'_> {
             match self.meta.inner {
                 TestEnumMetaInner::A(meta) => {
                     0u8.to_bytes(output)?;
-                    <<PackedValue<u32> as SerializeWith>::Ref<'_> as FrameworkSerialize>::to_bytes(
-                        &<<PackedValue<u32> as SerializeWith>::Ref<'_> as BuildPointer>::build_pointer(
+                    <<PackedValue<u32> as UnsizedType>::Ref<'_> as FrameworkSerialize>::to_bytes(
+                        &<<PackedValue<u32> as UnsizedType>::Ref<'_> as BuildPointer>::build_pointer(
                             self.data_ptr(),
                             meta,
                         ),
@@ -125,18 +153,18 @@ impl FrameworkSerialize for TestEnumRefWrapper<'_> {
                 }
                 TestEnumMetaInner::B(meta) => {
                     4u8.to_bytes(output)?;
-                    <<CombinedUnsized<TestStruct, List<u8, u8>> as SerializeWith>::Ref<'_>
+                    <<CombinedUnsized<TestStruct, List<u8, u8>> as UnsizedType>::Ref<'_>
                         as FrameworkSerialize>::to_bytes(
-                        &<<CombinedUnsized<TestStruct, List<u8, u8>> as SerializeWith>::Ref<'_>
+                        &<<CombinedUnsized<TestStruct, List<u8, u8>> as UnsizedType>::Ref<'_>
                             as BuildPointer>::build_pointer(self.data_ptr(), meta),
                         output,
                     )
                 }
                 TestEnumMetaInner::C(meta) => {
                     5u8.to_bytes(output)?;
-                    <<List<PackedValue<u32>> as SerializeWith>::Ref<'_> as FrameworkSerialize>::
+                    <<List<PackedValue<u32>> as UnsizedType>::Ref<'_> as FrameworkSerialize>::
                         to_bytes(
-                        &<<List<PackedValue<u32>> as SerializeWith>::Ref<'_> as BuildPointer>::
+                        &<<List<PackedValue<u32>> as UnsizedType>::Ref<'_> as BuildPointer>::
                             build_pointer(self.data_ptr(), meta),
                         output,
                     )
@@ -160,7 +188,10 @@ unsafe impl<'a> FrameworkFromBytes<'a> for TestEnumRefWrapper<'a> {
         .cast();
         match discriminant.0 {
             TestEnumDiscriminant::A => {
-                let sub_ptr = <<PackedValue<u32> as SerializeWith>::Ref<'_> as FrameworkFromBytes>::from_bytes(bytes)?;
+                let sub_ptr =
+                    <<PackedValue<u32> as UnsizedType>::Ref<'_> as FrameworkFromBytes>::from_bytes(
+                        bytes,
+                    )?;
                 Ok(Self {
                     phantom_ref: PhantomData,
                     ptr,
@@ -171,7 +202,7 @@ unsafe impl<'a> FrameworkFromBytes<'a> for TestEnumRefWrapper<'a> {
                 })
             }
             TestEnumDiscriminant::B => {
-                let sub_ptr = <<CombinedUnsized<TestStruct, List<u8, u8>> as SerializeWith>::Ref<
+                let sub_ptr = <<CombinedUnsized<TestStruct, List<u8, u8>> as UnsizedType>::Ref<
                     '_,
                 > as FrameworkFromBytes>::from_bytes(bytes)?;
                 Ok(Self {
@@ -184,7 +215,7 @@ unsafe impl<'a> FrameworkFromBytes<'a> for TestEnumRefWrapper<'a> {
                 })
             }
             TestEnumDiscriminant::C => {
-                let sub_ptr = <<List<PackedValue<u32>> as SerializeWith>::Ref<'_> as FrameworkFromBytes>::from_bytes(bytes)?;
+                let sub_ptr = <<List<PackedValue<u32>> as UnsizedType>::Ref<'_> as FrameworkFromBytes>::from_bytes(bytes)?;
                 Ok(Self {
                     phantom_ref: PhantomData,
                     ptr,
@@ -216,9 +247,9 @@ impl BuildPointer for TestEnumRefWrapper<'_> {
 }
 
 pub enum TestEnumRefMut<'a> {
-    A(<PackedValue<u32> as SerializeWith>::RefMut<'a>),
-    B(<CombinedUnsized<TestStruct, List<u8, u8>> as SerializeWith>::RefMut<'a>),
-    C(<List<PackedValue<u32>> as SerializeWith>::RefMut<'a>),
+    A(<PackedValue<u32> as UnsizedType>::RefMut<'a>),
+    B(<CombinedUnsized<TestStruct, List<u8, u8>> as UnsizedType>::RefMut<'a>),
+    C(<List<PackedValue<u32>> as UnsizedType>::RefMut<'a>),
 }
 pub struct TestEnumRefMutWrapper<'a> {
     ptr: NonNull<()>,
@@ -253,8 +284,8 @@ impl FrameworkSerialize for TestEnumRefMutWrapper<'_> {
             match self.meta.inner {
                 TestEnumMetaInner::A(a) => {
                     0u8.to_bytes(output)?;
-                    <<PackedValue<u32> as SerializeWith>::Ref<'_> as FrameworkSerialize>::to_bytes(
-                        &<<PackedValue<u32> as SerializeWith>::Ref<'_> as BuildPointer>::build_pointer(
+                    <<PackedValue<u32> as UnsizedType>::Ref<'_> as FrameworkSerialize>::to_bytes(
+                        &<<PackedValue<u32> as UnsizedType>::Ref<'_> as BuildPointer>::build_pointer(
                             data_ptr, a,
                         ),
                         output,
@@ -262,17 +293,17 @@ impl FrameworkSerialize for TestEnumRefMutWrapper<'_> {
                 }
                 TestEnumMetaInner::B(b) => {
                     4u8.to_bytes(output)?;
-                    <<CombinedUnsized<TestStruct, List<u8, u8>> as SerializeWith>::Ref<'_>
+                    <<CombinedUnsized<TestStruct, List<u8, u8>> as UnsizedType>::Ref<'_>
                     as FrameworkSerialize>::to_bytes(
-                        &<<CombinedUnsized<TestStruct, List<u8, u8>> as SerializeWith>::Ref<'_>
+                        &<<CombinedUnsized<TestStruct, List<u8, u8>> as UnsizedType>::Ref<'_>
                         as BuildPointer>::build_pointer(data_ptr, b),
                         output,
                     )
                 }
                 TestEnumMetaInner::C(c) => {
                     5u8.to_bytes(output)?;
-                    <<List<PackedValue<u32>> as SerializeWith>::Ref<'_> as FrameworkSerialize>::to_bytes(
-                        &<<List<PackedValue<u32>> as SerializeWith>::Ref<'_> as BuildPointer>::
+                    <<List<PackedValue<u32>> as UnsizedType>::Ref<'_> as FrameworkSerialize>::to_bytes(
+                        &<<List<PackedValue<u32>> as UnsizedType>::Ref<'_> as BuildPointer>::
                         build_pointer(data_ptr, c),
                         output,
                     )
@@ -308,7 +339,7 @@ unsafe impl<'a> FrameworkFromBytesMut<'a> for TestEnumRefMutWrapper<'a> {
         .cast();
         match discriminant {
             TestEnumDiscriminant::A => {
-                let sub_ptr = <<PackedValue<u32> as SerializeWith>::RefMut<'_> as FrameworkFromBytesMut>::from_bytes_mut(bytes, |_, _| panic!("Cannot resize during `from_bytes`"))?;
+                let sub_ptr = <<PackedValue<u32> as UnsizedType>::RefMut<'_> as FrameworkFromBytesMut>::from_bytes_mut(bytes, |_, _| panic!("Cannot resize during `from_bytes`"))?;
                 Ok(Self {
                     ptr,
                     meta: TestEnumMeta {
@@ -319,7 +350,7 @@ unsafe impl<'a> FrameworkFromBytesMut<'a> for TestEnumRefMutWrapper<'a> {
                 })
             }
             TestEnumDiscriminant::B => {
-                let sub_ptr = <<CombinedUnsized<TestStruct, List<u8, u8>> as SerializeWith>::RefMut<
+                let sub_ptr = <<CombinedUnsized<TestStruct, List<u8, u8>> as UnsizedType>::RefMut<
                     '_,
                 > as FrameworkFromBytesMut>::from_bytes_mut(
                     bytes,
@@ -335,7 +366,7 @@ unsafe impl<'a> FrameworkFromBytesMut<'a> for TestEnumRefMutWrapper<'a> {
                 })
             }
             TestEnumDiscriminant::C => {
-                let sub_ptr = <<List<PackedValue<u32>> as SerializeWith>::RefMut<'_> as FrameworkFromBytesMut>::from_bytes_mut(bytes, |_, _| panic!("Cannot resize during `from_bytes`"))?;
+                let sub_ptr = <<List<PackedValue<u32>> as UnsizedType>::RefMut<'_> as FrameworkFromBytesMut>::from_bytes_mut(bytes, |_, _| panic!("Cannot resize during `from_bytes`"))?;
                 Ok(Self {
                     ptr,
                     meta: TestEnumMeta {
@@ -368,17 +399,17 @@ impl<'a> TestEnumRefWrapper<'a> {
             let data_ptr = self.data_ptr();
 
             match self.meta.inner {
-                TestEnumMetaInner::A(meta) => TestEnumRef::A(<<PackedValue<u32> as SerializeWith>::Ref<
+                TestEnumMetaInner::A(meta) => TestEnumRef::A(<<PackedValue<u32> as UnsizedType>::Ref<
                     'b,
                 > as BuildPointer>::build_pointer(
                     data_ptr, meta
                 )),
                 TestEnumMetaInner::B(meta) => TestEnumRef::B(
-                    <<CombinedUnsized<TestStruct, List<u8, u8>> as SerializeWith>::Ref<'b>
+                    <<CombinedUnsized<TestStruct, List<u8, u8>> as UnsizedType>::Ref<'b>
                         as BuildPointer>::build_pointer(data_ptr, meta),
                 ),
                 TestEnumMetaInner::C(meta) => TestEnumRef::C(
-                    <<List<PackedValue<u32>> as SerializeWith>::Ref<'b>
+                    <<List<PackedValue<u32>> as UnsizedType>::Ref<'b>
                         as BuildPointer>::build_pointer(data_ptr, meta),
                 ),
             }
@@ -391,17 +422,17 @@ impl<'a> TestEnumRefMutWrapper<'a> {
             let data_ptr = self.data_ptr();
 
             match self.meta.inner {
-                TestEnumMetaInner::A(meta) => TestEnumRef::A(<<PackedValue<u32> as SerializeWith>::Ref<
+                TestEnumMetaInner::A(meta) => TestEnumRef::A(<<PackedValue<u32> as UnsizedType>::Ref<
                     'b,
                 > as BuildPointer>::build_pointer(
                     data_ptr, meta
                 )),
                 TestEnumMetaInner::B(meta) => TestEnumRef::B(
-                    <<CombinedUnsized<TestStruct, List<u8, u8>> as SerializeWith>::Ref<'b>
+                    <<CombinedUnsized<TestStruct, List<u8, u8>> as UnsizedType>::Ref<'b>
                         as BuildPointer>::build_pointer(data_ptr, meta),
                 ),
                 TestEnumMetaInner::C(meta) => TestEnumRef::C(
-                    <<List<PackedValue<u32>> as SerializeWith>::Ref<'b>
+                    <<List<PackedValue<u32>> as UnsizedType>::Ref<'b>
                         as BuildPointer>::build_pointer(data_ptr, meta),
                 ),
             }
@@ -414,7 +445,7 @@ impl<'a> TestEnumRefMutWrapper<'a> {
             let Self { ptr, meta, resize } = self;
             match meta.inner {
                 TestEnumMetaInner::A(inner_meta) => TestEnumRefMut::A(
-                    <<PackedValue<u32> as SerializeWith>::RefMut<'b> as BuildPointerMut>::
+                    <<PackedValue<u32> as UnsizedType>::RefMut<'b> as BuildPointerMut>::
                         build_pointer_mut(
                         data_ptr, inner_meta, move |new_len, new_meta| {
                             meta.inner = TestEnumMetaInner::A(new_meta);
@@ -425,7 +456,7 @@ impl<'a> TestEnumRefMutWrapper<'a> {
                     ),
                 ),
                 TestEnumMetaInner::B(inner_meta) => TestEnumRefMut::B(
-                    <<CombinedUnsized<TestStruct, List<u8, u8>> as SerializeWith>::RefMut<'b>
+                    <<CombinedUnsized<TestStruct, List<u8, u8>> as UnsizedType>::RefMut<'b>
                         as BuildPointerMut>::build_pointer_mut(
                         data_ptr, inner_meta, move |new_len, new_meta| {
                             meta.inner = TestEnumMetaInner::B(new_meta);
@@ -436,7 +467,7 @@ impl<'a> TestEnumRefMutWrapper<'a> {
                     ),
                 ),
                 TestEnumMetaInner::C(inner_meta) => TestEnumRefMut::C(
-                    <<List<PackedValue<u32>> as SerializeWith>::RefMut<'b> as BuildPointerMut>::
+                    <<List<PackedValue<u32>> as UnsizedType>::RefMut<'b> as BuildPointerMut>::
                         build_pointer_mut(
                         data_ptr, inner_meta, move |new_len, new_meta| {
                             meta.inner = TestEnumMetaInner::C(new_meta);

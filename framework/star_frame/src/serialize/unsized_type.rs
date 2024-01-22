@@ -4,7 +4,7 @@ use crate::serialize::{FrameworkFromBytes, FrameworkFromBytesMut};
 use bytemuck::Pod;
 use std::ops::{Deref, DerefMut};
 
-pub trait SerializeWith {
+pub trait UnsizedType {
     type RefMeta: 'static + Copy;
     type Ref<'a>: FrameworkFromBytes<'a>
         + Deref<Target = Self>
@@ -17,7 +17,7 @@ pub trait SerializeWith {
     where
         Self: 'a;
 }
-impl<T> SerializeWith for T
+impl<T> UnsizedType for T
 where
     T: Align1 + Pod,
 {

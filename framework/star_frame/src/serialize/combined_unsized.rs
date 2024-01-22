@@ -1,5 +1,5 @@
 use crate::serialize::pointer_breakup::{BuildPointer, BuildPointerMut, PointerBreakup};
-use crate::serialize::serialize_with::SerializeWith;
+use crate::serialize::unsized_type::UnsizedType;
 use crate::serialize::{FrameworkFromBytes, FrameworkFromBytesMut, ResizeFn};
 use advance::Advance;
 use solana_program::program_memory::sol_memmove;
@@ -16,10 +16,10 @@ pub struct CombinedUnsized<T: ?Sized, U: ?Sized> {
     _data: [u8],
 }
 
-impl<T, U> SerializeWith for CombinedUnsized<T, U>
+impl<T, U> UnsizedType for CombinedUnsized<T, U>
 where
-    T: ?Sized + SerializeWith,
-    U: ?Sized + SerializeWith,
+    T: ?Sized + UnsizedType,
+    U: ?Sized + UnsizedType,
 {
     type RefMeta = CombinedUnsizedMetadata<T::RefMeta, U::RefMeta>;
     type Ref<'a> = CombinedUnsizedRef<'a, T, U> where Self: 'a;
@@ -36,8 +36,8 @@ pub struct CombinedUnsizedMetadata<TMeta, UMeta> {
 
 pub struct CombinedUnsizedRef<'a, T, U>
 where
-    T: ?Sized + SerializeWith,
-    U: ?Sized + SerializeWith,
+    T: ?Sized + UnsizedType,
+    U: ?Sized + UnsizedType,
 {
     phantom_ref: PhantomData<&'a ()>,
     pointer: NonNull<()>,
@@ -45,8 +45,8 @@ where
 }
 impl<'a, T, U> Deref for CombinedUnsizedRef<'a, T, U>
 where
-    T: ?Sized + SerializeWith,
-    U: ?Sized + SerializeWith,
+    T: ?Sized + UnsizedType,
+    U: ?Sized + UnsizedType,
 {
     type Target = CombinedUnsized<T, U>;
 
@@ -56,8 +56,8 @@ where
 }
 impl<'a, T, U> FrameworkSerialize for CombinedUnsizedRef<'a, T, U>
 where
-    T: ?Sized + SerializeWith,
-    U: ?Sized + SerializeWith,
+    T: ?Sized + UnsizedType,
+    U: ?Sized + UnsizedType,
 {
     fn to_bytes(&self, output: &mut &mut [u8]) -> crate::Result<()> {
         let (t, u) = self.split();
@@ -67,8 +67,8 @@ where
 }
 unsafe impl<'a, T, U> FrameworkFromBytes<'a> for CombinedUnsizedRef<'a, T, U>
 where
-    T: ?Sized + SerializeWith,
-    U: ?Sized + SerializeWith,
+    T: ?Sized + UnsizedType,
+    U: ?Sized + UnsizedType,
 {
     fn from_bytes(bytes: &mut &'a [u8]) -> crate::Result<Self> {
         let mut bytes_clone = &**bytes;
@@ -90,8 +90,8 @@ where
 }
 impl<'a, T, U> PointerBreakup for CombinedUnsizedRef<'a, T, U>
 where
-    T: ?Sized + SerializeWith,
-    U: ?Sized + SerializeWith,
+    T: ?Sized + UnsizedType,
+    U: ?Sized + UnsizedType,
 {
     type Metadata = CombinedUnsizedMetadata<
         <T::Ref<'static> as PointerBreakup>::Metadata,
@@ -104,8 +104,8 @@ where
 }
 impl<'a, T, U> BuildPointer for CombinedUnsizedRef<'a, T, U>
 where
-    T: ?Sized + SerializeWith,
-    U: ?Sized + SerializeWith,
+    T: ?Sized + UnsizedType,
+    U: ?Sized + UnsizedType,
 {
     unsafe fn build_pointer(pointee: NonNull<()>, metadata: Self::Metadata) -> Self {
         Self {
@@ -118,8 +118,8 @@ where
 
 pub struct CombinedUnsizedRefMut<'a, T, U>
 where
-    T: ?Sized + SerializeWith,
-    U: ?Sized + SerializeWith,
+    T: ?Sized + UnsizedType,
+    U: ?Sized + UnsizedType,
 {
     phantom_ref: PhantomData<&'a mut ()>,
     pointer: NonNull<()>,
@@ -128,8 +128,8 @@ where
 }
 impl<'a, T, U> Deref for CombinedUnsizedRefMut<'a, T, U>
 where
-    T: ?Sized + SerializeWith,
-    U: ?Sized + SerializeWith,
+    T: ?Sized + UnsizedType,
+    U: ?Sized + UnsizedType,
 {
     type Target = CombinedUnsized<T, U>;
 
@@ -139,8 +139,8 @@ where
 }
 impl<'a, T, U> DerefMut for CombinedUnsizedRefMut<'a, T, U>
 where
-    T: ?Sized + SerializeWith,
-    U: ?Sized + SerializeWith,
+    T: ?Sized + UnsizedType,
+    U: ?Sized + UnsizedType,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         unsafe { &mut *ptr::from_raw_parts_mut(self.pointer.as_ptr(), self.meta.data_len) }
@@ -148,8 +148,8 @@ where
 }
 impl<'a, T, U> FrameworkSerialize for CombinedUnsizedRefMut<'a, T, U>
 where
-    T: ?Sized + SerializeWith,
-    U: ?Sized + SerializeWith,
+    T: ?Sized + UnsizedType,
+    U: ?Sized + UnsizedType,
 {
     fn to_bytes(&self, output: &mut &mut [u8]) -> crate::Result<()> {
         let (t, u) = self.split();
@@ -159,8 +159,8 @@ where
 }
 unsafe impl<'a, T, U> FrameworkFromBytesMut<'a> for CombinedUnsizedRefMut<'a, T, U>
 where
-    T: ?Sized + SerializeWith,
-    U: ?Sized + SerializeWith,
+    T: ?Sized + UnsizedType,
+    U: ?Sized + UnsizedType,
 {
     fn from_bytes_mut(
         bytes: &mut &'a mut [u8],
@@ -196,8 +196,8 @@ where
 
 impl<'a, T, U> PointerBreakup for CombinedUnsizedRefMut<'a, T, U>
 where
-    T: ?Sized + SerializeWith,
-    U: ?Sized + SerializeWith,
+    T: ?Sized + UnsizedType,
+    U: ?Sized + UnsizedType,
 {
     type Metadata = CombinedUnsizedMetadata<T::RefMeta, U::RefMeta>;
 
@@ -208,8 +208,8 @@ where
 
 impl<'a, T, U> BuildPointerMut<'a> for CombinedUnsizedRefMut<'a, T, U>
 where
-    T: ?Sized + SerializeWith,
-    U: ?Sized + SerializeWith,
+    T: ?Sized + UnsizedType,
+    U: ?Sized + UnsizedType,
 {
     unsafe fn build_pointer_mut(
         pointee: NonNull<()>,
@@ -227,8 +227,8 @@ where
 
 pub trait CombinedRefAccess<T, U>
 where
-    T: ?Sized + SerializeWith,
-    U: ?Sized + SerializeWith,
+    T: ?Sized + UnsizedType,
+    U: ?Sized + UnsizedType,
 {
     fn t(&self) -> T::Ref<'_>;
     fn u(&self) -> U::Ref<'_>;
@@ -238,8 +238,8 @@ where
 }
 impl<'a, T, U> CombinedRefAccess<T, U> for CombinedUnsizedRef<'a, T, U>
 where
-    T: ?Sized + SerializeWith,
-    U: ?Sized + SerializeWith,
+    T: ?Sized + UnsizedType,
+    U: ?Sized + UnsizedType,
 {
     fn t(&self) -> T::Ref<'_> {
         let (pointer, meta) = self.break_pointer();
@@ -258,8 +258,8 @@ where
 }
 impl<'a, T, U> CombinedRefAccess<T, U> for CombinedUnsizedRefMut<'a, T, U>
 where
-    T: ?Sized + SerializeWith,
-    U: ?Sized + SerializeWith,
+    T: ?Sized + UnsizedType,
+    U: ?Sized + UnsizedType,
 {
     fn t(&self) -> T::Ref<'_> {
         let (pointer, meta) = self.break_pointer();
@@ -279,8 +279,8 @@ where
 
 impl<'a, T, U> CombinedUnsizedRefMut<'a, T, U>
 where
-    T: ?Sized + SerializeWith,
-    U: ?Sized + SerializeWith,
+    T: ?Sized + UnsizedType,
+    U: ?Sized + UnsizedType,
 {
     pub fn t_mut(&mut self) -> T::RefMut<'_> {
         let (pointer, meta) = Self::break_pointer(self);

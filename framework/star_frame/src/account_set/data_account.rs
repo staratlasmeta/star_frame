@@ -9,14 +9,14 @@ use solana_program::entrypoint::MAX_PERMITTED_DATA_INCREASE;
 use solana_program::program_error::ProgramError;
 use solana_program::pubkey::Pubkey;
 use solana_program::system_instruction::MAX_PERMITTED_DATA_LENGTH;
-use star_frame::serialize::serialize_with::SerializeWith;
+use star_frame::serialize::unsized_type::UnsizedType;
 use std::cell::{Ref, RefMut};
 use std::marker::PhantomData;
 use std::mem::size_of;
 use std::ops::{Deref, DerefMut};
 use std::ptr::NonNull;
 
-pub trait AccountData: SerializeWith {
+pub trait AccountData: UnsizedType {
     type OwnerProgram: Program;
     const DISCRIMINANT: <Self::OwnerProgram as Program>::AccountDiscriminant;
 

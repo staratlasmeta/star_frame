@@ -2,8 +2,8 @@ pub mod borsh;
 pub mod combined_unsized;
 pub mod list;
 pub mod pointer_breakup;
-pub mod serialize_with;
 pub mod unsized_enum;
+pub mod unsized_type;
 
 use crate::align1::Align1;
 use crate::Result;
@@ -90,7 +90,7 @@ where
 
 #[cfg(test)]
 pub mod test {
-    use crate::serialize::serialize_with::SerializeWith;
+    use crate::serialize::unsized_type::UnsizedType;
     use crate::serialize::{FrameworkFromBytes, FrameworkFromBytesMut};
     use std::marker::PhantomData;
     use std::ptr::NonNull;
@@ -109,7 +109,7 @@ pub mod test {
     }
     impl<T> TestByteSet<T>
     where
-        T: ?Sized + SerializeWith,
+        T: ?Sized + UnsizedType,
     {
         pub fn immut(&self) -> crate::Result<T::Ref<'_>> {
             T::Ref::from_bytes(&mut &self.bytes[..])

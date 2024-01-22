@@ -1,7 +1,7 @@
 use crate::align1::Align1;
 use crate::packed_value::PackedValue;
 use crate::serialize::pointer_breakup::{BuildPointer, BuildPointerMut, PointerBreakup};
-use crate::serialize::serialize_with::SerializeWith;
+use crate::serialize::unsized_type::UnsizedType;
 use crate::serialize::{FrameworkFromBytes, FrameworkFromBytesMut, FrameworkSerialize, ResizeFn};
 use crate::Result;
 use advance::Advance;
@@ -47,7 +47,7 @@ where
     }
 }
 
-impl<T, L> SerializeWith for List<T, L>
+impl<T, L> UnsizedType for List<T, L>
 where
     T: Pod + Align1,
     L: Pod + ToPrimitive + FromPrimitive,
