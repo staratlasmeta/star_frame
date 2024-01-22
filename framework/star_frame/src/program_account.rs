@@ -1,12 +1,12 @@
 use crate::program::ProgramIds;
-use star_frame::program::Program;
+use star_frame::program::StarFrameProgram;
 
 pub trait ProgramAccount {
-    type OwnerProgram: Program;
+    type OwnerProgram: StarFrameProgram;
 
-    fn discriminant() -> <Self::OwnerProgram as Program>::InstructionDiscriminant;
+    fn discriminant() -> <Self::OwnerProgram as StarFrameProgram>::InstructionDiscriminant;
 
     fn owner_program_id() -> ProgramIds {
-        Self::OwnerProgram::program_id()
+        Self::OwnerProgram::PROGRAM_IDS
     }
 }

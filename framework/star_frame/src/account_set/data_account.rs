@@ -1,6 +1,6 @@
 use crate::account_set::AccountSet;
 use crate::packed_value::PackedValue;
-use crate::program::Program;
+use crate::program::StarFrameProgram;
 use crate::serialize::{FrameworkFromBytes, FrameworkFromBytesMut};
 use crate::Result;
 use bytemuck::{bytes_of, from_bytes, from_bytes_mut};
@@ -17,8 +17,8 @@ use std::ops::{Deref, DerefMut};
 use std::ptr::NonNull;
 
 pub trait AccountData: UnsizedType {
-    type OwnerProgram: Program;
-    const DISCRIMINANT: <Self::OwnerProgram as Program>::AccountDiscriminant;
+    type OwnerProgram: StarFrameProgram;
+    const DISCRIMINANT: <Self::OwnerProgram as StarFrameProgram>::AccountDiscriminant;
 
     // TODO: Remove this
     fn program_id() -> Pubkey;
@@ -33,11 +33,12 @@ where
     }
 
     let data = account.info.try_borrow_data()?;
-    if data.len() < size_of::<<T::OwnerProgram as Program>::AccountDiscriminant>() {
+    if data.len() < size_of::<<T::OwnerProgram as StarFrameProgram>::AccountDiscriminant>() {
         return Err(ProgramError::InvalidAccountData);
     }
-    let discriminant: &<T::OwnerProgram as Program>::AccountDiscriminant =
-        from_bytes(&data[0..size_of::<<T::OwnerProgram as Program>::AccountDiscriminant>()]);
+    let discriminant: &<T::OwnerProgram as StarFrameProgram>::AccountDiscriminant = from_bytes(
+        &data[0..size_of::<<T::OwnerProgram as StarFrameProgram>::AccountDiscriminant>()],
+    );
     if discriminant != &T::DISCRIMINANT {
         return Err(ProgramError::InvalidAccountData);
     }
@@ -58,9 +59,9 @@ where
     T: AccountData,
 {
     fn check_discriminant(bytes: &[u8]) -> Result<()> {
-        if bytes.len() < size_of::<<T::OwnerProgram as Program>::AccountDiscriminant>()
-            || from_bytes::<PackedValue<<T::OwnerProgram as Program>::AccountDiscriminant>>(
-                &bytes[..size_of::<<T::OwnerProgram as Program>::AccountDiscriminant>()],
+        if bytes.len() < size_of::<<T::OwnerProgram as StarFrameProgram>::AccountDiscriminant>()
+            || from_bytes::<PackedValue<<T::OwnerProgram as StarFrameProgram>::AccountDiscriminant>>(
+                &bytes[..size_of::<<T::OwnerProgram as StarFrameProgram>::AccountDiscriminant>()],
             ) != &PackedValue(T::DISCRIMINANT)
         {
             Err(ProgramError::InvalidAccountData)
@@ -78,10 +79,9 @@ where
             from_bytes(&bytes[0..0])
         });
         let data: T::Ref<'a> = T::Ref::from_bytes(&mut unsafe {
-            &*r_ptr
-                .unwrap()
-                .as_ptr()
-                .byte_add(size_of::<<T::OwnerProgram as Program>::AccountDiscriminant>())
+            &*r_ptr.unwrap().as_ptr().byte_add(size_of::<
+                <T::OwnerProgram as StarFrameProgram>::AccountDiscriminant,
+            >())
         })?;
         Ok(DataRef { _r: r, data })
     }
@@ -97,11 +97,9 @@ where
         });
         let r_ptr = r_ptr.unwrap();
         let mut data_ptr = unsafe {
-            NonNull::new(
-                r_ptr
-                    .as_ptr()
-                    .byte_add(size_of::<<T::OwnerProgram as Program>::AccountDiscriminant>()),
-            )
+            NonNull::new(r_ptr.as_ptr().byte_add(size_of::<
+                <T::OwnerProgram as StarFrameProgram>::AccountDiscriminant,
+            >()))
             .unwrap()
         };
         let data_len_ptr = unsafe { r_ptr.as_ptr().byte_sub(8).cast::<u64>() };
@@ -109,8 +107,8 @@ where
             data: T::RefMut::from_bytes_mut(
                 &mut unsafe { data_ptr.as_mut() },
                 move |new_len, _| {
-                    let new_len =
-                        new_len + size_of::<<T::OwnerProgram as Program>::AccountDiscriminant>();
+                    let new_len = new_len
+                        + size_of::<<T::OwnerProgram as StarFrameProgram>::AccountDiscriminant>();
                     if new_len > original_data_len + MAX_PERMITTED_DATA_INCREASE
                         || new_len as u64 > MAX_PERMITTED_DATA_LENGTH
                     {
@@ -128,11 +126,11 @@ where
     /// Closes the account
     pub fn close(&mut self) -> Result<()> {
         self.info.realloc(
-            size_of::<<T::OwnerProgram as Program>::AccountDiscriminant>(),
+            size_of::<<T::OwnerProgram as StarFrameProgram>::AccountDiscriminant>(),
             false,
         )?;
         self.info.try_borrow_mut_data()?.copy_from_slice(bytes_of(
-            &<T::OwnerProgram as Program>::CLOSED_ACCOUNT_DISCRIMINANT,
+            &<T::OwnerProgram as StarFrameProgram>::CLOSED_ACCOUNT_DISCRIMINANT,
         ));
         Ok(())
     }

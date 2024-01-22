@@ -12,7 +12,7 @@ use solana_program::pubkey::Pubkey;
 use star_frame::declare_id;
 use star_frame::idl::ty::TypeToIdl;
 use star_frame::idl::{AccountToIdl, InstructionSetToIdl, ProgramToIdl};
-use star_frame::program::{Program, ProgramIds};
+use star_frame::program::{ProgramIds, StarFrameProgram};
 use star_frame::program_account::ProgramAccount;
 use star_frame::util::Network;
 use star_frame::Result;
@@ -42,15 +42,17 @@ lazy_static! {
 }
 
 pub struct TestProgram;
-impl Program for TestProgram {
+impl StarFrameProgram for TestProgram {
     type InstructionSet<'a> = TestProgramInstructions<'a>;
     type InstructionDiscriminant = u32;
     type AccountDiscriminant = u8;
     const CLOSED_ACCOUNT_DISCRIMINANT: Self::AccountDiscriminant = 1;
 
-    fn program_id() -> ProgramIds {
-        ProgramIds::Mapped(&*TEST_PROGRAM_PUBKEYS)
-    }
+    const PROGRAM_IDS: ProgramIds = ProgramIds::Mapped(&[
+        (Network::MainNet, &Pubkey::new_from_array([4; 32])),
+        (Network::DevNet, &Pubkey::new_from_array([1; 32])),
+        (Network::TestNet, &Pubkey::new_from_array([2; 32])),
+    ]);
 }
 impl ProgramToIdl for TestProgram {
     const VERSION: Version = Version {
@@ -72,7 +74,7 @@ impl ProgramToIdl for TestProgram {
             description: "A test program for testing".to_string(),
             required_plugins: Default::default(),
             required_idl_definitions: Default::default(),
-            program_ids: Self::program_id().into(),
+            program_ids: Self::PROGRAM_IDS.into(),
             account_discriminant: DiscriminantId::U32,
             instruction_discriminant: DiscriminantId::U32,
             accounts: Default::default(),
@@ -100,7 +102,7 @@ pub struct TestAccount1 {
 impl ProgramAccount for TestAccount1 {
     type OwnerProgram = TestProgram;
 
-    fn discriminant() -> <Self::OwnerProgram as Program>::InstructionDiscriminant {
+    fn discriminant() -> <Self::OwnerProgram as StarFrameProgram>::InstructionDiscriminant {
         1
     }
 }

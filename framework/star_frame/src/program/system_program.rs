@@ -1,4 +1,4 @@
-use crate::program::{Program, ProgramIds};
+use crate::program::{ProgramIds, StarFrameProgram};
 use crate::sys_calls::SysCalls;
 use crate::Result;
 use solana_program::account_info::AccountInfo;
@@ -8,15 +8,13 @@ use solana_program::system_program;
 use star_frame::instruction::InstructionSet;
 
 pub struct SystemProgram;
-impl Program for SystemProgram {
+impl StarFrameProgram for SystemProgram {
     type InstructionSet<'a> = SystemInstruction;
     type InstructionDiscriminant = ();
     type AccountDiscriminant = ();
     const CLOSED_ACCOUNT_DISCRIMINANT: Self::AccountDiscriminant = ();
 
-    fn program_id() -> ProgramIds {
-        ProgramIds::AllNetworks(&system_program::ID)
-    }
+    const PROGRAM_IDS: ProgramIds = ProgramIds::AllNetworks(&system_program::ID);
 }
 impl<'a> InstructionSet<'a> for SystemInstruction {
     type Discriminant = ();
@@ -256,7 +254,7 @@ mod idl_impl {
                 instructions: Default::default(),
                 extension_fields: Default::default(),
             };
-            <SystemProgram as Program>::InstructionSet::instruction_set_to_idl(&mut out)?;
+            <SystemProgram as StarFrameProgram>::InstructionSet::instruction_set_to_idl(&mut out)?;
             Ok(out)
         }
         fn idl_namespace() -> &'static str {

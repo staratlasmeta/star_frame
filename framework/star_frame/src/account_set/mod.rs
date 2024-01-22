@@ -1,5 +1,6 @@
 pub mod data_account;
 pub mod mutable;
+pub mod program;
 pub mod rest;
 pub mod signer;
 pub mod system_account;

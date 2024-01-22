@@ -1,0 +1,19 @@
+[package]
+name = "faction_enlistment"
+version = "0.1.0"
+description = "Created with Anchor"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "faction_enlistment"
+
+[features]
+prod = []
+no-entrypoint = []
+no-idl = []
+cpi = ["no-entrypoint"]
+default = []
+
+[dependencies]
+star_frame = { path = "../../star_frame" }

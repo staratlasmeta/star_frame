@@ -88,6 +88,41 @@ where
     }
 }
 
+/// # Safety
+/// [`init`](FrameworkInit::init) must properly initialize the bytes.
+pub unsafe trait FrameworkInit<'a, A>: FrameworkFromBytesMut<'a> {
+    /// Length of bytes required to initialize this type.
+    const INIT_LENGTH: usize;
+    /// Initializes this type with the given arguments.
+    /// # Safety
+    /// `bytes` must be zeroed and length [`INIT_LENGTH`](FrameworkInit::INIT_LENGTH).
+    unsafe fn init(bytes: &'a mut [u8], arg: A) -> Result<Self>;
+}
+unsafe impl<'a, T> FrameworkInit<'a, ()> for &'a mut T
+where
+    T: Align1 + Pod,
+{
+    const INIT_LENGTH: usize = size_of::<T>();
+
+    unsafe fn init(bytes: &'a mut [u8], _arg: ()) -> Result<Self> {
+        debug_assert_eq!(bytes.len(), <Self as FrameworkInit<()>>::INIT_LENGTH);
+        Ok(from_bytes_mut(bytes))
+    }
+}
+unsafe impl<'a, T> FrameworkInit<'a, (T,)> for &'a mut T
+where
+    T: Align1 + Pod,
+{
+    const INIT_LENGTH: usize = size_of::<T>();
+
+    unsafe fn init(bytes: &'a mut [u8], arg: (T,)) -> Result<Self> {
+        debug_assert_eq!(bytes.len(), <Self as FrameworkInit<(T,)>>::INIT_LENGTH);
+        let out = from_bytes_mut(bytes);
+        *out = arg.0;
+        Ok(out)
+    }
+}
+
 #[cfg(test)]
 pub mod test {
     use crate::serialize::unsized_type::UnsizedType;
