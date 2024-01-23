@@ -3,12 +3,15 @@ pub mod combined_unsized;
 pub mod list;
 pub mod pointer_breakup;
 pub mod serialize_with;
+#[cfg(test)]
+pub mod test;
 
 use crate::align1::Align1;
 use crate::Result;
 use advance::Advance;
 use bytemuck::{from_bytes, from_bytes_mut, Pod};
 use star_frame::serialize::pointer_breakup::PointerBreakup;
+use star_frame::serialize::serialize_with::SerializeWith;
 use std::mem::size_of;
 use std::ptr::NonNull;
 
@@ -89,73 +92,49 @@ where
 
 /// # Safety
 /// [`init`](FrameworkInit::init) must properly initialize the bytes.
-pub unsafe trait FrameworkInit<'a, A>: FrameworkFromBytesMut<'a> {
+pub unsafe trait FrameworkInit<A>: SerializeWith {
     /// Length of bytes required to initialize this type.
     const INIT_LENGTH: usize;
     /// Initializes this type with the given arguments.
     /// # Safety
     /// `bytes` must be zeroed and length [`INIT_LENGTH`](FrameworkInit::INIT_LENGTH).
-    unsafe fn init(bytes: &'a mut [u8], arg: A) -> Result<Self>;
+    unsafe fn init<'a>(
+        bytes: &'a mut [u8],
+        arg: A,
+        resize: impl ResizeFn<'a, Self::RefMeta>,
+    ) -> Result<Self::RefMut<'a>>;
 }
-unsafe impl<'a, T> FrameworkInit<'a, ()> for &'a mut T
+unsafe impl<T> FrameworkInit<()> for T
 where
     T: Align1 + Pod,
 {
     const INIT_LENGTH: usize = size_of::<T>();
 
-    unsafe fn init(bytes: &'a mut [u8], _arg: ()) -> Result<Self> {
+    unsafe fn init<'a>(
+        bytes: &'a mut [u8],
+        _arg: (),
+        _resize: impl ResizeFn<'a, Self::RefMeta>,
+    ) -> Result<Self::RefMut<'a>> {
         debug_assert_eq!(bytes.len(), <Self as FrameworkInit<()>>::INIT_LENGTH);
+        debug_assert!(bytes.iter().all(|b| *b == 0));
         Ok(from_bytes_mut(bytes))
     }
 }
-unsafe impl<'a, T> FrameworkInit<'a, (T,)> for &'a mut T
+unsafe impl<T> FrameworkInit<(T,)> for T
 where
     T: Align1 + Pod,
 {
     const INIT_LENGTH: usize = size_of::<T>();
 
-    unsafe fn init(bytes: &'a mut [u8], arg: (T,)) -> Result<Self> {
+    unsafe fn init<'a>(
+        bytes: &'a mut [u8],
+        arg: (T,),
+        _resize: impl ResizeFn<'a, Self::RefMeta>,
+    ) -> Result<Self::RefMut<'a>> {
         debug_assert_eq!(bytes.len(), <Self as FrameworkInit<(T,)>>::INIT_LENGTH);
+        debug_assert!(bytes.iter().all(|b| *b == 0));
         let out = from_bytes_mut(bytes);
         *out = arg.0;
         Ok(out)
-    }
-}
-
-#[cfg(test)]
-pub mod test {
-    use crate::serialize::serialize_with::SerializeWith;
-    use crate::serialize::{FrameworkFromBytes, FrameworkFromBytesMut};
-    use std::marker::PhantomData;
-    use std::ptr::NonNull;
-
-    pub struct TestByteSet<T: ?Sized> {
-        pub bytes: Vec<u8>,
-        pub phantom_t: PhantomData<T>,
-    }
-    impl<T: ?Sized> TestByteSet<T> {
-        pub fn new(len: usize) -> Self {
-            Self {
-                bytes: vec![0; len],
-                phantom_t: PhantomData,
-            }
-        }
-    }
-    impl<T> TestByteSet<T>
-    where
-        T: ?Sized + SerializeWith,
-    {
-        pub fn immut(&self) -> crate::Result<T::Ref<'_>> {
-            T::Ref::from_bytes(&mut &self.bytes[..])
-        }
-
-        pub fn mutable(&mut self) -> crate::Result<T::RefMut<'_>> {
-            let bytes = &mut self.bytes as *mut Vec<u8>;
-            T::RefMut::from_bytes_mut(&mut &mut self.bytes[..], move |len, _| {
-                let bytes = unsafe { &mut *bytes };
-                bytes.resize(len, 0);
-                Ok(NonNull::<[u8]>::from(bytes.as_slice()).cast())
-            })
-        }
     }
 }

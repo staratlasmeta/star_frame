@@ -1,6 +1,7 @@
 use crate::serialize::pointer_breakup::{BuildPointer, BuildPointerMut, PointerBreakup};
 use crate::serialize::serialize_with::SerializeWith;
-use crate::serialize::{FrameworkFromBytes, FrameworkFromBytesMut, ResizeFn};
+use crate::serialize::{FrameworkFromBytes, FrameworkFromBytesMut, FrameworkInit, ResizeFn};
+use crate::Result;
 use advance::Advance;
 use solana_program::program_memory::sol_memmove;
 use star_frame::serialize::FrameworkSerialize;
@@ -15,7 +16,6 @@ pub struct CombinedUnsizedData<T: ?Sized, U: ?Sized> {
     phantom_u: PhantomData<U>,
     _data: [u8],
 }
-
 impl<T, U> SerializeWith for CombinedUnsizedData<T, U>
 where
     T: ?Sized + SerializeWith,
@@ -24,6 +24,51 @@ where
     type RefMeta = CombinedUnsizedMetadata<T::RefMeta, U::RefMeta>;
     type Ref<'a> = CombinedUnsizedDataRef<'a, T, U> where Self: 'a;
     type RefMut<'a> = CombinedUnsizedDataRefMut<'a, T, U> where Self: 'a;
+}
+unsafe impl<T, U, TA, UA> FrameworkInit<(TA, UA)> for CombinedUnsizedData<T, U>
+where
+    T: ?Sized + FrameworkInit<TA>,
+    U: ?Sized + FrameworkInit<UA>,
+{
+    const INIT_LENGTH: usize = T::INIT_LENGTH + U::INIT_LENGTH;
+
+    unsafe fn init<'a>(
+        mut bytes: &'a mut [u8],
+        arg: (TA, UA),
+        resize: impl ResizeFn<'a, Self::RefMeta>,
+    ) -> Result<Self::RefMut<'a>> {
+        debug_assert_eq!(bytes.len(), <Self as FrameworkInit<(TA, UA)>>::INIT_LENGTH);
+        debug_assert!(bytes.iter().all(|b| *b == 0));
+        let t_bytes = bytes.try_advance(T::INIT_LENGTH)?;
+        let t = T::init(t_bytes, arg.0, |_, _| panic!("Cannot resize during init"))?;
+        let u_bytes = bytes.try_advance(U::INIT_LENGTH)?;
+        let u = U::init(u_bytes, arg.1, |_, _| panic!("Cannot resize during init"))?;
+        Ok(Self::RefMut::build_pointer_mut(
+            NonNull::from(bytes).cast(),
+            CombinedUnsizedMetadata {
+                data_len: Self::INIT_LENGTH,
+                t_meta: t.break_pointer().1,
+                u_meta: u.break_pointer().1,
+                t_len: T::INIT_LENGTH,
+            },
+            resize,
+        ))
+    }
+}
+unsafe impl<T, U> FrameworkInit<()> for CombinedUnsizedData<T, U>
+where
+    T: ?Sized + FrameworkInit<()>,
+    U: ?Sized + FrameworkInit<()>,
+{
+    const INIT_LENGTH: usize = <Self as FrameworkInit<((), ())>>::INIT_LENGTH;
+
+    unsafe fn init<'a>(
+        bytes: &'a mut [u8],
+        arg: (),
+        resize: impl ResizeFn<'a, Self::RefMeta>,
+    ) -> Result<Self::RefMut<'a>> {
+        <Self as FrameworkInit<((), ())>>::init(bytes, (arg, arg), resize)
+    }
 }
 
 #[derive(Copy, Clone)]
@@ -59,7 +104,7 @@ where
     T: ?Sized + SerializeWith,
     U: ?Sized + SerializeWith,
 {
-    fn to_bytes(&self, output: &mut &mut [u8]) -> crate::Result<()> {
+    fn to_bytes(&self, output: &mut &mut [u8]) -> Result<()> {
         let (t, u) = self.split();
         t.to_bytes(output)?;
         u.to_bytes(output)
@@ -70,7 +115,7 @@ where
     T: ?Sized + SerializeWith,
     U: ?Sized + SerializeWith,
 {
-    fn from_bytes(bytes: &mut &'a [u8]) -> crate::Result<Self> {
+    fn from_bytes(bytes: &mut &'a [u8]) -> Result<Self> {
         let mut bytes_clone = &**bytes;
         let t = T::Ref::from_bytes(&mut bytes_clone)?;
         let t_len = bytes.len() - bytes_clone.len();
@@ -151,7 +196,7 @@ where
     T: ?Sized + SerializeWith,
     U: ?Sized + SerializeWith,
 {
-    fn to_bytes(&self, output: &mut &mut [u8]) -> crate::Result<()> {
+    fn to_bytes(&self, output: &mut &mut [u8]) -> Result<()> {
         let (t, u) = self.split();
         t.to_bytes(output)?;
         u.to_bytes(output)
@@ -165,7 +210,7 @@ where
     fn from_bytes_mut(
         bytes: &mut &'a mut [u8],
         resize: impl ResizeFn<'a, Self::Metadata>,
-    ) -> crate::Result<Self> {
+    ) -> Result<Self> {
         let bytes_len = bytes.len();
         let mut bytes_clone = &mut **bytes;
         let t = T::RefMut::from_bytes_mut(&mut bytes_clone, |_, _| {
@@ -379,7 +424,7 @@ mod test {
 
     #[test]
     fn test_combined() -> Result<()> {
-        let mut test_bytes = TestByteSet::<CombinedUnsizedData<List<Cool>, List<u8>>>::new(8);
+        let mut test_bytes = TestByteSet::<CombinedUnsizedData<List<Cool>, List<u8>>>::new(())?;
         assert_eq!(test_bytes.immut()?.t().deref().deref(), &[]);
         assert_eq!(test_bytes.immut()?.u().deref().deref(), &[] as &[u8]);
 
@@ -405,7 +450,7 @@ mod test {
     fn test_combined_recursive() -> Result<()> {
         let mut test_bytes = TestByteSet::<
             CombinedUnsizedData<List<Cool>, CombinedUnsizedData<List<u8>, List<PackedValue<u16>>>>,
-        >::new(12);
+        >::new(())?;
         assert_eq!(test_bytes.immut()?.t().deref().deref(), &[]);
         assert_eq!(test_bytes.immut()?.u().t().deref().deref(), &[] as &[u8]);
         assert_eq!(test_bytes.immut()?.u().u().deref().deref(), &[]);
