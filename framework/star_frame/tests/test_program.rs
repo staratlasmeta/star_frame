@@ -20,7 +20,7 @@ use star_frame_idl::account::{AccountId, IdlAccount};
 use star_frame_idl::seeds::IdlSeeds;
 use star_frame_idl::ty::{IdlField, IdlType, IdlTypeDef, TypeId};
 use star_frame_idl::{DiscriminantId, IdlDefinition, IdlDefinitionReference, Version};
-use star_frame_proc::pubkey;
+use star_frame_proc::{pubkey, AccountToIdl};
 
 declare_id!("11111111111111111111111111111111");
 const KEY: Pubkey = pubkey!("11111111111111111111111111111111");
@@ -174,11 +174,8 @@ impl AccountToIdl for TestAccount1 {
                 IdlAccount {
                     name: "Test Account 1".to_string(),
                     description: "The first Test account".to_string(),
-                    discriminant: serde_json::to_value(Self::discriminant()).map_err(|e| {
-                        msg!("Error serde_json to_value: {:?}", e);
-                        // TODO: Change error?
-                        ProgramError::Custom(1)
-                    })?,
+                    discriminant: serde_json::to_value(Self::discriminant())
+                        .expect("Couldn't serialize discriminant"),
                     ty,
                     seeds: IdlSeeds::NotRequired { possible: vec![] },
                     extension_fields: Default::default(),
@@ -203,6 +200,7 @@ impl AccountToIdl for TestAccount1 {
     }
 }
 
+#[derive(TypeToIdl, AccountToIdl)]
 pub struct TestAccount2 {
     pub key: Pubkey,
     pub stuff: Pubkey,
