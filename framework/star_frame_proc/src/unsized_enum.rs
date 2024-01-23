@@ -10,6 +10,7 @@ use syn::{
 };
 
 pub fn unsized_enum_impl(input: ItemEnum, args: TokenStream) -> TokenStream {
+    let vis = &input.vis;
     let paths = Paths::default();
     verify_repr_u8(&input.attrs);
     let idents = Idents::generate_idents(input.ident, args);
@@ -103,7 +104,7 @@ pub fn unsized_enum_impl(input: ItemEnum, args: TokenStream) -> TokenStream {
         #[derive(#align1, #derivative)]
         #[derivative(Debug(bound = ""))]
         #[allow(dead_code)]
-        pub struct #ident #impl_generics #where_clause {
+        #vis struct #ident #impl_generics #where_clause {
             phantom_data: #phantom_data<(#marker_params)>,
             discriminant: #packed_value_checked<#discriminant_ident>,
             bytes: [u8],
@@ -129,7 +130,7 @@ pub fn unsized_enum_impl(input: ItemEnum, args: TokenStream) -> TokenStream {
     let discriminant_enum = quote! {
         #[derive(#copy, #clone, #debug, #partial_eq, #eq)]
         #[repr(u8)]
-        pub enum #discriminant_ident {
+        #vis enum #discriminant_ident {
             #(#variant_idents = #variant_discriminants,)*
         }
         #[automatically_derived]
@@ -184,7 +185,7 @@ pub fn unsized_enum_impl(input: ItemEnum, args: TokenStream) -> TokenStream {
             Clone(bound = #meta_clone_bound),
             Copy(bound = #meta_copy_bound),
         )]
-        pub struct #meta_ident #impl_generics #where_clause {
+        #vis struct #meta_ident #impl_generics #where_clause {
             byte_len: usize,
             inner: #meta_inner_ident #ty_generics,
         }
@@ -223,7 +224,7 @@ pub fn unsized_enum_impl(input: ItemEnum, args: TokenStream) -> TokenStream {
             Clone(bound = #ref_clone_bound),
             Copy(bound = #ref_copy_bound),
         )]
-        pub enum #ref_ident #a_impl_generics #where_clause {
+        #vis enum #ref_ident #a_impl_generics #where_clause {
             #(#variant_idents(<#variant_tys as #unsized_type>::Ref<#a_lifetime>),)*
         }
 
@@ -233,7 +234,7 @@ pub fn unsized_enum_impl(input: ItemEnum, args: TokenStream) -> TokenStream {
             Clone(bound = #ref_wrapper_clone_bound),
             Copy(bound = #ref_wrapper_copy_bound),
         )]
-        pub struct #ref_wrapper_ident #a_impl_generics #where_clause {
+        #vis struct #ref_wrapper_ident #a_impl_generics #where_clause {
             phantom_ref: #phantom_data<&'__a ()>,
             ptr: #non_null<()>,
             meta: #meta_ident #ty_generics,
@@ -263,7 +264,7 @@ pub fn unsized_enum_impl(input: ItemEnum, args: TokenStream) -> TokenStream {
 
                     match self.meta.inner {
                         #(
-                            <#meta_inner_ident #ty_generics>::#variant_idents(meta) => #ref_ident::#b_ty_generics::#variant_idents(<<#variant_tys as #unsized_type>::Ref<
+                            #meta_inner_ident::#variant_idents(meta) => #ref_ident::#b_ty_generics::#variant_idents(<<#variant_tys as #unsized_type>::Ref<
                                 #b_lifetime,
                             > as #build_pointer>::build_pointer(
                                 data_ptr, meta
@@ -287,7 +288,7 @@ pub fn unsized_enum_impl(input: ItemEnum, args: TokenStream) -> TokenStream {
                 unsafe {
                     match self.meta.inner {
                         #(
-                            <#meta_inner_ident #ty_generics>::#variant_idents(meta) => {
+                            #meta_inner_ident::#variant_idents(meta) => {
                                 const DISCRIMINANT: u8 = #variant_discriminants;
                                 DISCRIMINANT.to_bytes(output)?;
                                 <<#variant_tys as #unsized_type>::Ref<'_> as #framework_serialize>::to_bytes(
@@ -377,12 +378,12 @@ pub fn unsized_enum_impl(input: ItemEnum, args: TokenStream) -> TokenStream {
     let ref_mut_structs = quote! {
         #[derive(#derivative)]
         #[derivative(Debug(bound = #ref_mut_debug_bound))]
-        pub enum #ref_mut_ident #a_impl_generics #where_clause {
+        #vis enum #ref_mut_ident #a_impl_generics #where_clause {
             #(#variant_idents(<#variant_tys as #unsized_type>::RefMut<#a_lifetime>),)*
         }
         #[derive(#derivative)]
         #[derivative(Debug(bound = #ref_mut_wrapper_debug_bound))]
-        pub struct #ref_mut_wrapper_ident #a_impl_generics #where_clause {
+        #vis struct #ref_mut_wrapper_ident #a_impl_generics #where_clause {
             ptr: #non_null<()>,
             meta: #meta_ident #ty_generics,
             #[derivative(Debug = "ignore")]
@@ -403,7 +404,7 @@ pub fn unsized_enum_impl(input: ItemEnum, args: TokenStream) -> TokenStream {
 
             #(
                 #[allow(clippy::unit_arg)]
-                pub fn #set_names<__A>(&mut self, arg: __A) -> #result<()>
+                #vis fn #set_names<__A>(&mut self, arg: __A) -> #result<()>
                 where
                     #variant_tys: #framework_init<__A>,
                 {
@@ -615,7 +616,7 @@ pub fn unsized_enum_impl(input: ItemEnum, args: TokenStream) -> TokenStream {
     let a_ty: Type = parse_quote! { __A };
 
     let init_impls = quote! {
-        pub mod #snake_case_ident {
+        #vis mod #snake_case_ident {
             #(
                 #[derive(#copy, #clone, #debug, #default)]
                 pub struct #variant_idents;

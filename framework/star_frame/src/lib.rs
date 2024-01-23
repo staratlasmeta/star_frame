@@ -6,7 +6,6 @@
     unsafe_op_in_unsafe_fn
 )]
 #![feature(type_name_of_val)]
-#![feature(more_qualified_paths)]
 
 pub extern crate advance;
 pub extern crate borsh;
