@@ -7,6 +7,8 @@ pub extern crate solana_program;
 #[cfg(feature = "idl")]
 pub extern crate star_frame_idl;
 pub extern crate static_assertions;
+#[cfg(feature = "idl")]
+pub extern crate serde_json;
 
 pub mod account_set;
 pub mod align1;

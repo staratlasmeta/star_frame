@@ -3,7 +3,7 @@
 use star_frame::account_set::mutable::Writable;
 use star_frame::account_set::program::Program;
 use star_frame::account_set::signer::Signer;
-use star_frame::account_set::AccountSet;
+use star_frame::account_set::{AccountSet, AccountToIdl};
 use star_frame::anchor_replacement::account::Account;
 use star_frame::borsh;
 use star_frame::borsh::{BorshDeserialize, BorshSerialize};
@@ -116,106 +116,7 @@ pub struct ProcessEnlistPlayer<'info> {
     pub system_program: Program<'info, SystemProgram>,
 }
 
-impl AccountToIdl for PlayerFactionData {
-    type AssociatedProgram = FactionEnlistment;
-
-    fn account_to_idl(idl_definition: &mut IdlDefinition) -> Result<AccountId> {
-        let namespace = if idl_definition.namespace == Self::OwnerProgram::idl_namespace() {
-            let ty = Self::type_to_idl(idl_definition)?;
-            idl_definition.accounts.insert(
-                "PlayerFactionData".to_string(),
-                IdlAccount {
-                    name: "Player Faction Data".to_string(),
-                    description: "The player faction data".to_string(),
-                    discriminant: serde_json::to_value(Self::discriminant()).map_err(|e| {
-                        star_frame::solana_program::msg!("Failed to cast to value: {:?}", e);
-                        ProgramError::Custom(12)
-                    })?,
-                    ty,
-                    seeds: IdlSeeds::NotRequired { possible: vec![] },
-                    extension_fields: Default::default(),
-                },
-            );
-            None
-        } else {
-            idl_definition.required_idl_definitions.insert(
-                Self::OwnerProgram::idl_namespace().to_string(),
-                IdlDefinitionReference {
-                    namespace: Self::OwnerProgram::idl_namespace().to_string(),
-                    version: Self::type_program_versions(),
-                },
-            );
-            Some(Self::OwnerProgram::idl_namespace().to_string())
-        };
-        Ok(AccountId {
-            namespace,
-            account_id: "PlayerFactionData".to_string(),
-            extension_fields: Default::default(),
-        })
-    }
-}
-//
-// #[automatically_derived]
-// impl<'info> ::star_frame::idl::AccountSetToIdl<'info, ()> for ProcessEnlistPlayer<'info> {
-//     fn account_set_to_idl(
-//         idl_definition: &mut ::star_frame::star_frame_idl::IdlDefinition,
-//         arg: (),
-//     ) -> ::star_frame::Result<::star_frame::star_frame_idl::account_set::IdlAccountSetDef> {
-//         let __player_faction_account = <Account<'info, PlayerFactionData> as ::star_frame::idl::AccountSetToIdl<'info, _>>::account_set_to_idl(idl_definition, AnchorValidateArgs::default())?;
-//         let __player_account =
-//             <Signer<Writable<AccountInfo<'info>>> as ::star_frame::idl::AccountSetToIdl<
-//                 'info,
-//                 _,
-//             >>::account_set_to_idl(idl_definition, ())?;
-//         let __system_program = <Program<'info, SystemProgram> as ::star_frame::idl::AccountSetToIdl<'info, _>>::account_set_to_idl(idl_definition, ())?;
-//         idl_definition.account_sets.insert(
-//             "ProcessEnlistPlayer".to_string(),
-//             ::star_frame::star_frame_idl::account_set::IdlAccountSet {
-//                 name: "ProcessEnlistPlayer".to_string(),
-//                 description: "".to_string(),
-//                 type_generics: vec![],
-//                 account_generics: vec![],
-//                 def: ::star_frame::star_frame_idl::account_set::IdlAccountSetDef::Struct(vec![
-//                     ::star_frame::star_frame_idl::account_set::IdlAccountSetStructField {
-//                         name: "player_faction_account".to_string(),
-//                         description: " The player faction account".to_string(),
-//                         path: "player_faction_account".to_string(),
-//                         account_set: __player_faction_account,
-//                         extension_fields: Default::default(),
-//                     },
-//                     ::star_frame::star_frame_idl::account_set::IdlAccountSetStructField {
-//                         name: "player_account".to_string(),
-//                         description: " The player account".to_string(),
-//                         path: "player_account".to_string(),
-//                         account_set: __player_account,
-//                         extension_fields: Default::default(),
-//                     },
-//                     ::star_frame::star_frame_idl::account_set::IdlAccountSetStructField {
-//                         name: "system_program".to_string(),
-//                         description: " Solana System program".to_string(),
-//                         path: "system_program".to_string(),
-//                         account_set: __system_program,
-//                         extension_fields: Default::default(),
-//                     },
-//                 ]),
-//                 extension_fields: Default::default(),
-//             },
-//         );
-//         Ok(
-//             ::star_frame::star_frame_idl::account_set::IdlAccountSetDef::AccountSet(
-//                 ::star_frame::star_frame_idl::account_set::AccountSetId {
-//                     namespace: None,
-//                     account_set_id: "ProcessEnlistPlayer".to_string(),
-//                     provided_type_generics: vec![],
-//                     provided_account_generics: vec![],
-//                     extension_fields: Default::default(),
-//                 },
-//             ),
-//         )
-//     }
-// }
-
-#[derive(Debug, BorshSerialize, BorshDeserialize, TypeToIdl)]
+#[derive(Debug, BorshSerialize, BorshDeserialize, TypeToIdl, AccountToIdl)]
 pub struct PlayerFactionData {
     pub owner: Pubkey,
     pub enlisted_at_timestamp: i64,
