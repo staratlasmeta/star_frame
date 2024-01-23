@@ -26,6 +26,19 @@ pub trait StarFrameProgram {
             .map(|k| *k)
     }
 }
+
+// TODO: make this a derive macro
+#[macro_export]
+macro_rules! _declare_program_type {
+    ($program:ty) => {
+        pub type StarFrameDeclaredProgram = $program;
+        $crate::static_assertions::assert_impl_all!(
+            StarFrameDeclaredProgram: $crate::program::StarFrameProgram
+        );
+    };
+}
+pub use _declare_program_type as declare_program_type;
+
 #[derive(Debug, Clone, Copy)]
 pub enum ProgramIds {
     Mapped(&'static [(Network, &'static Pubkey)]),

@@ -4,9 +4,9 @@ use solana_program::program_error::ProgramError;
 use star_frame::account_set::{AccountSet, SingleAccountSet};
 use std::marker::PhantomData;
 
-#[derive(AccountSet)]
+#[derive(AccountSet, Debug)]
 #[validate(
-    generics = [where T: SingleAccountSet<'info> + StarFrameProgram],
+    generics = [where T: StarFrameProgram],
     extra_validation = if self.0.key() != &T::program_id(sys_calls)? { Err(ProgramError::IncorrectProgramId) } else { Ok(()) },
 )]
 pub struct Program<'info, T>(AccountInfo<'info>, PhantomData<T>);

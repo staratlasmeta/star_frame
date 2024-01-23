@@ -88,7 +88,7 @@ impl Default for Paths {
             cleanup_ident: format_ident!("cleanup"),
             idl_ident: format_ident!("idl"),
             idl_ty_program_ident: format_ident!("program"),
-            declared_program_type: parse_quote! { #crate_name::StarFrameDeclaredProgram },
+            declared_program_type: parse_quote! { crate::StarFrameDeclaredProgram },
 
             crate_name,
         }

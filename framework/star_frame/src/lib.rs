@@ -35,8 +35,8 @@ use tests::StarFrameDeclaredProgram;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::idl::{declare_program_type, ProgramToIdl};
-    use crate::program::{ProgramIds, StarFrameProgram};
+    use crate::idl::ProgramToIdl;
+    use crate::program::{declare_program_type, ProgramIds, StarFrameProgram};
     use star_frame_idl::{IdlDefinition, Version};
 
     pub struct MyProgram;

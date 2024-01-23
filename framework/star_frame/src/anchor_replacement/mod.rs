@@ -56,6 +56,7 @@ pub struct AnchorValidateArgs<'a, 'info> {
     pub seeds: Option<AnchorSeeds<'a>>,
     pub close: Option<&'a AccountInfo<'info>>,
 }
+
 impl<'a, 'info> AnchorValidateArgs<'a, 'info> {
     pub fn validate(
         self,
@@ -169,3 +170,32 @@ impl<'a, 'info> AnchorValidateArgs<'a, 'info> {
         }
     }
 }
+
+#[derive(Derivative, Default, Copy, Clone)]
+#[derivative(Debug)]
+pub struct AnchorCleanupArgs<'a, 'info> {
+    pub close: Option<&'a AccountInfo<'info>>,
+}
+
+// impl<'a, 'info> AnchorCleanupArgs<'a, 'info> {
+//     pub fn cleanup(
+//         self,
+//         account: &impl SingleAccountSet<'info>,
+//         sys_calls: &mut impl SysCallInvoke,
+//     ) -> Result<()> {
+//         match self.close {
+//             None => Ok(()),
+//             Some(close) => {
+//                 sys_calls.invoke(
+//                     &system_instruction::transfer(
+//                         account.key(),
+//                         close.key,
+//                         account.lamports(),
+//                     ),
+//                     &[account.account_info_cloned(), close.clone()],
+//                 )?;
+//                 Ok(())
+//             }
+//         }
+//     }
+// }

@@ -7,6 +7,7 @@ use solana_program::system_instruction::SystemInstruction;
 use solana_program::system_program;
 use star_frame::instruction::InstructionSet;
 
+#[derive(Debug, Copy, Clone)]
 pub struct SystemProgram;
 impl StarFrameProgram for SystemProgram {
     type InstructionSet<'a> = SystemInstruction;

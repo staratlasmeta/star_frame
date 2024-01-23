@@ -108,6 +108,16 @@ pub struct Version {
     pub patch: u8,
 }
 
+impl Version {
+    pub const fn zeroed() -> Self {
+        Version {
+            major: 0,
+            minor: 0,
+            patch: 0,
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub enum SemVer {
     /// Same as rust `*`

@@ -102,7 +102,7 @@ pub struct TestAccount1 {
 impl ProgramAccount for TestAccount1 {
     type OwnerProgram = TestProgram;
 
-    fn discriminant() -> <Self::OwnerProgram as StarFrameProgram>::InstructionDiscriminant {
+    fn discriminant() -> <Self::OwnerProgram as StarFrameProgram>::AccountDiscriminant {
         1
     }
 }
