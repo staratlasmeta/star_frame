@@ -15,16 +15,20 @@ pub struct Paths {
     pub crate_name: TokenStream,
 
     // std
-    pub debug: TokenStream,
+    pub box_ty: TokenStream,
     pub clone: TokenStream,
     pub copy: TokenStream,
-    pub phantom_data: TokenStream,
-    pub non_null: TokenStream,
-    pub size_of: TokenStream,
+    pub debug: TokenStream,
+    pub default: TokenStream,
     pub deref: TokenStream,
-    pub partial_eq: TokenStream,
+    pub deref_mut: TokenStream,
     pub eq: TokenStream,
+    pub non_null: TokenStream,
+    pub panic: TokenStream,
+    pub partial_eq: TokenStream,
+    pub phantom_data: TokenStream,
     pub ptr: TokenStream,
+    pub size_of: TokenStream,
 
     // derivative
     pub derivative: TokenStream,
@@ -67,31 +71,48 @@ pub struct Paths {
 
     pub align1: TokenStream,
     pub packed_value_checked: TokenStream,
+    pub advance: TokenStream,
 
-    // type
-    pub unsized_type: TokenStream,
+    // serialize
     pub build_pointer: TokenStream,
-    pub unsized_enum: TokenStream,
+    pub build_pointer_mut: TokenStream,
+    pub enum_ref_mut_wrapper: TokenStream,
     pub enum_ref_wrapper: TokenStream,
+    pub framework_from_bytes: TokenStream,
+    pub framework_from_bytes_mut: TokenStream,
+    pub framework_init: TokenStream,
     pub framework_serialize: TokenStream,
+    pub pointer_breakup: TokenStream,
+    pub resize_fn: TokenStream,
+    pub unsized_enum: TokenStream,
+    pub unsized_type: TokenStream,
 
     // bytemuck
     pub checked_bit_pattern: TokenStream,
+    pub checked: TokenStream,
+
+    // solana
+    pub program_error: TokenStream,
+    pub sol_memset: TokenStream,
 }
 impl Default for Paths {
     fn default() -> Self {
         let crate_name = get_crate_name();
         Self {
-            debug: quote! { ::std::fmt::Debug },
+            box_ty: quote! { ::std::boxed::Box },
             clone: quote! { ::std::clone::Clone },
             copy: quote! { ::std::marker::Copy },
-            phantom_data: quote! { ::std::marker::PhantomData },
-            non_null: quote! { ::std::ptr::NonNull },
-            size_of: quote! { ::std::mem::size_of },
+            debug: quote! { ::std::fmt::Debug },
+            default: quote! { ::std::default::Default },
             deref: quote! { ::std::ops::Deref },
-            partial_eq: quote! { ::std::cmp::PartialEq },
+            deref_mut: quote! { ::std::ops::DerefMut },
             eq: quote! { ::std::cmp::Eq },
+            non_null: quote! { ::std::ptr::NonNull },
+            panic: quote! { ::std::panic },
+            partial_eq: quote! { ::std::cmp::PartialEq },
+            phantom_data: quote! { ::std::marker::PhantomData },
             ptr: quote! { ::std::ptr },
+            size_of: quote! { ::std::mem::size_of },
 
             derivative: quote! { #crate_name::derivative::Derivative },
 
@@ -133,14 +154,26 @@ impl Default for Paths {
 
             align1: quote! { #crate_name::align1::Align1 },
             packed_value_checked: quote! { #crate_name::packed_value::PackedValueChecked },
+            advance: quote! { #crate_name::advance::Advance},
 
-            unsized_type: quote! { #crate_name::serialize::unsized_type::UnsizedType },
             build_pointer: quote! { #crate_name::serialize::pointer_breakup::BuildPointer },
-            unsized_enum: quote! { #crate_name::serialize::unsized_enum::UnsizedEnum },
+            build_pointer_mut: quote! { #crate_name::serialize::pointer_breakup::BuildPointerMut },
+            enum_ref_mut_wrapper: quote! { #crate_name::serialize::unsized_enum::EnumRefMutWrapper },
             enum_ref_wrapper: quote! { #crate_name::serialize::unsized_enum::EnumRefWrapper },
+            framework_from_bytes: quote! { #crate_name::serialize::FrameworkFromBytes },
+            framework_from_bytes_mut: quote! { #crate_name::serialize::FrameworkFromBytesMut },
+            framework_init: quote! { #crate_name::serialize::FrameworkInit },
             framework_serialize: quote! { #crate_name::serialize::FrameworkSerialize },
+            pointer_breakup: quote! { #crate_name::serialize::pointer_breakup::PointerBreakup },
+            resize_fn: quote! { #crate_name::serialize::ResizeFn },
+            unsized_enum: quote! { #crate_name::serialize::unsized_enum::UnsizedEnum },
+            unsized_type: quote! { #crate_name::serialize::unsized_type::UnsizedType },
 
             checked_bit_pattern: quote! { #crate_name::bytemuck::checked::CheckedBitPattern },
+            checked: quote! { #crate_name::bytemuck::checked },
+
+            program_error: quote! { #crate_name::solana_program::program_error::ProgramError },
+            sol_memset: quote! { #crate_name::solana_program::program_memory::sol_memset },
 
             crate_name,
         }

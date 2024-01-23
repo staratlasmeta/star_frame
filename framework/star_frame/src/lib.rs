@@ -8,6 +8,7 @@
 #![feature(type_name_of_val)]
 #![feature(more_qualified_paths)]
 
+pub extern crate advance;
 pub extern crate borsh;
 pub extern crate bytemuck;
 pub extern crate derivative;
