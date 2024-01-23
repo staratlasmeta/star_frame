@@ -4,7 +4,7 @@ use crate::serialize::{FrameworkFromBytes, FrameworkFromBytesMut};
 use bytemuck::Pod;
 use std::ops::{Deref, DerefMut};
 
-pub trait SerializeWith {
+pub trait SerializeWith: 'static {
     type RefMeta: 'static + Copy;
     type Ref<'a>: FrameworkFromBytes<'a>
         + Deref<Target = Self>

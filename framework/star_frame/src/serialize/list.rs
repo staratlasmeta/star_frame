@@ -2,11 +2,13 @@ use crate::align1::Align1;
 use crate::packed_value::PackedValue;
 use crate::serialize::pointer_breakup::{BuildPointer, BuildPointerMut, PointerBreakup};
 use crate::serialize::serialize_with::SerializeWith;
-use crate::serialize::{FrameworkFromBytes, FrameworkFromBytesMut, FrameworkSerialize, ResizeFn};
+use crate::serialize::{
+    FrameworkFromBytes, FrameworkFromBytesMut, FrameworkInit, FrameworkSerialize, ResizeFn,
+};
 use crate::Result;
 use advance::Advance;
 use bytemuck::{from_bytes, Pod};
-use num_traits::{FromPrimitive, ToPrimitive};
+use num_traits::{FromPrimitive, ToPrimitive, Zero};
 use solana_program::program_error::ProgramError;
 use solana_program::program_memory::sol_memmove;
 use std::collections::Bound;
@@ -25,6 +27,30 @@ where
 {
     len: PackedValue<L>,
     items: [T],
+}
+unsafe impl<T, L> FrameworkInit<()> for List<T, L>
+where
+    T: Pod + Align1,
+    L: Pod + ToPrimitive + FromPrimitive + Zero,
+{
+    const INIT_LENGTH: usize = size_of::<L>();
+
+    unsafe fn init<'a>(
+        bytes: &'a mut [u8],
+        _arg: (),
+        resize: impl ResizeFn<'a, Self::RefMeta>,
+    ) -> Result<Self::RefMut<'a>> {
+        assert_eq!(bytes.len(), <Self as FrameworkInit<()>>::INIT_LENGTH);
+        assert!(bytes.iter().all(|b| *b == 0));
+        let len = L::zero();
+        bytes.copy_from_slice(bytemuck::bytes_of(&len));
+        Ok(ListRefMut {
+            phantom_ref: PhantomData,
+            ptr: NonNull::from(bytes).cast(),
+            metadata: L::zeroed(),
+            resize: Box::new(resize),
+        })
+    }
 }
 impl<T, L> Deref for List<T, L>
 where
@@ -364,7 +390,7 @@ pub mod test {
 
     #[test]
     fn test_stuff() -> Result<()> {
-        let mut test_bytes = TestByteSet::<List<Cool>>::new(4);
+        let mut test_bytes = TestByteSet::<List<Cool>>::new(())?;
         assert_eq!(test_bytes.immut()?.deref().deref(), &[]);
         assert_eq!(test_bytes.mutable()?.deref().deref(), &[]);
         test_bytes.mutable()?.push(Cool { a: 1, b: 1 })?;
