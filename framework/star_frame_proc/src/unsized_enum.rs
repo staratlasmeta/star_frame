@@ -465,6 +465,7 @@ pub fn unsized_enum_impl(input: ItemEnum, args: TokenStream) -> TokenStream {
         impl #a_impl_generics #enum_ref_mut_wrapper for #ref_mut_wrapper_ident #a_ty_generics #where_clause {
             type RefMut<#b_lifetime> = #ref_mut_ident #b_ty_generics where Self: #b_lifetime;
 
+            #[allow(clippy::size_of_in_element_count)]
             fn value_mut<#b_lifetime>(&#b_lifetime mut self) -> Self::RefMut<#b_lifetime> {
                 unsafe {
                     let data_ptr = self.data_ptr();

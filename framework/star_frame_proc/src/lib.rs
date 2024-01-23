@@ -249,6 +249,6 @@ pub fn unsized_enum(
     item: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
     let out = unsized_enum::unsized_enum_impl(parse_macro_input!(item as ItemEnum), args.into());
-    println!("{}", out);
+    // println!("{}", out);
     out.into()
 }
