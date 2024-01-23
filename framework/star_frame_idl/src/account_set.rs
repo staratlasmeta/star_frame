@@ -30,7 +30,11 @@ pub struct IdlAccountSet {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum IdlAccountSetDef {
     AccountSet(AccountSetId),
-    RawAccount(IdlRawInputAccount),
+    AccountInfo,
+    DataAccount {
+        account: AccountId,
+        init: Init,
+    },
     Signer(Box<IdlAccountSetDef>),
     Writable(Box<IdlAccountSetDef>),
     Struct(Vec<IdlAccountSetStructField>),
