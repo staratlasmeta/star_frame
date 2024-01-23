@@ -1,16 +1,22 @@
 #![allow(clippy::result_large_err)]
+
 use star_frame::account_set::mutable::Writable;
 use star_frame::account_set::program::Program;
 use star_frame::account_set::signer::Signer;
-use star_frame::account_set::{AccountSet, SingleAccountSet};
+use star_frame::account_set::{AccountSet, AccountToIdl};
 use star_frame::anchor_replacement::account::Account;
+use star_frame::borsh;
+use star_frame::borsh::{BorshDeserialize, BorshSerialize};
 use star_frame::program::system_program::SystemProgram;
-use star_frame::program::StarFrameProgram;
+use star_frame::program::{ProgramIds, StarFrameProgram};
+use star_frame::program_account::ProgramAccount;
 use star_frame::solana_program::account_info::AccountInfo;
 use star_frame::solana_program::pubkey::Pubkey;
 use star_frame::util::Network;
 use star_frame::Result;
 use star_frame::{declare_id, pubkey};
+use star_frame_idl::ty::{IdlType, TypeId};
+use star_frame_idl::IdlDefinitionReference;
 
 // Declare the Program ID here to embed
 #[cfg(feature = "prod")]
@@ -21,39 +27,13 @@ declare_id!("FLisTRH6dJnCK8AzTfenGJgHBPMHoat9XRc65Qpk7Yuc");
 
 pub struct FactionEnlistment;
 
-const fn search_for_network(program_ids: ProgramIds, network: Network) -> Option<Pubkey> {
-    match program_ids {
-        ProgramIds::Mapped(ids) => {
-            let mut index = 0;
-            loop {
-                if index >= ids.len() {
-                    break None;
-                }
-
-                let item_network = &ids[index];
-                match (&item_network.0, &network) {
-                    (Network::MainNet, Network::MainNet)
-                    | (Network::DevNet, Network::DevNet)
-                    | (Network::TestNet, Network::TestNet) => break Some(*item_network.1),
-                    (Network::Custom(network1), Network::Custom(network2))
-                        if network1 == network2 =>
-                    {
-                        break Some(*item_network.1)
-                    }
-                    (_, _) => (),
-                }
-
-                index += 1;
-            }
-        }
-        ProgramIds::AllNetworks(id) => Some(*id),
-    }
-}
-
 impl StarFrameProgram for FactionEnlistment {
     type InstructionSet<'a> = ();
     type InstructionDiscriminant = ();
 
+    type AccountDiscriminant = [u8; 8];
+
+    const CLOSED_ACCOUNT_DISCRIMINANT: Self::AccountDiscriminant = [u8::MAX; 8];
     const PROGRAM_IDS: ProgramIds = ProgramIds::Mapped(&[
         (
             Network::MainNet,
@@ -64,50 +44,66 @@ impl StarFrameProgram for FactionEnlistment {
             &pubkey!("FLisTRH6dJnCK8AzTfenGJgHBPMHoat9XRc65Qpk7Yuc"),
         ),
     ]);
-
-    const PROGRAM_ID: Pubkey =
-        search_for_network(Self::PROGRAM_IDS, Network::Custom("atlasnet")).unwrap();
-    type AccountDiscriminant = ();
-    const CLOSED_ACCOUNT_DISCRIMINANT: Self::AccountDiscriminant = ();
 }
 
-star_frame::idl::declare_program_type!(FactionEnlistment);
+star_frame::program::declare_program_type!(FactionEnlistment);
 
-pub mod faction_enlistment {
-    use super::*;
-    pub fn process_enlist_player(
-        ctx: Context<ProcessEnlistPlayer>,
-        _bump: u8, // we are keeping this for backwards compatibility
-        faction_id: u8,
-    ) -> Result<()> {
-        match faction_id {
-            0..=2 => {
-                let player_faction_account_info = &mut ctx.accounts.player_faction_account;
-                player_faction_account_info.owner = ctx.accounts.player_account.key();
-                player_faction_account_info.enlisted_at_timestamp =
-                    ctx.accounts.clock.unix_timestamp;
-                player_faction_account_info.faction_id = faction_id;
-                player_faction_account_info.bump =
-                    *ctx.bumps.get("player_faction_account").unwrap();
-                Ok(())
-            }
-            _ => Err(error!(FactionErrors::FactionTypeError)),
-        }
+impl ProgramToIdl for FactionEnlistment {
+    const VERSION: Version = Version::zeroed();
+
+    fn program_to_idl() -> Result<IdlDefinition> {
+        todo!()
+    }
+
+    fn idl_namespace() -> &'static str {
+        todo!()
     }
 }
 
+// pub mod faction_enlistment {
+//     use super::*;
+//     pub fn process_enlist_player(
+//         ctx: Context<ProcessEnlistPlayer>,
+//         _bump: u8, // we are keeping this for backwards compatibility
+//         faction_id: u8,
+//     ) -> Result<()> {
+//         match faction_id {
+//             0..=2 => {
+//                 let player_faction_account_info = &mut ctx.accounts.player_faction_account;
+//                 player_faction_account_info.owner = ctx.accounts.player_account.key();
+//                 player_faction_account_info.enlisted_at_timestamp =
+//                     ctx.accounts.clock.unix_timestamp;
+//                 player_faction_account_info.faction_id = faction_id;
+//                 player_faction_account_info.bump =
+//                     *ctx.bumps.get("player_faction_account").unwrap();
+//                 Ok(())
+//             }
+//             _ => Err(error!(FactionErrors::FactionTypeError)),
+//         }
+//     }
+// }
+
 // #[instruction(_faction_id: u8)]
 
+use star_frame::anchor_replacement::{AnchorCleanupArgs, AnchorValidateArgs};
+use star_frame::idl::ty::TypeToIdl;
+use star_frame::idl::ProgramToIdl;
+use star_frame::star_frame_idl::{IdlDefinition, Version};
+
 #[derive(AccountSet, Debug)]
+// #[account_set(skip_default_idl)]
 pub struct ProcessEnlistPlayer<'info> {
     /// The player faction account
-    #[account(
-        init,
-        payer = player_account,
-        seeds = [b"FACTION_ENLISTMENT".as_ref(), player_account.key.as_ref()],
-        bump,
-        space = PlayerFactionData::LEN
-    )]
+    // #[account(
+    //     init,
+    //     payer = player_account,
+    //     seeds = [b"FACTION_ENLISTMENT".as_ref(), player_account.key.as_ref()],
+    //     bump,
+    //     space = PlayerFactionData::LEN
+    // )]
+    #[validate(arg = AnchorValidateArgs::default())]
+    #[cleanup(arg = AnchorCleanupArgs::default())]
+    #[idl(arg = AnchorValidateArgs::default())]
     pub player_faction_account: Account<'info, PlayerFactionData>,
     /// The player account
     pub player_account: Signer<Writable<AccountInfo<'info>>>,
@@ -116,13 +112,24 @@ pub struct ProcessEnlistPlayer<'info> {
     pub system_program: Program<'info, SystemProgram>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, BorshSerialize, BorshDeserialize, TypeToIdl, AccountToIdl)]
 pub struct PlayerFactionData {
     pub owner: Pubkey,
     pub enlisted_at_timestamp: i64,
     pub faction_id: u8,
     pub bump: u8,
     pub _padding: [u64; 5],
+}
+
+/* TODO - Default implementation can assume anchor hash for discriminant,
+maybe require manual implementation if you want something else for now? */
+// Why can't you do multi line TODOs?
+impl ProgramAccount for PlayerFactionData {
+    type OwnerProgram = FactionEnlistment;
+
+    fn discriminant() -> [u8; 8] {
+        Default::default()
+    }
 }
 
 pub const ANCHOR_DISC_LEN: usize = 8;

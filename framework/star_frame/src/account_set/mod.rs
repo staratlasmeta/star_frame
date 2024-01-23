@@ -6,6 +6,7 @@ pub mod signer;
 pub mod system_account;
 
 pub use star_frame_proc::AccountSet;
+pub use star_frame_proc::AccountToIdl;
 
 use crate::sys_calls::SysCallInvoke;
 use crate::Result;

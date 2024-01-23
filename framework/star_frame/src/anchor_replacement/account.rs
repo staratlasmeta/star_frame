@@ -1,7 +1,9 @@
 use crate::account_set::{
     AccountSet, AccountSetCleanup, AccountSetDecode, AccountSetValidate, SingleAccountSet,
 };
-use crate::anchor_replacement::{AnchorValidateArgs, ANCHOR_CLOSED_ACCOUNT_DISCRIMINATOR};
+use crate::anchor_replacement::{
+    AnchorCleanupArgs, AnchorValidateArgs, ANCHOR_CLOSED_ACCOUNT_DISCRIMINATOR,
+};
 use crate::program::StarFrameProgram;
 use crate::program_account::ProgramAccount;
 use crate::sys_calls::{SysCallCore, SysCallInvoke};
@@ -17,7 +19,7 @@ use std::ops::Deref;
 pub struct Account<'info, T>
 where
     T: BorshSerialize + BorshDeserialize + ProgramAccount,
-    T::OwnerProgram: StarFrameProgram<InstructionDiscriminant = [u8; 8]>,
+    T::OwnerProgram: StarFrameProgram<AccountDiscriminant = [u8; 8]>,
 {
     info: AccountInfo<'info>,
     data: Option<T>,
@@ -25,7 +27,7 @@ where
 impl<'info, T> Account<'info, T>
 where
     T: BorshSerialize + BorshDeserialize + ProgramAccount,
-    T::OwnerProgram: StarFrameProgram<InstructionDiscriminant = [u8; 8]>,
+    T::OwnerProgram: StarFrameProgram<AccountDiscriminant = [u8; 8]>,
 {
     pub fn new(info: AccountInfo<'info>, data: T) -> Self {
         Self {
@@ -68,7 +70,7 @@ where
 impl<'info, T> AccountSet<'info> for Account<'info, T>
 where
     T: BorshSerialize + BorshDeserialize + ProgramAccount,
-    T::OwnerProgram: StarFrameProgram<InstructionDiscriminant = [u8; 8]>,
+    T::OwnerProgram: StarFrameProgram<AccountDiscriminant = [u8; 8]>,
 {
     fn try_to_accounts<'a, E>(
         &'a self,
@@ -87,7 +89,7 @@ where
 impl<'info, T> SingleAccountSet<'info> for Account<'info, T>
 where
     T: BorshSerialize + BorshDeserialize + ProgramAccount,
-    T::OwnerProgram: StarFrameProgram<InstructionDiscriminant = [u8; 8]>,
+    T::OwnerProgram: StarFrameProgram<AccountDiscriminant = [u8; 8]>,
 {
     fn account_info(&self) -> &AccountInfo<'info> {
         &self.info
@@ -96,7 +98,7 @@ where
 impl<'a, 'info, T> AccountSetDecode<'a, 'info, ()> for Account<'info, T>
 where
     T: BorshSerialize + BorshDeserialize + ProgramAccount,
-    T::OwnerProgram: StarFrameProgram<InstructionDiscriminant = [u8; 8]>,
+    T::OwnerProgram: StarFrameProgram<AccountDiscriminant = [u8; 8]>,
 {
     fn decode_accounts(
         accounts: &mut &'a [AccountInfo<'info>],
@@ -112,7 +114,7 @@ where
 impl<'a, 'info, T> AccountSetValidate<'info, AnchorValidateArgs<'a, 'info>> for Account<'info, T>
 where
     T: BorshSerialize + BorshDeserialize + ProgramAccount,
-    T::OwnerProgram: StarFrameProgram<InstructionDiscriminant = [u8; 8]>,
+    T::OwnerProgram: StarFrameProgram<AccountDiscriminant = [u8; 8]>,
 {
     fn validate_accounts(
         &mut self,
@@ -125,14 +127,14 @@ where
         self.info.validate_accounts((), sys_calls)
     }
 }
-impl<'a, 'info, T> AccountSetCleanup<'info, AnchorValidateArgs<'a, 'info>> for Account<'info, T>
+impl<'a, 'info, T> AccountSetCleanup<'info, AnchorCleanupArgs<'a, 'info>> for Account<'info, T>
 where
     T: BorshSerialize + BorshDeserialize + ProgramAccount,
-    T::OwnerProgram: StarFrameProgram<InstructionDiscriminant = [u8; 8]>,
+    T::OwnerProgram: StarFrameProgram<AccountDiscriminant = [u8; 8]>,
 {
     fn cleanup_accounts(
         &mut self,
-        cleanup_input: AnchorValidateArgs<'a, 'info>,
+        cleanup_input: AnchorCleanupArgs<'a, 'info>,
         sys_calls: &mut impl SysCallInvoke,
     ) -> Result<()> {
         let mut data_bytes = self.info.info_data_bytes_mut()?;
@@ -150,5 +152,37 @@ where
         drop(data_bytes);
 
         self.info.cleanup_accounts((), sys_calls)
+    }
+}
+
+#[cfg(feature = "idl")]
+mod idl_impl {
+    use super::*;
+    use crate::anchor_replacement::AnchorValidateArgs;
+    use crate::idl::{AccountSetToIdl, AccountToIdl};
+    use crate::program_account::ProgramAccount;
+    use star_frame_idl::account_set::{IdlAccountSetDef, IdlRawInputAccount};
+    use star_frame_idl::IdlDefinition;
+
+    impl<'a, 'info1, 'info2, T> AccountSetToIdl<'info1, AnchorValidateArgs<'a, 'info2>>
+        for Account<'info1, T>
+    where
+        T: BorshSerialize + BorshDeserialize + ProgramAccount + AccountToIdl,
+        T::OwnerProgram: StarFrameProgram<AccountDiscriminant = [u8; 8]>,
+    {
+        fn account_set_to_idl(
+            idl_definition: &mut IdlDefinition,
+            arg: AnchorValidateArgs,
+        ) -> Result<IdlAccountSetDef> {
+            let account = T::account_to_idl(idl_definition)?;
+            Ok(IdlAccountSetDef::RawAccount(IdlRawInputAccount {
+                possible_account_types: vec![account],
+                allow_zeroed: arg.init.map(|i| i.is_zeroed()).unwrap_or(false),
+                allow_uninitialized: arg.init.map(|i| i.is_init()).unwrap_or(false),
+                signer: arg.check_signer,
+                writable: arg.check_writable || arg.init.is_some(),
+                extension_fields: Default::default(),
+            }))
+        }
     }
 }

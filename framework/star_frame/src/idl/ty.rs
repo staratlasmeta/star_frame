@@ -5,6 +5,8 @@ use solana_program::pubkey::Pubkey;
 use star_frame_idl::ty::{IdlDefinedType, IdlType, IdlTypeDef, TypeId};
 use star_frame_idl::{IdlDefinition, IdlDefinitionReference, SemVer};
 
+pub use star_frame_proc::TypeToIdl;
+
 pub trait TypeToIdl {
     type AssociatedProgram: ProgramToIdl;
     /// Returns the idl of this type.
@@ -127,13 +129,13 @@ mod tests {
     //     stuff: Vec<U>,
     // }
 
-    #[derive(IdlType)]
+    #[derive(TypeToIdl)]
     struct OtherStuff {
         string: String,
     }
 
     /// Description here too!
-    #[derive(IdlType)]
+    #[derive(TypeToIdl)]
     struct ExampleStruct {
         /// This is a description of pubkey
         pubkey: Pubkey,
@@ -144,7 +146,6 @@ mod tests {
 
     use super::*;
     use star_frame_idl::{DiscriminantId, ProgramIds};
-    use star_frame_proc::IdlType;
 
     #[test]
     fn print_idl() -> Result<()> {

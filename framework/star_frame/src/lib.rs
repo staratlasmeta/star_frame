@@ -12,6 +12,8 @@ pub extern crate borsh;
 pub extern crate bytemuck;
 pub extern crate derivative;
 pub extern crate self as star_frame;
+#[cfg(feature = "idl")]
+pub extern crate serde_json;
 pub extern crate solana_program;
 #[cfg(feature = "idl")]
 pub extern crate star_frame_idl;
@@ -44,8 +46,8 @@ use tests::StarFrameDeclaredProgram;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::idl::{declare_program_type, ProgramToIdl};
-    use crate::program::{ProgramIds, StarFrameProgram};
+    use crate::idl::ProgramToIdl;
+    use crate::program::{declare_program_type, ProgramIds, StarFrameProgram};
     use star_frame_idl::{IdlDefinition, Version};
 
     pub struct MyProgram;

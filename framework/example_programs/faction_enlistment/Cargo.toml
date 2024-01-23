@@ -13,7 +13,9 @@ prod = []
 no-entrypoint = []
 no-idl = []
 cpi = ["no-entrypoint"]
-default = []
+default = ["serde_json"]
 
 [dependencies]
 star_frame = { path = "../../star_frame" }
+star_frame_idl = { path = "../../star_frame_idl" }
+serde_json = { version = "1.0.108", optional = true }

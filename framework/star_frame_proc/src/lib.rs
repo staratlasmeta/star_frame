@@ -1,3 +1,4 @@
+mod account;
 mod account_set;
 mod framework_instruction;
 mod instruction_set;
@@ -7,6 +8,7 @@ mod unit_enum_from_repr;
 mod unsized_enum;
 mod util;
 
+use crate::account::derive_account_to_idl_impl;
 use crate::unit_enum_from_repr::unit_enum_from_repr_impl;
 use proc_macro2::TokenStream;
 use proc_macro_crate::{crate_name, FoundCrate};
@@ -220,7 +222,7 @@ pub fn derive_instruction_set_to_idl(item: proc_macro::TokenStream) -> proc_macr
 /// Derives `TypeToIdl` for a valid type.
 #[cfg(feature = "idl")]
 #[proc_macro_error]
-#[proc_macro_derive(IdlType, attributes(program))]
+#[proc_macro_derive(TypeToIdl, attributes(program))]
 pub fn derive_type_to_idl(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let out = ty::derive_type_to_idl(&parse_macro_input!(item as DeriveInput));
     // #[cfg(feature = "debug_type_to_idl")]
@@ -228,6 +230,13 @@ pub fn derive_type_to_idl(item: proc_macro::TokenStream) -> proc_macro::TokenStr
     //     println!("HELLO FROM THE MACRO");
     //     println!("{out}");
     // }
+    out.into()
+}
+
+#[proc_macro_error]
+#[proc_macro_derive(AccountToIdl, attributes(program))]
+pub fn derive_account_to_idl(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let out = derive_account_to_idl_impl(&parse_macro_input!(input as DeriveInput));
     out.into()
 }
 

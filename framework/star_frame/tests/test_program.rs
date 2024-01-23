@@ -6,8 +6,6 @@ mod ixs;
 
 use ixs::TestProgramInstructions;
 use lazy_static::lazy_static;
-use solana_program::msg;
-use solana_program::program_error::ProgramError;
 use solana_program::pubkey::Pubkey;
 use star_frame::declare_id;
 use star_frame::idl::ty::TypeToIdl;
@@ -102,7 +100,7 @@ pub struct TestAccount1 {
 impl ProgramAccount for TestAccount1 {
     type OwnerProgram = TestProgram;
 
-    fn discriminant() -> <Self::OwnerProgram as StarFrameProgram>::InstructionDiscriminant {
+    fn discriminant() -> <Self::OwnerProgram as StarFrameProgram>::AccountDiscriminant {
         1
     }
 }
@@ -174,11 +172,8 @@ impl AccountToIdl for TestAccount1 {
                 IdlAccount {
                     name: "Test Account 1".to_string(),
                     description: "The first Test account".to_string(),
-                    discriminant: serde_json::to_value(Self::discriminant()).map_err(|e| {
-                        msg!("Error serde_json to_value: {:?}", e);
-                        // TODO: Change error?
-                        ProgramError::Custom(1)
-                    })?,
+                    discriminant: serde_json::to_value(Self::discriminant())
+                        .expect("Couldn't serialize discriminant"),
                     ty,
                     seeds: IdlSeeds::NotRequired { possible: vec![] },
                     extension_fields: Default::default(),

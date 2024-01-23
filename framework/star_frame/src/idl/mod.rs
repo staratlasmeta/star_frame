@@ -38,15 +38,3 @@ pub trait ProgramToIdl: StarFrameProgram {
     fn program_to_idl() -> Result<IdlDefinition>;
     fn idl_namespace() -> &'static str;
 }
-
-// TODO: make this a derive macro
-#[macro_export]
-macro_rules! _declare_program_type {
-    ($program:ty) => {
-        pub type StarFrameDeclaredProgram = $program;
-        $crate::static_assertions::assert_impl_all!(
-            StarFrameDeclaredProgram: $crate::idl::ProgramToIdl
-        );
-    };
-}
-pub use _declare_program_type as declare_program_type;
