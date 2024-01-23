@@ -6,8 +6,6 @@ mod ixs;
 
 use ixs::TestProgramInstructions;
 use lazy_static::lazy_static;
-use solana_program::msg;
-use solana_program::program_error::ProgramError;
 use solana_program::pubkey::Pubkey;
 use star_frame::declare_id;
 use star_frame::idl::ty::TypeToIdl;
@@ -20,7 +18,7 @@ use star_frame_idl::account::{AccountId, IdlAccount};
 use star_frame_idl::seeds::IdlSeeds;
 use star_frame_idl::ty::{IdlField, IdlType, IdlTypeDef, TypeId};
 use star_frame_idl::{DiscriminantId, IdlDefinition, IdlDefinitionReference, Version};
-use star_frame_proc::{pubkey, AccountToIdl};
+use star_frame_proc::pubkey;
 
 declare_id!("11111111111111111111111111111111");
 const KEY: Pubkey = pubkey!("11111111111111111111111111111111");
@@ -200,7 +198,6 @@ impl AccountToIdl for TestAccount1 {
     }
 }
 
-#[derive(TypeToIdl, AccountToIdl)]
 pub struct TestAccount2 {
     pub key: Pubkey,
     pub stuff: Pubkey,
