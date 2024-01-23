@@ -39,6 +39,13 @@ mod stuff {
 }
 ```
 
+```swagger codegen
+template <typename T, typename T1> 
+auto compose(T a, T1 b) -> decltype(a + b) {
+   return a+b;
+}
+```
+
 ```rust
 /// Redeems a certificate for a given cargo
 #[derive(Accounts, Derivative)]
@@ -67,7 +74,7 @@ pub struct RedeemCertificate<'info> {
         ],
         bump,
     )]
-    pub certificate_mint: UncheckedAccount<'info>,
+    pub certificate_mint: Init<Writable<SeededAccount<DataAccount<'info, StuffStruct>, CeritifacteSeeds>>>,
 
     /// Owner of the certificates
     pub certificate_owner_authority: Signer<'info>,
