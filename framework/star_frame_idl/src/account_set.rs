@@ -29,6 +29,7 @@ pub struct IdlAccountSet {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum IdlAccountSetDef {
+    Struct(Vec<IdlAccountSetStructField>),
     AccountSet(AccountSetId),
     AccountInfo,
     DataAccount {
@@ -37,7 +38,6 @@ pub enum IdlAccountSetDef {
     },
     Signer(Box<IdlAccountSetDef>),
     Writable(Box<IdlAccountSetDef>),
-    Struct(Vec<IdlAccountSetStructField>),
     Many {
         account: Box<IdlAccountSetDef>,
         min: usize,
@@ -45,6 +45,10 @@ pub enum IdlAccountSetDef {
     },
     /// One of the set defs in the vec
     Or(Vec<IdlAccountSetDef>),
+    Seeded {
+        account: Box<IdlAccountSetDef>,
+        seeds: Vec<Vec<u8>>,
+    },
     Generic {
         account_generic_id: String,
     },
@@ -59,23 +63,18 @@ pub enum IdlAccountSetDef {
     },
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug, Copy)]
+pub struct Init {
+    pub zeroed: bool,
+    pub cpi_init: bool,
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct IdlAccountSetStructField {
     pub name: String,
     pub description: String,
     pub path: String,
     pub account_set: IdlAccountSetDef,
-    #[serde(skip_serializing_if = "HashMap::is_empty")]
-    pub extension_fields: HashMap<ExtensionClass, Value>,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct IdlRawInputAccount {
-    pub possible_account_types: Vec<AccountId>,
-    pub allow_zeroed: bool,
-    pub allow_uninitialized: bool,
-    pub signer: bool,
-    pub writable: bool,
     #[serde(skip_serializing_if = "HashMap::is_empty")]
     pub extension_fields: HashMap<ExtensionClass, Value>,
 }
