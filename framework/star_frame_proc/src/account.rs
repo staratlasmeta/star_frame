@@ -34,40 +34,40 @@ pub fn derive_account_to_idl_impl(input: &DeriveInput) -> TokenStream {
 
     // TODO - Update 'seeds' once we have a better way to handle seeds
     quote! {
-            #[automatically_derived]
-            impl #account_to_idl for #ident {
-                type AssociatedProgram = #associated_program;
+        #[automatically_derived]
+        impl #account_to_idl for #ident {
+            type AssociatedProgram = #associated_program;
 
-                fn account_to_idl(idl_definition: &mut #idl_definition) -> #result<(#account_id)> {
-                    let namespace = if idl_definition.namespace == Self::AssociatedProgram::idl_namespace() {
-                        let ty = Self::type_to_idl(idl_definition)?;
-                        idl_definition.accounts.insert(
-                            #ident_str.to_string(),
-                            #idl_account {
-                                name: #ident_str.to_string(),
-                                description: #type_docs.to_string(),
-                                discriminant: #crate_name::serde_json::to_value(Self::discriminant()).expect("Failed to serialize discriminant"),
-                                ty,
-                                seeds: #idl_seeds::NotRequired { possible: vec![] },
-                                extension_fields: Default::default(),
-                            },
-                        );
-                        None
+            fn account_to_idl(idl_definition: &mut #idl_definition) -> #result<(#account_id)> {
+                let namespace = if idl_definition.namespace == Self::AssociatedProgram::idl_namespace() {
+                    let ty = Self::type_to_idl(idl_definition)?;
+                    idl_definition.accounts.insert(
+                        #ident_str.to_string(),
+                        #idl_account {
+                            name: #ident_str.to_string(),
+                            description: #type_docs.to_string(),
+                            discriminant: #crate_name::serde_json::to_value(Self::discriminant()).expect("Failed to serialize discriminant"),
+                            ty,
+                            seeds: #idl_seeds::NotRequired { possible: vec![] },
+                            extension_fields: Default::default(),
+                        },
+                    );
+                    None
                 } else {
                     idl_definition.required_idl_definitions.insert(
-                            Self::OwnerProgram::idl_namespace().to_string(),
-                            #idl_definition_ref {
-                                version: Self::account_program_versions(),
-                                namespace: Self::OwnerProgram::idl_namespace().to_string(),
-                            },
-                        );
-                        Some(Self::OwnerProgram::idl_namespace().to_string())
+                        Self::OwnerProgram::idl_namespace().to_string(),
+                        #idl_definition_ref {
+                            version: Self::account_program_versions(),
+                            namespace: Self::OwnerProgram::idl_namespace().to_string(),
+                        },
+                    );
+                    Some(Self::OwnerProgram::idl_namespace().to_string())
                 };
-                    Ok(#account_id {
-                        namespace,
-                        account_id: #ident_str.to_string(),
-                        extension_fields: Default::default(),
-                    })
+                Ok(#account_id {
+                    namespace,
+                    account_id: #ident_str.to_string(),
+                    extension_fields: Default::default(),
+                })
             }
         }
     }
