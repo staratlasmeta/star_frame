@@ -218,7 +218,7 @@ where
         bytes: &mut &'a mut [u8],
         resize: impl ResizeFn<'a, Self::Metadata>,
     ) -> Result<Self> {
-        let len = *from_bytes::<L>(&bytes[..size_of::<L>()]);
+        let len = from_bytes::<PackedValue<L>>(&bytes[..size_of::<L>()]).0;
         let len_usize = len.to_usize().unwrap();
         let ptr =
             NonNull::from(bytes.try_advance(size_of::<L>() + size_of::<T>() * len_usize)?).cast();

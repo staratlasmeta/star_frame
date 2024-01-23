@@ -13,7 +13,6 @@ use crate::Result;
 use advance::Advance;
 use bytemuck::{from_bytes, from_bytes_mut, Pod};
 use star_frame::serialize::pointer_breakup::PointerBreakup;
-use star_frame::serialize::serialize_with::SerializeWith;
 use std::mem::size_of;
 use std::ptr::NonNull;
 

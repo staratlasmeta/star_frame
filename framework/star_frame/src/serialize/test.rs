@@ -1,10 +1,11 @@
-use crate::serialize::serialize_with::SerializeWith;
+use crate::serialize::unsized_type::UnsizedType;
 use crate::serialize::{FrameworkFromBytes, FrameworkFromBytesMut, FrameworkInit};
 use crate::Result;
 use solana_program::program_memory::sol_memset;
 use std::marker::PhantomData;
 use std::ptr::NonNull;
 
+#[derive(Debug)]
 pub struct TestByteSet<T: ?Sized> {
     pub bytes: Vec<u8>,
     pub phantom_t: PhantomData<T>,
@@ -30,7 +31,7 @@ impl<T: ?Sized> TestByteSet<T> {
 
 impl<T> TestByteSet<T>
 where
-    T: ?Sized + SerializeWith,
+    T: ?Sized + UnsizedType,
 {
     pub fn re_init<A>(&mut self, arg: A) -> Result<T::RefMut<'_>>
     where

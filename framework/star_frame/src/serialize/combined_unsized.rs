@@ -44,22 +44,24 @@ where
         debug_assert_eq!(bytes.len(), <Self as FrameworkInit<(TA, UA)>>::INIT_LENGTH);
         debug_assert!(bytes.iter().all(|b| *b == 0));
         let t_bytes = bytes.try_advance(T::INIT_LENGTH)?;
-        let t = T::init(t_bytes, arg.0, |_, _| panic!("Cannot resize during init"))?;
+        let t = unsafe { T::init(t_bytes, arg.0, |_, _| panic!("Cannot resize during init"))? };
         let u_bytes = bytes.try_advance(U::INIT_LENGTH)?;
-        let u = U::init(u_bytes, arg.1, |_, _| panic!("Cannot resize during init"))?;
-        Ok(Self::RefMut::build_pointer_mut(
-            NonNull::from(bytes).cast(),
-            CombinedUnsizedMetadata {
-                data_len: Self::INIT_LENGTH,
-                t_meta: t.break_pointer().1,
-                u_meta: u.break_pointer().1,
-                t_len: T::INIT_LENGTH,
-            },
-            resize,
-        ))
+        let u = unsafe { U::init(u_bytes, arg.1, |_, _| panic!("Cannot resize during init"))? };
+        Ok(unsafe {
+            Self::RefMut::build_pointer_mut(
+                NonNull::from(bytes).cast(),
+                CombinedUnsizedMetadata {
+                    data_len: Self::INIT_LENGTH,
+                    t_meta: t.break_pointer().1,
+                    u_meta: u.break_pointer().1,
+                    t_len: T::INIT_LENGTH,
+                },
+                resize,
+            )
+        })
     }
 }
-unsafe impl<T, U> FrameworkInit<()> for CombinedUnsizedData<T, U>
+unsafe impl<T, U> FrameworkInit<()> for CombinedUnsized<T, U>
 where
     T: ?Sized + FrameworkInit<()>,
     U: ?Sized + FrameworkInit<()>,
@@ -71,7 +73,7 @@ where
         arg: (),
         resize: impl ResizeFn<'a, Self::RefMeta>,
     ) -> Result<Self::RefMut<'a>> {
-        <Self as FrameworkInit<((), ())>>::init(bytes, (arg, arg), resize)
+        unsafe { <Self as FrameworkInit<((), ())>>::init(bytes, (arg, arg), resize) }
     }
 }
 
