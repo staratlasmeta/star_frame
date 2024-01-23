@@ -3,6 +3,8 @@
 
 pub extern crate borsh;
 pub extern crate self as star_frame;
+#[cfg(feature = "idl")]
+pub extern crate serde_json;
 pub extern crate solana_program;
 #[cfg(feature = "idl")]
 pub extern crate star_frame_idl;
