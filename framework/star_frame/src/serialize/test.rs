@@ -1,41 +1,46 @@
-use crate::serialize::unsized_type::UnsizedType;
+use crate::serialize::serialize_with::SerializeWith;
 use crate::serialize::{FrameworkFromBytes, FrameworkFromBytesMut, FrameworkInit};
 use crate::Result;
 use solana_program::program_memory::sol_memset;
 use std::marker::PhantomData;
 use std::ptr::NonNull;
 
-#[derive(Debug)]
 pub struct TestByteSet<T: ?Sized> {
     pub bytes: Vec<u8>,
     pub phantom_t: PhantomData<T>,
 }
 
 impl<T: ?Sized> TestByteSet<T> {
-    pub fn new(len: usize) -> Self {
-        Self {
-            bytes: vec![0; len],
-            phantom_t: PhantomData,
+    pub fn new<A>(arg: A) -> Result<Self>
+    where
+        T: FrameworkInit<A>,
+    {
+        let mut bytes = vec![0; T::INIT_LENGTH];
+        unsafe {
+            T::init(&mut bytes, arg, |_, _| {
+                panic!("Cannot resize during `init`")
+            })?;
         }
+        Ok(Self {
+            bytes,
+            phantom_t: PhantomData,
+        })
     }
 }
 
 impl<T> TestByteSet<T>
 where
-    T: ?Sized + UnsizedType,
+    T: ?Sized + SerializeWith,
 {
-    pub fn init<'a, A>(&'a mut self, arg: A) -> Result<T::RefMut<'a>>
+    pub fn re_init<A>(&mut self, arg: A) -> Result<T::RefMut<'_>>
     where
-        T::RefMut<'a>: FrameworkInit<'a, A>,
+        T: FrameworkInit<A>,
     {
-        let vec_ptr = &mut self.bytes as *mut Vec<u8>;
-        let bytes = &mut self.bytes[..<T::RefMut<'a> as FrameworkInit<'a, A>>::INIT_LENGTH];
-        sol_memset(bytes, 0, bytes.len());
+        self.bytes.resize(T::INIT_LENGTH, 0);
+        sol_memset(&mut self.bytes, 0, T::INIT_LENGTH);
         unsafe {
-            <T::RefMut<'a> as FrameworkInit<'a, A>>::init(bytes, arg, move |len, _| {
-                let bytes = &mut *vec_ptr;
-                bytes.resize(len, 0);
-                Ok(NonNull::<[u8]>::from(bytes.as_slice()).cast())
+            T::init(&mut self.bytes, arg, |_, _| {
+                panic!("Cannot resize during `init`")
             })
         }
     }

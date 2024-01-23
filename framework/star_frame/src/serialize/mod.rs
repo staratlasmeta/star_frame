@@ -8,10 +8,12 @@ pub mod unsized_enum;
 pub mod unsized_type;
 
 use crate::align1::Align1;
+use crate::serialize::unsized_type::UnsizedType;
 use crate::Result;
 use advance::Advance;
 use bytemuck::{from_bytes, from_bytes_mut, Pod};
 use star_frame::serialize::pointer_breakup::PointerBreakup;
+use star_frame::serialize::serialize_with::SerializeWith;
 use std::mem::size_of;
 use std::ptr::NonNull;
 
@@ -92,45 +94,47 @@ where
 
 /// # Safety
 /// [`init`](FrameworkInit::init) must properly initialize the bytes.
-pub unsafe trait FrameworkInit<'a, A>: FrameworkFromBytesMut<'a> {
+pub unsafe trait FrameworkInit<A>: UnsizedType {
     /// Length of bytes required to initialize this type.
     const INIT_LENGTH: usize;
     /// Initializes this type with the given arguments.
     /// # Safety
     /// `bytes` must be zeroed and length [`INIT_LENGTH`](FrameworkInit::INIT_LENGTH).
-    unsafe fn init(
+    unsafe fn init<'a>(
         bytes: &'a mut [u8],
         arg: A,
-        resize: impl ResizeFn<'a, Self::Metadata>,
-    ) -> Result<Self>;
+        resize: impl ResizeFn<'a, Self::RefMeta>,
+    ) -> Result<Self::RefMut<'a>>;
 }
-unsafe impl<'a, T> FrameworkInit<'a, ()> for &'a mut T
+unsafe impl<T> FrameworkInit<()> for T
 where
     T: Align1 + Pod,
 {
     const INIT_LENGTH: usize = size_of::<T>();
 
-    unsafe fn init(
+    unsafe fn init<'a>(
         bytes: &'a mut [u8],
         _arg: (),
-        _resize: impl ResizeFn<'a, Self::Metadata>,
-    ) -> Result<Self> {
+        _resize: impl ResizeFn<'a, Self::RefMeta>,
+    ) -> Result<Self::RefMut<'a>> {
         debug_assert_eq!(bytes.len(), <Self as FrameworkInit<()>>::INIT_LENGTH);
+        debug_assert!(bytes.iter().all(|b| *b == 0));
         Ok(from_bytes_mut(bytes))
     }
 }
-unsafe impl<'a, T> FrameworkInit<'a, (T,)> for &'a mut T
+unsafe impl<T> FrameworkInit<(T,)> for T
 where
     T: Align1 + Pod,
 {
     const INIT_LENGTH: usize = size_of::<T>();
 
-    unsafe fn init(
+    unsafe fn init<'a>(
         bytes: &'a mut [u8],
         arg: (T,),
-        _resize: impl ResizeFn<'a, Self::Metadata>,
-    ) -> Result<Self> {
+        _resize: impl ResizeFn<'a, Self::RefMeta>,
+    ) -> Result<Self::RefMut<'a>> {
         debug_assert_eq!(bytes.len(), <Self as FrameworkInit<(T,)>>::INIT_LENGTH);
+        debug_assert!(bytes.iter().all(|b| *b == 0));
         let out = from_bytes_mut(bytes);
         *out = arg.0;
         Ok(out)
