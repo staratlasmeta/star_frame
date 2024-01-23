@@ -96,7 +96,11 @@ pub unsafe trait FrameworkInit<'a, A>: FrameworkFromBytesMut<'a> {
     /// Initializes this type with the given arguments.
     /// # Safety
     /// `bytes` must be zeroed and length [`INIT_LENGTH`](FrameworkInit::INIT_LENGTH).
-    unsafe fn init(bytes: &'a mut [u8], arg: A) -> Result<Self>;
+    unsafe fn init(
+        bytes: &'a mut [u8],
+        arg: A,
+        resize: impl ResizeFn<'a, Self::Metadata>,
+    ) -> Result<Self>;
 }
 unsafe impl<'a, T> FrameworkInit<'a, ()> for &'a mut T
 where
@@ -104,7 +108,11 @@ where
 {
     const INIT_LENGTH: usize = size_of::<T>();
 
-    unsafe fn init(bytes: &'a mut [u8], _arg: ()) -> Result<Self> {
+    unsafe fn init(
+        bytes: &'a mut [u8],
+        _arg: (),
+        _resize: impl ResizeFn<'a, Self::Metadata>,
+    ) -> Result<Self> {
         debug_assert_eq!(bytes.len(), <Self as FrameworkInit<()>>::INIT_LENGTH);
         Ok(from_bytes_mut(bytes))
     }
@@ -115,7 +123,11 @@ where
 {
     const INIT_LENGTH: usize = size_of::<T>();
 
-    unsafe fn init(bytes: &'a mut [u8], arg: (T,)) -> Result<Self> {
+    unsafe fn init(
+        bytes: &'a mut [u8],
+        arg: (T,),
+        _resize: impl ResizeFn<'a, Self::Metadata>,
+    ) -> Result<Self> {
         debug_assert_eq!(bytes.len(), <Self as FrameworkInit<(T,)>>::INIT_LENGTH);
         let out = from_bytes_mut(bytes);
         *out = arg.0;

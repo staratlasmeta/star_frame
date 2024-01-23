@@ -130,7 +130,7 @@ where
 {
     unsafe fn build_pointer(pointee: NonNull<()>, metadata: Self::Metadata) -> Self {
         Self {
-            list: &*ptr::from_raw_parts(pointee.as_ptr(), metadata.to_usize().unwrap()),
+            list: unsafe { &*ptr::from_raw_parts(pointee.as_ptr(), metadata.to_usize().unwrap()) },
         }
     }
 }

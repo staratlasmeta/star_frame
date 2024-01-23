@@ -1,8 +1,16 @@
 #![feature(ptr_metadata)]
 #![feature(pointer_byte_offsets)]
-#![warn(missing_debug_implementations, missing_copy_implementations)]
+#![warn(
+    missing_debug_implementations,
+    missing_copy_implementations,
+    unsafe_op_in_unsafe_fn
+)]
+#![feature(type_name_of_val)]
+#![feature(more_qualified_paths)]
 
 pub extern crate borsh;
+pub extern crate bytemuck;
+pub extern crate derivative;
 pub extern crate self as star_frame;
 pub extern crate solana_program;
 #[cfg(feature = "idl")]

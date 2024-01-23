@@ -14,6 +14,21 @@ use syn::{
 pub struct Paths {
     pub crate_name: TokenStream,
 
+    // std
+    pub debug: TokenStream,
+    pub clone: TokenStream,
+    pub copy: TokenStream,
+    pub phantom_data: TokenStream,
+    pub non_null: TokenStream,
+    pub size_of: TokenStream,
+    pub deref: TokenStream,
+    pub partial_eq: TokenStream,
+    pub eq: TokenStream,
+    pub ptr: TokenStream,
+
+    // derivative
+    pub derivative: TokenStream,
+
     pub account_info: TokenStream,
     pub result: TokenStream,
     pub account_set: TokenStream,
@@ -49,11 +64,37 @@ pub struct Paths {
     pub idl_ident: Ident,
     pub idl_ty_program_ident: Ident,
     pub declared_program_type: Type,
+
+    pub align1: TokenStream,
+    pub packed_value_checked: TokenStream,
+
+    // type
+    pub unsized_type: TokenStream,
+    pub build_pointer: TokenStream,
+    pub unsized_enum: TokenStream,
+    pub enum_ref_wrapper: TokenStream,
+    pub framework_serialize: TokenStream,
+
+    // bytemuck
+    pub checked_bit_pattern: TokenStream,
 }
 impl Default for Paths {
     fn default() -> Self {
         let crate_name = get_crate_name();
         Self {
+            debug: quote! { ::std::fmt::Debug },
+            clone: quote! { ::std::clone::Clone },
+            copy: quote! { ::std::marker::Copy },
+            phantom_data: quote! { ::std::marker::PhantomData },
+            non_null: quote! { ::std::ptr::NonNull },
+            size_of: quote! { ::std::mem::size_of },
+            deref: quote! { ::std::ops::Deref },
+            partial_eq: quote! { ::std::cmp::PartialEq },
+            eq: quote! { ::std::cmp::Eq },
+            ptr: quote! { ::std::ptr },
+
+            derivative: quote! { #crate_name::derivative::Derivative },
+
             account_info: quote! { #crate_name::solana_program::account_info::AccountInfo },
             result: quote! { #crate_name::Result },
             account_set: quote! { #crate_name::account_set::AccountSet },
@@ -89,6 +130,17 @@ impl Default for Paths {
             idl_ident: format_ident!("idl"),
             idl_ty_program_ident: format_ident!("program"),
             declared_program_type: parse_quote! { #crate_name::StarFrameDeclaredProgram },
+
+            align1: quote! { #crate_name::align1::Align1 },
+            packed_value_checked: quote! { #crate_name::packed_value::PackedValueChecked },
+
+            unsized_type: quote! { #crate_name::serialize::unsized_type::UnsizedType },
+            build_pointer: quote! { #crate_name::serialize::pointer_breakup::BuildPointer },
+            unsized_enum: quote! { #crate_name::serialize::unsized_enum::UnsizedEnum },
+            enum_ref_wrapper: quote! { #crate_name::serialize::unsized_enum::EnumRefWrapper },
+            framework_serialize: quote! { #crate_name::serialize::FrameworkSerialize },
+
+            checked_bit_pattern: quote! { #crate_name::bytemuck::checked::CheckedBitPattern },
 
             crate_name,
         }

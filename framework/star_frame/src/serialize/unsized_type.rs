@@ -1,5 +1,5 @@
 use crate::align1::Align1;
-use crate::serialize::pointer_breakup::{BuildPointer, BuildPointerMut, PointerBreakup};
+use crate::serialize::pointer_breakup::{BuildPointer, BuildPointerMut};
 use crate::serialize::{FrameworkFromBytes, FrameworkFromBytesMut};
 use bytemuck::Pod;
 use std::ops::{Deref, DerefMut};
@@ -18,7 +18,7 @@ impl<T> UnsizedType for T
 where
     T: Align1 + Pod,
 {
-    type RefMeta = <Self::Ref<'static> as PointerBreakup>::Metadata;
+    type RefMeta = ();
     type Ref<'a> = &'a T;
     type RefMut<'a> = &'a mut T;
 }
