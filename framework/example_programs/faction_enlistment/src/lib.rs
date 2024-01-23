@@ -87,12 +87,8 @@ impl ProgramToIdl for FactionEnlistment {
 
 use star_frame::anchor_replacement::{AnchorCleanupArgs, AnchorValidateArgs};
 use star_frame::idl::ty::TypeToIdl;
-use star_frame::idl::{AccountToIdl, ProgramToIdl};
-use star_frame::solana_program::program_error::ProgramError;
-use star_frame::star_frame_idl::account::AccountId;
+use star_frame::idl::ProgramToIdl;
 use star_frame::star_frame_idl::{IdlDefinition, Version};
-use star_frame_idl::account::IdlAccount;
-use star_frame_idl::seeds::IdlSeeds;
 
 #[derive(AccountSet, Debug)]
 // #[account_set(skip_default_idl)]
