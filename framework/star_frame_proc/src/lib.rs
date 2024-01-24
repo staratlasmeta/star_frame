@@ -1,3 +1,5 @@
+#![allow(clippy::let_and_return)]
+
 mod account;
 mod account_set;
 mod framework_instruction;
