@@ -14,7 +14,7 @@ idl = ["star_frame_idl", "serde_json", "star_frame_proc/idl"]
 advance = { path = "../../advance", features = ["solana"] }
 array-init = "2.1.0"
 bincode = { version = "1.3.3", features = ["i128"] }
-borsh = "0.10.3"
+borsh = "1.0.0"
 bytemuck = "1.14.0"
 derivative = "2.2.0"
 solana-program = { workspace = true }
