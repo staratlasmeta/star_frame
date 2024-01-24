@@ -1913,6 +1913,7 @@ dependencies = [
  "bytemuck",
  "derivative",
  "lazy_static",
+ "log",
  "num-traits",
  "serde",
  "serde_json",

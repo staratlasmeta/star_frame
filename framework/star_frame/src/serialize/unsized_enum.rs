@@ -1,5 +1,3 @@
-pub use star_frame_proc::unsized_enum;
-
 use crate::serialize::unsized_type::UnsizedType;
 use bytemuck::CheckedBitPattern;
 use std::fmt::Debug;
@@ -40,7 +38,7 @@ mod test {
     use crate::serialize::unsized_enum::{EnumRefMutWrapper, EnumRefWrapper};
     use crate::serialize::unsized_type::UnsizedType;
     use bytemuck::{Pod, Zeroable};
-    use star_frame_proc::{unsized_enum, Align1};
+    use star_frame_proc::{unsized_type, Align1};
     use std::ops::Deref;
 
     #[derive(Pod, Zeroable, Copy, Clone, Align1, Debug, PartialEq, Eq)]
@@ -50,7 +48,7 @@ mod test {
         val2: u64,
     }
 
-    #[unsized_enum]
+    #[unsized_type]
     enum TestEnum<T>
     where
         T: UnsizedType,
@@ -63,7 +61,7 @@ mod test {
         C,
     }
 
-    #[unsized_enum]
+    #[unsized_type]
     enum TestEnum2 {
         #[variant_type(u8)]
         A,
