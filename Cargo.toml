@@ -2,10 +2,8 @@
 resolver = "2"
 members = [
     "advance",
-#    "common/*",
     "framework/star_*",
     "framework/example_programs/faction_enlistment",
-    "programs/*",
 ]
 
 [profile.release]

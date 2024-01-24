@@ -1,8 +1,20 @@
 program trait 
 
 
-Account set 
+Account set
 
+```json
+{
+  "instruction": {
+    "accounts": [
+      {
+        "ty": 
+      }
+    ]
+  }
+}
+
+```
 
 
 Program<FactionEnlistment>;
@@ -13,13 +25,25 @@ trait ToSeedBytes {
 }
 ```
 
+Types of seeds we want to handle
+1. Constants
+2. Account keys from the instruction
+3. Instruction arguments
+4. Fields from account data in the instruction
+
+
+
+
 ```rust
-[
-    Seed::Constant(CERTIFICATE_MINT),
-    Seed::AccountSetPath(["starbase_and_starbase_player", "starbase", "key"]),
-    Seed::AccountSetPath(["cargo_mint"]),
-    Seed::AccountSetPath(["starbase_and_starbase_player", "starbase", "game_id"])
-]
+fn cook() {
+    let x = [
+        Seed::Constant(CERTIFICATE_MINT),
+        Seed::AccountSetPath(["starbase_and_starbase_player", "starbase", "key"]),
+        Seed::AccountSetPath(["cargo_mint"]),
+        Seed::Argument("seq_id", )
+        Seed::AccountSetPath(["starbase_and_starbase_player", "starbase", "game_id"])
+    ];
+}
 ```
 
 ```rust
@@ -39,7 +63,99 @@ mod stuff {
 }
 ```
 
+```swagger codegen
+template <typename T, typename T1> 
+auto compose(T a, T1 b) -> decltype(a + b) {
+   return a+b;
+}
+```
+
 ```rust
+#[derive(Seeds)]
+#[end_constant(END)]
+struct CeritifacteSeeds{
+    #[constant(CERTIFICATE_MINT)]
+    starbase: Pubkey,
+    cargo_mint: Pubkey,
+    seq_id: u8,
+    #[constant(GAME_FOLLOWS)]
+    game_id: Pubkey,
+}
+// Generated
+impl Seeds for CeritifacteSeeds {
+    fn seeds(&self) -> Vec<&[u8]> {
+        vec![
+            CERTIFICATE_MINT.seed(),
+            self.starbase.seed(),
+            self.cargo_mint.seed(),
+            self.seq_id.seed(),
+            GAME_FOLLOWS.seed(),
+            self.game_id.seed(),
+            END.seed(),
+        ]
+    }
+}
+impl<T> Seeds for T where T: Seed {
+    fn seeds(&self) -> Vec<&[u8]> {
+        vec![self.seed()]
+    }
+}
+
+pub trait Seed {
+    fn seed(&self) -> &[u8];
+}
+impl<T> Seed for T where T: Pod {
+    fn seed(&self) -> &[u8] {
+        to_bytes(self)
+    }
+}
+impl<'a> Seed for &'a [u8] {
+    fn seed(&self) -> &[u8] {
+        self
+    }
+}
+
+struct SeedsWithBump<T: Seeds>{
+    seeds: T,
+    bump: u8,
+}
+
+pub trait SeededAccountData: AccountData {
+    type Seeds: Seeds;
+}
+
+pub struct SeededAccount<T, S> {
+    account: T,
+    seeds: Option<SeedsWithBump<S>>,
+}
+
+pub struct SeededDataAccount<'info, T>(SeededAccount<DataAccount<'info, T>, T::Seeds>) where T: SeededAccountData;
+impl<T, S> AccountSetValidate<S> for SeededAccount<T, S> where S: Seeds {}
+impl<T, S> AccountSetValidate<SeedsWithBump<S>> for SeededAccount<T, S> where S: Seeds {}
+
+struct SubInitArgs {
+    seeds: Option<Vec<Vec<u8>>>,
+    size: usize,
+}
+trait InitAccountSet<A>: AccountSetValidate<A> + SingleAccountSet {
+    fn init_account(&mut self, args: &mut SubInitArgs, validate_arg: &A) -> Result<()>;
+    fn post_init(&mut self) -> Result<()>;
+}
+
+pub struct Init<T>{t: T}
+pub struct InitArgs<'a, 'info> {
+    pub system_program: &'a Program<'info, SystemProgram>,
+}
+
+impl<'a, 'info, T, A> AccountSetValidate<'info, (InitArgs<'a, 'info>, A)> for Init<T> where T: InitAccountSet<A> {
+    fn account_set_validate(&mut self, arg: (InitArgs<'a, 'info>, A)) -> Result<()> {
+        let mut args: SubInitArgs = Default::default();
+        self.t.init_account(&mut args, &arg.1)?;
+        self.init_with_args(arg.0, args)?;
+        T::account_set_validate(arg.1);
+    }
+}
+
 /// Redeems a certificate for a given cargo
 #[derive(Accounts, Derivative)]
 #[derivative(Debug)]
@@ -56,18 +172,15 @@ pub struct RedeemCertificate<'info> {
 
     /// The cargo certificate mint
     /// CHECK: Checked in constraints, seeds, and token program
-    #[account(
-        mut,
-        seeds = [
-            CERTIFICATE_MINT,
-            Pubkey: starbase_and_starbase_player.starbase.as_ref().key,
-            Pubkey: cargo_mint.key(),
-            u8: &starbase_and_starbase_player.starbase.load()?.seq_id,
-            Pubkey: starbase_and_starbase_player.starbase.load()?.game_id,
-        ],
-        bump,
+    #[validate(
+        arg = (InitArgs { system_program: &self.system_program }, CeritifacteSeeds {
+            starbase: starbase_and_starbase_player.starbase.as_ref().key,
+            cargo_mint: cargo_mint.key(),
+            seq_id: starbase_and_starbase_player.starbase.load()?.seq_id,
+            game_id: starbase_and_starbase_player.starbase.load()?.game_id,
+        },)
     )]
-    pub certificate_mint: UncheckedAccount<'info>,
+    pub certificate_mint: Init<Writable<SeededAccount<DataAccount<'info, StuffStruct>, CeritifacteSeeds>>>,
 
     /// Owner of the certificates
     pub certificate_owner_authority: Signer<'info>,
