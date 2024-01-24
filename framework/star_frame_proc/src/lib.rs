@@ -5,6 +5,7 @@ mod instruction_set;
 mod solana_pubkey;
 mod ty;
 mod unit_enum_from_repr;
+mod unsized_enum;
 mod util;
 
 use crate::account::derive_account_to_idl_impl;
@@ -17,7 +18,7 @@ use syn::parse::{Parse, ParseStream};
 use syn::token::Token;
 use syn::{
     parenthesized, parse_macro_input, parse_quote, token, Data, DataStruct, DataUnion, DeriveInput,
-    Fields, Ident, LitInt, Token,
+    Fields, Ident, ItemEnum, LitInt, Token,
 };
 
 fn get_crate_name() -> TokenStream {
@@ -248,4 +249,15 @@ pub fn declare_id(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 #[proc_macro]
 pub fn pubkey(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     solana_pubkey::pubkey_impl(input)
+}
+
+#[proc_macro_error]
+#[proc_macro_attribute]
+pub fn unsized_enum(
+    args: proc_macro::TokenStream,
+    item: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
+    let out = unsized_enum::unsized_enum_impl(parse_macro_input!(item as ItemEnum), args.into());
+    // println!("{}", out);
+    out.into()
 }

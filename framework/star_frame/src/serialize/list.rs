@@ -1,13 +1,14 @@
 use crate::align1::Align1;
 use crate::packed_value::PackedValue;
 use crate::serialize::pointer_breakup::{BuildPointer, BuildPointerMut, PointerBreakup};
-use crate::serialize::serialize_with::SerializeWith;
+use crate::serialize::unsized_type::UnsizedType;
 use crate::serialize::{
     FrameworkFromBytes, FrameworkFromBytesMut, FrameworkInit, FrameworkSerialize, ResizeFn,
 };
 use crate::Result;
 use advance::Advance;
 use bytemuck::{from_bytes, Pod};
+use derivative::Derivative;
 use num_traits::{FromPrimitive, ToPrimitive, Zero};
 use solana_program::program_error::ProgramError;
 use solana_program::program_memory::sol_memmove;
@@ -18,7 +19,7 @@ use std::ops::{Deref, DerefMut, RangeBounds};
 use std::ptr;
 use std::ptr::NonNull;
 
-#[derive(Align1)]
+#[derive(Align1, Debug)]
 #[repr(C)]
 pub struct List<T, L = u32>
 where
@@ -40,8 +41,8 @@ where
         _arg: (),
         resize: impl ResizeFn<'a, Self::RefMeta>,
     ) -> Result<Self::RefMut<'a>> {
-        assert_eq!(bytes.len(), <Self as FrameworkInit<()>>::INIT_LENGTH);
-        assert!(bytes.iter().all(|b| *b == 0));
+        debug_assert_eq!(bytes.len(), <Self as FrameworkInit<()>>::INIT_LENGTH);
+        debug_assert!(bytes.iter().all(|b| *b == 0));
         let len = L::zero();
         bytes.copy_from_slice(bytemuck::bytes_of(&len));
         Ok(ListRefMut {
@@ -73,16 +74,17 @@ where
     }
 }
 
-impl<T, L> SerializeWith for List<T, L>
+impl<T, L> UnsizedType for List<T, L>
 where
     T: Pod + Align1,
     L: Pod + ToPrimitive + FromPrimitive,
 {
     type RefMeta = L;
-    type Ref<'a> = ListRef<'a, T, L> where Self: 'a;
-    type RefMut<'a> = ListRefMut<'a, T, L> where Self: 'a;
+    type Ref<'a> = ListRef<'a, T, L>;
+    type RefMut<'a> = ListRefMut<'a, T, L>;
 }
 
+#[derive(Debug, Copy, Clone)]
 pub struct ListRef<'a, T, L>
 where
     T: Pod + Align1,
@@ -154,11 +156,13 @@ where
 {
     unsafe fn build_pointer(pointee: NonNull<()>, metadata: Self::Metadata) -> Self {
         Self {
-            list: &*ptr::from_raw_parts(pointee.as_ptr(), metadata.to_usize().unwrap()),
+            list: unsafe { &*ptr::from_raw_parts(pointee.as_ptr(), metadata.to_usize().unwrap()) },
         }
     }
 }
 
+#[derive(Derivative)]
+#[derivative(Debug)]
 pub struct ListRefMut<'a, T, L>
 where
     T: Pod + Align1,
@@ -167,6 +171,7 @@ where
     phantom_ref: PhantomData<&'a mut [T]>,
     ptr: NonNull<()>,
     metadata: L,
+    #[derivative(Debug = "ignore")]
     resize: Box<dyn ResizeFn<'a, <Self as PointerBreakup>::Metadata>>,
 }
 impl<'a, T, L> Deref for ListRefMut<'a, T, L>
@@ -213,7 +218,7 @@ where
         bytes: &mut &'a mut [u8],
         resize: impl ResizeFn<'a, Self::Metadata>,
     ) -> Result<Self> {
-        let len = *from_bytes::<L>(&bytes[..size_of::<L>()]);
+        let len = from_bytes::<PackedValue<L>>(&bytes[..size_of::<L>()]).0;
         let len_usize = len.to_usize().unwrap();
         let ptr =
             NonNull::from(bytes.try_advance(size_of::<L>() + size_of::<T>() * len_usize)?).cast();

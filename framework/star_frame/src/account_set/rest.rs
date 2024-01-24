@@ -7,7 +7,7 @@ use crate::sys_calls::SysCallInvoke;
 use solana_program::account_info::AccountInfo;
 use std::marker::PhantomData;
 
-#[derive(AccountSet)]
+#[derive(AccountSet, Debug)]
 #[account_set(skip_default_decode)]
 #[validate(generics = [<A> where T: AccountSetValidate<'info, A>, A: Clone], arg = A)]
 #[cleanup(generics = [<A> where T: AccountSetCleanup<'info, A>, A: Clone], arg = A)]

@@ -6,8 +6,9 @@ use solana_program::pubkey::Pubkey;
 use solana_program::system_instruction::SystemInstruction;
 use solana_program::system_program;
 use star_frame::instruction::InstructionSet;
+use star_frame_proc::Align1;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Align1)]
 pub struct SystemProgram;
 impl StarFrameProgram for SystemProgram {
     type InstructionSet<'a> = SystemInstruction;

@@ -2,16 +2,17 @@ pub mod borsh;
 pub mod combined_unsized;
 pub mod list;
 pub mod pointer_breakup;
-pub mod serialize_with;
 #[cfg(test)]
 pub mod test;
+pub mod unsized_enum;
+pub mod unsized_type;
 
 use crate::align1::Align1;
+use crate::serialize::unsized_type::UnsizedType;
 use crate::Result;
 use advance::Advance;
 use bytemuck::{from_bytes, from_bytes_mut, Pod};
 use star_frame::serialize::pointer_breakup::PointerBreakup;
-use star_frame::serialize::serialize_with::SerializeWith;
 use std::mem::size_of;
 use std::ptr::NonNull;
 
@@ -92,7 +93,7 @@ where
 
 /// # Safety
 /// [`init`](FrameworkInit::init) must properly initialize the bytes.
-pub unsafe trait FrameworkInit<A>: SerializeWith {
+pub unsafe trait FrameworkInit<A>: UnsizedType {
     /// Length of bytes required to initialize this type.
     const INIT_LENGTH: usize;
     /// Initializes this type with the given arguments.
@@ -115,8 +116,8 @@ where
         _arg: (),
         _resize: impl ResizeFn<'a, Self::RefMeta>,
     ) -> Result<Self::RefMut<'a>> {
-        assert_eq!(bytes.len(), <Self as FrameworkInit<()>>::INIT_LENGTH);
-        assert!(bytes.iter().all(|b| *b == 0));
+        debug_assert_eq!(bytes.len(), <Self as FrameworkInit<()>>::INIT_LENGTH);
+        debug_assert!(bytes.iter().all(|b| *b == 0));
         Ok(from_bytes_mut(bytes))
     }
 }
@@ -131,8 +132,8 @@ where
         arg: (T,),
         _resize: impl ResizeFn<'a, Self::RefMeta>,
     ) -> Result<Self::RefMut<'a>> {
-        assert_eq!(bytes.len(), <Self as FrameworkInit<(T,)>>::INIT_LENGTH);
-        assert!(bytes.iter().all(|b| *b == 0));
+        debug_assert_eq!(bytes.len(), <Self as FrameworkInit<(T,)>>::INIT_LENGTH);
+        debug_assert!(bytes.iter().all(|b| *b == 0));
         let out = from_bytes_mut(bytes);
         *out = arg.0;
         Ok(out)

@@ -7,7 +7,7 @@ use star_frame::account_set::{
 use star_frame::idl::AccountSetToIdl;
 use std::marker::PhantomData;
 
-#[derive(AccountSet)]
+#[derive(AccountSet, Debug)]
 #[decode(generics = [<A> where T: AccountSetDecode<'a, 'info, A>], arg = A)]
 #[validate(
     generics = [<A> where T: SingleAccountSet<'info> + AccountSetValidate<'info, A>],

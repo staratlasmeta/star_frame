@@ -1,7 +1,16 @@
 #![feature(ptr_metadata)]
 #![feature(pointer_byte_offsets)]
+#![warn(
+    missing_debug_implementations,
+    missing_copy_implementations,
+    unsafe_op_in_unsafe_fn
+)]
+#![feature(type_name_of_val)]
 
+pub extern crate advance;
 pub extern crate borsh;
+pub extern crate bytemuck;
+pub extern crate derivative;
 pub extern crate self as star_frame;
 #[cfg(feature = "idl")]
 pub extern crate serde_json;

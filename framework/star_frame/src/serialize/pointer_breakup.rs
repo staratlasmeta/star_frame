@@ -33,7 +33,7 @@ impl<'a, T> PointerBreakup for &'a T {
 }
 impl<'a, T> BuildPointer for &'a T {
     unsafe fn build_pointer(pointee: NonNull<()>, metadata: Self::Metadata) -> Self {
-        &*ptr::from_raw_parts(pointee.as_ptr(), metadata)
+        unsafe { &*ptr::from_raw_parts(pointee.as_ptr(), metadata) }
     }
 }
 
@@ -50,6 +50,6 @@ impl<'a, T> BuildPointerMut<'a> for &'a mut T {
         metadata: Self::Metadata,
         _resize: impl ResizeFn<'a, Self::Metadata>,
     ) -> Self {
-        &mut *ptr::from_raw_parts_mut(pointee.as_ptr(), metadata)
+        unsafe { &mut *ptr::from_raw_parts_mut(pointee.as_ptr(), metadata) }
     }
 }
