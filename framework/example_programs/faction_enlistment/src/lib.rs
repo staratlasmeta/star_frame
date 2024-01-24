@@ -1,5 +1,6 @@
 #![allow(clippy::result_large_err)]
 
+use star_frame::account_set::data_account::DataAccount;
 use star_frame::account_set::mutable::Writable;
 use star_frame::account_set::program::Program;
 use star_frame::account_set::signer::Signer;
@@ -10,6 +11,7 @@ use star_frame::borsh::{BorshDeserialize, BorshSerialize};
 use star_frame::program::system_program::SystemProgram;
 use star_frame::program::{ProgramIds, StarFrameProgram};
 use star_frame::program_account::ProgramAccount;
+use star_frame::seeds::{Seed, SeededAccount, Seeds};
 use star_frame::solana_program::account_info::AccountInfo;
 use star_frame::solana_program::pubkey::Pubkey;
 use star_frame::util::Network;
@@ -101,10 +103,20 @@ pub struct ProcessEnlistPlayer<'info> {
     //     bump,
     //     space = PlayerFactionData::LEN
     // )]
-    #[validate(arg = AnchorValidateArgs::default())]
-    #[cleanup(arg = AnchorCleanupArgs::default())]
-    #[idl(arg = AnchorValidateArgs::default())]
-    pub player_faction_account: Account<'info, PlayerFactionData>,
+    // #[validate(arg = AnchorValidateArgs::default())]
+    // #[cleanup(arg = AnchorCleanupArgs::default())]
+    // #[idl(arg = AnchorValidateArgs::default())]
+    // pub player_faction_account: Account<'info, PlayerFactionData>,
+    // TODO - How do we store/access the bump?
+    // TODO - This isn't the right way to build this struct
+    #[validate(arg = SeedsWithBump<PlayerFactionAccountSeeds> {
+        seeds: PlayerFactionAccountSeeds {
+            player_account: player_account.key
+        },
+        bump: 255
+    })]
+    pub player_faction_account:
+        SeededAccount<DataAccount<'info, PlayerFactionData>, PlayerFactionAccountSeeds>,
     /// The player account
     pub player_account: Signer<Writable<AccountInfo<'info>>>,
 
@@ -119,6 +131,18 @@ pub struct PlayerFactionData {
     pub faction_id: u8,
     pub bump: u8,
     pub _padding: [u64; 5],
+}
+
+#[derive(Debug)]
+pub struct PlayerFactionAccountSeeds {
+    // #[constant(FACTION_ENLISTMENT)]
+    player_account: Pubkey,
+}
+
+impl Seeds for PlayerFactionAccountSeeds {
+    fn seeds(&self) -> Vec<&[u8]> {
+        vec![b"FACTION_ENLISTMENT".as_ref(), self.player_account.seed()]
+    }
 }
 
 /* TODO - Default implementation can assume anchor hash for discriminant,

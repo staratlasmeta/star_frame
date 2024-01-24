@@ -29,6 +29,7 @@ pub mod instruction;
 pub mod packed_value;
 pub mod program;
 pub mod program_account;
+pub mod seeds;
 pub mod serialize;
 pub mod sys_calls;
 pub mod unit_enum_from_repr;
