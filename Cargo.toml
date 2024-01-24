@@ -6,6 +6,10 @@ members = [
     "framework/example_programs/faction_enlistment",
 ]
 
+[workspace.dependencies]
+solana-program = "1.17.17"
+solana-sdk = "1.17.17"
+
 [profile.release]
 overflow-checks = true
 lto = "fat"
