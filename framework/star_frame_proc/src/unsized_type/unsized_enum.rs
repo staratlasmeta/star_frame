@@ -1,18 +1,18 @@
-use crate::util::Paths;
+use crate::util::{verify_repr, Paths};
 use heck::ToSnakeCase;
 use proc_macro2::{Span, TokenStream};
 use proc_macro_error::abort;
 use quote::{format_ident, quote};
 use syn::parse::Parse;
 use syn::{
-    parse_quote, parse_str, Attribute, Expr, GenericParam, Ident, ItemEnum, Lifetime,
-    LifetimeParam, LitStr, Type, Variant,
+    parse_quote, Expr, GenericParam, Ident, ItemEnum, Lifetime, LifetimeParam, LitStr, Type,
+    Variant,
 };
 
 pub fn unsized_enum_impl(input: ItemEnum, args: TokenStream) -> TokenStream {
     let vis = &input.vis;
     let paths = Paths::default();
-    verify_repr_u8(&input.attrs);
+    verify_repr(&input.attrs, parse_quote! { u8 }, false);
     let idents = Idents::generate_idents(input.ident, args);
     let last_discriminant = &mut None;
     let variants = input
@@ -20,6 +20,10 @@ pub fn unsized_enum_impl(input: ItemEnum, args: TokenStream) -> TokenStream {
         .iter()
         .map(|var| ParsedVariant::parse_variant(var, last_discriminant))
         .collect::<Vec<_>>();
+    let attrs = input
+        .attrs
+        .iter()
+        .filter(|attr| !attr.path().is_ident("unsized_type"));
     let a_lifetime = Lifetime::new("'__a", Span::call_site());
     let b_lifetime = Lifetime::new("'__b", Span::call_site());
     let variant_idents = variants.iter().map(|var| &var.ident).collect::<Vec<_>>();
@@ -104,6 +108,8 @@ pub fn unsized_enum_impl(input: ItemEnum, args: TokenStream) -> TokenStream {
         #[derive(#align1, #derivative)]
         #[derivative(Debug(bound = ""))]
         #[allow(dead_code)]
+        #[repr(C)]
+        #(#attrs)*
         #vis struct #ident #impl_generics #where_clause {
             phantom_data: #phantom_data<(#marker_params)>,
             discriminant: #packed_value_checked<#discriminant_ident>,
@@ -679,18 +685,6 @@ pub fn unsized_enum_impl(input: ItemEnum, args: TokenStream) -> TokenStream {
         #ref_structs
         #ref_mut_structs
         #init_impls
-    }
-}
-
-fn verify_repr_u8(attrs: &[Attribute]) {
-    let repr = attrs.iter().find(|attr| attr.path().is_ident("repr"));
-    if let Some(repr) = repr {
-        let repr_ty = repr
-            .parse_args_with(Type::parse)
-            .unwrap_or_else(|e| abort!(repr, "Could not parse repr type: {}", e));
-        if repr_ty != parse_str("u8").unwrap() {
-            abort!(repr_ty, "Only u8 is supported as repr type");
-        }
     }
 }
 
