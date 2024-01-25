@@ -96,8 +96,9 @@ pub struct Paths {
     pub unsized_type: TokenStream,
 
     // bytemuck
-    pub checked_bit_pattern: TokenStream,
     pub checked: TokenStream,
+    pub checked_bit_pattern: TokenStream,
+    pub pod: TokenStream,
 
     // solana
     pub program_error: TokenStream,
@@ -186,8 +187,9 @@ impl Default for Paths {
             unsized_enum: quote! { #crate_name::serialize::unsized_enum::UnsizedEnum },
             unsized_type: quote! { #crate_name::serialize::unsized_type::UnsizedType },
 
-            checked_bit_pattern: quote! { #crate_name::bytemuck::checked::CheckedBitPattern },
             checked: quote! { #crate_name::bytemuck::checked },
+            checked_bit_pattern: quote! { #crate_name::bytemuck::checked::CheckedBitPattern },
+            pod: quote! { #crate_name::bytemuck::Pod },
 
             program_error: quote! { #crate_name::solana_program::program_error::ProgramError },
             sol_memset: quote! { #crate_name::solana_program::program_memory::sol_memset },
@@ -297,4 +299,26 @@ pub fn get_docs<'a>(attrs: impl IntoIterator<Item = &'a Attribute>) -> String {
         })
         .collect::<Vec<_>>()
         .join("\n")
+}
+
+pub fn verify_repr(attrs: &[Attribute], repr_required: Type, require_present: bool) {
+    let repr = attrs.iter().find(|attr| attr.path().is_ident("repr"));
+    if let Some(repr) = repr {
+        let repr_ty = repr
+            .parse_args_with(Type::parse)
+            .unwrap_or_else(|e| abort!(repr, "Could not parse repr type: {}", e));
+        if repr_ty != repr_required {
+            abort!(
+                repr_ty,
+                "Only {} is supported as repr type",
+                quote! { #repr_required }
+            );
+        }
+    } else if require_present {
+        abort!(
+            repr_required,
+            "Missing #[repr({})] attribute",
+            quote! { #repr_required }
+        );
+    }
 }

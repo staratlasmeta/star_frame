@@ -6,6 +6,7 @@ use advance::Advance;
 use derivative::Derivative;
 use solana_program::program_memory::sol_memmove;
 use star_frame::serialize::FrameworkSerialize;
+use star_frame_proc::Align1;
 use std::cmp::Ordering;
 use std::fmt::Debug;
 use std::marker::PhantomData;
@@ -13,7 +14,7 @@ use std::ops::{Deref, DerefMut};
 use std::ptr;
 use std::ptr::NonNull;
 
-#[derive(Debug)]
+#[derive(Debug, Align1)]
 pub struct CombinedUnsized<T: ?Sized, U: ?Sized> {
     phantom_t: PhantomData<T>,
     phantom_u: PhantomData<U>,

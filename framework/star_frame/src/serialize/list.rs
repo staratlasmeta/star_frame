@@ -19,7 +19,7 @@ use std::ops::{Deref, DerefMut, RangeBounds};
 use std::ptr;
 use std::ptr::NonNull;
 
-#[derive(Align1, Debug)]
+#[derive(Align1, Debug, PartialEq, Eq)]
 #[repr(C)]
 pub struct List<T, L = u32>
 where
@@ -470,5 +470,194 @@ pub mod test {
         assert_eq!(test_bytes.immut()?.deref().deref(), &[Cool { a: 6, b: 6 }]);
 
         Ok(())
+    }
+}
+
+pub mod eq_impls {
+    use super::*;
+
+    impl<T, L> PartialEq<[T]> for List<T, L>
+    where
+        T: Pod + Align1,
+        L: Pod + ToPrimitive + FromPrimitive,
+        [T]: PartialEq,
+    {
+        fn eq(&self, other: &[T]) -> bool {
+            self.deref().eq(other)
+        }
+    }
+    impl<'a, T, L> PartialEq<&'a [T]> for List<T, L>
+    where
+        T: Pod + Align1,
+        L: Pod + ToPrimitive + FromPrimitive,
+        [T]: PartialEq,
+    {
+        fn eq(&self, other: &&'a [T]) -> bool {
+            self.deref().eq(other)
+        }
+    }
+    impl<T, L, const N: usize> PartialEq<[T; N]> for List<T, L>
+    where
+        T: Pod + Align1,
+        L: Pod + ToPrimitive + FromPrimitive,
+        [T]: PartialEq,
+    {
+        fn eq(&self, other: &[T; N]) -> bool {
+            self.deref().eq(other)
+        }
+    }
+    impl<'a, T, L, const N: usize> PartialEq<&'a [T; N]> for List<T, L>
+    where
+        T: Pod + Align1,
+        L: Pod + ToPrimitive + FromPrimitive,
+        [T]: PartialEq,
+    {
+        fn eq(&self, other: &&'a [T; N]) -> bool {
+            self.deref().eq(other.as_slice())
+        }
+    }
+    impl<T, L, const N: usize> PartialEq<List<T, L>> for [T; N]
+    where
+        T: Pod + Align1,
+        L: Pod + ToPrimitive + FromPrimitive,
+        [T]: PartialEq,
+    {
+        fn eq(&self, other: &List<T, L>) -> bool {
+            self.as_slice().eq(other)
+        }
+    }
+    impl<'a, T, L, const N: usize> PartialEq<List<T, L>> for &'a [T; N]
+    where
+        T: Pod + Align1,
+        L: Pod + ToPrimitive + FromPrimitive,
+        [T]: PartialEq,
+    {
+        fn eq(&self, other: &List<T, L>) -> bool {
+            self.as_slice().eq(other)
+        }
+    }
+
+    // Ref
+    impl<T, L> PartialEq<[T]> for ListRef<'_, T, L>
+    where
+        T: Pod + Align1,
+        L: Pod + ToPrimitive + FromPrimitive,
+        [T]: PartialEq,
+    {
+        fn eq(&self, other: &[T]) -> bool {
+            self.deref().eq(other)
+        }
+    }
+    impl<'a, T, L> PartialEq<&'a [T]> for ListRef<'_, T, L>
+    where
+        T: Pod + Align1,
+        L: Pod + ToPrimitive + FromPrimitive,
+        [T]: PartialEq,
+    {
+        fn eq(&self, other: &&'a [T]) -> bool {
+            self.deref().eq(other)
+        }
+    }
+    impl<T, L, const N: usize> PartialEq<[T; N]> for ListRef<'_, T, L>
+    where
+        T: Pod + Align1,
+        L: Pod + ToPrimitive + FromPrimitive,
+        [T]: PartialEq,
+    {
+        fn eq(&self, other: &[T; N]) -> bool {
+            self.deref().eq(other)
+        }
+    }
+    impl<'a, T, L, const N: usize> PartialEq<&'a [T; N]> for ListRef<'_, T, L>
+    where
+        T: Pod + Align1,
+        L: Pod + ToPrimitive + FromPrimitive,
+        [T]: PartialEq,
+    {
+        fn eq(&self, other: &&'a [T; N]) -> bool {
+            self.deref().eq(other.as_slice())
+        }
+    }
+    impl<T, L, const N: usize> PartialEq<ListRef<'_, T, L>> for [T; N]
+    where
+        T: Pod + Align1,
+        L: Pod + ToPrimitive + FromPrimitive,
+        [T]: PartialEq,
+    {
+        fn eq(&self, other: &ListRef<'_, T, L>) -> bool {
+            self.as_slice().eq(other)
+        }
+    }
+    impl<'a, T, L, const N: usize> PartialEq<ListRef<'_, T, L>> for &'a [T; N]
+    where
+        T: Pod + Align1,
+        L: Pod + ToPrimitive + FromPrimitive,
+        [T]: PartialEq,
+    {
+        fn eq(&self, other: &ListRef<'_, T, L>) -> bool {
+            self.as_slice().eq(other)
+        }
+    }
+
+    // RefMut
+    impl<T, L> PartialEq<[T]> for ListRefMut<'_, T, L>
+    where
+        T: Pod + Align1,
+        L: Pod + ToPrimitive + FromPrimitive,
+        [T]: PartialEq,
+    {
+        fn eq(&self, other: &[T]) -> bool {
+            self.deref().eq(other)
+        }
+    }
+    impl<'a, T, L> PartialEq<&'a [T]> for ListRefMut<'_, T, L>
+    where
+        T: Pod + Align1,
+        L: Pod + ToPrimitive + FromPrimitive,
+        [T]: PartialEq,
+    {
+        fn eq(&self, other: &&'a [T]) -> bool {
+            self.deref().eq(other)
+        }
+    }
+    impl<T, L, const N: usize> PartialEq<[T; N]> for ListRefMut<'_, T, L>
+    where
+        T: Pod + Align1,
+        L: Pod + ToPrimitive + FromPrimitive,
+        [T]: PartialEq,
+    {
+        fn eq(&self, other: &[T; N]) -> bool {
+            self.deref().eq(other)
+        }
+    }
+    impl<'a, T, L, const N: usize> PartialEq<&'a [T; N]> for ListRefMut<'_, T, L>
+    where
+        T: Pod + Align1,
+        L: Pod + ToPrimitive + FromPrimitive,
+        [T]: PartialEq,
+    {
+        fn eq(&self, other: &&'a [T; N]) -> bool {
+            self.deref().eq(other.as_slice())
+        }
+    }
+    impl<T, L, const N: usize> PartialEq<ListRefMut<'_, T, L>> for [T; N]
+    where
+        T: Pod + Align1,
+        L: Pod + ToPrimitive + FromPrimitive,
+        [T]: PartialEq,
+    {
+        fn eq(&self, other: &ListRefMut<'_, T, L>) -> bool {
+            self.as_slice().eq(other)
+        }
+    }
+    impl<'a, T, L, const N: usize> PartialEq<ListRefMut<'_, T, L>> for &'a [T; N]
+    where
+        T: Pod + Align1,
+        L: Pod + ToPrimitive + FromPrimitive,
+        [T]: PartialEq,
+    {
+        fn eq(&self, other: &ListRefMut<'_, T, L>) -> bool {
+            self.as_slice().eq(other)
+        }
     }
 }

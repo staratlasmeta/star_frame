@@ -1,3 +1,5 @@
+#![allow(clippy::let_and_return)]
+
 mod account;
 mod account_set;
 mod framework_instruction;
@@ -5,7 +7,7 @@ mod instruction_set;
 mod solana_pubkey;
 mod ty;
 mod unit_enum_from_repr;
-mod unsized_enum;
+mod unsized_type;
 mod util;
 
 use crate::account::derive_account_to_idl_impl;
@@ -18,7 +20,7 @@ use syn::parse::{Parse, ParseStream};
 use syn::token::Token;
 use syn::{
     parenthesized, parse_macro_input, parse_quote, token, Data, DataStruct, DataUnion, DeriveInput,
-    Fields, Ident, ItemEnum, LitInt, Token,
+    Fields, Ident, Item, LitInt, Token,
 };
 
 fn get_crate_name() -> TokenStream {
@@ -253,11 +255,11 @@ pub fn pubkey(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
 #[proc_macro_error]
 #[proc_macro_attribute]
-pub fn unsized_enum(
+pub fn unsized_type(
     args: proc_macro::TokenStream,
     item: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
-    let out = unsized_enum::unsized_enum_impl(parse_macro_input!(item as ItemEnum), args.into());
+    let out = unsized_type::unsized_type_impl(parse_macro_input!(item as Item), args.into());
     // println!("{}", out);
     out.into()
 }
