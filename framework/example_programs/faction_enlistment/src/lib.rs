@@ -1,17 +1,19 @@
 #![allow(clippy::result_large_err)]
 
-use star_frame::account_set::data_account::DataAccount;
+use bytemuck::Zeroable;
+use star_frame::account_set::data_account::{AccountData, DataAccount};
 use star_frame::account_set::mutable::Writable;
 use star_frame::account_set::program::Program;
 use star_frame::account_set::signer::Signer;
-use star_frame::account_set::{AccountSet, AccountToIdl};
+use star_frame::account_set::{AccountSet, AccountSetValidate, AccountToIdl};
+use star_frame::align1::Align1;
 use star_frame::anchor_replacement::account::Account;
 use star_frame::borsh;
 use star_frame::borsh::{BorshDeserialize, BorshSerialize};
 use star_frame::program::system_program::SystemProgram;
 use star_frame::program::{ProgramIds, StarFrameProgram};
 use star_frame::program_account::ProgramAccount;
-use star_frame::seeds::{Seed, SeededAccount, Seeds};
+use star_frame::seeds::{Seed, SeededAccount, Seeds, SeedsWithBump};
 use star_frame::solana_program::account_info::AccountInfo;
 use star_frame::solana_program::pubkey::Pubkey;
 use star_frame::util::Network;
@@ -88,9 +90,11 @@ impl ProgramToIdl for FactionEnlistment {
 // #[instruction(_faction_id: u8)]
 
 use star_frame::anchor_replacement::{AnchorCleanupArgs, AnchorValidateArgs};
+use star_frame::bytemuck::Pod;
 use star_frame::idl::ty::TypeToIdl;
 use star_frame::idl::ProgramToIdl;
 use star_frame::star_frame_idl::{IdlDefinition, Version};
+use star_frame::sys_calls::SysCallInvoke;
 
 #[derive(AccountSet, Debug)]
 // #[account_set(skip_default_idl)]
@@ -105,16 +109,18 @@ pub struct ProcessEnlistPlayer<'info> {
     // )]
     // #[validate(arg = AnchorValidateArgs::default())]
     // #[cleanup(arg = AnchorCleanupArgs::default())]
-    // #[idl(arg = AnchorValidateArgs::default())]
     // pub player_faction_account: Account<'info, PlayerFactionData>,
     // TODO - How do we store/access the bump?
     // TODO - This isn't the right way to build this struct
-    #[validate(arg = SeedsWithBump<PlayerFactionAccountSeeds> {
-        seeds: PlayerFactionAccountSeeds {
-            player_account: player_account.key
-        },
-        bump: 255
-    })]
+    // #[validate(arg = (SeedsWithBump {
+    //     seeds: PlayerFactionAccountSeeds {
+    //         player_account: *self.player_account.key
+    //     },
+    //     bump: 255
+    // }, ()))]
+    #[validate(arg = (PlayerFactionAccountSeeds {
+    player_account: *self.player_account.key
+    }, ()))]
     pub player_faction_account:
         SeededAccount<DataAccount<'info, PlayerFactionData>, PlayerFactionAccountSeeds>,
     /// The player account
@@ -123,14 +129,25 @@ pub struct ProcessEnlistPlayer<'info> {
     /// Solana System program
     pub system_program: Program<'info, SystemProgram>,
 }
-
-#[derive(Debug, BorshSerialize, BorshDeserialize, TypeToIdl, AccountToIdl)]
+#[derive(Debug, Align1, Copy, Clone, Pod, Zeroable, TypeToIdl, AccountToIdl)]
+#[repr(C, packed)]
+// #[derive(AccountData)]
+// #[owner_program(FactionEnlistment)]
 pub struct PlayerFactionData {
     pub owner: Pubkey,
     pub enlisted_at_timestamp: i64,
     pub faction_id: u8,
     pub bump: u8,
     pub _padding: [u64; 5],
+}
+
+impl AccountData for PlayerFactionData {
+    type OwnerProgram = SystemProgram;
+    const DISCRIMINANT: <Self::OwnerProgram as StarFrameProgram>::AccountDiscriminant = ();
+
+    fn program_id() -> Pubkey {
+        todo!()
+    }
 }
 
 #[derive(Debug)]

@@ -1,6 +1,8 @@
 use crate::account_set::{
     AccountSet, AccountSetCleanup, AccountSetDecode, AccountSetValidate, SingleAccountSet,
 };
+use crate::sys_calls::SysCallInvoke;
+use crate::Result;
 use solana_program::account_info::AccountInfo;
 use solana_program::program_error::ProgramError;
 use solana_program::pubkey::Pubkey;
@@ -19,7 +21,14 @@ pub struct SeededAccount<T, S: Seeds> {
     // #[validate(arg = arg)]
     // #[cleanup(arg = arg)]
     account: T,
+    // #[account_set(skip)] - TODO - Make this a thing
     seeds: Option<SeedsWithBump<S>>,
+}
+
+impl<T, S: Seeds> SeededAccount<T, S> {
+    pub fn access_seeds(&self) -> &SeedsWithBump<S> {
+        self.seeds.as_ref().unwrap()
+    }
 }
 
 // TODO - Macro tries to implement these for both `account` and `seeds` but it blows up because
@@ -37,9 +46,9 @@ where
 }
 
 #[derive(Debug)]
-struct SeedsWithBump<T: Seeds> {
-    seeds: T,
-    bump: u8,
+pub struct SeedsWithBump<T: Seeds> {
+    pub seeds: T,
+    pub bump: u8,
 }
 
 // Traits
@@ -52,6 +61,8 @@ pub trait Seed {
 }
 
 // Implementations
+// TODO - impl deref to T
+// TODO - impl deref mut to T
 impl<T> Seeds for T
 where
     T: Seed,
@@ -63,19 +74,19 @@ where
 
 impl<T> Seeds for SeedsWithBump<T>
 where
-    T: Seed,
+    T: Seeds,
 {
     fn seeds(&self) -> Vec<&[u8]> {
-        vec![self.seeds.seed()]
+        self.seeds.seeds()
     }
 }
 
 impl<T> Seeds for &SeedsWithBump<T>
 where
-    T: Seed,
+    T: Seeds,
 {
     fn seeds(&self) -> Vec<&[u8]> {
-        vec![self.seeds.seed()]
+        self.seeds.seeds()
     }
 }
 
@@ -130,23 +141,52 @@ where
     }
 }
 #[automatically_derived]
-impl<'info, T, S> AccountSetValidate<'info, SeedsWithBump<S>> for SeededAccount<T, S>
+impl<'info, T, S, A> AccountSetValidate<'info, (SeedsWithBump<S>, A)> for SeededAccount<T, S>
 where
-    T: AccountSetValidate<'info, S> + SingleAccountSet<'info>,
+    T: AccountSetValidate<'info, A> + SingleAccountSet<'info>,
     S: Seeds,
 {
     fn validate_accounts(
         &mut self,
-        arg: SeedsWithBump<S>,
+        arg: (SeedsWithBump<S>, A),
         _sys_calls: &mut impl star_frame::sys_calls::SysCallInvoke,
     ) -> star_frame::Result<()> {
-        let arg_seeds = arg.seeds.seeds();
-        let arg_bump = arg.bump;
+        <T as AccountSetValidate<'info, _>>::validate_accounts(
+            &mut self.account,
+            arg.1,
+            _sys_calls,
+        )?;
+        let arg_seeds = arg.0.seeds.seeds();
+        let arg_bump = arg.0.bump;
         let (address, bump) = Pubkey::find_program_address(&arg_seeds, self.account_info().owner);
         if self.account.account_info().key != &address || arg_bump != bump {
             return Err(ProgramError::Custom(20));
         }
-        self.seeds = Some(arg);
+        self.seeds = Some(arg.0);
+        Ok(())
+    }
+}
+#[automatically_derived]
+impl<'info, T, A, S> AccountSetValidate<'info, (S, A)> for SeededAccount<T, S>
+where
+    T: AccountSetValidate<'info, A> + SingleAccountSet<'info>,
+    S: Seeds,
+{
+    fn validate_accounts(
+        &mut self,
+        validate_input: (S, A),
+        _sys_calls: &mut impl SysCallInvoke,
+    ) -> crate::Result<()> {
+        <T as AccountSetValidate<'info, _>>::validate_accounts(
+            &mut self.account,
+            validate_input.1,
+            _sys_calls,
+        )?;
+        let (address, bump) =
+            Pubkey::find_program_address(&validate_input.0.seeds(), self.account_info().owner);
+        if self.account.account_info().key != &address {
+            return Err(ProgramError::Custom(20));
+        }
         Ok(())
     }
 }
@@ -160,7 +200,29 @@ where
         arg: A,
         sys_calls: &mut impl star_frame::sys_calls::SysCallInvoke,
     ) -> star_frame::Result<()> {
-        <T as AccountSetCleanup<'info, _>>::cleanup_accounts(&mut self.account, arg, sys_calls)?;
+        // <T as AccountSetCleanup<'info, _>>::cleanup_accounts(&mut self.account, arg, sys_calls)?;
         Ok(())
+    }
+}
+#[cfg(feature = "idl")]
+mod idl_impl {
+    use super::*;
+    use star_frame::idl::AccountSetToIdl;
+    use star_frame_idl::account_set::IdlAccountSetDef;
+    use star_frame_idl::IdlDefinition;
+
+    impl<'info, T, A, S> AccountSetToIdl<'info, A> for SeededAccount<T, S>
+    where
+        T: AccountSetToIdl<'info, A> + SingleAccountSet<'info>,
+        S: Seeds,
+    {
+        fn account_set_to_idl(
+            idl_definition: &mut IdlDefinition,
+            arg: A,
+        ) -> Result<IdlAccountSetDef> {
+            T::account_set_to_idl(idl_definition, arg)
+                .map(Box::new)
+                .map(IdlAccountSetDef::SeededAccount)
+        }
     }
 }
