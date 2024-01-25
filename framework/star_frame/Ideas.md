@@ -75,6 +75,7 @@ auto compose(T a, T1 b) -> decltype(a + b) {
 #[end_constant(END)]
 struct CeritifacteSeeds{
     #[constant(CERTIFICATE_MINT)]
+    #[constant(ANOTHER_CONSTANT)]
     starbase: Pubkey,
     cargo_mint: Pubkey,
     seq_id: u8,
@@ -85,13 +86,13 @@ struct CeritifacteSeeds{
 impl Seeds for CeritifacteSeeds {
     fn seeds(&self) -> Vec<&[u8]> {
         vec![
-            CERTIFICATE_MINT.seed(),
+            path::to::Seed::seed(&CERTIFICATE_MINT),
             self.starbase.seed(),
             self.cargo_mint.seed(),
             self.seq_id.seed(),
-            GAME_FOLLOWS.seed(),
+            path::to::Seed::seed(&GAME_FOLLOWS),
             self.game_id.seed(),
-            END.seed(),
+            path::to::Seed::seed(&END),
         ]
     }
 }
