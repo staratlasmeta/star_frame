@@ -1,3 +1,4 @@
+use crate::account_set::data_account::AccountData;
 use crate::account_set::{
     AccountSet, AccountSetCleanup, AccountSetDecode, AccountSetValidate, SingleAccountSet,
 };
@@ -7,13 +8,14 @@ use bytemuck::Pod;
 use solana_program::account_info::AccountInfo;
 use solana_program::program_error::ProgramError;
 use solana_program::pubkey::Pubkey;
+use star_frame::account_set::data_account::DataAccount;
 use std::ops::{Deref, DerefMut};
 
-pub trait Seeds {
+pub trait GetSeeds {
     fn seeds(&self) -> Vec<&[u8]>;
 }
 
-impl<T> Seeds for T
+impl<T> GetSeeds for T
 where
     T: Seed,
 {
@@ -21,17 +23,17 @@ where
         vec![self.seed()]
     }
 }
-impl<T> Seeds for SeedsWithBump<T>
+impl<T> GetSeeds for SeedsWithBump<T>
 where
-    T: Seeds,
+    T: GetSeeds,
 {
     fn seeds(&self) -> Vec<&[u8]> {
         self.seeds.seeds()
     }
 }
-impl<T> Seeds for &SeedsWithBump<T>
+impl<T> GetSeeds for &SeedsWithBump<T>
 where
-    T: Seeds,
+    T: GetSeeds,
 {
     fn seeds(&self) -> Vec<&[u8]> {
         self.seeds.seeds()
@@ -52,20 +54,23 @@ where
 }
 
 #[derive(Debug)]
-pub struct SeedsWithBump<T: Seeds> {
+pub struct SeedsWithBump<T: GetSeeds> {
     pub seeds: T,
     pub bump: u8,
 }
 
+#[derive(Debug)]
+pub struct Seeds<T>(pub T);
+
 // Structs
 #[derive(Debug)]
-pub struct SeededAccount<T, S: Seeds> {
+pub struct SeededAccount<T, S: GetSeeds> {
     account: T,
     // #[account_set(skip)] - TODO - Make this a thing
     seeds: Option<SeedsWithBump<S>>,
 }
 
-impl<T, S: Seeds> SeededAccount<T, S> {
+impl<T, S: GetSeeds> SeededAccount<T, S> {
     pub fn access_seeds(&self) -> &SeedsWithBump<S> {
         self.seeds.as_ref().unwrap()
     }
@@ -78,7 +83,7 @@ impl<T, S: Seeds> SeededAccount<T, S> {
 impl<'info, T, S> SingleAccountSet<'info> for SeededAccount<T, S>
 where
     T: SingleAccountSet<'info>,
-    S: Seeds,
+    S: GetSeeds,
 {
     fn account_info(&self) -> &AccountInfo<'info> {
         self.account.account_info()
@@ -87,7 +92,7 @@ where
 
 // Implementations
 #[automatically_derived]
-impl<'info, T, S: Seeds> AccountSet<'info> for SeededAccount<T, S>
+impl<'info, T, S: GetSeeds> AccountSet<'info> for SeededAccount<T, S>
 where
     T: AccountSet<'info>,
 {
@@ -115,7 +120,7 @@ where
     }
 }
 #[automatically_derived]
-impl<'info, 'a, T, S: Seeds, A> AccountSetDecode<'a, 'info, A> for SeededAccount<T, S>
+impl<'info, 'a, T, S: GetSeeds, A> AccountSetDecode<'a, 'info, A> for SeededAccount<T, S>
 where
     T: AccountSetDecode<'a, 'info, A>,
 {
@@ -134,7 +139,7 @@ where
 impl<'info, T, S, A> AccountSetValidate<'info, (SeedsWithBump<S>, A)> for SeededAccount<T, S>
 where
     T: AccountSetValidate<'info, A> + SingleAccountSet<'info>,
-    S: Seeds,
+    S: GetSeeds,
 {
     fn validate_accounts(
         &mut self,
@@ -160,7 +165,7 @@ where
 impl<'info, T, A, S> AccountSetValidate<'info, (S, A)> for SeededAccount<T, S>
 where
     T: AccountSetValidate<'info, A> + SingleAccountSet<'info>,
-    S: Seeds,
+    S: GetSeeds,
 {
     fn validate_accounts(
         &mut self,
@@ -181,7 +186,7 @@ where
     }
 }
 #[automatically_derived]
-impl<'info, T, S: Seeds, A> AccountSetCleanup<'info, A> for SeededAccount<T, S>
+impl<'info, T, S: GetSeeds, A> AccountSetCleanup<'info, A> for SeededAccount<T, S>
 where
     T: AccountSetCleanup<'info, A>,
 {
@@ -190,14 +195,14 @@ where
         Ok(())
     }
 }
-impl<T, S: Seeds> Deref for SeededAccount<T, S> {
+impl<T, S: GetSeeds> Deref for SeededAccount<T, S> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
         &self.account
     }
 }
-impl<T, S: Seeds> DerefMut for SeededAccount<T, S> {
+impl<T, S: GetSeeds> DerefMut for SeededAccount<T, S> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.account
     }
@@ -212,7 +217,7 @@ mod idl_impl {
     impl<'info, T, A, S> AccountSetToIdl<'info, A> for SeededAccount<T, S>
     where
         T: AccountSetToIdl<'info, A> + SingleAccountSet<'info>,
-        S: Seeds,
+        S: GetSeeds,
     {
         fn account_set_to_idl(
             idl_definition: &mut IdlDefinition,
@@ -224,3 +229,20 @@ mod idl_impl {
         }
     }
 }
+
+pub trait SeededAccountData: AccountData {
+    type Seeds: GetSeeds;
+}
+
+#[derive(AccountSet, Debug)]
+#[validate(arg = (T::Seeds,))]
+#[validate(id="wo_bump", arg = Seeds<T::Seeds>)]
+#[validate(id="with_bump", arg = SeedsWithBump<T::Seeds>)]
+pub struct SeededDataAccount<'info, T>(
+    #[validate(arg = (arg.0, ()))]
+    #[validate(id="wo_bump", arg = (arg.0, ()))]
+    #[validate(id="with_bump", arg = (arg, ()))]
+    SeededAccount<DataAccount<'info, T>, T::Seeds>,
+)
+where
+    T: SeededAccountData;

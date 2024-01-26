@@ -1,10 +1,12 @@
 #![allow(clippy::result_large_err)]
 
 use bytemuck::Zeroable;
-use star_frame::account_set::data_account::{AccountData, DataAccount};
+use star_frame::account_set::data_account::AccountData;
 use star_frame::account_set::mutable::Writable;
 use star_frame::account_set::program::Program;
-use star_frame::account_set::seeded_account::{Seed, SeededAccount, Seeds};
+use star_frame::account_set::seeded_account::{
+    GetSeeds, Seed, SeededAccountData, SeededDataAccount, Seeds,
+};
 use star_frame::account_set::signer::Signer;
 use star_frame::account_set::{AccountSet, AccountToIdl};
 use star_frame::align1::Align1;
@@ -113,11 +115,11 @@ pub struct ProcessEnlistPlayer<'info> {
     //     },
     //     bump: 255
     // }, ()))]
-    #[validate(arg = (PlayerFactionAccountSeeds {
+    // Trailing comma is super important here
+    #[validate(arg = Seeds(PlayerFactionAccountSeeds {
     player_account: *self.player_account.key
-    }, ()))]
-    pub player_faction_account:
-        SeededAccount<DataAccount<'info, PlayerFactionData>, PlayerFactionAccountSeeds>,
+    }))]
+    pub player_faction_account: SeededDataAccount<'info, PlayerFactionData>,
     /// The player account
     pub player_account: Signer<Writable<AccountInfo<'info>>>,
 
@@ -145,13 +147,17 @@ impl AccountData for PlayerFactionData {
     }
 }
 
+impl SeededAccountData for PlayerFactionData {
+    type Seeds = PlayerFactionAccountSeeds;
+}
+
 #[derive(Debug)]
 pub struct PlayerFactionAccountSeeds {
     // #[constant(FACTION_ENLISTMENT)]
     player_account: Pubkey,
 }
 
-impl Seeds for PlayerFactionAccountSeeds {
+impl GetSeeds for PlayerFactionAccountSeeds {
     fn seeds(&self) -> Vec<&[u8]> {
         vec![b"FACTION_ENLISTMENT".as_ref(), self.player_account.seed()]
     }
