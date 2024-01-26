@@ -63,7 +63,7 @@ mod stuff {
 }
 ```
 
-```swagger codegen
+```c
 template <typename T, typename T1> 
 auto compose(T a, T1 b) -> decltype(a + b) {
    return a+b;

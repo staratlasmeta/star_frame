@@ -3,6 +3,7 @@ use crate::account_set::{
 };
 use crate::sys_calls::SysCallInvoke;
 use crate::Result;
+use bytemuck::Pod;
 use solana_program::account_info::AccountInfo;
 use solana_program::program_error::ProgramError;
 use solana_program::pubkey::Pubkey;
@@ -10,17 +11,7 @@ use std::ops::{Deref, DerefMut};
 
 // Structs
 #[derive(Debug)]
-// #[derive(AccountSet, Debug)]
-// #[account_set(skip_default_idl, generics = [where T: AccountSet<'info>])]
-// #[decode(generics = [<A> where T: AccountSetDecode<'a, 'info, A>], arg = A)]
-// #[validate(
-// generics = [<A> where T: AccountSetValidate<'info, A> + SingleAccountSet<'info>], arg = A,
-// )]
-// #[cleanup(generics = [<A> where T: AccountSetCleanup<'info, A>], arg = A)]
 pub struct SeededAccount<T, S: Seeds> {
-    // #[decode(arg = arg)]
-    // #[validate(arg = arg)]
-    // #[cleanup(arg = arg)]
     account: T,
     // #[account_set(skip)] - TODO - Make this a thing
     seeds: Option<SeedsWithBump<S>>,
@@ -62,8 +53,6 @@ pub trait Seed {
 }
 
 // Implementations
-// TODO - impl deref to T
-// TODO - impl deref mut to T
 impl<T> Seeds for T
 where
     T: Seed,
@@ -72,7 +61,6 @@ where
         vec![self.seed()]
     }
 }
-
 impl<T> Seeds for SeedsWithBump<T>
 where
     T: Seeds,
@@ -81,7 +69,6 @@ where
         self.seeds.seeds()
     }
 }
-
 impl<T> Seeds for &SeedsWithBump<T>
 where
     T: Seeds,
@@ -91,9 +78,12 @@ where
     }
 }
 
-impl Seed for Pubkey {
+impl<T> Seed for T
+where
+    T: Pod,
+{
     fn seed(&self) -> &[u8] {
-        self.as_ref()
+        bytemuck::bytes_of(self)
     }
 }
 
@@ -133,8 +123,8 @@ where
     fn decode_accounts(
         accounts: &mut &'a [AccountInfo<'info>],
         decode_input: A,
-        sys_calls: &mut impl star_frame::sys_calls::SysCallInvoke,
-    ) -> crate::Result<Self> {
+        sys_calls: &mut impl SysCallInvoke,
+    ) -> Result<Self> {
         Ok(Self {
             account: T::decode_accounts(accounts, decode_input, sys_calls)?,
             seeds: None,
@@ -150,8 +140,8 @@ where
     fn validate_accounts(
         &mut self,
         arg: (SeedsWithBump<S>, A),
-        _sys_calls: &mut impl star_frame::sys_calls::SysCallInvoke,
-    ) -> star_frame::Result<()> {
+        _sys_calls: &mut impl SysCallInvoke,
+    ) -> Result<()> {
         <T as AccountSetValidate<'info, _>>::validate_accounts(
             &mut self.account,
             arg.1,
@@ -177,13 +167,13 @@ where
         &mut self,
         validate_input: (S, A),
         _sys_calls: &mut impl SysCallInvoke,
-    ) -> crate::Result<()> {
+    ) -> Result<()> {
         <T as AccountSetValidate<'info, _>>::validate_accounts(
             &mut self.account,
             validate_input.1,
             _sys_calls,
         )?;
-        let (address, bump) =
+        let (address, _bump) =
             Pubkey::find_program_address(&validate_input.0.seeds(), self.account_info().owner);
         if self.account.account_info().key != &address {
             return Err(ProgramError::Custom(20));
@@ -196,12 +186,8 @@ impl<'info, T, S: Seeds, A> AccountSetCleanup<'info, A> for SeededAccount<T, S>
 where
     T: AccountSetCleanup<'info, A>,
 {
-    fn cleanup_accounts(
-        &mut self,
-        arg: A,
-        sys_calls: &mut impl star_frame::sys_calls::SysCallInvoke,
-    ) -> star_frame::Result<()> {
-        // <T as AccountSetCleanup<'info, _>>::cleanup_accounts(&mut self.account, arg, sys_calls)?;
+    fn cleanup_accounts(&mut self, arg: A, sys_calls: &mut impl SysCallInvoke) -> Result<()> {
+        <T as AccountSetCleanup<'info, _>>::cleanup_accounts(&mut self.account, arg, sys_calls)?;
         Ok(())
     }
 }
