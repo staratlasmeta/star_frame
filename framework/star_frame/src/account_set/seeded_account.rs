@@ -9,6 +9,54 @@ use solana_program::program_error::ProgramError;
 use solana_program::pubkey::Pubkey;
 use std::ops::{Deref, DerefMut};
 
+pub trait Seeds {
+    fn seeds(&self) -> Vec<&[u8]>;
+}
+
+impl<T> Seeds for T
+where
+    T: Seed,
+{
+    fn seeds(&self) -> Vec<&[u8]> {
+        vec![self.seed()]
+    }
+}
+impl<T> Seeds for SeedsWithBump<T>
+where
+    T: Seeds,
+{
+    fn seeds(&self) -> Vec<&[u8]> {
+        self.seeds.seeds()
+    }
+}
+impl<T> Seeds for &SeedsWithBump<T>
+where
+    T: Seeds,
+{
+    fn seeds(&self) -> Vec<&[u8]> {
+        self.seeds.seeds()
+    }
+}
+
+pub trait Seed {
+    fn seed(&self) -> &[u8];
+}
+
+impl<T> Seed for T
+where
+    T: Pod,
+{
+    fn seed(&self) -> &[u8] {
+        bytemuck::bytes_of(self)
+    }
+}
+
+#[derive(Debug)]
+pub struct SeedsWithBump<T: Seeds> {
+    pub seeds: T,
+    pub bump: u8,
+}
+
 // Structs
 #[derive(Debug)]
 pub struct SeededAccount<T, S: Seeds> {
@@ -37,56 +85,7 @@ where
     }
 }
 
-#[derive(Debug)]
-pub struct SeedsWithBump<T: Seeds> {
-    pub seeds: T,
-    pub bump: u8,
-}
-
-// Traits
-pub trait Seeds {
-    fn seeds(&self) -> Vec<&[u8]>;
-}
-
-pub trait Seed {
-    fn seed(&self) -> &[u8];
-}
-
 // Implementations
-impl<T> Seeds for T
-where
-    T: Seed,
-{
-    fn seeds(&self) -> Vec<&[u8]> {
-        vec![self.seed()]
-    }
-}
-impl<T> Seeds for SeedsWithBump<T>
-where
-    T: Seeds,
-{
-    fn seeds(&self) -> Vec<&[u8]> {
-        self.seeds.seeds()
-    }
-}
-impl<T> Seeds for &SeedsWithBump<T>
-where
-    T: Seeds,
-{
-    fn seeds(&self) -> Vec<&[u8]> {
-        self.seeds.seeds()
-    }
-}
-
-impl<T> Seed for T
-where
-    T: Pod,
-{
-    fn seed(&self) -> &[u8] {
-        bytemuck::bytes_of(self)
-    }
-}
-
 #[automatically_derived]
 impl<'info, T, S: Seeds> AccountSet<'info> for SeededAccount<T, S>
 where
