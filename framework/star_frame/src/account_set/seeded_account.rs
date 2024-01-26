@@ -6,6 +6,7 @@ use crate::Result;
 use solana_program::account_info::AccountInfo;
 use solana_program::program_error::ProgramError;
 use solana_program::pubkey::Pubkey;
+use std::ops::{Deref, DerefMut};
 
 // Structs
 #[derive(Debug)]
@@ -202,6 +203,18 @@ where
     ) -> star_frame::Result<()> {
         // <T as AccountSetCleanup<'info, _>>::cleanup_accounts(&mut self.account, arg, sys_calls)?;
         Ok(())
+    }
+}
+impl<T, S: Seeds> Deref for SeededAccount<T, S> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.account
+    }
+}
+impl<T, S: Seeds> DerefMut for SeededAccount<T, S> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.account
     }
 }
 #[cfg(feature = "idl")]
