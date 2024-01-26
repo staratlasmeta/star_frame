@@ -33,6 +33,7 @@ pub enum IdlAccountSetDef {
     RawAccount(IdlRawInputAccount),
     Signer(Box<IdlAccountSetDef>),
     Writable(Box<IdlAccountSetDef>),
+    SeededAccount(Box<IdlAccountSetDef>),
     Struct(Vec<IdlAccountSetStructField>),
     Many {
         account: Box<IdlAccountSetDef>,

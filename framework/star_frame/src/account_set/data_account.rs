@@ -1,4 +1,4 @@
-use crate::account_set::AccountSet;
+use crate::account_set::{AccountSet, SingleAccountSet};
 use crate::packed_value::PackedValue;
 use crate::program::StarFrameProgram;
 use crate::serialize::{FrameworkFromBytes, FrameworkFromBytesMut};
@@ -47,10 +47,9 @@ where
 
 #[derive(AccountSet, Debug)]
 #[validate(
-    generics = [<> where T: AccountData],
     extra_validation = validate_data_account(self),
 )]
-pub struct DataAccount<'info, T> {
+pub struct DataAccount<'info, T: AccountData> {
     info: AccountInfo<'info>,
     phantom_t: PhantomData<T>,
 }
@@ -133,6 +132,15 @@ where
             &<T::OwnerProgram as StarFrameProgram>::CLOSED_ACCOUNT_DISCRIMINANT,
         ));
         Ok(())
+    }
+}
+
+impl<'info, T> SingleAccountSet<'info> for DataAccount<'info, T>
+where
+    T: AccountData,
+{
+    fn account_info(&self) -> &AccountInfo<'info> {
+        &self.info
     }
 }
 
