@@ -45,30 +45,6 @@ where
     Ok(())
 }
 
-// #[automatically_derived]
-// impl<'info, 'a, T> star_frame::account_set::AccountSetDecode<'a, 'info, ()>
-//     for DataAccount<'info, T>
-// {
-//     fn decode_accounts(
-//         accounts: &mut &'a [star_frame::solana_program::account_info::AccountInfo<'info>],
-//         arg: (),
-//         sys_calls: &mut impl star_frame::sys_calls::SysCallInvoke,
-//     ) -> star_frame::Result<Self> {
-//         Ok(DataAccount {
-//             info: <AccountInfo<'info> as star_frame::account_set::AccountSetDecode<
-//                 'a,
-//                 'info,
-//                 _,
-//             >>::decode_accounts(accounts, (), sys_calls)?,
-//             phantom_t: <PhantomData<T> as star_frame::account_set::AccountSetDecode<
-//                 'a,
-//                 'info,
-//                 _,
-//             >>::decode_accounts(accounts, (), sys_calls)?,
-//         })
-//     }
-// }
-
 #[derive(AccountSet, Debug)]
 #[validate(
     extra_validation = validate_data_account(self),
