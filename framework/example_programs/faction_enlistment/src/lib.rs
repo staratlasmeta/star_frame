@@ -91,7 +91,9 @@ impl ProgramToIdl for FactionEnlistment {
 use star_frame::bytemuck::Pod;
 use star_frame::idl::ty::TypeToIdl;
 use star_frame::idl::ProgramToIdl;
+use star_frame::instruction::{FrameworkInstruction, Instruction, InstructionSet};
 use star_frame::star_frame_idl::{IdlDefinition, Version};
+use star_frame::sys_calls::{SysCallInvoke, SysCalls};
 
 #[derive(AccountSet, Debug)]
 // #[account_set(skip_default_idl)]
@@ -117,7 +119,7 @@ pub struct ProcessEnlistPlayer<'info> {
     // }, ()))]
     // Trailing comma is super important here
     #[validate(arg = Seeds(PlayerFactionAccountSeeds {
-    player_account: *self.player_account.key
+        player_account: *self.player_account.key
     }))]
     pub player_faction_account: SeededDataAccount<'info, PlayerFactionData>,
     /// The player account
@@ -138,6 +140,7 @@ pub struct PlayerFactionData {
     pub _padding: [u64; 5],
 }
 
+// TODO - Macro should derive this and with the idl feature enabled would also derive `AccountToIdl` and `TypeToIdl`
 impl AccountData for PlayerFactionData {
     type OwnerProgram = SystemProgram;
     const DISCRIMINANT: <Self::OwnerProgram as StarFrameProgram>::AccountDiscriminant = ();
@@ -157,6 +160,7 @@ pub struct PlayerFactionAccountSeeds {
     player_account: Pubkey,
 }
 
+// TODO - Macro this
 impl GetSeeds for PlayerFactionAccountSeeds {
     fn seeds(&self) -> Vec<&[u8]> {
         vec![b"FACTION_ENLISTMENT".as_ref(), self.player_account.seed()]
@@ -167,7 +171,7 @@ impl GetSeeds for PlayerFactionAccountSeeds {
 maybe require manual implementation if you want something else for now? */
 // Why can't you do multi line TODOs?
 impl ProgramAccount for PlayerFactionData {
-    type OwnerProgram = FactionEnlistment;
+    type OwnerProgram = crate::StarFrameDeclaredProgram;
 
     fn discriminant() -> [u8; 8] {
         Default::default()

@@ -21,7 +21,7 @@ pub extern crate static_assertions;
 
 pub mod account_set;
 pub mod align1;
-pub mod anchor_replacement;
+mod entrypoint;
 #[cfg(feature = "idl")]
 pub mod idl;
 pub mod impls;
