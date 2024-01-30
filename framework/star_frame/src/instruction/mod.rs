@@ -89,7 +89,7 @@ pub trait FrameworkInstruction<'a>: FrameworkFromBytes<'a> {
     fn run_instruction(
         run_arg: Self::RunArg,
         program_id: &Pubkey,
-        account_set: &Self::Accounts<'_, '_>,
+        account_set: &mut Self::Accounts<'_, '_>,
         sys_calls: &mut impl SysCallInvoke,
     ) -> Result<Self::ReturnType>;
 }
@@ -112,7 +112,7 @@ where
             )?;
             Self::extra_validations(&account_set, &validate, sys_calls)?;
             account_set.validate_accounts(validate, sys_calls)?;
-            let ret = Self::run_instruction(run, program_id, &account_set, sys_calls)?;
+            let ret = Self::run_instruction(run, program_id, &mut account_set, sys_calls)?;
             account_set.cleanup_accounts(cleanup, sys_calls)?;
             let mut return_data = vec![0u8; MAX_RETURN_DATA];
             let mut return_data_ref = &mut return_data[..];

@@ -177,11 +177,15 @@ where
             validate_input.1,
             _sys_calls,
         )?;
-        let (address, _bump) =
+        let (address, bump) =
             Pubkey::find_program_address(&validate_input.0.seeds(), self.account_info().owner);
         if self.account.account_info().key != &address {
             return Err(ProgramError::Custom(20));
         }
+        self.seeds = Some(SeedsWithBump {
+            seeds: validate_input.0,
+            bump,
+        });
         Ok(())
     }
 }
@@ -246,3 +250,22 @@ pub struct SeededDataAccount<'info, T>(
 )
 where
     T: SeededAccountData;
+
+impl<'info, T> Deref for SeededDataAccount<'info, T>
+where
+    T: SeededAccountData,
+{
+    type Target = SeededAccount<DataAccount<'info, T>, T::Seeds>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl<'info, T> DerefMut for SeededDataAccount<'info, T>
+where
+    T: SeededAccountData,
+{
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
