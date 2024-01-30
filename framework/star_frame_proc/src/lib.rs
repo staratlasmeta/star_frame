@@ -5,6 +5,7 @@ mod account_set;
 mod framework_instruction;
 mod instruction_set;
 mod solana_pubkey;
+#[cfg(feature = "idl")]
 mod ty;
 mod unit_enum_from_repr;
 mod unsized_type;
@@ -226,7 +227,16 @@ pub fn derive_instruction_set_to_idl(item: proc_macro::TokenStream) -> proc_macr
 #[proc_macro_error]
 #[proc_macro_derive(TypeToIdl, attributes(program))]
 pub fn derive_type_to_idl(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let out = ty::derive_type_to_idl(&parse_macro_input!(item as DeriveInput));
+    let out = {
+        #[cfg(feature = "idl")]
+        {
+            ty::derive_type_to_idl(&parse_macro_input!(item as DeriveInput))
+        }
+        #[cfg(not(feature = "idl"))]
+        {
+            TokenStream::default()
+        }
+    };
     // #[cfg(feature = "debug_type_to_idl")]
     // {
     //     println!("HELLO FROM THE MACRO");

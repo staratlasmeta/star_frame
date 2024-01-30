@@ -1,7 +1,6 @@
 pub mod un_callable;
 
 pub use star_frame_proc::FrameworkInstruction;
-pub use star_frame_proc::InstructionSetToIdl;
 
 use crate::account_set::{AccountSetCleanup, AccountSetDecode, AccountSetValidate};
 use crate::serialize::FrameworkFromBytes;

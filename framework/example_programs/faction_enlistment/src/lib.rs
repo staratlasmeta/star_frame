@@ -63,6 +63,76 @@ impl ProgramToIdl for FactionEnlistment {
     }
 }
 
+pub enum FactionEnlistmentInstructionSet<'a> {
+    ProcessEnlistPlayer(&'a ProcessEnlistPlayerIx),
+}
+
+impl<'a> InstructionSet<'a> for FactionEnlistmentInstructionSet<'a> {
+    type Discriminant = ();
+
+    fn handle_ix(
+        self,
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        sys_calls: &mut impl SysCalls,
+    ) -> Result<()> {
+        match self {
+            FactionEnlistmentInstructionSet::ProcessEnlistPlayer(ix) => {
+                ix.run_ix_from_raw(program_id, accounts, sys_calls)
+            }
+        }
+    }
+}
+
+#[derive(Copy, Clone, Zeroable, Align1, Pod)]
+#[repr(C, packed)]
+pub struct ProcessEnlistPlayerIx {
+    _bump: u8,
+    faction_id: u8,
+}
+
+impl<'a> FrameworkInstruction<'a> for &'a ProcessEnlistPlayerIx {
+    type DecodeArg = ();
+    type ValidateArg = ();
+    type RunArg = u8;
+    type CleanupArg = ();
+    type ReturnType = ();
+    type Accounts<'b, 'info> = ProcessEnlistPlayer<'info>
+        where 'info: 'b;
+
+    fn split_to_args(
+        self,
+    ) -> (
+        Self::DecodeArg,
+        Self::ValidateArg,
+        Self::RunArg,
+        Self::CleanupArg,
+    ) {
+        todo!()
+    }
+
+    fn run_instruction(
+        faction_id: Self::RunArg,
+        program_id: &Pubkey,
+        account_set: &Self::Accounts<'_, '_>,
+        sys_calls: &mut impl SysCallInvoke,
+    ) -> Result<Self::ReturnType> {
+        match faction_id {
+            0..=2 => {
+                let player_faction_account_info = &mut ctx.accounts.player_faction_account;
+                player_faction_account_info.owner = ctx.accounts.player_account.key();
+                player_faction_account_info.enlisted_at_timestamp =
+                    ctx.accounts.clock.unix_timestamp;
+                player_faction_account_info.faction_id = faction_id;
+                player_faction_account_info.bump =
+                    *ctx.bumps.get("player_faction_account").unwrap();
+                Ok(())
+            }
+            _ => Err(error!(FactionErrors::FactionTypeError)),
+        }
+    }
+}
+
 // pub mod faction_enlistment {
 //     use super::*;
 //     pub fn process_enlist_player(

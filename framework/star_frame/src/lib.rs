@@ -27,6 +27,7 @@ pub mod idl;
 pub mod impls;
 pub mod instruction;
 pub mod packed_value;
+pub mod prelude;
 pub mod program;
 pub mod program_account;
 pub mod serialize;

@@ -41,7 +41,7 @@ pub struct Paths {
     pub account_set_cleanup: TokenStream,
     pub sys_call_invoke: TokenStream,
     pub system_program: TokenStream,
-    #[cfg(feature = "idl")]
+    // #[cfg(feature = "idl")]
     pub account_to_idl: TokenStream,
     #[cfg(feature = "idl")]
     pub account_set_to_idl: TokenStream,
