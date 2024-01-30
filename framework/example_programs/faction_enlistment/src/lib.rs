@@ -114,18 +114,18 @@ impl<'a> FrameworkInstruction<'a> for &'a ProcessEnlistPlayerIx {
     fn run_instruction(
         faction_id: Self::RunArg,
         program_id: &Pubkey,
-        account_set: &Self::Accounts<'_, '_>,
+        account_set: &mut Self::Accounts<'_, '_>,
         sys_calls: &mut impl SysCallInvoke,
     ) -> Result<Self::ReturnType> {
         match faction_id {
             0..=2 => {
-                let player_faction_account_info = &mut ctx.accounts.player_faction_account;
-                player_faction_account_info.owner = ctx.accounts.player_account.key();
-                player_faction_account_info.enlisted_at_timestamp =
-                    ctx.accounts.clock.unix_timestamp;
+                let clock = sys_calls.get_clock()?;
+                let player_faction_account_info = account_set.player_faction_account.data_mut()?;
+                player_faction_account_info.owner = *account_set.player_account.key;
+                player_faction_account_info.enlisted_at_timestamp = clock.unix_timestamp;
                 player_faction_account_info.faction_id = faction_id;
                 player_faction_account_info.bump =
-                    *ctx.bumps.get("player_faction_account").unwrap();
+                    *account_set.player_faction_account.access_seeds().bump;
                 Ok(())
             }
             _ => Err(error!(FactionErrors::FactionTypeError)),
@@ -162,6 +162,7 @@ use star_frame::bytemuck::Pod;
 use star_frame::idl::ty::TypeToIdl;
 use star_frame::idl::ProgramToIdl;
 use star_frame::instruction::{FrameworkInstruction, Instruction, InstructionSet};
+use star_frame::solana_program::clock::Clock;
 use star_frame::star_frame_idl::{IdlDefinition, Version};
 use star_frame::sys_calls::{SysCallInvoke, SysCalls};
 
