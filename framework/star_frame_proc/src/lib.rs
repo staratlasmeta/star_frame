@@ -219,6 +219,7 @@ pub fn derive_instruction_set_to_idl(item: proc_macro::TokenStream) -> proc_macr
     let out = instruction_set::derive_instruction_set_to_idl_impl(parse_macro_input!(
         item as DeriveInput
     ));
+    // println!("{}", out);
     out.into()
 }
 

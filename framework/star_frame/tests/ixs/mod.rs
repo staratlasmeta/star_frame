@@ -6,14 +6,14 @@ use star_frame::instruction::InstructionSet;
 use star_frame::sys_calls::SysCalls;
 use star_frame::unit_enum_from_repr::UnitEnumFromRepr;
 use star_frame::Result;
+use star_frame_proc::InstructionSetToIdl;
 use strum::EnumDiscriminants;
 
 pub mod test_ix1;
 pub mod test_ix2;
 
-#[derive(EnumDiscriminants, InstructionSet)]
+#[derive(EnumDiscriminants, InstructionSetToIdl)]
 #[strum_discriminants(repr(u32), derive(UnitEnumFromRepr))]
-#[repr(u8)]
 pub enum TestProgramInstructions<'a> {
     /// The first test instruction
     TestInstruction1(&'a TestInstruction1),

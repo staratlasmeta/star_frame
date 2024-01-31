@@ -250,9 +250,10 @@ fn derive_instruction_set_to_idl_impl_enum(
     input: StrippedDeriveInput,
 ) -> TokenStream {
     let Paths {
-        instruction_set_to_idl,
-        idl_instruction,
         idl_definition,
+        idl_instruction,
+        instruction_set_to_idl,
+        instruction_to_idl,
         result,
         ..
     } = paths;
@@ -296,7 +297,7 @@ fn derive_instruction_set_to_idl_impl_enum(
         impl<'a> #instruction_set_to_idl<'a> for #ident<'a> {
             fn instruction_set_to_idl(idl_definition: &mut #idl_definition) -> #result<()> {
                 #(
-                    let #variant_snake_names = <&'a #variant_names>::instruction_to_idl(idl_definition, ())?;
+                    let #variant_snake_names = <&'a #variant_names as #instruction_to_idl<_>>::instruction_to_idl(idl_definition, ())?;
                     idl_definition.instructions.insert(
                         #variant_snake_str.to_string(),
                         #idl_instruction {
