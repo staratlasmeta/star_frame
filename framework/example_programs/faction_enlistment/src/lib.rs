@@ -14,6 +14,7 @@ use star_frame::program::system_program::SystemProgram;
 use star_frame::program::{ProgramIds, StarFrameProgram};
 use star_frame::program_account::ProgramAccount;
 use star_frame::solana_program::account_info::AccountInfo;
+use star_frame::solana_program::program_error::ProgramError;
 use star_frame::solana_program::pubkey::Pubkey;
 use star_frame::util::Network;
 use star_frame::Result;
@@ -113,10 +114,13 @@ impl<'a> FrameworkInstruction<'a> for &'a ProcessEnlistPlayerIx {
 
     fn run_instruction<'b, 'info>(
         faction_id: Self::RunArg,
-        program_id: &Pubkey,
-        account_set: &mut Self::Accounts<'_, '_>,
+        _program_id: &Pubkey,
+        account_set: &mut Self::Accounts<'b, 'info>,
         sys_calls: &mut impl SysCallInvoke,
-    ) -> Result<Self::ReturnType> {
+    ) -> Result<Self::ReturnType>
+    where
+        'info: 'b,
+    {
         match faction_id {
             0..=2 => {
                 let clock = sys_calls.get_clock()?;
@@ -128,7 +132,7 @@ impl<'a> FrameworkInstruction<'a> for &'a ProcessEnlistPlayerIx {
                     *account_set.player_faction_account.access_seeds().bump;
                 Ok(())
             }
-            _ => Err(error!(FactionErrors::FactionTypeError)),
+            _ => Err(ProgramError::Custom(69)),
         }
     }
 }
@@ -162,7 +166,6 @@ use star_frame::bytemuck::Pod;
 use star_frame::idl::ty::TypeToIdl;
 use star_frame::idl::ProgramToIdl;
 use star_frame::instruction::{FrameworkInstruction, Instruction, InstructionSet};
-use star_frame::solana_program::clock::Clock;
 use star_frame::star_frame_idl::{IdlDefinition, Version};
 use star_frame::sys_calls::{SysCallInvoke, SysCalls};
 
