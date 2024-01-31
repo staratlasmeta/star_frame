@@ -124,12 +124,15 @@ impl<'a> FrameworkInstruction<'a> for &'a ProcessEnlistPlayerIx {
         match faction_id {
             0..=2 => {
                 let clock = sys_calls.get_clock()?;
-                let player_faction_account_info = account_set.player_faction_account.data_mut()?;
-                player_faction_account_info.owner = *account_set.player_account.key;
-                player_faction_account_info.enlisted_at_timestamp = clock.unix_timestamp;
-                player_faction_account_info.faction_id = faction_id;
-                player_faction_account_info.bump =
-                    *account_set.player_faction_account.access_seeds().bump;
+
+                let bump = account_set.player_faction_account.access_seeds().bump;
+                **account_set.player_faction_account.data_mut()? = PlayerFactionData {
+                    owner: *account_set.player_account.key,
+                    enlisted_at_timestamp: clock.unix_timestamp,
+                    faction_id,
+                    bump,
+                    _padding: [0; 5],
+                };
                 Ok(())
             }
             _ => Err(ProgramError::Custom(69)),

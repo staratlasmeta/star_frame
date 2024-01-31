@@ -26,7 +26,7 @@ impl<'a, 'info> AccountSetDecode<'a, 'info, ()> for () {
         _accounts: &mut &'a [AccountInfo],
         decode_input: (),
         _sys_calls: &mut impl SysCallInvoke,
-    ) -> Result<Self, ProgramError> {
+    ) -> Result<Self> {
         Ok(decode_input)
     }
 }
@@ -35,7 +35,7 @@ impl<'info> AccountSetValidate<'info, ()> for () {
         &mut self,
         validate_input: (),
         _sys_calls: &mut impl SysCallInvoke,
-    ) -> Result<(), ProgramError> {
+    ) -> Result<()> {
         Ok(validate_input)
     }
 }
@@ -45,7 +45,7 @@ impl<'info> AccountSetCleanup<'info, ()> for () {
         &mut self,
         cleanup_input: (),
         _sys_calls: &mut impl SysCallInvoke,
-    ) -> Result<(), ProgramError> {
+    ) -> Result<()> {
         Ok(cleanup_input)
     }
 }
@@ -58,7 +58,7 @@ impl<'a> InstructionSet<'a> for () {
         _program_id: &Pubkey,
         _accounts: &[AccountInfo],
         _sys_calls: &mut impl SysCalls,
-    ) -> ProgramResult {
+    ) -> Result<()> {
         Ok(())
     }
 }

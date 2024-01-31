@@ -60,10 +60,7 @@ impl<'info> SingleAccountSet<'info> for AccountInfo<'info> {
         self.is_writable
     }
 
-    fn key<'a>(&'a self) -> &'a Pubkey
-    where
-        'info: 'a,
-    {
+    fn key(&self) -> &'info Pubkey {
         self.key
     }
 
@@ -107,10 +104,7 @@ impl<'__a, 'info> SingleAccountSet<'info> for &'__a AccountInfo<'info> {
         self.is_writable
     }
 
-    fn key<'a>(&'a self) -> &'a Pubkey
-    where
-        'info: 'a,
-    {
+    fn key(&self) -> &'info Pubkey {
         self.key
     }
 

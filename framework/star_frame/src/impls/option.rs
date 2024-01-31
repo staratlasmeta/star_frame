@@ -198,6 +198,7 @@ where
 
 mod idl_impl {
     use crate::idl::AccountSetToIdl;
+    use crate::Result;
     use star_frame_idl::account_set::IdlAccountSetDef;
     use star_frame_idl::IdlDefinition;
 
