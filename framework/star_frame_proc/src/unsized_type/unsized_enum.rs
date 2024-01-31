@@ -12,7 +12,7 @@ use syn::{
 pub fn unsized_enum_impl(input: ItemEnum, args: TokenStream) -> TokenStream {
     let vis = &input.vis;
     let paths = Paths::default();
-    verify_repr(&input.attrs, parse_quote! { u8 }, false);
+    verify_repr(&input.attrs, [parse_quote! { u8 }], false, false);
     let idents = Idents::generate_idents(input.ident, args);
     let last_discriminant = &mut None;
     let variants = input

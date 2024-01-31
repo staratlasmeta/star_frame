@@ -25,7 +25,7 @@ pub trait FrameworkSerialize {
 }
 impl<'a, T> FrameworkSerialize for &'a T
 where
-    T: Align1 + Pod,
+    T: Pod,
 {
     fn to_bytes(&self, output: &mut &mut [u8]) -> Result<()> {
         output
@@ -36,7 +36,7 @@ where
 }
 impl<'a, T> FrameworkSerialize for &'a mut T
 where
-    T: Align1 + Pod,
+    T: Pod,
 {
     fn to_bytes(&self, output: &mut &mut [u8]) -> Result<()> {
         output
