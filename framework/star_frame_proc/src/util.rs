@@ -323,6 +323,11 @@ pub fn verify_repr(
                 abort!(repr_ty, "Unexpected repr type: {}", quote! { #repr_ty });
             }
         }
+        for (r, found) in repr_required {
+            if !found {
+                abort_call_site!("Missing #[repr({:?})] attribute", r);
+            }
+        }
         repr_ty
     } else if require_present {
         abort_call_site!(
