@@ -29,7 +29,8 @@ impl Idents {
 }
 
 pub fn unsized_struct_impl(item: ItemStruct, args: TokenStream) -> TokenStream {
-    verify_repr(&item.attrs, parse_quote! { C }, true);
+    let reprs = verify_repr(&item.attrs, [format_ident!("C")], true, true);
+    let use_packed = reprs.iter().any(|repr| *repr == "packed");
     let vis = item.vis;
     let Idents {
         ident,
@@ -52,7 +53,6 @@ pub fn unsized_struct_impl(item: ItemStruct, args: TokenStream) -> TokenStream {
 
     let Paths {
         advance,
-        align1,
         box_ty,
         build_pointer,
         build_pointer_mut,
@@ -114,6 +114,11 @@ pub fn unsized_struct_impl(item: ItemStruct, args: TokenStream) -> TokenStream {
         .map(|field| field.ident.as_ref().unwrap())
         .unwrap();
 
+    let pod_field_idents = fields
+        .iter()
+        .take(fields.len() - 1)
+        .map(|field| &field.ident)
+        .collect::<Vec<_>>();
     let pod_field_tys = fields
         .iter()
         .take(fields.len() - 1)
@@ -125,7 +130,7 @@ pub fn unsized_struct_impl(item: ItemStruct, args: TokenStream) -> TokenStream {
             .iter()
             .map(|ty| -> WherePredicate {
                 parse_quote! {
-                    #ty: #pod + #align1
+                    #ty: 'static + #pod
                 }
             })
             .chain([parse_quote! {
@@ -173,6 +178,15 @@ pub fn unsized_struct_impl(item: ItemStruct, args: TokenStream) -> TokenStream {
     let ref_debug_bound = ref_bound(&debug);
     let ref_clone_bound = ref_bound(&clone);
     let ref_copy_bound = ref_bound(&copy);
+    let to_bytes_impl = if use_packed {
+        quote! {
+            #((&{ self.#pod_field_idents }).to_bytes(output)?;)*
+        }
+    } else {
+        quote! {
+            #((&self.#pod_field_idents).to_bytes(output)?;)*
+        }
+    };
     let ref_struct = quote! {
         #vis use #ref_mod_ident::#ref_ident;
         mod #ref_mod_ident {
@@ -195,8 +209,7 @@ pub fn unsized_struct_impl(item: ItemStruct, args: TokenStream) -> TokenStream {
             #[automatically_derived]
             impl #a_impl_gen #framework_serialize for #ref_ident #a_ty_gen #unsized_where_clause {
                 fn to_bytes(&self, output: &mut &mut [u8]) -> #result<()> {
-                    (&self.__ptr.val1).to_bytes(output)?;
-                    (&self.__ptr.val2).to_bytes(output)?;
+                    #to_bytes_impl
                     self.#final_field_ident.to_bytes(output)
                 }
             }
@@ -315,8 +328,7 @@ pub fn unsized_struct_impl(item: ItemStruct, args: TokenStream) -> TokenStream {
             }
             impl #a_impl_gen #framework_serialize for #ref_mut_ident #a_ty_gen #unsized_where_clause {
                 fn to_bytes(&self, output: &mut &mut [u8]) -> #result<()> {
-                    (&self.val1).to_bytes(output)?;
-                    (&self.val2).to_bytes(output)?;
+                    #to_bytes_impl
                     self.#final_field_ident_ref().to_bytes(output)
                 }
             }

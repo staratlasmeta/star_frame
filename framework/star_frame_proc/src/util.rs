@@ -1,6 +1,6 @@
 use crate::get_crate_name;
 use proc_macro2::TokenStream;
-use proc_macro_error::abort;
+use proc_macro_error::{abort, abort_call_site};
 use quote::{format_ident, quote};
 use std::fmt::Debug;
 use std::ops::{Deref, DerefMut};
@@ -301,24 +301,40 @@ pub fn get_docs<'a>(attrs: impl IntoIterator<Item = &'a Attribute>) -> String {
         .join("\n")
 }
 
-pub fn verify_repr(attrs: &[Attribute], repr_required: Type, require_present: bool) {
+pub fn verify_repr(
+    attrs: &[Attribute],
+    repr_required: impl IntoIterator<Item = Ident>,
+    allow_others: bool,
+    require_present: bool,
+) -> Punctuated<Ident, Token![,]> {
     let repr = attrs.iter().find(|attr| attr.path().is_ident("repr"));
     if let Some(repr) = repr {
         let repr_ty = repr
-            .parse_args_with(Type::parse)
+            .parse_args_with(|p: ParseStream| p.parse_terminated(Ident::parse, Token![,]))
             .unwrap_or_else(|e| abort!(repr, "Could not parse repr type: {}", e));
-        if repr_ty != repr_required {
-            abort!(
-                repr_ty,
-                "Only {} is supported as repr type",
-                quote! { #repr_required }
-            );
+        let mut repr_required = repr_required
+            .into_iter()
+            .map(|r| (r, false))
+            .collect::<Vec<_>>();
+        for repr_ty in repr_ty.iter() {
+            if let Some((_, found)) = repr_required.iter_mut().find(|(r, _)| r == repr_ty) {
+                *found = true;
+            } else if !allow_others {
+                abort!(repr_ty, "Unexpected repr type: {}", quote! { #repr_ty });
+            }
         }
+        for (r, found) in repr_required {
+            if !found {
+                abort_call_site!("Missing #[repr({:?})] attribute", r);
+            }
+        }
+        repr_ty
     } else if require_present {
-        abort!(
-            repr_required,
-            "Missing #[repr({})] attribute",
-            quote! { #repr_required }
+        abort_call_site!(
+            "Missing #[repr({:?})] attribute",
+            repr_required.into_iter().collect::<Vec<_>>()
         );
+    } else {
+        Punctuated::new()
     }
 }
