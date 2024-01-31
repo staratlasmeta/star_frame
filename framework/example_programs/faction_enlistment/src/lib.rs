@@ -14,6 +14,7 @@ use star_frame::program::system_program::SystemProgram;
 use star_frame::program::{ProgramIds, StarFrameProgram};
 use star_frame::program_account::ProgramAccount;
 use star_frame::solana_program::account_info::AccountInfo;
+use star_frame::solana_program::program_error::ProgramError;
 use star_frame::solana_program::pubkey::Pubkey;
 use star_frame::util::Network;
 use star_frame::Result;
@@ -63,6 +64,82 @@ impl ProgramToIdl for FactionEnlistment {
     }
 }
 
+pub enum FactionEnlistmentInstructionSet<'a> {
+    ProcessEnlistPlayer(&'a ProcessEnlistPlayerIx),
+}
+
+impl<'a> InstructionSet<'a> for FactionEnlistmentInstructionSet<'a> {
+    type Discriminant = ();
+
+    fn handle_ix(
+        self,
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        sys_calls: &mut impl SysCalls,
+    ) -> Result<()> {
+        match self {
+            FactionEnlistmentInstructionSet::ProcessEnlistPlayer(ix) => {
+                ix.run_ix_from_raw(program_id, accounts, sys_calls)
+            }
+        }
+    }
+}
+
+#[derive(Copy, Clone, Zeroable, Align1, Pod)]
+#[repr(C, packed)]
+pub struct ProcessEnlistPlayerIx {
+    _bump: u8,
+    faction_id: u8,
+}
+
+impl<'a> FrameworkInstruction<'a> for &'a ProcessEnlistPlayerIx {
+    type DecodeArg = ();
+    type ValidateArg = ();
+    type RunArg = u8;
+    type CleanupArg = ();
+    type ReturnType = ();
+    type Accounts<'b, 'info> = ProcessEnlistPlayer<'info>
+        where 'info: 'b;
+
+    fn split_to_args(
+        self,
+    ) -> (
+        Self::DecodeArg,
+        Self::ValidateArg,
+        Self::RunArg,
+        Self::CleanupArg,
+    ) {
+        todo!()
+    }
+
+    fn run_instruction<'b, 'info>(
+        faction_id: Self::RunArg,
+        _program_id: &Pubkey,
+        account_set: &mut Self::Accounts<'b, 'info>,
+        sys_calls: &mut impl SysCallInvoke,
+    ) -> Result<Self::ReturnType>
+    where
+        'info: 'b,
+    {
+        match faction_id {
+            0..=2 => {
+                let clock = sys_calls.get_clock()?;
+
+                let bump = account_set.player_faction_account.access_seeds().bump;
+                **account_set.player_faction_account.data_mut()? = PlayerFactionData {
+                    owner: *account_set.player_account.key,
+                    enlisted_at_timestamp: clock.unix_timestamp,
+                    faction_id,
+                    bump,
+                    _padding: [0; 5],
+                };
+                Ok(())
+            }
+            _ => Err(ProgramError::Custom(69)),
+        }
+    }
+}
+
 // pub mod faction_enlistment {
 //     use super::*;
 //     pub fn process_enlist_player(
@@ -91,7 +168,9 @@ impl ProgramToIdl for FactionEnlistment {
 use star_frame::bytemuck::Pod;
 use star_frame::idl::ty::TypeToIdl;
 use star_frame::idl::ProgramToIdl;
+use star_frame::instruction::{FrameworkInstruction, Instruction, InstructionSet};
 use star_frame::star_frame_idl::{IdlDefinition, Version};
+use star_frame::sys_calls::{SysCallInvoke, SysCalls};
 
 #[derive(AccountSet, Debug)]
 // #[account_set(skip_default_idl)]
@@ -117,7 +196,7 @@ pub struct ProcessEnlistPlayer<'info> {
     // }, ()))]
     // Trailing comma is super important here
     #[validate(arg = Seeds(PlayerFactionAccountSeeds {
-    player_account: *self.player_account.key
+        player_account: *self.player_account.key
     }))]
     pub player_faction_account: SeededDataAccount<'info, PlayerFactionData>,
     /// The player account
@@ -138,6 +217,7 @@ pub struct PlayerFactionData {
     pub _padding: [u64; 5],
 }
 
+// TODO - Macro should derive this and with the idl feature enabled would also derive `AccountToIdl` and `TypeToIdl`
 impl AccountData for PlayerFactionData {
     type OwnerProgram = SystemProgram;
     const DISCRIMINANT: <Self::OwnerProgram as StarFrameProgram>::AccountDiscriminant = ();
@@ -157,6 +237,7 @@ pub struct PlayerFactionAccountSeeds {
     player_account: Pubkey,
 }
 
+// TODO - Macro this
 impl GetSeeds for PlayerFactionAccountSeeds {
     fn seeds(&self) -> Vec<&[u8]> {
         vec![b"FACTION_ENLISTMENT".as_ref(), self.player_account.seed()]
@@ -167,7 +248,7 @@ impl GetSeeds for PlayerFactionAccountSeeds {
 maybe require manual implementation if you want something else for now? */
 // Why can't you do multi line TODOs?
 impl ProgramAccount for PlayerFactionData {
-    type OwnerProgram = FactionEnlistment;
+    type OwnerProgram = crate::StarFrameDeclaredProgram;
 
     fn discriminant() -> [u8; 8] {
         Default::default()

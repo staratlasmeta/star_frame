@@ -4,7 +4,7 @@ use crate::account_set::{
 };
 use crate::sys_calls::SysCallInvoke;
 use crate::Result;
-use bytemuck::Pod;
+use bytemuck::{bytes_of, Pod};
 use solana_program::account_info::AccountInfo;
 use solana_program::program_error::ProgramError;
 use solana_program::pubkey::Pubkey;
@@ -23,22 +23,22 @@ where
         vec![self.seed()]
     }
 }
-impl<T> GetSeeds for SeedsWithBump<T>
-where
-    T: GetSeeds,
-{
-    fn seeds(&self) -> Vec<&[u8]> {
-        self.seeds.seeds()
-    }
-}
-impl<T> GetSeeds for &SeedsWithBump<T>
-where
-    T: GetSeeds,
-{
-    fn seeds(&self) -> Vec<&[u8]> {
-        self.seeds.seeds()
-    }
-}
+// impl<T> GetSeeds for SeedsWithBump<T>
+// where
+//     T: GetSeeds,
+// {
+//     fn seeds(&self) -> Vec<&[u8]> {
+//         self.seeds.seeds()
+//     }
+// }
+// impl<T> GetSeeds for &SeedsWithBump<T>
+// where
+//     T: GetSeeds,
+// {
+//     fn seeds(&self) -> Vec<&[u8]> {
+//         self.seeds.seeds()
+//     }
+// }
 
 pub trait Seed {
     fn seed(&self) -> &[u8];
@@ -58,6 +58,16 @@ pub struct SeedsWithBump<T: GetSeeds> {
     pub seeds: T,
     pub bump: u8,
 }
+impl<T> SeedsWithBump<T>
+where
+    T: GetSeeds,
+{
+    pub fn seeds_with_bump(&self) -> Vec<&[u8]> {
+        let mut seeds = self.seeds.seeds();
+        seeds.push(bytes_of(&self.bump));
+        seeds
+    }
+}
 
 #[derive(Debug)]
 pub struct Seeds<T>(pub T);
@@ -73,6 +83,10 @@ pub struct SeededAccount<T, S: GetSeeds> {
 impl<T, S: GetSeeds> SeededAccount<T, S> {
     pub fn access_seeds(&self) -> &SeedsWithBump<S> {
         self.seeds.as_ref().unwrap()
+    }
+
+    pub fn seeds_with_bump(&self) -> Vec<&[u8]> {
+        self.seeds.as_ref().unwrap().seeds_with_bump()
     }
 }
 
@@ -177,11 +191,15 @@ where
             validate_input.1,
             _sys_calls,
         )?;
-        let (address, _bump) =
+        let (address, bump) =
             Pubkey::find_program_address(&validate_input.0.seeds(), self.account_info().owner);
         if self.account.account_info().key != &address {
             return Err(ProgramError::Custom(20));
         }
+        self.seeds = Some(SeedsWithBump {
+            seeds: validate_input.0,
+            bump,
+        });
         Ok(())
     }
 }
@@ -246,3 +264,22 @@ pub struct SeededDataAccount<'info, T>(
 )
 where
     T: SeededAccountData;
+
+impl<'info, T> Deref for SeededDataAccount<'info, T>
+where
+    T: SeededAccountData,
+{
+    type Target = SeededAccount<DataAccount<'info, T>, T::Seeds>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl<'info, T> DerefMut for SeededDataAccount<'info, T>
+where
+    T: SeededAccountData,
+{
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}

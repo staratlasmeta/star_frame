@@ -1,5 +1,6 @@
 use crate::account_set::{AccountSet, AccountSetCleanup, AccountSetDecode, AccountSetValidate};
 use crate::sys_calls::SysCallInvoke;
+use crate::Result;
 use solana_program::account_info::AccountInfo;
 use solana_program::instruction::AccountMeta;
 use solana_program::msg;
@@ -38,7 +39,7 @@ where
         accounts: &mut &'a [AccountInfo<'info>],
         decode_input: Option<DArg>,
         sys_calls: &mut impl SysCallInvoke,
-    ) -> Result<Self, ProgramError> {
+    ) -> Result<Self> {
         match decode_input {
             None => Ok(None),
             Some(arg) => Ok(Some(A::decode_accounts(accounts, arg, sys_calls)?)),
@@ -53,7 +54,7 @@ where
         accounts: &mut &'a [AccountInfo<'info>],
         decode_input: bool,
         sys_calls: &mut impl SysCallInvoke,
-    ) -> Result<Self, ProgramError> {
+    ) -> Result<Self> {
         Self::decode_accounts(
             accounts,
             if decode_input { Some(()) } else { None },
@@ -71,7 +72,7 @@ where
         accounts: &mut &'a [AccountInfo<'info>],
         decode_input: Remaining<Arg>,
         sys_calls: &mut impl SysCallInvoke,
-    ) -> Result<Self, ProgramError> {
+    ) -> Result<Self> {
         if accounts.is_empty() {
             Ok(None)
         } else {
@@ -93,7 +94,7 @@ where
         accounts: &mut &'a [AccountInfo<'info>],
         decode_input: ProgramIdOption<Arg>,
         sys_calls: &mut impl SysCallInvoke,
-    ) -> Result<Self, ProgramError> {
+    ) -> Result<Self> {
         if accounts.is_empty() {
             Err(ProgramError::NotEnoughAccountKeys)
         } else if accounts[0].key == sys_calls.current_program_id() {
@@ -115,7 +116,7 @@ where
         &mut self,
         validate_input: Option<VArg>,
         sys_calls: &mut impl SysCallInvoke,
-    ) -> Result<(), ProgramError> {
+    ) -> Result<()> {
         match (self, validate_input) {
             (Some(s), Some(i)) => s.validate_accounts(i, sys_calls),
             (Some(_), None) => {
@@ -134,7 +135,7 @@ where
         &mut self,
         validate_input: (VArg,),
         sys_calls: &mut impl SysCallInvoke,
-    ) -> Result<(), ProgramError> {
+    ) -> Result<()> {
         self.validate_accounts(Some(validate_input.0), sys_calls)
     }
 }
@@ -146,7 +147,7 @@ where
         &mut self,
         validate_input: (),
         sys_calls: &mut impl SysCallInvoke,
-    ) -> Result<(), ProgramError> {
+    ) -> Result<()> {
         self.validate_accounts(Some(validate_input), sys_calls)
     }
 }
@@ -159,7 +160,7 @@ where
         &mut self,
         cleanup_input: Option<CArg>,
         sys_calls: &mut impl SysCallInvoke,
-    ) -> Result<(), ProgramError> {
+    ) -> Result<()> {
         match (self, cleanup_input) {
             (Some(s), Some(i)) => s.cleanup_accounts(i, sys_calls),
             (Some(_), None) => {
@@ -190,13 +191,14 @@ where
         &mut self,
         cleanup_input: (),
         sys_calls: &mut impl SysCallInvoke,
-    ) -> Result<(), ProgramError> {
+    ) -> Result<()> {
         self.cleanup_accounts(Some(cleanup_input), sys_calls)
     }
 }
 
 mod idl_impl {
     use crate::idl::AccountSetToIdl;
+    use crate::Result;
     use star_frame_idl::account_set::IdlAccountSetDef;
     use star_frame_idl::IdlDefinition;
 
@@ -207,7 +209,7 @@ mod idl_impl {
         fn account_set_to_idl(
             idl_definition: &mut IdlDefinition,
             arg: Arg,
-        ) -> crate::Result<IdlAccountSetDef> {
+        ) -> Result<IdlAccountSetDef> {
             let inner = A::account_set_to_idl(idl_definition, arg)?;
             Ok(IdlAccountSetDef::Or(vec![
                 IdlAccountSetDef::Struct(vec![]),

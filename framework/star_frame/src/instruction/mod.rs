@@ -1,7 +1,6 @@
 pub mod un_callable;
 
 pub use star_frame_proc::FrameworkInstruction;
-pub use star_frame_proc::InstructionSetToIdl;
 
 use crate::account_set::{AccountSetCleanup, AccountSetDecode, AccountSetValidate};
 use crate::serialize::FrameworkFromBytes;
@@ -87,12 +86,14 @@ pub trait FrameworkInstruction<'a>: FrameworkFromBytes<'a> {
         Ok(())
     }
     /// Runs the instruction.
-    fn run_instruction(
+    fn run_instruction<'b, 'info>(
         run_arg: Self::RunArg,
         program_id: &Pubkey,
-        account_set: &Self::Accounts<'_, '_>,
+        account_set: &mut Self::Accounts<'b, 'info>,
         sys_calls: &mut impl SysCallInvoke,
-    ) -> Result<Self::ReturnType>;
+    ) -> Result<Self::ReturnType>
+    where
+        'info: 'b;
 }
 impl<'a, T> Instruction<'a> for T
 where
@@ -113,7 +114,7 @@ where
             )?;
             Self::extra_validations(&account_set, &validate, sys_calls)?;
             account_set.validate_accounts(validate, sys_calls)?;
-            let ret = Self::run_instruction(run, program_id, &account_set, sys_calls)?;
+            let ret = Self::run_instruction(run, program_id, &mut account_set, sys_calls)?;
             account_set.cleanup_accounts(cleanup, sys_calls)?;
             let mut return_data = vec![0u8; MAX_RETURN_DATA];
             let mut return_data_ref = &mut return_data[..];

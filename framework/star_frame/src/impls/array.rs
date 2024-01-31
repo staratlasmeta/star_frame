@@ -1,9 +1,9 @@
 use crate::account_set::{AccountSet, AccountSetCleanup, AccountSetDecode, AccountSetValidate};
 use crate::sys_calls::SysCallInvoke;
+use crate::Result;
 use array_init::try_array_init;
 use solana_program::account_info::AccountInfo;
 use solana_program::instruction::AccountMeta;
-use solana_program::program_error::ProgramError;
 
 impl<'info, A, const N: usize> AccountSet<'info> for [A; N]
 where
@@ -11,8 +11,8 @@ where
 {
     fn try_to_accounts<'a, E>(
         &'a self,
-        mut add_account: impl FnMut(&'a AccountInfo<'info>) -> crate::Result<(), E>,
-    ) -> crate::Result<(), E>
+        mut add_account: impl FnMut(&'a AccountInfo<'info>) -> Result<(), E>,
+    ) -> Result<(), E>
     where
         'info: 'a,
     {
@@ -37,7 +37,7 @@ where
         accounts: &mut &'a [AccountInfo<'info>],
         decode_input: [DArg; N],
         sys_calls: &mut impl SysCallInvoke,
-    ) -> Result<Self, ProgramError> {
+    ) -> Result<Self> {
         let mut decode_input = decode_input.into_iter();
         try_array_init(|_| A::decode_accounts(accounts, decode_input.next().unwrap(), sys_calls))
     }
@@ -51,7 +51,7 @@ where
         accounts: &mut &'a [AccountInfo<'info>],
         decode_input: (DArg,),
         sys_calls: &mut impl SysCallInvoke,
-    ) -> Result<Self, ProgramError> {
+    ) -> Result<Self> {
         try_array_init(|_| A::decode_accounts(accounts, decode_input.0.clone(), sys_calls))
     }
 }
@@ -63,7 +63,7 @@ where
         accounts: &mut &'a [AccountInfo<'info>],
         decode_input: (),
         sys_calls: &mut impl SysCallInvoke,
-    ) -> Result<Self, ProgramError> {
+    ) -> Result<Self> {
         Self::decode_accounts(accounts, (decode_input,), sys_calls)
     }
 }
@@ -76,7 +76,7 @@ where
         &mut self,
         validate_input: [VArg; N],
         sys_calls: &mut impl SysCallInvoke,
-    ) -> Result<(), ProgramError> {
+    ) -> Result<()> {
         for (a, v) in self.iter_mut().zip(validate_input.into_iter()) {
             a.validate_accounts(v, sys_calls)?;
         }
@@ -92,7 +92,7 @@ where
         &mut self,
         validate_input: (VArg,),
         sys_calls: &mut impl SysCallInvoke,
-    ) -> Result<(), ProgramError> {
+    ) -> Result<()> {
         for a in self {
             a.validate_accounts(validate_input.0.clone(), sys_calls)?;
         }
@@ -107,7 +107,7 @@ where
         &mut self,
         validate_input: (),
         sys_calls: &mut impl SysCallInvoke,
-    ) -> Result<(), ProgramError> {
+    ) -> Result<()> {
         for a in self {
             a.validate_accounts(validate_input, sys_calls)?;
         }
@@ -123,7 +123,7 @@ where
         &mut self,
         cleanup_input: [VArg; N],
         sys_calls: &mut impl SysCallInvoke,
-    ) -> Result<(), ProgramError> {
+    ) -> Result<()> {
         for (a, v) in self.iter_mut().zip(cleanup_input.into_iter()) {
             a.cleanup_accounts(v, sys_calls)?;
         }
@@ -139,7 +139,7 @@ where
         &mut self,
         cleanup_input: (VArg,),
         sys_calls: &mut impl SysCallInvoke,
-    ) -> Result<(), ProgramError> {
+    ) -> Result<()> {
         for a in self {
             a.cleanup_accounts(cleanup_input.0.clone(), sys_calls)?;
         }
@@ -154,7 +154,7 @@ where
         &mut self,
         cleanup_input: (),
         sys_calls: &mut impl SysCallInvoke,
-    ) -> Result<(), ProgramError> {
+    ) -> Result<()> {
         for a in self {
             a.cleanup_accounts(cleanup_input, sys_calls)?;
         }

@@ -21,6 +21,7 @@ solana-program = { workspace = true }
 solana-sdk = { workspace = true }
 star_frame_proc = { path = "../star_frame_proc"}
 static_assertions = "1.1.0"
+anyhow = "1.0.79"
 
 # feature = idl
 num-traits = "0.2.17"

@@ -2,9 +2,7 @@ use crate::account_set::{AccountSet, AccountSetCleanup, AccountSetDecode, Accoun
 use crate::sys_calls::{SysCallInvoke, SysCalls};
 use crate::Result;
 use solana_program::account_info::AccountInfo;
-use solana_program::entrypoint::ProgramResult;
 use solana_program::instruction::AccountMeta;
-use solana_program::program_error::ProgramError;
 use solana_program::pubkey::Pubkey;
 use star_frame::instruction::InstructionSet;
 
@@ -26,7 +24,7 @@ impl<'a, 'info> AccountSetDecode<'a, 'info, ()> for () {
         _accounts: &mut &'a [AccountInfo],
         decode_input: (),
         _sys_calls: &mut impl SysCallInvoke,
-    ) -> Result<Self, ProgramError> {
+    ) -> Result<Self> {
         Ok(decode_input)
     }
 }
@@ -35,7 +33,7 @@ impl<'info> AccountSetValidate<'info, ()> for () {
         &mut self,
         validate_input: (),
         _sys_calls: &mut impl SysCallInvoke,
-    ) -> Result<(), ProgramError> {
+    ) -> Result<()> {
         Ok(validate_input)
     }
 }
@@ -45,7 +43,7 @@ impl<'info> AccountSetCleanup<'info, ()> for () {
         &mut self,
         cleanup_input: (),
         _sys_calls: &mut impl SysCallInvoke,
-    ) -> Result<(), ProgramError> {
+    ) -> Result<()> {
         Ok(cleanup_input)
     }
 }
@@ -58,7 +56,7 @@ impl<'a> InstructionSet<'a> for () {
         _program_id: &Pubkey,
         _accounts: &[AccountInfo],
         _sys_calls: &mut impl SysCalls,
-    ) -> ProgramResult {
+    ) -> Result<()> {
         Ok(())
     }
 }

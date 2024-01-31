@@ -1908,6 +1908,7 @@ name = "star_frame"
 version = "0.1.0"
 dependencies = [
  "advance",
+ "anyhow",
  "array-init",
  "bincode",
  "borsh 0.10.3",
