@@ -2,8 +2,7 @@ use crate::ixs::test_ix1::TestInstruction1;
 use crate::ixs::test_ix2::TestInstruction2;
 use solana_program::account_info::AccountInfo;
 use solana_program::pubkey::Pubkey;
-use star_frame::idl::InstructionToIdl;
-use star_frame::instruction::{InstructionSet, InstructionSetToIdl};
+use star_frame::instruction::InstructionSet;
 use star_frame::sys_calls::SysCalls;
 use star_frame::unit_enum_from_repr::UnitEnumFromRepr;
 use star_frame::Result;
@@ -12,8 +11,9 @@ use strum::EnumDiscriminants;
 pub mod test_ix1;
 pub mod test_ix2;
 
-#[derive(EnumDiscriminants, InstructionSetToIdl)]
+#[derive(EnumDiscriminants, InstructionSet)]
 #[strum_discriminants(repr(u32), derive(UnitEnumFromRepr))]
+#[repr(u8)]
 pub enum TestProgramInstructions<'a> {
     /// The first test instruction
     TestInstruction1(&'a TestInstruction1),

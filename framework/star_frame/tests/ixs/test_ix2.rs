@@ -38,12 +38,15 @@ impl<'a> FrameworkInstruction<'a> for &'a TestInstruction2 {
         ((), (), self, ())
     }
 
-    fn run_instruction(
+    fn run_instruction<'b, 'info>(
         run_arg: Self::RunArg,
         program_id: &Pubkey,
-        account_set: &Self::Accounts<'_, '_>,
+        account_set: &mut Self::Accounts<'b, 'info>,
         sys_calls: &mut impl SysCallInvoke,
-    ) -> Result<Self::ReturnType> {
+    ) -> Result<Self::ReturnType>
+    where
+        'info: 'b,
+    {
         todo!()
     }
 }

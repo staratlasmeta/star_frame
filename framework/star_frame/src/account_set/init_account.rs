@@ -10,12 +10,14 @@ use crate::sys_calls::SysCallInvoke;
 use crate::Result;
 use advance::Advance;
 use bytemuck::bytes_of;
+use derivative::Derivative;
 use solana_program::account_info::AccountInfo;
 use solana_program::program_error::ProgramError;
 use solana_program::program_memory::sol_memset;
 use solana_program::pubkey::Pubkey;
 use solana_program::system_instruction;
 use star_frame_proc::AccountSet;
+use std::fmt::Debug;
 use std::mem::size_of;
 
 #[derive(AccountSet, Debug)]
@@ -35,10 +37,14 @@ where
     T: AccountData,
 {
     fn account_info(&self) -> &AccountInfo<'info> {
-        &self.inner.account_info()
+        self.inner.account_info()
     }
 }
 
+#[derive(Derivative)]
+#[derivative(Debug(
+    bound = "A: Debug, Program<'info, SystemProgram>: Debug, Funder<'a, WT, S, CHECK>: Debug"
+))]
 pub struct CreateAccountWithArg<
     'a,
     'info,
@@ -54,6 +60,8 @@ pub struct CreateAccountWithArg<
     funder: Funder<'a, WT, S, CHECK>,
 }
 
+#[derive(Derivative)]
+#[derivative(Debug(bound = "Writable<WT, CHECK>: Debug, SeededAccount<WT, S>: Debug"))]
 pub enum Funder<'a, WT, S = (), const CHECK: bool = false>
 where
     S: GetSeeds,
@@ -144,5 +152,3 @@ where
 
     Ok(())
 }
-
-struct Example {}
