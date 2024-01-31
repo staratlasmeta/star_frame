@@ -67,21 +67,18 @@ impl<'info> SingleAccountSet<'info> for AccountInfo<'info> {
         self.key
     }
 
-    fn owner<'a>(&'a self) -> &'a Pubkey
-    where
-        'info: 'a,
-    {
+    fn owner(&self) -> &'info Pubkey {
         self.owner
     }
 
-    fn info_data_bytes<'a>(&'a self) -> Result<Ref<'a, [u8]>, ProgramError>
+    fn info_data_bytes<'a>(&'a self) -> Result<Ref<'a, [u8]>>
     where
         'info: 'a,
     {
         self.try_borrow_data().map(|d| Ref::map(d, |d| &**d))
     }
 
-    fn info_data_bytes_mut<'a>(&'a self) -> Result<RefMut<'a, [u8]>, ProgramError>
+    fn info_data_bytes_mut<'a>(&'a self) -> Result<RefMut<'a, [u8]>>
     where
         'info: 'a,
     {
@@ -117,21 +114,18 @@ impl<'__a, 'info> SingleAccountSet<'info> for &'__a AccountInfo<'info> {
         self.key
     }
 
-    fn owner<'a>(&'a self) -> &'a Pubkey
-    where
-        'info: 'a,
-    {
+    fn owner(&self) -> &'info Pubkey {
         self.owner
     }
 
-    fn info_data_bytes<'a>(&'a self) -> Result<Ref<'a, [u8]>, ProgramError>
+    fn info_data_bytes<'a>(&'a self) -> Result<Ref<'a, [u8]>>
     where
         'info: 'a,
     {
         self.try_borrow_data().map(|d| Ref::map(d, |d| &**d))
     }
 
-    fn info_data_bytes_mut<'a>(&'a self) -> Result<RefMut<'a, [u8]>, ProgramError>
+    fn info_data_bytes_mut<'a>(&'a self) -> Result<RefMut<'a, [u8]>>
     where
         'info: 'a,
     {
@@ -144,7 +138,7 @@ impl<'a, 'info> AccountSetDecode<'a, 'info, ()> for AccountInfo<'info> {
         accounts: &mut &'a [AccountInfo<'info>],
         _decode_input: (),
         _sys_calls: &mut impl SysCallInvoke,
-    ) -> Result<Self, ProgramError> {
+    ) -> Result<Self> {
         let account: &[_; 1] = accounts.try_advance_array()?;
         Ok(account[0].clone())
     }
@@ -154,7 +148,7 @@ impl<'a, 'info> AccountSetDecode<'a, 'info, ()> for &'a AccountInfo<'info> {
         accounts: &mut &'a [AccountInfo<'info>],
         _decode_input: (),
         _sys_calls: &mut impl SysCallInvoke,
-    ) -> Result<Self, ProgramError> {
+    ) -> Result<Self> {
         let account: &[_; 1] = accounts.try_advance_array()?;
         Ok(&account[0])
     }
@@ -164,7 +158,7 @@ impl<'info> AccountSetValidate<'info, ()> for AccountInfo<'info> {
         &mut self,
         validate_input: (),
         _sys_calls: &mut impl SysCallInvoke,
-    ) -> Result<(), ProgramError> {
+    ) -> Result<()> {
         Ok(validate_input)
     }
 }
@@ -173,7 +167,7 @@ impl<'a, 'info> AccountSetValidate<'info, ()> for &'a AccountInfo<'info> {
         &mut self,
         validate_input: (),
         _sys_calls: &mut impl SysCallInvoke,
-    ) -> Result<(), ProgramError> {
+    ) -> Result<()> {
         Ok(validate_input)
     }
 }
@@ -182,7 +176,7 @@ impl<'info> AccountSetCleanup<'info, ()> for AccountInfo<'info> {
         &mut self,
         cleanup_input: (),
         _sys_calls: &mut impl SysCallInvoke,
-    ) -> Result<(), ProgramError> {
+    ) -> Result<()> {
         Ok(cleanup_input)
     }
 }
@@ -191,7 +185,7 @@ impl<'a, 'info> AccountSetCleanup<'info, ()> for &'a AccountInfo<'info> {
         &mut self,
         cleanup_input: (),
         _sys_calls: &mut impl SysCallInvoke,
-    ) -> Result<(), ProgramError> {
+    ) -> Result<()> {
         Ok(cleanup_input)
     }
 }

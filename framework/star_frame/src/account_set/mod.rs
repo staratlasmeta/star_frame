@@ -85,17 +85,11 @@ pub trait SingleAccountSet<'info>: AccountSet<'info> {
     }
 
     /// Gets the key of the contained account.
-    fn key<'a>(&'a self) -> &'a Pubkey
-    where
-        'info: 'a,
-    {
+    fn key(&self) -> &'info Pubkey {
         self.account_info().key()
     }
     /// Gets the owner of the contained account.
-    fn owner<'a>(&'a self) -> &'a Pubkey
-    where
-        'info: 'a,
-    {
+    fn owner(&self) -> &'info Pubkey {
         self.account_info().owner()
     }
 

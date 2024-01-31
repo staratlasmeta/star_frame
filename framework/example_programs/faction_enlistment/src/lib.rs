@@ -111,7 +111,7 @@ impl<'a> FrameworkInstruction<'a> for &'a ProcessEnlistPlayerIx {
         todo!()
     }
 
-    fn run_instruction(
+    fn run_instruction<'b, 'info>(
         faction_id: Self::RunArg,
         program_id: &Pubkey,
         account_set: &mut Self::Accounts<'_, '_>,

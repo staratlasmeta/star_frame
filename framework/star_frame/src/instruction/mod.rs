@@ -86,12 +86,14 @@ pub trait FrameworkInstruction<'a>: FrameworkFromBytes<'a> {
         Ok(())
     }
     /// Runs the instruction.
-    fn run_instruction(
+    fn run_instruction<'b, 'info>(
         run_arg: Self::RunArg,
         program_id: &Pubkey,
-        account_set: &mut Self::Accounts<'_, '_>,
+        account_set: &mut Self::Accounts<'b, 'info>,
         sys_calls: &mut impl SysCallInvoke,
-    ) -> Result<Self::ReturnType>;
+    ) -> Result<Self::ReturnType>
+    where
+        'info: 'b;
 }
 impl<'a, T> Instruction<'a> for T
 where
