@@ -3,6 +3,7 @@ use crate::packed_value::PackedValue;
 use crate::program::StarFrameProgram;
 use crate::serialize::{FrameworkFromBytes, FrameworkFromBytesMut};
 use crate::Result;
+use anyhow::bail;
 use bytemuck::{bytes_of, from_bytes, from_bytes_mut};
 use solana_program::account_info::AccountInfo;
 use solana_program::entrypoint::MAX_PERMITTED_DATA_INCREASE;
@@ -29,18 +30,18 @@ where
     T: AccountData,
 {
     if account.info.owner != &T::program_id() {
-        return Err(ProgramError::IllegalOwner);
+        bail!(ProgramError::IllegalOwner);
     }
 
     let data = account.info.try_borrow_data()?;
     if data.len() < size_of::<<T::OwnerProgram as StarFrameProgram>::AccountDiscriminant>() {
-        return Err(ProgramError::InvalidAccountData);
+        bail!(ProgramError::InvalidAccountData);
     }
     let discriminant: &<T::OwnerProgram as StarFrameProgram>::AccountDiscriminant = from_bytes(
         &data[0..size_of::<<T::OwnerProgram as StarFrameProgram>::AccountDiscriminant>()],
     );
     if discriminant != &T::DISCRIMINANT {
-        return Err(ProgramError::InvalidAccountData);
+        bail!(ProgramError::InvalidAccountData);
     }
     Ok(())
 }
@@ -63,7 +64,7 @@ where
                 &bytes[..size_of::<<T::OwnerProgram as StarFrameProgram>::AccountDiscriminant>()],
             ) != &PackedValue(T::DISCRIMINANT)
         {
-            Err(ProgramError::InvalidAccountData)
+            bail!(ProgramError::InvalidAccountData)
         } else {
             Ok(())
         }
@@ -111,7 +112,7 @@ where
                     if new_len > original_data_len + MAX_PERMITTED_DATA_INCREASE
                         || new_len as u64 > MAX_PERMITTED_DATA_LENGTH
                     {
-                        Err(ProgramError::InvalidRealloc)
+                        bail!(ProgramError::InvalidRealloc)
                     } else {
                         unsafe { data_len_ptr.write(new_len as u64) };
                         Ok(data_ptr.cast())

@@ -12,8 +12,6 @@ use syn::{
 };
 
 pub struct Paths {
-    pub crate_name: TokenStream,
-
     // std
     pub box_ty: TokenStream,
     pub clone: TokenStream,
@@ -33,15 +31,20 @@ pub struct Paths {
     // derivative
     pub derivative: TokenStream,
 
-    pub account_info: TokenStream,
-    pub result: TokenStream,
+    // account set
     pub account_set: TokenStream,
     pub account_set_decode: TokenStream,
     pub account_set_validate: TokenStream,
     pub account_set_cleanup: TokenStream,
+
+    // syscalls
     pub sys_call_invoke: TokenStream,
-    pub system_program: TokenStream,
-    // #[cfg(feature = "idl")]
+    pub solana_runtime: TokenStream,
+
+    pub result: TokenStream,
+
+    // idl
+    #[cfg(feature = "idl")]
     pub account_to_idl: TokenStream,
     #[cfg(feature = "idl")]
     pub account_set_to_idl: TokenStream,
@@ -52,6 +55,7 @@ pub struct Paths {
     #[cfg(feature = "idl")]
     pub type_to_idl: TokenStream,
 
+    // star frame idl
     pub semver: TokenStream,
     pub idl_definition: TokenStream,
     pub idl_definition_ref: TokenStream,
@@ -66,8 +70,17 @@ pub struct Paths {
     pub idl_seeds: TokenStream,
     pub account_id: TokenStream,
     pub account_set_id: TokenStream,
-    pub framework_instruction: TokenStream,
 
+    // instruction
+    pub framework_instruction: TokenStream,
+    pub instruction_set: TokenStream,
+
+    // program
+    pub system_program: TokenStream,
+    pub star_frame_program: TokenStream,
+    pub declared_program_type: Type,
+
+    // idents
     pub account_ident: Ident,
     pub account_set_ident: Ident,
     pub decode_ident: Ident,
@@ -75,7 +88,6 @@ pub struct Paths {
     pub cleanup_ident: Ident,
     pub idl_ident: Ident,
     pub idl_ty_program_ident: Ident,
-    pub declared_program_type: Type,
 
     pub align1: TokenStream,
     pub packed_value_checked: TokenStream,
@@ -101,13 +113,20 @@ pub struct Paths {
     pub pod: TokenStream,
 
     // solana
+    pub account_info: TokenStream,
     pub program_error: TokenStream,
+    pub program_result: TokenStream,
     pub sol_memset: TokenStream,
+    pub pubkey: TokenStream,
+    pub msg: TokenStream,
+
+    pub crate_name: TokenStream,
 }
 impl Default for Paths {
     fn default() -> Self {
         let crate_name = get_crate_name();
         Self {
+            // std
             box_ty: quote! { ::std::boxed::Box },
             clone: quote! { ::std::clone::Clone },
             copy: quote! { ::std::marker::Copy },
@@ -123,16 +142,22 @@ impl Default for Paths {
             ptr: quote! { ::std::ptr },
             size_of: quote! { ::std::mem::size_of },
 
+            // derivative
             derivative: quote! { #crate_name::derivative::Derivative },
 
-            account_info: quote! { #crate_name::solana_program::account_info::AccountInfo },
-            result: quote! { #crate_name::Result },
+            // account set
             account_set: quote! { #crate_name::account_set::AccountSet },
             account_set_decode: quote! { #crate_name::account_set::AccountSetDecode },
             account_set_validate: quote! { #crate_name::account_set::AccountSetValidate },
             account_set_cleanup: quote! { #crate_name::account_set::AccountSetCleanup },
+
+            // syscalls
             sys_call_invoke: quote! { #crate_name::sys_calls::SysCallInvoke },
-            system_program: quote! { #crate_name::program::system_program::SystemProgram },
+            solana_runtime: quote! { #crate_name::sys_calls::solana_runtime::SolanaRuntime },
+
+            result: quote! { #crate_name::Result },
+
+            // idl
             #[cfg(feature = "idl")]
             account_to_idl: quote! { #crate_name::idl::AccountToIdl },
             #[cfg(feature = "idl")]
@@ -144,6 +169,7 @@ impl Default for Paths {
             #[cfg(feature = "idl")]
             type_to_idl: quote! { #crate_name::idl::ty::TypeToIdl },
 
+            // star frame idl
             semver: quote! { #crate_name::star_frame_idl::SemVer },
             idl_definition: quote! { #crate_name::star_frame_idl::IdlDefinition },
             idl_definition_ref: quote! { #crate_name::star_frame_idl::IdlDefinitionReference },
@@ -156,11 +182,19 @@ impl Default for Paths {
             idl_instruction_def: quote! { #crate_name::star_frame_idl::instruction::IdlInstructionDef },
             idl_instruction: quote! { #crate_name::star_frame_idl::instruction::IdlInstruction },
             idl_seeds: quote! { #crate_name::star_frame_idl::seeds::IdlSeeds },
-
             account_id: quote! { #crate_name::star_frame_idl::account::AccountId },
             account_set_id: quote! { #crate_name::star_frame_idl::account_set::AccountSetId },
-            framework_instruction: quote! { #crate_name::instruction::FrameworkInstruction },
 
+            // instruction
+            framework_instruction: quote! { #crate_name::instruction::FrameworkInstruction },
+            instruction_set: quote! { #crate_name::instruction::InstructionSet },
+
+            // program
+            system_program: quote! { #crate_name::program::system_program::SystemProgram },
+            star_frame_program: quote! { #crate_name::program::StarFrameProgram },
+            declared_program_type: parse_quote! { crate::StarFrameDeclaredProgram },
+
+            // idents
             account_ident: format_ident!("account"),
             account_set_ident: format_ident!("account_set"),
             decode_ident: format_ident!("decode"),
@@ -168,12 +202,12 @@ impl Default for Paths {
             cleanup_ident: format_ident!("cleanup"),
             idl_ident: format_ident!("idl"),
             idl_ty_program_ident: format_ident!("program"),
-            declared_program_type: parse_quote! { crate::StarFrameDeclaredProgram },
 
             align1: quote! { #crate_name::align1::Align1 },
             packed_value_checked: quote! { #crate_name::packed_value::PackedValueChecked },
             advance: quote! { #crate_name::advance::Advance},
 
+            // serialize
             build_pointer: quote! { #crate_name::serialize::pointer_breakup::BuildPointer },
             build_pointer_mut: quote! { #crate_name::serialize::pointer_breakup::BuildPointerMut },
             enum_ref_mut_wrapper: quote! { #crate_name::serialize::unsized_enum::EnumRefMutWrapper },
@@ -187,12 +221,18 @@ impl Default for Paths {
             unsized_enum: quote! { #crate_name::serialize::unsized_enum::UnsizedEnum },
             unsized_type: quote! { #crate_name::serialize::unsized_type::UnsizedType },
 
+            // bytemuck
             checked: quote! { #crate_name::bytemuck::checked },
             checked_bit_pattern: quote! { #crate_name::bytemuck::checked::CheckedBitPattern },
             pod: quote! { #crate_name::bytemuck::Pod },
 
+            // solana
+            account_info: quote! { #crate_name::solana_program::account_info::AccountInfo },
             program_error: quote! { #crate_name::solana_program::program_error::ProgramError },
+            program_result: quote! { #crate_name::solana_program::entrypoint::ProgramResult },
             sol_memset: quote! { #crate_name::solana_program::program_memory::sol_memset },
+            pubkey: quote! { #crate_name::solana_program::pubkey::Pubkey },
+            msg: quote! { #crate_name::solana_program::msg },
 
             crate_name,
         }

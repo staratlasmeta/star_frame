@@ -87,7 +87,9 @@ fn find_repr(attrs: &Vec<Attribute>) -> Option<ValidReprTypes> {
         if attr.path().is_ident("repr") {
             let Ok(args) = attr.parse_args_with(|p: ParseStream| {
                 p.parse_terminated(IdentWithArgs::<LitInt>::parse, Token![,])
-            }) else { abort!(attr, "Failed to parse repr attribute") };
+            }) else {
+                abort!(attr, "Failed to parse repr attribute")
+            };
             for arg in args {
                 let ident = arg.ident.to_string();
                 for repr in ValidReprTypes::iter() {

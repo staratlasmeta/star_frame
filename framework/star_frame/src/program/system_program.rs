@@ -1,4 +1,5 @@
 use crate::program::{ProgramIds, StarFrameProgram};
+use crate::serialize::{FrameworkFromBytes, FrameworkSerialize};
 use crate::sys_calls::SysCalls;
 use crate::Result;
 use solana_program::account_info::AccountInfo;
@@ -18,6 +19,19 @@ impl StarFrameProgram for SystemProgram {
 
     const PROGRAM_IDS: ProgramIds = ProgramIds::AllNetworks(&system_program::ID);
 }
+
+unsafe impl<'a> FrameworkFromBytes<'a> for SystemInstruction {
+    fn from_bytes(bytes: &mut &'a [u8]) -> Result<Self> {
+        todo!()
+    }
+}
+
+impl FrameworkSerialize for SystemInstruction {
+    fn to_bytes(&self, output: &mut &mut [u8]) -> Result<()> {
+        todo!()
+    }
+}
+
 impl<'a> InstructionSet<'a> for SystemInstruction {
     type Discriminant = ();
 

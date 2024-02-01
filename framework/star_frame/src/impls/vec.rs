@@ -1,5 +1,7 @@
 use crate::account_set::{AccountSet, AccountSetCleanup, AccountSetDecode, AccountSetValidate};
 use crate::sys_calls::SysCallInvoke;
+use crate::Result;
+use anyhow::bail;
 use solana_program::account_info::AccountInfo;
 use solana_program::instruction::AccountMeta;
 use solana_program::program_error::ProgramError;
@@ -35,7 +37,7 @@ where
         accounts: &mut &'a [AccountInfo<'info>],
         len: usize,
         sys_calls: &mut impl SysCallInvoke,
-    ) -> Result<Self, ProgramError> {
+    ) -> Result<Self> {
         <Self as AccountSetDecode<'a, 'info, (usize, ())>>::decode_accounts(
             accounts,
             (len, ()),
@@ -52,7 +54,7 @@ where
         accounts: &mut &'a [AccountInfo<'info>],
         (len, decode_input): (usize, TA),
         sys_calls: &mut impl SysCallInvoke,
-    ) -> Result<Self, ProgramError> {
+    ) -> Result<Self> {
         let mut output = Self::with_capacity(len);
         for _ in 0..len {
             output.push(T::decode_accounts(
@@ -72,7 +74,7 @@ where
         accounts: &mut &'a [AccountInfo<'info>],
         decode_input: [TA; N],
         sys_calls: &mut impl SysCallInvoke,
-    ) -> Result<Self, ProgramError> {
+    ) -> Result<Self> {
         decode_input
             .into_iter()
             .map(|input| T::decode_accounts(accounts, input, sys_calls))
@@ -87,7 +89,7 @@ where
         accounts: &mut &'a [AccountInfo<'info>],
         decode_input: &'b [TA; N],
         sys_calls: &mut impl SysCallInvoke,
-    ) -> Result<Self, ProgramError> {
+    ) -> Result<Self> {
         decode_input
             .iter()
             .map(|input| T::decode_accounts(accounts, input, sys_calls))
@@ -102,7 +104,7 @@ where
         accounts: &mut &'a [AccountInfo<'info>],
         decode_input: &'b mut [TA; N],
         sys_calls: &mut impl SysCallInvoke,
-    ) -> Result<Self, ProgramError> {
+    ) -> Result<Self> {
         decode_input
             .iter_mut()
             .map(|input| T::decode_accounts(accounts, input, sys_calls))
@@ -118,7 +120,7 @@ where
         accounts: &mut &'a [AccountInfo<'info>],
         decode_input: (I,),
         sys_calls: &mut impl SysCallInvoke,
-    ) -> Result<Self, ProgramError> {
+    ) -> Result<Self> {
         decode_input
             .0
             .into_iter()
@@ -135,7 +137,7 @@ where
         &mut self,
         validate_input: (),
         sys_calls: &mut impl SysCallInvoke,
-    ) -> Result<(), ProgramError> {
+    ) -> Result<()> {
         for account in self {
             account.validate_accounts(validate_input, sys_calls)?;
         }
@@ -152,7 +154,7 @@ where
         &mut self,
         validate_input: (TA,),
         sys_calls: &mut impl SysCallInvoke,
-    ) -> Result<(), ProgramError> {
+    ) -> Result<()> {
         for account in self {
             account.validate_accounts(validate_input.0.clone(), sys_calls)?;
         }
@@ -167,9 +169,9 @@ where
         &mut self,
         validate_input: Vec<TA>,
         sys_calls: &mut impl SysCallInvoke,
-    ) -> Result<(), ProgramError> {
+    ) -> Result<()> {
         if validate_input.len() < self.len() {
-            return Err(ProgramError::InvalidAccountData);
+            bail!(ProgramError::InvalidAccountData);
         }
 
         for (account, input) in self.iter_mut().zip(validate_input) {
@@ -187,9 +189,9 @@ where
         &mut self,
         validate_input: [TA; N],
         sys_calls: &mut impl SysCallInvoke,
-    ) -> Result<(), ProgramError> {
+    ) -> Result<()> {
         if validate_input.len() != self.len() {
-            return Err(ProgramError::InvalidAccountData);
+            bail!(ProgramError::InvalidAccountData);
         }
 
         for (account, input) in self.iter_mut().zip(validate_input) {
@@ -207,9 +209,9 @@ where
         &mut self,
         validate_input: &'a mut [TA; N],
         sys_calls: &mut impl SysCallInvoke,
-    ) -> Result<(), ProgramError> {
+    ) -> Result<()> {
         if validate_input.len() != self.len() {
-            return Err(ProgramError::InvalidAccountData);
+            bail!(ProgramError::InvalidAccountData);
         }
 
         for (account, input) in self.iter_mut().zip(validate_input) {
@@ -228,7 +230,7 @@ where
         &mut self,
         cleanup_input: (),
         sys_calls: &mut impl SysCallInvoke,
-    ) -> Result<(), ProgramError> {
+    ) -> Result<()> {
         for account in self {
             account.cleanup_accounts(cleanup_input, sys_calls)?;
         }
@@ -244,7 +246,7 @@ where
         &mut self,
         cleanup_input: (TA,),
         sys_calls: &mut impl SysCallInvoke,
-    ) -> Result<(), ProgramError> {
+    ) -> Result<()> {
         for account in self {
             account.cleanup_accounts(cleanup_input.0.clone(), sys_calls)?;
         }
@@ -259,9 +261,9 @@ where
         &mut self,
         cleanup_input: Vec<TA>,
         sys_calls: &mut impl SysCallInvoke,
-    ) -> Result<(), ProgramError> {
+    ) -> Result<()> {
         if cleanup_input.len() < self.len() {
-            return Err(ProgramError::InvalidAccountData);
+            bail!(ProgramError::InvalidAccountData);
         }
 
         for (account, input) in self.iter_mut().zip(cleanup_input) {
@@ -279,9 +281,9 @@ where
         &mut self,
         cleanup_input: [TA; N],
         sys_calls: &mut impl SysCallInvoke,
-    ) -> Result<(), ProgramError> {
+    ) -> Result<()> {
         if cleanup_input.len() != self.len() {
-            return Err(ProgramError::InvalidAccountData);
+            bail!(ProgramError::InvalidAccountData);
         }
 
         for (account, input) in self.iter_mut().zip(cleanup_input) {
@@ -299,9 +301,9 @@ where
         &mut self,
         cleanup_input: &'a mut [TA; N],
         sys_calls: &mut impl SysCallInvoke,
-    ) -> Result<(), ProgramError> {
+    ) -> Result<()> {
         if cleanup_input.len() != self.len() {
-            return Err(ProgramError::InvalidAccountData);
+            bail!(ProgramError::InvalidAccountData);
         }
 
         for (account, input) in self.iter_mut().zip(cleanup_input) {
