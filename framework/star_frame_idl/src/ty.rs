@@ -40,6 +40,7 @@ pub enum IdlTypeDef {
     },
     BorshVec {
         item_ty: Box<IdlTypeDef>,
+        len_ty: Box<IdlTypeDef>,
     },
     BorshOption {
         item_ty: Box<IdlTypeDef>,

@@ -14,6 +14,7 @@ use star_frame::serialize::unsized_type::UnsizedType;
 use star_frame::serialize::FrameworkSerialize;
 use star_frame_proc::Align1;
 pub use star_frame_proc::InstructionSet;
+pub use star_frame_proc::InstructionSetToIdl;
 
 /// A set of instructions that can be used as input to a program.
 pub trait InstructionSet<'a>: FrameworkFromBytes<'a> {
@@ -34,7 +35,7 @@ pub trait InstructionSet<'a>: FrameworkFromBytes<'a> {
 struct Instruction1 {}
 impl Instruction for Instruction1 {
     fn run_ix_from_raw(
-        self,
+        r: <Self as UnsizedType>::Ref<'_>,
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         sys_calls: &mut impl SysCalls,
@@ -48,7 +49,7 @@ impl Instruction for Instruction1 {
 struct Instruction2 {}
 impl Instruction for Instruction2 {
     fn run_ix_from_raw(
-        self,
+        r: <Self as UnsizedType>::Ref<'_>,
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         sys_calls: &mut impl SysCalls,
@@ -95,7 +96,7 @@ impl<'a> InstructionSet<'a> for InstructionSetThing<'a> {
 pub trait Instruction: UnsizedType {
     /// Runs the instruction from a raw solana input.
     fn run_ix_from_raw(
-        self,
+        r: <Self as UnsizedType>::Ref<'_>,
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         sys_calls: &mut impl SysCalls,
@@ -113,47 +114,47 @@ pub trait Instruction: UnsizedType {
 /// 6. Set the solana return data using [`Instruction::ReturnType::to_bytes`].
 pub trait FrameworkInstruction: UnsizedType {
     /// The instruction data type used to decode accounts.
-    type DecodeArg;
+    type DecodeArg<'a>;
     /// The instruction data type used to validate accounts.
-    type ValidateArg;
+    type ValidateArg<'a>;
     /// The instruction data type used to run the instruction.
-    type RunArg;
+    type RunArg<'a>;
     /// The instruction data type used to cleanup accounts.
-    type CleanupArg;
+    type CleanupArg<'a>;
 
     /// The return type of this instruction.
     type ReturnType: FrameworkSerialize;
 
     /// The [`AccountSet`] used by this instruction.
-    type Accounts<'b, 'info>: AccountSetDecode<'b, 'info, Self::DecodeArg>
-        + AccountSetValidate<'info, Self::ValidateArg>
-        + AccountSetCleanup<'info, Self::CleanupArg>
+    type Accounts<'b, 'c, 'info>: AccountSetDecode<'b, 'info, Self::DecodeArg<'c>>
+        + AccountSetValidate<'info, Self::ValidateArg<'c>>
+        + AccountSetCleanup<'info, Self::CleanupArg<'c>>
     where
         'info: 'b;
 
     /// Splits self into decode, validate, and run args.
     fn split_to_args(
-        self,
+        r: <Self as UnsizedType>::Ref<'_>,
     ) -> (
-        Self::DecodeArg,
-        Self::ValidateArg,
-        Self::RunArg,
-        Self::CleanupArg,
+        Self::DecodeArg<'_>,
+        Self::ValidateArg<'_>,
+        Self::RunArg<'_>,
+        Self::CleanupArg<'_>,
     );
     /// Runs any extra validations on the accounts.
     #[allow(unused_variables)]
     fn extra_validations(
-        account_set: &Self::Accounts<'_, '_>,
-        validate: &Self::ValidateArg,
+        account_set: &Self::Accounts<'_, '_, '_>,
+        validate: &Self::ValidateArg<'_>,
         sys_calls: &mut impl SysCallInvoke,
     ) -> Result<()> {
         Ok(())
     }
     /// Runs the instruction.
     fn run_instruction<'b, 'info>(
-        run_arg: Self::RunArg,
+        run_arg: Self::RunArg<'_>,
         program_id: &Pubkey,
-        account_set: &mut Self::Accounts<'b, 'info>,
+        account_set: &mut Self::Accounts<'b, '_, 'info>,
         sys_calls: &mut impl SysCallInvoke,
     ) -> Result<Self::ReturnType>
     where
@@ -165,13 +166,13 @@ where
     T: FrameworkInstruction,
 {
     fn run_ix_from_raw(
-        self,
+        r: <Self as UnsizedType>::Ref<'_>,
         program_id: &Pubkey,
         mut accounts: &[AccountInfo],
         sys_calls: &mut impl SysCalls,
     ) -> Result<()> {
         {
-            let (decode, validate, run, cleanup) = self.split_to_args();
+            let (decode, validate, run, cleanup) = Self::split_to_args(r);
             let mut account_set = <Self as FrameworkInstruction>::Accounts::decode_accounts(
                 &mut accounts,
                 decode,

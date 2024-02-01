@@ -19,6 +19,7 @@ use star_frame::program::system_program::SystemProgram;
 use star_frame::program::{program, ProgramIds, StarFrameProgram};
 use star_frame::program_account::ProgramAccount;
 use star_frame::pubkey;
+use star_frame::serialize::unsized_type::UnsizedType;
 use star_frame::serialize::{FrameworkFromBytes, FrameworkSerialize};
 use star_frame::solana_program::account_info::AccountInfo;
 use star_frame::solana_program::program_error::ProgramError;
@@ -100,7 +101,7 @@ impl<'a> InstructionSet<'a> for FactionEnlistmentInstructionSet<'a> {
     ) -> Result<()> {
         match self {
             FactionEnlistmentInstructionSet::ProcessEnlistPlayer(ix) => {
-                ix.run_ix_from_raw(program_id, accounts, sys_calls)
+                ProcessEnlistPlayerIx::run_ix_from_raw(ix, program_id, accounts, sys_calls)
             }
         }
     }
@@ -114,29 +115,29 @@ pub struct ProcessEnlistPlayerIx {
 }
 
 impl FrameworkInstruction for ProcessEnlistPlayerIx {
-    type DecodeArg = ();
-    type ValidateArg = ();
-    type RunArg = u8;
-    type CleanupArg = ();
+    type DecodeArg<'a> = ();
+    type ValidateArg<'a> = ();
+    type RunArg<'a> = u8;
+    type CleanupArg<'a> = ();
     type ReturnType = ();
-    type Accounts<'b, 'info> = ProcessEnlistPlayer<'info>
+    type Accounts<'b, 'c, 'info> = ProcessEnlistPlayer<'info>
         where 'info: 'b;
 
     fn split_to_args(
-        self,
+        _r: <Self as UnsizedType>::Ref<'_>,
     ) -> (
-        Self::DecodeArg,
-        Self::ValidateArg,
-        Self::RunArg,
-        Self::CleanupArg,
+        Self::DecodeArg<'_>,
+        Self::ValidateArg<'_>,
+        Self::RunArg<'_>,
+        Self::CleanupArg<'_>,
     ) {
         todo!()
     }
 
     fn run_instruction<'b, 'info>(
-        faction_id: Self::RunArg,
+        faction_id: Self::RunArg<'_>,
         _program_id: &Pubkey,
-        account_set: &mut Self::Accounts<'b, 'info>,
+        account_set: &mut Self::Accounts<'b, '_, 'info>,
         sys_calls: &mut impl SysCallInvoke,
     ) -> Result<Self::ReturnType>
     where
