@@ -194,7 +194,7 @@ pub fn unsized_struct_impl(item: ItemStruct, args: TokenStream) -> TokenStream {
 
             #[derive(#derivative)]
             #[derivative(Debug(bound = #ref_debug_bound), Clone(bound = #ref_clone_bound), Copy(bound = #ref_copy_bound))]
-            pub(super) struct #ref_ident #a_impl_gen #unsized_where_clause {
+            pub struct #ref_ident #a_impl_gen #unsized_where_clause {
                 __ptr: &#a_lifetime #ident #ty_gen,
                 #final_field_vis #final_field_ident: <#final_field_ty as #unsized_type>::Ref<#a_lifetime>,
             }
@@ -271,7 +271,7 @@ pub fn unsized_struct_impl(item: ItemStruct, args: TokenStream) -> TokenStream {
 
             #[derive(#derivative)]
             #[derivative(Debug(bound = #ref_mut_debug_bound))]
-            pub(super) struct #ref_mut_ident #a_impl_gen #unsized_where_clause {
+            pub struct #ref_mut_ident #a_impl_gen #unsized_where_clause {
                 phantom_tys: #phantom_data<(#extra_ty_generics)>,
                 ptr: #non_null<()>,
                 meta: <#final_field_ty as #unsized_type>::RefMeta,

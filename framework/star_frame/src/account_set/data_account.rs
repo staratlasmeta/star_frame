@@ -27,7 +27,7 @@ pub trait AccountData: UnsizedType {
 
 fn validate_data_account<T>(account: &DataAccount<T>) -> Result<()>
 where
-    T: AccountData,
+    T: AccountData + ?Sized,
 {
     if account.info.owner != &T::program_id() {
         bail!(ProgramError::IllegalOwner);
@@ -50,13 +50,13 @@ where
 #[validate(
     extra_validation = validate_data_account(self),
 )]
-pub struct DataAccount<'info, T: AccountData> {
+pub struct DataAccount<'info, T: AccountData + ?Sized> {
     info: AccountInfo<'info>,
     phantom_t: PhantomData<T>,
 }
 impl<'info, T> DataAccount<'info, T>
 where
-    T: AccountData,
+    T: AccountData + ?Sized,
 {
     fn check_discriminant(bytes: &[u8]) -> Result<()> {
         if bytes.len() < size_of::<<T::OwnerProgram as StarFrameProgram>::AccountDiscriminant>()
@@ -138,7 +138,7 @@ where
 
 impl<'info, T> SingleAccountSet<'info> for DataAccount<'info, T>
 where
-    T: AccountData,
+    T: AccountData + ?Sized,
 {
     fn account_info(&self) -> &AccountInfo<'info> {
         &self.info
@@ -148,14 +148,14 @@ where
 #[derive(Debug)]
 pub struct DataRef<'a, T>
 where
-    T: 'a + AccountData,
+    T: 'a + AccountData + ?Sized,
 {
     data: T::Ref<'a>,
     _r: Ref<'a, [u8; 0]>,
 }
 impl<'a, T> Deref for DataRef<'a, T>
 where
-    T: 'a + AccountData,
+    T: 'a + AccountData + ?Sized,
 {
     type Target = T::Ref<'a>;
 
@@ -167,14 +167,14 @@ where
 #[derive(Debug)]
 pub struct DataRefMut<'a, T>
 where
-    T: 'a + AccountData,
+    T: 'a + AccountData + ?Sized,
 {
     data: T::RefMut<'a>,
     _r: RefMut<'a, [u8; 0]>,
 }
 impl<'a, T> Deref for DataRefMut<'a, T>
 where
-    T: 'a + AccountData,
+    T: 'a + AccountData + ?Sized,
 {
     type Target = T::RefMut<'a>;
 

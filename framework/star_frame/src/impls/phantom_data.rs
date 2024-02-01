@@ -5,7 +5,10 @@ use solana_program::account_info::AccountInfo;
 use solana_program::instruction::AccountMeta;
 use std::marker::PhantomData;
 
-impl<'info, T> AccountSet<'info> for PhantomData<T> {
+impl<'info, T> AccountSet<'info> for PhantomData<T>
+where
+    T: ?Sized,
+{
     fn try_to_accounts<'a, E>(
         &'a self,
         _add_account: impl FnMut(&'a AccountInfo<'info>) -> crate::Result<(), E>,
@@ -18,7 +21,10 @@ impl<'info, T> AccountSet<'info> for PhantomData<T> {
 
     fn to_account_metas(&self, _add_account_meta: impl FnMut(AccountMeta)) {}
 }
-impl<'a, 'info, T> AccountSetDecode<'a, 'info, ()> for PhantomData<T> {
+impl<'a, 'info, T> AccountSetDecode<'a, 'info, ()> for PhantomData<T>
+where
+    T: ?Sized,
+{
     fn decode_accounts(
         _accounts: &mut &'a [AccountInfo<'info>],
         _decode_input: (),
@@ -27,7 +33,10 @@ impl<'a, 'info, T> AccountSetDecode<'a, 'info, ()> for PhantomData<T> {
         Ok(Self)
     }
 }
-impl<'info, T> AccountSetValidate<'info, ()> for PhantomData<T> {
+impl<'info, T> AccountSetValidate<'info, ()> for PhantomData<T>
+where
+    T: ?Sized,
+{
     fn validate_accounts(
         &mut self,
         _validate_input: (),
@@ -36,7 +45,10 @@ impl<'info, T> AccountSetValidate<'info, ()> for PhantomData<T> {
         Ok(())
     }
 }
-impl<'info, T> AccountSetCleanup<'info, ()> for PhantomData<T> {
+impl<'info, T> AccountSetCleanup<'info, ()> for PhantomData<T>
+where
+    T: ?Sized,
+{
     fn cleanup_accounts(
         &mut self,
         _cleanup_input: (),
@@ -59,7 +71,7 @@ mod idl_impl {
 
     impl<T> TypeToIdl for PhantomData<T>
     where
-        T: TypeToIdl,
+        T: TypeToIdl + ?Sized,
     {
         type AssociatedProgram = SystemProgram;
 
@@ -67,7 +79,10 @@ mod idl_impl {
             Ok(IdlTypeDef::Struct(vec![]))
         }
     }
-    impl<'info, T> AccountSetToIdl<'info, ()> for PhantomData<T> {
+    impl<'info, T> AccountSetToIdl<'info, ()> for PhantomData<T>
+    where
+        T: ?Sized,
+    {
         fn account_set_to_idl(
             _idl_definition: &mut IdlDefinition,
             _arg: (),
