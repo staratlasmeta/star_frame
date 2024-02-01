@@ -133,13 +133,13 @@ pub trait FrameworkInstruction: UnsizedType {
         'info: 'b;
 
     /// Splits self into decode, validate, and run args.
-    fn split_to_args(
-        r: <Self as UnsizedType>::Ref<'_>,
+    fn split_to_args<'a, 'b>(
+        r: &'a <Self as UnsizedType>::Ref<'b>,
     ) -> (
-        Self::DecodeArg<'_>,
-        Self::ValidateArg<'_>,
-        Self::RunArg<'_>,
-        Self::CleanupArg<'_>,
+        Self::DecodeArg<'a>,
+        Self::ValidateArg<'a>,
+        Self::RunArg<'a>,
+        Self::CleanupArg<'a>,
     );
     /// Runs any extra validations on the accounts.
     #[allow(unused_variables)]
@@ -165,29 +165,27 @@ impl<T> Instruction for T
 where
     T: FrameworkInstruction,
 {
-    fn run_ix_from_raw(
-        r: <Self as UnsizedType>::Ref<'_>,
+    fn run_ix_from_raw<'a>(
+        r: <Self as UnsizedType>::Ref<'a>,
         program_id: &Pubkey,
         mut accounts: &[AccountInfo],
         sys_calls: &mut impl SysCalls,
     ) -> Result<()> {
-        {
-            let (decode, validate, run, cleanup) = Self::split_to_args(r);
-            let mut account_set = <Self as FrameworkInstruction>::Accounts::decode_accounts(
-                &mut accounts,
-                decode,
-                sys_calls,
-            )?;
-            Self::extra_validations(&account_set, &validate, sys_calls)?;
-            account_set.validate_accounts(validate, sys_calls)?;
-            let ret = Self::run_instruction(run, program_id, &mut account_set, sys_calls)?;
-            account_set.cleanup_accounts(cleanup, sys_calls)?;
-            let mut return_data = vec![0u8; MAX_RETURN_DATA];
-            let mut return_data_ref = &mut return_data[..];
-            ret.to_bytes(&mut return_data_ref)?;
-            let return_data_len = return_data_ref.len();
-            sys_calls.set_return_data(&return_data[..return_data_len]);
-            Ok(())
-        }
+        let (decode, validate, run, cleanup) = Self::split_to_args(&r);
+        let mut account_set = <Self as FrameworkInstruction>::Accounts::decode_accounts(
+            &mut accounts,
+            decode,
+            sys_calls,
+        )?;
+        Self::extra_validations(&account_set, &validate, sys_calls)?;
+        account_set.validate_accounts(validate, sys_calls)?;
+        let ret = Self::run_instruction(run, program_id, &mut account_set, sys_calls)?;
+        account_set.cleanup_accounts(cleanup, sys_calls)?;
+        let mut return_data = vec![0u8; MAX_RETURN_DATA];
+        let mut return_data_ref = &mut return_data[..];
+        ret.to_bytes(&mut return_data_ref)?;
+        let return_data_len = return_data_ref.len();
+        sys_calls.set_return_data(&return_data[..return_data_len]);
+        Ok(())
     }
 }

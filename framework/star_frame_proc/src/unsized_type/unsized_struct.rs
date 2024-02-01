@@ -87,11 +87,12 @@ pub fn unsized_struct_impl(item: ItemStruct, args: TokenStream) -> TokenStream {
                     let Field {
                         attrs,
                         ident,
+                        vis,
                         colon_token,
                         ty,
                         ..
                     } = field;
-                    quote! { #(#attrs)* #ident #colon_token #ty }
+                    quote! { #(#attrs)* #vis #ident #colon_token #ty }
                 } else {
                     quote! { #field }
                 }
