@@ -6,7 +6,7 @@ use crate::account_set::{AccountSetCleanup, AccountSetDecode, AccountSetValidate
 use crate::serialize::FrameworkFromBytes;
 use crate::sys_calls::{SysCallInvoke, SysCalls};
 use crate::Result;
-use bytemuck::Pod;
+use bytemuck::{Pod, Zeroable};
 use solana_program::account_info::AccountInfo;
 use solana_program::program::MAX_RETURN_DATA;
 use solana_program::pubkey::Pubkey;
@@ -25,6 +25,68 @@ pub trait InstructionSet<'a> {
         accounts: &[AccountInfo],
         sys_calls: &mut impl SysCalls,
     ) -> Result<()>;
+}
+
+#[derive(Pod, Zeroable, Copy, Clone, Align1)]
+#[repr(C)]
+struct Instruction1 {}
+impl Instruction for Instruction1 {
+    fn run_ix_from_raw(
+        self,
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        sys_calls: &mut impl SysCalls,
+    ) -> Result<()> {
+        todo!()
+    }
+}
+
+#[derive(Pod, Zeroable, Copy, Clone, Align1)]
+#[repr(C)]
+struct Instruction2 {}
+impl Instruction for Instruction2 {
+    fn run_ix_from_raw(
+        self,
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        sys_calls: &mut impl SysCalls,
+    ) -> Result<()> {
+        todo!()
+    }
+}
+
+// #[instruction_set]
+// #[discriminant([u8; 8])]
+// enum InstructSetThing {
+//     IX1 = Instuction1,
+//     IX2 = Instruction2,
+// }
+
+enum InstructionSetThing<'a> {
+    IX1(<Instruction1 as UnsizedType>::Ref<'a>),
+    IX2(<Instruction2 as UnsizedType>::Ref<'a>),
+}
+impl<'a> FrameworkSerialize for InstructionSetThing<'a> {
+    fn to_bytes(&self, output: &mut &mut [u8]) -> Result<()> {
+        todo!()
+    }
+}
+unsafe impl<'a> FrameworkFromBytes<'a> for InstructionSetThing<'a> {
+    fn from_bytes(bytes: &mut &'a [u8]) -> Result<Self> {
+        todo!()
+    }
+}
+impl<'a> InstructionSet<'a> for InstructionSetThing<'a> {
+    type Discriminant = [u8; 8];
+
+    fn handle_ix(
+        self,
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        sys_calls: &mut impl SysCalls,
+    ) -> Result<()> {
+        todo!()
+    }
 }
 
 /// A callable instruction that can be used as input to a program.
@@ -47,7 +109,7 @@ pub trait Instruction<'a>: FrameworkFromBytes<'a> {
 /// 4. Validate the accounts using [`Instruction::Accounts::validate_accounts`](AccountSetValidate::validate_accounts).
 /// 5. Run the instruction using [`Instruction::run_instruction`].
 /// 6. Set the solana return data using [`Instruction::ReturnType::to_bytes`].
-pub trait FrameworkInstruction<'a>: FrameworkFromBytes<'a> {
+pub trait FrameworkInstruction: UnsizedType {
     /// The instruction data type used to decode accounts.
     type DecodeArg;
     /// The instruction data type used to validate accounts.
@@ -97,7 +159,7 @@ pub trait FrameworkInstruction<'a>: FrameworkFromBytes<'a> {
 }
 impl<'a, T> Instruction<'a> for T
 where
-    T: FrameworkInstruction<'a>,
+    T: FrameworkInstruction,
 {
     fn run_ix_from_raw(
         self,
