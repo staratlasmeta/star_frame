@@ -10,11 +10,13 @@ use bytemuck::{Pod, Zeroable};
 use solana_program::account_info::AccountInfo;
 use solana_program::program::MAX_RETURN_DATA;
 use solana_program::pubkey::Pubkey;
+use star_frame::serialize::unsized_type::UnsizedType;
 use star_frame::serialize::FrameworkSerialize;
+use star_frame_proc::Align1;
 pub use star_frame_proc::InstructionSet;
 
 /// A set of instructions that can be used as input to a program.
-pub trait InstructionSet<'a> {
+pub trait InstructionSet<'a>: FrameworkFromBytes<'a> {
     /// The discriminant type used by this program's accounts.
     type Discriminant: Pod;
 
@@ -90,7 +92,7 @@ impl<'a> InstructionSet<'a> for InstructionSetThing<'a> {
 }
 
 /// A callable instruction that can be used as input to a program.
-pub trait Instruction<'a>: FrameworkFromBytes<'a> {
+pub trait Instruction: UnsizedType {
     /// Runs the instruction from a raw solana input.
     fn run_ix_from_raw(
         self,
@@ -157,7 +159,8 @@ pub trait FrameworkInstruction: UnsizedType {
     where
         'info: 'b;
 }
-impl<'a, T> Instruction<'a> for T
+
+impl<T> Instruction for T
 where
     T: FrameworkInstruction,
 {
@@ -169,7 +172,7 @@ where
     ) -> Result<()> {
         {
             let (decode, validate, run, cleanup) = self.split_to_args();
-            let mut account_set = <Self as FrameworkInstruction<'a>>::Accounts::decode_accounts(
+            let mut account_set = <Self as FrameworkInstruction>::Accounts::decode_accounts(
                 &mut accounts,
                 decode,
                 sys_calls,

@@ -1,5 +1,6 @@
 use crate::account_set::{AccountSet, AccountSetDecode, AccountSetValidate, SingleAccountSet};
 use crate::Result;
+use anyhow::bail;
 use solana_program::account_info::AccountInfo;
 use solana_program::program_error::ProgramError;
 use star_frame::account_set::AccountSetCleanup;
@@ -42,7 +43,7 @@ impl<T> Signer<T> {
         T: SingleAccountSet<'info> + Clone,
     {
         if !info.is_signer() {
-            return Err(ProgramError::MissingRequiredSignature);
+            bail!(ProgramError::MissingRequiredSignature);
         }
         Ok(Signer::new(info.clone()))
     }

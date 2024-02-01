@@ -1,6 +1,7 @@
 use crate::account_set::{AccountSet, AccountSetCleanup, AccountSetDecode, AccountSetValidate};
 use crate::sys_calls::SysCallInvoke;
 use crate::Result;
+use anyhow::bail;
 use solana_program::account_info::AccountInfo;
 use solana_program::instruction::AccountMeta;
 use solana_program::msg;
@@ -96,7 +97,7 @@ where
         sys_calls: &mut impl SysCallInvoke,
     ) -> Result<Self> {
         if accounts.is_empty() {
-            Err(ProgramError::NotEnoughAccountKeys)
+            bail!(ProgramError::NotEnoughAccountKeys)
         } else if accounts[0].key == sys_calls.current_program_id() {
             Ok(None)
         } else {
@@ -121,7 +122,7 @@ where
             (Some(s), Some(i)) => s.validate_accounts(i, sys_calls),
             (Some(_), None) => {
                 msg!("Optional account set provided with validate arg `None` when self is `Some`");
-                Err(ProgramError::InvalidArgument)
+                bail!(ProgramError::InvalidArgument)
             }
             _ => Ok(()),
         }
@@ -165,7 +166,7 @@ where
             (Some(s), Some(i)) => s.cleanup_accounts(i, sys_calls),
             (Some(_), None) => {
                 msg!("Optional account set provided with cleanup arg `None` when self is `Some`");
-                Err(ProgramError::InvalidArgument)
+                bail!(ProgramError::InvalidArgument)
             }
             _ => Ok(()),
         }
@@ -179,7 +180,7 @@ where
         &mut self,
         cleanup_input: (VArg,),
         sys_calls: &mut impl SysCallInvoke,
-    ) -> Result<(), ProgramError> {
+    ) -> Result<()> {
         self.cleanup_accounts(Some(cleanup_input.0), sys_calls)
     }
 }

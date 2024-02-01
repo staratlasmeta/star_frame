@@ -8,35 +8,6 @@ use syn::{parse_macro_input, Expr, LitByte, LitStr};
 // Almost all code from here on is copied from solana-sdk-macro, with ::solana_program replaced with
 // #crate_name to allow using this from star_frame without depending on solana_program directly
 
-pub fn program_declare_id_impl(input: TokenStream) -> TokenStream {
-    let id = parse_macro_input!(input as ProgramSdkId);
-    TokenStream::from(quote! {#id})
-}
-
-struct ProgramSdkId(proc_macro2::TokenStream);
-
-impl Parse for ProgramSdkId {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
-        let crate_name = get_crate_name();
-        parse_id(
-            input,
-            quote! { #crate_name::solana_program::pubkey::Pubkey },
-        )
-        .map(Self)
-    }
-}
-
-impl ToTokens for ProgramSdkId {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        let crate_name = get_crate_name();
-        id_to_tokens(
-            &self.0,
-            quote! { #crate_name::solana_program::pubkey::Pubkey },
-            tokens,
-        )
-    }
-}
-
 pub fn pubkey_impl(input: TokenStream) -> TokenStream {
     let id = parse_macro_input!(input as ProgramSdkPubkey);
     TokenStream::from(quote! {#id})
@@ -60,35 +31,6 @@ impl ToTokens for ProgramSdkPubkey {
         let id = &self.0;
         tokens.extend(quote! {#id})
     }
-}
-
-fn id_to_tokens(
-    id: &proc_macro2::TokenStream,
-    pubkey_type: proc_macro2::TokenStream,
-    tokens: &mut proc_macro2::TokenStream,
-) {
-    tokens.extend(quote! {
-        /// The const program ID.
-        pub const ID: #pubkey_type = #id;
-
-        /// Returns `true` if given pubkey is the program ID.
-        // TODO make this const once `derive_const` makes it out of nightly
-        // and we can `derive_const(PartialEq)` on `Pubkey`.
-        pub fn check_id(id: &#pubkey_type) -> bool {
-            id == &ID
-        }
-
-        /// Returns the program ID.
-        pub const fn id() -> #pubkey_type {
-            ID
-        }
-
-        #[cfg(test)]
-        #[test]
-        fn test_id() {
-            assert!(check_id(&id()));
-        }
-    });
 }
 
 fn parse_id(

@@ -9,6 +9,7 @@ use crate::serialize::FrameworkInit;
 use crate::sys_calls::SysCallInvoke;
 use crate::Result;
 use advance::Advance;
+use anyhow::bail;
 use bytemuck::bytes_of;
 use derivative::Derivative;
 use solana_program::account_info::AccountInfo;
@@ -108,7 +109,7 @@ where
 {
     if account.owner() != arg.system_program.key() || arg.funder.owner() != arg.system_program.key()
     {
-        return Err(ProgramError::IllegalOwner);
+        bail!(ProgramError::IllegalOwner);
     }
     let rent = sys_calls.get_rent()?;
     let size =

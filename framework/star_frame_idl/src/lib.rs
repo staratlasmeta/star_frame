@@ -291,9 +291,9 @@ impl From<Pubkey> for NetworkKey {
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, Hash)]
 pub enum Network {
-    MainNet,
-    DevNet,
-    TestNet,
+    Mainnet,
+    Devnet,
+    Testnet,
     #[serde(untagged)]
     Custom(String),
 }

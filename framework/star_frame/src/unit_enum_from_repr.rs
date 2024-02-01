@@ -1,4 +1,5 @@
 use crate::Result;
+use anyhow::anyhow;
 use solana_program::program_error::ProgramError;
 pub use star_frame_proc::UnitEnumFromRepr;
 
@@ -11,7 +12,7 @@ pub trait UnitEnumFromRepr: Copy {
     /// Gets the enum value from its repr, or returns an error.
     fn from_repr_or_error(repr: Self::Repr) -> Result<Self> {
         // TODO: Better Error
-        Self::from_repr(repr).map_err(|_| ProgramError::InvalidAccountData)
+        Self::from_repr(repr).map_err(|_| anyhow!(ProgramError::InvalidAccountData))
     }
     /// Gets the repr of the enum value.
     fn into_repr(self) -> Self::Repr;

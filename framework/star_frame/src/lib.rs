@@ -8,6 +8,7 @@
 #![feature(type_name_of_val)]
 
 pub extern crate advance;
+pub extern crate anyhow;
 pub extern crate borsh;
 pub extern crate bytemuck;
 pub extern crate derivative;
@@ -22,6 +23,7 @@ pub extern crate static_assertions;
 pub mod account_set;
 pub mod align1;
 mod entrypoint;
+pub mod errors;
 #[cfg(feature = "idl")]
 pub mod idl;
 pub mod impls;
@@ -35,10 +37,9 @@ pub mod sys_calls;
 pub mod unit_enum_from_repr;
 pub mod util;
 
+pub use anyhow::Result;
 pub use solana_program::instruction::Instruction as SolanaInstruction;
-pub use star_frame_proc::{declare_id, pubkey};
-
-pub type Result<T, E = solana_program::program_error::ProgramError> = std::result::Result<T, E>;
+pub use star_frame_proc::pubkey;
 
 #[allow(unused_imports)]
 #[cfg(test)]
@@ -48,19 +49,21 @@ use tests::StarFrameDeclaredProgram;
 mod tests {
     use super::*;
     use crate::idl::ProgramToIdl;
-    use crate::program::{declare_program_type, ProgramIds, StarFrameProgram};
+    use crate::program::{ProgramIds, StarFrameProgram};
+    use crate::util::Network;
+    use solana_program::pubkey::Pubkey;
     use star_frame_idl::{IdlDefinition, Version};
+    use star_frame_proc::program;
 
+    #[program(Network::Mainnet)]
     pub struct MyProgram;
-
-    declare_program_type!(MyProgram);
 
     impl StarFrameProgram for MyProgram {
         type InstructionSet<'a> = ();
         type InstructionDiscriminant = ();
-        const PROGRAM_IDS: ProgramIds = todo!();
         type AccountDiscriminant = ();
         const CLOSED_ACCOUNT_DISCRIMINANT: Self::AccountDiscriminant = ();
+        const PROGRAM_IDS: ProgramIds = ProgramIds::AllNetworks(&Pubkey::new_from_array([0; 32]));
     }
 
     impl ProgramToIdl for MyProgram {
@@ -69,11 +72,11 @@ mod tests {
             minor: 0,
             patch: 0,
         };
-        fn idl_namespace() -> &'static str {
-            "my_program"
-        }
         fn program_to_idl() -> Result<IdlDefinition> {
             todo!()
+        }
+        fn idl_namespace() -> &'static str {
+            "my_program"
         }
     }
 }
