@@ -4,6 +4,7 @@ use crate::account_set::{
 };
 use crate::sys_calls::SysCallInvoke;
 use crate::Result;
+use anyhow::bail;
 use bytemuck::{bytes_of, Pod};
 use solana_program::account_info::AccountInfo;
 use solana_program::program_error::ProgramError;
@@ -169,7 +170,7 @@ where
         let arg_bump = arg.0.bump;
         let (address, bump) = Pubkey::find_program_address(&arg_seeds, self.account_info().owner);
         if self.account.account_info().key != &address || arg_bump != bump {
-            return Err(ProgramError::Custom(20));
+            bail!(ProgramError::Custom(20));
         }
         self.seeds = Some(arg.0);
         Ok(())
@@ -194,7 +195,7 @@ where
         let (address, bump) =
             Pubkey::find_program_address(&validate_input.0.seeds(), self.account_info().owner);
         if self.account.account_info().key != &address {
-            return Err(ProgramError::Custom(20));
+            bail!(ProgramError::Custom(20));
         }
         self.seeds = Some(SeedsWithBump {
             seeds: validate_input.0,

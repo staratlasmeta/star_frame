@@ -1,21 +1,33 @@
 use std::cell::{Ref, RefMut};
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 use std::mem::align_of;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Network {
-    MainNet,
-    DevNet,
-    TestNet,
+    Mainnet,
+    Devnet,
+    Testnet,
     Custom(&'static str),
 }
+
+impl Display for Network {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Network::Mainnet => write!(f, "Mainnet"),
+            Network::Devnet => write!(f, "Devnet"),
+            Network::Testnet => write!(f, "Testnet"),
+            Network::Custom(c) => write!(f, "Custom: {}", c),
+        }
+    }
+}
+
 #[cfg(feature = "idl")]
 impl From<Network> for star_frame_idl::Network {
     fn from(value: Network) -> Self {
         match value {
-            Network::MainNet => Self::MainNet,
-            Network::DevNet => Self::DevNet,
-            Network::TestNet => Self::TestNet,
+            Network::Mainnet => Self::Mainnet,
+            Network::Devnet => Self::Devnet,
+            Network::Testnet => Self::Testnet,
             Network::Custom(c) => Self::Custom(c.to_string()),
         }
     }
@@ -60,5 +72,23 @@ impl<T> PtrIsAligned for *const T {
 impl<T> PtrIsAligned for *mut T {
     fn ptr_is_aligned(&self) -> bool {
         *self as usize & (align_of::<T>() - 1) == 0
+    }
+}
+
+pub const fn compare_strings(a: &str, b: &str) -> bool {
+    if a.len() != b.len() {
+        return false;
+    }
+    let a_bytes = a.as_bytes();
+    let b_bytes = b.as_bytes();
+    let mut index = 0;
+    loop {
+        if index >= a_bytes.len() {
+            break true;
+        }
+        if a_bytes[index] != b_bytes[index] {
+            break false;
+        }
+        index += 1;
     }
 }

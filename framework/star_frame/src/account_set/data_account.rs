@@ -3,6 +3,7 @@ use crate::packed_value::PackedValue;
 use crate::program::StarFrameProgram;
 use crate::serialize::{FrameworkFromBytes, FrameworkFromBytesMut};
 use crate::Result;
+use anyhow::bail;
 use bytemuck::{bytes_of, from_bytes, from_bytes_mut};
 use solana_program::account_info::AccountInfo;
 use solana_program::entrypoint::MAX_PERMITTED_DATA_INCREASE;
@@ -26,21 +27,21 @@ pub trait AccountData: UnsizedType {
 
 fn validate_data_account<T>(account: &DataAccount<T>) -> Result<()>
 where
-    T: AccountData,
+    T: AccountData + ?Sized,
 {
     if account.info.owner != &T::program_id() {
-        return Err(ProgramError::IllegalOwner);
+        bail!(ProgramError::IllegalOwner);
     }
 
     let data = account.info.try_borrow_data()?;
     if data.len() < size_of::<<T::OwnerProgram as StarFrameProgram>::AccountDiscriminant>() {
-        return Err(ProgramError::InvalidAccountData);
+        bail!(ProgramError::InvalidAccountData);
     }
     let discriminant: &<T::OwnerProgram as StarFrameProgram>::AccountDiscriminant = from_bytes(
         &data[0..size_of::<<T::OwnerProgram as StarFrameProgram>::AccountDiscriminant>()],
     );
     if discriminant != &T::DISCRIMINANT {
-        return Err(ProgramError::InvalidAccountData);
+        bail!(ProgramError::InvalidAccountData);
     }
     Ok(())
 }
@@ -49,13 +50,13 @@ where
 #[validate(
     extra_validation = validate_data_account(self),
 )]
-pub struct DataAccount<'info, T: AccountData> {
+pub struct DataAccount<'info, T: AccountData + ?Sized> {
     info: AccountInfo<'info>,
     phantom_t: PhantomData<T>,
 }
 impl<'info, T> DataAccount<'info, T>
 where
-    T: AccountData,
+    T: AccountData + ?Sized,
 {
     fn check_discriminant(bytes: &[u8]) -> Result<()> {
         if bytes.len() < size_of::<<T::OwnerProgram as StarFrameProgram>::AccountDiscriminant>()
@@ -63,7 +64,7 @@ where
                 &bytes[..size_of::<<T::OwnerProgram as StarFrameProgram>::AccountDiscriminant>()],
             ) != &PackedValue(T::DISCRIMINANT)
         {
-            Err(ProgramError::InvalidAccountData)
+            bail!(ProgramError::InvalidAccountData)
         } else {
             Ok(())
         }
@@ -111,7 +112,7 @@ where
                     if new_len > original_data_len + MAX_PERMITTED_DATA_INCREASE
                         || new_len as u64 > MAX_PERMITTED_DATA_LENGTH
                     {
-                        Err(ProgramError::InvalidRealloc)
+                        bail!(ProgramError::InvalidRealloc)
                     } else {
                         unsafe { data_len_ptr.write(new_len as u64) };
                         Ok(data_ptr.cast())
@@ -137,7 +138,7 @@ where
 
 impl<'info, T> SingleAccountSet<'info> for DataAccount<'info, T>
 where
-    T: AccountData,
+    T: AccountData + ?Sized,
 {
     fn account_info(&self) -> &AccountInfo<'info> {
         &self.info
@@ -147,14 +148,14 @@ where
 #[derive(Debug)]
 pub struct DataRef<'a, T>
 where
-    T: 'a + AccountData,
+    T: 'a + AccountData + ?Sized,
 {
     data: T::Ref<'a>,
     _r: Ref<'a, [u8; 0]>,
 }
 impl<'a, T> Deref for DataRef<'a, T>
 where
-    T: 'a + AccountData,
+    T: 'a + AccountData + ?Sized,
 {
     type Target = T::Ref<'a>;
 
@@ -166,14 +167,14 @@ where
 #[derive(Debug)]
 pub struct DataRefMut<'a, T>
 where
-    T: 'a + AccountData,
+    T: 'a + AccountData + ?Sized,
 {
     data: T::RefMut<'a>,
     _r: RefMut<'a, [u8; 0]>,
 }
 impl<'a, T> Deref for DataRefMut<'a, T>
 where
-    T: 'a + AccountData,
+    T: 'a + AccountData + ?Sized,
 {
     type Target = T::RefMut<'a>;
 

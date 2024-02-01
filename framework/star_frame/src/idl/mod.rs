@@ -25,7 +25,7 @@ pub trait AccountToIdl: ProgramAccount {
         SemVer::from_version(Self::AssociatedProgram::VERSION)
     }
 }
-pub trait InstructionToIdl<'a, A>: Instruction<'a> {
+pub trait InstructionToIdl<'a, A>: Instruction {
     /// Returns the idl of this instruction.
     fn instruction_to_idl(idl_definition: &mut IdlDefinition, arg: A) -> Result<IdlInstructionDef>;
 }

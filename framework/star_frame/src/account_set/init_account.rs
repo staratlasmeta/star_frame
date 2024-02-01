@@ -9,6 +9,7 @@ use crate::serialize::FrameworkInit;
 use crate::sys_calls::SysCallInvoke;
 use crate::Result;
 use advance::Advance;
+use anyhow::bail;
 use bytemuck::bytes_of;
 use derivative::Derivative;
 use solana_program::account_info::AccountInfo;
@@ -28,11 +29,11 @@ use std::mem::size_of;
 )]
 pub struct InitAccount<'info, T>
 where
-    T: AccountData,
+    T: AccountData + ?Sized,
 {
     inner: DataAccount<'info, T>,
 }
-impl<'info, T> SingleAccountSet<'info> for InitAccount<'info, T>
+impl<'info, T: ?Sized> SingleAccountSet<'info> for InitAccount<'info, T>
 where
     T: AccountData,
 {
@@ -102,13 +103,13 @@ fn init_validate_create<'info, A, WT, T, S, const CHECK: bool>(
     sys_calls: &mut impl SysCallInvoke,
 ) -> Result<()>
 where
-    T: AccountData + FrameworkInit<A>,
+    T: AccountData + FrameworkInit<A> + ?Sized,
     WT: SingleAccountSet<'info>,
     S: GetSeeds,
 {
     if account.owner() != arg.system_program.key() || arg.funder.owner() != arg.system_program.key()
     {
-        return Err(ProgramError::IllegalOwner);
+        bail!(ProgramError::IllegalOwner);
     }
     let rent = sys_calls.get_rent()?;
     let size =

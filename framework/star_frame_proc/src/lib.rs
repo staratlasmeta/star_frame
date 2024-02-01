@@ -4,6 +4,7 @@ mod account;
 mod account_set;
 mod framework_instruction;
 mod instruction_set;
+mod program;
 mod solana_pubkey;
 #[cfg(feature = "idl")]
 mod ty;
@@ -21,7 +22,7 @@ use syn::parse::{Parse, ParseStream};
 use syn::token::Token;
 use syn::{
     parenthesized, parse_macro_input, parse_quote, token, Data, DataStruct, DataUnion, DeriveInput,
-    Fields, Ident, Item, LitInt, Token,
+    Fields, Ident, Item, ItemStruct, LitInt, Token,
 };
 
 fn get_crate_name() -> TokenStream {
@@ -253,12 +254,17 @@ pub fn derive_account_to_idl(input: proc_macro::TokenStream) -> proc_macro::Toke
     out.into()
 }
 
-// ---- Copied solana-program macros to use `star_frame::solana_program` path  ----
-#[proc_macro]
-pub fn declare_id(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    solana_pubkey::program_declare_id_impl(input)
+#[proc_macro_error]
+#[proc_macro_attribute]
+pub fn program(
+    args: proc_macro::TokenStream,
+    item: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
+    let out = program::program_impl(parse_macro_input!(item as ItemStruct), args.into());
+    out.into()
 }
 
+// ---- Copied solana-program macros to use `star_frame::solana_program` path  ----
 #[proc_macro]
 pub fn pubkey(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     solana_pubkey::pubkey_impl(input)

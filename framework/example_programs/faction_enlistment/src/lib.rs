@@ -10,25 +10,36 @@ use star_frame::account_set::seeded_account::{
 use star_frame::account_set::signer::Signer;
 use star_frame::account_set::{AccountSet, AccountToIdl};
 use star_frame::align1::Align1;
+use star_frame::anyhow::bail;
+use star_frame::bytemuck::Pod;
+use star_frame::idl::ty::TypeToIdl;
+use star_frame::idl::ProgramToIdl;
+use star_frame::instruction::{FrameworkInstruction, Instruction, InstructionSet};
 use star_frame::program::system_program::SystemProgram;
-use star_frame::program::{ProgramIds, StarFrameProgram};
+use star_frame::program::{program, ProgramIds, StarFrameProgram};
 use star_frame::program_account::ProgramAccount;
+use star_frame::pubkey;
+use star_frame::serialize::unsized_type::UnsizedType;
+use star_frame::serialize::{FrameworkFromBytes, FrameworkSerialize};
 use star_frame::solana_program::account_info::AccountInfo;
 use star_frame::solana_program::program_error::ProgramError;
 use star_frame::solana_program::pubkey::Pubkey;
+use star_frame::star_frame_idl::{IdlDefinition, Version};
+use star_frame::sys_calls::{SysCallInvoke, SysCalls};
 use star_frame::util::Network;
 use star_frame::Result;
-use star_frame::{declare_id, pubkey};
 use star_frame_idl::ty::{IdlType, TypeId};
+
 use star_frame_idl::IdlDefinitionReference;
 
 // Declare the Program ID here to embed
-#[cfg(feature = "prod")]
-declare_id!("FACTNmq2FhA2QNTnGM2aWJH3i7zT3cND5CgvjYTjyVYe");
 
-#[cfg(not(feature = "prod"))]
-declare_id!("FLisTRH6dJnCK8AzTfenGJgHBPMHoat9XRc65Qpk7Yuc");
-
+// #[cfg_attr(feature = "prod", program(Network::Mainnet))]
+#[program(Network::Mainnet)]
+#[cfg_attr(
+    feature = "atlasnet",
+    program(star_frame::util::Network::Custom("atlasnet"))
+)]
 pub struct FactionEnlistment;
 
 impl StarFrameProgram for FactionEnlistment {
@@ -40,7 +51,7 @@ impl StarFrameProgram for FactionEnlistment {
     const CLOSED_ACCOUNT_DISCRIMINANT: Self::AccountDiscriminant = [u8::MAX; 8];
     const PROGRAM_IDS: ProgramIds = ProgramIds::Mapped(&[
         (
-            Network::MainNet,
+            Network::Mainnet,
             &pubkey!("FACTNmq2FhA2QNTnGM2aWJH3i7zT3cND5CgvjYTjyVYe"),
         ),
         (
@@ -49,9 +60,6 @@ impl StarFrameProgram for FactionEnlistment {
         ),
     ]);
 }
-
-star_frame::program::declare_program_type!(FactionEnlistment);
-
 impl ProgramToIdl for FactionEnlistment {
     const VERSION: Version = Version::zeroed();
 
@@ -64,8 +72,22 @@ impl ProgramToIdl for FactionEnlistment {
     }
 }
 
+// }
+
 pub enum FactionEnlistmentInstructionSet<'a> {
     ProcessEnlistPlayer(&'a ProcessEnlistPlayerIx),
+}
+
+impl<'a> FrameworkSerialize for FactionEnlistmentInstructionSet<'a> {
+    fn to_bytes(&self, output: &mut &mut [u8]) -> Result<()> {
+        todo!()
+    }
+}
+
+unsafe impl<'a> FrameworkFromBytes<'a> for FactionEnlistmentInstructionSet<'a> {
+    fn from_bytes(bytes: &mut &'a [u8]) -> Result<Self> {
+        todo!()
+    }
 }
 
 impl<'a> InstructionSet<'a> for FactionEnlistmentInstructionSet<'a> {
@@ -79,7 +101,7 @@ impl<'a> InstructionSet<'a> for FactionEnlistmentInstructionSet<'a> {
     ) -> Result<()> {
         match self {
             FactionEnlistmentInstructionSet::ProcessEnlistPlayer(ix) => {
-                ix.run_ix_from_raw(program_id, accounts, sys_calls)
+                ProcessEnlistPlayerIx::run_ix_from_raw(ix, program_id, accounts, sys_calls)
             }
         }
     }
@@ -92,30 +114,30 @@ pub struct ProcessEnlistPlayerIx {
     faction_id: u8,
 }
 
-impl<'a> FrameworkInstruction<'a> for &'a ProcessEnlistPlayerIx {
-    type DecodeArg = ();
-    type ValidateArg = ();
-    type RunArg = u8;
-    type CleanupArg = ();
+impl FrameworkInstruction for ProcessEnlistPlayerIx {
+    type DecodeArg<'a> = ();
+    type ValidateArg<'a> = ();
+    type RunArg<'a> = u8;
+    type CleanupArg<'a> = ();
     type ReturnType = ();
-    type Accounts<'b, 'info> = ProcessEnlistPlayer<'info>
+    type Accounts<'b, 'c, 'info> = ProcessEnlistPlayer<'info>
         where 'info: 'b;
 
     fn split_to_args(
-        self,
+        _r: <Self as UnsizedType>::Ref<'_>,
     ) -> (
-        Self::DecodeArg,
-        Self::ValidateArg,
-        Self::RunArg,
-        Self::CleanupArg,
+        Self::DecodeArg<'_>,
+        Self::ValidateArg<'_>,
+        Self::RunArg<'_>,
+        Self::CleanupArg<'_>,
     ) {
         todo!()
     }
 
     fn run_instruction<'b, 'info>(
-        faction_id: Self::RunArg,
+        faction_id: Self::RunArg<'_>,
         _program_id: &Pubkey,
-        account_set: &mut Self::Accounts<'b, 'info>,
+        account_set: &mut Self::Accounts<'b, '_, 'info>,
         sys_calls: &mut impl SysCallInvoke,
     ) -> Result<Self::ReturnType>
     where
@@ -135,42 +157,14 @@ impl<'a> FrameworkInstruction<'a> for &'a ProcessEnlistPlayerIx {
                 };
                 Ok(())
             }
-            _ => Err(ProgramError::Custom(69)),
+            _ => bail!(ProgramError::Custom(69)),
         }
     }
 }
 
-// pub mod faction_enlistment {
-//     use super::*;
-//     pub fn process_enlist_player(
-//         ctx: Context<ProcessEnlistPlayer>,
-//         _bump: u8, // we are keeping this for backwards compatibility
-//         faction_id: u8,
-//     ) -> Result<()> {
-//         match faction_id {
-//             0..=2 => {
-//                 let player_faction_account_info = &mut ctx.accounts.player_faction_account;
-//                 player_faction_account_info.owner = ctx.accounts.player_account.key();
-//                 player_faction_account_info.enlisted_at_timestamp =
-//                     ctx.accounts.clock.unix_timestamp;
-//                 player_faction_account_info.faction_id = faction_id;
-//                 player_faction_account_info.bump =
-//                     *ctx.bumps.get("player_faction_account").unwrap();
-//                 Ok(())
-//             }
-//             _ => Err(error!(FactionErrors::FactionTypeError)),
-//         }
-//     }
 // }
 
 // #[instruction(_faction_id: u8)]
-
-use star_frame::bytemuck::Pod;
-use star_frame::idl::ty::TypeToIdl;
-use star_frame::idl::ProgramToIdl;
-use star_frame::instruction::{FrameworkInstruction, Instruction, InstructionSet};
-use star_frame::star_frame_idl::{IdlDefinition, Version};
-use star_frame::sys_calls::{SysCallInvoke, SysCalls};
 
 #[derive(AccountSet, Debug)]
 // #[account_set(skip_default_idl)]
@@ -206,6 +200,7 @@ pub struct ProcessEnlistPlayer<'info> {
     pub system_program: Program<'info, SystemProgram>,
 }
 #[derive(Debug, Align1, Copy, Clone, Pod, Zeroable, TypeToIdl, AccountToIdl)]
+// #[derive(Debug, Align1, Copy, Clone, Pod, Zeroable)]
 #[repr(C, packed)]
 // #[derive(AccountData)]
 // #[owner_program(FactionEnlistment)]
@@ -248,7 +243,7 @@ impl GetSeeds for PlayerFactionAccountSeeds {
 maybe require manual implementation if you want something else for now? */
 // Why can't you do multi line TODOs?
 impl ProgramAccount for PlayerFactionData {
-    type OwnerProgram = crate::StarFrameDeclaredProgram;
+    type OwnerProgram = FactionEnlistment;
 
     fn discriminant() -> [u8; 8] {
         Default::default()

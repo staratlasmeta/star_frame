@@ -7,7 +7,6 @@ mod ixs;
 use ixs::TestProgramInstructions;
 use lazy_static::lazy_static;
 use solana_program::pubkey::Pubkey;
-use star_frame::declare_id;
 use star_frame::idl::ty::TypeToIdl;
 use star_frame::idl::{AccountToIdl, InstructionSetToIdl, ProgramToIdl};
 use star_frame::program::{ProgramIds, StarFrameProgram};
@@ -20,7 +19,6 @@ use star_frame_idl::ty::{IdlField, IdlType, IdlTypeDef, TypeId};
 use star_frame_idl::{DiscriminantId, IdlDefinition, IdlDefinitionReference, Version};
 use star_frame_proc::pubkey;
 
-declare_id!("11111111111111111111111111111111");
 const KEY: Pubkey = pubkey!("11111111111111111111111111111111");
 
 #[test]
@@ -33,9 +31,9 @@ lazy_static! {
     pub static ref PROGRAM_PUBKEY: Pubkey = Pubkey::new_unique();
     pub static ref DEV_PROGRAM_PUBKEY: Pubkey = Pubkey::new_unique();
     pub static ref TEST_PROGRAM_PUBKEYS: [(Network, &'static Pubkey); 3] = [
-        (Network::MainNet, &PROGRAM_PUBKEY),
-        (Network::DevNet, &DEV_PROGRAM_PUBKEY),
-        (Network::TestNet, &DEV_PROGRAM_PUBKEY),
+        (Network::Mainnet, &PROGRAM_PUBKEY),
+        (Network::Devnet, &DEV_PROGRAM_PUBKEY),
+        (Network::Testnet, &DEV_PROGRAM_PUBKEY),
     ];
 }
 
@@ -47,9 +45,9 @@ impl StarFrameProgram for TestProgram {
     const CLOSED_ACCOUNT_DISCRIMINANT: Self::AccountDiscriminant = 1;
 
     const PROGRAM_IDS: ProgramIds = ProgramIds::Mapped(&[
-        (Network::MainNet, &Pubkey::new_from_array([4; 32])),
-        (Network::DevNet, &Pubkey::new_from_array([1; 32])),
-        (Network::TestNet, &Pubkey::new_from_array([2; 32])),
+        (Network::Mainnet, &Pubkey::new_from_array([4; 32])),
+        (Network::Devnet, &Pubkey::new_from_array([1; 32])),
+        (Network::Testnet, &Pubkey::new_from_array([2; 32])),
     ]);
 }
 impl ProgramToIdl for TestProgram {

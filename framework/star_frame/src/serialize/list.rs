@@ -7,6 +7,7 @@ use crate::serialize::{
 };
 use crate::Result;
 use advance::Advance;
+use anyhow::bail;
 use bytemuck::{from_bytes, Pod};
 use derivative::Derivative;
 use num_traits::{FromPrimitive, ToPrimitive, Zero};
@@ -288,7 +289,7 @@ where
         let old_len = self.len();
         if index > old_len {
             // TODO: Better errors
-            return Err(ProgramError::InvalidArgument);
+            bail!(ProgramError::InvalidArgument);
         }
         let iter = iter.into_iter();
         let new_len = self
@@ -332,7 +333,7 @@ where
             Bound::Unbounded => old_len,
         };
         if start > end || end > old_len {
-            return Err(ProgramError::InvalidArgument);
+            bail!(ProgramError::InvalidArgument);
         }
 
         unsafe {

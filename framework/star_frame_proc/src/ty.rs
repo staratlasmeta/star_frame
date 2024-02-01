@@ -14,6 +14,7 @@ pub fn derive_type_to_idl(input: &DeriveInput) -> TokenStream {
         semver,
         declared_program_type,
         idl_ty_program_ident,
+        result,
         ..
     } = &Paths::default();
 
@@ -37,7 +38,7 @@ pub fn derive_type_to_idl(input: &DeriveInput) -> TokenStream {
         #[automatically_derived]
         impl #type_to_idl for #ident {
             type AssociatedProgram = #associated_program;
-            fn type_to_idl(idl_definition: &mut #idl_definition) -> Result<#idl_type_def> {
+            fn type_to_idl(idl_definition: &mut #idl_definition) -> #result<#idl_type_def> {
                 let namespace = if idl_definition.namespace == Self::AssociatedProgram::idl_namespace() {
                     let type_def = #type_def;
                     idl_definition.add_type_if_missing(#ident_str, || IdlType {

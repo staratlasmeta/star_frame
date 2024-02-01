@@ -1,10 +1,14 @@
 use crate::idl::ProgramToIdl;
 use crate::program::system_program::SystemProgram;
 use crate::Result;
+use bytemuck::Pod;
+use num_traits::{FromPrimitive, ToPrimitive};
 use solana_program::pubkey::Pubkey;
 use star_frame_idl::ty::{IdlDefinedType, IdlType, IdlTypeDef, TypeId};
 use star_frame_idl::{IdlDefinition, IdlDefinitionReference, SemVer};
 
+use crate::align1::Align1;
+use crate::serialize::list::List;
 pub use star_frame_proc::TypeToIdl;
 
 pub trait TypeToIdl {
@@ -99,6 +103,21 @@ impl<T: TypeToIdl> TypeToIdl for Vec<T> {
     fn type_to_idl(idl_definition: &mut IdlDefinition) -> Result<IdlTypeDef> {
         Ok(IdlTypeDef::BorshVec {
             item_ty: Box::new(T::type_to_idl(idl_definition)?),
+            len_ty: Box::new(u32::type_to_idl(idl_definition)?),
+        })
+    }
+}
+
+impl<T, L> TypeToIdl for List<T, L>
+where
+    T: Align1 + Pod + TypeToIdl,
+    L: Pod + TypeToIdl + FromPrimitive + ToPrimitive,
+{
+    type AssociatedProgram = SystemProgram;
+    fn type_to_idl(idl_definition: &mut IdlDefinition) -> Result<IdlTypeDef> {
+        Ok(IdlTypeDef::BorshVec {
+            item_ty: Box::new(T::type_to_idl(idl_definition)?),
+            len_ty: Box::new(L::type_to_idl(idl_definition)?),
         })
     }
 }
