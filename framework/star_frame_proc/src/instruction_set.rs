@@ -1,7 +1,7 @@
 use crate::util::{verify_repr, Paths};
 use proc_macro2::TokenStream;
 use proc_macro_error::abort;
-use quote::quote;
+use quote::{format_ident, quote};
 use syn::{parse_quote, Field, Fields, FieldsUnnamed, ItemEnum, Lifetime, Type};
 
 pub fn instruction_set_impl(item: ItemEnum, _args: TokenStream) -> TokenStream {
@@ -10,7 +10,17 @@ pub fn instruction_set_impl(item: ItemEnum, _args: TokenStream) -> TokenStream {
     let attrs = &item.attrs;
     let a_lifetime: Lifetime = parse_quote! { '__a };
 
-    let Paths { instruction, instruction_set, .. } = Paths::default();
+    let Paths {
+        account_info,
+        advance_array,
+        anyhow_macro,
+        instruction,
+        instruction_set,
+        pubkey,
+        result,
+        sys_calls,
+        ..
+    } = Paths::default();
 
     if !item.generics.params.is_empty() {
         abort!(item.generics, "Generics are unsupported");
@@ -33,8 +43,9 @@ pub fn instruction_set_impl(item: ItemEnum, _args: TokenStream) -> TokenStream {
     };
 
     let mut variant_discriminants = Vec::new();
+    let mut variant_tys = Vec::new();
     let mut variants = Vec::new();
-    let mut last_discriminant = None
+    let mut last_discriminant = None;
     for variant in &item.variants {
         let variant_ident = &variant.ident;
         let variant_attrs = &variant.attrs;
@@ -61,19 +72,49 @@ pub fn instruction_set_impl(item: ItemEnum, _args: TokenStream) -> TokenStream {
                 variants.push(quote! {
                     #(#variant_attrs)*
                     #variant_ident(#(#ty_attrs)* <#ty as #instruction>::SelfData<#a_lifetime>)
-                })
+                });
+                variant_tys.push(ty);
             }
             Fields::Unit | Fields::Named(_) => {
                 abort!(variant.fields, "Only a single unnamed field is supported.")
             }
         }
     }
+    let disc_names = variant_discriminants
+        .iter()
+        .enumerate()
+        .map(|(index, _)| format_ident!("DISC{}", index))
+        .collect::<Vec<_>>();
+
     quote! {
         #(#attrs)*
         #forced_repr
         #vis enum #ident<#a_lifetime> {
-            #(#variants = #variant_discriminants)*
+            #(#variants = #variant_discriminants,)*
         }
-        impl<#a_lifetime> #instruction_set for #ident<#a_lifetime> {}
+        impl<#a_lifetime> #instruction_set for #ident<#a_lifetime> {
+            type Discriminant = #repr;
+
+            fn handle_ix(
+                mut ix_bytes: &[u8],
+                program_id: &#pubkey,
+                accounts: &[#account_info],
+                sys_calls: &mut impl #sys_calls,
+            ) -> #result<()> {
+                #(
+                    const #disc_names: #repr = #variant_discriminants;
+                )*
+                let discriminant = #repr::from_le_bytes(*#advance_array::try_advance_array(&mut ix_bytes)?);
+                match discriminant {
+                    #(
+                        #disc_names => {
+                            let data = <#variant_tys as #instruction>::data_from_bytes(&mut ix_bytes)?;
+                            <#variant_tys as #instruction>::run_ix_from_raw(&data, program_id, accounts, sys_calls)
+                        }
+                    )*
+                    x => Err(#anyhow_macro!("Invalid ix discriminant: {}", x)),
+                }
+            }
+        }
     }
 }

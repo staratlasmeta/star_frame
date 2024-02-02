@@ -1,9 +1,9 @@
 pub mod un_callable;
 
+pub use star_frame_proc::instruction_set2;
 pub use star_frame_proc::InstructionToIdl;
 
 use crate::account_set::{AccountSetCleanup, AccountSetDecode, AccountSetValidate};
-use crate::serialize::FrameworkFromBytes;
 use crate::sys_calls::{SysCallInvoke, SysCalls};
 use crate::Result;
 use bytemuck::Pod;
@@ -13,13 +13,13 @@ use solana_program::pubkey::Pubkey;
 use star_frame::serialize::FrameworkSerialize;
 
 /// A set of instructions that can be used as input to a program.
-pub trait InstructionSet<'a>: FrameworkFromBytes<'a> {
+pub trait InstructionSet {
     /// The discriminant type used by this program's accounts.
     type Discriminant: Pod;
 
     /// Handles the instruction obtained from [`InstructionSet::from_bytes`].
     fn handle_ix(
-        self,
+        ix_bytes: &[u8],
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         sys_calls: &mut impl SysCalls,
@@ -134,5 +134,61 @@ where
         let return_data_len = return_data_ref.len();
         sys_calls.set_return_data(&return_data[..return_data_len]);
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::instruction::Instruction;
+    use crate::prelude::SysCalls;
+    use solana_program::account_info::AccountInfo;
+    use solana_program::pubkey::Pubkey;
+    use star_frame_proc::instruction_set2;
+
+    #[allow(dead_code)]
+    struct Ix1 {
+        val: u8,
+    }
+    impl Instruction for Ix1 {
+        type SelfData<'a> = ();
+
+        fn data_from_bytes<'a>(_bytes: &mut &'a [u8]) -> anyhow::Result<Self::SelfData<'a>> {
+            todo!()
+        }
+
+        fn run_ix_from_raw(
+            _data: &Self::SelfData<'_>,
+            _program_id: &Pubkey,
+            _accounts: &[AccountInfo],
+            _sys_calls: &mut impl SysCalls,
+        ) -> anyhow::Result<()> {
+            todo!()
+        }
+    }
+    #[allow(dead_code)]
+    struct Ix2 {
+        val: u64,
+    }
+    impl Instruction for Ix2 {
+        type SelfData<'a> = ();
+
+        fn data_from_bytes<'a>(_bytes: &mut &'a [u8]) -> anyhow::Result<Self::SelfData<'a>> {
+            todo!()
+        }
+
+        fn run_ix_from_raw(
+            _data: &Self::SelfData<'_>,
+            _program_id: &Pubkey,
+            _accounts: &[AccountInfo],
+            _sys_calls: &mut impl SysCalls,
+        ) -> anyhow::Result<()> {
+            todo!()
+        }
+    }
+
+    #[instruction_set2]
+    enum TestInstructionSet1 {
+        Ix1(Ix1),
+        Ix2(Ix2),
     }
 }

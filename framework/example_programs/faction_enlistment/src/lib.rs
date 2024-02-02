@@ -14,18 +14,17 @@ use star_frame::anyhow::bail;
 use star_frame::bytemuck::Pod;
 use star_frame::idl::ty::TypeToIdl;
 use star_frame::idl::ProgramToIdl;
-use star_frame::instruction::{FrameworkInstruction, Instruction, InstructionSet};
+use star_frame::instruction::{instruction_set2, FrameworkInstruction};
 use star_frame::program::system_program::SystemProgram;
 use star_frame::program::{program, ProgramIds, StarFrameProgram};
 use star_frame::program_account::ProgramAccount;
 use star_frame::pubkey;
 use star_frame::serialize::unsized_type::UnsizedType;
-use star_frame::serialize::{FrameworkFromBytes, FrameworkSerialize};
 use star_frame::solana_program::account_info::AccountInfo;
 use star_frame::solana_program::program_error::ProgramError;
 use star_frame::solana_program::pubkey::Pubkey;
 use star_frame::star_frame_idl::{IdlDefinition, Version};
-use star_frame::sys_calls::{SysCallInvoke, SysCalls};
+use star_frame::sys_calls::SysCallInvoke;
 use star_frame::util::Network;
 use star_frame::Result;
 use star_frame_idl::ty::{IdlType, TypeId};
@@ -72,39 +71,9 @@ impl ProgramToIdl for FactionEnlistment {
     }
 }
 
-// }
-
-pub enum FactionEnlistmentInstructionSet<'a> {
-    ProcessEnlistPlayer(<ProcessEnlistPlayerIx as Instruction>::SelfData<'a>),
-}
-
-impl<'a> FrameworkSerialize for FactionEnlistmentInstructionSet<'a> {
-    fn to_bytes(&self, _output: &mut &mut [u8]) -> Result<()> {
-        todo!()
-    }
-}
-
-unsafe impl<'a> FrameworkFromBytes<'a> for FactionEnlistmentInstructionSet<'a> {
-    fn from_bytes(_bytes: &mut &'a [u8]) -> Result<Self> {
-        todo!()
-    }
-}
-
-impl<'a> InstructionSet<'a> for FactionEnlistmentInstructionSet<'a> {
-    type Discriminant = ();
-
-    fn handle_ix(
-        self,
-        program_id: &Pubkey,
-        accounts: &[AccountInfo],
-        sys_calls: &mut impl SysCalls,
-    ) -> Result<()> {
-        match self {
-            FactionEnlistmentInstructionSet::ProcessEnlistPlayer(ix) => {
-                ProcessEnlistPlayerIx::run_ix_from_raw(&ix, program_id, accounts, sys_calls)
-            }
-        }
-    }
+#[instruction_set2]
+pub enum FactionEnlistmentInstructionSet {
+    ProcessEnlistPlayer(ProcessEnlistPlayerIx),
 }
 
 #[derive(Copy, Clone, Zeroable, Align1, Pod)]

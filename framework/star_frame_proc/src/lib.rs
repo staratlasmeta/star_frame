@@ -204,7 +204,7 @@ fn derive_align1_for_struct(
 /// Derives `InstructionSet` for a valid type.
 #[proc_macro_error]
 #[proc_macro_attribute]
-pub fn instruction_set(
+pub fn instruction_set2(
     args: proc_macro::TokenStream,
     item: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {

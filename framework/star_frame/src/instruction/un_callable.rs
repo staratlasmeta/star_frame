@@ -21,11 +21,11 @@ unsafe impl<'a> FrameworkFromBytes<'a> for UnCallable {
     }
 }
 
-impl<'a> InstructionSet<'a> for UnCallable {
+impl InstructionSet for UnCallable {
     type Discriminant = ();
 
     fn handle_ix(
-        self,
+        _ix_bytes: &[u8],
         _program_id: &Pubkey,
         _accounts: &[AccountInfo],
         _sys_calls: &mut impl SysCalls,
@@ -40,7 +40,7 @@ mod idl_impl {
     use crate::idl::InstructionSetToIdl;
     use star_frame_idl::IdlDefinition;
 
-    impl<'a> InstructionSetToIdl<'a> for UnCallable {
+    impl InstructionSetToIdl for UnCallable {
         fn instruction_set_to_idl(_idl_definition: &mut IdlDefinition) -> Result<()> {
             Ok(())
         }

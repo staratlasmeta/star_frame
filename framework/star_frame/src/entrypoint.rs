@@ -1,6 +1,5 @@
 use crate::instruction::InstructionSet;
 use crate::program::StarFrameProgram;
-use crate::serialize::FrameworkFromBytes;
 use crate::util::Network;
 use crate::Result;
 use solana_program::account_info::AccountInfo;
@@ -13,13 +12,11 @@ pub fn try_star_frame_entrypoint<T: StarFrameProgram>(
     instruction_data: &[u8],
     network: Network,
 ) -> Result<()> {
-    let mut instruction_data = instruction_data;
-    let ix_set = T::InstructionSet::from_bytes(&mut instruction_data)?;
     let mut syscalls = crate::sys_calls::solana_runtime::SolanaRuntime {
         program_id,
         network,
     };
-    ix_set.handle_ix(program_id, accounts, &mut syscalls)
+    T::InstructionSet::handle_ix(instruction_data, program_id, accounts, &mut syscalls)
 }
 
 #[cfg(test)]

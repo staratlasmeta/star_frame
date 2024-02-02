@@ -38,6 +38,7 @@ pub struct Paths {
     pub account_set_cleanup: TokenStream,
 
     // syscalls
+    pub sys_calls: TokenStream,
     pub sys_call_invoke: TokenStream,
     pub solana_runtime: TokenStream,
 
@@ -93,6 +94,7 @@ pub struct Paths {
     pub align1: TokenStream,
     pub packed_value_checked: TokenStream,
     pub advance: TokenStream,
+    pub advance_array: TokenStream,
 
     // serialize
     pub build_pointer: TokenStream,
@@ -120,6 +122,9 @@ pub struct Paths {
     pub sol_memset: TokenStream,
     pub pubkey: TokenStream,
     pub msg: TokenStream,
+
+    // anyhow
+    pub anyhow_macro: TokenStream,
 
     pub crate_name: TokenStream,
 }
@@ -153,6 +158,7 @@ impl Default for Paths {
             account_set_cleanup: quote! { #crate_name::account_set::AccountSetCleanup },
 
             // syscalls
+            sys_calls: quote! { #crate_name::sys_calls::SysCalls },
             sys_call_invoke: quote! { #crate_name::sys_calls::SysCallInvoke },
             solana_runtime: quote! { #crate_name::sys_calls::solana_runtime::SolanaRuntime },
 
@@ -207,6 +213,7 @@ impl Default for Paths {
 
             align1: quote! { #crate_name::align1::Align1 },
             packed_value_checked: quote! { #crate_name::packed_value::PackedValueChecked },
+            advance_array: quote! { #crate_name::advance::AdvanceArray },
             advance: quote! { #crate_name::advance::Advance},
 
             // serialize
@@ -235,6 +242,9 @@ impl Default for Paths {
             sol_memset: quote! { #crate_name::solana_program::program_memory::sol_memset },
             pubkey: quote! { #crate_name::solana_program::pubkey::Pubkey },
             msg: quote! { #crate_name::solana_program::msg },
+
+            // anyhow
+            anyhow_macro: quote! { #crate_name::anyhow::anyhow },
 
             crate_name,
         }

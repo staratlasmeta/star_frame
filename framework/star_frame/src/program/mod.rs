@@ -13,7 +13,7 @@ pub use star_frame_proc::program;
 /// A Solana program's definition.
 pub trait StarFrameProgram {
     /// The instruction set used by this program.
-    type InstructionSet<'a>: InstructionSet<'a, Discriminant = Self::InstructionDiscriminant>;
+    type InstructionSet<'a>: InstructionSet<Discriminant = Self::InstructionDiscriminant>;
     type InstructionDiscriminant;
 
     type AccountDiscriminant: Pod + Eq;

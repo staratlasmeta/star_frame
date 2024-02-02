@@ -9,7 +9,8 @@ use quote::{format_ident, quote, ToTokens};
 use strum::{EnumIter, IntoEnumIterator};
 use syn::parse::{Parse, ParseStream};
 use syn::{
-    parse_quote, Attribute, Data, DataEnum, DeriveInput, LitInt, LitStr, Token, Type, Visibility,
+    parse_quote, Attribute, Data, DataEnum, DeriveInput, Generics, LitInt, LitStr, Token, Type,
+    Visibility,
 };
 
 #[allow(dead_code)]
@@ -17,6 +18,7 @@ struct StrippedDeriveInput {
     attrs: Vec<Attribute>,
     vis: Visibility,
     ident: Ident,
+    generics: Generics,
 }
 
 /// Valid `[repr(...)]` types for `InstructionSet`
@@ -115,6 +117,7 @@ pub fn derive_instruction_set_to_idl_impl(input: DeriveInput) -> TokenStream {
                 attrs: input.attrs,
                 vis: input.vis,
                 ident: input.ident,
+                generics: input.generics,
             },
         ),
         Data::Struct(s) => abort!(s.struct_token, "Structs are not supported"),
@@ -171,8 +174,10 @@ fn derive_instruction_set_to_idl_impl_enum(
         .map(|field| LitStr::new(&util::get_docs(&field.attrs), Span::call_site()))
         .collect();
 
+    let (impl_gen, ty_gen, where_clause) = input.generics.split_for_impl();
+
     let out = quote! {
-        impl<'a> #instruction_set_to_idl<'a> for #ident<'a> {
+        impl #impl_gen #instruction_set_to_idl for #ident #ty_gen #where_clause {
             fn instruction_set_to_idl(idl_definition: &mut #idl_definition) -> #result<()> {
                 #(
                     let #variant_snake_names = <#variant_names as #instruction_to_idl<_>>::instruction_to_idl(idl_definition, ())?;

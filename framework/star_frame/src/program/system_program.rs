@@ -32,11 +32,11 @@ impl FrameworkSerialize for SystemInstruction {
     }
 }
 
-impl<'a> InstructionSet<'a> for SystemInstruction {
+impl InstructionSet for SystemInstruction {
     type Discriminant = ();
 
     fn handle_ix(
-        self,
+        _ix_bytes: &[u8],
         _program_id: &Pubkey,
         _accounts: &[AccountInfo],
         _sys_calls: &mut impl SysCalls,
@@ -219,7 +219,7 @@ mod idl_impl {
         }
     }
 
-    impl<'a> InstructionSetToIdl<'a> for SystemInstruction {
+    impl InstructionSetToIdl for SystemInstruction {
         fn instruction_set_to_idl(idl_definition: &mut IdlDefinition) -> Result<()> {
             {
                 let account_set = CreateAccountSet::account_set_to_idl(idl_definition, ())?;
