@@ -1,18 +1,40 @@
-use crate::util::Paths;
+use crate::util::{verify_repr, Paths};
 use proc_macro2::TokenStream;
 use proc_macro_error::abort;
 use quote::quote;
-use syn::{parse_quote, Field, Fields, FieldsUnnamed, ItemEnum, Lifetime};
+use syn::{parse_quote, Field, Fields, FieldsUnnamed, ItemEnum, Lifetime, Type};
 
 pub fn instruction_set_impl(item: ItemEnum, _args: TokenStream) -> TokenStream {
     let vis = &item.vis;
     let ident = &item.ident;
     let attrs = &item.attrs;
     let a_lifetime: Lifetime = parse_quote! { '__a };
+
+    let Paths { instruction, instruction_set, .. } = Paths::default();
+
+    if !item.generics.params.is_empty() {
+        abort!(item.generics, "Generics are unsupported");
+    }
+    let reprs = verify_repr(attrs, [], true, false);
+    if reprs.len() > 1 {
+        abort!(reprs, "Invalid enum reprs")
+    }
+    let forced_repr;
+    let repr: Type = if reprs.is_empty() {
+        forced_repr = quote! { #[repr(u8)] };
+        parse_quote! { u8 }
+    } else {
+        forced_repr = quote! {};
+        let repr = &reprs[0];
+        if repr == "C" {
+            abort!(repr, "#[repr(C)] is unsupported");
+        }
+        parse_quote! { #repr }
+    };
+
     let mut variant_discriminants = Vec::new();
     let mut variants = Vec::new();
-    let mut last_discriminant = None;
-    let Paths { instruction, .. } = Paths::default();
+    let mut last_discriminant = None
     for variant in &item.variants {
         let variant_ident = &variant.ident;
         let variant_attrs = &variant.attrs;
@@ -48,6 +70,10 @@ pub fn instruction_set_impl(item: ItemEnum, _args: TokenStream) -> TokenStream {
     }
     quote! {
         #(#attrs)*
-
+        #forced_repr
+        #vis enum #ident<#a_lifetime> {
+            #(#variants = #variant_discriminants)*
+        }
+        impl<#a_lifetime> #instruction_set for #ident<#a_lifetime> {}
     }
 }
