@@ -21,13 +21,13 @@ impl StarFrameProgram for SystemProgram {
 }
 
 unsafe impl<'a> FrameworkFromBytes<'a> for SystemInstruction {
-    fn from_bytes(bytes: &mut &'a [u8]) -> Result<Self> {
+    fn from_bytes(_bytes: &mut &'a [u8]) -> Result<Self> {
         todo!()
     }
 }
 
 impl FrameworkSerialize for SystemInstruction {
-    fn to_bytes(&self, output: &mut &mut [u8]) -> Result<()> {
+    fn to_bytes(&self, _output: &mut &mut [u8]) -> Result<()> {
         todo!()
     }
 }

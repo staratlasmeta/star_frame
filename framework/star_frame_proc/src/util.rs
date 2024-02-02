@@ -74,6 +74,7 @@ pub struct Paths {
     // instruction
     pub framework_instruction: TokenStream,
     pub instruction_set: TokenStream,
+    pub instruction: TokenStream,
 
     // program
     pub system_program: TokenStream,
@@ -188,6 +189,7 @@ impl Default for Paths {
             // instruction
             framework_instruction: quote! { #crate_name::instruction::FrameworkInstruction },
             instruction_set: quote! { #crate_name::instruction::InstructionSet },
+            instruction: quote! { #crate_name::instruction::Instruction },
 
             // program
             system_program: quote! { #crate_name::program::system_program::SystemProgram },

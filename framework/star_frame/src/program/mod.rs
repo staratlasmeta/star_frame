@@ -1,7 +1,6 @@
 pub mod system_program;
 
 use crate::instruction::InstructionSet;
-use crate::program_account::ProgramAccount;
 use crate::sys_calls::SysCallCore;
 use crate::util::{compare_strings, Network};
 use crate::Result;
@@ -144,10 +143,4 @@ mod idl_impl {
             }
         }
     }
-}
-
-/// An account registered to a program.
-pub trait ProgramAccountEntry<A: ?Sized + ProgramAccount<OwnerProgram = Self>>:
-    StarFrameProgram
-{
 }

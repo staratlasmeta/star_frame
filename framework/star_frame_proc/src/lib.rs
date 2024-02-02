@@ -4,6 +4,7 @@ mod account;
 mod account_set;
 mod framework_instruction;
 mod instruction_set;
+mod instruction_set_to_idl;
 mod program;
 mod solana_pubkey;
 #[cfg(feature = "idl")]
@@ -22,7 +23,7 @@ use syn::parse::{Parse, ParseStream};
 use syn::token::Token;
 use syn::{
     parenthesized, parse_macro_input, parse_quote, token, Data, DataStruct, DataUnion, DeriveInput,
-    Fields, Ident, Item, ItemStruct, LitInt, Token,
+    Fields, Ident, Item, ItemEnum, ItemStruct, LitInt, Token,
 };
 
 fn get_crate_name() -> TokenStream {
@@ -37,7 +38,7 @@ fn get_crate_name() -> TokenStream {
 }
 
 #[proc_macro_error]
-#[proc_macro_derive(FrameworkInstruction)]
+#[proc_macro_derive(InstructionToIdl)]
 pub fn derive_framework_instruction(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let out = framework_instruction::derive_framework_instruction_impl(parse_macro_input!(
         input as DeriveInput
@@ -202,22 +203,24 @@ fn derive_align1_for_struct(
 
 /// Derives `InstructionSet` for a valid type.
 #[proc_macro_error]
-#[proc_macro_derive(InstructionSet)]
-pub fn derive_instruction_set(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
+#[proc_macro_attribute]
+pub fn instruction_set(
+    args: proc_macro::TokenStream,
+    item: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
     let out =
-        instruction_set::derive_instruction_set_impl(&parse_macro_input!(item as DeriveInput));
-    #[cfg(feature = "debug_instruction_set")]
-    {
-        println!("HELLO FROM THE MACRO");
-        println!("{out}");
-    }
+        instruction_set::instruction_set_impl(parse_macro_input!(item as ItemEnum), args.into());
+    // println!("{}", out);
     out.into()
 }
 
 #[proc_macro_error]
-#[proc_macro_derive(InstructionSetToIdl)]
-pub fn derive_instruction_set_to_idl(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let out = instruction_set::derive_instruction_set_to_idl_impl(parse_macro_input!(
+#[proc_macro_attribute]
+pub fn derive_instruction_set_to_idl(
+    atgs: proc_macro::TokenStream,
+    item: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
+    let out = instruction_set_to_idl::derive_instruction_set_to_idl_impl(parse_macro_input!(
         item as DeriveInput
     ));
     // println!("{}", out);

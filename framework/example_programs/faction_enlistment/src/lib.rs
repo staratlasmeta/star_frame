@@ -75,17 +75,17 @@ impl ProgramToIdl for FactionEnlistment {
 // }
 
 pub enum FactionEnlistmentInstructionSet<'a> {
-    ProcessEnlistPlayer(&'a ProcessEnlistPlayerIx),
+    ProcessEnlistPlayer(<ProcessEnlistPlayerIx as Instruction>::SelfData<'a>),
 }
 
 impl<'a> FrameworkSerialize for FactionEnlistmentInstructionSet<'a> {
-    fn to_bytes(&self, output: &mut &mut [u8]) -> Result<()> {
+    fn to_bytes(&self, _output: &mut &mut [u8]) -> Result<()> {
         todo!()
     }
 }
 
 unsafe impl<'a> FrameworkFromBytes<'a> for FactionEnlistmentInstructionSet<'a> {
-    fn from_bytes(bytes: &mut &'a [u8]) -> Result<Self> {
+    fn from_bytes(_bytes: &mut &'a [u8]) -> Result<Self> {
         todo!()
     }
 }
@@ -101,7 +101,7 @@ impl<'a> InstructionSet<'a> for FactionEnlistmentInstructionSet<'a> {
     ) -> Result<()> {
         match self {
             FactionEnlistmentInstructionSet::ProcessEnlistPlayer(ix) => {
-                ProcessEnlistPlayerIx::run_ix_from_raw(ix, program_id, accounts, sys_calls)
+                ProcessEnlistPlayerIx::run_ix_from_raw(&ix, program_id, accounts, sys_calls)
             }
         }
     }
@@ -115,6 +115,8 @@ pub struct ProcessEnlistPlayerIx {
 }
 
 impl FrameworkInstruction for ProcessEnlistPlayerIx {
+    type SelfData<'a> = <Self as UnsizedType>::Ref<'a>;
+
     type DecodeArg<'a> = ();
     type ValidateArg<'a> = ();
     type RunArg<'a> = u8;
@@ -123,13 +125,17 @@ impl FrameworkInstruction for ProcessEnlistPlayerIx {
     type Accounts<'b, 'c, 'info> = ProcessEnlistPlayer<'info>
         where 'info: 'b;
 
-    fn split_to_args(
-        self,
+    fn data_from_bytes<'a>(_bytes: &mut &'a [u8]) -> Result<Self::SelfData<'a>> {
+        todo!()
+    }
+
+    fn split_to_args<'a>(
+        _r: &'a <Self as UnsizedType>::Ref<'_>,
     ) -> (
-        Self::DecodeArg,
-        Self::ValidateArg,
-        Self::RunArg,
-        Self::CleanupArg,
+        Self::DecodeArg<'a>,
+        Self::ValidateArg<'a>,
+        Self::RunArg<'a>,
+        Self::CleanupArg<'a>,
     ) {
         todo!()
     }
