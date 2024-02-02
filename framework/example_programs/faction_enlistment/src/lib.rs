@@ -124,12 +124,12 @@ impl FrameworkInstruction for ProcessEnlistPlayerIx {
         where 'info: 'b;
 
     fn split_to_args(
-        _r: <Self as UnsizedType>::Ref<'_>,
+        self,
     ) -> (
-        Self::DecodeArg<'_>,
-        Self::ValidateArg<'_>,
-        Self::RunArg<'_>,
-        Self::CleanupArg<'_>,
+        Self::DecodeArg,
+        Self::ValidateArg,
+        Self::RunArg,
+        Self::CleanupArg,
     ) {
         todo!()
     }

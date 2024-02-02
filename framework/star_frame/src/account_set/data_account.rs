@@ -184,7 +184,7 @@ where
 }
 impl<'a, T> DerefMut for DataRefMut<'a, T>
 where
-    T: 'a + AccountData,
+    T: 'a + AccountData + ?Sized,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.data

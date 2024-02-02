@@ -134,12 +134,12 @@ pub trait FrameworkInstruction: UnsizedType {
 
     /// Splits self into decode, validate, and run args.
     fn split_to_args(
-        r: <Self as UnsizedType>::Ref<'_>,
+        self,
     ) -> (
-        Self::DecodeArg<'_>,
-        Self::ValidateArg<'_>,
-        Self::RunArg<'_>,
-        Self::CleanupArg<'_>,
+        Self::DecodeArg,
+        Self::ValidateArg,
+        Self::RunArg,
+        Self::CleanupArg,
     );
     /// Runs any extra validations on the accounts.
     #[allow(unused_variables)]
@@ -166,13 +166,13 @@ where
     T: FrameworkInstruction,
 {
     fn run_ix_from_raw(
-        r: <Self as UnsizedType>::Ref<'_>,
+        self,
         program_id: &Pubkey,
         mut accounts: &[AccountInfo],
         sys_calls: &mut impl SysCalls,
     ) -> Result<()> {
         {
-            let (decode, validate, run, cleanup) = Self::split_to_args(r);
+            let (decode, validate, run, cleanup) = self.split_to_args();
             let mut account_set = <Self as FrameworkInstruction>::Accounts::decode_accounts(
                 &mut accounts,
                 decode,
