@@ -61,7 +61,7 @@ mod tests {
     use star_frame_idl::{IdlDefinition, Version};
     use star_frame_proc::program;
 
-    #[program(Network::Mainnet)]
+    #[program(Network::Mainnet, no_entrypoint)]
     pub struct MyProgram;
 
     impl StarFrameProgram for MyProgram {

@@ -44,6 +44,6 @@ mod tests {
     use crate::program::ProgramIds;
     use star_frame::util::Network;
 
-    #[program(Network::Mainnet)]
+    #[program(Network::Mainnet, no_entrypoint)]
     pub struct Stuff;
 }
