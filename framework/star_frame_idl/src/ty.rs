@@ -46,6 +46,10 @@ pub enum IdlTypeDef {
         item_ty: Box<IdlTypeDef>,
     },
     Struct(Vec<IdlField>),
+    FixedPoint {
+        ty: IdlDefinedType,
+        frac: u8,
+    },
     #[serde(untagged)]
     Plugin {
         plugin_id: String,

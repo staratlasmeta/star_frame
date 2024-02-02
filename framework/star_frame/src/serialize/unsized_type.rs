@@ -52,7 +52,7 @@ mod test {
             f.debug_struct("TestUnsized")
                 .field("val1", &{ self.val1 })
                 .field("val2", &{ self.val2 })
-                // .field("list", &self.list) // For some reason this takes a dyn ref rather than impl ref
+                .field("list", &&self.list)
                 .finish()
         }
     }

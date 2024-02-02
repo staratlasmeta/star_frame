@@ -12,18 +12,23 @@ pub extern crate anyhow;
 pub extern crate borsh;
 pub extern crate bytemuck;
 pub extern crate derivative;
+pub extern crate num_traits;
+pub extern crate paste;
 pub extern crate self as star_frame;
+pub extern crate serde;
 #[cfg(feature = "idl")]
 pub extern crate serde_json;
 pub extern crate solana_program;
 #[cfg(feature = "idl")]
 pub extern crate star_frame_idl;
 pub extern crate static_assertions;
+pub extern crate typenum;
 
 pub mod account_set;
 pub mod align1;
 pub mod entrypoint;
 pub mod errors;
+pub mod fixed_point;
 #[cfg(feature = "idl")]
 pub mod idl;
 pub mod impls;
@@ -35,6 +40,7 @@ pub mod program_account;
 pub mod serialize;
 pub mod sys_calls;
 pub mod unit_enum_from_repr;
+pub mod unit_val;
 pub mod util;
 
 pub use anyhow::Result;
