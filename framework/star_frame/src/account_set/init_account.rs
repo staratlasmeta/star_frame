@@ -20,6 +20,7 @@ use solana_program::system_instruction;
 use star_frame_proc::AccountSet;
 use std::fmt::Debug;
 use std::mem::size_of;
+use std::ops::{Deref, DerefMut};
 
 #[derive(AccountSet, Debug)]
 #[validate(
@@ -41,6 +42,24 @@ where
         self.inner.account_info()
     }
 }
+impl<'info, T> Deref for InitAccount<'info, T>
+where
+    T: AccountData + ?Sized,
+{
+    type Target = DataAccount<'info, T>;
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl<'info, T> DerefMut for InitAccount<'info, T>
+where
+    T: AccountData + ?Sized,
+{
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.inner
+    }
+}
 
 #[derive(Derivative)]
 #[derivative(Debug(
@@ -56,9 +75,9 @@ pub struct CreateAccountWithArg<
 > where
     S: GetSeeds,
 {
-    arg: A,
-    system_program: &'a Program<'info, SystemProgram>,
-    funder: Funder<'a, WT, S, CHECK>,
+    pub arg: A,
+    pub system_program: &'a Program<'info, SystemProgram>,
+    pub funder: Funder<'a, WT, S, CHECK>,
 }
 
 #[derive(Derivative)]

@@ -123,13 +123,13 @@ impl FrameworkInstruction for ProcessEnlistPlayerIx {
     type Accounts<'b, 'c, 'info> = ProcessEnlistPlayer<'info>
         where 'info: 'b;
 
-    fn split_to_args(
-        _r: <Self as UnsizedType>::Ref<'_>,
+    fn split_to_args<'a, 'b>(
+        _r: &'a <Self as UnsizedType>::Ref<'b>,
     ) -> (
-        Self::DecodeArg<'_>,
-        Self::ValidateArg<'_>,
-        Self::RunArg<'_>,
-        Self::CleanupArg<'_>,
+        Self::DecodeArg<'a>,
+        Self::ValidateArg<'a>,
+        Self::RunArg<'a>,
+        Self::CleanupArg<'a>,
     ) {
         todo!()
     }

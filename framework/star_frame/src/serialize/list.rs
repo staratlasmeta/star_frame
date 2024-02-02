@@ -104,6 +104,15 @@ where
         self.list
     }
 }
+impl<'a, T, L> ListRef<'a, T, L>
+where
+    T: Pod + Align1,
+    L: Pod + ToPrimitive + FromPrimitive,
+{
+    pub fn inner(&self) -> &'a List<T, L> {
+        self.list
+    }
+}
 impl<'a, T, L> FrameworkSerialize for ListRef<'a, T, L>
 where
     T: Pod + Align1,
@@ -546,7 +555,7 @@ pub mod eq_impls {
         [T]: PartialEq,
     {
         fn eq(&self, other: &[T]) -> bool {
-            self.deref().eq(other)
+            self.deref().eq(&other)
         }
     }
     impl<'a, T, L> PartialEq<&'a [T]> for ListRef<'_, T, L>
@@ -566,7 +575,7 @@ pub mod eq_impls {
         [T]: PartialEq,
     {
         fn eq(&self, other: &[T; N]) -> bool {
-            self.deref().eq(other)
+            self.deref().eq(&other)
         }
     }
     impl<'a, T, L, const N: usize> PartialEq<&'a [T; N]> for ListRef<'_, T, L>
@@ -576,7 +585,7 @@ pub mod eq_impls {
         [T]: PartialEq,
     {
         fn eq(&self, other: &&'a [T; N]) -> bool {
-            self.deref().eq(other.as_slice())
+            self.deref().eq(&other.as_slice())
         }
     }
     impl<T, L, const N: usize> PartialEq<ListRef<'_, T, L>> for [T; N]
