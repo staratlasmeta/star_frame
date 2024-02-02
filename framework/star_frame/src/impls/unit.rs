@@ -48,11 +48,11 @@ impl<'info> AccountSetCleanup<'info, ()> for () {
     }
 }
 
-impl<'a> InstructionSet<'a> for () {
+impl InstructionSet for () {
     type Discriminant = ();
 
     fn handle_ix(
-        self,
+        _ix_bytes: &[u8],
         _program_id: &Pubkey,
         _accounts: &[AccountInfo],
         _sys_calls: &mut impl SysCalls,

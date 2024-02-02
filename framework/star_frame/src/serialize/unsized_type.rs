@@ -39,7 +39,7 @@ mod test {
     #[unsized_type]
     #[derive(Align1)]
     #[repr(C, packed)]
-    struct TestUnsized<T> {
+    pub struct TestUnsized<T> {
         pub(super) val1: T,
         pub val2: u64,
         pub list: List<u8>,
@@ -60,7 +60,7 @@ mod test {
     #[unsized_type]
     #[derive(Align1, Debug)]
     #[repr(C)]
-    struct TestUnsized2<U> {
+    pub struct TestUnsized2<U> {
         pub(super) val1: u8,
         pub val2: PackedValue<u64>,
         inner: U,

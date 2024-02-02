@@ -1,7 +1,6 @@
 pub mod system_program;
 
 use crate::instruction::InstructionSet;
-use crate::program_account::ProgramAccount;
 use crate::sys_calls::SysCallCore;
 use crate::util::{compare_strings, Network};
 use crate::Result;
@@ -14,7 +13,7 @@ pub use star_frame_proc::program;
 /// A Solana program's definition.
 pub trait StarFrameProgram {
     /// The instruction set used by this program.
-    type InstructionSet<'a>: InstructionSet<'a, Discriminant = Self::InstructionDiscriminant>;
+    type InstructionSet<'a>: InstructionSet<Discriminant = Self::InstructionDiscriminant>;
     type InstructionDiscriminant;
 
     type AccountDiscriminant: Pod + Eq;
@@ -144,10 +143,4 @@ mod idl_impl {
             }
         }
     }
-}
-
-/// An account registered to a program.
-pub trait ProgramAccountEntry<A: ?Sized + ProgramAccount<OwnerProgram = Self>>:
-    StarFrameProgram
-{
 }

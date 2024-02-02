@@ -97,29 +97,32 @@ fn derive_framework_instruction_impl_struct(
     let out = quote! {
         #[automatically_derived]
         // TODO - Could these lifetimes ever be something else?
-        impl <'a> #instruction_to_idl<'a, ()> for &'a #ident {
+        impl #instruction_to_idl<()> for #ident {
             fn instruction_to_idl(
                 idl_definition: &mut #idl_definition,
                 // TODO - Use idl struct args to pass in arg
                 arg: (),
             ) -> #result<#idl_instruction_def> {
-                #(let #field_name = <#field_type as #type_to_idl>::type_to_idl(idl_definition)?;)*
-        Ok(#idl_instruction_def {
-            account_set: <Self as #framework_instruction<'a>>::Accounts::account_set_to_idl(
-                idl_definition,
-                arg,
-            )?,
-            data: #idl_type_def::Struct(vec![#(
-                #idl_field {
-                            name: #field_str.to_string(),
-                            description: #field_docs.to_string(),
-                            path_id: #field_str.to_string(),
-                            type_def: #field_name,
-                            extension_fields: Default::default(),
-                        },
-                    )*
-            ]),
-        })
+                #(
+                    let #field_name = <#field_type as #type_to_idl>::type_to_idl(idl_definition)?;
+                )*
+                Ok(#idl_instruction_def {
+                    account_set: <Self as #framework_instruction>::Accounts::account_set_to_idl(
+                        idl_definition,
+                        arg,
+                    )?,
+                    data: #idl_type_def::Struct(vec![
+                        #(
+                            #idl_field {
+                                name: #field_str.to_string(),
+                                description: #field_docs.to_string(),
+                                path_id: #field_str.to_string(),
+                                type_def: #field_name,
+                                extension_fields: Default::default(),
+                            },
+                        )*
+                    ]),
+                })
             }
         }
     };

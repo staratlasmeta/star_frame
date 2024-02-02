@@ -1,6 +1,5 @@
 use std::cell::{Ref, RefMut};
 use std::fmt::{Debug, Display};
-use std::mem::align_of;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Network {
@@ -56,22 +55,6 @@ pub fn try_map_ref_mut<'a, I: 'a + ?Sized, O: 'a + ?Sized, E>(
         // let value: &'a mut I = &mut *(&mut *r as *mut I);
         let result = f(&mut r)? as *mut O;
         Ok(RefMut::map(r, |_| &mut *result))
-    }
-}
-
-/// Manual implementation for checking if a pointer is aligned.
-pub trait PtrIsAligned {
-    /// Checks if this pointer is aligned.
-    fn ptr_is_aligned(&self) -> bool;
-}
-impl<T> PtrIsAligned for *const T {
-    fn ptr_is_aligned(&self) -> bool {
-        *self as usize & (align_of::<T>() - 1) == 0
-    }
-}
-impl<T> PtrIsAligned for *mut T {
-    fn ptr_is_aligned(&self) -> bool {
-        *self as usize & (align_of::<T>() - 1) == 0
     }
 }
 

@@ -1,4 +1,4 @@
-use bytemuck::{Pod, Zeroable};
+use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::account_info::AccountInfo;
 use solana_program::pubkey::Pubkey;
 use star_frame::account_set::mutable::Writable;
@@ -8,41 +8,44 @@ use star_frame::idl::AccountSetToIdl;
 use star_frame::instruction::FrameworkInstruction;
 use star_frame::sys_calls::SysCallInvoke;
 use star_frame::Result;
-use star_frame_proc::Align1;
+use star_frame_proc::InstructionToIdl;
 
-#[derive(FrameworkInstruction, Align1, Pod, Zeroable, Copy, Clone, Debug)]
-#[repr(C, packed)]
+#[derive(Copy, Clone, Debug, InstructionToIdl, BorshSerialize, BorshDeserialize)]
 pub struct TestInstruction2 {
     pub val: u32,
     pub val2: u64,
     pub val3: Pubkey,
 }
 
-#[automatically_derived]
-impl<'a> FrameworkInstruction<'a> for &'a TestInstruction2 {
-    type DecodeArg = ();
-    type ValidateArg = ();
-    type RunArg = &'a TestInstruction2;
-    type CleanupArg = ();
+impl FrameworkInstruction for TestInstruction2 {
+    type SelfData<'a> = Self;
+    type DecodeArg<'a> = ();
+    type ValidateArg<'a> = ();
+    type RunArg<'a> = TestInstruction2;
+    type CleanupArg<'a> = ();
     type ReturnType = ();
-    type Accounts<'b, 'info> = TestInstruction2Accounts<'b, 'info> where 'info: 'b;
+    type Accounts<'b, 'c, 'info> = TestInstruction2Accounts<'b, 'info> where 'info: 'b;
 
-    fn split_to_args(
-        self,
+    fn data_from_bytes<'a>(bytes: &mut &'a [u8]) -> Result<Self::SelfData<'a>> {
+        <Self as BorshDeserialize>::deserialize(bytes).map_err(Into::into)
+    }
+
+    fn split_to_args<'a>(
+        r: &'a Self::SelfData<'_>,
     ) -> (
-        Self::DecodeArg,
-        Self::ValidateArg,
-        Self::RunArg,
-        Self::CleanupArg,
+        Self::DecodeArg<'a>,
+        Self::ValidateArg<'a>,
+        Self::RunArg<'a>,
+        Self::CleanupArg<'a>,
     ) {
-        ((), (), self, ())
+        ((), (), *r, ())
     }
 
     fn run_instruction<'b, 'info>(
-        run_arg: Self::RunArg,
-        program_id: &Pubkey,
-        account_set: &mut Self::Accounts<'b, 'info>,
-        sys_calls: &mut impl SysCallInvoke,
+        _run_arg: Self::RunArg<'_>,
+        _program_id: &Pubkey,
+        _account_set: &mut Self::Accounts<'b, '_, 'info>,
+        _sys_calls: &mut impl SysCallInvoke,
     ) -> Result<Self::ReturnType>
     where
         'info: 'b,

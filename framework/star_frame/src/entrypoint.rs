@@ -1,12 +1,9 @@
 use crate::instruction::InstructionSet;
-use crate::program::{ProgramIds, StarFrameProgram};
+use crate::program::StarFrameProgram;
 use crate::util::Network;
 use crate::Result;
 use solana_program::account_info::AccountInfo;
-use solana_program::msg;
-use solana_program::program_error::ProgramError;
 use solana_program::pubkey::Pubkey;
-use std::mem::size_of;
 
 #[cfg(any(target_os = "solana", feature = "fake_solana_os"))]
 pub fn try_star_frame_entrypoint<T: StarFrameProgram>(
@@ -15,21 +12,11 @@ pub fn try_star_frame_entrypoint<T: StarFrameProgram>(
     instruction_data: &[u8],
     network: Network,
 ) -> Result<()> {
-    let len = size_of::<T::InstructionDiscriminant>();
-    let disc_bytes = instruction_data.get(0..len).ok_or_else(|| {
-        msg!("Instruction data too short");
-        ProgramError::InvalidInstructionData
-    })?;
-
     let mut syscalls = crate::sys_calls::solana_runtime::SolanaRuntime {
         program_id,
         network,
     };
-
-    let ix_set: T::InstructionSet<'_> = todo!();
-
-    // todo: actually deserialize the instruction set
-    ix_set.handle_ix(program_id, accounts, &mut syscalls)
+    T::InstructionSet::handle_ix(instruction_data, program_id, accounts, &mut syscalls)
 }
 
 #[cfg(test)]
@@ -54,8 +41,9 @@ mod tests {
         ]);
     }
 
+    use crate::program::ProgramIds;
     use star_frame::util::Network;
 
-    #[program(Network::Mainnet)]
+    #[program(Network::Mainnet, no_entrypoint)]
     pub struct Stuff;
 }

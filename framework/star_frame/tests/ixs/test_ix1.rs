@@ -2,14 +2,16 @@ use bytemuck::{Pod, Zeroable};
 use solana_program::account_info::AccountInfo;
 use solana_program::pubkey::Pubkey;
 use star_frame::account_set::AccountSet;
+use star_frame::align1::Align1;
 use star_frame::idl::AccountSetToIdl;
 use star_frame::impls::option::Remaining;
 use star_frame::instruction::FrameworkInstruction;
+use star_frame::instruction::InstructionToIdl;
+use star_frame::serialize::{unsized_type::UnsizedType, FrameworkFromBytes};
 use star_frame::sys_calls::SysCallInvoke;
 use star_frame::Result;
-use star_frame_proc::Align1;
 
-#[derive(Copy, Clone, Zeroable, Align1, Pod, FrameworkInstruction)]
+#[derive(Copy, Clone, Zeroable, Align1, Pod, InstructionToIdl)]
 #[repr(C, packed)]
 pub struct TestInstruction1 {
     /// The first value
@@ -20,29 +22,34 @@ pub struct TestInstruction1 {
     pub val3: i8,
 }
 
-impl<'a> FrameworkInstruction<'a> for &'a TestInstruction1 {
-    type DecodeArg = i8;
-    type ValidateArg = u64;
-    type RunArg = i8;
-    type CleanupArg = (u32, u64);
+impl FrameworkInstruction for TestInstruction1 {
+    type SelfData<'a> = <Self as UnsizedType>::Ref<'a>;
+    type DecodeArg<'a> = i8;
+    type ValidateArg<'a> = u64;
+    type RunArg<'a> = i8;
+    type CleanupArg<'a> = (u32, u64);
     type ReturnType = ();
-    type Accounts<'b, 'info> = TestInstruction1Accounts<'b, 'info> where 'info: 'b;
+    type Accounts<'b, 'c, 'info> = TestInstruction1Accounts<'b, 'info> where 'info: 'b;
 
-    fn split_to_args(
-        self,
+    fn data_from_bytes<'a>(bytes: &mut &'a [u8]) -> Result<Self::SelfData<'a>> {
+        <Self as UnsizedType>::Ref::from_bytes(bytes)
+    }
+
+    fn split_to_args<'a>(
+        r: &'a Self::SelfData<'_>,
     ) -> (
-        Self::DecodeArg,
-        Self::ValidateArg,
-        Self::RunArg,
-        Self::CleanupArg,
+        Self::DecodeArg<'a>,
+        Self::ValidateArg<'a>,
+        Self::RunArg<'a>,
+        Self::CleanupArg<'a>,
     ) {
-        (self.val3, self.val2, self.val3, (self.val, self.val2))
+        (r.val3, r.val2, r.val3, (r.val, r.val2))
     }
 
     fn run_instruction<'b, 'info>(
-        _run_arg: Self::RunArg,
+        _run_arg: Self::RunArg<'_>,
         _program_id: &Pubkey,
-        _account_set: &mut Self::Accounts<'b, 'info>,
+        _account_set: &mut Self::Accounts<'b, '_, 'info>,
         _sys_calls: &mut impl SysCallInvoke,
     ) -> Result<Self::ReturnType>
     where
