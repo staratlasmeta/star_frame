@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use crate::util::Paths;
 use crate::{util, IdentWithArgs};
 use heck::{ToSnakeCase, ToTitleCase, ToUpperCamelCase};
@@ -7,8 +9,7 @@ use quote::{format_ident, quote, ToTokens};
 use strum::{EnumIter, IntoEnumIterator};
 use syn::parse::{Parse, ParseStream};
 use syn::{
-    parse_quote, Attribute, Data, DataEnum, DeriveInput, Fields, GenericParam, LifetimeParam,
-    LitInt, LitStr, Token, Type, Visibility,
+    parse_quote, Attribute, Data, DataEnum, DeriveInput, LitInt, LitStr, Token, Type, Visibility,
 };
 
 #[allow(dead_code)]

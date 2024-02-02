@@ -215,11 +215,8 @@ pub fn instruction_set(
 }
 
 #[proc_macro_error]
-#[proc_macro_attribute]
-pub fn derive_instruction_set_to_idl(
-    atgs: proc_macro::TokenStream,
-    item: proc_macro::TokenStream,
-) -> proc_macro::TokenStream {
+#[proc_macro_derive(InstructionSetToIdl)]
+pub fn derive_instruction_set_to_idl(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let out = instruction_set_to_idl::derive_instruction_set_to_idl_impl(parse_macro_input!(
         item as DeriveInput
     ));
