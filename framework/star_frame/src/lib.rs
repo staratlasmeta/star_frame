@@ -22,7 +22,7 @@ pub extern crate static_assertions;
 
 pub mod account_set;
 pub mod align1;
-mod entrypoint;
+pub mod entrypoint;
 pub mod errors;
 #[cfg(feature = "idl")]
 pub mod idl;
