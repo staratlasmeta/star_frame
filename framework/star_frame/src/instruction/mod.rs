@@ -104,7 +104,7 @@ pub trait FrameworkInstruction {
 
 impl<T> Instruction for T
 where
-    T: FrameworkInstruction,
+    T: ?Sized + FrameworkInstruction,
 {
     type SelfData<'a> = <Self as FrameworkInstruction>::SelfData<'a>;
 
