@@ -12,6 +12,7 @@ pub extern crate anyhow;
 pub extern crate borsh;
 pub extern crate bytemuck;
 pub extern crate derivative;
+pub extern crate fixed;
 pub extern crate num_traits;
 pub extern crate paste;
 pub extern crate self as star_frame;
