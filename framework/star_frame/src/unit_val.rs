@@ -143,16 +143,6 @@ impl<T1, Unit1> UnitVal<T1, Unit1> {
         UnitVal::new(self.val)
     }
 }
-impl<T, Unit> TypeToIdl for UnitVal<T, Unit>
-where
-    T: TypeToIdl,
-{
-    type AssociatedProgram = T::AssociatedProgram;
-
-    fn type_to_idl(idl_definition: &mut IdlDefinition) -> anyhow::Result<IdlTypeDef> {
-        T::type_to_idl(idl_definition)
-    }
-}
 
 pub trait Convert<Rhs> {}
 
@@ -165,12 +155,12 @@ mod idl {
     impl<T: TypeToIdl, Unit> TypeToIdl for UnitVal<T, Unit> {
         type AssociatedProgram = T::AssociatedProgram;
 
-        fn type_program_versions() -> SemVer {
-            T::type_program_versions()
-        }
-
         fn type_to_idl(idl_definition: &mut IdlDefinition) -> anyhow::Result<IdlTypeDef> {
             T::type_to_idl(idl_definition)
+        }
+
+        fn type_program_versions() -> SemVer {
+            T::type_program_versions()
         }
     }
 }
