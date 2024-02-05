@@ -1,5 +1,6 @@
 pub mod borsh;
 pub mod combined_unsized;
+pub mod key_for;
 pub mod list;
 pub mod pointer_breakup;
 #[cfg(test)]
