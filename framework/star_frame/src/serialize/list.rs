@@ -86,7 +86,7 @@ where
 }
 
 #[derive(Debug, Copy, Clone)]
-pub struct ListRef<'a, T, L>
+pub struct ListRef<'a, T, L = u32>
 where
     T: Pod + Align1,
     L: Pod + ToPrimitive + FromPrimitive,
@@ -173,7 +173,7 @@ where
 
 #[derive(Derivative)]
 #[derivative(Debug)]
-pub struct ListRefMut<'a, T, L>
+pub struct ListRefMut<'a, T, L = u32>
 where
     T: Pod + Align1,
     L: Pod + ToPrimitive + FromPrimitive,

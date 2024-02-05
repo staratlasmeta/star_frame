@@ -5,12 +5,30 @@ use crate::account_set::{AccountSetStructArgs, StrippedDeriveInput};
 use crate::util::Paths;
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
-use syn::{DataStruct, Index};
+use syn::parse::{Parse, ParseStream};
+use syn::punctuated::Punctuated;
+use syn::{bracketed, token, DataStruct, Ident, Index, Token};
 
 mod cleanup;
 mod decode;
 mod idl;
 mod validate;
+
+#[derive(Debug, Clone)]
+struct Requires {
+    #[allow(dead_code)]
+    bracket: token::Bracket,
+    required_fields: Punctuated<Ident, Token![,]>,
+}
+impl Parse for Requires {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let content;
+        Ok(Self {
+            bracket: bracketed!(content in input),
+            required_fields: content.parse_terminated(Ident::parse, Token![,])?,
+        })
+    }
+}
 
 pub(super) fn derive_account_set_impl_struct(
     paths: Paths,
