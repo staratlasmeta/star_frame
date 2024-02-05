@@ -180,6 +180,17 @@ mod test {
         c: InnerAccount<3>,
     }
 
+    #[derive(AccountSet)]
+    #[validate(arg = &mut Vec<usize>)]
+    struct AccountSet312 {
+        #[validate(arg = arg, requires = [c])]
+        a: InnerAccount<1>,
+        #[validate(arg = arg, requires = [c])]
+        b: InnerAccount<2>,
+        #[validate(arg = arg)]
+        c: InnerAccount<3>,
+    }
+
     struct DummyRuntime;
     impl SysCallCore for DummyRuntime {
         fn current_program_id(&self) -> &Pubkey {
@@ -245,7 +256,7 @@ mod test {
         set.validate_accounts(&mut vec, &mut DummyRuntime).unwrap();
         assert_eq!(vec, vec![1, 2, 3]);
 
-        let mut vec = Vec::new();
+        vec.clear();
         let mut set = AccountSet213 {
             a: InnerAccount::<1>,
             b: InnerAccount::<2>,
@@ -253,5 +264,13 @@ mod test {
         };
         set.validate_accounts(&mut vec, &mut DummyRuntime).unwrap();
         assert_eq!(vec, vec![2, 1, 3]);
+
+        vec.clear();
+        let mut set = AccountSet312 {
+            a: InnerAccount::<1>,
+            b: InnerAccount::<2>,
+            c: InnerAccount::<3>,
+        };
+        set.validate_accounts(&mut vec, &mut DummyRuntime).unwrap();
     }
 }
