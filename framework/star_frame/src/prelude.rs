@@ -19,13 +19,24 @@ pub use crate::instruction::{FrameworkInstruction, Instruction, InstructionSet};
 
 pub use crate::serialize::{
     borsh::framework_serialize_borsh,
+    combined_unsized::*,
+    list::{List, ListRef, ListRefMut},
     unsized_enum::UnsizedEnum,
     unsized_type::{unsized_type, UnsizedType},
     FrameworkFromBytes, FrameworkSerialize,
 };
 
-pub use star_frame::align1::Align1;
+pub use crate::unit_val::*;
+
+pub use crate::align1::Align1;
 
 pub use crate::program::{program, system_program::SystemProgram, ProgramIds, StarFrameProgram};
+pub use crate::pubkey;
+
+pub use crate::Result;
+
+pub use crate::solana_program::{
+    account_info::AccountInfo, msg, program_error::ProgramError, pubkey::Pubkey,
+};
 
 pub use crate::util::Network;
