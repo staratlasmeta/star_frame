@@ -132,11 +132,34 @@ impl<T1, Unit1> UnitVal<T1, Unit1> {
     {
         UnitVal::new(self.val.sqrt())
     }
+
+    pub fn convert<Unit2>(self) -> UnitVal<T1, Unit2>
+    where
+        Unit1: Convert<Unit2>,
+    {
+        UnitVal::new(self.val)
+    }
 }
+
+pub trait Convert<Rhs> {}
 
 // TODO: Replace with proc macro for proper `IsEqual` impl
 #[macro_export]
 macro_rules! create_unit_system {
+    (
+        $vis:vis struct $ident:ident<$($unit:ident),+ $(,)?>:
+            $conv_ident:ident[<$($gen:ident),* $(,)?> <$($from:tt),* $(,)?> -> <$($to:tt),* $(,)?>]
+            $(+ $conv_ident2:ident[<$($gen2:ident),* $(,)?> <$($from2:tt),* $(,)?> -> <$($to2:tt),* $(,)?>] )*
+    ) => {
+        $crate::create_unit_system!($vis struct $ident<$($unit),+>);
+        impl<$($gen,)*> $crate::unit_val::Convert<$conv_ident<$($to,)*>> for $ident<$($from,)*>{}
+        impl<$($gen,)*> $crate::unit_val::Convert<$ident<$($from,)*>> for $conv_ident<$($to,)*>{}
+        $(
+            impl<$($gen2,)*> $crate::unit_val::Convert<$conv_ident2<$($to2,)*>> for $ident<$($from2,)*>{}
+            impl<$($gen2,)*> $crate::unit_val::Convert<$ident<$($from2,)*>> for $conv_ident2<$($to2,)*>{}
+        )*
+    };
+
     ($vis:vis struct $ident:ident<$($unit:ident),+ $(,)?>) => {
         #[derive(
             $crate::derivative::Derivative,
@@ -146,6 +169,7 @@ macro_rules! create_unit_system {
         )]
         #[serde(bound = "")]
         #[derivative(
+            Default(bound = ""),
             Debug(bound = ""),
             Copy(bound = ""),
             Clone(bound = ""),
@@ -263,8 +287,10 @@ macro_rules! create_unit_system {
 mod test {
     use crate::unit_val::UnitVal;
     use fixed::types::I53F11;
-    use typenum::{Diff, Sum, P1, Z0};
+    use typenum::{Diff, Sum, N2, P1, Z0};
     create_unit_system!(struct CreatedUnitSystem<Seconds, Meters, Kilograms>);
+
+    create_unit_system!(struct OtherUnitSystem<Seconds, Meters>: CreatedUnitSystem[<Seconds, Meters> <Seconds, Meters> -> <Seconds, Meters, Z0>]);
 
     type Unitless = CreatedUnitSystem<Z0, Z0, Z0>;
     type Seconds = CreatedUnitSystem<P1, Z0, Z0>;
@@ -294,6 +320,14 @@ mod test {
         let added = force + force;
         assert_eq!(added, UnitVal::<_, Newtons>::new(16.0));
         // let other = force + speed; // This does not compile
+
+        let acceleration2 = added / kilograms;
+        assert_eq!(
+            acceleration2,
+            UnitVal::<_, MetersPerSecondSquared>::new(2.0)
+        );
+        let converted = acceleration2.convert::<OtherUnitSystem<_, _>>();
+        assert_eq!(converted, UnitVal::<_, OtherUnitSystem<N2, P1>>::new(2.0));
     }
 
     type Fixed = I53F11;
