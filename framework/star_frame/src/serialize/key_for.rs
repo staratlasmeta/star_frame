@@ -1,4 +1,6 @@
 use crate::prelude::*;
+use borsh;
+use borsh::{BorshDeserialize, BorshSerialize};
 use bytemuck::{Pod, Zeroable};
 use derivative::Derivative;
 use solana_program::nonce::state::Data;
@@ -13,7 +15,7 @@ pub trait SetKeyFor<T: ?Sized, I> {
 }
 
 /// A key for an account type
-#[derive(Derivative)]
+#[derive(Derivative, BorshDeserialize, BorshSerialize)]
 #[derivative(
     Debug(bound = ""),
     Clone(bound = ""),
@@ -53,32 +55,12 @@ impl<'a, 'info, T: AccountData + ?Sized> SetKeyFor<T, &'a DataAccount<'info, T>>
         self.pubkey = *(pubkey.key());
     }
 }
-//
-// impl<'a, 'info, T: Owner + ZeroCopy> SetKeyFor<T, &'a AccountLoader<'info, T>> for KeyFor<T> {
-//     fn set_pubkey(&mut self, pubkey: &'a AccountLoader<'info, T>) {
-//         self.pubkey = pubkey.key();
-//     }
-// }
 
-// // impl<'a, 'info, T: Owner + AccountSerialize + AccountDeserialize + Clone>
-// //     SetKeyFor<T, &'a Account<'info, T>> for KeyFor<T>
-// // {
-// //     fn set_pubkey(&mut self, pubkey: &'a Account<'info, T>) {
-// //         self.pubkey = pubkey.key();
-// //     }
-// // }
 impl<'info, T: AccountData + ?Sized> PartialEq<DataAccount<'info, T>> for KeyFor<T> {
     fn eq(&self, other: &DataAccount<'info, T>) -> bool {
         self.pubkey == *(other.key())
     }
 }
-// impl<'info, T: Owner + AccountSerialize + AccountDeserialize + Clone> PartialEq<Account<'info, T>>
-//     for KeyFor<T>
-// {
-//     fn eq(&self, other: &Account<'info, T>) -> bool {
-//         self.pubkey == other.key()
-//     }
-// }
 
 impl<T> From<Pubkey> for KeyFor<T> {
     fn from(pubkey: Pubkey) -> Self {

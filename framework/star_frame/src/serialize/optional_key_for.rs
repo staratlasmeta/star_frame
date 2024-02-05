@@ -1,5 +1,7 @@
 use crate::prelude::*;
 use crate::serialize::key_for::KeyFor;
+use borsh;
+use borsh::{BorshDeserialize, BorshSerialize};
 use bytemuck::{cast, cast_mut, cast_ref, Pod, Zeroable};
 use derivative::Derivative;
 use solana_program::pubkey::Pubkey;
@@ -13,7 +15,7 @@ pub trait SetOptionalKeyFor<T: ?Sized, I> {
 }
 
 /// A key for an account type
-#[derive(Derivative)]
+#[derive(Derivative, BorshDeserialize, BorshSerialize)]
 #[derivative(
     Debug(bound = ""),
     Clone(bound = ""),
@@ -80,35 +82,27 @@ impl<'a, 'info, T: AccountData + ?Sized> SetOptionalKeyFor<T, &'a DataAccount<'i
     for OptionalKeyFor<T>
 {
     fn set_pubkey(&mut self, pubkey: Option<&'a DataAccount<'info, T>>) {
-        // self.pubkey = pubkey.map_or_else();
+        self.pubkey = pubkey.map_or_else(solana_program::system_program::id, |d| *(d.key()));
     }
 }
-//
-// impl<'a, 'info, T: Owner + ZeroCopy> SetKeyFor<T, &'a AccountLoader<'info, T>> for KeyFor<T> {
-//     fn set_pubkey(&mut self, pubkey: &'a AccountLoader<'info, T>) {
-//         self.pubkey = pubkey.key();
-//     }
-// }
 
-// // impl<'a, 'info, T: Owner + AccountSerialize + AccountDeserialize + Clone>
-// //     SetKeyFor<T, &'a Account<'info, T>> for KeyFor<T>
-// // {
-// //     fn set_pubkey(&mut self, pubkey: &'a Account<'info, T>) {
-// //         self.pubkey = pubkey.key();
-// //     }
-// // }
+impl<T> PartialEq<KeyFor<T>> for OptionalKeyFor<T> {
+    fn eq(&self, other: &KeyFor<T>) -> bool {
+        self.pubkey == *other.pubkey()
+    }
+}
+
+impl<T> PartialEq<OptionalKeyFor<T>> for KeyFor<T> {
+    fn eq(&self, other: &OptionalKeyFor<T>) -> bool {
+        *self.pubkey() == other.pubkey
+    }
+}
+
 impl<'info, T: AccountData + ?Sized> PartialEq<DataAccount<'info, T>> for OptionalKeyFor<T> {
     fn eq(&self, other: &DataAccount<'info, T>) -> bool {
         self.pubkey == *(other.key())
     }
 }
-// impl<'info, T: Owner + AccountSerialize + AccountDeserialize + Clone> PartialEq<Account<'info, T>>
-//     for KeyFor<T>
-// {
-//     fn eq(&self, other: &Account<'info, T>) -> bool {
-//         self.pubkey == other.key()
-//     }
-// }
 
 impl<T> From<Pubkey> for OptionalKeyFor<T> {
     fn from(pubkey: Pubkey) -> Self {
