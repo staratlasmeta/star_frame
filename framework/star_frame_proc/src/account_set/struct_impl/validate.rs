@@ -150,35 +150,39 @@ pub(super) fn validates(
                 }
             }
         }
+
+        // build requires
+
+        // build the validate calls
         let validates = field_type.iter().zip(field_name.iter()).zip(validate_args.iter()).map(| ((field_type, field_name), validate_arg)|{
             quote! {
                 <#field_type as #account_set_validate<#info_lifetime, _>>::validate_accounts(&mut self.#field_name, #validate_arg, sys_calls)?;
             }
         }).collect::<Vec<_>>();
-
-        // build requires
+        // Stores named validates in order
         let mut out: Vec<(TokenStream, String)> = Vec::new();
-        let iter = validates.into_iter()
-            .zip(relevant_field_validates
-                .iter()
-                .map(|f| f.requires
-                    .as_ref()
-                    .map(|r| &r.required_fields)
-                    .map(|r| r.clone()
-                        .into_iter()
-                        .map(|r| r.to_string())
-                        .collect::<Vec<_>>()
-                    )
-                    .unwrap_or_default()
+        // Map requires to vec of strings
+        let relevant_requires = relevant_field_validates
+            .iter()
+            .map(|f| f.requires
+                .as_ref()
+                .map(|r| &r.required_fields)
+                .map(|r| r.clone()
+                    .into_iter()
+                    .map(|r| r.to_string())
+                    .collect::<Vec<_>>()
                 )
-            )
-            .zip(field_name.iter()
-                .map(|f| f.to_string())
-            )
+                .unwrap_or_default()
+            );
+        // Go backwards over validate calls paired with field name and what it requires
+        let iter = validates.into_iter()
+            .zip(relevant_requires)
+            .zip(field_name.iter().map(|f| f.to_string()))
             .rev();
         for ((validate, required), field_name) in iter {
             let insert_index = out.iter()
                 .enumerate()
+                // find from the end
                 .rev()
                 .find(|(_, (_, name))| required.contains(name))
                 .map(|(index, _)| index + 1)
