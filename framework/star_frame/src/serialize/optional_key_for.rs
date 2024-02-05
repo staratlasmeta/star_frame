@@ -15,7 +15,7 @@ pub trait SetOptionalKeyFor<T: ?Sized, I> {
 }
 
 /// A key for an account type
-#[derive(Derivative, BorshDeserialize, BorshSerialize)]
+#[derive(Derivative, BorshDeserialize, BorshSerialize, Align1)]
 #[derivative(
     Debug(bound = ""),
     Clone(bound = ""),
