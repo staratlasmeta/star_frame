@@ -28,7 +28,6 @@ use star_frame::sys_calls::SysCallInvoke;
 use star_frame::util::Network;
 use star_frame::Result;
 
-
 // Declare the Program ID here to embed
 
 // #[cfg_attr(feature = "prod", program(Network::Mainnet))]

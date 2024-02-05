@@ -43,8 +43,8 @@ pub use crate::solana_program::{
     account_info::AccountInfo, msg, program_error::ProgramError, pubkey::Pubkey,
 };
 
-pub use crate::util::Network;
 pub use crate::anyhow;
+pub use crate::util::Network;
 
 // idl
 pub use star_frame_proc::{AccountToIdl, TypeToIdl};
