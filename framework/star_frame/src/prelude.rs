@@ -44,6 +44,7 @@ pub use crate::solana_program::{
 };
 
 pub use crate::util::Network;
+pub use crate::anyhow;
 
 // idl
 pub use star_frame_proc::{AccountToIdl, TypeToIdl};
