@@ -3,6 +3,7 @@ pub mod combined_unsized;
 pub mod key_for;
 pub mod list;
 pub mod optional_key_for;
+pub mod pod_bool;
 pub mod pointer_breakup;
 #[cfg(test)]
 pub mod test;
