@@ -191,10 +191,6 @@ pub struct PlayerFactionData {
 impl AccountData for PlayerFactionData {
     type OwnerProgram = SystemProgram;
     const DISCRIMINANT: <Self::OwnerProgram as StarFrameProgram>::AccountDiscriminant = ();
-
-    fn program_id() -> Pubkey {
-        todo!()
-    }
 }
 
 impl SeededAccountData for PlayerFactionData {

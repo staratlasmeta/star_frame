@@ -3,6 +3,7 @@ use crate::account_set::mutable::Writable;
 use crate::account_set::program::Program;
 use crate::account_set::seeded_account::{GetSeeds, SeededAccount};
 use crate::account_set::SingleAccountSet;
+use crate::prelude::UnsizedType;
 use crate::program::system_program::SystemProgram;
 use crate::program::StarFrameProgram;
 use crate::serialize::FrameworkInit;
@@ -30,13 +31,13 @@ use std::ops::{Deref, DerefMut};
 )]
 pub struct InitAccount<'info, T>
 where
-    T: AccountData + ?Sized,
+    T: AccountData + UnsizedType + ?Sized,
 {
     inner: DataAccount<'info, T>,
 }
 impl<'info, T: ?Sized> SingleAccountSet<'info> for InitAccount<'info, T>
 where
-    T: AccountData,
+    T: AccountData + UnsizedType,
 {
     fn account_info(&self) -> &AccountInfo<'info> {
         self.inner.account_info()
@@ -44,7 +45,7 @@ where
 }
 impl<'info, T> Deref for InitAccount<'info, T>
 where
-    T: AccountData + ?Sized,
+    T: AccountData + UnsizedType + ?Sized,
 {
     type Target = DataAccount<'info, T>;
     fn deref(&self) -> &Self::Target {
@@ -54,7 +55,7 @@ where
 
 impl<'info, T> DerefMut for InitAccount<'info, T>
 where
-    T: AccountData + ?Sized,
+    T: AccountData + UnsizedType + ?Sized,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.inner
@@ -138,7 +139,7 @@ where
         account.key(),
         rent.minimum_balance(size),
         size as u64,
-        &T::program_id(),
+        &T::OwnerProgram::program_id(sys_calls)?,
     );
     let accounts: &[AccountInfo<'info>] = &[
         account.account_info_cloned(),
