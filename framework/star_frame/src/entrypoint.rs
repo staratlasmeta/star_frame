@@ -1,8 +1,14 @@
+#[cfg(any(target_os = "solana", feature = "fake_solana_os"))]
 use crate::instruction::InstructionSet;
+#[cfg(any(target_os = "solana", feature = "fake_solana_os"))]
 use crate::program::StarFrameProgram;
+#[cfg(any(target_os = "solana", feature = "fake_solana_os"))]
 use crate::util::Network;
+#[cfg(any(target_os = "solana", feature = "fake_solana_os"))]
 use crate::Result;
+#[cfg(any(target_os = "solana", feature = "fake_solana_os"))]
 use solana_program::account_info::AccountInfo;
+#[cfg(any(target_os = "solana", feature = "fake_solana_os"))]
 use solana_program::pubkey::Pubkey;
 
 #[cfg(any(target_os = "solana", feature = "fake_solana_os"))]
@@ -21,8 +27,10 @@ pub fn try_star_frame_entrypoint<T: StarFrameProgram>(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::program::{ProgramIds, StarFrameProgram};
+    use star_frame::util::Network;
     use star_frame_proc::{program, pubkey};
+
     // struct Stuff;
     impl StarFrameProgram for Stuff {
         type InstructionSet<'a> = ();
@@ -40,9 +48,6 @@ mod tests {
             ),
         ]);
     }
-
-    use crate::program::ProgramIds;
-    use star_frame::util::Network;
 
     #[program(Network::Mainnet, no_entrypoint)]
     pub struct Stuff;

@@ -139,3 +139,159 @@ pub trait AccountSetCleanup<'info, A>: AccountSet<'info> + Sized {
         sys_calls: &mut impl SysCallInvoke,
     ) -> Result<()>;
 }
+
+#[cfg(test)]
+mod test {
+    use crate::account_set::AccountSetValidate;
+    use crate::prelude::Network;
+    use crate::sys_calls::{SysCallCore, SysCallInvoke};
+    use crate::SolanaInstruction;
+    use solana_program::account_info::AccountInfo;
+    use solana_program::clock::Clock;
+    use solana_program::entrypoint_deprecated::ProgramResult;
+    use solana_program::program_error::ProgramError;
+    use solana_program::pubkey::Pubkey;
+    use solana_program::rent::Rent;
+    use star_frame_proc::AccountSet;
+
+    #[derive(AccountSet)]
+    #[validate(arg = &mut Vec<usize>, extra_validation = { arg.push(N); Ok(()) })]
+    struct InnerAccount<const N: usize>;
+
+    #[derive(AccountSet)]
+    #[validate(arg = &mut Vec<usize>)]
+    struct AccountSet123 {
+        #[validate(arg = arg)]
+        a: InnerAccount<1>,
+        #[validate(arg = arg)]
+        b: InnerAccount<2>,
+        #[validate(arg = arg)]
+        c: InnerAccount<3>,
+    }
+
+    #[derive(AccountSet)]
+    #[validate(arg = &mut Vec<usize>)]
+    struct AccountSet213 {
+        #[validate(arg = arg, requires = [b])]
+        a: InnerAccount<1>,
+        #[validate(arg = arg)]
+        b: InnerAccount<2>,
+        #[validate(arg = arg)]
+        c: InnerAccount<3>,
+    }
+
+    #[derive(AccountSet)]
+    #[validate(arg = &mut Vec<usize>)]
+    struct AccountSet312 {
+        #[validate(arg = arg, requires = [c])]
+        a: InnerAccount<1>,
+        #[validate(arg = arg, requires = [c])]
+        b: InnerAccount<2>,
+        #[validate(arg = arg)]
+        c: InnerAccount<3>,
+    }
+
+    #[derive(AccountSet)]
+    #[validate(arg = &mut Vec<usize>)]
+    struct AccountSet231 {
+        #[validate(arg = arg, requires = [c])]
+        a: InnerAccount<1>,
+        #[validate(arg = arg)]
+        b: InnerAccount<2>,
+        #[validate(arg = arg)]
+        c: InnerAccount<3>,
+    }
+
+    struct DummyRuntime;
+    impl SysCallCore for DummyRuntime {
+        fn current_program_id(&self) -> &Pubkey {
+            unimplemented!()
+        }
+
+        fn current_network(&self) -> &Network {
+            unimplemented!()
+        }
+
+        fn get_rent(&self) -> Result<Rent, ProgramError> {
+            unimplemented!()
+        }
+
+        fn get_clock(&self) -> Result<Clock, ProgramError> {
+            unimplemented!()
+        }
+    }
+    impl SysCallInvoke for DummyRuntime {
+        fn invoke(
+            &mut self,
+            _instruction: &SolanaInstruction,
+            _accounts: &[AccountInfo],
+        ) -> ProgramResult {
+            unimplemented!()
+        }
+
+        unsafe fn invoke_unchecked(
+            &mut self,
+            _instruction: &SolanaInstruction,
+            _accounts: &[AccountInfo],
+        ) -> ProgramResult {
+            unimplemented!()
+        }
+
+        fn invoke_signed(
+            &mut self,
+            _instruction: &SolanaInstruction,
+            _accounts: &[AccountInfo],
+            _signers_seeds: &[&[&[u8]]],
+        ) -> ProgramResult {
+            unimplemented!()
+        }
+
+        unsafe fn invoke_signed_unchecked(
+            &mut self,
+            _instruction: &SolanaInstruction,
+            _accounts: &[AccountInfo],
+            _signers_seeds: &[&[&[u8]]],
+        ) -> ProgramResult {
+            unimplemented!()
+        }
+    }
+
+    #[test]
+    fn test_validate() {
+        let mut vec = Vec::new();
+        let mut set = AccountSet123 {
+            a: InnerAccount::<1>,
+            b: InnerAccount::<2>,
+            c: InnerAccount::<3>,
+        };
+        set.validate_accounts(&mut vec, &mut DummyRuntime).unwrap();
+        assert_eq!(vec, vec![1, 2, 3]);
+
+        vec.clear();
+        let mut set = AccountSet213 {
+            a: InnerAccount::<1>,
+            b: InnerAccount::<2>,
+            c: InnerAccount::<3>,
+        };
+        set.validate_accounts(&mut vec, &mut DummyRuntime).unwrap();
+        assert_eq!(vec, vec![2, 1, 3]);
+
+        vec.clear();
+        let mut set = AccountSet312 {
+            a: InnerAccount::<1>,
+            b: InnerAccount::<2>,
+            c: InnerAccount::<3>,
+        };
+        set.validate_accounts(&mut vec, &mut DummyRuntime).unwrap();
+        assert_eq!(vec, vec![3, 1, 2]);
+
+        vec.clear();
+        let mut set = AccountSet231 {
+            a: InnerAccount::<1>,
+            b: InnerAccount::<2>,
+            c: InnerAccount::<3>,
+        };
+        set.validate_accounts(&mut vec, &mut DummyRuntime).unwrap();
+        assert_eq!(vec, vec![2, 3, 1]);
+    }
+}
