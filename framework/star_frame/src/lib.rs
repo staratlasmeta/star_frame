@@ -27,6 +27,7 @@ pub extern crate typenum;
 
 pub mod account_set;
 pub mod align1;
+pub mod divisor;
 pub mod entrypoint;
 pub mod errors;
 pub mod fixed_point;
