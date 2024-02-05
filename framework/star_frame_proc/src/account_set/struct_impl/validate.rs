@@ -188,7 +188,10 @@ pub(super) fn validates(
         let validates = out.into_iter().map(|(validate, _)| validate);
 
         let (impl_generics, _, where_clause) = generics.split_for_impl();
-        let extra_validation = validate_struct_args.extra_validation.map(|extra_validation| quote! {{ #extra_validation }?;});
+        let extra_validation = validate_struct_args.extra_validation.map(|extra_validation| quote! {
+            let res: #result<()> = { #extra_validation };
+            res?;
+        });
 
         quote!{
             #[automatically_derived]
