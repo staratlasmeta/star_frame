@@ -1,32 +1,39 @@
 #![allow(clippy::extra_unused_type_parameters)]
 use bytemuck::{Pod, Zeroable};
+use derivative::Derivative;
 use num_traits::real::Real;
 use num_traits::Pow;
 use serde::{Deserialize, Serialize};
 use star_frame_proc::Align1;
+use std::fmt::Debug;
+use std::hash::Hash;
 use std::marker::PhantomData;
 use std::ops::{Add, AddAssign, Div, Mul, Rem, Sub, SubAssign};
 use typenum::{IsEqual, Mod, True, Unsigned, P2, Z0};
 
-#[derive(
-    Copy,
-    Clone,
-    Debug,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Hash,
-    Pod,
-    Zeroable,
-    Serialize,
-    Deserialize,
-    Align1,
+#[derive(Derivative, Serialize, Deserialize, Align1)]
+#[derivative(
+    Copy(bound = "T: Copy"),
+    Clone(bound = "T: Clone"),
+    Debug(bound = "T: Debug"),
+    PartialEq(bound = "T: PartialEq"),
+    Eq(bound = "T: Eq"),
+    PartialOrd(bound = "T: PartialOrd"),
+    Ord(bound = "T: Ord"),
+    Hash(bound = "T: Hash")
 )]
+#[serde(bound(serialize = "T: Serialize", deserialize = "T: Deserialize<'de>"))]
 #[repr(transparent)]
 pub struct UnitVal<T, Unit> {
     val: T,
     _unit: PhantomData<Unit>,
+}
+unsafe impl<T, Unit> Zeroable for UnitVal<T, Unit> where T: Zeroable {}
+unsafe impl<T, Unit> Pod for UnitVal<T, Unit>
+where
+    T: Pod,
+    Unit: 'static,
+{
 }
 impl<T, Unit> UnitVal<T, Unit> {
     pub const fn new(val: T) -> Self {
@@ -132,26 +139,32 @@ impl<T1, Unit1> UnitVal<T1, Unit1> {
 macro_rules! create_unit_system {
     ($vis:vis struct $ident:ident<$($unit:ident),+ $(,)?>) => {
         #[derive(
-            Debug,
-            Copy,
-            Clone,
-            PartialEq,
-            Eq,
-            PartialOrd,
-            Ord,
-            Hash,
-            $crate::bytemuck::Pod,
-            $crate::bytemuck::Zeroable,
+            $crate::derivative::Derivative,
             $crate::serde::Serialize,
             $crate::serde::Deserialize,
             $crate::align1::Align1,
         )]
+        #[serde(bound = "")]
+        #[derivative(
+            Debug(bound = ""),
+            Copy(bound = ""),
+            Clone(bound = ""),
+            PartialEq(bound = ""),
+            Eq(bound = ""),
+        )]
         #[repr(transparent)]
-        $vis struct $ident<$($unit,)*>(::std::marker::PhantomData<($($unit,)*)>)
-        where
-            $($unit: $crate::typenum::Integer,)*;
+        $vis struct $ident<$($unit,)*>(::std::marker::PhantomData<($($unit,)*)>);
 
         $crate::paste::paste!{
+            unsafe impl<$($unit,)*> $crate::bytemuck::Zeroable for $ident<$($unit,)*>
+            where
+                $($unit: $crate::typenum::Integer,)*
+            {}
+            unsafe impl<$($unit,)*> $crate::bytemuck::Pod for $ident<$($unit,)*>
+            where
+                $($unit: $crate::typenum::Integer,)*
+            {}
+            #[automatically_derived]
             impl<$([<$unit 1>], [<$unit 2>],)*> ::std::ops::Add<$ident<$([<$unit 2>],)*>>
                 for $ident<$([<$unit 1>],)*>
             where
@@ -169,6 +182,7 @@ macro_rules! create_unit_system {
                     ::std::panic!("Not implemented")
                 }
             }
+            #[automatically_derived]
             impl<$([<$unit 1>], [<$unit 2>],)*> ::std::ops::Sub<$ident<$([<$unit 2>],)*>>
                 for $ident<$([<$unit 1>],)*>
             where
@@ -186,6 +200,7 @@ macro_rules! create_unit_system {
                     ::std::panic!("Not implemented")
                 }
             }
+            #[automatically_derived]
             impl<$($unit,)* Value> ::std::ops::Mul<Value> for $ident<$($unit,)*>
             where
                 $(
@@ -198,6 +213,7 @@ macro_rules! create_unit_system {
                     ::std::panic!("Not implemented")
                 }
             }
+            #[automatically_derived]
             impl<$($unit,)* Value> ::std::ops::Div<Value> for $ident<$($unit,)*>
             where
                 $(
@@ -210,6 +226,7 @@ macro_rules! create_unit_system {
                     ::std::panic!("Not implemented")
                 }
             }
+            #[automatically_derived]
             impl<$($unit,)* Value> ::std::ops::Rem<Value> for $ident<$($unit,)*>
             where
                 $(
@@ -222,6 +239,7 @@ macro_rules! create_unit_system {
                     ::std::panic!("Not implemented")
                 }
             }
+            #[automatically_derived]
             impl<$([<$unit 1>], [<$unit 2>],)*> $crate::typenum::IsEqual<$ident<$([<$unit 2>],)*>>
                 for $ident<$([<$unit 1>],)*>
             where
