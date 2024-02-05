@@ -1,12 +1,9 @@
 #![allow(clippy::extra_unused_type_parameters)]
-use crate::idl::ty::TypeToIdl;
 use bytemuck::{Pod, Zeroable};
 use derivative::Derivative;
 use num_traits::real::Real;
 use num_traits::Pow;
 use serde::{Deserialize, Serialize};
-use star_frame_idl::ty::IdlTypeDef;
-use star_frame_idl::IdlDefinition;
 use star_frame_proc::Align1;
 use std::fmt::Debug;
 use std::hash::Hash;
