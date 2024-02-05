@@ -1,9 +1,12 @@
 #![allow(clippy::extra_unused_type_parameters)]
+use crate::idl::ty::TypeToIdl;
 use bytemuck::{Pod, Zeroable};
 use derivative::Derivative;
 use num_traits::real::Real;
 use num_traits::Pow;
 use serde::{Deserialize, Serialize};
+use star_frame_idl::ty::IdlTypeDef;
+use star_frame_idl::IdlDefinition;
 use star_frame_proc::Align1;
 use std::fmt::Debug;
 use std::hash::Hash;
@@ -138,6 +141,16 @@ impl<T1, Unit1> UnitVal<T1, Unit1> {
         Unit1: Convert<Unit2>,
     {
         UnitVal::new(self.val)
+    }
+}
+impl<T, Unit> TypeToIdl for UnitVal<T, Unit>
+where
+    T: TypeToIdl,
+{
+    type AssociatedProgram = T::AssociatedProgram;
+
+    fn type_to_idl(idl_definition: &mut IdlDefinition) -> anyhow::Result<IdlTypeDef> {
+        T::type_to_idl(idl_definition)
     }
 }
 
