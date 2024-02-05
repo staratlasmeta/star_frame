@@ -55,6 +55,8 @@ pub struct Paths {
     pub instruction_set_to_idl: TokenStream,
     #[cfg(feature = "idl")]
     pub type_to_idl: TokenStream,
+    #[cfg(feature = "idl")]
+    pub program_to_idl: TokenStream,
 
     // star frame idl
     pub semver: TokenStream,
@@ -175,6 +177,8 @@ impl Default for Paths {
             instruction_set_to_idl: quote! { #crate_name::idl::InstructionSetToIdl },
             #[cfg(feature = "idl")]
             type_to_idl: quote! { #crate_name::idl::ty::TypeToIdl },
+            #[cfg(feature = "idl")]
+            program_to_idl: quote! { #crate_name::idl::ProgramToIdl },
 
             // star frame idl
             semver: quote! { #crate_name::star_frame_idl::SemVer },

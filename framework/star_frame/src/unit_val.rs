@@ -134,6 +134,25 @@ impl<T1, Unit1> UnitVal<T1, Unit1> {
     }
 }
 
+#[cfg(feature = "idl")]
+mod idl {
+    use super::*;
+    use crate::idl::ty::TypeToIdl;
+    use star_frame_idl::ty::IdlTypeDef;
+    use star_frame_idl::{IdlDefinition, SemVer};
+    impl<T: TypeToIdl, Unit> TypeToIdl for UnitVal<T, Unit> {
+        type AssociatedProgram = T::AssociatedProgram;
+
+        fn type_program_versions() -> SemVer {
+            T::type_program_versions()
+        }
+
+        fn type_to_idl(idl_definition: &mut IdlDefinition) -> anyhow::Result<IdlTypeDef> {
+            T::type_to_idl(idl_definition)
+        }
+    }
+}
+
 // TODO: Replace with proc macro for proper `IsEqual` impl
 #[macro_export]
 macro_rules! create_unit_system {

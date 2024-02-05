@@ -6,6 +6,7 @@ pub use crate::account_set::{
     seeded_account::{
         GetSeeds, Seed, SeededAccount, SeededAccountData, SeededDataAccount, SeedsWithBump,
     },
+    data_account::*,
     signer::Signer,
     system_account::SystemAccount,
     AccountSet, AccountSetCleanup, AccountSetDecode, AccountSetValidate, SingleAccountSet,
