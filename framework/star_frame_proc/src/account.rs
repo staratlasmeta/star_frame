@@ -18,6 +18,7 @@ pub fn derive_account_to_idl_impl(input: &DeriveInput) -> TokenStream {
             idl_definition_ref,
             idl_seeds,
             declared_program_type,
+            program_to_idl,
             result,
             ..
         } = &Paths::default();
@@ -40,7 +41,7 @@ pub fn derive_account_to_idl_impl(input: &DeriveInput) -> TokenStream {
                 type AssociatedProgram = #associated_program;
 
                 fn account_to_idl(idl_definition: &mut #idl_definition) -> #result<(#account_id)> {
-                    let namespace = if idl_definition.namespace == Self::AssociatedProgram::idl_namespace() {
+                    let namespace = if idl_definition.namespace == <Self::AssociatedProgram as #program_to_idl>::idl_namespace() {
                         let ty = Self::type_to_idl(idl_definition)?;
                         idl_definition.accounts.insert(
                             #ident_str.to_string(),
@@ -56,13 +57,13 @@ pub fn derive_account_to_idl_impl(input: &DeriveInput) -> TokenStream {
                         None
                     } else {
                         idl_definition.required_idl_definitions.insert(
-                            Self::OwnerProgram::idl_namespace().to_string(),
+                            <Self::AssociatedProgram as #program_to_idl>::idl_namespace().to_string(),
                             #idl_definition_ref {
                                 version: Self::account_program_versions(),
-                                namespace: Self::OwnerProgram::idl_namespace().to_string(),
+                                namespace: <Self::AssociatedProgram as #program_to_idl>::idl_namespace().to_string(),
                             },
                         );
-                        Some(Self::OwnerProgram::idl_namespace().to_string())
+                        Some(<Self::AssociatedProgram as #program_to_idl>::idl_namespace().to_string())
                     };
                     Ok(#account_id {
                         namespace,

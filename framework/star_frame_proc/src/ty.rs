@@ -14,7 +14,11 @@ pub fn derive_type_to_idl(input: &DeriveInput) -> TokenStream {
         semver,
         declared_program_type,
         idl_ty_program_ident,
+        program_to_idl,
         result,
+        idl_definition_ref,
+        idl_type,
+        idl_type_id,
         ..
     } = &Paths::default();
 
@@ -39,9 +43,9 @@ pub fn derive_type_to_idl(input: &DeriveInput) -> TokenStream {
         impl #type_to_idl for #ident {
             type AssociatedProgram = #associated_program;
             fn type_to_idl(idl_definition: &mut #idl_definition) -> #result<#idl_type_def> {
-                let namespace = if idl_definition.namespace == Self::AssociatedProgram::idl_namespace() {
+                let namespace = if idl_definition.namespace == <Self::AssociatedProgram as #program_to_idl>::idl_namespace() {
                     let type_def = #type_def;
-                    idl_definition.add_type_if_missing(#ident_str, || IdlType {
+                    idl_definition.add_type_if_missing(#ident_str, || #idl_type {
                         name: #ident_str.to_string(),
                         description: #type_docs.to_string(),
                         type_def,
@@ -51,15 +55,15 @@ pub fn derive_type_to_idl(input: &DeriveInput) -> TokenStream {
                     None
                 } else {
                     idl_definition.required_idl_definitions.insert(
-                        Self::AssociatedProgram::idl_namespace().to_string(),
-                        IdlDefinitionReference {
-                            namespace: Self::AssociatedProgram::idl_namespace().to_string(),
+                        <Self::AssociatedProgram as #program_to_idl>::idl_namespace().to_string(),
+                        #idl_definition_ref {
+                            namespace: <Self::AssociatedProgram as #program_to_idl>::idl_namespace().to_string(),
                             version: #semver::Wildcard,
                         },
                     );
-                    Some(Self::AssociatedProgram::idl_namespace().to_string())
+                    Some(<Self::AssociatedProgram as #program_to_idl>::idl_namespace().to_string())
                 };
-                Ok(#idl_type_def::IdlType(TypeId {
+                Ok(#idl_type_def::IdlType(#idl_type_id {
                     namespace,
                     type_id: #ident_str.to_string(),
                     provided_generics: vec![],
