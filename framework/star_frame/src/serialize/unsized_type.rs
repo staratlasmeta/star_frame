@@ -3,7 +3,7 @@ pub use star_frame_proc::unsized_type;
 use crate::align1::Align1;
 use crate::serialize::pointer_breakup::{BuildPointer, BuildPointerMut};
 use crate::serialize::{FrameworkFromBytes, FrameworkFromBytesMut};
-use bytemuck::{CheckedBitPattern, NoUninit, Pod};
+use bytemuck::{CheckedBitPattern, NoUninit};
 use std::ops::{Deref, DerefMut};
 
 pub trait UnsizedType: 'static + Align1 {

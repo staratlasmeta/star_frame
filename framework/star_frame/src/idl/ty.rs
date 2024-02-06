@@ -1,7 +1,7 @@
 use crate::idl::ProgramToIdl;
 use crate::program::system_program::SystemProgram;
 use crate::Result;
-use bytemuck::Pod;
+use bytemuck::{CheckedBitPattern, NoUninit, Pod};
 use num_traits::{FromPrimitive, ToPrimitive};
 use solana_program::pubkey::Pubkey;
 use star_frame_idl::ty::{IdlDefinedType, IdlType, IdlTypeDef, TypeId};
@@ -110,7 +110,7 @@ impl<T: TypeToIdl> TypeToIdl for Vec<T> {
 
 impl<T, L> TypeToIdl for List<T, L>
 where
-    T: Align1 + Pod + TypeToIdl,
+    T: CheckedBitPattern + NoUninit + TypeToIdl + Align1,
     L: Pod + TypeToIdl + FromPrimitive + ToPrimitive,
 {
     type AssociatedProgram = SystemProgram;
