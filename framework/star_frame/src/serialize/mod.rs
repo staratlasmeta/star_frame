@@ -121,7 +121,7 @@ where
     ) -> Result<Self::RefMut<'a>> {
         debug_assert_eq!(bytes.len(), <Self as FrameworkInit<()>>::INIT_LENGTH);
         debug_assert!(bytes.iter().all(|b| *b == 0));
-        Ok(from_bytes_mut(bytes))
+        checked::try_from_bytes_mut(bytes).map_err(Into::into)
     }
 }
 unsafe impl<T> FrameworkInit<(T,)> for T
@@ -137,7 +137,7 @@ where
     ) -> Result<Self::RefMut<'a>> {
         debug_assert_eq!(bytes.len(), <Self as FrameworkInit<(T,)>>::INIT_LENGTH);
         debug_assert!(bytes.iter().all(|b| *b == 0));
-        let out = from_bytes_mut(bytes);
+        let out = checked::try_from_bytes_mut(bytes)?;
         *out = arg.0;
         Ok(out)
     }

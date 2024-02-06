@@ -131,6 +131,7 @@ where
         <T as AccountSet<'info>>::to_account_metas(&self.account, &mut add_account_meta);
     }
 }
+
 #[automatically_derived]
 impl<'info, 'a, T, S: GetSeeds, A> AccountSetDecode<'a, 'info, A> for SeededAccount<T, S>
 where
@@ -147,6 +148,7 @@ where
         })
     }
 }
+
 #[automatically_derived]
 impl<'info, T, S, A> AccountSetValidate<'info, (SeedsWithBump<S>, A)> for SeededAccount<T, S>
 where
@@ -167,12 +169,88 @@ where
         let arg_bump = arg.0.bump;
         let (address, bump) = Pubkey::find_program_address(&arg_seeds, self.account_info().owner);
         if self.account.account_info().key != &address || arg_bump != bump {
-            bail!(ProgramError::Custom(20));
+            // Todo - use real error codes
+            bail!(ProgramError::InvalidSeeds);
         }
         self.seeds = Some(arg.0);
         Ok(())
     }
 }
+
+#[automatically_derived]
+impl<'info, T, S> AccountSetValidate<'info, SeedsWithBump<S>> for SeededAccount<T, S>
+where
+    T: AccountSetValidate<'info, ()> + SingleAccountSet<'info>,
+    S: GetSeeds,
+{
+    fn validate_accounts(
+        &mut self,
+        arg: SeedsWithBump<S>,
+        _sys_calls: &mut impl SysCallInvoke,
+    ) -> Result<()> {
+        <T as AccountSetValidate<'info, _>>::validate_accounts(&mut self.account, (), _sys_calls)?;
+        let arg_seeds = arg.seeds.seeds();
+        let arg_bump = arg.bump;
+        let (address, bump) = Pubkey::find_program_address(&arg_seeds, self.account_info().owner);
+        if self.account.account_info().key != &address || arg_bump != bump {
+            bail!(ProgramError::InvalidSeeds);
+        }
+        self.seeds = Some(arg);
+        Ok(())
+    }
+}
+
+#[automatically_derived]
+impl<'info, T, S, A> AccountSetValidate<'info, (Seeds<S>, A)> for SeededAccount<T, S>
+where
+    T: AccountSetValidate<'info, A> + SingleAccountSet<'info>,
+    S: GetSeeds,
+{
+    fn validate_accounts(
+        &mut self,
+        arg: (Seeds<S>, A),
+        _sys_calls: &mut impl SysCallInvoke,
+    ) -> Result<()> {
+        <T as AccountSetValidate<'info, _>>::validate_accounts(
+            &mut self.account,
+            arg.1,
+            _sys_calls,
+        )?;
+        let arg_seeds = arg.0 .0.seeds();
+        let (address, bump) = Pubkey::find_program_address(&arg_seeds, self.account_info().owner);
+        if self.account.account_info().key != &address {
+            bail!(ProgramError::Custom(20));
+        }
+        self.seeds = Some(SeedsWithBump {
+            seeds: arg.0 .0,
+            bump,
+        });
+        Ok(())
+    }
+}
+
+#[automatically_derived]
+impl<'info, T, S> AccountSetValidate<'info, Seeds<S>> for SeededAccount<T, S>
+where
+    T: AccountSetValidate<'info, ()> + SingleAccountSet<'info>,
+    S: GetSeeds,
+{
+    fn validate_accounts(
+        &mut self,
+        arg: Seeds<S>,
+        _sys_calls: &mut impl SysCallInvoke,
+    ) -> Result<()> {
+        <T as AccountSetValidate<'info, _>>::validate_accounts(&mut self.account, (), _sys_calls)?;
+        let arg_seeds = arg.0.seeds();
+        let (address, bump) = Pubkey::find_program_address(&arg_seeds, self.account_info().owner);
+        if self.account.account_info().key != &address {
+            bail!(ProgramError::Custom(20));
+        }
+        self.seeds = Some(SeedsWithBump { seeds: arg.0, bump });
+        Ok(())
+    }
+}
+
 #[automatically_derived]
 impl<'info, T, A, S> AccountSetValidate<'info, (S, A)> for SeededAccount<T, S>
 where
