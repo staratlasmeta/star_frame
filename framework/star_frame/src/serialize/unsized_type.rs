@@ -3,7 +3,7 @@ pub use star_frame_proc::unsized_type;
 use crate::align1::Align1;
 use crate::serialize::pointer_breakup::{BuildPointer, BuildPointerMut};
 use crate::serialize::{FrameworkFromBytes, FrameworkFromBytesMut};
-use bytemuck::Pod;
+use bytemuck::{CheckedBitPattern, NoUninit, Pod};
 use std::ops::{Deref, DerefMut};
 
 pub trait UnsizedType: 'static + Align1 {
@@ -18,7 +18,7 @@ pub trait UnsizedType: 'static + Align1 {
 }
 impl<T> UnsizedType for T
 where
-    T: Align1 + Pod,
+    T: Align1 + CheckedBitPattern + NoUninit,
 {
     type RefMeta = ();
     type Ref<'a> = &'a T;

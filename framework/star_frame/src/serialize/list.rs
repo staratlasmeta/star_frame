@@ -8,7 +8,9 @@ use crate::serialize::{
 use crate::Result;
 use advance::Advance;
 use anyhow::bail;
-use bytemuck::{from_bytes, Pod};
+use bytemuck::{
+    bytes_of, cast_slice, cast_slice_mut, checked, from_bytes, CheckedBitPattern, NoUninit, Pod,
+};
 use derivative::Derivative;
 use num_traits::{FromPrimitive, ToPrimitive, Zero};
 use solana_program::program_error::ProgramError;
@@ -16,7 +18,7 @@ use solana_program::program_memory::sol_memmove;
 use std::collections::Bound;
 use std::marker::PhantomData;
 use std::mem::size_of;
-use std::ops::{Deref, DerefMut, RangeBounds};
+use std::ops::{Deref, DerefMut, Index, IndexMut, RangeBounds};
 use std::ptr;
 use std::ptr::NonNull;
 
@@ -24,12 +26,45 @@ use std::ptr::NonNull;
 #[repr(C)]
 pub struct List<T, L = u32>
 where
-    T: Pod + Align1,
+    T: CheckedBitPattern + NoUninit + Align1,
     L: Pod + ToPrimitive + FromPrimitive,
 {
     len: PackedValue<L>,
-    items: [T],
+    phantom_t: PhantomData<T>,
+    bytes: [u8],
 }
+impl<T, L> List<T, L>
+where
+    T: CheckedBitPattern + NoUninit + Align1,
+    L: Pod + ToPrimitive + FromPrimitive,
+{
+    pub fn len(&self) -> usize {
+        { self.len.0 }.to_usize().unwrap()
+    }
+}
+impl<T, L> Index<usize> for List<T, L>
+where
+    T: CheckedBitPattern + NoUninit + Align1,
+    L: Pod + ToPrimitive + FromPrimitive,
+{
+    type Output = T;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        checked::try_from_bytes(&self.bytes[index * size_of::<T>()..][..size_of::<T>()]).unwrap()
+    }
+}
+
+impl<T, L> IndexMut<usize> for List<T, L>
+where
+    T: CheckedBitPattern + NoUninit + Align1,
+    L: Pod + ToPrimitive + FromPrimitive,
+{
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        checked::try_from_bytes_mut(&mut self.bytes[index * size_of::<T>()..][..size_of::<T>()])
+            .unwrap()
+    }
+}
+
 unsafe impl<T, L> FrameworkInit<()> for List<T, L>
 where
     T: Pod + Align1,
@@ -62,7 +97,7 @@ where
     type Target = [T];
 
     fn deref(&self) -> &Self::Target {
-        &self.items
+        cast_slice(&self.bytes)
     }
 }
 impl<T, L> DerefMut for List<T, L>
@@ -71,13 +106,13 @@ where
     L: Pod + ToPrimitive + FromPrimitive,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.items
+        cast_slice_mut(&mut self.bytes)
     }
 }
 
 impl<T, L> UnsizedType for List<T, L>
 where
-    T: Pod + Align1,
+    T: CheckedBitPattern + NoUninit + Align1,
     L: Pod + ToPrimitive + FromPrimitive,
 {
     type RefMeta = L;
@@ -88,14 +123,14 @@ where
 #[derive(Debug, Copy, Clone)]
 pub struct ListRef<'a, T, L = u32>
 where
-    T: Pod + Align1,
+    T: CheckedBitPattern + NoUninit + Align1,
     L: Pod + ToPrimitive + FromPrimitive,
 {
     list: &'a List<T, L>,
 }
 impl<'a, T, L> Deref for ListRef<'a, T, L>
 where
-    T: Pod + Align1,
+    T: CheckedBitPattern + NoUninit + Align1,
     L: Pod + ToPrimitive + FromPrimitive,
 {
     type Target = List<T, L>;
@@ -106,7 +141,7 @@ where
 }
 impl<'a, T, L> ListRef<'a, T, L>
 where
-    T: Pod + Align1,
+    T: CheckedBitPattern + NoUninit + Align1,
     L: Pod + ToPrimitive + FromPrimitive,
 {
     pub fn inner(&self) -> &'a List<T, L> {
@@ -115,12 +150,12 @@ where
 }
 impl<'a, T, L> FrameworkSerialize for ListRef<'a, T, L>
 where
-    T: Pod + Align1,
+    T: CheckedBitPattern + NoUninit + Align1,
     L: Pod + ToPrimitive + FromPrimitive,
 {
     fn to_bytes(&self, output: &mut &mut [u8]) -> crate::Result<()> {
         (&self.len).to_bytes(output)?;
-        for item in self.items.iter() {
+        for item in checked::cast_slice::<_, T>(&self.bytes).iter() {
             item.to_bytes(output)?;
         }
         Ok(())
@@ -128,7 +163,7 @@ where
 }
 unsafe impl<'a, T, L> FrameworkFromBytes<'a> for ListRef<'a, T, L>
 where
-    T: Pod + Align1,
+    T: CheckedBitPattern + NoUninit + Align1,
     L: Pod + ToPrimitive + FromPrimitive,
 {
     fn from_bytes(bytes: &mut &'a [u8]) -> Result<Self> {
@@ -142,7 +177,7 @@ where
                         .try_advance(size_of::<L>() + size_of::<T>() * len)?
                         .as_ptr()
                         .cast(),
-                    len,
+                    len * size_of::<T>(),
                 )
             },
         })
@@ -150,7 +185,7 @@ where
 }
 impl<'a, T, L> PointerBreakup for ListRef<'a, T, L>
 where
-    T: Pod + Align1,
+    T: CheckedBitPattern + NoUninit + Align1,
     L: Pod + ToPrimitive + FromPrimitive,
 {
     type Metadata = L;
@@ -161,12 +196,17 @@ where
 }
 impl<'a, T, L> BuildPointer for ListRef<'a, T, L>
 where
-    T: Pod + Align1,
+    T: CheckedBitPattern + NoUninit + Align1,
     L: Pod + ToPrimitive + FromPrimitive,
 {
     unsafe fn build_pointer(pointee: NonNull<()>, metadata: Self::Metadata) -> Self {
         Self {
-            list: unsafe { &*ptr::from_raw_parts(pointee.as_ptr(), metadata.to_usize().unwrap()) },
+            list: unsafe {
+                &*ptr::from_raw_parts(
+                    pointee.as_ptr(),
+                    metadata.to_usize().unwrap() * size_of::<T>(),
+                )
+            },
         }
     }
 }
@@ -175,7 +215,7 @@ where
 #[derivative(Debug)]
 pub struct ListRefMut<'a, T, L = u32>
 where
-    T: Pod + Align1,
+    T: CheckedBitPattern + NoUninit + Align1,
     L: Pod + ToPrimitive + FromPrimitive,
 {
     phantom_ref: PhantomData<&'a mut [T]>,
@@ -186,34 +226,42 @@ where
 }
 impl<'a, T, L> Deref for ListRefMut<'a, T, L>
 where
-    T: Pod + Align1,
+    T: CheckedBitPattern + NoUninit + Align1,
     L: Pod + ToPrimitive + FromPrimitive,
 {
     type Target = List<T, L>;
 
     fn deref(&self) -> &Self::Target {
-        unsafe { &*ptr::from_raw_parts(self.ptr.as_ptr(), self.metadata.to_usize().unwrap()) }
+        unsafe {
+            &*ptr::from_raw_parts(
+                self.ptr.as_ptr(),
+                self.metadata.to_usize().unwrap() * size_of::<T>(),
+            )
+        }
     }
 }
 impl<'a, T, L> DerefMut for ListRefMut<'a, T, L>
 where
-    T: Pod + Align1,
+    T: CheckedBitPattern + NoUninit + Align1,
     L: Pod + ToPrimitive + FromPrimitive,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         unsafe {
-            &mut *ptr::from_raw_parts_mut(self.ptr.as_ptr(), self.metadata.to_usize().unwrap())
+            &mut *ptr::from_raw_parts_mut(
+                self.ptr.as_ptr(),
+                self.metadata.to_usize().unwrap() * size_of::<T>(),
+            )
         }
     }
 }
 impl<'a, T, L> FrameworkSerialize for ListRefMut<'a, T, L>
 where
-    T: Pod + Align1,
+    T: CheckedBitPattern + NoUninit + Align1,
     L: Pod + ToPrimitive + FromPrimitive,
 {
     fn to_bytes(&self, output: &mut &mut [u8]) -> Result<()> {
         (&self.len).to_bytes(output)?;
-        for item in self.items.iter() {
+        for item in checked::cast_slice::<_, T>(&self.bytes).iter() {
             item.to_bytes(output)?;
         }
         Ok(())
@@ -221,7 +269,7 @@ where
 }
 unsafe impl<'a, T, L> FrameworkFromBytesMut<'a> for ListRefMut<'a, T, L>
 where
-    T: Pod + Align1,
+    T: CheckedBitPattern + NoUninit + Align1,
     L: Pod + ToPrimitive + FromPrimitive,
 {
     fn from_bytes_mut(
@@ -242,7 +290,7 @@ where
 }
 impl<'a, T, L> PointerBreakup for ListRefMut<'a, T, L>
 where
-    T: Pod + Align1,
+    T: CheckedBitPattern + NoUninit + Align1,
     L: Pod + ToPrimitive + FromPrimitive,
 {
     type Metadata = L;
@@ -253,7 +301,7 @@ where
 }
 impl<'a, T, L> BuildPointerMut<'a> for ListRefMut<'a, T, L>
 where
-    T: Pod + Align1,
+    T: CheckedBitPattern + NoUninit + Align1,
     L: Pod + ToPrimitive + FromPrimitive,
 {
     unsafe fn build_pointer_mut(
@@ -271,7 +319,7 @@ where
 }
 impl<'a, T, L> ListRefMut<'a, T, L>
 where
-    T: Pod + Align1,
+    T: CheckedBitPattern + NoUninit + Align1,
     L: Pod + ToPrimitive + FromPrimitive,
 {
     pub fn push(&mut self, item: T) -> Result<()> {
@@ -313,13 +361,14 @@ where
         self.ptr = new_ptr;
         unsafe {
             sol_memmove(
-                self.items.as_mut_ptr().add(index + iter.len()).cast(),
-                self.items.as_mut_ptr().add(index).cast(),
+                self.bytes.as_mut_ptr().add(index + iter.len()).cast(),
+                self.bytes.as_mut_ptr().add(index).cast(),
                 (old_len - index) * size_of::<T>(),
             );
         }
         for (i, item) in iter.enumerate() {
-            self.items[index + i] = item;
+            let slot = index + i;
+            self.bytes[slot * size_of::<T>()..][..size_of::<T>()].copy_from_slice(bytes_of(&item));
         }
 
         Ok(())
@@ -347,8 +396,8 @@ where
 
         unsafe {
             sol_memmove(
-                self.items.as_mut_ptr().add(start).cast(),
-                self.items.as_mut_ptr().add(end).cast(),
+                self.bytes.as_mut_ptr().add(start * size_of::<T>()).cast(),
+                self.bytes.as_mut_ptr().add(end * size_of::<T>()).cast(),
                 (old_len - end) * size_of::<T>(),
             );
         }
