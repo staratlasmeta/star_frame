@@ -48,7 +48,7 @@ pub use crate::create_unit_system;
 pub use crate::util::Network;
 
 // bytemuck
-pub use bytemuck::{Pod, Zeroable};
+pub use bytemuck::{CheckedBitPattern, NoUninit, Pod, Zeroable};
 
 // idl macros
 pub use star_frame_proc::{AccountToIdl, TypeToIdl};

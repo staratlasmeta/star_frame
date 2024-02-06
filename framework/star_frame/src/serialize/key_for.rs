@@ -88,3 +88,19 @@ where
 }
 // Safety: `KeyFor` is a transparent wrapper around a `Pubkey` which is `Pod`
 unsafe impl<T: 'static> Pod for KeyFor<T> where Pubkey: Pod {}
+
+#[cfg(feature = "idl")]
+mod idl_impl {
+    use super::*;
+    use star_frame_idl::ty::IdlTypeDef;
+    use star_frame_idl::IdlDefinition;
+
+    impl<T> TypeToIdl for KeyFor<T> {
+        type AssociatedProgram = SystemProgram;
+        fn type_to_idl(idl_definition: &mut IdlDefinition) -> Result<IdlTypeDef> {
+            Ok(IdlTypeDef::PubkeyFor {
+                id: T::type_d
+            })
+        }
+    }
+}

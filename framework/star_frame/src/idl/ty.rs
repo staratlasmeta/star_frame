@@ -8,6 +8,7 @@ use star_frame_idl::ty::{IdlDefinedType, IdlType, IdlTypeDef, TypeId};
 use star_frame_idl::{IdlDefinition, IdlDefinitionReference, SemVer};
 
 use crate::align1::Align1;
+use crate::prelude::PodBool;
 use crate::serialize::list::List;
 pub use star_frame_proc::TypeToIdl;
 
@@ -50,7 +51,8 @@ impl_type_to_idl_for_defined!(
     i64: I64,
     i128: I128,
     bool: BorshBool,
-    String: BorshString
+    String: BorshString,
+    PodBool: PodBool,
 );
 
 impl TypeToIdl for Pubkey {
