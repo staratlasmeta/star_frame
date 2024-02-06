@@ -87,6 +87,7 @@ pub enum IdlDefinedType {
     U32,
     U64,
     U128,
+    Bool,
     BorshBool,
     BorshString,
 }

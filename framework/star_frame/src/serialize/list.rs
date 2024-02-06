@@ -469,6 +469,9 @@ pub mod test {
             &[Cool { a: 1, b: 1 }]
         );
 
+        let first = test_bytes.immut()?[0];
+        println!("Cool: {first:#?}");
+
         let mut mutable = test_bytes.mutable()?;
         mutable.push(Cool { a: 2, b: 2 })?;
         mutable.push(Cool { a: 3, b: 3 })?;

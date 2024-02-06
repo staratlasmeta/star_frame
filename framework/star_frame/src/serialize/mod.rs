@@ -64,7 +64,7 @@ where
     T: Align1 + CheckedBitPattern + NoUninit,
 {
     fn from_bytes(bytes: &mut &'a [u8]) -> Result<Self> {
-        Ok(from_bytes(bytes.try_advance(size_of::<T>())?))
+        checked::try_from_bytes(bytes.try_advance(size_of::<T>())?).map_err(Into::into)
     }
 }
 
@@ -90,7 +90,7 @@ where
         bytes: &mut &'a mut [u8],
         _resize: impl ResizeFn<'a, Self::Metadata>,
     ) -> Result<Self> {
-        Ok(from_bytes_mut(bytes.try_advance(size_of::<T>())?))
+        checked::try_from_bytes_mut(bytes.try_advance(size_of::<T>())?).map_err(Into::into)
     }
 }
 

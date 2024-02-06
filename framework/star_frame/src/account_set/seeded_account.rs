@@ -25,22 +25,6 @@ where
         vec![self.seed()]
     }
 }
-// impl<T> GetSeeds for SeedsWithBump<T>
-// where
-//     T: GetSeeds,
-// {
-//     fn seeds(&self) -> Vec<&[u8]> {
-//         self.seeds.seeds()
-//     }
-// }
-// impl<T> GetSeeds for &SeedsWithBump<T>
-// where
-//     T: GetSeeds,
-// {
-//     fn seeds(&self) -> Vec<&[u8]> {
-//         self.seeds.seeds()
-//     }
-// }
 
 pub trait Seed {
     fn seed(&self) -> &[u8];
@@ -73,6 +57,18 @@ where
 
 #[derive(Debug)]
 pub struct Seeds<T>(pub T);
+//
+// impl<T: GetSeeds> GetSeeds for Seeds<T> {
+//     fn seeds(&self) -> Vec<&[u8]> {
+//         T::seeds(&self.0)
+//     }
+// }
+//
+// impl<T: GetSeeds> GetSeeds for &Seeds<T> {
+//     fn seeds(&self) -> Vec<&[u8]> {
+//         T::seeds(&self.0)
+//     }
+// }
 
 // Structs
 #[derive(Debug)]
