@@ -1,7 +1,8 @@
-use crate::account_set::data_account::AccountData;
+use crate::account_set::data_account::ProgramAccount;
 use crate::account_set::{
     AccountSet, AccountSetCleanup, AccountSetDecode, AccountSetValidate, SingleAccountSet,
 };
+use crate::prelude::UnsizedType;
 use crate::sys_calls::SysCallInvoke;
 use crate::Result;
 use anyhow::bail;
@@ -249,7 +250,7 @@ mod idl_impl {
     }
 }
 
-pub trait SeededAccountData: AccountData {
+pub trait SeededAccountData: ProgramAccount {
     type Seeds: GetSeeds;
 }
 
@@ -264,11 +265,11 @@ pub struct SeededDataAccount<'info, T>(
     SeededAccount<DataAccount<'info, T>, T::Seeds>,
 )
 where
-    T: SeededAccountData;
+    T: SeededAccountData + UnsizedType;
 
 impl<'info, T> Deref for SeededDataAccount<'info, T>
 where
-    T: SeededAccountData,
+    T: SeededAccountData + UnsizedType,
 {
     type Target = SeededAccount<DataAccount<'info, T>, T::Seeds>;
 
@@ -278,7 +279,7 @@ where
 }
 impl<'info, T> DerefMut for SeededDataAccount<'info, T>
 where
-    T: SeededAccountData,
+    T: SeededAccountData + UnsizedType,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0

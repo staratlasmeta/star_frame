@@ -16,7 +16,7 @@ pub use crate::account_set::{
 pub use crate::sys_calls::solana_runtime::SolanaRuntime;
 pub use crate::sys_calls::{SysCallCore, SysCallInvoke, SysCallReturn, SysCalls};
 
-pub use crate::instruction::{FrameworkInstruction, Instruction, InstructionSet};
+pub use crate::instruction::*;
 
 pub use crate::serialize::{
     borsh::framework_serialize_borsh,
@@ -46,5 +46,8 @@ pub use crate::solana_program::{
 pub use crate::anyhow;
 pub use crate::util::Network;
 
-// idl
+// idl macros
 pub use star_frame_proc::{AccountToIdl, TypeToIdl};
+
+#[cfg(feature = "idl")]
+pub use crate::idl::{ty::*, *};

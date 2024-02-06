@@ -1,32 +1,9 @@
 #![allow(clippy::result_large_err)]
 
-use bytemuck::Zeroable;
-use star_frame::account_set::data_account::AccountData;
-use star_frame::account_set::mutable::Writable;
-use star_frame::account_set::program::Program;
-use star_frame::account_set::seeded_account::{
-    GetSeeds, Seed, SeededAccountData, SeededDataAccount, Seeds,
-};
-use star_frame::account_set::signer::Signer;
-use star_frame::account_set::{AccountSet, AccountToIdl};
-use star_frame::align1::Align1;
+use bytemuck::{Pod, Zeroable};
 use star_frame::anyhow::bail;
-use star_frame::bytemuck::Pod;
-use star_frame::idl::ty::TypeToIdl;
-use star_frame::idl::ProgramToIdl;
-use star_frame::instruction::{instruction_set2, FrameworkInstruction};
-use star_frame::program::system_program::SystemProgram;
-use star_frame::program::{program, ProgramIds, StarFrameProgram};
-use star_frame::program_account::ProgramAccount;
-use star_frame::pubkey;
-use star_frame::serialize::unsized_type::UnsizedType;
-use star_frame::solana_program::account_info::AccountInfo;
-use star_frame::solana_program::program_error::ProgramError;
-use star_frame::solana_program::pubkey::Pubkey;
-use star_frame::star_frame_idl::{IdlDefinition, Version};
-use star_frame::sys_calls::SysCallInvoke;
-use star_frame::util::Network;
-use star_frame::Result;
+use star_frame::prelude::*;
+use star_frame_idl::{IdlDefinition, Version};
 
 // Declare the Program ID here to embed
 
@@ -185,13 +162,9 @@ pub struct PlayerFactionData {
 }
 
 // TODO - Macro should derive this and with the idl feature enabled would also derive `AccountToIdl` and `TypeToIdl`
-impl AccountData for PlayerFactionData {
+impl ProgramAccount for PlayerFactionData {
     type OwnerProgram = SystemProgram;
     const DISCRIMINANT: <Self::OwnerProgram as StarFrameProgram>::AccountDiscriminant = ();
-
-    fn program_id() -> Pubkey {
-        todo!()
-    }
 }
 
 impl SeededAccountData for PlayerFactionData {
@@ -208,17 +181,6 @@ pub struct PlayerFactionAccountSeeds {
 impl GetSeeds for PlayerFactionAccountSeeds {
     fn seeds(&self) -> Vec<&[u8]> {
         vec![b"FACTION_ENLISTMENT".as_ref(), self.player_account.seed()]
-    }
-}
-
-/* TODO - Default implementation can assume anchor hash for discriminant,
-maybe require manual implementation if you want something else for now? */
-// Why can't you do multi line TODOs?
-impl ProgramAccount for PlayerFactionData {
-    type OwnerProgram = FactionEnlistment;
-
-    fn discriminant() -> [u8; 8] {
-        Default::default()
     }
 }
 

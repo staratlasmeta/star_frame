@@ -78,8 +78,8 @@ impl<T> OptionalKeyFor<T> {
     }
 }
 
-impl<'a, 'info, T: AccountData + ?Sized> SetOptionalKeyFor<T, &'a DataAccount<'info, T>>
-    for OptionalKeyFor<T>
+impl<'a, 'info, T: ProgramAccount + UnsizedType + ?Sized>
+    SetOptionalKeyFor<T, &'a DataAccount<'info, T>> for OptionalKeyFor<T>
 {
     fn set_pubkey(&mut self, pubkey: Option<&'a DataAccount<'info, T>>) {
         self.pubkey = pubkey.map_or_else(solana_program::system_program::id, |d| *(d.key()));
@@ -98,7 +98,9 @@ impl<T> PartialEq<OptionalKeyFor<T>> for KeyFor<T> {
     }
 }
 
-impl<'info, T: AccountData + ?Sized> PartialEq<DataAccount<'info, T>> for OptionalKeyFor<T> {
+impl<'info, T: ProgramAccount + UnsizedType + ?Sized> PartialEq<DataAccount<'info, T>>
+    for OptionalKeyFor<T>
+{
     fn eq(&self, other: &DataAccount<'info, T>) -> bool {
         self.pubkey == *(other.key())
     }

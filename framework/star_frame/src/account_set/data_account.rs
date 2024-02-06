@@ -1,5 +1,6 @@
 use crate::account_set::{AccountSet, SingleAccountSet};
 use crate::packed_value::PackedValue;
+use crate::prelude::SysCallCore;
 use crate::program::StarFrameProgram;
 use crate::serialize::{FrameworkFromBytes, FrameworkFromBytesMut};
 use crate::Result;
@@ -8,7 +9,6 @@ use bytemuck::{bytes_of, from_bytes, from_bytes_mut};
 use solana_program::account_info::AccountInfo;
 use solana_program::entrypoint::MAX_PERMITTED_DATA_INCREASE;
 use solana_program::program_error::ProgramError;
-use solana_program::pubkey::Pubkey;
 use solana_program::system_instruction::MAX_PERMITTED_DATA_LENGTH;
 use star_frame::serialize::unsized_type::UnsizedType;
 use std::cell::{Ref, RefMut};
@@ -17,19 +17,16 @@ use std::mem::size_of;
 use std::ops::{Deref, DerefMut};
 use std::ptr::NonNull;
 
-pub trait AccountData: UnsizedType {
+pub trait ProgramAccount {
     type OwnerProgram: StarFrameProgram;
     const DISCRIMINANT: <Self::OwnerProgram as StarFrameProgram>::AccountDiscriminant;
-
-    // TODO: Remove this
-    fn program_id() -> Pubkey;
 }
 
-fn validate_data_account<T>(account: &DataAccount<T>) -> Result<()>
+fn validate_data_account<T>(account: &DataAccount<T>, sys_calls: &impl SysCallCore) -> Result<()>
 where
-    T: AccountData + ?Sized,
+    T: ProgramAccount + UnsizedType + ?Sized,
 {
-    if account.info.owner != &T::program_id() {
+    if account.info.owner != &T::OwnerProgram::program_id(sys_calls)? {
         bail!(ProgramError::IllegalOwner);
     }
 
@@ -48,15 +45,15 @@ where
 
 #[derive(AccountSet, Debug)]
 #[validate(
-    extra_validation = validate_data_account(self),
+    extra_validation = validate_data_account(self, sys_calls),
 )]
-pub struct DataAccount<'info, T: AccountData + ?Sized> {
+pub struct DataAccount<'info, T: ProgramAccount + UnsizedType + ?Sized> {
     info: AccountInfo<'info>,
     phantom_t: PhantomData<T>,
 }
 impl<'info, T> DataAccount<'info, T>
 where
-    T: AccountData + ?Sized,
+    T: ProgramAccount + UnsizedType + ?Sized,
 {
     fn check_discriminant(bytes: &[u8]) -> Result<()> {
         if bytes.len() < size_of::<<T::OwnerProgram as StarFrameProgram>::AccountDiscriminant>()
@@ -138,7 +135,7 @@ where
 
 impl<'info, T> SingleAccountSet<'info> for DataAccount<'info, T>
 where
-    T: AccountData + ?Sized,
+    T: ProgramAccount + UnsizedType + ?Sized,
 {
     fn account_info(&self) -> &AccountInfo<'info> {
         &self.info
@@ -148,14 +145,14 @@ where
 #[derive(Debug)]
 pub struct DataRef<'a, T>
 where
-    T: 'a + AccountData + ?Sized,
+    T: 'a + ProgramAccount + UnsizedType + ?Sized,
 {
     data: T::Ref<'a>,
     _r: Ref<'a, [u8; 0]>,
 }
 impl<'a, T> Deref for DataRef<'a, T>
 where
-    T: 'a + AccountData + ?Sized,
+    T: 'a + ProgramAccount + UnsizedType + ?Sized,
 {
     type Target = T::Ref<'a>;
 
@@ -167,14 +164,14 @@ where
 #[derive(Debug)]
 pub struct DataRefMut<'a, T>
 where
-    T: 'a + AccountData + ?Sized,
+    T: 'a + ProgramAccount + UnsizedType + ?Sized,
 {
     data: T::RefMut<'a>,
     _r: RefMut<'a, [u8; 0]>,
 }
 impl<'a, T> Deref for DataRefMut<'a, T>
 where
-    T: 'a + AccountData + ?Sized,
+    T: 'a + ProgramAccount + UnsizedType + ?Sized,
 {
     type Target = T::RefMut<'a>;
 
@@ -184,7 +181,7 @@ where
 }
 impl<'a, T> DerefMut for DataRefMut<'a, T>
 where
-    T: 'a + AccountData + ?Sized,
+    T: 'a + ProgramAccount + UnsizedType + ?Sized,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.data

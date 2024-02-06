@@ -1,9 +1,4 @@
-use crate::account_set::AccountSet;
-use crate::instruction::Instruction;
-use crate::program::StarFrameProgram;
-use crate::program_account::ProgramAccount;
-use crate::Result;
-use star_frame::instruction::InstructionSet;
+use crate::prelude::*;
 use star_frame_idl::account::AccountId;
 use star_frame_idl::account_set::IdlAccountSetDef;
 use star_frame_idl::instruction::IdlInstructionDef;

@@ -48,7 +48,7 @@ pub fn derive_account_to_idl_impl(input: &DeriveInput) -> TokenStream {
                             #idl_account {
                                 name: #ident_str.to_string(),
                                 description: #type_docs.to_string(),
-                                discriminant: #crate_name::serde_json::to_value(Self::discriminant()).expect("Failed to serialize discriminant"),
+                                discriminant: #crate_name::serde_json::to_value(Self::DISCRIMINANT).expect("Failed to serialize discriminant"),
                                 ty,
                                 seeds: #idl_seeds::NotRequired { possible: vec![] },
                                 extension_fields: Default::default(),
