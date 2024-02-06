@@ -1,4 +1,4 @@
-use crate::account_set::data_account::{AccountData, DataAccount};
+use crate::account_set::data_account::{DataAccount, ProgramAccount};
 use crate::account_set::mutable::Writable;
 use crate::account_set::program::Program;
 use crate::account_set::seeded_account::{GetSeeds, SeededAccount};
@@ -31,13 +31,13 @@ use std::ops::{Deref, DerefMut};
 )]
 pub struct InitAccount<'info, T>
 where
-    T: AccountData + UnsizedType + ?Sized,
+    T: ProgramAccount + UnsizedType + ?Sized,
 {
     inner: DataAccount<'info, T>,
 }
 impl<'info, T: ?Sized> SingleAccountSet<'info> for InitAccount<'info, T>
 where
-    T: AccountData + UnsizedType,
+    T: ProgramAccount + UnsizedType,
 {
     fn account_info(&self) -> &AccountInfo<'info> {
         self.inner.account_info()
@@ -45,7 +45,7 @@ where
 }
 impl<'info, T> Deref for InitAccount<'info, T>
 where
-    T: AccountData + UnsizedType + ?Sized,
+    T: ProgramAccount + UnsizedType + ?Sized,
 {
     type Target = DataAccount<'info, T>;
     fn deref(&self) -> &Self::Target {
@@ -55,7 +55,7 @@ where
 
 impl<'info, T> DerefMut for InitAccount<'info, T>
 where
-    T: AccountData + UnsizedType + ?Sized,
+    T: ProgramAccount + UnsizedType + ?Sized,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.inner
@@ -123,7 +123,7 @@ fn init_validate_create<'info, A, WT, T, S, const CHECK: bool>(
     sys_calls: &mut impl SysCallInvoke,
 ) -> Result<()>
 where
-    T: AccountData + FrameworkInit<A> + ?Sized,
+    T: ProgramAccount + FrameworkInit<A> + ?Sized,
     WT: SingleAccountSet<'info>,
     S: GetSeeds,
 {

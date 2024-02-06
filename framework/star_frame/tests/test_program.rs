@@ -4,20 +4,14 @@
 
 mod ixs;
 
+use star_frame::prelude::*;
+
 use ixs::TestProgramInstructions;
 use lazy_static::lazy_static;
-use solana_program::pubkey::Pubkey;
-use star_frame::idl::ty::TypeToIdl;
-use star_frame::idl::{AccountToIdl, InstructionSetToIdl, ProgramToIdl};
-use star_frame::program::{ProgramIds, StarFrameProgram};
-use star_frame::program_account::ProgramAccount;
-use star_frame::util::Network;
-use star_frame::Result;
 use star_frame_idl::account::{AccountId, IdlAccount};
 use star_frame_idl::seeds::IdlSeeds;
 use star_frame_idl::ty::{IdlField, IdlType, IdlTypeDef, TypeId};
 use star_frame_idl::{DiscriminantId, IdlDefinition, IdlDefinitionReference, Version};
-use star_frame_proc::pubkey;
 
 const KEY: Pubkey = pubkey!("11111111111111111111111111111111");
 
@@ -95,13 +89,13 @@ pub struct TestAccount1 {
     pub val2: u64,
     pub val3: i8,
 }
+
 impl ProgramAccount for TestAccount1 {
     type OwnerProgram = TestProgram;
 
-    fn discriminant() -> <Self::OwnerProgram as StarFrameProgram>::AccountDiscriminant {
-        1
-    }
+    const DISCRIMINANT: <Self::OwnerProgram as StarFrameProgram>::AccountDiscriminant = 1;
 }
+
 impl TypeToIdl for TestAccount1 {
     type AssociatedProgram = TestProgram;
 
@@ -170,7 +164,7 @@ impl AccountToIdl for TestAccount1 {
                 IdlAccount {
                     name: "Test Account 1".to_string(),
                     description: "The first Test account".to_string(),
-                    discriminant: serde_json::to_value(Self::discriminant())
+                    discriminant: serde_json::to_value(Self::DISCRIMINANT)
                         .expect("Couldn't serialize discriminant"),
                     ty,
                     seeds: IdlSeeds::NotRequired { possible: vec![] },

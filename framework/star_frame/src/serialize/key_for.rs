@@ -49,13 +49,17 @@ impl<T> KeyFor<T> {
     }
 }
 
-impl<'a, 'info, T: AccountData + ?Sized> SetKeyFor<T, &'a DataAccount<'info, T>> for KeyFor<T> {
+impl<'a, 'info, T: ProgramAccount + UnsizedType + ?Sized> SetKeyFor<T, &'a DataAccount<'info, T>>
+    for KeyFor<T>
+{
     fn set_pubkey(&mut self, pubkey: &'a DataAccount<'info, T>) {
         self.pubkey = *(pubkey.key());
     }
 }
 
-impl<'info, T: AccountData + ?Sized> PartialEq<DataAccount<'info, T>> for KeyFor<T> {
+impl<'info, T: ProgramAccount + UnsizedType + ?Sized> PartialEq<DataAccount<'info, T>>
+    for KeyFor<T>
+{
     fn eq(&self, other: &DataAccount<'info, T>) -> bool {
         self.pubkey == *(other.key())
     }

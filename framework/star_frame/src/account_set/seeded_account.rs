@@ -1,4 +1,4 @@
-use crate::account_set::data_account::AccountData;
+use crate::account_set::data_account::ProgramAccount;
 use crate::account_set::{
     AccountSet, AccountSetCleanup, AccountSetDecode, AccountSetValidate, SingleAccountSet,
 };
@@ -250,7 +250,7 @@ mod idl_impl {
     }
 }
 
-pub trait SeededAccountData: AccountData {
+pub trait SeededAccountData: ProgramAccount {
     type Seeds: GetSeeds;
 }
 
