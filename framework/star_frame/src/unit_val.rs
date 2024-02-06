@@ -1,12 +1,9 @@
 #![allow(clippy::extra_unused_type_parameters)]
-use crate::idl::ty::TypeToIdl;
 use bytemuck::{Pod, Zeroable};
 use derivative::Derivative;
 use num_traits::real::Real;
 use num_traits::Pow;
 use serde::{Deserialize, Serialize};
-use star_frame_idl::ty::IdlTypeDef;
-use star_frame_idl::IdlDefinition;
 use star_frame_proc::Align1;
 use std::fmt::Debug;
 use std::hash::Hash;
@@ -143,18 +140,27 @@ impl<T1, Unit1> UnitVal<T1, Unit1> {
         UnitVal::new(self.val)
     }
 }
-impl<T, Unit> TypeToIdl for UnitVal<T, Unit>
-where
-    T: TypeToIdl,
-{
-    type AssociatedProgram = T::AssociatedProgram;
-
-    fn type_to_idl(idl_definition: &mut IdlDefinition) -> anyhow::Result<IdlTypeDef> {
-        T::type_to_idl(idl_definition)
-    }
-}
 
 pub trait Convert<Rhs> {}
+
+#[cfg(feature = "idl")]
+mod idl {
+    use super::*;
+    use crate::idl::ty::TypeToIdl;
+    use star_frame_idl::ty::IdlTypeDef;
+    use star_frame_idl::{IdlDefinition, SemVer};
+    impl<T: TypeToIdl, Unit> TypeToIdl for UnitVal<T, Unit> {
+        type AssociatedProgram = T::AssociatedProgram;
+
+        fn type_to_idl(idl_definition: &mut IdlDefinition) -> anyhow::Result<IdlTypeDef> {
+            T::type_to_idl(idl_definition)
+        }
+
+        fn type_program_versions() -> SemVer {
+            T::type_program_versions()
+        }
+    }
+}
 
 // TODO: Replace with proc macro for proper `IsEqual` impl
 #[macro_export]

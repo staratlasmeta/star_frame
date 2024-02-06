@@ -27,9 +27,6 @@ use star_frame::star_frame_idl::{IdlDefinition, Version};
 use star_frame::sys_calls::SysCallInvoke;
 use star_frame::util::Network;
 use star_frame::Result;
-use star_frame_idl::ty::{IdlType, TypeId};
-
-use star_frame_idl::IdlDefinitionReference;
 
 // Declare the Program ID here to embed
 

@@ -55,12 +55,16 @@ pub struct Paths {
     pub instruction_set_to_idl: TokenStream,
     #[cfg(feature = "idl")]
     pub type_to_idl: TokenStream,
+    #[cfg(feature = "idl")]
+    pub program_to_idl: TokenStream,
 
     // star frame idl
     pub semver: TokenStream,
     pub idl_definition: TokenStream,
     pub idl_definition_ref: TokenStream,
+    pub idl_type: TokenStream,
     pub idl_type_def: TokenStream,
+    pub idl_type_id: TokenStream,
     pub idl_field: TokenStream,
     pub idl_account: TokenStream,
     pub idl_account_set_def: TokenStream,
@@ -175,12 +179,16 @@ impl Default for Paths {
             instruction_set_to_idl: quote! { #crate_name::idl::InstructionSetToIdl },
             #[cfg(feature = "idl")]
             type_to_idl: quote! { #crate_name::idl::ty::TypeToIdl },
+            #[cfg(feature = "idl")]
+            program_to_idl: quote! { #crate_name::idl::ProgramToIdl },
 
             // star frame idl
             semver: quote! { #crate_name::star_frame_idl::SemVer },
             idl_definition: quote! { #crate_name::star_frame_idl::IdlDefinition },
             idl_definition_ref: quote! { #crate_name::star_frame_idl::IdlDefinitionReference },
+            idl_type: quote! { #crate_name::star_frame_idl::ty::IdlType },
             idl_type_def: quote! { #crate_name::star_frame_idl::ty::IdlTypeDef },
+            idl_type_id: quote! { #crate_name::star_frame_idl::ty::TypeId },
             idl_field: quote! { #crate_name::star_frame_idl::ty::IdlField },
             idl_account: quote! { #crate_name::star_frame_idl::account::IdlAccount },
             idl_account_set_def: quote! { #crate_name::star_frame_idl::account_set::IdlAccountSetDef },
