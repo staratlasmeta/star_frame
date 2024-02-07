@@ -1,5 +1,6 @@
 #[cfg(any(target_os = "solana", feature = "fake_solana_os"))]
 use crate::instruction::InstructionSet;
+use crate::prelude::SolanaRuntime;
 #[cfg(any(target_os = "solana", feature = "fake_solana_os"))]
 use crate::program::StarFrameProgram;
 #[cfg(any(target_os = "solana", feature = "fake_solana_os"))]
@@ -18,10 +19,7 @@ pub fn try_star_frame_entrypoint<T: StarFrameProgram>(
     instruction_data: &[u8],
     network: Network,
 ) -> Result<()> {
-    let mut syscalls = crate::sys_calls::solana_runtime::SolanaRuntime {
-        program_id,
-        network,
-    };
+    let mut syscalls = SolanaRuntime::new(program_id, network);
     T::InstructionSet::handle_ix(instruction_data, program_id, accounts, &mut syscalls)
 }
 

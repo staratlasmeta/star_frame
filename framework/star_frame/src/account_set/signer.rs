@@ -1,4 +1,7 @@
-use crate::account_set::{AccountSet, AccountSetDecode, AccountSetValidate, SingleAccountSet};
+use crate::account_set::{
+    AccountSet, AccountSetDecode, AccountSetValidate, SignedAccount, SingleAccountSet,
+    WritableAccount,
+};
 use crate::Result;
 use anyhow::bail;
 use solana_program::account_info::AccountInfo;
@@ -57,6 +60,15 @@ where
         self.0.account_info()
     }
 }
+impl<'info, T> SignedAccount<'info> for Signer<T>
+where
+    T: SingleAccountSet<'info>,
+{
+    fn signer_seeds(&self) -> Option<Vec<&[u8]>> {
+        None
+    }
+}
+impl<'info, T> WritableAccount<'info> for Signer<T> where T: WritableAccount<'info> {}
 
 #[cfg(feature = "idl")]
 mod idl_impl {

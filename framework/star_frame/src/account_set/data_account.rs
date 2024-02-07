@@ -1,16 +1,20 @@
-use crate::account_set::{AccountSet, SingleAccountSet};
+use crate::account_set::{AccountSet, SignedAccount, SingleAccountSet, WritableAccount};
 use crate::packed_value::PackedValue;
-use crate::prelude::SysCallCore;
+use crate::prelude::{SysCallCore, SystemProgram};
 use crate::program::StarFrameProgram;
 use crate::serialize::{FrameworkFromBytes, FrameworkFromBytesMut};
+use crate::sys_calls::SysCallInvoke;
 use crate::Result;
 use anyhow::bail;
 use bytemuck::{bytes_of, from_bytes, from_bytes_mut};
+use derivative::Derivative;
 use solana_program::account_info::AccountInfo;
 use solana_program::entrypoint::MAX_PERMITTED_DATA_INCREASE;
 use solana_program::program_error::ProgramError;
 use solana_program::system_instruction::MAX_PERMITTED_DATA_LENGTH;
+use star_frame::prelude::Program;
 use star_frame::serialize::unsized_type::UnsizedType;
+use star_frame::util::normalize_rent;
 use std::cell::{Ref, RefMut};
 use std::marker::PhantomData;
 use std::mem::size_of;
@@ -43,13 +47,30 @@ where
     Ok(())
 }
 
+#[derive(Debug, Copy, Clone)]
+pub struct SkipNormalize;
+#[derive(Debug, Derivative)]
+#[derivative(Copy(bound = ""), Clone(bound = ""))]
+pub struct NormalizeRent<'a, 'info, F> {
+    pub system_program: &'a Program<'info, SystemProgram>,
+    pub funder: &'a F,
+}
+
 #[derive(AccountSet, Debug)]
 #[validate(
     extra_validation = validate_data_account(self, sys_calls),
 )]
+#[cleanup(
+    generics = [<'a, F> where F: WritableAccount<'info> + SignedAccount<'info>],
+    arg = NormalizeRent<'a, 'info, F>,
+    extra_cleanup = self.normalize_rent(arg, sys_calls)
+)]
+#[cleanup(id = "skip_normalize", arg = SkipNormalize)]
 pub struct DataAccount<'info, T: ProgramAccount + UnsizedType + ?Sized> {
     info: AccountInfo<'info>,
     phantom_t: PhantomData<T>,
+    #[account_set(skip = false)]
+    closed: bool,
 }
 impl<'info, T> DataAccount<'info, T>
 where
@@ -129,7 +150,16 @@ where
         self.info.try_borrow_mut_data()?.copy_from_slice(bytes_of(
             &<T::OwnerProgram as StarFrameProgram>::CLOSED_ACCOUNT_DISCRIMINANT,
         ));
+        self.closed = true;
         Ok(())
+    }
+
+    pub fn normalize_rent(
+        &mut self,
+        arg: NormalizeRent<'_, 'info, impl WritableAccount<'info> + SignedAccount<'info>>,
+        sys_calls: &mut impl SysCallInvoke,
+    ) -> Result<()> {
+        normalize_rent(self, arg.funder, arg.system_program, sys_calls)
     }
 }
 

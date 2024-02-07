@@ -1,3 +1,4 @@
+use crate::account_set::SignedAccount;
 use crate::prelude::*;
 use anyhow::bail;
 use bytemuck::bytes_of;
@@ -107,7 +108,7 @@ pub struct SeededAccount<T, S: GetSeeds> {
     #[validate(id = "seeds_with_bump_skip", skip)]
     #[decode(arg = arg)]
     pub(crate) account: T,
-    #[account_set(skip, default = None)]
+    #[account_set(skip = None)]
     pub(crate) seeds: Option<SeedsWithBump<S>>,
 }
 
@@ -153,6 +154,15 @@ where
 {
     fn account_info(&self) -> &AccountInfo<'info> {
         self.account.account_info()
+    }
+}
+impl<'info, T, S> SignedAccount<'info> for SeededAccount<T, S>
+where
+    T: SingleAccountSet<'info>,
+    S: GetSeeds,
+{
+    fn signer_seeds(&self) -> Option<Vec<&[u8]>> {
+        Some(self.seeds_with_bump())
     }
 }
 

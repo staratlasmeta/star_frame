@@ -1,4 +1,5 @@
 use crate::account_set::init_account::{Create, CreateIfNeeded, CreateSplit, InitCreateArg};
+use crate::account_set::SignedAccount;
 use crate::prelude::*;
 use crate::serialize::FrameworkInit;
 use derivative::Derivative;
@@ -33,13 +34,35 @@ use star_frame_proc::AccountSet;
     arg = CreateIfNeeded<SeededInit<T::Seeds, IC>>,
     extra_validation = seed_init_validate_if_needed(self, arg.0, sys_calls)
 )]
+#[cleanup(
+    generics = [<A> where SeededAccount<InitAccount<'info, T>, T::Seeds>: AccountSetCleanup<'info, A>],
+    arg = A,
+)]
 pub struct SeededInitAccount<'info, T>(
     #[validate(id = "create", skip)]
     #[validate(id = "create_if_needed", skip)]
+    #[cleanup(arg = arg)]
     SeededAccount<InitAccount<'info, T>, T::Seeds>,
 )
 where
     T: SeededAccountData + UnsizedType + ?Sized;
+
+impl<'info, T> SingleAccountSet<'info> for SeededInitAccount<'info, T>
+where
+    T: SeededAccountData + UnsizedType,
+{
+    fn account_info(&self) -> &AccountInfo<'info> {
+        self.0.account_info()
+    }
+}
+impl<'info, T> SignedAccount<'info> for SeededInitAccount<'info, T>
+where
+    T: SeededAccountData + UnsizedType,
+{
+    fn signer_seeds(&self) -> Option<Vec<&[u8]>> {
+        self.0.signer_seeds()
+    }
+}
 
 #[derive(Debug, Copy, Clone)]
 pub struct SeededInit<S, IC> {

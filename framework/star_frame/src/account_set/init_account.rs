@@ -3,7 +3,7 @@ use crate::account_set::mutable::Writable;
 use crate::account_set::program::Program;
 use crate::account_set::seeded_account::{GetSeeds, SeededAccount};
 use crate::account_set::{AccountSetValidate, SingleAccountSet};
-use crate::prelude::{SeedsWithBump, UnsizedType};
+use crate::prelude::*;
 use crate::program::system_program::SystemProgram;
 use crate::program::StarFrameProgram;
 use crate::serialize::FrameworkInit;
@@ -37,12 +37,17 @@ use std::ops::{Deref, DerefMut};
     arg = CreateIfNeeded<A>,
     extra_validation = init_if_needed(self, arg.0, sys_calls),
 )]
+#[cleanup(
+    generics = [<A> where DataAccount<'info, T>: AccountSetCleanup<'info, A>],
+    arg = A,
+)]
 pub struct InitAccount<'info, T>
 where
     T: ProgramAccount + UnsizedType + ?Sized,
 {
     #[validate(id = "create", skip)]
     #[validate(id = "create_if_needed", skip)]
+    #[cleanup(arg = arg)]
     inner: DataAccount<'info, T>,
 }
 impl<'info, T: ?Sized> SingleAccountSet<'info> for InitAccount<'info, T>

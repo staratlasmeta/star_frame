@@ -1,4 +1,7 @@
-use crate::account_set::{AccountSet, AccountSetDecode, AccountSetValidate, SingleAccountSet};
+use crate::account_set::{
+    AccountSet, AccountSetDecode, AccountSetValidate, SignedAccount, SingleAccountSet,
+    WritableAccount,
+};
 use crate::Result;
 use solana_program::account_info::AccountInfo;
 use solana_program::program_error::ProgramError;
@@ -29,6 +32,15 @@ where
         self.0.account_info()
     }
 }
+impl<'info, T> SignedAccount<'info> for Writable<T>
+where
+    T: SignedAccount<'info>,
+{
+    fn signer_seeds(&self) -> Option<Vec<&[u8]>> {
+        self.0.signer_seeds()
+    }
+}
+impl<'info, T> WritableAccount<'info> for Writable<T> where T: SingleAccountSet<'info> {}
 
 impl<T> Deref for Writable<T> {
     type Target = T;
