@@ -41,6 +41,8 @@ pub struct InitAccount<'info, T>
 where
     T: ProgramAccount + UnsizedType + ?Sized,
 {
+    #[validate(id = "create", skip)]
+    #[validate(id = "create_if_needed", skip)]
     inner: DataAccount<'info, T>,
 }
 impl<'info, T: ?Sized> SingleAccountSet<'info> for InitAccount<'info, T>
