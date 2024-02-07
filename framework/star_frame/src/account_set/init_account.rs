@@ -27,23 +27,13 @@ use std::ops::{Deref, DerefMut};
 #[account_set(skip_default_validate)]
 #[validate(
     id = "create",
-    generics = [
-        <'a, A> where
-            'info: 'a,
-            A: InitCreateArg<'a, 'info>,
-            T: FrameworkInit<A::FrameworkInitArg>,
-    ],
+    generics = [<'a, A> where 'info: 'a, A: InitCreateArg<'a, 'info>, T: FrameworkInit<A::FrameworkInitArg>],
     arg = Create<A>,
     extra_validation = init_validate_create(self, arg.0, sys_calls),
 )]
 #[validate(
     id = "create_if_needed",
-    generics = [
-        <'a, A> where
-            'info: 'a,
-            A: InitCreateArg<'a, 'info>,
-            T: FrameworkInit<A::FrameworkInitArg>,
-    ],
+    generics = [<'a, A> where 'info: 'a, A: InitCreateArg<'a, 'info>, T: FrameworkInit<A::FrameworkInitArg>],
     arg = CreateIfNeeded<A>,
     extra_validation = init_if_needed(self, arg.0, sys_calls),
 )]
