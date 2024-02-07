@@ -9,7 +9,7 @@ use proc_macro_error::abort;
 use quote::quote;
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
-use syn::{DataStruct, Expr, LitStr, Type};
+use syn::{Expr, Field, LitStr, Type};
 
 #[derive(ArgumentList)]
 struct ValidateStructArgs {
@@ -40,7 +40,7 @@ pub(super) fn validates(
     input: &StrippedDeriveInput,
     account_set_struct_args: &AccountSetStructArgs,
     account_set_generics: &AccountSetGenerics,
-    data_struct: &DataStruct,
+    fields: &[&Field],
     field_name: &[TokenStream],
     field_type: &[&Type],
 ) -> Vec<TokenStream> {
@@ -87,8 +87,7 @@ pub(super) fn validates(
             });
     }
 
-    let field_validates = data_struct
-        .fields
+    let field_validates = fields
         .iter()
         .map(|f| {
             find_attrs(&f.attrs, validate_ident)
