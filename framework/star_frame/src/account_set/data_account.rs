@@ -17,13 +17,18 @@ use star_frame::serialize::unsized_type::UnsizedType;
 use star_frame::util::normalize_rent;
 use std::cell::{Ref, RefMut};
 use std::marker::PhantomData;
-use std::mem::size_of;
+use std::mem::{size_of, size_of_val};
 use std::ops::{Deref, DerefMut};
 use std::ptr::NonNull;
 
 pub trait ProgramAccount {
     type OwnerProgram: StarFrameProgram;
     const DISCRIMINANT: <Self::OwnerProgram as StarFrameProgram>::AccountDiscriminant;
+
+    fn account_data_size(&self) -> usize {
+        size_of::<<Self::OwnerProgram as StarFrameProgram>::AccountDiscriminant>()
+            + size_of_val(self)
+    }
 }
 
 fn validate_data_account<T>(account: &DataAccount<T>, sys_calls: &impl SysCallCore) -> Result<()>
