@@ -1,12 +1,11 @@
 use crate::prelude::*;
 use anyhow::bail;
-use bytemuck::{bytes_of, Pod};
+use bytemuck::bytes_of;
 use std::ops::{Deref, DerefMut};
 
 pub trait GetSeeds {
     fn seeds(&self) -> Vec<&[u8]>;
 }
-
 impl<T> GetSeeds for T
 where
     T: Seed,
@@ -19,10 +18,9 @@ where
 pub trait Seed {
     fn seed(&self) -> &[u8];
 }
-
 impl<T> Seed for T
 where
-    T: Pod,
+    T: NoUninit,
 {
     fn seed(&self) -> &[u8] {
         bytes_of(self)
@@ -34,7 +32,6 @@ pub struct SeedsWithBump<T: GetSeeds> {
     pub seeds: T,
     pub bump: u8,
 }
-
 impl<T> SeedsWithBump<T>
 where
     T: GetSeeds,
@@ -60,31 +57,43 @@ pub struct Seeds<T>(pub T);
 #[validate(
     generics = [<A> where T: AccountSetValidate<'info, A> + SingleAccountSet<'info>],
     arg = (S, A),
-    extra_validation = Self::validate_seeds(self, arg.0)
+    before_validation = Self::validate_seeds(self, arg.0)
 )]
 #[validate(
     id = "seeds",
     generics = [where T: AccountSetValidate<'info, ()> + SingleAccountSet<'info>],
     arg = Seeds<S>,
-    extra_validation = Self::validate_seeds(self, arg.0)
+    before_validation = Self::validate_seeds(self, arg.0)
 )]
 #[validate(
     id = "seeds_generic",
     generics = [<A> where T: AccountSetValidate<'info, A> + SingleAccountSet<'info>],
     arg = (Seeds<S>, A),
-    extra_validation = Self::validate_seeds(self, arg.0.0)
+    before_validation = Self::validate_seeds(self, arg.0.0)
+)]
+#[validate(
+    id = "seeds_skip",
+    generics = [<> where T: SingleAccountSet<'info>],
+    arg = (Skip, Seeds<S>),
+    before_validation = Self::validate_seeds(self, arg.1.0)
 )]
 #[validate(
     id = "seeds_with_bump",
     generics = [where T: AccountSetValidate<'info, ()> + SingleAccountSet<'info>],
     arg = SeedsWithBump<S>,
-    extra_validation = Self::validate_seeds_with_bump(self, arg)
+    before_validation = Self::validate_seeds_with_bump(self, arg)
 )]
 #[validate(
     id = "seeds_with_bump_generic",
     generics = [<A> where T: AccountSetValidate<'info, A> + SingleAccountSet<'info>],
     arg = (SeedsWithBump<S>, A),
-    extra_validation = Self::validate_seeds_with_bump(self, arg.0)
+    before_validation = Self::validate_seeds_with_bump(self, arg.0)
+)]
+#[validate(
+    id = "seeds_with_bump_skip",
+    generics = [<> where T: SingleAccountSet<'info>],
+    arg = (Skip, SeedsWithBump<S>),
+    before_validation = Self::validate_seeds_with_bump(self, arg.1)
 )]
 #[cleanup(generics = [<A> where T: AccountSetCleanup <'info, A>], arg = A)]
 pub struct SeededAccount<T, S: GetSeeds> {
@@ -92,13 +101,18 @@ pub struct SeededAccount<T, S: GetSeeds> {
     #[validate(arg = arg.1)]
     #[validate(id = "seeds", arg = ())]
     #[validate(id = "seeds_generic", arg = arg.1)]
+    #[validate(id = "seeds_skip", skip)]
     #[validate(id = "seeds_with_bump", arg = ())]
     #[validate(id = "seeds_with_bump_generic", arg = arg.1)]
+    #[validate(id = "seeds_with_bump_skip", skip)]
     #[decode(arg = arg)]
-    account: T,
+    pub(crate) account: T,
     #[account_set(skip, default = None)]
-    seeds: Option<SeedsWithBump<S>>,
+    pub(crate) seeds: Option<SeedsWithBump<S>>,
 }
+
+#[derive(Debug, Copy, Clone)]
+pub struct Skip;
 
 impl<'info, T: SingleAccountSet<'info>, S: GetSeeds> SeededAccount<T, S> {
     fn validate_seeds(&mut self, seeds: S) -> Result<()> {
@@ -176,42 +190,5 @@ mod idl_impl {
                 .map(Box::new)
                 .map(IdlAccountSetDef::SeededAccount)
         }
-    }
-}
-
-pub trait SeededAccountData: ProgramAccount {
-    type Seeds: GetSeeds;
-}
-
-#[derive(AccountSet, Debug)]
-#[validate(arg = (T::Seeds,))]
-#[validate(id = "wo_bump", arg = Seeds < T::Seeds >)]
-#[validate(id = "with_bump", arg = SeedsWithBump < T::Seeds >)]
-pub struct SeededDataAccount<'info, T>(
-    #[validate(arg = (arg.0, ()))]
-    #[validate(id = "wo_bump", arg = (arg.0, ()))]
-    #[validate(id = "with_bump", arg = (arg, ()))]
-    SeededAccount<DataAccount<'info, T>, T::Seeds>,
-)
-where
-    T: SeededAccountData + UnsizedType;
-
-impl<'info, T> Deref for SeededDataAccount<'info, T>
-where
-    T: SeededAccountData + UnsizedType,
-{
-    type Target = SeededAccount<DataAccount<'info, T>, T::Seeds>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl<'info, T> DerefMut for SeededDataAccount<'info, T>
-where
-    T: SeededAccountData + UnsizedType,
-{
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
     }
 }

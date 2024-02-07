@@ -16,6 +16,7 @@ struct ValidateStructArgs {
     id: Option<LitStr>,
     arg: Option<Type>,
     generics: Option<BetterGenerics>,
+    before_validation: Option<Expr>,
     extra_validation: Option<Expr>,
 }
 
@@ -87,6 +88,7 @@ pub(super) fn validates(
                 arg: None,
                 generics: None,
                 extra_validation: None,
+                before_validation: None,
             });
     }
 
@@ -206,6 +208,10 @@ pub(super) fn validates(
         let validates = out.into_iter().map(|(validate, _)| validate);
 
         let (impl_generics, _, where_clause) = generics.split_for_impl();
+        let before_validation = validate_struct_args.before_validation.map(|before_validation| quote! {
+            let res: #result<()> = { #before_validation };
+            res?;
+        });
         let extra_validation = validate_struct_args.extra_validation.map(|extra_validation| quote! {
             let res: #result<()> = { #extra_validation };
             res?;
@@ -219,6 +225,7 @@ pub(super) fn validates(
                     arg: #validate_type,
                     sys_calls: &mut impl #sys_call_invoke,
                 ) -> #result<()> {
+                    #before_validation
                     #(#validates)*
                     #extra_validation
                     Ok(())

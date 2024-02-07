@@ -4,9 +4,7 @@ pub use crate::account_set::{
     mutable::Writable,
     program::Program,
     rest::Rest,
-    seeded_account::{
-        GetSeeds, Seed, SeededAccount, SeededAccountData, SeededDataAccount, Seeds, SeedsWithBump,
-    },
+    seeded_account::{GetSeeds, Seed, SeededAccount, Seeds, SeedsWithBump},
     signer::Signer,
     system_account::SystemAccount,
     AccountSet, AccountSetCleanup, AccountSetDecode, AccountSetValidate, SingleAccountSet,
@@ -51,7 +49,12 @@ pub use crate::util::Network;
 pub use bytemuck::{CheckedBitPattern, NoUninit, Pod, Zeroable};
 
 // idl macros
+pub use crate::account_set::init_account::InitCreateArg;
+pub use crate::account_set::seeded_account::Skip;
+pub use crate::account_set::seeded_data_account::SeededAccountData;
+pub use crate::account_set::seeded_data_account::SeededDataAccount;
 pub use star_frame_proc::{AccountToIdl, TypeToIdl};
+pub use std::fmt::Debug;
 
 #[cfg(feature = "idl")]
 pub use crate::idl::{ty::*, *};
