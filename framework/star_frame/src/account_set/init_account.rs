@@ -325,13 +325,3 @@ where
 
     Ok(())
 }
-
-#[cfg(test)]
-mod test {
-    use bytemuck::{Pod, Zeroable};
-    use star_frame_proc::Align1;
-
-    #[derive(Zeroable, Pod, Align1, Copy, Clone)]
-    #[repr(C)]
-    struct Account {}
-}
