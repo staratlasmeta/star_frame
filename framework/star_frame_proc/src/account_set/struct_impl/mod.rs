@@ -1,13 +1,15 @@
 use crate::account_set::generics::AccountSetGenerics;
 use crate::account_set::struct_impl::cleanup::cleanups;
+use crate::account_set::struct_impl::decode::DecodeFieldTy;
 use crate::account_set::struct_impl::validate::validates;
 use crate::account_set::{AccountSetStructArgs, StrippedDeriveInput};
 use crate::util::Paths;
+use easy_proc::{find_attr, ArgumentList};
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
-use syn::{bracketed, token, DataStruct, Ident, Index, Token};
+use syn::{bracketed, token, DataStruct, Field, Ident, Index, Token};
 
 mod cleanup;
 mod decode;
@@ -28,6 +30,13 @@ impl Parse for Requires {
             required_fields: content.parse_terminated(Ident::parse, Token![,])?,
         })
     }
+}
+
+#[derive(ArgumentList, Debug, Clone)]
+struct AccountSetFieldAttrs {
+    #[argument(presence)]
+    skip: bool,
+    default: Option<TokenStream>,
 }
 
 pub(super) fn derive_account_set_impl_struct(
@@ -70,22 +79,37 @@ pub(super) fn derive_account_set_impl_struct(
 
     let (_, ty_generics, _) = main_generics.split_for_impl();
 
+    let filter_skip = |f: &&Field| -> bool {
+        find_attr(&f.attrs, &paths.account_set_ident)
+            .map(AccountSetFieldAttrs::parse_arguments)
+            .map(|args| !args.skip)
+            .unwrap_or(true)
+    };
+
+    let resolve_field_name = |(index, field): (_, &Field)| {
+        field
+            .ident
+            .as_ref()
+            .map(ToTokens::to_token_stream)
+            .unwrap_or_else(|| Index::from(index).into_token_stream())
+    };
+
     let field_name = data_struct
         .fields
         .iter()
         .enumerate()
-        .map(|(index, field)| {
-            field
-                .ident
-                .as_ref()
-                .map(ToTokens::to_token_stream)
-                .unwrap_or_else(|| Index::from(index).into_token_stream())
-        })
+        .map(resolve_field_name)
         .collect::<Vec<_>>();
-    let field_type = data_struct
+
+    let decode_types = data_struct
         .fields
         .iter()
-        .map(|field| &field.ty)
+        .map(|field| {
+            find_attr(&field.attrs, &paths.account_set_ident)
+                .map(AccountSetFieldAttrs::parse_arguments)
+                .and_then(|args| if args.skip { args.default } else { None })
+                .map_or_else(|| DecodeFieldTy::Type(&field.ty), DecodeFieldTy::Default)
+        })
         .collect::<Vec<_>>();
 
     let decodes = decode::decodes(
@@ -95,14 +119,34 @@ pub(super) fn derive_account_set_impl_struct(
         &account_set_generics,
         &data_struct,
         &field_name,
-        &field_type,
+        &decode_types,
     );
+
+    let fields = data_struct
+        .fields
+        .iter()
+        .filter(filter_skip)
+        .collect::<Vec<_>>();
+    let field_name = data_struct
+        .fields
+        .iter()
+        .enumerate()
+        .filter(|(_, f)| filter_skip(f))
+        .map(resolve_field_name)
+        .collect::<Vec<_>>();
+    let field_type = data_struct
+        .fields
+        .iter()
+        .filter(filter_skip)
+        .map(|field| &field.ty)
+        .collect::<Vec<_>>();
+
     let validates = validates(
         &paths,
         &input,
         &account_set_struct_args,
         &account_set_generics,
-        &data_struct,
+        &fields,
         &field_name,
         &field_type,
     );
@@ -111,7 +155,7 @@ pub(super) fn derive_account_set_impl_struct(
         &input,
         &account_set_struct_args,
         &account_set_generics,
-        &data_struct,
+        &fields,
         &field_name,
         &field_type,
     );
@@ -124,7 +168,7 @@ pub(super) fn derive_account_set_impl_struct(
             &input,
             &account_set_struct_args,
             &account_set_generics,
-            &data_struct,
+            &fields,
             &field_name,
             &field_type,
         );

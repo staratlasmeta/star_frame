@@ -7,7 +7,7 @@ use proc_macro_error::abort;
 use quote::quote;
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
-use syn::{DataStruct, Expr, LitStr, Type};
+use syn::{Expr, Field, LitStr, Type};
 
 #[derive(ArgumentList)]
 struct CleanupStructArgs {
@@ -28,7 +28,7 @@ pub(super) fn cleanups(
     input: &StrippedDeriveInput,
     account_set_struct_args: &AccountSetStructArgs,
     account_set_generics: &AccountSetGenerics,
-    data_struct: &DataStruct,
+    fields: &[&Field],
     field_name: &[TokenStream],
     field_type: &[&Type],
 ) -> Vec<TokenStream> {
@@ -75,8 +75,7 @@ pub(super) fn cleanups(
             });
     }
 
-    let field_cleanups = data_struct
-        .fields
+    let field_cleanups = fields
         .iter()
         .map(|f| {
             find_attrs(&f.attrs, cleanup_ident)
