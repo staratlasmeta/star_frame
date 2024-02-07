@@ -5,7 +5,7 @@ pub mod program;
 pub mod rest;
 pub mod seeded_account;
 pub mod seeded_data_account;
-mod seeded_init_account;
+pub mod seeded_init_account;
 pub mod signer;
 pub mod system_account;
 
