@@ -1,15 +1,6 @@
-use crate::account_set::data_account::ProgramAccount;
-use crate::account_set::{
-    AccountSet, AccountSetCleanup, AccountSetDecode, AccountSetValidate, SingleAccountSet,
-};
-use crate::prelude::UnsizedType;
-use crate::Result;
+use crate::prelude::*;
 use anyhow::bail;
 use bytemuck::{bytes_of, Pod};
-use solana_program::account_info::AccountInfo;
-use solana_program::program_error::ProgramError;
-use solana_program::pubkey::Pubkey;
-use star_frame::account_set::data_account::DataAccount;
 use std::ops::{Deref, DerefMut};
 
 pub trait GetSeeds {
@@ -34,7 +25,7 @@ where
     T: Pod,
 {
     fn seed(&self) -> &[u8] {
-        bytemuck::bytes_of(self)
+        bytes_of(self)
     }
 }
 
@@ -57,18 +48,6 @@ where
 
 #[derive(Debug)]
 pub struct Seeds<T>(pub T);
-//
-// impl<T: GetSeeds> GetSeeds for Seeds<T> {
-//     fn seeds(&self) -> Vec<&[u8]> {
-//         T::seeds(&self.0)
-//     }
-// }
-//
-// impl<T: GetSeeds> GetSeeds for &Seeds<T> {
-//     fn seeds(&self) -> Vec<&[u8]> {
-//         T::seeds(&self.0)
-//     }
-// }
 
 // Structs
 #[derive(Debug, AccountSet)]
@@ -156,12 +135,6 @@ impl<T, S: GetSeeds> SeededAccount<T, S> {
         self.seeds.as_ref().unwrap().seeds_with_bump()
     }
 }
-
-// the trait bound `seeds::SeedsWithBump<S>: account_set::AccountSet<'_>` is not satisfied
-
-// TODO - Macro tries to implement these for both `account` and `seeds` but it blows up because
-// `SeedsWithBump` is not `AccountSet`
-
 
 impl<'info, T, S> SingleAccountSet<'info> for SeededAccount<T, S>
 where
