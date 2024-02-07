@@ -14,7 +14,7 @@ use crate::align1::Align1;
 use crate::serialize::unsized_type::UnsizedType;
 use crate::Result;
 use advance::Advance;
-use bytemuck::{checked, from_bytes, from_bytes_mut, CheckedBitPattern, NoUninit, Pod};
+use bytemuck::{checked, CheckedBitPattern, NoUninit};
 use star_frame::serialize::pointer_breakup::PointerBreakup;
 use std::mem::size_of;
 use std::ptr::NonNull;
