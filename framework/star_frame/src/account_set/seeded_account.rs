@@ -3,7 +3,6 @@ use crate::account_set::{
     AccountSet, AccountSetCleanup, AccountSetDecode, AccountSetValidate, SingleAccountSet,
 };
 use crate::prelude::UnsizedType;
-use crate::sys_calls::SysCallInvoke;
 use crate::Result;
 use anyhow::bail;
 use bytemuck::{bytes_of, Pod};
