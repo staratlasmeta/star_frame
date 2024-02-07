@@ -4,6 +4,7 @@ use crate::Result;
 use bytemuck::{CheckedBitPattern, NoUninit, Pod};
 use num_traits::{FromPrimitive, ToPrimitive};
 use solana_program::pubkey::Pubkey;
+use star_frame::prelude::OptionalPubkey;
 use star_frame_idl::ty::{IdlDefinedType, IdlType, IdlTypeDef, TypeId};
 use star_frame_idl::{IdlDefinition, IdlDefinitionReference, SemVer};
 
@@ -53,6 +54,7 @@ impl_type_to_idl_for_defined!(
     bool: BorshBool,
     String: BorshString,
     PodBool: PodBool,
+    OptionalPubkey: OptionalPubkey,
 );
 
 impl TypeToIdl for Pubkey {

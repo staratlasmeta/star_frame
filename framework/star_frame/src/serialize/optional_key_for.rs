@@ -32,6 +32,8 @@ pub struct OptionalKeyFor<T: ?Sized> {
     phantom: PhantomData<fn() -> T>,
 }
 
+pub type OptionalPubkey = OptionalKeyFor<()>;
+
 impl<T> Display for OptionalKeyFor<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.pubkey)

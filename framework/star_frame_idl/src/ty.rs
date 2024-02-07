@@ -24,6 +24,15 @@ pub struct IdlType {
     pub extension_fields: HashMap<ExtensionClass, Value>,
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, Default)]
+pub struct IdlEnumVariant {
+    pub name: String,
+    pub discriminant: Value,
+    pub ty: Option<IdlTypeDef>,
+    #[serde(skip_serializing_if = "HashMap::is_empty")]
+    pub extension_fields: HashMap<ExtensionClass, Value>,
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub enum IdlTypeDef {
     IdlType(TypeId),
@@ -47,6 +56,10 @@ pub enum IdlTypeDef {
         item_ty: Box<IdlTypeDef>,
     },
     Struct(Vec<IdlField>),
+    Enum {
+        discriminant: Box<IdlTypeDef>,
+        variants: Vec<IdlEnumVariant>,
+    },
     FixedPoint {
         ty: IdlDefinedType,
         frac: u8,
@@ -89,6 +102,7 @@ pub enum IdlDefinedType {
     U64,
     U128,
     PodBool,
+    OptionalPubkey,
     BorshBool,
     BorshString,
 }
