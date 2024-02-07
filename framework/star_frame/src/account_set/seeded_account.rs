@@ -46,7 +46,8 @@ where
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Hash, PartialOrd, Ord)]
+#[repr(transparent)]
 pub struct Seeds<T>(pub T);
 
 // Structs

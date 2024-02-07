@@ -33,6 +33,7 @@ where
     phantom_t: PhantomData<T>,
     bytes: [u8],
 }
+
 impl<T, L> List<T, L>
 where
     T: CheckedBitPattern + NoUninit + Align1,
@@ -46,6 +47,7 @@ where
         self.len().is_zero()
     }
 }
+
 impl<T, L> Index<usize> for List<T, L>
 where
     T: CheckedBitPattern + NoUninit + Align1,
@@ -93,6 +95,7 @@ where
         })
     }
 }
+
 impl<T, L> Deref for List<T, L>
 where
     T: Pod + Align1,
@@ -104,6 +107,7 @@ where
         cast_slice(&self.bytes)
     }
 }
+
 impl<T, L> DerefMut for List<T, L>
 where
     T: Pod + Align1,
@@ -132,6 +136,7 @@ where
 {
     list: &'a List<T, L>,
 }
+
 impl<'a, T, L> Deref for ListRef<'a, T, L>
 where
     T: CheckedBitPattern + NoUninit + Align1,
@@ -143,6 +148,7 @@ where
         self.list
     }
 }
+
 impl<'a, T, L> ListRef<'a, T, L>
 where
     T: CheckedBitPattern + NoUninit + Align1,
@@ -152,6 +158,7 @@ where
         self.list
     }
 }
+
 impl<'a, T, L> FrameworkSerialize for ListRef<'a, T, L>
 where
     T: CheckedBitPattern + NoUninit + Align1,
@@ -165,6 +172,7 @@ where
         Ok(())
     }
 }
+
 unsafe impl<'a, T, L> FrameworkFromBytes<'a> for ListRef<'a, T, L>
 where
     T: CheckedBitPattern + NoUninit + Align1,
@@ -187,6 +195,7 @@ where
         })
     }
 }
+
 impl<'a, T, L> PointerBreakup for ListRef<'a, T, L>
 where
     T: CheckedBitPattern + NoUninit + Align1,
@@ -198,6 +207,7 @@ where
         (NonNull::from(&self.list).cast(), self.list.len.0)
     }
 }
+
 impl<'a, T, L> BuildPointer for ListRef<'a, T, L>
 where
     T: CheckedBitPattern + NoUninit + Align1,
@@ -228,6 +238,7 @@ where
     #[derivative(Debug = "ignore")]
     resize: Box<dyn ResizeFn<'a, <Self as PointerBreakup>::Metadata>>,
 }
+
 impl<'a, T, L> Deref for ListRefMut<'a, T, L>
 where
     T: CheckedBitPattern + NoUninit + Align1,
@@ -244,6 +255,7 @@ where
         }
     }
 }
+
 impl<'a, T, L> DerefMut for ListRefMut<'a, T, L>
 where
     T: CheckedBitPattern + NoUninit + Align1,
@@ -258,6 +270,7 @@ where
         }
     }
 }
+
 impl<'a, T, L> FrameworkSerialize for ListRefMut<'a, T, L>
 where
     T: CheckedBitPattern + NoUninit + Align1,
@@ -271,6 +284,7 @@ where
         Ok(())
     }
 }
+
 unsafe impl<'a, T, L> FrameworkFromBytesMut<'a> for ListRefMut<'a, T, L>
 where
     T: CheckedBitPattern + NoUninit + Align1,
@@ -292,6 +306,7 @@ where
         })
     }
 }
+
 impl<'a, T, L> PointerBreakup for ListRefMut<'a, T, L>
 where
     T: CheckedBitPattern + NoUninit + Align1,
@@ -303,6 +318,7 @@ where
         (self.ptr, self.metadata)
     }
 }
+
 impl<'a, T, L> BuildPointerMut<'a> for ListRefMut<'a, T, L>
 where
     T: CheckedBitPattern + NoUninit + Align1,
@@ -321,6 +337,7 @@ where
         }
     }
 }
+
 impl<'a, T, L> ListRefMut<'a, T, L>
 where
     T: CheckedBitPattern + NoUninit + Align1,
@@ -365,8 +382,10 @@ where
         self.ptr = new_ptr;
         unsafe {
             sol_memmove(
-                self.bytes.as_mut_ptr().add(index + iter.len()).cast(),
-                self.bytes.as_mut_ptr().add(index).cast(),
+                self.bytes
+                    .as_mut_ptr()
+                    .add((index + iter.len()) * size_of::<T>()),
+                self.bytes.as_mut_ptr().add(index * size_of::<T>()),
                 (old_len - index) * size_of::<T>(),
             );
         }
@@ -531,9 +550,21 @@ pub mod test {
         );
         mutable.retain(|x| x.a % 2 == 0)?;
         assert_eq!(mutable.deref().deref(), &[Cool { a: 6, b: 6 }]);
+        mutable.insert(1, Cool { a: 1, b: 1 })?;
+        mutable.insert(1, Cool { a: 2, b: 2 })?;
+        mutable.insert(1, Cool { a: 3, b: 3 })?;
+
         drop(mutable);
 
-        assert_eq!(test_bytes.immut()?.deref().deref(), &[Cool { a: 6, b: 6 }]);
+        assert_eq!(
+            test_bytes.immut()?.deref().deref(),
+            &[
+                Cool { a: 6, b: 6 },
+                Cool { a: 3, b: 3 },
+                Cool { a: 2, b: 2 },
+                Cool { a: 1, b: 1 }
+            ]
+        );
 
         Ok(())
     }
@@ -552,6 +583,7 @@ pub mod eq_impls {
             self.deref().eq(other)
         }
     }
+
     impl<'a, T, L> PartialEq<&'a [T]> for List<T, L>
     where
         T: Pod + Align1,
@@ -562,6 +594,7 @@ pub mod eq_impls {
             self.deref().eq(other)
         }
     }
+
     impl<T, L, const N: usize> PartialEq<[T; N]> for List<T, L>
     where
         T: Pod + Align1,
@@ -572,6 +605,7 @@ pub mod eq_impls {
             self.deref().eq(other)
         }
     }
+
     impl<'a, T, L, const N: usize> PartialEq<&'a [T; N]> for List<T, L>
     where
         T: Pod + Align1,
@@ -582,6 +616,7 @@ pub mod eq_impls {
             self.deref().eq(other.as_slice())
         }
     }
+
     impl<T, L, const N: usize> PartialEq<List<T, L>> for [T; N]
     where
         T: Pod + Align1,
@@ -592,6 +627,7 @@ pub mod eq_impls {
             self.as_slice().eq(other)
         }
     }
+
     impl<'a, T, L, const N: usize> PartialEq<List<T, L>> for &'a [T; N]
     where
         T: Pod + Align1,
@@ -614,6 +650,7 @@ pub mod eq_impls {
             self.deref().eq(&other)
         }
     }
+
     impl<'a, T, L> PartialEq<&'a [T]> for ListRef<'_, T, L>
     where
         T: Pod + Align1,
@@ -624,6 +661,7 @@ pub mod eq_impls {
             self.deref().eq(other)
         }
     }
+
     impl<T, L, const N: usize> PartialEq<[T; N]> for ListRef<'_, T, L>
     where
         T: Pod + Align1,
@@ -634,6 +672,7 @@ pub mod eq_impls {
             self.deref().eq(&other)
         }
     }
+
     impl<'a, T, L, const N: usize> PartialEq<&'a [T; N]> for ListRef<'_, T, L>
     where
         T: Pod + Align1,
@@ -644,6 +683,7 @@ pub mod eq_impls {
             self.deref().eq(&other.as_slice())
         }
     }
+
     impl<T, L, const N: usize> PartialEq<ListRef<'_, T, L>> for [T; N]
     where
         T: Pod + Align1,
@@ -654,6 +694,7 @@ pub mod eq_impls {
             self.as_slice().eq(other)
         }
     }
+
     impl<'a, T, L, const N: usize> PartialEq<ListRef<'_, T, L>> for &'a [T; N]
     where
         T: Pod + Align1,
@@ -676,6 +717,7 @@ pub mod eq_impls {
             self.deref().eq(other)
         }
     }
+
     impl<'a, T, L> PartialEq<&'a [T]> for ListRefMut<'_, T, L>
     where
         T: Pod + Align1,
@@ -686,6 +728,7 @@ pub mod eq_impls {
             self.deref().eq(other)
         }
     }
+
     impl<T, L, const N: usize> PartialEq<[T; N]> for ListRefMut<'_, T, L>
     where
         T: Pod + Align1,
@@ -696,6 +739,7 @@ pub mod eq_impls {
             self.deref().eq(other)
         }
     }
+
     impl<'a, T, L, const N: usize> PartialEq<&'a [T; N]> for ListRefMut<'_, T, L>
     where
         T: Pod + Align1,
@@ -706,6 +750,7 @@ pub mod eq_impls {
             self.deref().eq(other.as_slice())
         }
     }
+
     impl<T, L, const N: usize> PartialEq<ListRefMut<'_, T, L>> for [T; N]
     where
         T: Pod + Align1,
@@ -716,6 +761,7 @@ pub mod eq_impls {
             self.as_slice().eq(other)
         }
     }
+
     impl<'a, T, L, const N: usize> PartialEq<ListRefMut<'_, T, L>> for &'a [T; N]
     where
         T: Pod + Align1,
