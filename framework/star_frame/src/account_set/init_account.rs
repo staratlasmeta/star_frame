@@ -27,13 +27,23 @@ use std::ops::{Deref, DerefMut};
 #[account_set(skip_default_validate)]
 #[validate(
     id = "create",
-    generics = [<'a, A> where 'info: 'a, A: InitCreateArg<'a, 'info>, T: FrameworkInit<A::FrameworkInitArg>],
+    generics = [
+        <'a, A> where
+            'info: 'a,
+            A: InitCreateArg<'a, 'info>,
+            T: FrameworkInit<A::FrameworkInitArg>,
+    ],
     arg = Create<A>,
     extra_validation = init_validate_create(self, arg.0, sys_calls),
 )]
 #[validate(
     id = "create_if_needed",
-    generics = [<'a, A> where 'info: 'a, A: InitCreateArg<'a, 'info>, T: FrameworkInit<A::FrameworkInitArg>],
+    generics = [
+        <'a, A> where
+            'info: 'a,
+            A: InitCreateArg<'a, 'info>,
+            T: FrameworkInit<A::FrameworkInitArg>,
+    ],
     arg = CreateIfNeeded<A>,
     extra_validation = init_if_needed(self, arg.0, sys_calls),
 )]
@@ -41,8 +51,6 @@ pub struct InitAccount<'info, T>
 where
     T: ProgramAccount + UnsizedType + ?Sized,
 {
-    #[validate(id = "create", skip)]
-    #[validate(id = "create_if_needed", skip)]
     inner: DataAccount<'info, T>,
 }
 impl<'info, T: ?Sized> SingleAccountSet<'info> for InitAccount<'info, T>
@@ -326,4 +334,14 @@ where
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod test {
+    use bytemuck::{Pod, Zeroable};
+    use star_frame_proc::Align1;
+
+    #[derive(Zeroable, Pod, Align1, Copy, Clone)]
+    #[repr(C)]
+    struct Account {}
 }
