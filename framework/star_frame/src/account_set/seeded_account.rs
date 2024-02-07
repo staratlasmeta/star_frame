@@ -1,12 +1,11 @@
 use crate::prelude::*;
 use anyhow::bail;
-use bytemuck::{bytes_of, Pod};
+use bytemuck::bytes_of;
 use std::ops::{Deref, DerefMut};
 
 pub trait GetSeeds {
     fn seeds(&self) -> Vec<&[u8]>;
 }
-
 impl<T> GetSeeds for T
 where
     T: Seed,
@@ -19,10 +18,9 @@ where
 pub trait Seed {
     fn seed(&self) -> &[u8];
 }
-
 impl<T> Seed for T
 where
-    T: Pod,
+    T: NoUninit,
 {
     fn seed(&self) -> &[u8] {
         bytes_of(self)
@@ -34,7 +32,6 @@ pub struct SeedsWithBump<T: GetSeeds> {
     pub seeds: T,
     pub bump: u8,
 }
-
 impl<T> SeedsWithBump<T>
 where
     T: GetSeeds,
@@ -176,42 +173,5 @@ mod idl_impl {
                 .map(Box::new)
                 .map(IdlAccountSetDef::SeededAccount)
         }
-    }
-}
-
-pub trait SeededAccountData: ProgramAccount {
-    type Seeds: GetSeeds;
-}
-
-#[derive(AccountSet, Debug)]
-#[validate(arg = (T::Seeds,))]
-#[validate(id = "wo_bump", arg = Seeds < T::Seeds >)]
-#[validate(id = "with_bump", arg = SeedsWithBump < T::Seeds >)]
-pub struct SeededDataAccount<'info, T>(
-    #[validate(arg = (arg.0, ()))]
-    #[validate(id = "wo_bump", arg = (arg.0, ()))]
-    #[validate(id = "with_bump", arg = (arg, ()))]
-    SeededAccount<DataAccount<'info, T>, T::Seeds>,
-)
-where
-    T: SeededAccountData + UnsizedType;
-
-impl<'info, T> Deref for SeededDataAccount<'info, T>
-where
-    T: SeededAccountData + UnsizedType,
-{
-    type Target = SeededAccount<DataAccount<'info, T>, T::Seeds>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl<'info, T> DerefMut for SeededDataAccount<'info, T>
-where
-    T: SeededAccountData + UnsizedType,
-{
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
     }
 }
