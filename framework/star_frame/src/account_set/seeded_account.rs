@@ -52,12 +52,12 @@ pub struct Seeds<T>(pub T);
 // Structs
 #[derive(Debug, AccountSet)]
 #[account_set(
-    skip_default_idl, 
+    skip_default_idl,
     generics = [where T: AccountSet < 'info >]
 )]
 #[decode(generics = [<A> where T: AccountSetDecode<'a, 'info, A>], arg = A)]
 #[validate(
-    generics = [<A> where T: AccountSetValidate<'info, A> + SingleAccountSet<'info>], 
+    generics = [<A> where T: AccountSetValidate<'info, A> + SingleAccountSet<'info>],
     arg = (S, A),
     extra_validation = Self::validate_seeds(self, arg.0)
 )]
@@ -106,10 +106,7 @@ impl<'info, T: SingleAccountSet<'info>, S: GetSeeds> SeededAccount<T, S> {
         if self.account.account_info().key != &address {
             bail!(ProgramError::Custom(20));
         }
-        self.seeds = Some(SeedsWithBump {
-            seeds,
-            bump,
-        });
+        self.seeds = Some(SeedsWithBump { seeds, bump });
         Ok(())
     }
 
@@ -122,9 +119,7 @@ impl<'info, T: SingleAccountSet<'info>, S: GetSeeds> SeededAccount<T, S> {
         self.seeds = Some(seeds);
         Ok(())
     }
-    
 }
-
 
 impl<T, S: GetSeeds> SeededAccount<T, S> {
     pub fn access_seeds(&self) -> &SeedsWithBump<S> {
