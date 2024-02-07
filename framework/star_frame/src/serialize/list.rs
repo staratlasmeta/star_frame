@@ -41,6 +41,10 @@ where
     pub fn len(&self) -> usize {
         { self.len.0 }.to_usize().unwrap()
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.len().is_zero()
+    }
 }
 impl<T, L> Index<usize> for List<T, L>
 where
