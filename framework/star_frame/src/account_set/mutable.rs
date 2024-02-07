@@ -9,12 +9,12 @@ use std::ops::{Deref, DerefMut};
 #[account_set(skip_default_idl, generics = [where T: AccountSet<'info>])]
 #[validate(
     generics = [<A> where T: AccountSetValidate<'info, A> + SingleAccountSet<'info>], arg = A,
-    extra_validation = if CHECK && !self.0.is_writable() { Err(ProgramError::AccountBorrowFailed.into()) } else { Ok(()) }
+    extra_validation = if !self.0.is_writable() { Err(ProgramError::AccountBorrowFailed.into()) } else { Ok(()) }
 )]
 #[decode(generics = [<A> where T: AccountSetDecode<'a, 'info, A>], arg = A)]
 #[cleanup(generics = [<A> where T: AccountSetCleanup<'info, A>], arg = A)]
 #[repr(transparent)]
-pub struct Writable<T, const CHECK: bool = false>(
+pub struct Writable<T>(
     #[decode(arg = arg)]
     #[validate(arg = arg)]
     #[cleanup(arg = arg)]
@@ -30,14 +30,14 @@ where
     }
 }
 
-impl<T, const CHECK: bool> Deref for Writable<T, CHECK> {
+impl<T> Deref for Writable<T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
-impl<T, const CHECK: bool> DerefMut for Writable<T, CHECK> {
+impl<T> DerefMut for Writable<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
@@ -50,7 +50,7 @@ mod idl_impl {
     use star_frame_idl::account_set::IdlAccountSetDef;
     use star_frame_idl::IdlDefinition;
 
-    impl<'info, T, A, const CHECK: bool> AccountSetToIdl<'info, A> for Writable<T, CHECK>
+    impl<'info, T, A> AccountSetToIdl<'info, A> for Writable<T>
     where
         T: AccountSetToIdl<'info, A>,
     {

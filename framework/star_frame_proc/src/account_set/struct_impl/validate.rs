@@ -22,15 +22,18 @@ struct ValidateStructArgs {
 #[derive(ArgumentList, Clone)]
 struct ValidateFieldArgs {
     id: Option<LitStr>,
+    #[argument(presence)]
+    skip: bool,
     requires: Option<Requires>,
-    arg: Expr,
+    arg: Option<Expr>,
 }
 impl Default for ValidateFieldArgs {
     fn default() -> Self {
         Self {
             id: None,
+            skip: false,
             requires: None,
-            arg: syn::parse_quote!(()),
+            arg: Some(syn::parse_quote!(())),
         }
     }
 }
@@ -119,7 +122,7 @@ pub(super) fn validates(
         let validate_type: Type = validate_struct_args.arg.unwrap_or_else(|| syn::parse_quote!(()));
         let relevant_field_validates = field_validates.iter().map(|f| f.iter().find(|f| f.id.as_ref().map(LitStr::value) == id).cloned().unwrap_or_default()).collect::<Vec<_>>();
         let validate_args: Vec<Expr> = relevant_field_validates.iter().map(|f| {
-            f.arg.clone()
+            f.arg.clone().unwrap_or_else(|| syn::parse_quote!(()))
         }).collect();
 
         let (_, ty_generics, _) = main_generics.split_for_impl();
@@ -153,11 +156,23 @@ pub(super) fn validates(
         // build requires
 
         // build the validate calls
-        let validates = field_type.iter().zip(field_name.iter()).zip(validate_args.iter()).map(| ((field_type, field_name), validate_arg)|{
-            quote! {
-                <#field_type as #account_set_validate<#info_lifetime, _>>::validate_accounts(&mut self.#field_name, #validate_arg, sys_calls)?;
-            }
-        }).collect::<Vec<_>>();
+        let validates = field_type.iter()
+            .zip(field_name.iter())
+            .zip(validate_args.iter())
+            .zip(relevant_field_validates.iter().map(|a| {
+                if a.skip && a.arg.is_some() {
+                    abort!(a.arg, "Cannot specify arg when skip is true");
+                }
+                a.skip
+            }))
+            .map(| (((field_type, field_name), validate_arg), skip)| if skip {
+                quote! {}
+            } else {
+                quote! {
+                    <#field_type as #account_set_validate<#info_lifetime, _>>::validate_accounts(&mut self.#field_name, #validate_arg, sys_calls)?;
+                }
+            })
+            .collect::<Vec<_>>();
         // Stores named validates in order
         let mut out: Vec<(TokenStream, String)> = Vec::new();
         // Map requires to vec of strings
