@@ -8,7 +8,7 @@ use proc_macro_error::abort;
 use quote::{format_ident, quote};
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
-use syn::{DataStruct, Expr, LitStr, Type};
+use syn::{Expr, Field, LitStr, Type};
 
 #[derive(ArgumentList)]
 struct IdlStructArgs {
@@ -28,7 +28,7 @@ pub(super) fn idls(
     input: &StrippedDeriveInput,
     account_set_struct_args: &AccountSetStructArgs,
     account_set_generics: &AccountSetGenerics,
-    data_struct: &DataStruct,
+    fields: &[&Field],
     field_name: &[TokenStream],
     field_type: &[&Type],
 ) -> Vec<TokenStream> {
@@ -74,8 +74,7 @@ pub(super) fn idls(
         });
     }
 
-    let field_idls = data_struct
-        .fields
+    let field_idls = fields
         .iter()
         .map(|f| {
             find_attrs(&f.attrs, idl_ident)
@@ -105,8 +104,7 @@ pub(super) fn idls(
 
     let struct_docs = LitStr::new(&util::get_docs(&input.attrs), Span::call_site());
     let ident_str = LitStr::new(&ident.to_string(), Span::call_site());
-    let field_docs: Vec<LitStr> = data_struct
-        .fields
+    let field_docs: Vec<LitStr> = fields
         .iter()
         .map(|field| LitStr::new(&util::get_docs(&field.attrs), Span::call_site()))
         .collect();

@@ -22,6 +22,12 @@ struct DecodeFieldArgs {
     arg: Expr,
 }
 
+#[derive(Debug)]
+pub enum DecodeFieldTy<'a> {
+    Type(&'a Type),
+    Default(TokenStream),
+}
+
 pub(super) fn decodes(
     paths: &Paths,
     input: &StrippedDeriveInput,
@@ -29,7 +35,7 @@ pub(super) fn decodes(
     account_set_generics: &AccountSetGenerics,
     data_struct: &DataStruct,
     field_name: &[TokenStream],
-    field_type: &[&Type],
+    decode_field_ty: &[DecodeFieldTy],
 ) -> Vec<TokenStream> {
     let ident = &input.ident;
     let AccountSetGenerics {
@@ -136,9 +142,12 @@ pub(super) fn decodes(
         }
         let (impl_generics, _, where_clause) = generics.split_for_impl();
 
-        let decode_inner = init(&mut field_type.iter().zip(&decode_args).map(|(field_type, decode_args)| {
-            quote! {
-                <#field_type as #account_set_decode<#decode_lifetime, #info_lifetime, _>>::decode_accounts(accounts, #decode_args, sys_calls)?
+        let decode_inner = init(&mut decode_field_ty.iter().zip(&decode_args).map(|(field_ty, decode_args)| {
+            match &field_ty {
+                DecodeFieldTy::Type(field_type) => quote! {
+                        <#field_type as #account_set_decode<#decode_lifetime, #info_lifetime, _>>::decode_accounts(accounts, #decode_args, sys_calls)?
+                    },
+                DecodeFieldTy::Default(default) => quote!(#default)
             }
         }));
 

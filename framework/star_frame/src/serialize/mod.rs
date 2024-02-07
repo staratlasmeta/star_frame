@@ -14,7 +14,7 @@ use crate::align1::Align1;
 use crate::serialize::unsized_type::UnsizedType;
 use crate::Result;
 use advance::Advance;
-use bytemuck::{from_bytes, from_bytes_mut, Pod};
+use bytemuck::{checked, CheckedBitPattern, NoUninit};
 use star_frame::serialize::pointer_breakup::PointerBreakup;
 use std::mem::size_of;
 use std::ptr::NonNull;
@@ -28,7 +28,7 @@ pub trait FrameworkSerialize {
 }
 impl<'a, T> FrameworkSerialize for &'a T
 where
-    T: Pod,
+    T: CheckedBitPattern + NoUninit,
 {
     fn to_bytes(&self, output: &mut &mut [u8]) -> Result<()> {
         output
@@ -39,7 +39,7 @@ where
 }
 impl<'a, T> FrameworkSerialize for &'a mut T
 where
-    T: Pod,
+    T: CheckedBitPattern + NoUninit,
 {
     fn to_bytes(&self, output: &mut &mut [u8]) -> Result<()> {
         output
@@ -61,10 +61,10 @@ pub unsafe trait FrameworkFromBytes<'a>: Sized + FrameworkSerialize {
 
 unsafe impl<'a, T> FrameworkFromBytes<'a> for &'a T
 where
-    T: Align1 + Pod,
+    T: Align1 + CheckedBitPattern + NoUninit,
 {
     fn from_bytes(bytes: &mut &'a [u8]) -> Result<Self> {
-        Ok(from_bytes(bytes.try_advance(size_of::<T>())?))
+        checked::try_from_bytes(bytes.try_advance(size_of::<T>())?).map_err(Into::into)
     }
 }
 
@@ -84,13 +84,13 @@ pub unsafe trait FrameworkFromBytesMut<'a>:
 }
 unsafe impl<'a, T> FrameworkFromBytesMut<'a> for &'a mut T
 where
-    T: Align1 + Pod,
+    T: Align1 + CheckedBitPattern + NoUninit,
 {
     fn from_bytes_mut(
         bytes: &mut &'a mut [u8],
         _resize: impl ResizeFn<'a, Self::Metadata>,
     ) -> Result<Self> {
-        Ok(from_bytes_mut(bytes.try_advance(size_of::<T>())?))
+        checked::try_from_bytes_mut(bytes.try_advance(size_of::<T>())?).map_err(Into::into)
     }
 }
 
@@ -110,7 +110,7 @@ pub unsafe trait FrameworkInit<A>: UnsizedType {
 }
 unsafe impl<T> FrameworkInit<()> for T
 where
-    T: Align1 + Pod,
+    T: Align1 + CheckedBitPattern + NoUninit,
 {
     const INIT_LENGTH: usize = size_of::<T>();
 
@@ -121,12 +121,12 @@ where
     ) -> Result<Self::RefMut<'a>> {
         debug_assert_eq!(bytes.len(), <Self as FrameworkInit<()>>::INIT_LENGTH);
         debug_assert!(bytes.iter().all(|b| *b == 0));
-        Ok(from_bytes_mut(bytes))
+        checked::try_from_bytes_mut(bytes).map_err(Into::into)
     }
 }
 unsafe impl<T> FrameworkInit<(T,)> for T
 where
-    T: Align1 + Pod,
+    T: Align1 + CheckedBitPattern + NoUninit,
 {
     const INIT_LENGTH: usize = size_of::<T>();
 
@@ -137,7 +137,7 @@ where
     ) -> Result<Self::RefMut<'a>> {
         debug_assert_eq!(bytes.len(), <Self as FrameworkInit<(T,)>>::INIT_LENGTH);
         debug_assert!(bytes.iter().all(|b| *b == 0));
-        let out = from_bytes_mut(bytes);
+        let out = checked::try_from_bytes_mut(bytes)?;
         *out = arg.0;
         Ok(out)
     }

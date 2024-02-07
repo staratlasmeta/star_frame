@@ -37,7 +37,7 @@ impl<T> Display for OptionalKeyFor<T> {
         write!(f, "{}", self.pubkey)
     }
 }
-impl<T> OptionalKeyFor<T> {
+impl<T: ?Sized> OptionalKeyFor<T> {
     /// Gets the contained pubkey.
     /// An [`OptionalKeyFor`] with the [`None`] variant.
     pub const NONE: OptionalKeyFor<T> = OptionalKeyFor {
@@ -86,13 +86,13 @@ impl<'a, 'info, T: ProgramAccount + UnsizedType + ?Sized>
     }
 }
 
-impl<T> PartialEq<KeyFor<T>> for OptionalKeyFor<T> {
+impl<T: ?Sized> PartialEq<KeyFor<T>> for OptionalKeyFor<T> {
     fn eq(&self, other: &KeyFor<T>) -> bool {
         self.pubkey == *other.pubkey()
     }
 }
 
-impl<T> PartialEq<OptionalKeyFor<T>> for KeyFor<T> {
+impl<T: ?Sized> PartialEq<OptionalKeyFor<T>> for KeyFor<T> {
     fn eq(&self, other: &OptionalKeyFor<T>) -> bool {
         *self.pubkey() == other.pubkey
     }
@@ -106,7 +106,7 @@ impl<'info, T: ProgramAccount + UnsizedType + ?Sized> PartialEq<DataAccount<'inf
     }
 }
 
-impl<T> From<Pubkey> for OptionalKeyFor<T> {
+impl<T: ?Sized> From<Pubkey> for OptionalKeyFor<T> {
     fn from(pubkey: Pubkey) -> Self {
         Self {
             pubkey,
@@ -115,17 +115,14 @@ impl<T> From<Pubkey> for OptionalKeyFor<T> {
     }
 }
 
-impl<T> From<KeyFor<T>> for OptionalKeyFor<T>
-where
-    T: 'static,
-{
+impl<T: 'static + ?Sized> From<KeyFor<T>> for OptionalKeyFor<T> {
     fn from(key: KeyFor<T>) -> Self {
         cast(key)
     }
 }
 
 // Safety: `OptionalKeyFor` is a transparent wrapper around a `Pubkey` which is `Zeroable`
-unsafe impl<T> Zeroable for OptionalKeyFor<T>
+unsafe impl<T: ?Sized> Zeroable for OptionalKeyFor<T>
 where
     Pubkey: Zeroable,
 {
@@ -137,4 +134,21 @@ where
     }
 }
 // Safety: `OptionalKeyFor` is a transparent wrapper around a `Pubkey` which is `Pod`
-unsafe impl<T: 'static> Pod for OptionalKeyFor<T> where Pubkey: Pod {}
+unsafe impl<T: 'static + ?Sized> Pod for OptionalKeyFor<T> where Pubkey: Pod {}
+
+#[cfg(feature = "idl")]
+mod idl_impl {
+    use super::*;
+    use star_frame_idl::ty::IdlTypeDef;
+    use star_frame_idl::IdlDefinition;
+
+    impl<T: AccountToIdl + ?Sized> TypeToIdl for OptionalKeyFor<T> {
+        type AssociatedProgram = SystemProgram;
+        fn type_to_idl(idl_definition: &mut IdlDefinition) -> Result<IdlTypeDef> {
+            Ok(IdlTypeDef::PubkeyFor {
+                id: T::account_to_idl(idl_definition)?,
+                optional: true,
+            })
+        }
+    }
+}

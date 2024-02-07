@@ -32,7 +32,8 @@ pub enum IdlTypeDef {
     },
     Defined(IdlDefinedType),
     PubkeyFor {
-        valid_account_types: Vec<AccountId>,
+        id: AccountId,
+        optional: bool,
     },
     Array {
         item_ty: Box<IdlTypeDef>,
@@ -87,6 +88,7 @@ pub enum IdlDefinedType {
     U32,
     U64,
     U128,
+    PodBool,
     BorshBool,
     BorshString,
 }
