@@ -85,7 +85,6 @@ where
     type FrameworkInitArg = IC::FrameworkInitArg;
     type AccountSeeds = S;
     type FunderAccount = IC::FunderAccount;
-    type FunderSeeds = IC::FunderSeeds;
 
     fn system_program(&self) -> &Program<'info, SystemProgram> {
         self.init_arg.system_program()
@@ -93,14 +92,8 @@ where
 
     fn split<'b>(
         &'b mut self,
-    ) -> CreateSplit<
-        'b,
-        'info,
-        Self::FrameworkInitArg,
-        Self::AccountSeeds,
-        Self::FunderAccount,
-        Self::FunderSeeds,
-    > {
+    ) -> CreateSplit<'b, 'info, Self::FrameworkInitArg, Self::AccountSeeds, Self::FunderAccount>
+    {
         let split = self.init_arg.split();
         CreateSplit {
             arg: split.arg,

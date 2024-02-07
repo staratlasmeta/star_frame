@@ -1,6 +1,6 @@
 pub use crate::account_set::{
     data_account::*,
-    init_account::{CreateAccountWithArg, Funder, InitAccount},
+    init_account::{CreateAccountWithArg, InitAccount},
     mutable::Writable,
     program::Program,
     rest::Rest,
