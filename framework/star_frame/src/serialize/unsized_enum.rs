@@ -39,7 +39,6 @@ mod test {
     use crate::serialize::unsized_type::UnsizedType;
     use bytemuck::{Pod, Zeroable};
     use star_frame_proc::{unsized_type, Align1};
-    use std::ops::Deref;
 
     #[derive(Pod, Zeroable, Copy, Clone, Align1, Debug, PartialEq, Eq)]
     #[repr(C, packed)]
@@ -90,16 +89,16 @@ mod test {
                     val2: 200
                 }
             ),
-            x => panic!("Invalid variant: {:?}", x),
+            x => panic!("Invalid variant: {x:?}"),
         };
 
         test_byte_set.mutable()?.set_c(())?;
 
         match test_byte_set.immut()?.value() {
             TestEnumRef::C(val) => {
-                assert_eq!(val.deref().deref(), &[]);
+                assert_eq!(*val, &[]);
             }
-            x => panic!("Invalid variant: {:?}", x),
+            x => panic!("Invalid variant: {x:?}"),
         }
 
         let mut mutable = test_byte_set.mutable()?;
@@ -110,34 +109,25 @@ mod test {
                 val.push(PackedValue(2))?;
                 val.push(PackedValue(3))?;
 
-                assert_eq!(
-                    val.deref().deref(),
-                    &[PackedValue(1), PackedValue(2), PackedValue(3)]
-                );
+                assert_eq!(*val, &[PackedValue(1), PackedValue(2), PackedValue(3)]);
             }
-            x => panic!("Invalid variant: {:?}", x),
+            x => panic!("Invalid variant: {x:?}"),
         }
 
         match mutable.value_mut() {
             TestEnumRefMut::C(val) => {
-                assert_eq!(
-                    val.deref().deref(),
-                    &[PackedValue(1), PackedValue(2), PackedValue(3)]
-                );
+                assert_eq!(*val, &[PackedValue(1), PackedValue(2), PackedValue(3)]);
             }
-            x => panic!("Invalid variant: {:?}", x),
+            x => panic!("Invalid variant: {x:?}"),
         }
 
         drop(mutable);
 
         match test_byte_set.immut()?.value() {
             TestEnumRef::C(val) => {
-                assert_eq!(
-                    val.deref().deref(),
-                    &[PackedValue(1), PackedValue(2), PackedValue(3)]
-                );
+                assert_eq!(*val, &[PackedValue(1), PackedValue(2), PackedValue(3)]);
             }
-            x => panic!("Invalid variant: {:?}", x),
+            x => panic!("Invalid variant: {x:?}"),
         }
 
         Ok(())

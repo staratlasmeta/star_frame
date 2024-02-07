@@ -3,7 +3,7 @@ use crate::serialize::{FrameworkFromBytes, FrameworkFromBytesMut, FrameworkInit}
 use crate::Result;
 use solana_program::program_memory::sol_memset;
 use std::marker::PhantomData;
-use std::ptr::NonNull;
+use std::ptr::{addr_of_mut, NonNull};
 
 #[derive(Debug)]
 pub struct TestByteSet<T: ?Sized> {
@@ -51,7 +51,7 @@ where
     }
 
     pub fn mutable(&mut self) -> Result<T::RefMut<'_>> {
-        let bytes = &mut self.bytes as *mut Vec<u8>;
+        let bytes = addr_of_mut!(self.bytes);
         T::RefMut::from_bytes_mut(&mut &mut self.bytes[..], move |len, _| {
             let bytes = unsafe { &mut *bytes };
             bytes.resize(len, 0);
