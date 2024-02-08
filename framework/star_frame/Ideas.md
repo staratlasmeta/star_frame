@@ -229,3 +229,52 @@ pub struct RedeemCertificate<'info> {
     pub token_program: Program<'info, Token>,
 }
 ```
+
+
+```rs
+
+#[extra = extra_a]
+struct A {
+ a_inner: AccountInfo,
+}
+
+#[extra = do_extra()]
+struct Outer {
+    a: A,
+    b: Seeds<Init<Data>,
+    c: C,
+}
+```
+
+Seeds<Init>
+before_seeds -> set seeds if possible
+ before_init
+ extra_init -> try to CPI w/ seeds, error if seeds couldnt be set
+extra_seeds -> set seeds if not yet set
+
+Seeds<Data>
+before_seeds
+ before_data
+ extra_data
+extra_seeds
+
+
+
+A -> AccountInfo, extra_a,
+B -> before_seeds
+     Seeds ->
+        before_init
+        Init -> 
+            before_data
+            Data -> 
+                data_account_validations,
+        init_extra,
+    seeds_extra
+C -> extra_c,
+extra_outer
+
+Seeds<Data>
+   
+
+
+```

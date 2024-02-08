@@ -68,6 +68,7 @@ pub struct RefundRent<'a, F> {
 #[validate(
     extra_validation = validate_data_account(self, sys_calls),
 )]
+#[cleanup(extra_validation = )]
 #[cleanup(
     id = "normalize_rent",
     generics = [<'a, F> where F: WritableAccount<'info> + SignedAccount<'info>],

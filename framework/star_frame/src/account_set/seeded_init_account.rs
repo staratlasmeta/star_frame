@@ -8,7 +8,7 @@ use derive_more::{Deref, DerefMut};
 use star_frame::account_set::seeded_account::CurrentProgram;
 use star_frame_proc::AccountSet;
 
-#[derive(AccountSet, Derivative)]
+#[derive(AccountSet, Derivative, Deref, DerefMut)]
 #[derivative(
     Debug(bound = "SeededAccount<InitAccount<'info, T>, T::Seeds, P>: Debug"),
     Copy(bound = "SeededAccount<InitAccount<'info, T>, T::Seeds, P>: Copy"),
