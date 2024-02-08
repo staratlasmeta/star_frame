@@ -13,6 +13,7 @@ use advance::Advance;
 use anyhow::{bail, Context};
 use bytemuck::bytes_of;
 use derivative::Derivative;
+use derive_more::{Deref, DerefMut};
 use solana_program::account_info::AccountInfo;
 use solana_program::program_error::ProgramError;
 use solana_program::program_memory::sol_memset;
@@ -21,21 +22,20 @@ use star_frame::account_set::WritableAccount;
 use star_frame_proc::AccountSet;
 use std::fmt::Debug;
 use std::mem::size_of;
-use std::ops::{Deref, DerefMut};
 
-#[derive(AccountSet, Debug)]
+#[derive(AccountSet, Debug, Deref, DerefMut)]
 #[account_set(skip_default_validate)]
 #[validate(
     id = "create",
     generics = [<A> where A: InitCreateArg<'info>, T: FrameworkInit<A::FrameworkInitArg>],
     arg = Create<A>,
-    extra_validation = init_validate_create(self, arg.0, sys_calls),
+    extra_validation = self.init_validate_create(arg.0, sys_calls),
 )]
 #[validate(
     id = "create_if_needed",
     generics = [<A> where A: InitCreateArg<'info>, T: FrameworkInit<A::FrameworkInitArg>],
     arg = CreateIfNeeded<A>,
-    extra_validation = init_if_needed(self, arg.0, sys_calls),
+    extra_validation = self.init_if_needed(arg.0, sys_calls),
 )]
 #[cleanup(
     generics = [<A> where DataAccount<'info, T>: AccountSetCleanup<'info, A>],
@@ -58,23 +58,9 @@ where
         self.inner.account_info()
     }
 }
-impl<'info, T> Deref for InitAccount<'info, T>
-where
-    T: ProgramAccount + UnsizedType + ?Sized,
+impl<'info, T> WritableAccount<'info> for InitAccount<'info, T> where
+    T: ProgramAccount + UnsizedType + ?Sized
 {
-    type Target = DataAccount<'info, T>;
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
-}
-
-impl<'info, T> DerefMut for InitAccount<'info, T>
-where
-    T: ProgramAccount + UnsizedType + ?Sized,
-{
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.inner
-    }
 }
 
 pub trait InitCreateArg<'info> {
@@ -189,93 +175,97 @@ impl<'a, 'info, A, WT: SignedAccount<'info> + WritableAccount<'info>> InitCreate
     }
 }
 
-fn init_if_needed<'info, A, T>(
-    account: &mut InitAccount<'info, T>,
-    arg: A,
-    sys_calls: &mut impl SysCallInvoke,
-) -> Result<()>
+impl<'info, T> InitAccount<'info, T>
 where
-    A: InitCreateArg<'info>,
-    T: ProgramAccount + FrameworkInit<A::FrameworkInitArg> + ?Sized,
+    T: ProgramAccount + UnsizedType + ?Sized,
 {
-    if account.owner() == arg.system_program().key()
-        || account.account_info().data.borrow_mut()
-            [..size_of::<<T::OwnerProgram as StarFrameProgram>::AccountDiscriminant>()]
-            .iter()
-            .all(|x| *x == 0)
+    fn init_if_needed<A>(&mut self, arg: A, sys_calls: &mut impl SysCallInvoke) -> Result<()>
+    where
+        A: InitCreateArg<'info>,
+        T: FrameworkInit<A::FrameworkInitArg>,
     {
-        init_validate_create(account, arg, sys_calls)
-    } else {
-        // skip writable check on init_if_needed when not needed
-        account.inner.0.validate_accounts((), sys_calls)
-    }
-}
-
-fn init_validate_create<'info, A, T>(
-    account: &mut InitAccount<'info, T>,
-    mut arg: A,
-    sys_calls: &mut impl SysCallInvoke,
-) -> Result<()>
-where
-    A: InitCreateArg<'info>,
-    T: ProgramAccount + FrameworkInit<A::FrameworkInitArg> + ?Sized,
-{
-    account
-        .inner
-        .check_writable()
-        .context("InitAccount must be writable")?;
-    let CreateSplit {
-        arg,
-        account_seeds,
-        system_program,
-        funder,
-    } = arg.split();
-    if account.owner() != system_program.key() || funder.owner() != system_program.key() {
-        bail!(ProgramError::IllegalOwner);
-    }
-    let rent = sys_calls.get_rent()?;
-    let size =
-        T::INIT_LENGTH + size_of::<<T::OwnerProgram as StarFrameProgram>::AccountDiscriminant>();
-    let ix = system_instruction::create_account(
-        funder.key(),
-        account.key(),
-        rent.minimum_balance(size),
-        size as u64,
-        &T::OwnerProgram::program_id(sys_calls)?,
-    );
-    let accounts: &[AccountInfo<'info>] = &[
-        account.account_info_cloned(),
-        system_program.account_info_cloned(),
-        funder.account_info_cloned(),
-    ];
-    match (funder.signer_seeds(), account_seeds) {
-        (None, None) => {
-            sys_calls.invoke(&ix, accounts)?;
-        }
-        (Some(funder), None) => {
-            sys_calls.invoke_signed(&ix, accounts, &[&funder])?;
-        }
-        (None, Some(account_seeds)) => {
-            sys_calls.invoke_signed(&ix, accounts, &[&account_seeds.seeds_with_bump()])?;
-        }
-        (Some(funder), Some(account_seeds)) => {
-            sys_calls.invoke_signed(&ix, accounts, &[&account_seeds.seeds_with_bump(), &funder])?;
+        if self.owner() == arg.system_program().key()
+            || self.account_info().data.borrow_mut()
+                [..size_of::<<T::OwnerProgram as StarFrameProgram>::AccountDiscriminant>()]
+                .iter()
+                .all(|x| *x == 0)
+        {
+            self.init_validate_create(arg, sys_calls)
+        } else {
+            // skip writable check on init_if_needed when not needed
+            self.inner.0.validate_accounts((), sys_calls)
         }
     }
 
-    let mut data_bytes = account.info_data_bytes_mut()?;
-    let mut data_bytes = &mut *data_bytes;
+    fn init_validate_create<A>(
+        &mut self,
+        mut arg: A,
+        sys_calls: &mut impl SysCallInvoke,
+    ) -> Result<()>
+    where
+        A: InitCreateArg<'info>,
+        T: FrameworkInit<A::FrameworkInitArg>,
+    {
+        self.inner
+            .check_writable()
+            .context("InitAccount must be writable")?;
+        let CreateSplit {
+            arg,
+            account_seeds,
+            system_program,
+            funder,
+        } = arg.split();
+        if self.owner() != system_program.key() || funder.owner() != system_program.key() {
+            bail!(ProgramError::IllegalOwner);
+        }
+        let rent = sys_calls.get_rent()?;
+        let size = T::INIT_LENGTH
+            + size_of::<<T::OwnerProgram as StarFrameProgram>::AccountDiscriminant>();
+        let ix = system_instruction::create_account(
+            funder.key(),
+            self.key(),
+            rent.minimum_balance(size),
+            size as u64,
+            &T::OwnerProgram::program_id(sys_calls)?,
+        );
+        let accounts: &[AccountInfo<'info>] = &[
+            self.account_info_cloned(),
+            system_program.account_info_cloned(),
+            funder.account_info_cloned(),
+        ];
+        match (funder.signer_seeds(), account_seeds) {
+            (None, None) => {
+                sys_calls.invoke(&ix, accounts)?;
+            }
+            (Some(funder), None) => {
+                sys_calls.invoke_signed(&ix, accounts, &[&funder])?;
+            }
+            (None, Some(account_seeds)) => {
+                sys_calls.invoke_signed(&ix, accounts, &[&account_seeds.seeds_with_bump()])?;
+            }
+            (Some(funder), Some(account_seeds)) => {
+                sys_calls.invoke_signed(
+                    &ix,
+                    accounts,
+                    &[&account_seeds.seeds_with_bump(), &funder],
+                )?;
+            }
+        }
 
-    data_bytes
-        .try_advance(size_of::<
-            <T::OwnerProgram as StarFrameProgram>::AccountDiscriminant,
-        >())?
-        .copy_from_slice(bytes_of(&T::DISCRIMINANT));
-    let data_bytes = data_bytes.try_advance(T::INIT_LENGTH)?;
-    sol_memset(data_bytes, 0, data_bytes.len());
-    unsafe {
-        T::init(data_bytes, arg, |_, _| panic!("Cannot resize during init"))?;
+        let mut data_bytes = self.info_data_bytes_mut()?;
+        let mut data_bytes = &mut *data_bytes;
+
+        data_bytes
+            .try_advance(size_of::<
+                <T::OwnerProgram as StarFrameProgram>::AccountDiscriminant,
+            >())?
+            .copy_from_slice(bytes_of(&T::DISCRIMINANT));
+        let data_bytes = data_bytes.try_advance(T::INIT_LENGTH)?;
+        sol_memset(data_bytes, 0, data_bytes.len());
+        unsafe {
+            T::init(data_bytes, arg, |_, _| panic!("Cannot resize during init"))?;
+        }
+
+        Ok(())
     }
-
-    Ok(())
 }
