@@ -15,7 +15,7 @@ use std::ops::{Deref, DerefMut};
 #[decode(generics = [<A> where T: AccountSetDecode<'a, 'info, A>], arg = A)]
 #[validate(
     generics = [<A> where T: AccountSetValidate<'info, A> + SingleAccountSet<'info>], arg = A,
-    extra_validation = if self.0.is_signer() { Ok(()) } else { Err(ProgramError::MissingRequiredSignature.into()) },
+    extra_validation = self.check_signer(),
 )]
 #[cleanup(generics = [<A> where T: AccountSetCleanup<'info, A>], arg = A)]
 pub struct Signer<T>(
@@ -49,6 +49,19 @@ impl<T> Signer<T> {
             bail!(ProgramError::MissingRequiredSignature);
         }
         Ok(Signer::new(info.clone()))
+    }
+}
+
+impl<'info, T> Signer<T>
+where
+    T: SingleAccountSet<'info>,
+{
+    pub fn check_signer(&self) -> Result<()> {
+        if self.0.is_signer() {
+            Ok(())
+        } else {
+            Err(ProgramError::MissingRequiredSignature.into())
+        }
     }
 }
 

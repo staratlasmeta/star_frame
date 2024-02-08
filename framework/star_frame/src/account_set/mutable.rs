@@ -12,7 +12,7 @@ use std::ops::{Deref, DerefMut};
 #[account_set(skip_default_idl, generics = [where T: AccountSet<'info>])]
 #[validate(
     generics = [<A> where T: AccountSetValidate<'info, A> + SingleAccountSet<'info>], arg = A,
-    extra_validation = if self.0.is_writable() { Ok(()) } else { Err(ProgramError::AccountBorrowFailed.into()) }
+    extra_validation = self.check_writable(),
 )]
 #[decode(generics = [<A> where T: AccountSetDecode<'a, 'info, A>], arg = A)]
 #[cleanup(generics = [<A> where T: AccountSetCleanup<'info, A>], arg = A)]
@@ -21,8 +21,21 @@ pub struct Writable<T>(
     #[decode(arg = arg)]
     #[validate(arg = arg)]
     #[cleanup(arg = arg)]
-    T,
+    pub(crate) T,
 );
+
+impl<'info, T> Writable<T>
+where
+    T: SingleAccountSet<'info>,
+{
+    pub fn check_writable(&self) -> Result<()> {
+        if self.0.is_writable() {
+            Ok(())
+        } else {
+            Err(ProgramError::AccountBorrowFailed.into())
+        }
+    }
+}
 
 impl<'info, T> SingleAccountSet<'info> for Writable<T>
 where

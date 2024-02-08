@@ -10,7 +10,7 @@ use crate::serialize::FrameworkInit;
 use crate::sys_calls::SysCallInvoke;
 use crate::Result;
 use advance::Advance;
-use anyhow::bail;
+use anyhow::{bail, Context};
 use bytemuck::bytes_of;
 use derivative::Derivative;
 use solana_program::account_info::AccountInfo;
@@ -48,7 +48,7 @@ where
     #[validate(id = "create", skip)]
     #[validate(id = "create_if_needed", skip)]
     #[cleanup(arg = arg)]
-    inner: DataAccount<'info, T>,
+    inner: Writable<DataAccount<'info, T>>,
 }
 impl<'info, T: ?Sized> SingleAccountSet<'info> for InitAccount<'info, T>
 where
@@ -206,7 +206,8 @@ where
     {
         init_validate_create(account, arg, sys_calls)
     } else {
-        account.inner.validate_accounts((), sys_calls)
+        // skip writable check on init_if_needed when not needed
+        account.inner.0.validate_accounts((), sys_calls)
     }
 }
 
@@ -219,6 +220,10 @@ where
     A: InitCreateArg<'info>,
     T: ProgramAccount + FrameworkInit<A::FrameworkInitArg> + ?Sized,
 {
+    account
+        .inner
+        .check_writable()
+        .context("InitAccount must be writable")?;
     let CreateSplit {
         arg,
         account_seeds,
