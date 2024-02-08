@@ -20,7 +20,7 @@ impl Display for Network {
             Network::Mainnet => write!(f, "Mainnet"),
             Network::Devnet => write!(f, "Devnet"),
             Network::Testnet => write!(f, "Testnet"),
-            Network::Custom(c) => write!(f, "Custom: {}", c),
+            Network::Custom(c) => write!(f, "Custom: {c}"),
         }
     }
 }
@@ -63,6 +63,7 @@ pub fn try_map_ref_mut<'a, I: 'a + ?Sized, O: 'a + ?Sized, E>(
     }
 }
 
+#[must_use]
 pub const fn compare_strings(a: &str, b: &str) -> bool {
     if a.len() != b.len() {
         return false;

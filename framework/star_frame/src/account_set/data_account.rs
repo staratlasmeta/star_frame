@@ -88,9 +88,8 @@ where
             ) != &PackedValue(T::DISCRIMINANT)
         {
             bail!(ProgramError::InvalidAccountData)
-        } else {
-            Ok(())
         }
+        Ok(())
     }
 
     pub fn data<'a>(&'a self) -> Result<DataRef<'a, T>> {
@@ -125,7 +124,7 @@ where
             >()))
             .unwrap()
         };
-        let data_len_ptr = unsafe { r_ptr.as_ptr().byte_sub(8).cast::<u64>() };
+        let data_len_ptr = unsafe { r_ptr.as_ptr().byte_sub(8).cast::<PackedValue<u64>>() };
         Ok(DataRefMut {
             data: T::RefMut::from_bytes_mut(
                 &mut unsafe { data_ptr.as_mut() },
@@ -136,10 +135,9 @@ where
                         || new_len as u64 > MAX_PERMITTED_DATA_LENGTH
                     {
                         bail!(ProgramError::InvalidRealloc)
-                    } else {
-                        unsafe { data_len_ptr.write(new_len as u64) };
-                        Ok(data_ptr.cast())
                     }
+                    unsafe { data_len_ptr.write(PackedValue(new_len as u64)) };
+                    Ok(data_ptr.cast())
                 },
             )?,
             _r: r,

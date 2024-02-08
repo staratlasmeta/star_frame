@@ -1,9 +1,20 @@
 #![feature(ptr_metadata)]
 #![feature(pointer_byte_offsets)]
 #![warn(
-    missing_debug_implementations,
+    clippy::pedantic,
     missing_copy_implementations,
+    missing_debug_implementations,
     unsafe_op_in_unsafe_fn
+)]
+#![allow(
+    clippy::default_trait_access,
+    clippy::manual_string_new,
+    clippy::missing_errors_doc,
+    clippy::missing_panics_doc,
+    clippy::module_name_repetitions,
+    clippy::mut_mut,
+    clippy::wildcard_imports,
+    clippy::expl_impl_clone_on_copy
 )]
 #![feature(type_name_of_val)]
 

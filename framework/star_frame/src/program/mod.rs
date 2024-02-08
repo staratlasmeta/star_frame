@@ -27,6 +27,7 @@ pub trait StarFrameProgram {
     }
 }
 
+#[must_use]
 pub const fn search_for_network(program_ids: ProgramIds, network: Network) -> Option<Pubkey> {
     match program_ids {
         ProgramIds::Mapped(ids) => {

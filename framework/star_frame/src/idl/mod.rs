@@ -16,6 +16,7 @@ pub trait AccountToIdl: ProgramAccount {
 
     /// Returns the idl of this account.
     fn account_to_idl(idl_definition: &mut IdlDefinition) -> Result<AccountId>;
+    #[must_use]
     fn account_program_versions() -> SemVer {
         SemVer::from_version(Self::AssociatedProgram::VERSION)
     }

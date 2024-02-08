@@ -154,6 +154,7 @@ where
     T: CheckedBitPattern + NoUninit + Align1,
     L: Pod + ToPrimitive + FromPrimitive,
 {
+    #[must_use]
     pub fn inner(&self) -> &'a List<T, L> {
         self.list
     }
@@ -398,7 +399,7 @@ where
     }
 
     pub fn remove(&mut self, index: usize) -> Result<()> {
-        self.remove_range(index..index + 1)
+        self.remove_range(index..=index)
     }
 
     pub fn remove_range(&mut self, range: impl RangeBounds<usize>) -> Result<()> {
@@ -430,6 +431,10 @@ where
         let new_ptr = (self.resize)(size_of::<L>() + new_len * size_of::<T>(), self.metadata)?;
         self.ptr = new_ptr;
         Ok(())
+    }
+
+    pub fn clear(&mut self) -> Result<()> {
+        self.remove_range(..)
     }
 
     pub fn retain(&mut self, mut op: impl FnMut(&mut T) -> bool) -> Result<()> {
@@ -478,19 +483,16 @@ pub mod test {
     #[test]
     fn test_stuff() -> Result<()> {
         let mut test_bytes = TestByteSet::<List<Cool>>::new(())?;
-        assert_eq!(test_bytes.immut()?.deref().deref(), &[]);
-        assert_eq!(test_bytes.mutable()?.deref().deref(), &[]);
+        assert_eq!(*test_bytes.immut()?, &[]);
+        assert_eq!(*test_bytes.mutable()?, &[]);
         test_bytes.mutable()?.push(Cool { a: 1, b: 1 })?;
         assert_eq!(
-            test_bytes.immut()?.deref().deref(),
+            *test_bytes.immut()?,
             &[Cool { a: 1, b: 1 }],
             "bytes: {:?}",
             test_bytes.bytes
         );
-        assert_eq!(
-            test_bytes.mutable()?.deref().deref(),
-            &[Cool { a: 1, b: 1 }]
-        );
+        assert_eq!(*test_bytes.mutable()?, &[Cool { a: 1, b: 1 }]);
 
         let first = test_bytes.immut()?[0];
         println!("Cool: {first:#?}");
@@ -499,7 +501,7 @@ pub mod test {
         mutable.push(Cool { a: 2, b: 2 })?;
         mutable.push(Cool { a: 3, b: 3 })?;
         assert_eq!(
-            mutable.deref().deref(),
+            *mutable.deref(),
             &[
                 Cool { a: 1, b: 1 },
                 Cool { a: 2, b: 2 },
@@ -508,7 +510,7 @@ pub mod test {
         );
         mutable.push_all((4..=6).map(|x| Cool { a: x, b: x }))?;
         assert_eq!(
-            mutable.deref().deref(),
+            *mutable,
             &[
                 Cool { a: 1, b: 1 },
                 Cool { a: 2, b: 2 },
@@ -520,7 +522,7 @@ pub mod test {
         );
         mutable.remove_range(1..4)?;
         assert_eq!(
-            mutable.deref().deref(),
+            *mutable,
             &[
                 Cool { a: 1, b: 1 },
                 Cool { a: 5, b: 5 },
@@ -529,7 +531,7 @@ pub mod test {
         );
         mutable.push_all((7..=9).map(|x| Cool { a: x, b: x + 1 }))?;
         assert_eq!(
-            mutable.deref().deref(),
+            *mutable,
             &[
                 Cool { a: 1, b: 1 },
                 Cool { a: 5, b: 5 },
@@ -541,7 +543,7 @@ pub mod test {
         );
         mutable.retain(|x| x.a == x.b)?;
         assert_eq!(
-            mutable.deref().deref(),
+            *mutable,
             &[
                 Cool { a: 1, b: 1 },
                 Cool { a: 5, b: 5 },
@@ -549,7 +551,7 @@ pub mod test {
             ]
         );
         mutable.retain(|x| x.a % 2 == 0)?;
-        assert_eq!(mutable.deref().deref(), &[Cool { a: 6, b: 6 }]);
+        assert_eq!(*mutable, &[Cool { a: 6, b: 6 }]);
         mutable.insert(1, Cool { a: 1, b: 1 })?;
         mutable.insert(1, Cool { a: 2, b: 2 })?;
         mutable.insert(1, Cool { a: 3, b: 3 })?;
@@ -557,7 +559,7 @@ pub mod test {
         drop(mutable);
 
         assert_eq!(
-            test_bytes.immut()?.deref().deref(),
+            *test_bytes.immut()?,
             &[
                 Cool { a: 6, b: 6 },
                 Cool { a: 3, b: 3 },

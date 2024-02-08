@@ -17,6 +17,7 @@ pub trait TypeToIdl {
     type AssociatedProgram: ProgramToIdl;
     /// Returns the idl of this type.
     fn type_to_idl(idl_definition: &mut IdlDefinition) -> Result<IdlTypeDef>;
+    #[must_use]
     fn type_program_versions() -> SemVer {
         SemVer::from_version(Self::AssociatedProgram::VERSION)
     }

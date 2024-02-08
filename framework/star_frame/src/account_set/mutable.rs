@@ -12,7 +12,7 @@ use std::ops::{Deref, DerefMut};
 #[account_set(skip_default_idl, generics = [where T: AccountSet<'info>])]
 #[validate(
     generics = [<A> where T: AccountSetValidate<'info, A> + SingleAccountSet<'info>], arg = A,
-    extra_validation = if !self.0.is_writable() { Err(ProgramError::AccountBorrowFailed.into()) } else { Ok(()) }
+    extra_validation = if self.0.is_writable() { Ok(()) } else { Err(ProgramError::AccountBorrowFailed.into()) }
 )]
 #[decode(generics = [<A> where T: AccountSetDecode<'a, 'info, A>], arg = A)]
 #[cleanup(generics = [<A> where T: AccountSetCleanup<'info, A>], arg = A)]
