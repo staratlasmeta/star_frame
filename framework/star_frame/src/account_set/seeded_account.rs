@@ -99,15 +99,13 @@ pub struct Seeds<T>(pub T);
 )]
 #[cleanup(generics = [<A> where T: AccountSetCleanup <'info, A>], arg = A)]
 pub struct SeededAccount<T, S: GetSeeds, P: SeedProgram = CurrentProgram> {
-    #[cleanup(arg = arg)]
+    #[decode(arg = arg)]
     #[validate(arg = arg.1)]
-    #[validate(id = "seeds", arg = ())]
     #[validate(id = "seeds_generic", arg = arg.1)]
     #[validate(id = "seeds_skip", skip)]
-    #[validate(id = "seeds_with_bump", arg = ())]
     #[validate(id = "seeds_with_bump_generic", arg = arg.1)]
     #[validate(id = "seeds_with_bump_skip", skip)]
-    #[decode(arg = arg)]
+    #[cleanup(arg = arg)]
     pub(crate) account: T,
     #[account_set(skip = None)]
     pub(crate) seeds: Option<SeedsWithBump<S>>,
