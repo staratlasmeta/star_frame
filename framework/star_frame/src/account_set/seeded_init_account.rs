@@ -4,6 +4,7 @@ use crate::account_set::SignedAccount;
 use crate::prelude::*;
 use crate::serialize::FrameworkInit;
 use derivative::Derivative;
+use derive_more::{Deref, DerefMut};
 use star_frame::account_set::seeded_account::CurrentProgram;
 use star_frame_proc::AccountSet;
 
@@ -20,7 +21,7 @@ use star_frame_proc::AccountSet;
         <IC>
         where
             IC: InitCreateArg<'info>,
-            T: SingleAccountSet<'info> + FrameworkInit<IC::FrameworkInitArg>,
+            T: FrameworkInit<IC::FrameworkInitArg>,
     ],
     arg = Create<SeededInit<T::Seeds, IC>>,
     extra_validation = seed_init_validate(self, arg.0, sys_calls)
@@ -31,7 +32,7 @@ use star_frame_proc::AccountSet;
         <IC>
         where
             IC: InitCreateArg<'info>,
-            T: SingleAccountSet<'info> + FrameworkInit<IC::FrameworkInitArg>,
+            T: FrameworkInit<IC::FrameworkInitArg>,
     ],
     arg = CreateIfNeeded<SeededInit<T::Seeds, IC>>,
     extra_validation = seed_init_validate_if_needed(self, arg.0, sys_calls)

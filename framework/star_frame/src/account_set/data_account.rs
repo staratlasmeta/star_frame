@@ -4,6 +4,7 @@ use crate::prelude::{SysCallCore, SystemProgram};
 use crate::program::StarFrameProgram;
 use crate::serialize::{FrameworkFromBytes, FrameworkFromBytesMut};
 use crate::sys_calls::SysCallInvoke;
+use crate::util::refund_rent;
 use crate::Result;
 use anyhow::bail;
 use bytemuck::{bytes_of, from_bytes, from_bytes_mut};
@@ -52,13 +53,15 @@ where
     Ok(())
 }
 
-#[derive(Debug, Copy, Clone)]
-pub struct SkipNormalize;
 #[derive(Debug, Derivative)]
 #[derivative(Copy(bound = ""), Clone(bound = ""))]
 pub struct NormalizeRent<'a, 'info, F> {
     pub system_program: &'a Program<'info, SystemProgram>,
     pub funder: &'a F,
+}
+#[derive(Debug, Copy, Clone)]
+pub struct RefundRent<'a, F> {
+    pub recipient: &'a F,
 }
 
 #[derive(AccountSet, Debug)]
@@ -66,11 +69,17 @@ pub struct NormalizeRent<'a, 'info, F> {
     extra_validation = validate_data_account(self, sys_calls),
 )]
 #[cleanup(
+    id = "normalize_rent",
     generics = [<'a, F> where F: WritableAccount<'info> + SignedAccount<'info>],
     arg = NormalizeRent<'a, 'info, F>,
     extra_cleanup = self.normalize_rent(arg, sys_calls)
 )]
-#[cleanup(id = "skip_normalize", arg = SkipNormalize)]
+#[cleanup(
+    id = "refund_rent",
+    generics = [<'a, F> where F: WritableAccount<'info>],
+    arg = RefundRent<'a, F>,
+    extra_cleanup = self.refund_rent(&arg, sys_calls)
+)]
 pub struct DataAccount<'info, T: ProgramAccount + UnsizedType + ?Sized> {
     info: AccountInfo<'info>,
     phantom_t: PhantomData<T>,
@@ -163,6 +172,14 @@ where
         sys_calls: &mut impl SysCallInvoke,
     ) -> Result<()> {
         normalize_rent(self, arg.funder, arg.system_program, sys_calls)
+    }
+
+    pub fn refund_rent(
+        &mut self,
+        arg: &RefundRent<impl WritableAccount<'info>>,
+        sys_calls: &mut impl SysCallInvoke,
+    ) -> Result<()> {
+        refund_rent(self, arg.recipient, sys_calls)
     }
 }
 
