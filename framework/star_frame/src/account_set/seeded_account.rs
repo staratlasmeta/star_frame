@@ -2,14 +2,15 @@ use crate::account_set::{SignedAccount, WritableAccount};
 use crate::prelude::*;
 use anyhow::bail;
 use bytemuck::bytes_of;
+use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 
-pub trait GetSeeds {
+pub trait GetSeeds: Debug {
     fn seeds(&self) -> Vec<&[u8]>;
 }
 impl<T> GetSeeds for T
 where
-    T: Seed,
+    T: Seed + Debug,
 {
     fn seeds(&self) -> Vec<&[u8]> {
         vec![self.seed()]
@@ -58,46 +59,46 @@ pub struct Seeds<T>(pub T);
 #[validate(
     generics = [<A> where T: AccountSetValidate<'info, A> + SingleAccountSet<'info>],
     arg = (S, A),
-    before_validation = Self::validate_seeds(self, arg.0)
+    before_validation = Self::validate_seeds(self, arg.0, sys_calls)
 )]
 #[validate(
     id = "seeds",
     generics = [where T: AccountSetValidate<'info, ()> + SingleAccountSet<'info>],
     arg = Seeds<S>,
-    before_validation = Self::validate_seeds(self, arg.0)
+    before_validation = Self::validate_seeds(self, arg.0, sys_calls)
 )]
 #[validate(
     id = "seeds_generic",
     generics = [<A> where T: AccountSetValidate<'info, A> + SingleAccountSet<'info>],
     arg = (Seeds<S>, A),
-    before_validation = Self::validate_seeds(self, arg.0.0)
+    before_validation = Self::validate_seeds(self, arg.0.0, sys_calls)
 )]
 #[validate(
     id = "seeds_skip",
     generics = [<> where T: SingleAccountSet<'info>],
     arg = (Skip, Seeds<S>),
-    before_validation = Self::validate_seeds(self, arg.1.0)
+    before_validation = Self::validate_seeds(self, arg.1.0, sys_calls)
 )]
 #[validate(
     id = "seeds_with_bump",
     generics = [where T: AccountSetValidate<'info, ()> + SingleAccountSet<'info>],
     arg = SeedsWithBump<S>,
-    before_validation = Self::validate_seeds_with_bump(self, arg)
+    before_validation = Self::validate_seeds_with_bump(self, arg, sys_calls)
 )]
 #[validate(
     id = "seeds_with_bump_generic",
     generics = [<A> where T: AccountSetValidate<'info, A> + SingleAccountSet<'info>],
     arg = (SeedsWithBump<S>, A),
-    before_validation = Self::validate_seeds_with_bump(self, arg.0)
+    before_validation = Self::validate_seeds_with_bump(self, arg.0, sys_calls)
 )]
 #[validate(
     id = "seeds_with_bump_skip",
     generics = [<> where T: SingleAccountSet<'info>],
     arg = (Skip, SeedsWithBump<S>),
-    before_validation = Self::validate_seeds_with_bump(self, arg.1)
+    before_validation = Self::validate_seeds_with_bump(self, arg.1, sys_calls)
 )]
 #[cleanup(generics = [<A> where T: AccountSetCleanup <'info, A>], arg = A)]
-pub struct SeededAccount<T, S: GetSeeds> {
+pub struct SeededAccount<T, S: GetSeeds, P: SeedProgram = CurrentProgram> {
     #[cleanup(arg = arg)]
     #[validate(arg = arg.1)]
     #[validate(id = "seeds", arg = ())]
@@ -110,25 +111,54 @@ pub struct SeededAccount<T, S: GetSeeds> {
     pub(crate) account: T,
     #[account_set(skip = None)]
     pub(crate) seeds: Option<SeedsWithBump<S>>,
+    phantom_p: PhantomData<P>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct CurrentProgram;
+pub trait SeedProgram {
+    fn id(sys_calls: &mut impl SysCallInvoke) -> Result<Pubkey>;
+}
+impl SeedProgram for CurrentProgram {
+    fn id(sys_calls: &mut impl SysCallInvoke) -> Result<Pubkey> {
+        Ok(*sys_calls.current_program_id())
+    }
+}
+impl<P> SeedProgram for P
+where
+    P: StarFrameProgram,
+{
+    fn id(sys_calls: &mut impl SysCallInvoke) -> Result<Pubkey> {
+        P::program_id(sys_calls)
+    }
 }
 
 #[derive(Debug, Copy, Clone)]
 pub struct Skip;
 
-impl<'info, T: SingleAccountSet<'info>, S: GetSeeds> SeededAccount<T, S> {
-    fn validate_seeds(&mut self, seeds: S) -> Result<()> {
-        let (address, bump) =
-            Pubkey::find_program_address(&seeds.seeds(), self.account_info().owner);
+impl<'info, T: SingleAccountSet<'info>, S: GetSeeds, P: SeedProgram> SeededAccount<T, S, P> {
+    fn validate_seeds(&mut self, seeds: S, sys_calls: &mut impl SysCallInvoke) -> Result<()> {
+        let (address, bump) = Pubkey::find_program_address(&seeds.seeds(), &P::id(sys_calls)?);
         if self.account.account_info().key != &address {
-            bail!(ProgramError::Custom(20));
+            bail!(
+                "Seeds: {:?} result in address `{}` and bump `{}`, expected `{}`",
+                seeds,
+                address,
+                bump,
+                self.account.account_info().key
+            );
         }
         self.seeds = Some(SeedsWithBump { seeds, bump });
         Ok(())
     }
 
-    fn validate_seeds_with_bump(&mut self, seeds: SeedsWithBump<S>) -> Result<()> {
+    fn validate_seeds_with_bump(
+        &mut self,
+        seeds: SeedsWithBump<S>,
+        sys_calls: &mut impl SysCallInvoke,
+    ) -> Result<()> {
         let arg_seeds = seeds.seeds_with_bump();
-        let address = Pubkey::create_program_address(&arg_seeds, self.account_info().owner)?;
+        let address = Pubkey::create_program_address(&arg_seeds, &P::id(sys_calls)?)?;
         if self.account.account_info().key != &address {
             bail!(ProgramError::Custom(20));
         }
@@ -137,7 +167,7 @@ impl<'info, T: SingleAccountSet<'info>, S: GetSeeds> SeededAccount<T, S> {
     }
 }
 
-impl<T, S: GetSeeds> SeededAccount<T, S> {
+impl<T, S: GetSeeds, P: SeedProgram> SeededAccount<T, S, P> {
     pub fn access_seeds(&self) -> &SeedsWithBump<S> {
         self.seeds.as_ref().unwrap()
     }
@@ -147,7 +177,7 @@ impl<T, S: GetSeeds> SeededAccount<T, S> {
     }
 }
 
-impl<'info, T, S> SingleAccountSet<'info> for SeededAccount<T, S>
+impl<'info, T, S, P: SeedProgram> SingleAccountSet<'info> for SeededAccount<T, S, P>
 where
     T: SingleAccountSet<'info>,
     S: GetSeeds,
@@ -156,7 +186,7 @@ where
         self.account.account_info()
     }
 }
-impl<'info, T, S> SignedAccount<'info> for SeededAccount<T, S>
+impl<'info, T, S> SignedAccount<'info> for SeededAccount<T, S, CurrentProgram>
 where
     T: SingleAccountSet<'info>,
     S: GetSeeds,
@@ -165,14 +195,14 @@ where
         Some(self.seeds_with_bump())
     }
 }
-impl<'info, T, S> WritableAccount<'info> for SeededAccount<T, S>
+impl<'info, T, S, P: SeedProgram> WritableAccount<'info> for SeededAccount<T, S, P>
 where
     T: WritableAccount<'info>,
     S: GetSeeds,
 {
 }
 
-impl<T, S: GetSeeds> Deref for SeededAccount<T, S> {
+impl<T, S: GetSeeds, P: SeedProgram> Deref for SeededAccount<T, S, P> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -180,7 +210,7 @@ impl<T, S: GetSeeds> Deref for SeededAccount<T, S> {
     }
 }
 
-impl<T, S: GetSeeds> DerefMut for SeededAccount<T, S> {
+impl<T, S: GetSeeds, P: SeedProgram> DerefMut for SeededAccount<T, S, P> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.account
     }
@@ -193,7 +223,7 @@ mod idl_impl {
     use star_frame_idl::account_set::IdlAccountSetDef;
     use star_frame_idl::IdlDefinition;
 
-    impl<'info, T, A, S> AccountSetToIdl<'info, A> for SeededAccount<T, S>
+    impl<'info, T, A, S, P: SeedProgram> AccountSetToIdl<'info, A> for SeededAccount<T, S, P>
     where
         T: AccountSetToIdl<'info, A> + SingleAccountSet<'info>,
         S: GetSeeds,
@@ -202,6 +232,7 @@ mod idl_impl {
             idl_definition: &mut IdlDefinition,
             arg: A,
         ) -> Result<IdlAccountSetDef> {
+            // TODO: Include program
             T::account_set_to_idl(idl_definition, arg)
                 .map(Box::new)
                 .map(IdlAccountSetDef::SeededAccount)
