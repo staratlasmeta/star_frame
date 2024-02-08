@@ -1,4 +1,7 @@
-use crate::account_set::{AccountSet, AccountSetDecode, AccountSetValidate, SingleAccountSet};
+use crate::account_set::{
+    AccountSet, AccountSetDecode, AccountSetValidate, SignedAccount, SingleAccountSet,
+    WritableAccount,
+};
 use crate::Result;
 use anyhow::bail;
 use solana_program::account_info::AccountInfo;
@@ -12,7 +15,7 @@ use std::ops::{Deref, DerefMut};
 #[decode(generics = [<A> where T: AccountSetDecode<'a, 'info, A>], arg = A)]
 #[validate(
     generics = [<A> where T: AccountSetValidate<'info, A> + SingleAccountSet<'info>], arg = A,
-    extra_validation = if self.0.is_signer() { Ok(()) } else { Err(ProgramError::MissingRequiredSignature.into()) },
+    extra_validation = self.check_signer(),
 )]
 #[cleanup(generics = [<A> where T: AccountSetCleanup<'info, A>], arg = A)]
 pub struct Signer<T>(
@@ -49,6 +52,19 @@ impl<T> Signer<T> {
     }
 }
 
+impl<'info, T> Signer<T>
+where
+    T: SingleAccountSet<'info>,
+{
+    pub fn check_signer(&self) -> Result<()> {
+        if self.0.is_signer() {
+            Ok(())
+        } else {
+            Err(ProgramError::MissingRequiredSignature.into())
+        }
+    }
+}
+
 impl<'info, T> SingleAccountSet<'info> for Signer<T>
 where
     T: SingleAccountSet<'info>,
@@ -57,6 +73,15 @@ where
         self.0.account_info()
     }
 }
+impl<'info, T> SignedAccount<'info> for Signer<T>
+where
+    T: SingleAccountSet<'info>,
+{
+    fn signer_seeds(&self) -> Option<Vec<&[u8]>> {
+        None
+    }
+}
+impl<'info, T> WritableAccount<'info> for Signer<T> where T: WritableAccount<'info> {}
 
 #[cfg(feature = "idl")]
 mod idl_impl {

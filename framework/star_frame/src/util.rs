@@ -1,4 +1,9 @@
+use crate::account_set::{SignedAccount, WritableAccount};
+use crate::prelude::*;
+use anyhow::anyhow;
+use solana_program::system_instruction::transfer;
 use std::cell::{Ref, RefMut};
+use std::cmp::Ordering;
 use std::fmt::{Debug, Display};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -74,5 +79,53 @@ pub const fn compare_strings(a: &str, b: &str) -> bool {
             break false;
         }
         index += 1;
+    }
+}
+
+/// Normalizes the rent of an account if data size is changed.
+/// Assumes `info` is owned by this program.
+pub fn normalize_rent<
+    'info,
+    T: ?Sized + UnsizedType + ProgramAccount,
+    F: WritableAccount<'info> + SignedAccount<'info>,
+>(
+    info: &DataAccount<'info, T>,
+    funder: &F,
+    system_program: &Program<'info, SystemProgram>,
+    sys_calls: &mut impl SysCallInvoke,
+) -> Result<()> {
+    let rent = sys_calls.get_rent()?;
+    let lamports = info.account_info().lamports();
+    let data_len = info.account_info().data_len();
+    let rent_lamports = rent.minimum_balance(data_len);
+    match rent_lamports.cmp(&lamports) {
+        Ordering::Equal => Ok(()),
+        Ordering::Greater => {
+            let transfer_amount = rent_lamports - lamports;
+            if funder.owner() == system_program.key() {
+                let transfer_ix = transfer(funder.key(), info.key(), transfer_amount);
+                let transfer_accounts = &[info.account_info_cloned(), funder.account_info_cloned()];
+                match funder.signer_seeds() {
+                    None => sys_calls
+                        .invoke(&transfer_ix, transfer_accounts)
+                        .map_err(Into::into),
+                    Some(seeds) => sys_calls
+                        .invoke_signed(&transfer_ix, transfer_accounts, &[&seeds])
+                        .map_err(Into::into),
+                }
+            } else {
+                Err(anyhow!(
+                    "Funder account `{}` is not owned by the system program, owned by `{}`",
+                    funder.key(),
+                    funder.owner()
+                ))
+            }
+        }
+        Ordering::Less => {
+            let transfer_amount = lamports - rent_lamports;
+            **info.account_info().lamports.borrow_mut() -= transfer_amount;
+            **funder.account_info().lamports.borrow_mut() += transfer_amount;
+            Ok(())
+        }
     }
 }

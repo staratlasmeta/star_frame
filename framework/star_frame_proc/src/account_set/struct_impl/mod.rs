@@ -34,9 +34,7 @@ impl Parse for Requires {
 
 #[derive(ArgumentList, Debug, Clone)]
 struct AccountSetFieldAttrs {
-    #[argument(presence)]
-    skip: bool,
-    default: Option<TokenStream>,
+    skip: Option<TokenStream>,
 }
 
 pub(super) fn derive_account_set_impl_struct(
@@ -56,10 +54,10 @@ pub(super) fn derive_account_set_impl_struct(
     } = &account_set_generics;
 
     let Paths {
-        crate_name,
         account_info,
-        result,
         account_set,
+        crate_name,
+        result,
         ..
     } = &paths;
 
@@ -82,7 +80,7 @@ pub(super) fn derive_account_set_impl_struct(
     let filter_skip = |f: &&Field| -> bool {
         find_attr(&f.attrs, &paths.account_set_ident)
             .map(AccountSetFieldAttrs::parse_arguments)
-            .map(|args| !args.skip)
+            .map(|args| args.skip.is_none())
             .unwrap_or(true)
     };
 
@@ -107,7 +105,7 @@ pub(super) fn derive_account_set_impl_struct(
         .map(|field| {
             find_attr(&field.attrs, &paths.account_set_ident)
                 .map(AccountSetFieldAttrs::parse_arguments)
-                .and_then(|args| if args.skip { args.default } else { None })
+                .and_then(|args| args.skip)
                 .map_or_else(|| DecodeFieldTy::Type(&field.ty), DecodeFieldTy::Default)
         })
         .collect::<Vec<_>>();

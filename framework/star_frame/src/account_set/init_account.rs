@@ -1,23 +1,23 @@
 use crate::account_set::data_account::{DataAccount, ProgramAccount};
 use crate::account_set::mutable::Writable;
 use crate::account_set::program::Program;
-use crate::account_set::seeded_account::{GetSeeds, SeededAccount};
-use crate::account_set::{AccountSetValidate, SingleAccountSet};
-use crate::prelude::{SeedsWithBump, UnsizedType};
+use crate::account_set::seeded_account::GetSeeds;
+use crate::account_set::{AccountSetValidate, SignedAccount, SingleAccountSet};
+use crate::prelude::*;
 use crate::program::system_program::SystemProgram;
 use crate::program::StarFrameProgram;
 use crate::serialize::FrameworkInit;
 use crate::sys_calls::SysCallInvoke;
 use crate::Result;
 use advance::Advance;
-use anyhow::bail;
+use anyhow::{bail, Context};
 use bytemuck::bytes_of;
 use derivative::Derivative;
 use solana_program::account_info::AccountInfo;
 use solana_program::program_error::ProgramError;
 use solana_program::program_memory::sol_memset;
-use solana_program::pubkey::Pubkey;
 use solana_program::system_instruction;
+use star_frame::account_set::WritableAccount;
 use star_frame_proc::AccountSet;
 use std::fmt::Debug;
 use std::mem::size_of;
@@ -37,13 +37,18 @@ use std::ops::{Deref, DerefMut};
     arg = CreateIfNeeded<A>,
     extra_validation = init_if_needed(self, arg.0, sys_calls),
 )]
+#[cleanup(
+    generics = [<A> where DataAccount<'info, T>: AccountSetCleanup<'info, A>],
+    arg = A,
+)]
 pub struct InitAccount<'info, T>
 where
     T: ProgramAccount + UnsizedType + ?Sized,
 {
     #[validate(id = "create", skip)]
     #[validate(id = "create_if_needed", skip)]
-    inner: DataAccount<'info, T>,
+    #[cleanup(arg = arg)]
+    inner: Writable<DataAccount<'info, T>>,
 }
 impl<'info, T: ?Sized> SingleAccountSet<'info> for InitAccount<'info, T>
 where
@@ -75,79 +80,28 @@ where
 pub trait InitCreateArg<'info> {
     type FrameworkInitArg;
     type AccountSeeds: GetSeeds;
-    type FunderAccount: SingleAccountSet<'info>;
-    type FunderSeeds: GetSeeds;
+    type FunderAccount: SignedAccount<'info> + WritableAccount<'info>;
 
     fn system_program(&self) -> &Program<'info, SystemProgram>;
 
     fn split<'a>(
         &'a mut self,
-    ) -> CreateSplit<
-        'a,
-        'info,
-        Self::FrameworkInitArg,
-        Self::AccountSeeds,
-        Self::FunderAccount,
-        Self::FunderSeeds,
-    >;
+    ) -> CreateSplit<'a, 'info, Self::FrameworkInitArg, Self::AccountSeeds, Self::FunderAccount>;
 }
 #[derive(Derivative)]
 #[derivative(
-    Debug(
-        bound = "IA: Debug, SeedsWithBump<AS>: Debug, Funder<'a, FA, FS>: Debug, Funder<'a, FA, FS>: Debug",
-    ),
+    Debug(bound = "IA: Debug, SeedsWithBump<AS>: Debug, FA: Debug",),
     Clone(bound = "IA: Clone"),
     Copy(bound = "IA: Copy")
 )]
-pub struct CreateSplit<'a, 'info: 'a, IA, AS, FA, FS>
+pub struct CreateSplit<'a, 'info: 'a, IA, AS, FA>
 where
     AS: GetSeeds,
-    FS: GetSeeds,
 {
     pub arg: IA,
     pub account_seeds: Option<&'a SeedsWithBump<AS>>,
     pub system_program: &'a Program<'info, SystemProgram>,
-    pub funder: Funder<'a, FA, FS>,
-}
-
-#[derive(Derivative)]
-#[derivative(
-    Debug(bound = "Writable<WT>: Debug, SeededAccount<WT, S>: Debug",),
-    Clone(bound = ""),
-    Copy(bound = "")
-)]
-pub enum Funder<'a, WT, S = ()>
-where
-    S: GetSeeds,
-{
-    Signature(&'a Writable<WT>),
-    Seeded(&'a SeededAccount<WT, S>),
-}
-impl<'a, 'info, WT, S> Funder<'a, WT, S>
-where
-    WT: SingleAccountSet<'info>,
-    S: GetSeeds,
-{
-    fn owner(&self) -> &'info Pubkey {
-        match self {
-            Funder::Signature(inner) => inner.owner(),
-            Funder::Seeded(inner) => inner.owner(),
-        }
-    }
-
-    fn key(&self) -> &'info Pubkey {
-        match self {
-            Funder::Signature(inner) => inner.key(),
-            Funder::Seeded(inner) => inner.key(),
-        }
-    }
-
-    fn account_info_cloned(&self) -> AccountInfo<'info> {
-        match self {
-            Funder::Signature(inner) => inner.account_info_cloned(),
-            Funder::Seeded(inner) => inner.account_info_cloned(),
-        }
-    }
+    pub funder: &'a FA,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
@@ -159,19 +113,20 @@ pub struct CreateIfNeeded<T>(pub T);
 
 #[derive(Derivative)]
 #[derivative(
-    Debug(bound = "Program<'info, SystemProgram>: Debug, Writable<WT>: Debug"),
+    Debug(bound = "Program<'info, SystemProgram>: Debug, WT: Debug"),
     Copy(bound = ""),
     Clone(bound = "")
 )]
 pub struct CreateAccount<'a, 'info, WT> {
     pub system_program: &'a Program<'info, SystemProgram>,
-    pub funder: &'a Writable<WT>,
+    pub funder: &'a WT,
 }
-impl<'a, 'info, WT: SingleAccountSet<'info>> InitCreateArg<'info> for CreateAccount<'a, 'info, WT> {
+impl<'a, 'info, WT: SignedAccount<'info> + WritableAccount<'info>> InitCreateArg<'info>
+    for CreateAccount<'a, 'info, WT>
+{
     type FrameworkInitArg = ();
     type AccountSeeds = ();
     type FunderAccount = WT;
-    type FunderSeeds = ();
 
     fn system_program(&self) -> &Program<'info, SystemProgram> {
         self.system_program
@@ -179,29 +134,23 @@ impl<'a, 'info, WT: SingleAccountSet<'info>> InitCreateArg<'info> for CreateAcco
 
     fn split<'b>(
         &'b mut self,
-    ) -> CreateSplit<
-        'b,
-        'info,
-        Self::FrameworkInitArg,
-        Self::AccountSeeds,
-        Self::FunderAccount,
-        Self::FunderSeeds,
-    > {
+    ) -> CreateSplit<'b, 'info, Self::FrameworkInitArg, Self::AccountSeeds, Self::FunderAccount>
+    {
         CreateSplit {
             arg: (),
             account_seeds: None,
             system_program: self.system_program,
-            funder: Funder::Signature(self.funder),
+            funder: self.funder,
         }
     }
 }
 
 #[derive(Derivative)]
-#[derivative(Debug(bound = "A: Debug, Program<'info, SystemProgram>: Debug, Writable<WT>: Debug"))]
+#[derivative(Debug(bound = "A: Debug, Program<'info, SystemProgram>: Debug, WT: Debug"))]
 pub struct CreateAccountWithArg<'a, 'info, A, WT> {
     arg: Option<A>,
     system_program: &'a Program<'info, SystemProgram>,
-    funder: &'a Writable<WT>,
+    funder: &'a WT,
 }
 impl<'a, 'info, A, WT> CreateAccountWithArg<'a, 'info, A, WT> {
     pub fn new(
@@ -216,13 +165,12 @@ impl<'a, 'info, A, WT> CreateAccountWithArg<'a, 'info, A, WT> {
         }
     }
 }
-impl<'a, 'info, A, WT: SingleAccountSet<'info>> InitCreateArg<'info>
+impl<'a, 'info, A, WT: SignedAccount<'info> + WritableAccount<'info>> InitCreateArg<'info>
     for CreateAccountWithArg<'a, 'info, A, WT>
 {
     type FrameworkInitArg = A;
     type AccountSeeds = ();
     type FunderAccount = WT;
-    type FunderSeeds = ();
 
     fn system_program(&self) -> &'a Program<'info, SystemProgram> {
         self.system_program
@@ -230,19 +178,13 @@ impl<'a, 'info, A, WT: SingleAccountSet<'info>> InitCreateArg<'info>
 
     fn split<'b>(
         &'b mut self,
-    ) -> CreateSplit<
-        'b,
-        'info,
-        Self::FrameworkInitArg,
-        Self::AccountSeeds,
-        Self::FunderAccount,
-        Self::FunderSeeds,
-    > {
+    ) -> CreateSplit<'b, 'info, Self::FrameworkInitArg, Self::AccountSeeds, Self::FunderAccount>
+    {
         CreateSplit {
             arg: self.arg.take().unwrap(),
             account_seeds: None,
             system_program: self.system_program,
-            funder: Funder::Signature(self.funder),
+            funder: self.funder,
         }
     }
 }
@@ -264,7 +206,8 @@ where
     {
         init_validate_create(account, arg, sys_calls)
     } else {
-        account.inner.validate_accounts((), sys_calls)
+        // skip writable check on init_if_needed when not needed
+        account.inner.0.validate_accounts((), sys_calls)
     }
 }
 
@@ -277,6 +220,10 @@ where
     A: InitCreateArg<'info>,
     T: ProgramAccount + FrameworkInit<A::FrameworkInitArg> + ?Sized,
 {
+    account
+        .inner
+        .check_writable()
+        .context("InitAccount must be writable")?;
     let CreateSplit {
         arg,
         account_seeds,
@@ -301,22 +248,18 @@ where
         system_program.account_info_cloned(),
         funder.account_info_cloned(),
     ];
-    match (funder, account_seeds) {
-        (Funder::Signature(_), None) => {
+    match (funder.signer_seeds(), account_seeds) {
+        (None, None) => {
             sys_calls.invoke(&ix, accounts)?;
         }
-        (Funder::Seeded(funder), None) => {
-            sys_calls.invoke_signed(&ix, accounts, &[&funder.seeds_with_bump()])?;
+        (Some(funder), None) => {
+            sys_calls.invoke_signed(&ix, accounts, &[&funder])?;
         }
-        (Funder::Signature(_), Some(account_seeds)) => {
+        (None, Some(account_seeds)) => {
             sys_calls.invoke_signed(&ix, accounts, &[&account_seeds.seeds_with_bump()])?;
         }
-        (Funder::Seeded(funder), Some(account_seeds)) => {
-            sys_calls.invoke_signed(
-                &ix,
-                accounts,
-                &[&account_seeds.seeds_with_bump(), &funder.seeds_with_bump()],
-            )?;
+        (Some(funder), Some(account_seeds)) => {
+            sys_calls.invoke_signed(&ix, accounts, &[&account_seeds.seeds_with_bump(), &funder])?;
         }
     }
 

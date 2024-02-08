@@ -110,6 +110,11 @@ pub trait SingleAccountSet<'info>: AccountSet<'info> {
         self.account_info().info_data_bytes_mut()
     }
 }
+pub trait SignedAccount<'info>: SingleAccountSet<'info> {
+    /// Gets the seeds of the account if it is seeded.
+    fn signer_seeds(&self) -> Option<Vec<&[u8]>>;
+}
+pub trait WritableAccount<'info>: SingleAccountSet<'info> {}
 
 /// An [`AccountSet`] that can be decoded from a list of [`AccountInfo`]s using arg `A`.
 pub trait AccountSetDecode<'a, 'info, A>: AccountSet<'info> + Sized {
@@ -214,11 +219,11 @@ mod test {
             unimplemented!()
         }
 
-        fn get_rent(&self) -> Result<Rent, ProgramError> {
+        fn get_rent(&mut self) -> Result<Rent, ProgramError> {
             unimplemented!()
         }
 
-        fn get_clock(&self) -> Result<Clock, ProgramError> {
+        fn get_clock(&mut self) -> Result<Clock, ProgramError> {
             unimplemented!()
         }
     }

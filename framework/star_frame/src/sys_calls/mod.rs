@@ -64,7 +64,7 @@ pub trait SysCallCore {
     /// Not determined by solana runtime but by build config.
     fn current_network(&self) -> &Network;
     /// Get the rent sysvar.
-    fn get_rent(&self) -> Result<Rent, ProgramError>;
+    fn get_rent(&mut self) -> Result<Rent, ProgramError>;
     /// Get the clock.
-    fn get_clock(&self) -> Result<Clock, ProgramError>;
+    fn get_clock(&mut self) -> Result<Clock, ProgramError>;
 }

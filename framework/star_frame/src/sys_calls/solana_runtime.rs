@@ -19,6 +19,20 @@ pub struct SolanaRuntime<'a> {
     /// The program id of the currently executing program.
     pub program_id: &'a Pubkey,
     pub network: Network,
+    rent_cache: Option<Rent>,
+    clock_cache: Option<Clock>,
+}
+impl<'a> SolanaRuntime<'a> {
+    /// Create a new solana runtime.
+    #[must_use]
+    pub fn new(program_id: &'a Pubkey, network: Network) -> Self {
+        Self {
+            program_id,
+            network,
+            rent_cache: None,
+            clock_cache: None,
+        }
+    }
 }
 impl<'a> SysCallReturn for SolanaRuntime<'a> {
     fn set_return_data(&mut self, data: &[u8]) {
@@ -73,11 +87,25 @@ impl<'a> SysCallCore for SolanaRuntime<'a> {
         &self.network
     }
 
-    fn get_rent(&self) -> Result<Rent, ProgramError> {
-        Rent::get()
+    fn get_rent(&mut self) -> Result<Rent, ProgramError> {
+        match self.rent_cache {
+            None => {
+                let rent = Rent::get()?;
+                self.rent_cache = Some(rent);
+                Ok(rent)
+            }
+            Some(rent) => Ok(rent),
+        }
     }
 
-    fn get_clock(&self) -> Result<Clock, ProgramError> {
-        Clock::get()
+    fn get_clock(&mut self) -> Result<Clock, ProgramError> {
+        match self.clock_cache.clone() {
+            None => {
+                let clock = Clock::get()?;
+                self.clock_cache = Some(clock.clone());
+                Ok(clock)
+            }
+            Some(clock) => Ok(clock),
+        }
     }
 }
