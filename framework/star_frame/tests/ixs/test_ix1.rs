@@ -7,6 +7,7 @@ use star_frame::idl::AccountSetToIdl;
 use star_frame::impls::option::Remaining;
 use star_frame::instruction::FrameworkInstruction;
 use star_frame::instruction::InstructionToIdl;
+use star_frame::prelude::SystemAccount;
 use star_frame::serialize::{unsized_type::UnsizedType, FrameworkFromBytes};
 use star_frame::sys_calls::SysCallInvoke;
 use star_frame::Result;
@@ -72,6 +73,7 @@ where
     pub account1: &'a AccountInfo<'info>,
     #[decode(arg = Remaining(()))]
     pub account2: Option<&'a AccountInfo<'info>>,
+    pub account3: SystemAccount<'info>,
 }
 
 #[derive(AccountSet)]
