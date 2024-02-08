@@ -160,7 +160,12 @@ impl<'info, T: SingleAccountSet<'info>, S: GetSeeds, P: SeedProgram> SeededAccou
         let arg_seeds = seeds.seeds_with_bump();
         let address = Pubkey::create_program_address(&arg_seeds, &P::id(sys_calls)?)?;
         if self.account.account_info().key != &address {
-            bail!(ProgramError::Custom(20));
+            bail!(
+                "Seeds `{:?}` result in address `{}`, expected `{}`",
+                seeds,
+                address,
+                self.account.account_info().key
+            );
         }
         self.seeds = Some(seeds);
         Ok(())
