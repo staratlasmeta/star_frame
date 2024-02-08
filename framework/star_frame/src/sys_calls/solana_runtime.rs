@@ -24,6 +24,7 @@ pub struct SolanaRuntime<'a> {
 }
 impl<'a> SolanaRuntime<'a> {
     /// Create a new solana runtime.
+    #[must_use]
     pub fn new(program_id: &'a Pubkey, network: Network) -> Self {
         Self {
             program_id,
