@@ -1,4 +1,4 @@
-use crate::account_set::SignedAccount;
+use crate::account_set::{SignedAccount, WritableAccount};
 use crate::prelude::*;
 use anyhow::bail;
 use bytemuck::bytes_of;
@@ -164,6 +164,12 @@ where
     fn signer_seeds(&self) -> Option<Vec<&[u8]>> {
         Some(self.seeds_with_bump())
     }
+}
+impl<'info, T, S> WritableAccount<'info> for SeededAccount<T, S>
+where
+    T: WritableAccount<'info>,
+    S: GetSeeds,
+{
 }
 
 impl<T, S: GetSeeds> Deref for SeededAccount<T, S> {
