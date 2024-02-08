@@ -1,27 +1,16 @@
-use solana_program::account_info::AccountInfo;
-use solana_program::program_error::ProgramError;
+use derive_more::{Deref, DerefMut};
 use solana_program::system_program;
-use star_frame::account_set::{
-    AccountSet, AccountSetCleanup, AccountSetDecode, AccountSetValidate, SingleAccountSet,
-};
-use star_frame::idl::AccountSetToIdl;
-use std::marker::PhantomData;
+use star_frame::prelude::*;
 
-#[derive(AccountSet, Debug)]
-#[decode(generics = [<A> where T: AccountSetDecode<'a, 'info, A>], arg = A)]
+#[derive(AccountSet, Debug, Deref, DerefMut)]
 #[validate(
-    generics = [<A> where T: SingleAccountSet<'info> + AccountSetValidate<'info, A>],
-    arg = A,
-    extra_validation = if self.0.owner() == &system_program::ID { Ok(()) } else { Err(ProgramError::IllegalOwner.into()) },
+    extra_validation = if self.0.owner() == & system_program::ID { Ok(()) } else { Err(ProgramError::IllegalOwner.into()) }
 )]
-#[cleanup(generics = [<A> where T: AccountSetCleanup<'info, A>], arg = A)]
-pub struct SystemAccount<'info, T = AccountInfo<'info>>(
-    #[decode(arg = arg)]
-    #[validate(arg = arg)]
-    #[cleanup(arg = arg)]
-    T,
-    PhantomData<&'info ()>,
-)
-where
-    T: AccountSet<'info>,
-    T: AccountSetToIdl<'info, ()>;
+#[repr(transparent)]
+pub struct SystemAccount<'info>(AccountInfo<'info>);
+
+impl<'info> SingleAccountSet<'info> for SystemAccount<'info> {
+    fn account_info(&self) -> &AccountInfo<'info> {
+        &self.0
+    }
+}
