@@ -20,7 +20,7 @@ impl<'info> AccountSet<'info> for AccountInfo<'info> {
     }
 
     fn to_account_metas(&self, mut add_account_meta: impl FnMut(AccountMeta)) {
-        add_account_meta(self.account_meta())
+        add_account_meta(self.account_meta());
     }
 }
 impl<'__a, 'info> AccountSet<'info> for &'__a AccountInfo<'info> {
@@ -35,7 +35,7 @@ impl<'__a, 'info> AccountSet<'info> for &'__a AccountInfo<'info> {
     }
 
     fn to_account_metas(&self, mut add_account_meta: impl FnMut(AccountMeta)) {
-        add_account_meta(self.account_meta())
+        add_account_meta(self.account_meta());
     }
 }
 impl<'info> SingleAccountSet<'info> for AccountInfo<'info> {

@@ -432,19 +432,18 @@ mod test {
     use crate::serialize::list::List;
     use crate::Result;
     use star_frame::serialize::test::TestByteSet;
-    use std::ops::Deref;
 
     #[test]
     fn test_combined() -> Result<()> {
         let mut test_bytes = TestByteSet::<CombinedUnsized<List<Cool>, List<u8>>>::new(())?;
-        assert_eq!(test_bytes.immut()?.t().deref().deref(), &[]);
-        assert_eq!(test_bytes.immut()?.u().deref().deref(), &[] as &[u8]);
+        assert_eq!(*test_bytes.immut()?.t(), &[]);
+        assert_eq!(*test_bytes.immut()?.u(), &[] as &[u8]);
 
         let mut mutable = test_bytes.mutable()?;
         mutable.t_mut().push(Cool { a: 1, b: 1 })?;
         mutable.u_mut().push_all([1, 2, 3])?;
-        assert_eq!(mutable.t().deref().deref(), &[Cool { a: 1, b: 1 }]);
-        assert_eq!(mutable.u().deref().deref(), &[1, 2, 3]);
+        assert_eq!(*mutable.t(), &[Cool { a: 1, b: 1 }]);
+        assert_eq!(*mutable.u(), &[1, 2, 3]);
         drop(mutable);
         // println!("bytes: {:?}", test_bytes.bytes);
         // println!(
@@ -463,9 +462,9 @@ mod test {
         let mut test_bytes = TestByteSet::<
             CombinedUnsized<List<Cool>, CombinedUnsized<List<u8>, List<PackedValue<u16>>>>,
         >::new(())?;
-        assert_eq!(test_bytes.immut()?.t().deref().deref(), &[]);
-        assert_eq!(test_bytes.immut()?.u().t().deref().deref(), &[] as &[u8]);
-        assert_eq!(test_bytes.immut()?.u().u().deref().deref(), &[]);
+        assert_eq!(*test_bytes.immut()?.t(), &[]);
+        assert_eq!(*test_bytes.immut()?.u().t(), &[] as &[u8]);
+        assert_eq!(*test_bytes.immut()?.u().u(), &[]);
 
         let mut mutable = test_bytes.mutable()?;
         mutable.t_mut().push(Cool { a: 1, b: 1 })?;
@@ -474,12 +473,9 @@ mod test {
             .u_mut()
             .u_mut()
             .push_all([PackedValue(1), PackedValue(2)])?;
-        assert_eq!(mutable.t().deref().deref(), &[Cool { a: 1, b: 1 }]);
-        assert_eq!(mutable.u().t().deref().deref(), &[1, 2, 3]);
-        assert_eq!(
-            mutable.u().u().deref().deref(),
-            &[PackedValue(1), PackedValue(2)]
-        );
+        assert_eq!(*mutable.t(), &[Cool { a: 1, b: 1 }]);
+        assert_eq!(*mutable.u().t(), &[1, 2, 3]);
+        assert_eq!(*mutable.u().u(), &[PackedValue(1), PackedValue(2)]);
         drop(mutable);
         // println!("bytes: {:?}", test_bytes.bytes);
         // println!(

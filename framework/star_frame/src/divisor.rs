@@ -9,20 +9,21 @@ use std::ops::{Add, AddAssign, Mul, MulAssign, Sub, SubAssign};
     Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default, Pod, Zeroable, Align1,
 )]
 #[repr(transparent)]
-pub struct Divisor<T, const DIV: u64>(T);
-impl<T, const DIV: u64> Divisor<T, DIV> {
+pub struct Divisor<T, const DIV: u32>(T);
+impl<T, const DIV: u32> Divisor<T, DIV> {
+    #[must_use]
     pub fn new(val: f64) -> Self
     where
         T: FromPrimitive,
     {
-        Self(T::from_f64(val * DIV as f64).unwrap())
+        Self(T::from_f64(val * f64::from(DIV)).unwrap())
     }
 
     pub fn to_f64(&self) -> f64
     where
         T: ToPrimitive,
     {
-        f64::from_f64(self.0.to_f64().unwrap() / DIV as f64).unwrap()
+        f64::from_f64(self.0.to_f64().unwrap() / f64::from(DIV)).unwrap()
     }
 
     pub fn from_raw(t: T) -> Self {
@@ -33,7 +34,7 @@ impl<T, const DIV: u64> Divisor<T, DIV> {
         self.0
     }
 }
-impl<T1, T2, const DIV: u64> Add<Divisor<T2, DIV>> for Divisor<T1, DIV>
+impl<T1, T2, const DIV: u32> Add<Divisor<T2, DIV>> for Divisor<T1, DIV>
 where
     T1: Add<T2>,
 {
@@ -43,7 +44,7 @@ where
         Divisor(self.0 + rhs.0)
     }
 }
-impl<T1, T2, const DIV: u64> AddAssign<Divisor<T2, DIV>> for Divisor<T1, DIV>
+impl<T1, T2, const DIV: u32> AddAssign<Divisor<T2, DIV>> for Divisor<T1, DIV>
 where
     T1: AddAssign<T2>,
 {
@@ -51,7 +52,7 @@ where
         self.0 += rhs.0;
     }
 }
-impl<T1, T2, const DIV: u64> Sub<Divisor<T2, DIV>> for Divisor<T1, DIV>
+impl<T1, T2, const DIV: u32> Sub<Divisor<T2, DIV>> for Divisor<T1, DIV>
 where
     T1: Sub<T2>,
 {
@@ -61,7 +62,7 @@ where
         Divisor(self.0 - rhs.0)
     }
 }
-impl<T1, T2, const DIV: u64> SubAssign<Divisor<T2, DIV>> for Divisor<T1, DIV>
+impl<T1, T2, const DIV: u32> SubAssign<Divisor<T2, DIV>> for Divisor<T1, DIV>
 where
     T1: SubAssign<T2>,
 {
@@ -69,7 +70,7 @@ where
         self.0 -= rhs.0;
     }
 }
-impl<T1, T2, const DIV: u64> Mul<T2> for Divisor<T1, DIV>
+impl<T1, T2, const DIV: u32> Mul<T2> for Divisor<T1, DIV>
 where
     T1: Mul<T2>,
 {
@@ -79,7 +80,7 @@ where
         Divisor(self.0 * rhs)
     }
 }
-impl<T1, T2, const DIV: u64> MulAssign<T2> for Divisor<T1, DIV>
+impl<T1, T2, const DIV: u32> MulAssign<T2> for Divisor<T1, DIV>
 where
     T1: MulAssign<T2>,
 {
@@ -87,7 +88,7 @@ where
         self.0 *= rhs;
     }
 }
-impl<T, const DIV: u64> BorshSerialize for Divisor<T, DIV>
+impl<T, const DIV: u32> BorshSerialize for Divisor<T, DIV>
 where
     T: BorshSerialize,
 {
@@ -95,7 +96,7 @@ where
         self.0.serialize(writer)
     }
 }
-impl<T, const DIV: u64> BorshDeserialize for Divisor<T, DIV>
+impl<T, const DIV: u32> BorshDeserialize for Divisor<T, DIV>
 where
     T: BorshDeserialize,
 {

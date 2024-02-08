@@ -12,7 +12,7 @@ use std::marker::PhantomData;
 #[validate(
     generics = [<A> where T: SingleAccountSet<'info> + AccountSetValidate<'info, A>],
     arg = A,
-    extra_validation = if self.0.owner() != &system_program::ID { Err(ProgramError::IllegalOwner.into()) } else { Ok(()) },
+    extra_validation = if self.0.owner() == &system_program::ID { Ok(()) } else { Err(ProgramError::IllegalOwner.into()) },
 )]
 #[cleanup(generics = [<A> where T: AccountSetCleanup<'info, A>], arg = A)]
 pub struct SystemAccount<'info, T = AccountInfo<'info>>(

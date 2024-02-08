@@ -7,7 +7,7 @@ use std::marker::PhantomData;
 #[derive(AccountSet, Debug)]
 #[validate(
     generics = [where T: StarFrameProgram],
-    extra_validation = if self.0.key() != &T::program_id(sys_calls)? { Err(ProgramError::IncorrectProgramId.into()) } else { Ok(()) },
+    extra_validation = if self.0.key() == &T::program_id(sys_calls)? { Ok(()) } else { Err(ProgramError::IncorrectProgramId.into()) },
 )]
 pub struct Program<'info, T>(AccountInfo<'info>, PhantomData<T>);
 

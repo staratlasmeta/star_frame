@@ -281,8 +281,9 @@ mod idl_impl {
     #[cfg(test)]
     mod tests {
         use super::*;
+
         #[test]
-        fn print_idl() -> Result<(), String> {
+        fn print_idl() {
             let idl = SystemProgram::program_to_idl().unwrap();
             assert!(idl.instructions.contains_key("CreateAccount"));
             assert!(idl.account_sets.contains_key("CreateAccountSet"));
@@ -291,7 +292,6 @@ mod idl_impl {
             matches!(create_account_data.type_def, IdlTypeDef::Struct(_));
 
             // println!("{}", serde_json::to_string_pretty(&idl).unwrap());
-            Ok(())
         }
     }
 }
