@@ -73,7 +73,7 @@ where
 
 unsafe impl<T, L> FrameworkInit<()> for List<T, L>
 where
-    T: Pod + Align1,
+    T: CheckedBitPattern + NoUninit + Align1,
     L: Pod + ToPrimitive + FromPrimitive + Zero,
 {
     const INIT_LENGTH: usize = size_of::<L>();
