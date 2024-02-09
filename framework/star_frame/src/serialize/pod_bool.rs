@@ -9,6 +9,9 @@ use star_frame_proc::Align1;
 pub struct PodBool(u8);
 
 impl PodBool {
+    pub const FALSE: PodBool = PodBool(0);
+    pub const TRUE: PodBool = PodBool(1);
+
     /// Constructor function
     #[must_use]
     pub fn new(val: bool) -> Self {
