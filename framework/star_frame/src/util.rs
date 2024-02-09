@@ -129,3 +129,26 @@ pub fn normalize_rent<
         }
     }
 }
+
+/// Refunds rent to the funder so long as the account has more than the minimum rent.
+/// Assumes `info` is owned by this program.
+pub fn refund_rent<'info, T: ?Sized + UnsizedType + ProgramAccount, F: WritableAccount<'info>>(
+    info: &DataAccount<'info, T>,
+    funder: &F,
+    sys_calls: &mut impl SysCallInvoke,
+) -> Result<()> {
+    let rent = sys_calls.get_rent()?;
+    let lamports = info.account_info().lamports();
+    let data_len = info.account_info().data_len();
+    let rent_lamports = rent.minimum_balance(data_len);
+    match rent_lamports.cmp(&lamports) {
+        Ordering::Equal => Ok(()),
+        Ordering::Greater => Err(anyhow!("Funder must be Signer to increase rent")),
+        Ordering::Less => {
+            let transfer_amount = lamports - rent_lamports;
+            **info.account_info().lamports.borrow_mut() -= transfer_amount;
+            **funder.account_info().lamports.borrow_mut() += transfer_amount;
+            Ok(())
+        }
+    }
+}

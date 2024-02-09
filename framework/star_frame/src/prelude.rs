@@ -25,12 +25,13 @@ pub use crate::serialize::{
     pod_bool::*,
     unsized_enum::UnsizedEnum,
     unsized_type::{unsized_type, UnsizedType},
-    FrameworkFromBytes, FrameworkSerialize,
+    FrameworkFromBytes, FrameworkFromBytesMut, FrameworkInit, FrameworkSerialize,
 };
 
 pub use crate::unit_val::*;
 
 pub use crate::align1::Align1;
+pub use crate::packed_value::*;
 
 pub use crate::program::{program, system_program::SystemProgram, ProgramIds, StarFrameProgram};
 pub use crate::pubkey;
@@ -43,7 +44,7 @@ pub use crate::solana_program::{
 
 pub use crate::anyhow;
 pub use crate::create_unit_system;
-pub use crate::util::Network;
+pub use crate::util::{normalize_rent, refund_rent, Network};
 
 // bytemuck
 pub use bytemuck::{CheckedBitPattern, NoUninit, Pod, Zeroable};

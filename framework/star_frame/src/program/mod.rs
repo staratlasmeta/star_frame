@@ -23,7 +23,7 @@ pub trait StarFrameProgram {
     fn program_id(syscalls: &impl SysCallCore) -> Result<Pubkey> {
         Self::PROGRAM_IDS
             .find_network(syscalls.current_network())
-            .map(|k| *k)
+            .copied()
     }
 }
 

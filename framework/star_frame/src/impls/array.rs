@@ -161,3 +161,27 @@ where
         Ok(())
     }
 }
+
+#[cfg(feature = "idl")]
+pub mod idl_impl {
+    use crate::idl::AccountSetToIdl;
+    use star_frame_idl::account_set::IdlAccountSetDef;
+    use star_frame_idl::IdlDefinition;
+
+    impl<'info, T, const N: usize> AccountSetToIdl<'info, ()> for [T; N]
+    where
+        T: AccountSetToIdl<'info, ()>,
+    {
+        fn account_set_to_idl(
+            idl_definition: &mut IdlDefinition,
+            arg: (),
+        ) -> crate::Result<IdlAccountSetDef> {
+            let account = Box::new(T::account_set_to_idl(idl_definition, arg)?);
+            Ok(IdlAccountSetDef::Many {
+                account,
+                min: N,
+                max: Some(N),
+            })
+        }
+    }
+}

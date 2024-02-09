@@ -85,8 +85,8 @@ pub trait FrameworkInstruction {
     /// Runs any extra validations on the accounts.
     #[allow(unused_variables)]
     fn extra_validations(
-        account_set: &Self::Accounts<'_, '_, '_>,
-        validate: &Self::ValidateArg<'_>,
+        account_set: &mut Self::Accounts<'_, '_, '_>,
+        validate: &mut Self::RunArg<'_>,
         sys_calls: &mut impl SysCallInvoke,
     ) -> Result<()> {
         Ok(())
@@ -118,14 +118,14 @@ where
         mut accounts: &[AccountInfo],
         sys_calls: &mut impl SysCalls,
     ) -> Result<()> {
-        let (decode, validate, run, cleanup) = Self::split_to_args(data);
+        let (decode, validate, mut run, cleanup) = Self::split_to_args(data);
         let mut account_set = <Self as FrameworkInstruction>::Accounts::decode_accounts(
             &mut accounts,
             decode,
             sys_calls,
         )?;
-        Self::extra_validations(&account_set, &validate, sys_calls)?;
         account_set.validate_accounts(validate, sys_calls)?;
+        Self::extra_validations(&mut account_set, &mut run, sys_calls)?;
         let ret = Self::run_instruction(run, program_id, &mut account_set, sys_calls)?;
         account_set.cleanup_accounts(cleanup, sys_calls)?;
         let mut return_data = vec![0u8; MAX_RETURN_DATA];

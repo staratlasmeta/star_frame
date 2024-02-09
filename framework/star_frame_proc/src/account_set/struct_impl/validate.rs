@@ -27,6 +27,7 @@ struct ValidateFieldArgs {
     skip: bool,
     requires: Option<Requires>,
     arg: Option<Expr>,
+    arg_ty: Option<Type>,
 }
 impl Default for ValidateFieldArgs {
     fn default() -> Self {
@@ -35,6 +36,7 @@ impl Default for ValidateFieldArgs {
             skip: false,
             requires: None,
             arg: Some(syn::parse_quote!(())),
+            arg_ty: None,
         }
     }
 }
@@ -123,8 +125,8 @@ pub(super) fn validates(
     validate_ids.into_iter().map(|(id, validate_struct_args)|{
         let validate_type: Type = validate_struct_args.arg.unwrap_or_else(|| syn::parse_quote!(()));
         let relevant_field_validates = field_validates.iter().map(|f| f.iter().find(|f| f.id.as_ref().map(LitStr::value) == id).cloned().unwrap_or_default()).collect::<Vec<_>>();
-        let validate_args: Vec<Expr> = relevant_field_validates.iter().map(|f| {
-            f.arg.clone().unwrap_or_else(|| syn::parse_quote!(()))
+        let validate_args: Vec<(Expr, Type)> = relevant_field_validates.iter().map(|f| {
+            (f.arg.clone().unwrap_or_else(|| syn::parse_quote!(())), f.arg_ty.clone().unwrap_or_else(|| syn::parse_quote!(_)))
         }).collect();
 
         let (_, ty_generics, _) = main_generics.split_for_impl();
@@ -167,11 +169,11 @@ pub(super) fn validates(
                 }
                 a.skip
             }))
-            .map(| (((field_type, field_name), validate_arg), skip)| if skip {
+            .map(| (((field_type, field_name), (validate_arg, validate_ty)), skip)| if skip {
                 quote! {}
             } else {
                 quote! {
-                    <#field_type as #account_set_validate<#info_lifetime, _>>::validate_accounts(&mut self.#field_name, #validate_arg, sys_calls)?;
+                    <#field_type as #account_set_validate<#info_lifetime, #validate_ty>>::validate_accounts(&mut self.#field_name, #validate_arg, sys_calls)?;
                 }
             })
             .collect::<Vec<_>>();
