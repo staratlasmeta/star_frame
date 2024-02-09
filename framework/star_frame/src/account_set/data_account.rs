@@ -1,21 +1,10 @@
-use crate::account_set::{AccountSet, SignedAccount, SingleAccountSet, WritableAccount};
-use crate::packed_value::PackedValue;
-use crate::prelude::{SysCallCore, SystemProgram};
-use crate::program::StarFrameProgram;
-use crate::serialize::{FrameworkFromBytes, FrameworkFromBytesMut};
-use crate::sys_calls::SysCallInvoke;
-use crate::util::refund_rent;
-use crate::Result;
+use crate::account_set::{SignedAccount, WritableAccount};
+use crate::prelude::*;
 use anyhow::bail;
 use bytemuck::{bytes_of, from_bytes, from_bytes_mut};
 use derivative::Derivative;
-use solana_program::account_info::AccountInfo;
 use solana_program::entrypoint::MAX_PERMITTED_DATA_INCREASE;
-use solana_program::program_error::ProgramError;
 use solana_program::system_instruction::MAX_PERMITTED_DATA_LENGTH;
-use star_frame::prelude::Program;
-use star_frame::serialize::unsized_type::UnsizedType;
-use star_frame::util::normalize_rent;
 use std::cell::{Ref, RefMut};
 use std::marker::PhantomData;
 use std::mem::{size_of, size_of_val};
@@ -59,16 +48,15 @@ pub struct NormalizeRent<'a, 'info, F> {
     pub system_program: &'a Program<'info, SystemProgram>,
     pub funder: &'a F,
 }
+
 #[derive(Debug, Copy, Clone)]
 pub struct RefundRent<'a, F> {
     pub recipient: &'a F,
 }
 
 #[derive(AccountSet, Debug)]
-#[validate(
-    extra_validation = validate_data_account(self, sys_calls),
-)]
-#[cleanup(extra_validation = )]
+#[validate(extra_validation = validate_data_account(self, sys_calls))]
+#[cleanup(extra_cleanup = self.check_cleanup(sys_calls))]
 #[cleanup(
     id = "normalize_rent",
     generics = [<'a, F> where F: WritableAccount<'info> + SignedAccount<'info>],
@@ -87,6 +75,7 @@ pub struct DataAccount<'info, T: ProgramAccount + UnsizedType + ?Sized> {
     #[account_set(skip = false)]
     closed: bool,
 }
+
 impl<'info, T> DataAccount<'info, T>
 where
     T: ProgramAccount + UnsizedType + ?Sized,
@@ -182,6 +171,40 @@ where
     ) -> Result<()> {
         refund_rent(self, arg.recipient, sys_calls)
     }
+
+    pub fn check_cleanup(&self, sys_calls: &mut impl SysCallCore) -> Result<()> {
+        #[cfg(feature = "cleanup_rent_warning")]
+        {
+            use anyhow::Context;
+            use std::cmp::Ordering;
+            if self.is_writable() {
+                let rent = sys_calls.get_rent()?;
+                let lamports = self.account_info().lamports();
+                let data_len = self.account_info().data_len();
+                let rent_lamports = rent.minimum_balance(data_len);
+                match rent_lamports.cmp(&lamports) {
+                    Ordering::Greater => {
+                        // is this more descriptive than just letting the runtime error out?
+                        return Err(anyhow::anyhow!(ProgramError::AccountNotRentExempt))
+                            .with_context(|| {
+                                format!(
+                                    "{} was left with less lamports than required by rent",
+                                    self.key()
+                                )
+                            });
+                    }
+                    Ordering::Less => {
+                        msg!(
+                            "{} was left with more lamports than required by rent",
+                            self.key()
+                        );
+                    }
+                    Ordering::Equal => {}
+                }
+            }
+        }
+        Ok(())
+    }
 }
 
 impl<'info, T> SingleAccountSet<'info> for DataAccount<'info, T>
@@ -201,6 +224,7 @@ where
     data: T::Ref<'a>,
     _r: Ref<'a, [u8; 0]>,
 }
+
 impl<'a, T> Deref for DataRef<'a, T>
 where
     T: 'a + ProgramAccount + UnsizedType + ?Sized,
@@ -220,6 +244,7 @@ where
     data: T::RefMut<'a>,
     _r: RefMut<'a, [u8; 0]>,
 }
+
 impl<'a, T> Deref for DataRefMut<'a, T>
 where
     T: 'a + ProgramAccount + UnsizedType + ?Sized,
@@ -230,6 +255,7 @@ where
         &self.data
     }
 }
+
 impl<'a, T> DerefMut for DataRefMut<'a, T>
 where
     T: 'a + ProgramAccount + UnsizedType + ?Sized,

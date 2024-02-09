@@ -6,8 +6,9 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
-default = ["idl"]
+default = ["idl", "cleanup_rent_warning"]
 fake_solana_os = []
+cleanup_rent_warning = []
 idl = ["star_frame_idl", "serde_json", "star_frame_proc/idl"]
 
 [dependencies]
