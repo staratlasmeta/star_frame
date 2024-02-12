@@ -109,9 +109,9 @@ where
         }
     }
 }
-impl<'info, A, VArg> AccountSetValidate<'info, Option<VArg>> for Option<A>
+impl<'a, 'info, A, VArg> AccountSetValidate<'a, 'info, Option<VArg>> for Option<A>
 where
-    A: AccountSetValidate<'info, VArg>,
+    for<'b> A: AccountSetValidate<'b, 'info, VArg>,
 {
     fn validate_accounts(
         &mut self,
@@ -128,9 +128,9 @@ where
         }
     }
 }
-impl<'info, A, VArg> AccountSetValidate<'info, (VArg,)> for Option<A>
+impl<'a, 'info, A, VArg> AccountSetValidate<'a, 'info, (VArg,)> for Option<A>
 where
-    A: AccountSetValidate<'info, VArg>,
+    for<'b> A: AccountSetValidate<'b, 'info, VArg>,
 {
     fn validate_accounts(
         &mut self,
@@ -140,9 +140,9 @@ where
         self.validate_accounts(Some(validate_input.0), sys_calls)
     }
 }
-impl<'info, A> AccountSetValidate<'info, ()> for Option<A>
+impl<'a, 'info, A> AccountSetValidate<'a, 'info, ()> for Option<A>
 where
-    A: AccountSetValidate<'info, ()>,
+    for<'b> A: AccountSetValidate<'b, 'info, ()>,
 {
     fn validate_accounts(
         &mut self,
@@ -153,9 +153,9 @@ where
     }
 }
 
-impl<'info, A, CArg> AccountSetCleanup<'info, Option<CArg>> for Option<A>
+impl<'a, 'info, A, CArg> AccountSetCleanup<'a, 'info, Option<CArg>> for Option<A>
 where
-    A: AccountSetCleanup<'info, CArg>,
+    for<'b> A: AccountSetCleanup<'b, 'info, CArg>,
 {
     fn cleanup_accounts(
         &mut self,
@@ -172,9 +172,9 @@ where
         }
     }
 }
-impl<'info, A, VArg> AccountSetCleanup<'info, (VArg,)> for Option<A>
+impl<'a, 'info, A, VArg> AccountSetCleanup<'a, 'info, (VArg,)> for Option<A>
 where
-    A: AccountSetCleanup<'info, VArg>,
+    for<'b> A: AccountSetCleanup<'b, 'info, VArg>,
 {
     fn cleanup_accounts(
         &mut self,
@@ -184,9 +184,9 @@ where
         self.cleanup_accounts(Some(cleanup_input.0), sys_calls)
     }
 }
-impl<'info, A> AccountSetCleanup<'info, ()> for Option<A>
+impl<'a, 'info, A> AccountSetCleanup<'a, 'info, ()> for Option<A>
 where
-    A: AccountSetCleanup<'info, ()>,
+    for<'b> A: AccountSetCleanup<'b, 'info, ()>,
 {
     fn cleanup_accounts(
         &mut self,

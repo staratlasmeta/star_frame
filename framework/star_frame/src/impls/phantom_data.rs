@@ -33,7 +33,7 @@ where
         Ok(Self)
     }
 }
-impl<'info, T> AccountSetValidate<'info, ()> for PhantomData<T>
+impl<'a, 'info, T> AccountSetValidate<'a, 'info, ()> for PhantomData<T>
 where
     T: ?Sized,
 {
@@ -45,7 +45,7 @@ where
         Ok(())
     }
 }
-impl<'info, T> AccountSetCleanup<'info, ()> for PhantomData<T>
+impl<'a, 'info, T> AccountSetCleanup<'a, 'info, ()> for PhantomData<T>
 where
     T: ?Sized,
 {

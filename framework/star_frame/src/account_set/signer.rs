@@ -14,10 +14,10 @@ use std::ops::{Deref, DerefMut};
 #[account_set(skip_default_idl, generics = [where T: AccountSet<'info>])]
 #[decode(generics = [<A> where T: AccountSetDecode<'a, 'info, A>], arg = A)]
 #[validate(
-    generics = [<A> where T: AccountSetValidate<'info, A> + SingleAccountSet<'info>], arg = A,
+    generics = [<A> where for<'a> T: AccountSetValidate<'a, 'info, A> + SingleAccountSet<'info>], arg = A,
     extra_validation = self.check_signer(),
 )]
-#[cleanup(generics = [<A> where T: AccountSetCleanup<'info, A>], arg = A)]
+#[cleanup(generics = [<A> where T: AccountSetCleanup<'cleanup, 'info, A>], arg = A)]
 pub struct Signer<T>(
     #[decode(arg = arg)]
     #[validate(arg = arg)]

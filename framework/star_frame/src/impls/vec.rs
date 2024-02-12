@@ -129,9 +129,9 @@ where
     }
 }
 
-impl<'info, T> AccountSetValidate<'info, ()> for Vec<T>
+impl<'a, 'info, T> AccountSetValidate<'a, 'info, ()> for Vec<T>
 where
-    T: AccountSetValidate<'info, ()>,
+    for<'b> T: AccountSetValidate<'b, 'info, ()>,
 {
     fn validate_accounts(
         &mut self,
@@ -145,9 +145,9 @@ where
     }
 }
 // TODO: This arg is annoying
-impl<'info, T, TA> AccountSetValidate<'info, (TA,)> for Vec<T>
+impl<'a, 'info, T, TA> AccountSetValidate<'a, 'info, (TA,)> for Vec<T>
 where
-    T: AccountSetValidate<'info, TA>,
+    for<'b> T: AccountSetValidate<'b, 'info, TA>,
     TA: Clone,
 {
     fn validate_accounts(
@@ -161,9 +161,9 @@ where
         Ok(())
     }
 }
-impl<'info, T, TA> AccountSetValidate<'info, Vec<TA>> for Vec<T>
+impl<'a, 'info, T, TA> AccountSetValidate<'a, 'info, Vec<TA>> for Vec<T>
 where
-    T: AccountSetValidate<'info, TA>,
+    for<'b> T: AccountSetValidate<'b, 'info, TA>,
 {
     fn validate_accounts(
         &mut self,
@@ -181,9 +181,9 @@ where
         Ok(())
     }
 }
-impl<'info, T, TA, const N: usize> AccountSetValidate<'info, [TA; N]> for Vec<T>
+impl<'a, 'info, T, TA, const N: usize> AccountSetValidate<'a, 'info, [TA; N]> for Vec<T>
 where
-    T: AccountSetValidate<'info, TA>,
+    for<'b> T: AccountSetValidate<'b, 'info, TA>,
 {
     fn validate_accounts(
         &mut self,
@@ -201,9 +201,9 @@ where
         Ok(())
     }
 }
-impl<'a, 'info, T, TA, const N: usize> AccountSetValidate<'info, &'a mut [TA; N]> for Vec<T>
+impl<'a, 'b, 'info, T, TA, const N: usize> AccountSetValidate<'b, 'info, &'a mut [TA; N]> for Vec<T>
 where
-    T: AccountSetValidate<'info, &'a mut TA>,
+    for<'c> T: AccountSetValidate<'c, 'info, &'a mut TA>,
 {
     fn validate_accounts(
         &mut self,
@@ -222,9 +222,9 @@ where
     }
 }
 
-impl<'info, T> AccountSetCleanup<'info, ()> for Vec<T>
+impl<'a, 'info, T> AccountSetCleanup<'a, 'info, ()> for Vec<T>
 where
-    T: AccountSetCleanup<'info, ()>,
+    for<'b> T: AccountSetCleanup<'b, 'info, ()>,
 {
     fn cleanup_accounts(
         &mut self,
@@ -237,9 +237,9 @@ where
         Ok(())
     }
 }
-impl<'info, T, TA> AccountSetCleanup<'info, (TA,)> for Vec<T>
+impl<'a, 'info, T, TA> AccountSetCleanup<'a, 'info, (TA,)> for Vec<T>
 where
-    T: AccountSetCleanup<'info, TA>,
+    for<'b> T: AccountSetCleanup<'b, 'info, TA>,
     TA: Clone,
 {
     fn cleanup_accounts(
@@ -253,9 +253,9 @@ where
         Ok(())
     }
 }
-impl<'info, T, TA> AccountSetCleanup<'info, Vec<TA>> for Vec<T>
+impl<'a, 'info, T, TA> AccountSetCleanup<'a, 'info, Vec<TA>> for Vec<T>
 where
-    T: AccountSetCleanup<'info, TA>,
+    for<'b> T: AccountSetCleanup<'b, 'info, TA>,
 {
     fn cleanup_accounts(
         &mut self,
@@ -273,9 +273,9 @@ where
         Ok(())
     }
 }
-impl<'info, T, TA, const N: usize> AccountSetCleanup<'info, [TA; N]> for Vec<T>
+impl<'a, 'info, T, TA, const N: usize> AccountSetCleanup<'a, 'info, [TA; N]> for Vec<T>
 where
-    T: AccountSetCleanup<'info, TA>,
+    for<'b> T: AccountSetCleanup<'b, 'info, TA>,
 {
     fn cleanup_accounts(
         &mut self,
@@ -293,9 +293,9 @@ where
         Ok(())
     }
 }
-impl<'a, 'info, T, TA, const N: usize> AccountSetCleanup<'info, &'a mut [TA; N]> for Vec<T>
+impl<'a, 'b, 'info, T, TA, const N: usize> AccountSetCleanup<'b, 'info, &'a mut [TA; N]> for Vec<T>
 where
-    T: AccountSetCleanup<'info, &'a mut TA>,
+    for<'c> T: AccountSetCleanup<'c, 'info, &'a mut TA>,
 {
     fn cleanup_accounts(
         &mut self,

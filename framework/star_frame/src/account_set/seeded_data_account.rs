@@ -12,7 +12,7 @@ pub trait SeededAccountData: ProgramAccount {
 #[validate(id = "wo_bump", arg = Seeds < T::Seeds >)]
 #[validate(id = "with_bump", arg = SeedsWithBump < T::Seeds >)]
 #[cleanup(
-    generics = [<A> where SeededAccount<DataAccount<'info, T>, T::Seeds, P>: AccountSetCleanup<'info, A>],
+    generics = [<A> where SeededAccount<DataAccount<'info, T>, T::Seeds, P>: AccountSetCleanup<'cleanup, 'info, A>],
     arg = A,
 )]
 pub struct SeededDataAccount<'info, T, P: SeedProgram = CurrentProgram>(

@@ -7,7 +7,7 @@ use proc_macro_error::abort;
 use quote::quote;
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
-use syn::{Expr, Field, LitStr, Type};
+use syn::{parse_quote, Expr, Field, GenericParam, Lifetime, LifetimeParam, LitStr, Type};
 
 #[derive(ArgumentList)]
 struct CleanupStructArgs {
@@ -103,6 +103,9 @@ pub(super) fn cleanups(
         }
     }
 
+    // TODO: Make user configurable
+    let cleanup_lifetime: Lifetime = parse_quote!('cleanup);
+
     cleanup_ids.into_iter().map(|(id, cleanup_struct_args)|{
         let cleanup_type: Type = cleanup_struct_args.arg.unwrap_or_else(|| syn::parse_quote!(()));
         let cleanup_args: Vec<Expr> = field_cleanups.iter().map(|f| {
@@ -111,6 +114,7 @@ pub(super) fn cleanups(
 
         let (_, ty_generics, _) = main_generics.split_for_impl();
         let mut generics = other_generics.clone();
+        generics.params.push(GenericParam::Lifetime(LifetimeParam::new(cleanup_lifetime.clone())));
         if let Some(extra_generics) = cleanup_struct_args.generics.map(|g| g.into_inner()) {
             generics.params.extend(extra_generics.params);
             if let Some(extra_where_clause) = extra_generics.where_clause {
@@ -125,13 +129,13 @@ pub(super) fn cleanups(
 
         quote!{
             #[automatically_derived]
-            impl #impl_generics #account_set_cleanup<#info_lifetime, #cleanup_type> for #ident #ty_generics #where_clause {
+            impl #impl_generics #account_set_cleanup<#cleanup_lifetime, #info_lifetime, #cleanup_type> for #ident #ty_generics #where_clause {
                 fn cleanup_accounts(
-                    &mut self,
+                    &#cleanup_lifetime mut self,
                     arg: #cleanup_type,
                     sys_calls: &mut impl #sys_call_invoke,
                 ) -> #result<()> {
-                    #(<#field_type as #account_set_cleanup<#info_lifetime, _>>::cleanup_accounts(&mut self.#field_name, #cleanup_args, sys_calls)?;)*
+                    #(<#field_type as #account_set_cleanup<'_, #info_lifetime, _>>::cleanup_accounts(&mut self.#field_name, #cleanup_args, sys_calls)?;)*
                     #extra_cleanup
                     Ok(())
                 }

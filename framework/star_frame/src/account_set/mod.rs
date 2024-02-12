@@ -128,20 +128,20 @@ pub trait AccountSetDecode<'a, 'info, A>: AccountSet<'info> + Sized {
 
 /// An [`AccountSet`] that can be validated using arg `A`.
 /// Evaluate wrapping as inner before outer.
-pub trait AccountSetValidate<'info, A>: AccountSet<'info> + Sized {
+pub trait AccountSetValidate<'a, 'info, A>: AccountSet<'info> + Sized {
     /// Validate the accounts using `validate_input`.
     fn validate_accounts(
-        &mut self,
+        &'a mut self,
         validate_input: A,
         sys_calls: &mut impl SysCallInvoke,
     ) -> Result<()>;
 }
 
 /// An [`AccountSet`] that can be cleaned up using arg `A`.
-pub trait AccountSetCleanup<'info, A>: AccountSet<'info> + Sized {
+pub trait AccountSetCleanup<'a, 'info, A>: AccountSet<'info> + Sized {
     /// Clean up the accounts using `cleanup_input`.
     fn cleanup_accounts(
-        &mut self,
+        &'a mut self,
         cleanup_input: A,
         sys_calls: &mut impl SysCallInvoke,
     ) -> Result<()>;

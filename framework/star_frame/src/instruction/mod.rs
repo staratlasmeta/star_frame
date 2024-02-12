@@ -66,8 +66,8 @@ pub trait FrameworkInstruction {
 
     /// The [`AccountSet`] used by this instruction.
     type Accounts<'b, 'c, 'info>: AccountSetDecode<'b, 'info, Self::DecodeArg<'c>>
-        + AccountSetValidate<'info, Self::ValidateArg<'c>>
-        + AccountSetCleanup<'info, Self::CleanupArg<'c>>
+        + for<'d> AccountSetValidate<'d, 'info, Self::ValidateArg<'c>>
+        + for<'d> AccountSetCleanup<'d, 'info, Self::CleanupArg<'c>>
     where
         'info: 'b;
 

@@ -22,7 +22,8 @@ use star_frame_proc::AccountSet;
     generics = [
         <IC>
         where
-            IC: InitCreateArg<'info>,
+            'info: 'validate,
+            IC: InitCreateArg<'validate, 'info>,
             T: FrameworkInit<IC::FrameworkInitArg>,
     ],
     arg = Create<SeededInit<T::Seeds, IC>>,
@@ -33,14 +34,15 @@ use star_frame_proc::AccountSet;
     generics = [
         <IC>
         where
-            IC: InitCreateArg<'info>,
+            'info: 'validate,
+            IC: InitCreateArg<'validate, 'info>,
             T: FrameworkInit<IC::FrameworkInitArg>,
     ],
     arg = CreateIfNeeded<SeededInit<T::Seeds, IC>>,
     extra_validation = seed_init_validate_if_needed(self, arg.0, sys_calls)
 )]
 #[cleanup(
-    generics = [<A> where SeededAccount<InitAccount<'info, T>, T::Seeds, P>: AccountSetCleanup<'info, A>],
+    generics = [<A> where SeededAccount<InitAccount<'info, T>, T::Seeds, P>: AccountSetCleanup<'cleanup, 'info, A>],
     arg = A,
 )]
 pub struct SeededInitAccount<'info, T, P: SeedProgram = CurrentProgram>(
@@ -83,10 +85,10 @@ where
     seeds: &'a SeedsWithBump<S>,
     init_arg: IC,
 }
-impl<'a, 'info, S, IC> InitCreateArg<'info> for SeededInitArg<'a, S, IC>
+impl<'a, 'info: 'a, S, IC> InitCreateArg<'a, 'info> for SeededInitArg<'a, S, IC>
 where
     S: GetSeeds,
-    IC: InitCreateArg<'info>,
+    IC: InitCreateArg<'a, 'info>,
 {
     type FrameworkInitArg = IC::FrameworkInitArg;
     type AccountSeeds = S;
@@ -96,9 +98,9 @@ where
         self.init_arg.system_program()
     }
 
-    fn split<'b>(
-        &'b mut self,
-    ) -> CreateSplit<'b, 'info, Self::FrameworkInitArg, Self::AccountSeeds, Self::FunderAccount>
+    fn split(
+        self,
+    ) -> CreateSplit<'a, 'info, Self::FrameworkInitArg, Self::AccountSeeds, Self::FunderAccount>
     {
         let split = self.init_arg.split();
         CreateSplit {
@@ -110,14 +112,14 @@ where
     }
 }
 
-fn seed_init_validate<'info, T, IC, P: SeedProgram>(
-    account: &mut SeededInitAccount<'info, T, P>,
+fn seed_init_validate<'a, 'info: 'a, T, IC, P: SeedProgram>(
+    account: &'a mut SeededInitAccount<'info, T, P>,
     arg: SeededInit<T::Seeds, IC>,
     sys_calls: &mut impl SysCallInvoke,
 ) -> Result<()>
 where
     T: SeededAccountData + UnsizedType + FrameworkInit<IC::FrameworkInitArg> + ?Sized,
-    IC: InitCreateArg<'info>,
+    IC: InitCreateArg<'a, 'info>,
 {
     SeededAccount::validate_accounts(&mut account.0, (Skip, Seeds(arg.seeds)), sys_calls)?;
     InitAccount::validate_accounts(
@@ -132,14 +134,14 @@ where
     Ok(())
 }
 
-fn seed_init_validate_if_needed<'info, T, IC, P: SeedProgram>(
-    account: &mut SeededInitAccount<'info, T, P>,
+fn seed_init_validate_if_needed<'a, 'info: 'a, T, IC, P: SeedProgram>(
+    account: &'a mut SeededInitAccount<'info, T, P>,
     arg: SeededInit<T::Seeds, IC>,
     sys_calls: &mut impl SysCallInvoke,
 ) -> Result<()>
 where
     T: SeededAccountData + UnsizedType + FrameworkInit<IC::FrameworkInitArg> + ?Sized,
-    IC: InitCreateArg<'info>,
+    IC: InitCreateArg<'a, 'info>,
 {
     SeededAccount::validate_accounts(&mut account.0, (Skip, Seeds(arg.seeds)), sys_calls)?;
     InitAccount::validate_accounts(

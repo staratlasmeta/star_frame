@@ -1,3 +1,4 @@
+use crate::TestProgram;
 use bytemuck::{Pod, Zeroable};
 use solana_program::account_info::AccountInfo;
 use solana_program::pubkey::Pubkey;
@@ -7,7 +8,7 @@ use star_frame::idl::AccountSetToIdl;
 use star_frame::impls::option::Remaining;
 use star_frame::instruction::FrameworkInstruction;
 use star_frame::instruction::InstructionToIdl;
-use star_frame::prelude::SystemAccount;
+use star_frame::prelude::{DataAccount, ProgramAccount, StarFrameProgram, SystemAccount};
 use star_frame::serialize::{unsized_type::UnsizedType, FrameworkFromBytes};
 use star_frame::sys_calls::SysCallInvoke;
 use star_frame::Result;
@@ -47,6 +48,15 @@ impl FrameworkInstruction for TestInstruction1 {
         (r.val3, r.val2, r.val3, (r.val, r.val2))
     }
 
+    fn extra_validations(
+        account_set: &mut Self::Accounts<'_, '_, '_>,
+        _validate: &mut Self::RunArg<'_>,
+        _sys_calls: &mut impl SysCallInvoke,
+    ) -> Result<()> {
+        println!("val: {}", account_set.account4.data()?.val);
+        Ok(())
+    }
+
     fn run_instruction<'b, 'info>(
         _run_arg: Self::RunArg<'_>,
         _program_id: &Pubkey,
@@ -74,6 +84,17 @@ where
     #[decode(arg = Remaining(()))]
     pub account2: Option<&'a AccountInfo<'info>>,
     pub account3: SystemAccount<'info>,
+    pub account4: DataAccount<'info, AccountDataForU8>,
+}
+
+#[derive(Pod, Zeroable, Copy, Clone, Debug, Align1)]
+#[repr(C)]
+pub struct AccountDataForU8 {
+    pub val: u8,
+}
+impl ProgramAccount for AccountDataForU8 {
+    type OwnerProgram = TestProgram;
+    const DISCRIMINANT: <Self::OwnerProgram as StarFrameProgram>::AccountDiscriminant = 5;
 }
 
 #[derive(AccountSet)]

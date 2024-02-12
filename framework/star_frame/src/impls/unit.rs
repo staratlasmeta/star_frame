@@ -28,7 +28,7 @@ impl<'a, 'info> AccountSetDecode<'a, 'info, ()> for () {
         Ok(decode_input)
     }
 }
-impl<'info> AccountSetValidate<'info, ()> for () {
+impl<'a, 'info> AccountSetValidate<'a, 'info, ()> for () {
     fn validate_accounts(
         &mut self,
         validate_input: (),
@@ -38,7 +38,7 @@ impl<'info> AccountSetValidate<'info, ()> for () {
     }
 }
 
-impl<'info> AccountSetCleanup<'info, ()> for () {
+impl<'a, 'info> AccountSetCleanup<'a, 'info, ()> for () {
     fn cleanup_accounts(
         &mut self,
         cleanup_input: (),

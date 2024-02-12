@@ -57,19 +57,19 @@ pub struct Seeds<T>(pub T);
 )]
 #[decode(generics = [<A> where T: AccountSetDecode<'a, 'info, A>], arg = A)]
 #[validate(
-    generics = [<A> where T: AccountSetValidate<'info, A> + SingleAccountSet<'info>],
+    generics = [<A> where T: AccountSetValidate<'validate, 'info, A> + SingleAccountSet<'info>],
     arg = (S, A),
     before_validation = Self::validate_seeds(self, arg.0, sys_calls)
 )]
 #[validate(
     id = "seeds",
-    generics = [where T: AccountSetValidate<'info, ()> + SingleAccountSet<'info>],
+    generics = [where T: AccountSetValidate<'validate, 'info, ()> + SingleAccountSet<'info>],
     arg = Seeds<S>,
     before_validation = Self::validate_seeds(self, arg.0, sys_calls)
 )]
 #[validate(
     id = "seeds_generic",
-    generics = [<A> where T: AccountSetValidate<'info, A> + SingleAccountSet<'info>],
+    generics = [<A> where T: AccountSetValidate<'validate, 'info, A> + SingleAccountSet<'info>],
     arg = (Seeds<S>, A),
     before_validation = Self::validate_seeds(self, arg.0.0, sys_calls)
 )]
@@ -81,13 +81,13 @@ pub struct Seeds<T>(pub T);
 )]
 #[validate(
     id = "seeds_with_bump",
-    generics = [where T: AccountSetValidate<'info, ()> + SingleAccountSet<'info>],
+    generics = [where T: AccountSetValidate<'validate, 'info, ()> + SingleAccountSet<'info>],
     arg = SeedsWithBump<S>,
     before_validation = Self::validate_seeds_with_bump(self, arg, sys_calls)
 )]
 #[validate(
     id = "seeds_with_bump_generic",
-    generics = [<A> where T: AccountSetValidate<'info, A> + SingleAccountSet<'info>],
+    generics = [<A> where T: AccountSetValidate<'validate, 'info, A> + SingleAccountSet<'info>],
     arg = (SeedsWithBump<S>, A),
     before_validation = Self::validate_seeds_with_bump(self, arg.0, sys_calls)
 )]
@@ -97,7 +97,7 @@ pub struct Seeds<T>(pub T);
     arg = (Skip, SeedsWithBump<S>),
     before_validation = Self::validate_seeds_with_bump(self, arg.1, sys_calls)
 )]
-#[cleanup(generics = [<A> where T: AccountSetCleanup <'info, A>], arg = A)]
+#[cleanup(generics = [<A> where T: AccountSetCleanup<'cleanup, 'info, A>], arg = A)]
 pub struct SeededAccount<T, S: GetSeeds, P: SeedProgram = CurrentProgram> {
     #[decode(arg = arg)]
     #[validate(arg = arg.1)]

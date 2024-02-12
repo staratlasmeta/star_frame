@@ -152,36 +152,36 @@ impl<'a, 'info> AccountSetDecode<'a, 'info, ()> for &'a AccountInfo<'info> {
         Ok(&account[0])
     }
 }
-impl<'info> AccountSetValidate<'info, ()> for AccountInfo<'info> {
+impl<'a, 'info> AccountSetValidate<'a, 'info, ()> for AccountInfo<'info> {
     fn validate_accounts(
-        &mut self,
+        &'a mut self,
         validate_input: (),
         _sys_calls: &mut impl SysCallInvoke,
     ) -> Result<()> {
         Ok(validate_input)
     }
 }
-impl<'a, 'info> AccountSetValidate<'info, ()> for &'a AccountInfo<'info> {
+impl<'a, 'b, 'info> AccountSetValidate<'b, 'info, ()> for &'a AccountInfo<'info> {
     fn validate_accounts(
-        &mut self,
+        &'b mut self,
         validate_input: (),
         _sys_calls: &mut impl SysCallInvoke,
     ) -> Result<()> {
         Ok(validate_input)
     }
 }
-impl<'info> AccountSetCleanup<'info, ()> for AccountInfo<'info> {
+impl<'a, 'info> AccountSetCleanup<'a, 'info, ()> for AccountInfo<'info> {
     fn cleanup_accounts(
-        &mut self,
+        &'a mut self,
         cleanup_input: (),
         _sys_calls: &mut impl SysCallInvoke,
     ) -> Result<()> {
         Ok(cleanup_input)
     }
 }
-impl<'a, 'info> AccountSetCleanup<'info, ()> for &'a AccountInfo<'info> {
+impl<'a, 'b, 'info> AccountSetCleanup<'b, 'info, ()> for &'a AccountInfo<'info> {
     fn cleanup_accounts(
-        &mut self,
+        &'b mut self,
         cleanup_input: (),
         _sys_calls: &mut impl SysCallInvoke,
     ) -> Result<()> {

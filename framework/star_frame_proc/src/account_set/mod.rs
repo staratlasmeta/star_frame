@@ -48,6 +48,7 @@ pub fn derive_account_set_impl(input: DeriveInput) -> TokenStream {
             },
             account_set_generics,
         ),
+        // TODO: Support enums
         Data::Enum(e) => abort!(
             e.enum_token,
             "AccountSet cannot be derived for enums currently, will be supported later"

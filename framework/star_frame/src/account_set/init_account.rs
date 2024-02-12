@@ -27,18 +27,18 @@ use std::mem::size_of;
 #[account_set(skip_default_validate)]
 #[validate(
     id = "create",
-    generics = [<A> where A: InitCreateArg<'info>, T: FrameworkInit<A::FrameworkInitArg>],
+    generics = [<A> where 'info: 'validate, A: InitCreateArg<'validate, 'info>, T: FrameworkInit<A::FrameworkInitArg>],
     arg = Create<A>,
     extra_validation = self.init_validate_create(arg.0, sys_calls),
 )]
 #[validate(
     id = "create_if_needed",
-    generics = [<A> where A: InitCreateArg<'info>, T: FrameworkInit<A::FrameworkInitArg>],
+    generics = [<A> where 'info: 'validate, A: InitCreateArg<'validate, 'info>, T: FrameworkInit<A::FrameworkInitArg>],
     arg = CreateIfNeeded<A>,
     extra_validation = self.init_if_needed(arg.0, sys_calls),
 )]
 #[cleanup(
-    generics = [<A> where DataAccount<'info, T>: AccountSetCleanup<'info, A>],
+    generics = [<A> where DataAccount<'info, T>: AccountSetCleanup<'cleanup, 'info, A>],
     arg = A,
 )]
 pub struct InitAccount<'info, T>
@@ -63,15 +63,15 @@ impl<'info, T> WritableAccount<'info> for InitAccount<'info, T> where
 {
 }
 
-pub trait InitCreateArg<'info> {
+pub trait InitCreateArg<'a, 'info: 'a>: 'a {
     type FrameworkInitArg;
     type AccountSeeds: GetSeeds;
     type FunderAccount: SignedAccount<'info> + WritableAccount<'info>;
 
     fn system_program(&self) -> &Program<'info, SystemProgram>;
 
-    fn split<'a>(
-        &'a mut self,
+    fn split(
+        self,
     ) -> CreateSplit<'a, 'info, Self::FrameworkInitArg, Self::AccountSeeds, Self::FunderAccount>;
 }
 #[derive(Derivative)]
@@ -107,7 +107,7 @@ pub struct CreateAccount<'a, 'info, WT> {
     pub system_program: &'a Program<'info, SystemProgram>,
     pub funder: &'a WT,
 }
-impl<'a, 'info, WT: SignedAccount<'info> + WritableAccount<'info>> InitCreateArg<'info>
+impl<'a, 'info, WT: SignedAccount<'info> + WritableAccount<'info>> InitCreateArg<'a, 'info>
     for CreateAccount<'a, 'info, WT>
 {
     type FrameworkInitArg = ();
@@ -118,9 +118,9 @@ impl<'a, 'info, WT: SignedAccount<'info> + WritableAccount<'info>> InitCreateArg
         self.system_program
     }
 
-    fn split<'b>(
-        &'b mut self,
-    ) -> CreateSplit<'b, 'info, Self::FrameworkInitArg, Self::AccountSeeds, Self::FunderAccount>
+    fn split(
+        self,
+    ) -> CreateSplit<'a, 'info, Self::FrameworkInitArg, Self::AccountSeeds, Self::FunderAccount>
     {
         CreateSplit {
             arg: (),
@@ -134,7 +134,7 @@ impl<'a, 'info, WT: SignedAccount<'info> + WritableAccount<'info>> InitCreateArg
 #[derive(Derivative)]
 #[derivative(Debug(bound = "A: Debug, Program<'info, SystemProgram>: Debug, WT: Debug"))]
 pub struct CreateAccountWithArg<'a, 'info, A, WT> {
-    arg: Option<A>,
+    arg: A,
     system_program: &'a Program<'info, SystemProgram>,
     funder: &'a WT,
 }
@@ -145,13 +145,13 @@ impl<'a, 'info, A, WT> CreateAccountWithArg<'a, 'info, A, WT> {
         funder: &'a Writable<WT>,
     ) -> Self {
         Self {
-            arg: Some(arg),
+            arg,
             system_program,
             funder,
         }
     }
 }
-impl<'a, 'info, A, WT: SignedAccount<'info> + WritableAccount<'info>> InitCreateArg<'info>
+impl<'a, 'info, A: 'a, WT: SignedAccount<'info> + WritableAccount<'info>> InitCreateArg<'a, 'info>
     for CreateAccountWithArg<'a, 'info, A, WT>
 {
     type FrameworkInitArg = A;
@@ -162,12 +162,12 @@ impl<'a, 'info, A, WT: SignedAccount<'info> + WritableAccount<'info>> InitCreate
         self.system_program
     }
 
-    fn split<'b>(
-        &'b mut self,
-    ) -> CreateSplit<'b, 'info, Self::FrameworkInitArg, Self::AccountSeeds, Self::FunderAccount>
+    fn split(
+        self,
+    ) -> CreateSplit<'a, 'info, Self::FrameworkInitArg, Self::AccountSeeds, Self::FunderAccount>
     {
         CreateSplit {
-            arg: self.arg.take().unwrap(),
+            arg: self.arg,
             account_seeds: None,
             system_program: self.system_program,
             funder: self.funder,
@@ -179,9 +179,10 @@ impl<'info, T> InitAccount<'info, T>
 where
     T: ProgramAccount + UnsizedType + ?Sized,
 {
-    fn init_if_needed<A>(&mut self, arg: A, sys_calls: &mut impl SysCallInvoke) -> Result<()>
+    fn init_if_needed<'a, A>(&mut self, arg: A, sys_calls: &mut impl SysCallInvoke) -> Result<()>
     where
-        A: InitCreateArg<'info>,
+        'info: 'a,
+        A: InitCreateArg<'a, 'info>,
         T: FrameworkInit<A::FrameworkInitArg>,
     {
         if self.owner() == arg.system_program().key()
@@ -197,13 +198,14 @@ where
         }
     }
 
-    fn init_validate_create<A>(
+    fn init_validate_create<'a, A>(
         &mut self,
-        mut arg: A,
+        arg: A,
         sys_calls: &mut impl SysCallInvoke,
     ) -> Result<()>
     where
-        A: InitCreateArg<'info>,
+        'info: 'a,
+        A: InitCreateArg<'a, 'info>,
         T: FrameworkInit<A::FrameworkInitArg>,
     {
         self.inner

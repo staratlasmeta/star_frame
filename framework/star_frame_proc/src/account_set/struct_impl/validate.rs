@@ -9,7 +9,7 @@ use proc_macro_error::abort;
 use quote::quote;
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
-use syn::{Expr, Field, LitStr, Type};
+use syn::{parse_quote, Expr, Field, GenericParam, Lifetime, LifetimeParam, LitStr, Type};
 
 #[derive(ArgumentList)]
 struct ValidateStructArgs {
@@ -122,6 +122,9 @@ pub(super) fn validates(
         }
     }
 
+    // TODO: Make user configurable
+    let validate_lifetime: Lifetime = parse_quote!('validate);
+
     validate_ids.into_iter().map(|(id, validate_struct_args)|{
         let validate_type: Type = validate_struct_args.arg.unwrap_or_else(|| syn::parse_quote!(()));
         let relevant_field_validates = field_validates.iter().map(|f| f.iter().find(|f| f.id.as_ref().map(LitStr::value) == id).cloned().unwrap_or_default()).collect::<Vec<_>>();
@@ -131,6 +134,7 @@ pub(super) fn validates(
 
         let (_, ty_generics, _) = main_generics.split_for_impl();
         let mut generics = other_generics.clone();
+        generics.params.push(GenericParam::Lifetime(LifetimeParam::new(validate_lifetime.clone())));
         if let Some(extra_generics) = validate_struct_args.generics.map(|g| g.into_inner()) {
             generics.params.extend(extra_generics.params);
             if let Some(extra_where_clause) = extra_generics.where_clause {
@@ -173,7 +177,7 @@ pub(super) fn validates(
                 quote! {}
             } else {
                 quote! {
-                    <#field_type as #account_set_validate<#info_lifetime, #validate_ty>>::validate_accounts(&mut self.#field_name, #validate_arg, sys_calls)?;
+                    <#field_type as #account_set_validate<'_, #info_lifetime, #validate_ty>>::validate_accounts(&mut self.#field_name, #validate_arg, sys_calls)?;
                 }
             })
             .collect::<Vec<_>>();
@@ -221,9 +225,9 @@ pub(super) fn validates(
 
         quote!{
             #[automatically_derived]
-            impl #impl_generics #account_set_validate<#info_lifetime, #validate_type> for #ident #ty_generics #where_clause {
+            impl #impl_generics #account_set_validate<#validate_lifetime, #info_lifetime, #validate_type> for #ident #ty_generics #where_clause {
                 fn validate_accounts(
-                    &mut self,
+                    & #validate_lifetime mut self,
                     arg: #validate_type,
                     sys_calls: &mut impl #sys_call_invoke,
                 ) -> #result<()> {

@@ -68,12 +68,12 @@ where
     }
 }
 
-impl<'info, A, const N: usize, VArg> AccountSetValidate<'info, [VArg; N]> for [A; N]
+impl<'a, 'info, A, const N: usize, VArg> AccountSetValidate<'a, 'info, [VArg; N]> for [A; N]
 where
-    A: AccountSetValidate<'info, VArg>,
+    A: AccountSetValidate<'a, 'info, VArg>,
 {
     fn validate_accounts(
-        &mut self,
+        &'a mut self,
         validate_input: [VArg; N],
         sys_calls: &mut impl SysCallInvoke,
     ) -> Result<()> {
@@ -83,13 +83,13 @@ where
         Ok(())
     }
 }
-impl<'info, A, const N: usize, VArg> AccountSetValidate<'info, (VArg,)> for [A; N]
+impl<'a, 'info, A, const N: usize, VArg> AccountSetValidate<'a, 'info, (VArg,)> for [A; N]
 where
-    A: AccountSetValidate<'info, VArg>,
+    A: AccountSetValidate<'a, 'info, VArg>,
     VArg: Clone,
 {
     fn validate_accounts(
-        &mut self,
+        &'a mut self,
         validate_input: (VArg,),
         sys_calls: &mut impl SysCallInvoke,
     ) -> Result<()> {
@@ -99,12 +99,12 @@ where
         Ok(())
     }
 }
-impl<'info, A, const N: usize> AccountSetValidate<'info, ()> for [A; N]
+impl<'a, 'info, A, const N: usize> AccountSetValidate<'a, 'info, ()> for [A; N]
 where
-    A: AccountSetValidate<'info, ()>,
+    A: AccountSetValidate<'a, 'info, ()>,
 {
     fn validate_accounts(
-        &mut self,
+        &'a mut self,
         validate_input: (),
         sys_calls: &mut impl SysCallInvoke,
     ) -> Result<()> {
@@ -115,12 +115,12 @@ where
     }
 }
 
-impl<'info, A, const N: usize, VArg> AccountSetCleanup<'info, [VArg; N]> for [A; N]
+impl<'a, 'info, A, const N: usize, VArg> AccountSetCleanup<'a, 'info, [VArg; N]> for [A; N]
 where
-    A: AccountSetCleanup<'info, VArg>,
+    A: AccountSetCleanup<'a, 'info, VArg>,
 {
     fn cleanup_accounts(
-        &mut self,
+        &'a mut self,
         cleanup_input: [VArg; N],
         sys_calls: &mut impl SysCallInvoke,
     ) -> Result<()> {
@@ -130,13 +130,13 @@ where
         Ok(())
     }
 }
-impl<'info, A, const N: usize, VArg> AccountSetCleanup<'info, (VArg,)> for [A; N]
+impl<'a, 'info, A, const N: usize, VArg> AccountSetCleanup<'a, 'info, (VArg,)> for [A; N]
 where
-    A: AccountSetCleanup<'info, VArg>,
+    A: AccountSetCleanup<'a, 'info, VArg>,
     VArg: Clone,
 {
     fn cleanup_accounts(
-        &mut self,
+        &'a mut self,
         cleanup_input: (VArg,),
         sys_calls: &mut impl SysCallInvoke,
     ) -> Result<()> {
@@ -146,12 +146,12 @@ where
         Ok(())
     }
 }
-impl<'info, A, const N: usize> AccountSetCleanup<'info, ()> for [A; N]
+impl<'a, 'info, A, const N: usize> AccountSetCleanup<'a, 'info, ()> for [A; N]
 where
-    A: AccountSetCleanup<'info, ()>,
+    A: AccountSetCleanup<'a, 'info, ()>,
 {
     fn cleanup_accounts(
-        &mut self,
+        &'a mut self,
         cleanup_input: (),
         sys_calls: &mut impl SysCallInvoke,
     ) -> Result<()> {

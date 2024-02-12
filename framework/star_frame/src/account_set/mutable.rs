@@ -11,11 +11,11 @@ use std::ops::{Deref, DerefMut};
 #[derive(AccountSet, Copy, Clone, Debug)]
 #[account_set(skip_default_idl, generics = [where T: AccountSet<'info>])]
 #[validate(
-    generics = [<A> where T: AccountSetValidate<'info, A> + SingleAccountSet<'info>], arg = A,
+    generics = [<A> where for<'a> T: AccountSetValidate<'a, 'info, A> + SingleAccountSet<'info>], arg = A,
     extra_validation = self.check_writable(),
 )]
 #[decode(generics = [<A> where T: AccountSetDecode<'a, 'info, A>], arg = A)]
-#[cleanup(generics = [<A> where T: AccountSetCleanup<'info, A>], arg = A)]
+#[cleanup(generics = [<A> where T: AccountSetCleanup<'cleanup, 'info, A>], arg = A)]
 #[repr(transparent)]
 pub struct Writable<T>(
     #[decode(arg = arg)]
