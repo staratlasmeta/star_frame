@@ -4,10 +4,11 @@ use crate::idl::AccountSetToIdl;
 #[cfg(feature = "idl")]
 use crate::impls::vec::idl_impl::VecSize;
 use crate::sys_calls::SysCallInvoke;
+use derive_more::{Deref, DerefMut};
 use solana_program::account_info::AccountInfo;
 use std::marker::PhantomData;
 
-#[derive(AccountSet, Debug)]
+#[derive(AccountSet, Debug, Deref, DerefMut)]
 #[account_set(skip_default_decode)]
 #[validate(generics = [<A> where for<'a> T: AccountSetValidate<'a, 'info, A>, A: Clone], arg = A)]
 #[cleanup(generics = [<A> where for<'a> T: AccountSetCleanup<'a, 'info, A>, A: Clone], arg = A)]
@@ -16,6 +17,8 @@ pub struct Rest<'info, T>(
     #[validate(arg = (arg,))]
     #[cleanup(arg = (arg,))]
     #[idl(arg = (VecSize{ min: 0, max: None }, arg))]
+    #[deref]
+    #[deref_mut]
     Vec<T>,
     PhantomData<&'info ()>,
 )
