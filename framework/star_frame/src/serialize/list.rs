@@ -494,8 +494,8 @@ pub mod test {
         );
         assert_eq!(*test_bytes.mutable()?, &[Cool { a: 1, b: 1 }]);
 
-        let first = test_bytes.immut()?[0];
-        println!("Cool: {first:#?}");
+        // let first = test_bytes.immut()?[0];
+        // println!("Cool: {first:#?}");
 
         let mut mutable = test_bytes.mutable()?;
         mutable.push(Cool { a: 2, b: 2 })?;
