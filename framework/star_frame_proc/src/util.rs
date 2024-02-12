@@ -1,9 +1,9 @@
 use crate::get_crate_name;
+use derive_more::{Deref, DerefMut};
 use proc_macro2::TokenStream;
 use proc_macro_error::{abort, abort_call_site};
 use quote::{format_ident, quote};
 use std::fmt::Debug;
-use std::ops::{Deref, DerefMut};
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::{
@@ -261,26 +261,16 @@ impl Default for Paths {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Deref, DerefMut)]
 pub struct BetterGenerics {
     _bracket: token::Bracket,
+    #[deref]
+    #[deref_mut]
     generics: Generics,
 }
 impl BetterGenerics {
     pub fn into_inner(self) -> Generics {
         self.generics
-    }
-}
-impl Deref for BetterGenerics {
-    type Target = Generics;
-
-    fn deref(&self) -> &Self::Target {
-        &self.generics
-    }
-}
-impl DerefMut for BetterGenerics {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.generics
     }
 }
 impl Parse for BetterGenerics {

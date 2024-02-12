@@ -4,12 +4,12 @@ use crate::account_set::{
 };
 use crate::Result;
 use anyhow::bail;
+use derive_more::{Deref, DerefMut};
 use solana_program::account_info::AccountInfo;
 use solana_program::program_error::ProgramError;
 use star_frame::account_set::AccountSetCleanup;
-use std::ops::{Deref, DerefMut};
 
-#[derive(AccountSet, Copy, Clone, Debug)]
+#[derive(AccountSet, Copy, Clone, Debug, Deref, DerefMut)]
 #[repr(transparent)]
 #[account_set(skip_default_idl, generics = [where T: AccountSet<'info>])]
 #[decode(generics = [<A> where T: AccountSetDecode<'a, 'info, A>], arg = A)]
@@ -24,18 +24,6 @@ pub struct Signer<T>(
     #[cleanup(arg = arg)]
     T,
 );
-impl<T> Deref for Signer<T> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-impl<T> DerefMut for Signer<T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
 impl<T> Signer<T> {
     pub fn new(info: T) -> Self {
         Self(info)

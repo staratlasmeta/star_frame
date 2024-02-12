@@ -1,13 +1,13 @@
 use crate::account_set::seeded_account::{CurrentProgram, SeedProgram};
 use crate::account_set::SignedAccount;
 use crate::prelude::*;
-use std::ops::{Deref, DerefMut};
+use derive_more::{Deref, DerefMut};
 
 pub trait SeededAccountData: ProgramAccount {
     type Seeds: GetSeeds;
 }
 
-#[derive(AccountSet, Debug)]
+#[derive(AccountSet, Debug, Deref, DerefMut)]
 #[validate(arg = (T::Seeds,))]
 #[validate(id = "wo_bump", arg = Seeds < T::Seeds >)]
 #[validate(id = "with_bump", arg = SeedsWithBump < T::Seeds >)]
@@ -24,26 +24,6 @@ pub struct SeededDataAccount<'info, T, P: SeedProgram = CurrentProgram>(
 )
 where
     T: SeededAccountData + UnsizedType + ?Sized;
-
-impl<'info, T, P: SeedProgram> Deref for SeededDataAccount<'info, T, P>
-where
-    T: SeededAccountData + UnsizedType + ?Sized,
-{
-    type Target = SeededAccount<DataAccount<'info, T>, T::Seeds, P>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl<'info, T, P: SeedProgram> DerefMut for SeededDataAccount<'info, T, P>
-where
-    T: SeededAccountData + UnsizedType + ?Sized,
-{
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
 
 impl<'info, T, P: SeedProgram> SingleAccountSet<'info> for SeededDataAccount<'info, T, P>
 where
