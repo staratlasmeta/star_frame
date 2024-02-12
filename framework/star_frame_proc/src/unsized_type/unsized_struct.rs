@@ -353,6 +353,15 @@ pub fn unsized_struct_impl(item: ItemStruct, args: TokenStream) -> TokenStream {
                     bytes: &mut &#a_lifetime mut [u8],
                     resize: impl #resize_fn<#a_lifetime, Self::Metadata>,
                 ) -> #result<Self> {
+                    {
+                        let mut check_bytes = &**bytes;
+                        #(
+                            let bits = #from_bytes(#advance::try_advance(&mut check_bytes, #size_of::<#pod_field_tys>())?);
+                            if !<#pod_field_tys as #checked_bit_pattern>::is_valid_bit_pattern(bits) {
+                                #bail("Invalid bit pattern in field `{}`: `{:?}`", stringify!(#pod_field_idents), bits);
+                            }
+                        )*
+                    }
                     let ptr = #non_null::from(#advance::try_advance(
                         bytes,
                         0 #(+ #size_of::<#pod_field_tys>())*,
