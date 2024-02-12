@@ -119,6 +119,8 @@ pub struct Paths {
     pub checked: TokenStream,
     pub checked_bit_pattern: TokenStream,
     pub pod: TokenStream,
+    pub from_bytes: TokenStream,
+    pub no_uninit: TokenStream,
 
     // solana
     pub account_info: TokenStream,
@@ -130,6 +132,7 @@ pub struct Paths {
 
     // anyhow
     pub anyhow_macro: TokenStream,
+    pub bail: TokenStream,
 
     pub crate_name: TokenStream,
 }
@@ -244,6 +247,8 @@ impl Default for Paths {
             checked: quote! { #crate_name::bytemuck::checked },
             checked_bit_pattern: quote! { #crate_name::bytemuck::checked::CheckedBitPattern },
             pod: quote! { #crate_name::bytemuck::Pod },
+            from_bytes: quote! { #crate_name::bytemuck::from_bytes },
+            no_uninit: quote! { #crate_name::bytemuck::NoUninit },
 
             // solana
             account_info: quote! { #crate_name::solana_program::account_info::AccountInfo },
@@ -255,6 +260,7 @@ impl Default for Paths {
 
             // anyhow
             anyhow_macro: quote! { #crate_name::anyhow::anyhow },
+            bail: quote! { #crate_name::anyhow::bail! },
 
             crate_name,
         }

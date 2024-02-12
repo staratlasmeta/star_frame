@@ -53,9 +53,11 @@ pub fn unsized_struct_impl(item: ItemStruct, args: TokenStream) -> TokenStream {
 
     let Paths {
         advance,
+        bail,
         box_ty,
         build_pointer,
         build_pointer_mut,
+        checked_bit_pattern,
         clone,
         copy,
         debug,
@@ -66,10 +68,11 @@ pub fn unsized_struct_impl(item: ItemStruct, args: TokenStream) -> TokenStream {
         framework_from_bytes_mut,
         framework_init,
         framework_serialize,
+        from_bytes,
+        no_uninit,
         non_null,
         panic,
         phantom_data,
-        pod,
         pointer_breakup,
         ptr,
         resize_fn,
@@ -129,10 +132,15 @@ pub fn unsized_struct_impl(item: ItemStruct, args: TokenStream) -> TokenStream {
     unsized_generics.make_where_clause().predicates.extend(
         pod_field_tys
             .iter()
-            .map(|ty| -> WherePredicate {
-                parse_quote! {
-                    #ty: 'static + #pod
-                }
+            .flat_map(|ty| -> [WherePredicate; 2] {
+                [
+                    parse_quote! {
+                        #ty: 'static + #checked_bit_pattern + #no_uninit
+                    },
+                    parse_quote! {
+                        <#ty as #checked_bit_pattern>::Bits: #debug
+                    },
+                ]
             })
             .chain([parse_quote! {
                 #final_field_ty: #unsized_type
@@ -221,6 +229,13 @@ pub fn unsized_struct_impl(item: ItemStruct, args: TokenStream) -> TokenStream {
                     let remaining =
                         <<#final_field_ty as #unsized_type>::Ref<#a_lifetime> as #framework_from_bytes>::from_bytes(bytes)?;
                     let remaining_metadata: <#final_field_ty as #ptr::Pointee>::Metadata = #ptr::metadata(&*remaining);
+                    let mut check_bytes = &*header_bytes;
+                    #(
+                        let bits = #from_bytes(#advance::advance(&mut check_bytes, #size_of::<#pod_field_tys>()));
+                        if !<#pod_field_tys as #checked_bit_pattern>::is_valid_bit_pattern(bits) {
+                            #bail("Invalid bit pattern in field `{}`: `{:?}`", stringify!(#pod_field_idents), bits);
+                        }
+                    )*
                     Ok(Self {
                         __ptr: unsafe {
                             &*#ptr::from_raw_parts(header_bytes.as_ptr().cast(), remaining_metadata)
