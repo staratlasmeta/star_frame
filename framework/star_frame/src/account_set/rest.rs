@@ -10,8 +10,8 @@ use std::marker::PhantomData;
 
 #[derive(AccountSet, Debug, Deref, DerefMut)]
 #[account_set(skip_default_decode)]
-#[validate(generics = [<A> where for<'a> T: AccountSetValidate<'a, 'info, A>, A: Clone], arg = A)]
-#[cleanup(generics = [<A> where for<'a> T: AccountSetCleanup<'a, 'info, A>, A: Clone], arg = A)]
+#[validate(generics = [<A> where T: AccountSetValidate<'validate, 'info, A>, A: Clone], arg = A)]
+#[cleanup(generics = [<A> where T: AccountSetCleanup<'cleanup, 'info, A>, A: Clone], arg = A)]
 #[cfg_attr(feature = "idl", idl(generics = [<A> where T: AccountSetToIdl<'info, A>, A: Clone], arg = A))]
 pub struct Rest<'info, T>(
     #[validate(arg = (arg,))]

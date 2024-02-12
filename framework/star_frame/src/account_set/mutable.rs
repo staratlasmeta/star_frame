@@ -11,8 +11,8 @@ use star_frame::account_set::AccountSetCleanup;
 #[derive(AccountSet, Copy, Clone, Debug, Deref, DerefMut)]
 #[account_set(skip_default_idl, generics = [where T: AccountSet<'info>])]
 #[validate(
-    generics = [<A> where for<'a> T: AccountSetValidate<'a, 'info, A> + SingleAccountSet<'info>], arg = A,
-    extra_validation = self.check_writable(),
+    generics = [<A> where T: AccountSetValidate<'validate, 'info, A> + SingleAccountSet<'info>], arg = A,
+    before_validation = self.check_writable(),
 )]
 #[decode(generics = [<A> where T: AccountSetDecode<'a, 'info, A>], arg = A)]
 #[cleanup(generics = [<A> where T: AccountSetCleanup<'cleanup, 'info, A>], arg = A)]

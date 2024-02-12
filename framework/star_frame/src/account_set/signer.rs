@@ -14,8 +14,8 @@ use star_frame::account_set::AccountSetCleanup;
 #[account_set(skip_default_idl, generics = [where T: AccountSet<'info>])]
 #[decode(generics = [<A> where T: AccountSetDecode<'a, 'info, A>], arg = A)]
 #[validate(
-    generics = [<A> where for<'a> T: AccountSetValidate<'a, 'info, A> + SingleAccountSet<'info>], arg = A,
-    extra_validation = self.check_signer(),
+    generics = [<A> where T: AccountSetValidate<'validate, 'info, A> + SingleAccountSet<'info>], arg = A,
+    before_validation = self.check_signer(),
 )]
 #[cleanup(generics = [<A> where T: AccountSetCleanup<'cleanup, 'info, A>], arg = A)]
 pub struct Signer<T>(

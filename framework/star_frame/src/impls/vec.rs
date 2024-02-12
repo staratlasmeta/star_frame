@@ -131,10 +131,10 @@ where
 
 impl<'a, 'info, T> AccountSetValidate<'a, 'info, ()> for Vec<T>
 where
-    for<'b> T: AccountSetValidate<'b, 'info, ()>,
+    T: AccountSetValidate<'a, 'info, ()>,
 {
     fn validate_accounts(
-        &mut self,
+        &'a mut self,
         validate_input: (),
         sys_calls: &mut impl SysCallInvoke,
     ) -> Result<()> {
@@ -147,11 +147,11 @@ where
 // TODO: This arg is annoying
 impl<'a, 'info, T, TA> AccountSetValidate<'a, 'info, (TA,)> for Vec<T>
 where
-    for<'b> T: AccountSetValidate<'b, 'info, TA>,
+    T: AccountSetValidate<'a, 'info, TA>,
     TA: Clone,
 {
     fn validate_accounts(
-        &mut self,
+        &'a mut self,
         validate_input: (TA,),
         sys_calls: &mut impl SysCallInvoke,
     ) -> Result<()> {
@@ -163,10 +163,10 @@ where
 }
 impl<'a, 'info, T, TA> AccountSetValidate<'a, 'info, Vec<TA>> for Vec<T>
 where
-    for<'b> T: AccountSetValidate<'b, 'info, TA>,
+    T: AccountSetValidate<'a, 'info, TA>,
 {
     fn validate_accounts(
-        &mut self,
+        &'a mut self,
         validate_input: Vec<TA>,
         sys_calls: &mut impl SysCallInvoke,
     ) -> Result<()> {
@@ -183,10 +183,10 @@ where
 }
 impl<'a, 'info, T, TA, const N: usize> AccountSetValidate<'a, 'info, [TA; N]> for Vec<T>
 where
-    for<'b> T: AccountSetValidate<'b, 'info, TA>,
+    T: AccountSetValidate<'a, 'info, TA>,
 {
     fn validate_accounts(
-        &mut self,
+        &'a mut self,
         validate_input: [TA; N],
         sys_calls: &mut impl SysCallInvoke,
     ) -> Result<()> {
@@ -203,10 +203,10 @@ where
 }
 impl<'a, 'b, 'info, T, TA, const N: usize> AccountSetValidate<'b, 'info, &'a mut [TA; N]> for Vec<T>
 where
-    for<'c> T: AccountSetValidate<'c, 'info, &'a mut TA>,
+    T: AccountSetValidate<'b, 'info, &'a mut TA>,
 {
     fn validate_accounts(
-        &mut self,
+        &'b mut self,
         validate_input: &'a mut [TA; N],
         sys_calls: &mut impl SysCallInvoke,
     ) -> Result<()> {
@@ -224,10 +224,10 @@ where
 
 impl<'a, 'info, T> AccountSetCleanup<'a, 'info, ()> for Vec<T>
 where
-    for<'b> T: AccountSetCleanup<'b, 'info, ()>,
+    T: AccountSetCleanup<'a, 'info, ()>,
 {
     fn cleanup_accounts(
-        &mut self,
+        &'a mut self,
         cleanup_input: (),
         sys_calls: &mut impl SysCallInvoke,
     ) -> Result<()> {
@@ -239,11 +239,11 @@ where
 }
 impl<'a, 'info, T, TA> AccountSetCleanup<'a, 'info, (TA,)> for Vec<T>
 where
-    for<'b> T: AccountSetCleanup<'b, 'info, TA>,
+    T: AccountSetCleanup<'a, 'info, TA>,
     TA: Clone,
 {
     fn cleanup_accounts(
-        &mut self,
+        &'a mut self,
         cleanup_input: (TA,),
         sys_calls: &mut impl SysCallInvoke,
     ) -> Result<()> {
@@ -255,10 +255,10 @@ where
 }
 impl<'a, 'info, T, TA> AccountSetCleanup<'a, 'info, Vec<TA>> for Vec<T>
 where
-    for<'b> T: AccountSetCleanup<'b, 'info, TA>,
+    T: AccountSetCleanup<'a, 'info, TA>,
 {
     fn cleanup_accounts(
-        &mut self,
+        &'a mut self,
         cleanup_input: Vec<TA>,
         sys_calls: &mut impl SysCallInvoke,
     ) -> Result<()> {
@@ -275,10 +275,10 @@ where
 }
 impl<'a, 'info, T, TA, const N: usize> AccountSetCleanup<'a, 'info, [TA; N]> for Vec<T>
 where
-    for<'b> T: AccountSetCleanup<'b, 'info, TA>,
+    T: AccountSetCleanup<'a, 'info, TA>,
 {
     fn cleanup_accounts(
-        &mut self,
+        &'a mut self,
         cleanup_input: [TA; N],
         sys_calls: &mut impl SysCallInvoke,
     ) -> Result<()> {
@@ -295,10 +295,10 @@ where
 }
 impl<'a, 'b, 'info, T, TA, const N: usize> AccountSetCleanup<'b, 'info, &'a mut [TA; N]> for Vec<T>
 where
-    for<'c> T: AccountSetCleanup<'c, 'info, &'a mut TA>,
+    T: AccountSetCleanup<'b, 'info, &'a mut TA>,
 {
     fn cleanup_accounts(
-        &mut self,
+        &'b mut self,
         cleanup_input: &'a mut [TA; N],
         sys_calls: &mut impl SysCallInvoke,
     ) -> Result<()> {
