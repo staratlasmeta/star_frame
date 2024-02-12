@@ -3,12 +3,12 @@ use crate::account_set::{
     WritableAccount,
 };
 use crate::Result;
+use derive_more::{Deref, DerefMut};
 use solana_program::account_info::AccountInfo;
 use solana_program::program_error::ProgramError;
 use star_frame::account_set::AccountSetCleanup;
-use std::ops::{Deref, DerefMut};
 
-#[derive(AccountSet, Copy, Clone, Debug)]
+#[derive(AccountSet, Copy, Clone, Debug, Deref, DerefMut)]
 #[account_set(skip_default_idl, generics = [where T: AccountSet<'info>])]
 #[validate(
     generics = [<A> where for<'a> T: AccountSetValidate<'a, 'info, A> + SingleAccountSet<'info>], arg = A,
@@ -54,19 +54,6 @@ where
     }
 }
 impl<'info, T> WritableAccount<'info> for Writable<T> where T: SingleAccountSet<'info> {}
-
-impl<T> Deref for Writable<T> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-impl<T> DerefMut for Writable<T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
 
 #[cfg(feature = "idl")]
 mod idl_impl {

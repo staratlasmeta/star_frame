@@ -2,8 +2,8 @@ use crate::account_set::{SignedAccount, WritableAccount};
 use crate::prelude::*;
 use anyhow::bail;
 use bytemuck::bytes_of;
+use derive_more::{Deref, DerefMut};
 use std::marker::PhantomData;
-use std::ops::{Deref, DerefMut};
 
 pub trait GetSeeds: Debug {
     fn seeds(&self) -> Vec<&[u8]>;
@@ -50,7 +50,7 @@ where
 pub struct Seeds<T>(pub T);
 
 // Structs
-#[derive(Debug, AccountSet)]
+#[derive(Debug, AccountSet, Deref, DerefMut)]
 #[account_set(
     skip_default_idl,
     generics = [where T: AccountSet < 'info >]
@@ -106,6 +106,8 @@ pub struct SeededAccount<T, S: GetSeeds, P: SeedProgram = CurrentProgram> {
     #[validate(id = "seeds_with_bump_generic", arg = arg.1)]
     #[validate(id = "seeds_with_bump_skip", skip)]
     #[cleanup(arg = arg)]
+    #[deref]
+    #[deref_mut]
     pub(crate) account: T,
     #[account_set(skip = None)]
     pub(crate) seeds: Option<SeedsWithBump<S>>,
@@ -203,20 +205,6 @@ where
     T: WritableAccount<'info>,
     S: GetSeeds,
 {
-}
-
-impl<T, S: GetSeeds, P: SeedProgram> Deref for SeededAccount<T, S, P> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        &self.account
-    }
-}
-
-impl<T, S: GetSeeds, P: SeedProgram> DerefMut for SeededAccount<T, S, P> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.account
-    }
 }
 
 #[cfg(feature = "idl")]
