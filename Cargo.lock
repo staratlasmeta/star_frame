@@ -2003,6 +2003,7 @@ version = "0.1.0"
 dependencies = [
  "bs58 0.5.0",
  "daggy",
+ "derive_more",
  "easy_proc",
  "heck",
  "proc-macro-crate 2.0.2",

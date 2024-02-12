@@ -3,12 +3,12 @@ use crate::prelude::*;
 use anyhow::bail;
 use bytemuck::{bytes_of, from_bytes, from_bytes_mut};
 use derivative::Derivative;
+use derive_more::{Deref, DerefMut};
 use solana_program::entrypoint::MAX_PERMITTED_DATA_INCREASE;
 use solana_program::system_instruction::MAX_PERMITTED_DATA_LENGTH;
 use std::cell::{Ref, RefMut};
 use std::marker::PhantomData;
 use std::mem::{size_of, size_of_val};
-use std::ops::{Deref, DerefMut};
 use std::ptr::NonNull;
 
 pub trait ProgramAccount {
@@ -216,51 +216,23 @@ where
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Deref)]
 pub struct DataRef<'a, T>
 where
     T: 'a + ProgramAccount + UnsizedType + ?Sized,
 {
+    #[deref]
     data: T::Ref<'a>,
     _r: Ref<'a, [u8; 0]>,
 }
 
-impl<'a, T> Deref for DataRef<'a, T>
-where
-    T: 'a + ProgramAccount + UnsizedType + ?Sized,
-{
-    type Target = T::Ref<'a>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.data
-    }
-}
-
-#[derive(Debug)]
+#[derive(Debug, Deref, DerefMut)]
 pub struct DataRefMut<'a, T>
 where
     T: 'a + ProgramAccount + UnsizedType + ?Sized,
 {
+    #[deref]
+    #[deref_mut]
     data: T::RefMut<'a>,
     _r: RefMut<'a, [u8; 0]>,
-}
-
-impl<'a, T> Deref for DataRefMut<'a, T>
-where
-    T: 'a + ProgramAccount + UnsizedType + ?Sized,
-{
-    type Target = T::RefMut<'a>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.data
-    }
-}
-
-impl<'a, T> DerefMut for DataRefMut<'a, T>
-where
-    T: 'a + ProgramAccount + UnsizedType + ?Sized,
-{
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.data
-    }
 }
