@@ -98,6 +98,8 @@ pub struct Paths {
 
     pub align1: TokenStream,
     pub packed_value_checked: TokenStream,
+    pub packed_value: TokenStream,
+    pub packed_value_any_bit_pattern: TokenStream,
     pub advance: TokenStream,
     pub advance_array: TokenStream,
 
@@ -226,6 +228,8 @@ impl Default for Paths {
 
             align1: quote! { #crate_name::align1::Align1 },
             packed_value_checked: quote! { #crate_name::packed_value::PackedValueChecked },
+            packed_value: quote! { #crate_name::packed_value::PackedValue },
+            packed_value_any_bit_pattern: quote! { #crate_name::packed_value::PackedValueAnyBitPattern },
             advance_array: quote! { #crate_name::advance::AdvanceArray },
             advance: quote! { #crate_name::advance::Advance},
 

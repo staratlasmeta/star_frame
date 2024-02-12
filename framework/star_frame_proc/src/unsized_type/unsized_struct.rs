@@ -71,6 +71,7 @@ pub fn unsized_struct_impl(item: ItemStruct, args: TokenStream) -> TokenStream {
         from_bytes,
         no_uninit,
         non_null,
+        packed_value_any_bit_pattern,
         panic,
         phantom_data,
         pointer_breakup,
@@ -231,8 +232,8 @@ pub fn unsized_struct_impl(item: ItemStruct, args: TokenStream) -> TokenStream {
                     let remaining_metadata: <#final_field_ty as #ptr::Pointee>::Metadata = #ptr::metadata(&*remaining);
                     let mut check_bytes = &*header_bytes;
                     #(
-                        let bits = #from_bytes(#advance::advance(&mut check_bytes, #size_of::<#pod_field_tys>()));
-                        if !<#pod_field_tys as #checked_bit_pattern>::is_valid_bit_pattern(bits) {
+                        let bits: &#packed_value_any_bit_pattern<<#pod_field_tys as #checked_bit_pattern>::Bits> = #from_bytes(#advance::try_advance(&mut check_bytes, #size_of::<#pod_field_tys>())?);
+                        if !<#pod_field_tys as #checked_bit_pattern>::is_valid_bit_pattern(&{ bits.0 }) {
                             #bail("Invalid bit pattern in field `{}`: `{:?}`", stringify!(#pod_field_idents), bits);
                         }
                     )*
@@ -356,8 +357,8 @@ pub fn unsized_struct_impl(item: ItemStruct, args: TokenStream) -> TokenStream {
                     {
                         let mut check_bytes = &**bytes;
                         #(
-                            let bits = #from_bytes(#advance::try_advance(&mut check_bytes, #size_of::<#pod_field_tys>())?);
-                            if !<#pod_field_tys as #checked_bit_pattern>::is_valid_bit_pattern(bits) {
+                            let bits: &#packed_value_any_bit_pattern<<#pod_field_tys as #checked_bit_pattern>::Bits> = #from_bytes(#advance::try_advance(&mut check_bytes, #size_of::<#pod_field_tys>())?);
+                            if !<#pod_field_tys as #checked_bit_pattern>::is_valid_bit_pattern(&{ bits.0 }) {
                                 #bail("Invalid bit pattern in field `{}`: `{:?}`", stringify!(#pod_field_idents), bits);
                             }
                         )*
