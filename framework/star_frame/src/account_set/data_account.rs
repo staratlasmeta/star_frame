@@ -54,6 +54,11 @@ pub struct RefundRent<'a, F> {
     pub recipient: &'a F,
 }
 
+#[derive(Debug, Copy, Clone)]
+pub struct CloseAccount<'a, F> {
+    pub recipient: &'a F,
+}
+
 #[derive(AccountSet, Debug)]
 #[validate(extra_validation = validate_data_account(self, sys_calls))]
 #[cleanup(extra_cleanup = self.check_cleanup(sys_calls))]
@@ -69,11 +74,15 @@ pub struct RefundRent<'a, F> {
     arg = RefundRent<'a, F>,
     extra_cleanup = self.refund_rent(&arg, sys_calls)
 )]
+#[cleanup(
+    id = "close_account",
+    generics = [<'a, F> where F: WritableAccount<'info>],
+    arg = CloseAccount<'a, F>,
+    extra_cleanup = self.close(&arg)
+)]
 pub struct DataAccount<'info, T: ProgramAccount + UnsizedType + ?Sized> {
     info: AccountInfo<'info>,
     phantom_t: PhantomData<T>,
-    #[account_set(skip = false)]
-    closed: bool,
 }
 
 impl<'info, T> DataAccount<'info, T>
@@ -144,7 +153,7 @@ where
     }
 
     /// Closes the account
-    pub fn close(&mut self) -> Result<()> {
+    pub fn close(&mut self, arg: &CloseAccount<impl WritableAccount<'info>>) -> Result<()> {
         self.info.realloc(
             size_of::<<T::OwnerProgram as StarFrameProgram>::AccountDiscriminant>(),
             false,
@@ -152,7 +161,8 @@ where
         self.info.try_borrow_mut_data()?.copy_from_slice(bytes_of(
             &<T::OwnerProgram as StarFrameProgram>::CLOSED_ACCOUNT_DISCRIMINANT,
         ));
-        self.closed = true;
+        **arg.recipient.account_info().try_borrow_mut_lamports()? += self.info.lamports();
+        **self.info.try_borrow_mut_lamports()? = 0;
         Ok(())
     }
 
