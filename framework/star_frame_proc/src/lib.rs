@@ -1,9 +1,11 @@
 #![allow(clippy::let_and_return)]
 
+#[cfg(feature = "idl")]
 mod account;
 mod account_set;
 mod framework_instruction;
 mod instruction_set;
+#[cfg(feature = "idl")]
 mod instruction_set_to_idl;
 mod program;
 mod solana_pubkey;
@@ -13,6 +15,7 @@ mod unit_enum_from_repr;
 mod unsized_type;
 mod util;
 
+#[cfg(feature = "idl")]
 use crate::account::derive_account_to_idl_impl;
 use crate::unit_enum_from_repr::unit_enum_from_repr_impl;
 use proc_macro2::TokenStream;
@@ -216,10 +219,14 @@ pub fn instruction_set2(
 
 #[proc_macro_error]
 #[proc_macro_derive(InstructionSetToIdl)]
+#[cfg_attr(not(feature = "idl"), allow(unused_variables))]
 pub fn derive_instruction_set_to_idl(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    #[cfg(feature = "idl")]
     let out = instruction_set_to_idl::derive_instruction_set_to_idl_impl(parse_macro_input!(
         item as DeriveInput
     ));
+    #[cfg(not(feature = "idl"))]
+    let out = TokenStream::default();
     // println!("{}", out);
     out.into()
 }
@@ -249,8 +256,12 @@ pub fn derive_type_to_idl(item: proc_macro::TokenStream) -> proc_macro::TokenStr
 
 #[proc_macro_error]
 #[proc_macro_derive(AccountToIdl, attributes(program))]
+#[cfg_attr(not(feature = "idl"), allow(unused_variables))]
 pub fn derive_account_to_idl(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    #[cfg(feature = "idl")]
     let out = derive_account_to_idl_impl(&parse_macro_input!(input as DeriveInput));
+    #[cfg(not(feature = "idl"))]
+    let out = TokenStream::default();
     out.into()
 }
 
