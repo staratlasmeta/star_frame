@@ -167,7 +167,7 @@ where
 {
     fn to_bytes(&self, output: &mut &mut [u8]) -> crate::Result<()> {
         (&self.len).to_bytes(output)?;
-        for item in checked::cast_slice::<_, T>(&self.bytes).iter() {
+        for item in checked::cast_slice::<_, T>(&self.bytes) {
             item.to_bytes(output)?;
         }
         Ok(())
@@ -279,7 +279,7 @@ where
 {
     fn to_bytes(&self, output: &mut &mut [u8]) -> Result<()> {
         (&self.len).to_bytes(output)?;
-        for item in checked::cast_slice::<_, T>(&self.bytes).iter() {
+        for item in checked::cast_slice::<_, T>(&self.bytes) {
             item.to_bytes(output)?;
         }
         Ok(())

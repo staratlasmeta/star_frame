@@ -7,6 +7,7 @@
     unsafe_op_in_unsafe_fn
 )]
 #![allow(
+    clippy::incorrect_clone_impl_on_copy_type,
     clippy::default_trait_access,
     clippy::manual_string_new,
     clippy::missing_errors_doc,

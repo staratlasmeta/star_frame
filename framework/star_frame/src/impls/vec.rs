@@ -17,14 +17,14 @@ where
     where
         'info: 'a,
     {
-        for acc in self.iter() {
+        for acc in self {
             acc.try_to_accounts(&mut add_account)?;
         }
         Ok(())
     }
 
     fn to_account_metas(&self, mut add_account_meta: impl FnMut(AccountMeta)) {
-        for acc in self.iter() {
+        for acc in self {
             acc.to_account_metas(&mut add_account_meta);
         }
     }

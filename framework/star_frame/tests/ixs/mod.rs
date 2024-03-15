@@ -23,7 +23,7 @@ unsafe impl<'a> FrameworkFromBytes<'a> for TestProgramInstructions<'a> {
 
 #[instruction_set2]
 #[derive(EnumDiscriminants, InstructionSetToIdl)]
-#[strum_discriminants(repr(u32), derive(UnitEnumFromRepr))]
+#[strum_discriminants(derive(UnitEnumFromRepr))]
 #[repr(u32)]
 pub enum TestProgramInstructions {
     /// The first test instruction
