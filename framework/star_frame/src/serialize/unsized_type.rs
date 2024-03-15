@@ -25,6 +25,27 @@ where
     type RefMut<'a> = &'a mut T;
 }
 
+/// TODO: Implement this with macro, maybe move into [`UnsizedType`]
+pub trait UnsizedTypeToOwned: UnsizedType {
+    type Owned;
+    fn owned_from_ref(r: Self::Ref<'_>) -> Self::Owned;
+    fn owned_from_ref_mut(r: Self::RefMut<'_>) -> Self::Owned;
+}
+impl<T> UnsizedTypeToOwned for T
+where
+    T: Align1 + CheckedBitPattern + NoUninit,
+{
+    type Owned = T;
+
+    fn owned_from_ref(r: Self::Ref<'_>) -> Self::Owned {
+        *r
+    }
+
+    fn owned_from_ref_mut(r: Self::RefMut<'_>) -> Self::Owned {
+        *r
+    }
+}
+
 #[cfg(test)]
 mod test {
     use crate::align1::Align1;

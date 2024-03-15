@@ -1981,6 +1981,7 @@ dependencies = [
  "lazy_static",
  "num-traits",
  "paste",
+ "rustc_version",
  "serde",
  "serde_json",
  "solana-program",

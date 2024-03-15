@@ -1,5 +1,6 @@
 #![feature(ptr_metadata)]
-#![feature(pointer_byte_offsets)]
+#![cfg_attr(not(rust_1_75), feature(pointer_byte_offsets))]
+#![cfg_attr(not(rust_1_76), feature(type_name_of_val))]
 #![warn(
     clippy::pedantic,
     missing_copy_implementations,
@@ -17,12 +18,12 @@
     clippy::wildcard_imports,
     clippy::expl_impl_clone_on_copy
 )]
-#![feature(type_name_of_val)]
 
 pub extern crate advance;
 pub extern crate anyhow;
 pub extern crate borsh;
 pub extern crate bytemuck;
+extern crate core;
 pub extern crate derivative;
 pub extern crate fixed;
 pub extern crate itertools;

@@ -1,10 +1,7 @@
 use crate::prelude::*;
-use crate::serialize::key_for::KeyFor;
-use borsh;
 use borsh::{BorshDeserialize, BorshSerialize};
-use bytemuck::{cast, cast_mut, cast_ref, Pod, Zeroable};
+use bytemuck::{cast, cast_mut, cast_ref};
 use derivative::Derivative;
-use solana_program::pubkey::Pubkey;
 use std::fmt::{Display, Formatter};
 use std::marker::PhantomData;
 

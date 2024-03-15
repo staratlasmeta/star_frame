@@ -1,4 +1,3 @@
-use borsh;
 use borsh::{BorshDeserialize, BorshSerialize};
 use bytemuck::{Pod, Zeroable};
 use star_frame_proc::Align1;

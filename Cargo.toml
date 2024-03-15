@@ -38,6 +38,7 @@ proc-macro-error = "1.0.4"
 proc-macro2 = "1.0.27"
 quote = "1.0.9"
 rand = "0.8.5"
+rustc_version = "0.4.0"
 serde = { version = "1.0.192", features = ["derive"] }
 serde_json = "1.0.108"
 solana-program = "~1.18"

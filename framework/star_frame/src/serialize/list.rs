@@ -15,6 +15,7 @@ use derivative::Derivative;
 use num_traits::{FromPrimitive, ToPrimitive, Zero};
 use solana_program::program_error::ProgramError;
 use solana_program::program_memory::sol_memmove;
+use star_frame::serialize::unsized_type::UnsizedTypeToOwned;
 use std::collections::Bound;
 use std::marker::PhantomData;
 use std::mem::size_of;
@@ -86,7 +87,7 @@ where
         debug_assert_eq!(bytes.len(), <Self as FrameworkInit<()>>::INIT_LENGTH);
         debug_assert!(bytes.iter().all(|b| *b == 0));
         let len = L::zero();
-        bytes.copy_from_slice(bytemuck::bytes_of(&len));
+        bytes.copy_from_slice(bytes_of(&len));
         Ok(ListRefMut {
             phantom_ref: PhantomData,
             ptr: NonNull::from(bytes).cast(),
@@ -127,6 +128,29 @@ where
     type Ref<'a> = ListRef<'a, T, L>;
     type RefMut<'a> = ListRefMut<'a, T, L>;
 }
+impl<T, L> UnsizedTypeToOwned for List<T, L>
+where
+    T: CheckedBitPattern + NoUninit + Align1,
+    L: Pod + ToPrimitive + FromPrimitive,
+{
+    type Owned = Vec<T>;
+
+    fn owned_from_ref(r: Self::Ref<'_>) -> Self::Owned {
+        let mut out = Vec::with_capacity(r.len());
+        for index in 0..r.len() {
+            out.push(r[index]);
+        }
+        out
+    }
+
+    fn owned_from_ref_mut(r: Self::RefMut<'_>) -> Self::Owned {
+        let mut out = Vec::with_capacity(r.len());
+        for index in 0..r.len() {
+            out.push(r[index]);
+        }
+        out
+    }
+}
 
 #[derive(Debug, Copy, Clone)]
 pub struct ListRef<'a, T, L = u32>
@@ -165,7 +189,7 @@ where
     T: CheckedBitPattern + NoUninit + Align1,
     L: Pod + ToPrimitive + FromPrimitive,
 {
-    fn to_bytes(&self, output: &mut &mut [u8]) -> crate::Result<()> {
+    fn to_bytes(&self, output: &mut &mut [u8]) -> Result<()> {
         (&self.len).to_bytes(output)?;
         for item in checked::cast_slice::<_, T>(&self.bytes) {
             item.to_bytes(output)?;

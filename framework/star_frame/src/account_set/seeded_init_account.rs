@@ -4,7 +4,6 @@ use crate::account_set::seeded_account::SeedProgram;
 use crate::account_set::seeded_account::Skip;
 use crate::account_set::SignedAccount;
 use crate::prelude::*;
-use crate::serialize::FrameworkInit;
 use derivative::Derivative;
 use derive_more::{Deref, DerefMut};
 use star_frame::account_set::seeded_account::CurrentProgram;

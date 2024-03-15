@@ -67,7 +67,6 @@ mod idl_impl {
     use star_frame_idl::account_set::IdlAccountSetDef;
     use star_frame_idl::ty::IdlTypeDef;
     use star_frame_idl::IdlDefinition;
-    use std::marker::PhantomData;
 
     impl<T> TypeToIdl for PhantomData<T>
     where

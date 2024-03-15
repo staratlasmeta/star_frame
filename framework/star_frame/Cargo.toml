@@ -42,6 +42,9 @@ bumpalo = { workspace = true }
 lazy_static = { workspace = true }
 strum = { workspace = true, features = ["derive"] }
 
+[build-dependencies]
+rustc_version = { workspace = true }
+
 [[example]]
 name = "cool_example"
 crate-type = ["staticlib"]
