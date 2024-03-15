@@ -1947,7 +1947,7 @@ dependencies = [
 
 [[package]]
 name = "star_frame"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "advance",
  "anyhow",
@@ -1976,7 +1976,7 @@ dependencies = [
 
 [[package]]
 name = "star_frame_cli"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -1985,7 +1985,7 @@ dependencies = [
 
 [[package]]
 name = "star_frame_idl"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "bincode",
@@ -1999,7 +1999,7 @@ dependencies = [
 
 [[package]]
 name = "star_frame_proc"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "bs58 0.5.0",
  "daggy",
