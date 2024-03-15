@@ -5,6 +5,7 @@ use crate::Result;
 use advance::Advance;
 use derivative::Derivative;
 use solana_program::program_memory::sol_memmove;
+use star_frame::serialize::unsized_type::UnsizedTypeToOwned;
 use star_frame::serialize::FrameworkSerialize;
 use star_frame_proc::Align1;
 use std::cmp::Ordering;
@@ -29,6 +30,23 @@ where
     type RefMeta = CombinedUnsizedMetadata<T::RefMeta, U::RefMeta>;
     type Ref<'a> = CombinedUnsizedRef<'a, T, U>;
     type RefMut<'a> = CombinedUnsizedRefMut<'a, T, U>;
+}
+impl<T, U> UnsizedTypeToOwned for CombinedUnsized<T, U>
+where
+    T: ?Sized + UnsizedTypeToOwned,
+    U: ?Sized + UnsizedTypeToOwned,
+{
+    type Owned = (T::Owned, U::Owned);
+
+    fn owned_from_ref(r: Self::Ref<'_>) -> Self::Owned {
+        let (tr, ur) = r.split();
+        (T::owned_from_ref(tr), U::owned_from_ref(ur))
+    }
+
+    fn owned_from_ref_mut(mut r: Self::RefMut<'_>) -> Self::Owned {
+        let (tr, ur) = r.split_mut();
+        (T::owned_from_ref(tr), U::owned_from_ref_mut(ur))
+    }
 }
 unsafe impl<T, U, TA, UA> FrameworkInit<(TA, UA)> for CombinedUnsized<T, U>
 where
