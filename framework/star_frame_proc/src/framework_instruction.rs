@@ -1,3 +1,6 @@
+// TODO: Fix this
+#![cfg_attr(not(feature = "idl"), allow(unused_imports))]
+
 use crate::util;
 use crate::util::Paths;
 use proc_macro2::{Ident, Span, TokenStream};
@@ -12,12 +15,12 @@ struct StrippedDeriveInput {
     ident: Ident,
 }
 
+#[cfg_attr(not(feature = "idl"), allow(unused_variables))]
 pub fn derive_framework_instruction_impl(input: DeriveInput) -> TokenStream {
-    let paths = Paths::default();
-
-    match input.data {
+    #[cfg(feature = "idl")]
+    let out = match input.data {
         Data::Struct(s) => derive_framework_instruction_impl_struct(
-            paths,
+            Paths::default(),
             s,
             StrippedDeriveInput {
                 attrs: input.attrs,
@@ -33,9 +36,13 @@ pub fn derive_framework_instruction_impl(input: DeriveInput) -> TokenStream {
             u.union_token,
             "FrameworkInstruction cannot be derived for unions"
         ),
-    }
+    };
+    #[cfg(not(feature = "idl"))]
+    let out = quote! {};
+    out
 }
 
+#[cfg(feature = "idl")]
 fn derive_framework_instruction_impl_struct(
     paths: Paths,
     data_struct: syn::DataStruct,
@@ -49,6 +56,7 @@ fn derive_framework_instruction_impl_struct(
         idl_type_def,
         idl_instruction_def,
         framework_instruction,
+        #[cfg(feature = "idl")]
         type_to_idl,
         ..
     } = paths;
