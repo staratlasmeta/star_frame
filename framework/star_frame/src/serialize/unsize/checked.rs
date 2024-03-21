@@ -59,7 +59,7 @@ where
 {
     type Owned = T;
 
-    fn owned<S: AsBytes>(r: RefWrapper<S, Self::RefData>) -> Self::Owned {
-        *r
+    fn owned<S: AsBytes>(r: RefWrapper<S, Self::RefData>) -> Result<Self::Owned> {
+        Ok(*r)
     }
 }

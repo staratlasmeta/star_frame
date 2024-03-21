@@ -2,13 +2,16 @@ use crate::align1::Align1;
 use crate::packed_value::PackedValue;
 use crate::prelude::UnsizedType;
 use crate::serialize::ref_wrapper::{AsBytes, AsMutBytes, RefDerefMut, RefWrapper};
+use crate::serialize::unsize::owned::UnsizedTypeToOwned;
 use crate::serialize::unsize::resize::Resize;
 use crate::serialize::unsize::unsized_type::FromBytesReturn;
 use crate::Result;
 use advance::{Advance, Length};
 use anyhow::ensure;
 use bytemuck::checked::{try_cast_slice, try_cast_slice_mut, try_from_bytes, try_from_bytes_mut};
-use bytemuck::{bytes_of, from_bytes, CheckedBitPattern, NoUninit, Pod};
+use bytemuck::{
+    bytes_of, cast_slice, cast_slice_mut, from_bytes, CheckedBitPattern, NoUninit, Pod,
+};
 use derivative::Derivative;
 use num_traits::{FromPrimitive, ToPrimitive};
 use solana_program::program_memory::sol_memmove;
@@ -44,6 +47,28 @@ where
 
     pub fn is_empty(&self) -> bool {
         self.len() == 0
+    }
+
+    pub fn as_slice(&self) -> &[T]
+    where
+        T: Pod,
+    {
+        cast_slice(&self.bytes)
+    }
+
+    pub fn as_mut_slice(&mut self) -> &mut [T]
+    where
+        T: Pod,
+    {
+        cast_slice_mut(&mut self.bytes)
+    }
+
+    pub fn as_checked_slice(&self) -> Result<&[T]> {
+        try_cast_slice(&self.bytes).map_err(Into::into)
+    }
+
+    pub fn as_checked_mut_slice(&mut self) -> Result<&mut [T]> {
+        try_cast_slice_mut(&mut self.bytes).map_err(Into::into)
     }
 }
 impl<T, L> Index<usize> for List<T, L>
@@ -119,7 +144,7 @@ where
     T: CheckedBitPattern + NoUninit + Align1,
     L: Pod + ToPrimitive + FromPrimitive,
 {
-    type RefMeta = ();
+    type RefMeta = L;
     type RefData = ListRef<T, L>;
 
     fn from_bytes<S: AsBytes>(bytes: S) -> Result<FromBytesReturn<S, Self::RefData>> {
@@ -131,6 +156,17 @@ where
             bytes_used: size_of::<L>() + size_of::<T>() * len,
             ref_wrapper: RefWrapper::new(bytes, ListRef(PhantomData)),
         })
+    }
+}
+impl<T, L> UnsizedTypeToOwned for List<T, L>
+where
+    T: CheckedBitPattern + NoUninit + Align1,
+    L: Pod + ToPrimitive + FromPrimitive,
+{
+    type Owned = Vec<T>;
+
+    fn owned<S: AsBytes>(r: RefWrapper<S, Self::RefData>) -> Result<Self::Owned> {
+        Ok(r.as_checked_slice()?.to_vec())
     }
 }
 
