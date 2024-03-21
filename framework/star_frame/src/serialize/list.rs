@@ -1,7 +1,9 @@
 use crate::align1::Align1;
 use crate::packed_value::PackedValue;
 use crate::prelude::UnsizedType;
-use crate::serialize::ref_wrapper::{AsBytes, AsMutBytes, RefDerefMut, RefWrapper};
+use crate::serialize::ref_wrapper::{
+    AsBytes, AsMutBytes, RefDerefMut, RefWrapper, RefWrapperMutExt, RefWrapperTypes,
+};
 use crate::serialize::unsize::owned::UnsizedTypeToOwned;
 use crate::serialize::unsize::resize::Resize;
 use crate::serialize::unsize::unsized_type::FromBytesReturn;
@@ -139,7 +141,7 @@ where
         try_cast_slice_mut(&mut self.bytes[start..end]).expect("Invalid data for range")
     }
 }
-impl<T, L> UnsizedType for List<T, L>
+unsafe impl<T, L> UnsizedType for List<T, L>
 where
     T: CheckedBitPattern + NoUninit + Align1,
     L: Pod + ToPrimitive + FromPrimitive,
@@ -147,13 +149,17 @@ where
     type RefMeta = L;
     type RefData = ListRef<T, L>;
 
-    fn from_bytes<S: AsBytes>(bytes: S) -> Result<FromBytesReturn<S, Self::RefData>> {
-        let mut bytes_slice = bytes.as_bytes();
-        let len = from_bytes::<PackedValue<L>>(bytes_slice.try_advance(size_of::<L>())?)
+    fn from_bytes<S: AsBytes>(
+        bytes: S,
+    ) -> Result<FromBytesReturn<S, Self::RefData, Self::RefMeta>> {
+        let mut bytes_slice = bytes.as_bytes()?;
+        let len_l = from_bytes::<PackedValue<L>>(bytes_slice.try_advance(size_of::<L>())?);
+        let len = len_l
             .to_usize()
             .ok_or_else(|| anyhow::anyhow!("Could not convert list size to usize"))?;
         Ok(FromBytesReturn {
             bytes_used: size_of::<L>() + size_of::<T>() * len,
+            meta: len_l.0,
             ref_wrapper: RefWrapper::new(bytes, ListRef(PhantomData)),
         })
     }
@@ -171,11 +177,7 @@ where
 }
 
 #[derive(Derivative)]
-#[derivative(
-    Debug(bound = "L: Debug"),
-    Clone(bound = "L: Clone"),
-    Copy(bound = "L: Copy")
-)]
+#[derivative(Debug(bound = ""), Clone(bound = ""), Copy(bound = ""))]
 pub struct ListRef<T, L>(PhantomData<fn() -> (T, L)>);
 impl<S, T, L> RefDeref<S> for ListRef<T, L>
 where
@@ -186,7 +188,7 @@ where
     type Target = List<T, L>;
 
     fn deref(wrapper: &RefWrapper<S, Self>) -> &Self::Target {
-        let bytes = wrapper.sup().as_bytes();
+        let bytes = wrapper.sup().as_bytes().expect("Invalid bytes");
         unsafe { &*ptr::from_raw_parts(bytes.as_ptr().cast(), bytes.len() - size_of::<L>()) }
     }
 }
@@ -197,7 +199,7 @@ where
     L: Pod + ToPrimitive + FromPrimitive,
 {
     fn deref_mut(wrapper: &mut RefWrapper<S, Self>) -> &mut Self::Target {
-        let bytes = unsafe { wrapper.sup_mut().as_mut_bytes() };
+        let bytes = unsafe { wrapper.sup_mut().as_mut_bytes().expect("Invalid bytes") };
         unsafe {
             &mut *ptr::from_raw_parts_mut(bytes.as_mut_ptr().cast(), bytes.len() - size_of::<L>())
         }
@@ -233,9 +235,10 @@ pub trait ListExt: DerefMut<Target = List<Self::Item, Self::Len>> {
     }
     fn remove_range(&mut self, range: impl RangeBounds<usize>) -> Result<()>;
 }
-impl<S, T, L> ListExt for RefWrapper<S, ListRef<T, L>>
+impl<R, T, L> ListExt for R
 where
-    S: Resize<L>,
+    R: DerefMut<Target = List<T, L>> + RefWrapperMutExt<Ref = ListRef<T, L>>,
+    R::Super: Resize<L>,
     T: CheckedBitPattern + NoUninit + Align1,
     L: Pod + ToPrimitive + FromPrimitive,
 {

@@ -1,17 +1,16 @@
-use crate::serialize::pointer_breakup::{BuildPointer, BuildPointerMut, PointerBreakup};
-use crate::serialize::unsized_type::UnsizedType;
-use crate::serialize::{FrameworkFromBytes, FrameworkFromBytesMut, FrameworkInit, ResizeFn};
-use crate::Result;
+use crate::prelude::*;
+use crate::serialize::ref_wrapper::{
+    AsBytes, AsMutBytes, RefBytesMut, RefWrapper, RefWrapperTypes,
+};
+use crate::serialize::unsize::resize::Resize;
+use crate::serialize::unsize::unsized_type::FromBytesReturn;
 use advance::Advance;
 use derivative::Derivative;
+use derive_more::{Deref, DerefMut};
 use solana_program::program_memory::sol_memmove;
-use star_frame::serialize::unsized_type::UnsizedTypeToOwned;
-use star_frame::serialize::FrameworkSerialize;
-use star_frame_proc::Align1;
-use std::cmp::Ordering;
-use std::fmt::Debug;
+use star_frame::serialize::ref_wrapper::{RefBytes, RefWrapperMutExt};
 use std::marker::PhantomData;
-use std::ptr::NonNull;
+use std::ptr::addr_of_mut;
 
 #[derive(Debug, Align1)]
 pub struct CombinedUnsized<T: ?Sized, U: ?Sized> {
@@ -20,462 +19,249 @@ pub struct CombinedUnsized<T: ?Sized, U: ?Sized> {
     _data: [u8],
 }
 
-impl<T, U> UnsizedType for CombinedUnsized<T, U>
+unsafe impl<T, U> UnsizedType for CombinedUnsized<T, U>
 where
     T: ?Sized + UnsizedType,
     U: ?Sized + UnsizedType,
 {
-    type RefMeta = CombinedUnsizedMetadata<T::RefMeta, U::RefMeta>;
-    type Ref<'a> = CombinedUnsizedRef<'a, T, U>;
-    type RefMut<'a> = CombinedUnsizedRefMut<'a, T, U>;
-}
-impl<T, U> UnsizedTypeToOwned for CombinedUnsized<T, U>
-where
-    T: ?Sized + UnsizedTypeToOwned,
-    U: ?Sized + UnsizedTypeToOwned,
-{
-    type Owned = (T::Owned, U::Owned);
+    type RefMeta = CombinedUnsizedRefMeta<T::RefMeta, U::RefMeta>;
+    type RefData = CombinedRef<T, U>;
 
-    fn owned_from_ref(r: Self::Ref<'_>) -> Self::Owned {
-        let (tr, ur) = r.split();
-        (T::owned_from_ref(tr), U::owned_from_ref(ur))
-    }
+    fn from_bytes<S: AsBytes>(
+        bytes: S,
+    ) -> Result<FromBytesReturn<S, Self::RefData, Self::RefMeta>> {
+        let FromBytesReturn {
+            bytes_used: t_len,
+            meta: t_meta,
+            ..
+        } = T::from_bytes(&bytes)?;
+        let FromBytesReturn {
+            bytes_used: u_len,
+            meta: u_meta,
+            ..
+        } = U::from_bytes(RefWrapper::new(&bytes, OffsetRef(t_len)))?;
 
-    fn owned_from_ref_mut(mut r: Self::RefMut<'_>) -> Self::Owned {
-        let (tr, ur) = r.split_mut();
-        (T::owned_from_ref(tr), U::owned_from_ref_mut(ur))
-    }
-}
-unsafe impl<T, U, TA, UA> FrameworkInit<(TA, UA)> for CombinedUnsized<T, U>
-where
-    T: ?Sized + FrameworkInit<TA>,
-    U: ?Sized + FrameworkInit<UA>,
-{
-    const INIT_LENGTH: usize = T::INIT_LENGTH + U::INIT_LENGTH;
-
-    unsafe fn init<'a>(
-        mut bytes: &'a mut [u8],
-        arg: (TA, UA),
-        resize: impl ResizeFn<'a, Self::RefMeta>,
-    ) -> Result<Self::RefMut<'a>> {
-        debug_assert_eq!(bytes.len(), <Self as FrameworkInit<(TA, UA)>>::INIT_LENGTH);
-        debug_assert!(bytes.iter().all(|b| *b == 0));
-        let t_bytes = bytes.try_advance(T::INIT_LENGTH)?;
-        let t = unsafe { T::init(t_bytes, arg.0, |_, _| panic!("Cannot resize during init"))? };
-        let u_bytes = bytes.try_advance(U::INIT_LENGTH)?;
-        let u = unsafe { U::init(u_bytes, arg.1, |_, _| panic!("Cannot resize during init"))? };
-        Ok(unsafe {
-            Self::RefMut::build_pointer_mut(
-                NonNull::from(bytes).cast(),
-                CombinedUnsizedMetadata {
-                    data_len: Self::INIT_LENGTH,
-                    t_meta: t.break_pointer().1,
-                    u_meta: u.break_pointer().1,
-                    t_len: T::INIT_LENGTH,
-                },
-                resize,
-            )
+        let meta = CombinedUnsizedRefMeta {
+            t_meta,
+            u_meta,
+            t_len,
+            u_len,
+        };
+        Ok(FromBytesReturn {
+            bytes_used: t_len + u_len,
+            meta,
+            ref_wrapper: RefWrapper::new(bytes, CombinedRef(meta)),
         })
     }
 }
-unsafe impl<T, U> FrameworkInit<()> for CombinedUnsized<T, U>
-where
-    T: ?Sized + FrameworkInit<()>,
-    U: ?Sized + FrameworkInit<()>,
-{
-    const INIT_LENGTH: usize = <Self as FrameworkInit<((), ())>>::INIT_LENGTH;
 
-    unsafe fn init<'a>(
-        bytes: &'a mut [u8],
-        arg: (),
-        resize: impl ResizeFn<'a, Self::RefMeta>,
-    ) -> Result<Self::RefMut<'a>> {
-        unsafe { <Self as FrameworkInit<((), ())>>::init(bytes, (arg, arg), resize) }
+#[derive(Derivative, Deref, DerefMut)]
+#[derivative(
+    Debug(bound = "T::RefMeta: Debug, U::RefMeta: Debug"),
+    Clone(bound = ""),
+    Copy(bound = "")
+)]
+pub struct CombinedRef<T, U>(CombinedUnsizedRefMeta<T::RefMeta, U::RefMeta>)
+where
+    T: ?Sized + UnsizedType,
+    U: ?Sized + UnsizedType;
+
+struct OffsetRef(usize);
+unsafe impl<S> RefBytes<S> for OffsetRef
+where
+    S: AsBytes,
+{
+    fn bytes(wrapper: &RefWrapper<S, Self>) -> Result<&[u8]> {
+        let mut bytes = wrapper.sup().as_bytes()?;
+        bytes.try_advance(wrapper.r().0)?;
+        Ok(bytes)
     }
 }
 
-#[derive(Copy, Clone, Debug)]
-pub struct CombinedUnsizedMetadata<TMeta, UMeta> {
-    data_len: usize,
-    t_meta: TMeta,
-    u_meta: UMeta,
+#[derive(Debug, Copy, Clone)]
+pub struct CombinedUnsizedRefMeta<TM, UM> {
+    t_meta: TM,
+    u_meta: UM,
     t_len: usize,
-}
-
-#[derive(Debug, Derivative)]
-#[derivative(Clone(bound = ""), Copy(bound = ""))]
-pub struct CombinedUnsizedRef<'a, T, U>
-where
-    T: ?Sized + UnsizedType,
-    U: ?Sized + UnsizedType,
-{
-    phantom_ref: PhantomData<&'a ()>,
-    pointer: NonNull<()>,
-    meta: CombinedUnsizedMetadata<T::RefMeta, U::RefMeta>,
-}
-impl<'a, T, U> FrameworkSerialize for CombinedUnsizedRef<'a, T, U>
-where
-    T: ?Sized + UnsizedType,
-    U: ?Sized + UnsizedType,
-{
-    fn to_bytes(&self, output: &mut &mut [u8]) -> Result<()> {
-        let (t, u) = self.split();
-        t.to_bytes(output)?;
-        u.to_bytes(output)
-    }
-}
-unsafe impl<'a, T, U> FrameworkFromBytes<'a> for CombinedUnsizedRef<'a, T, U>
-where
-    T: ?Sized + UnsizedType,
-    U: ?Sized + UnsizedType,
-{
-    fn from_bytes(bytes: &mut &'a [u8]) -> Result<Self> {
-        let mut bytes_clone = &**bytes;
-        let t = T::Ref::from_bytes(&mut bytes_clone)?;
-        let t_len = bytes.len() - bytes_clone.len();
-        let u = U::Ref::from_bytes(&mut bytes_clone)?;
-        let data_len = bytes.len() - bytes_clone.len();
-        Ok(Self {
-            phantom_ref: PhantomData,
-            pointer: NonNull::from(bytes.try_advance(data_len)?).cast(),
-            meta: CombinedUnsizedMetadata {
-                data_len,
-                t_meta: t.break_pointer().1,
-                u_meta: u.break_pointer().1,
-                t_len,
-            },
-        })
-    }
-}
-impl<'a, T, U> PointerBreakup for CombinedUnsizedRef<'a, T, U>
-where
-    T: ?Sized + UnsizedType,
-    U: ?Sized + UnsizedType,
-{
-    type Metadata = CombinedUnsizedMetadata<
-        <T::Ref<'static> as PointerBreakup>::Metadata,
-        <U::Ref<'static> as PointerBreakup>::Metadata,
-    >;
-
-    fn break_pointer(&self) -> (NonNull<()>, Self::Metadata) {
-        (self.pointer, self.meta)
-    }
-}
-impl<'a, T, U> BuildPointer for CombinedUnsizedRef<'a, T, U>
-where
-    T: ?Sized + UnsizedType,
-    U: ?Sized + UnsizedType,
-{
-    unsafe fn build_pointer(pointee: NonNull<()>, metadata: Self::Metadata) -> Self {
-        Self {
-            phantom_ref: PhantomData,
-            pointer: pointee,
-            meta: metadata,
-        }
-    }
+    u_len: usize,
 }
 
 #[derive(Derivative)]
-#[derivative(Debug(bound = "T::RefMeta: Debug, U::RefMeta: Debug"))]
-pub struct CombinedUnsizedRefMut<'a, T, U>
+#[derivative(
+    Debug(bound = ""),
+    Clone(bound = ""),
+    Copy(bound = ""),
+    Default(bound = "")
+)]
+pub struct CombinedTRef<T, U>(PhantomData<T>, PhantomData<U>)
 where
+    T: ?Sized + UnsizedType,
+    U: ?Sized + UnsizedType;
+#[derive(Derivative)]
+#[derivative(
+    Debug(bound = ""),
+    Clone(bound = ""),
+    Copy(bound = ""),
+    Default(bound = "")
+)]
+pub struct CombinedURef<T, U>(PhantomData<T>, PhantomData<U>)
+where
+    T: ?Sized + UnsizedType,
+    U: ?Sized + UnsizedType;
+
+unsafe impl<S, T, U> RefBytes<S> for CombinedTRef<T, U>
+where
+    S: RefWrapperTypes<Ref = CombinedRef<T, U>>,
+    S::Super: AsBytes,
     T: ?Sized + UnsizedType,
     U: ?Sized + UnsizedType,
 {
-    phantom_ref: PhantomData<&'a mut ()>,
-    pointer: NonNull<()>,
-    meta: CombinedUnsizedMetadata<T::RefMeta, U::RefMeta>,
-    #[derivative(Debug = "ignore")]
-    resize: Box<dyn ResizeFn<'a, <Self as PointerBreakup>::Metadata>>,
-}
-impl<'a, T, U> FrameworkSerialize for CombinedUnsizedRefMut<'a, T, U>
-where
-    T: ?Sized + UnsizedType,
-    U: ?Sized + UnsizedType,
-{
-    fn to_bytes(&self, output: &mut &mut [u8]) -> Result<()> {
-        let (t, u) = self.split();
-        t.to_bytes(output)?;
-        u.to_bytes(output)
+    fn bytes(wrapper: &RefWrapper<S, Self>) -> Result<&[u8]> {
+        let (sup, r) = wrapper.sup().s_r();
+        let mut bytes = sup.as_bytes()?;
+        let t_len = r.t_len;
+        bytes.try_advance(t_len).map_err(Into::into)
     }
 }
-unsafe impl<'a, T, U> FrameworkFromBytesMut<'a> for CombinedUnsizedRefMut<'a, T, U>
+unsafe impl<S, T, U> RefBytesMut<S> for CombinedTRef<T, U>
 where
+    S: RefWrapperMutExt<Ref = CombinedRef<T, U>>,
+    S::Super: AsMutBytes,
     T: ?Sized + UnsizedType,
     U: ?Sized + UnsizedType,
 {
-    fn from_bytes_mut(
-        bytes: &mut &'a mut [u8],
-        resize: impl ResizeFn<'a, Self::Metadata>,
-    ) -> Result<Self> {
-        let bytes_len = bytes.len();
-        let mut bytes_clone = &mut **bytes;
-        let t = T::RefMut::from_bytes_mut(&mut bytes_clone, |_, _| {
-            panic!("Cannot resize during `from_bytes`")
-        })?;
-        let t_meta = t.break_pointer().1;
-        let t_len = bytes_len - bytes_clone.len();
-        drop(t);
-        let u = U::RefMut::from_bytes_mut(&mut bytes_clone, |_, _| {
-            panic!("Cannot resize during `from_bytes`")
-        })?;
-        let u_meta = u.break_pointer().1;
-        drop(u);
-        let data_len = bytes_len - bytes_clone.len();
-        Ok(Self {
-            phantom_ref: PhantomData,
-            pointer: NonNull::from(bytes.try_advance(data_len)?).cast(),
-            meta: CombinedUnsizedMetadata {
-                data_len,
-                t_meta,
-                u_meta,
-                t_len,
-            },
-            resize: Box::new(resize),
-        })
+    fn bytes_mut(wrapper: &mut RefWrapper<S, Self>) -> Result<&mut [u8]> {
+        let (sup, r) = unsafe { wrapper.sup_mut().s_r_mut() };
+        let mut bytes = sup.as_mut_bytes()?;
+        let t_len = r.t_len;
+        bytes.try_advance(t_len).map_err(Into::into)
     }
 }
-
-impl<'a, T, U> PointerBreakup for CombinedUnsizedRefMut<'a, T, U>
+impl<S, T, U> Resize<T::RefMeta> for RefWrapper<S, CombinedTRef<T, U>>
 where
+    S: RefWrapperMutExt<Ref = CombinedRef<T, U>>,
+    S::Super: Resize<<CombinedUnsized<T, U> as UnsizedType>::RefMeta>,
     T: ?Sized + UnsizedType,
     U: ?Sized + UnsizedType,
 {
-    type Metadata = CombinedUnsizedMetadata<T::RefMeta, U::RefMeta>;
-
-    fn break_pointer(&self) -> (NonNull<()>, Self::Metadata) {
-        (self.pointer, self.meta)
-    }
-}
-
-impl<'a, T, U> BuildPointerMut<'a> for CombinedUnsizedRefMut<'a, T, U>
-where
-    T: ?Sized + UnsizedType,
-    U: ?Sized + UnsizedType,
-{
-    unsafe fn build_pointer_mut(
-        pointee: NonNull<()>,
-        metadata: Self::Metadata,
-        resize: impl ResizeFn<'a, Self::Metadata>,
-    ) -> Self {
-        Self {
-            phantom_ref: PhantomData,
-            pointer: pointee,
-            meta: metadata,
-            resize: Box::new(resize),
+    unsafe fn resize(&mut self, new_byte_len: usize, new_meta: T::RefMeta) -> Result<()> {
+        let (sup, r) = unsafe { self.sup_mut().s_r_mut() };
+        let old_t_len = r.t_len;
+        r.t_meta = new_meta;
+        r.t_len = new_byte_len;
+        let bytes = sup.as_mut_bytes()?;
+        let start_ptr = addr_of_mut!(bytes[old_t_len]);
+        let end_ptr = addr_of_mut!(bytes[new_byte_len]);
+        let byte_len = r.u_len;
+        if new_byte_len > old_t_len {
+            unsafe { sup.resize(r.t_len + r.u_len, r.0)? }
+            unsafe { sol_memmove(end_ptr, start_ptr, byte_len) }
+        } else {
+            unsafe { sol_memmove(start_ptr, end_ptr, byte_len) }
+            unsafe { sup.resize(r.t_len + r.u_len, r.0)? }
         }
-    }
-}
 
-pub trait CombinedRefAccess<T, U>
-where
-    T: ?Sized + UnsizedType,
-    U: ?Sized + UnsizedType,
-{
-    fn t(&self) -> T::Ref<'_>;
-    fn u(&self) -> U::Ref<'_>;
-    fn split(&self) -> (T::Ref<'_>, U::Ref<'_>) {
-        (self.t(), self.u())
-    }
-}
-impl<'a, T, U> CombinedRefAccess<T, U> for CombinedUnsizedRef<'a, T, U>
-where
-    T: ?Sized + UnsizedType,
-    U: ?Sized + UnsizedType,
-{
-    fn t(&self) -> T::Ref<'_> {
-        let (pointer, meta) = self.break_pointer();
-        unsafe { T::Ref::build_pointer(pointer, meta.t_meta) }
-    }
-
-    fn u(&self) -> U::Ref<'_> {
-        let (pointer, meta) = self.break_pointer();
-        unsafe {
-            U::Ref::build_pointer(
-                NonNull::new(pointer.as_ptr().byte_add(meta.t_len)).unwrap(),
-                meta.u_meta,
-            )
-        }
-    }
-}
-impl<'a, T, U> CombinedRefAccess<T, U> for CombinedUnsizedRefMut<'a, T, U>
-where
-    T: ?Sized + UnsizedType,
-    U: ?Sized + UnsizedType,
-{
-    fn t(&self) -> T::Ref<'_> {
-        let (pointer, meta) = self.break_pointer();
-        unsafe { T::Ref::build_pointer(pointer, meta.t_meta) }
-    }
-
-    fn u(&self) -> U::Ref<'_> {
-        let (pointer, meta) = self.break_pointer();
-        unsafe {
-            U::Ref::build_pointer(
-                NonNull::new(pointer.as_ptr().byte_add(meta.t_len)).unwrap(),
-                meta.u_meta,
-            )
-        }
-    }
-}
-
-impl<'a, T, U> CombinedUnsizedRefMut<'a, T, U>
-where
-    T: ?Sized + UnsizedType,
-    U: ?Sized + UnsizedType,
-{
-    pub fn t_mut(&mut self) -> T::RefMut<'_> {
-        let (pointer, meta) = Self::break_pointer(self);
-        unsafe {
-            T::RefMut::build_pointer_mut(pointer, meta.t_meta, move |new_size, new_meta| {
-                let old_t_len = self.meta.t_len;
-                match old_t_len.cmp(&new_size) {
-                    Ordering::Equal => {
-                        self.meta.t_meta = new_meta;
-                        let new_ptr = (self.resize)(self.meta.data_len, self.meta)?;
-                        self.pointer = new_ptr;
-                        Ok(new_ptr)
-                    }
-                    // Old size less than new size
-                    Ordering::Less => {
-                        self.meta.t_meta = new_meta;
-                        self.meta.t_len = new_size;
-                        self.meta.data_len += new_size - old_t_len;
-                        let new_ptr = (self.resize)(self.meta.data_len, self.meta)?;
-                        self.pointer = new_ptr;
-                        sol_memmove(
-                            self.pointer.as_ptr().byte_add(new_size).cast(),
-                            self.pointer.as_ptr().byte_add(old_t_len).cast(),
-                            self.meta.data_len - new_size,
-                        );
-                        Ok(new_ptr)
-                    }
-                    // Old size greater than new size
-                    Ordering::Greater => {
-                        sol_memmove(
-                            self.pointer.as_ptr().byte_add(new_size).cast(),
-                            self.pointer.as_ptr().byte_add(old_t_len).cast(),
-                            self.meta.data_len - old_t_len,
-                        );
-                        self.meta.t_meta = new_meta;
-                        self.meta.t_len = new_size;
-                        self.meta.data_len -= old_t_len - new_size;
-                        let new_ptr = (self.resize)(self.meta.data_len, self.meta)?;
-                        self.pointer = new_ptr;
-                        Ok(new_ptr)
-                    }
-                }
-            })
-        }
-    }
-
-    pub fn u_mut(&mut self) -> U::RefMut<'_> {
-        let (pointer, meta) = Self::break_pointer(self);
-        unsafe {
-            U::RefMut::build_pointer_mut(
-                NonNull::new(pointer.as_ptr().byte_add(meta.t_len)).unwrap(),
-                meta.u_meta,
-                move |new_size, new_meta| {
-                    let new_data_len = new_size + meta.t_len;
-                    self.meta.u_meta = new_meta;
-                    self.meta.data_len = new_data_len;
-                    let new_ptr = (self.resize)(new_data_len, self.meta)?;
-                    self.pointer = new_ptr;
-                    Ok(NonNull::new(new_ptr.as_ptr().byte_add(meta.t_len)).unwrap())
-                },
-            )
-        }
-    }
-
-    pub fn split_mut(&mut self) -> (T::Ref<'_>, U::RefMut<'_>) {
-        let (pointer, meta) = Self::break_pointer(self);
-        (
-            unsafe { T::Ref::build_pointer(pointer, meta.t_meta) },
-            unsafe {
-                U::RefMut::build_pointer_mut(
-                    NonNull::new(pointer.as_ptr().byte_add(meta.t_len)).unwrap(),
-                    meta.u_meta,
-                    move |new_size, new_meta| {
-                        let new_data_len = new_size + meta.t_len;
-                        self.meta.u_meta = new_meta;
-                        self.meta.data_len = new_data_len;
-                        let new_ptr = (self.resize)(new_data_len, self.meta)?;
-                        self.pointer = new_ptr;
-                        Ok(NonNull::new(new_ptr.as_ptr().byte_add(meta.t_len)).unwrap())
-                    },
-                )
-            },
-        )
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use crate::packed_value::PackedValue;
-    use crate::prelude::*;
-    use crate::serialize::combined_unsized::CombinedUnsized;
-    use crate::serialize::list::test::Cool;
-    use crate::serialize::list::List;
-    use crate::Result;
-    use star_frame::serialize::test::TestByteSet;
-
-    #[test]
-    fn test_combined() -> Result<()> {
-        let mut test_bytes = TestByteSet::<CombinedUnsized<List<Cool>, List<u8>>>::new(())?;
-        assert_eq!(*test_bytes.immut()?.t(), &[]);
-        assert_eq!(*test_bytes.immut()?.u(), &[] as &[u8]);
-
-        let mut mutable = test_bytes.mutable()?;
-        mutable.t_mut().push(Cool { a: 1, b: 1 })?;
-        mutable.u_mut().push_all([1, 2, 3])?;
-        assert_eq!(*mutable.t(), &[Cool { a: 1, b: 1 }]);
-        assert_eq!(*mutable.u(), &[1, 2, 3]);
-        drop(mutable);
-        // println!("bytes: {:?}", test_bytes.bytes);
-        // println!(
-        //     "list1: {:#?}",
-        //     test_bytes.immut()?.split().0.deref().deref()
-        // );
-        // println!(
-        //     "list2: {:#?}",
-        //     test_bytes.immut()?.split().1.deref().deref()
-        // );
         Ok(())
     }
+}
 
-    #[test]
-    fn test_combined_recursive() -> Result<()> {
-        let mut test_bytes = TestByteSet::<
-            CombinedUnsized<List<Cool>, CombinedUnsized<List<u8>, List<PackedValue<u16>>>>,
-        >::new(())?;
-        assert_eq!(*test_bytes.immut()?.t(), &[]);
-        assert_eq!(*test_bytes.immut()?.u().t(), &[] as &[u8]);
-        assert_eq!(*test_bytes.immut()?.u().u(), &[]);
-
-        let mut mutable = test_bytes.mutable()?;
-        mutable.t_mut().push(Cool { a: 1, b: 1 })?;
-        mutable.u_mut().t_mut().push_all([1, 2, 3])?;
-        mutable
-            .u_mut()
-            .u_mut()
-            .push_all([PackedValue(1), PackedValue(2)])?;
-        assert_eq!(*mutable.t(), &[Cool { a: 1, b: 1 }]);
-        assert_eq!(*mutable.u().t(), &[1, 2, 3]);
-        assert_eq!(*mutable.u().u(), &[PackedValue(1), PackedValue(2)]);
-        drop(mutable);
-        // println!("bytes: {:?}", test_bytes.bytes);
-        // println!(
-        //     "list1: {:#?}",
-        //     test_bytes.immut()?.split().0.deref().deref()
-        // );
-        // println!(
-        //     "list2: {:#?}",
-        //     test_bytes.immut()?.split().1.t().deref().deref()
-        // );
-        // println!(
-        //     "list3: {:#?}",
-        //     test_bytes.immut()?.split().1.u().deref().deref()
-        // );
+unsafe impl<S, T, U> RefBytes<S> for CombinedURef<T, U>
+where
+    S: RefWrapperTypes<Ref = CombinedRef<T, U>>,
+    S::Super: AsBytes,
+    T: ?Sized + UnsizedType,
+    U: ?Sized + UnsizedType,
+{
+    fn bytes(wrapper: &RefWrapper<S, Self>) -> Result<&[u8]> {
+        let (sup, r) = wrapper.sup().s_r();
+        let mut bytes = sup.as_bytes()?;
+        let t_len = r.t_len;
+        bytes.try_advance(t_len)?;
+        Ok(bytes)
+    }
+}
+unsafe impl<S, T, U> RefBytesMut<S> for CombinedURef<T, U>
+where
+    S: RefWrapperMutExt<Ref = CombinedRef<T, U>>,
+    S::Super: AsMutBytes,
+    T: ?Sized + UnsizedType,
+    U: ?Sized + UnsizedType,
+{
+    fn bytes_mut(wrapper: &mut RefWrapper<S, Self>) -> Result<&mut [u8]> {
+        let (sup, r) = unsafe { wrapper.sup_mut().s_r_mut() };
+        let mut bytes = sup.as_mut_bytes()?;
+        let t_len = r.t_len;
+        bytes.try_advance(t_len)?;
+        Ok(bytes)
+    }
+}
+impl<S, T, U> Resize<U::RefMeta> for RefWrapper<S, CombinedURef<T, U>>
+where
+    S: RefWrapperMutExt<Ref = CombinedRef<T, U>>,
+    S::Super: Resize<<CombinedUnsized<T, U> as UnsizedType>::RefMeta>,
+    T: ?Sized + UnsizedType,
+    U: ?Sized + UnsizedType,
+{
+    unsafe fn resize(&mut self, new_byte_len: usize, new_meta: U::RefMeta) -> Result<()> {
+        let (sup, r) = unsafe { self.sup_mut().s_r_mut() };
+        r.u_meta = new_meta;
+        r.u_len = new_byte_len;
+        unsafe { sup.resize(r.t_len + r.u_len, r.0)? }
         Ok(())
+    }
+}
+
+#[allow(clippy::type_complexity)]
+pub trait CombinedExt: Sized {
+    type T: ?Sized + UnsizedType;
+    type U: ?Sized + UnsizedType;
+
+    fn t(
+        self,
+    ) -> Result<
+        RefWrapper<
+            RefWrapper<Self, CombinedTRef<Self::T, Self::U>>,
+            <Self::T as UnsizedType>::RefData,
+        >,
+    >;
+    fn u(
+        self,
+    ) -> Result<
+        RefWrapper<
+            RefWrapper<Self, CombinedURef<Self::T, Self::U>>,
+            <Self::U as UnsizedType>::RefData,
+        >,
+    >;
+}
+impl<S, T, U> CombinedExt for S
+where
+    S: RefWrapperTypes<Ref = CombinedRef<T, U>>,
+    S::Super: AsBytes,
+    T: ?Sized + UnsizedType,
+    U: ?Sized + UnsizedType,
+{
+    type T = T;
+    type U = U;
+
+    fn t(
+        self,
+    ) -> Result<
+        RefWrapper<
+            RefWrapper<Self, CombinedTRef<Self::T, Self::U>>,
+            <Self::T as UnsizedType>::RefData,
+        >,
+    > {
+        T::from_bytes(RefWrapper::new(self, CombinedTRef::default())).map(|r| r.ref_wrapper)
+    }
+
+    fn u(
+        self,
+    ) -> Result<
+        RefWrapper<
+            RefWrapper<Self, CombinedURef<Self::T, Self::U>>,
+            <Self::U as UnsizedType>::RefData,
+        >,
+    > {
+        U::from_bytes(RefWrapper::new(self, CombinedURef::default())).map(|r| r.ref_wrapper)
     }
 }
