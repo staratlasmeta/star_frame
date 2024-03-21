@@ -40,6 +40,7 @@ pub extern crate typenum;
 
 pub mod account_set;
 pub mod align1;
+// mod arbitrary_struct;
 pub mod divisor;
 pub mod entrypoint;
 pub mod errors;
@@ -93,7 +94,7 @@ mod tests {
             patch: 0,
         };
         fn program_to_idl() -> Result<IdlDefinition> {
-            todo!()
+            unimplemented!()
         }
         fn idl_namespace() -> &'static str {
             "my_program"

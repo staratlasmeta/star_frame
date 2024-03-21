@@ -1,23 +1,23 @@
 pub mod borsh;
-pub mod combined_unsized;
-pub mod key_for;
+// pub mod combined_unsized;
+// pub mod key_for;
 pub mod list;
-pub mod optional_key_for;
+// pub mod optional_key_for;
 pub mod pod_bool;
 pub mod pointer_breakup;
+pub mod ref_wrapper;
 #[cfg(test)]
 pub mod test;
-pub mod unsized_enum;
-pub mod unsized_type;
+pub mod unsize;
 
 use crate::align1::Align1;
-use crate::serialize::unsized_type::UnsizedType;
 use crate::Result;
 use advance::Advance;
 use bytemuck::{checked, CheckedBitPattern, NoUninit};
 use star_frame::serialize::pointer_breakup::PointerBreakup;
 use std::mem::size_of;
 use std::ptr::NonNull;
+// use unsize::unsized_type::UnsizedType;
 
 pub trait ResizeFn<'a, M>: FnMut(usize, M) -> Result<NonNull<()>> + 'a {}
 impl<'a, T, M> ResizeFn<'a, M> for T where T: FnMut(usize, M) -> Result<NonNull<()>> + 'a {}
@@ -94,51 +94,51 @@ where
     }
 }
 
-/// # Safety
-/// [`init`](FrameworkInit::init) must properly initialize the bytes.
-pub unsafe trait FrameworkInit<A>: UnsizedType {
-    /// Length of bytes required to initialize this type.
-    const INIT_LENGTH: usize;
-    /// Initializes this type with the given arguments.
-    /// # Safety
-    /// `bytes` must be zeroed and length [`INIT_LENGTH`](FrameworkInit::INIT_LENGTH).
-    unsafe fn init<'a>(
-        bytes: &'a mut [u8],
-        arg: A,
-        resize: impl ResizeFn<'a, Self::RefMeta>,
-    ) -> Result<Self::RefMut<'a>>;
-}
-unsafe impl<T> FrameworkInit<()> for T
-where
-    T: Align1 + CheckedBitPattern + NoUninit,
-{
-    const INIT_LENGTH: usize = size_of::<T>();
-
-    unsafe fn init<'a>(
-        bytes: &'a mut [u8],
-        _arg: (),
-        _resize: impl ResizeFn<'a, Self::RefMeta>,
-    ) -> Result<Self::RefMut<'a>> {
-        debug_assert_eq!(bytes.len(), <Self as FrameworkInit<()>>::INIT_LENGTH);
-        debug_assert!(bytes.iter().all(|b| *b == 0));
-        checked::try_from_bytes_mut(bytes).map_err(Into::into)
-    }
-}
-unsafe impl<T> FrameworkInit<(T,)> for T
-where
-    T: Align1 + CheckedBitPattern + NoUninit,
-{
-    const INIT_LENGTH: usize = size_of::<T>();
-
-    unsafe fn init<'a>(
-        bytes: &'a mut [u8],
-        arg: (T,),
-        _resize: impl ResizeFn<'a, Self::RefMeta>,
-    ) -> Result<Self::RefMut<'a>> {
-        debug_assert_eq!(bytes.len(), <Self as FrameworkInit<(T,)>>::INIT_LENGTH);
-        debug_assert!(bytes.iter().all(|b| *b == 0));
-        let out = checked::try_from_bytes_mut(bytes)?;
-        *out = arg.0;
-        Ok(out)
-    }
-}
+// /// # Safety
+// /// [`init`](FrameworkInit::init) must properly initialize the bytes.
+// pub unsafe trait FrameworkInit<A>: UnsizedType {
+//     /// Length of bytes required to initialize this type.
+//     const INIT_LENGTH: usize;
+//     /// Initializes this type with the given arguments.
+//     /// # Safety
+//     /// `bytes` must be zeroed and length [`INIT_LENGTH`](FrameworkInit::INIT_LENGTH).
+//     unsafe fn init<'a>(
+//         bytes: &'a mut [u8],
+//         arg: A,
+//         resize: impl ResizeFn<'a, Self::RefMeta>,
+//     ) -> Result<Self::RefMut<'a>>;
+// }
+// unsafe impl<T> FrameworkInit<()> for T
+// where
+//     T: Align1 + CheckedBitPattern + NoUninit,
+// {
+//     const INIT_LENGTH: usize = size_of::<T>();
+//
+//     unsafe fn init<'a>(
+//         bytes: &'a mut [u8],
+//         _arg: (),
+//         _resize: impl ResizeFn<'a, Self::RefMeta>,
+//     ) -> Result<Self::RefMut<'a>> {
+//         debug_assert_eq!(bytes.len(), <Self as FrameworkInit<()>>::INIT_LENGTH);
+//         debug_assert!(bytes.iter().all(|b| *b == 0));
+//         checked::try_from_bytes_mut(bytes).map_err(Into::into)
+//     }
+// }
+// unsafe impl<T> FrameworkInit<(T,)> for T
+// where
+//     T: Align1 + CheckedBitPattern + NoUninit,
+// {
+//     const INIT_LENGTH: usize = size_of::<T>();
+//
+//     unsafe fn init<'a>(
+//         bytes: &'a mut [u8],
+//         arg: (T,),
+//         _resize: impl ResizeFn<'a, Self::RefMeta>,
+//     ) -> Result<Self::RefMut<'a>> {
+//         debug_assert_eq!(bytes.len(), <Self as FrameworkInit<(T,)>>::INIT_LENGTH);
+//         debug_assert!(bytes.iter().all(|b| *b == 0));
+//         let out = checked::try_from_bytes_mut(bytes)?;
+//         *out = arg.0;
+//         Ok(out)
+//     }
+// }

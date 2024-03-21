@@ -1,4 +1,4 @@
-use crate::serialize::unsized_type::UnsizedType;
+use crate::serialize::unsized::unsized_type::UnsizedType;
 use crate::serialize::{FrameworkFromBytes, FrameworkFromBytesMut, FrameworkInit};
 use crate::Result;
 use solana_program::program_memory::sol_memset;

@@ -11,8 +11,6 @@ use star_frame_proc::Align1;
 use std::cmp::Ordering;
 use std::fmt::Debug;
 use std::marker::PhantomData;
-use std::ops::{Deref, DerefMut};
-use std::ptr;
 use std::ptr::NonNull;
 
 #[derive(Debug, Align1)]
@@ -115,17 +113,6 @@ where
     pointer: NonNull<()>,
     meta: CombinedUnsizedMetadata<T::RefMeta, U::RefMeta>,
 }
-impl<'a, T, U> Deref for CombinedUnsizedRef<'a, T, U>
-where
-    T: ?Sized + UnsizedType,
-    U: ?Sized + UnsizedType,
-{
-    type Target = CombinedUnsized<T, U>;
-
-    fn deref(&self) -> &Self::Target {
-        unsafe { &*ptr::from_raw_parts(self.pointer.as_ptr(), self.meta.data_len) }
-    }
-}
 impl<'a, T, U> FrameworkSerialize for CombinedUnsizedRef<'a, T, U>
 where
     T: ?Sized + UnsizedType,
@@ -200,26 +187,6 @@ where
     meta: CombinedUnsizedMetadata<T::RefMeta, U::RefMeta>,
     #[derivative(Debug = "ignore")]
     resize: Box<dyn ResizeFn<'a, <Self as PointerBreakup>::Metadata>>,
-}
-impl<'a, T, U> Deref for CombinedUnsizedRefMut<'a, T, U>
-where
-    T: ?Sized + UnsizedType,
-    U: ?Sized + UnsizedType,
-{
-    type Target = CombinedUnsized<T, U>;
-
-    fn deref(&self) -> &Self::Target {
-        unsafe { &*ptr::from_raw_parts(self.pointer.as_ptr(), self.meta.data_len) }
-    }
-}
-impl<'a, T, U> DerefMut for CombinedUnsizedRefMut<'a, T, U>
-where
-    T: ?Sized + UnsizedType,
-    U: ?Sized + UnsizedType,
-{
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        unsafe { &mut *ptr::from_raw_parts_mut(self.pointer.as_ptr(), self.meta.data_len) }
-    }
 }
 impl<'a, T, U> FrameworkSerialize for CombinedUnsizedRefMut<'a, T, U>
 where
@@ -445,7 +412,8 @@ where
 #[cfg(test)]
 mod test {
     use crate::packed_value::PackedValue;
-    use crate::serialize::combined_unsized::{CombinedRefAccess, CombinedUnsized};
+    use crate::prelude::*;
+    use crate::serialize::combined_unsized::CombinedUnsized;
     use crate::serialize::list::test::Cool;
     use crate::serialize::list::List;
     use crate::Result;
