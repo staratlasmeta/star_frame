@@ -149,7 +149,7 @@ where
         bytes.try_advance(t_len).map_err(Into::into)
     }
 }
-impl<S, T, U> Resize<T::RefMeta> for RefWrapper<S, CombinedTRef<T, U>>
+unsafe impl<S, T, U> Resize<T::RefMeta> for RefWrapper<S, CombinedTRef<T, U>>
 where
     S: RefWrapperMutExt<Ref = CombinedRef<T, U>>,
     S::Super: Resize<<CombinedUnsized<T, U> as UnsizedType>::RefMeta>,
@@ -207,7 +207,7 @@ where
         Ok(bytes)
     }
 }
-impl<S, T, U> Resize<U::RefMeta> for RefWrapper<S, CombinedURef<T, U>>
+unsafe impl<S, T, U> Resize<U::RefMeta> for RefWrapper<S, CombinedURef<T, U>>
 where
     S: RefWrapperMutExt<Ref = CombinedRef<T, U>>,
     S::Super: Resize<<CombinedUnsized<T, U> as UnsizedType>::RefMeta>,

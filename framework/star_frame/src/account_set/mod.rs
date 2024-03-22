@@ -1,4 +1,4 @@
-// pub mod data_account;
+pub mod data_account;
 // pub mod init_account;
 pub mod mutable;
 pub mod program;
