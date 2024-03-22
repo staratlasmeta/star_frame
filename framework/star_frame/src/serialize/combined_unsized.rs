@@ -2,6 +2,7 @@ use crate::prelude::*;
 use crate::serialize::ref_wrapper::{
     AsBytes, AsMutBytes, RefBytesMut, RefWrapper, RefWrapperTypes,
 };
+use crate::serialize::unsize::owned::UnsizedTypeToOwned;
 use crate::serialize::unsize::resize::Resize;
 use crate::serialize::unsize::unsized_type::FromBytesReturn;
 use advance::Advance;
@@ -52,6 +53,17 @@ where
             meta,
             ref_wrapper: RefWrapper::new(bytes, CombinedRef(meta)),
         })
+    }
+}
+impl<T, U> UnsizedTypeToOwned for CombinedUnsized<T, U>
+where
+    T: ?Sized + UnsizedTypeToOwned,
+    U: ?Sized + UnsizedTypeToOwned,
+{
+    type Owned = (T::Owned, U::Owned);
+
+    fn owned<S: AsBytes>(r: RefWrapper<S, Self::RefData>) -> Result<Self::Owned> {
+        Ok((T::owned((&r).t()?)?, U::owned(r.u()?)?))
     }
 }
 
