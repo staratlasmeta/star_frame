@@ -8,6 +8,7 @@ pub mod ref_wrapper;
 #[cfg(test)]
 pub mod test;
 pub mod unsize;
+pub mod unsized_enum;
 
 use crate::align1::Align1;
 use crate::Result;

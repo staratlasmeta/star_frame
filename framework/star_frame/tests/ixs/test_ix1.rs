@@ -11,7 +11,6 @@ use star_frame::prelude::SystemAccount;
 use star_frame::serialize::FrameworkFromBytes;
 use star_frame::sys_calls::SysCallInvoke;
 use star_frame::Result;
-use star_frame::serialize::unsized::unsized_type::UnsizedType;
 
 #[derive(Copy, Clone, Zeroable, Align1, Pod, InstructionToIdl)]
 #[repr(C, packed)]
