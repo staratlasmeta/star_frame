@@ -32,7 +32,6 @@ pub use crate::serialize::{
     // optional_key_for::*,
     FrameworkFromBytes,
     // unsized_enum::UnsizedEnum,
-    FrameworkFromBytesMut,
     FrameworkSerialize,
 };
 

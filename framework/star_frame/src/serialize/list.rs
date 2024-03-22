@@ -4,6 +4,7 @@ use crate::prelude::UnsizedType;
 use crate::serialize::ref_wrapper::{
     AsBytes, AsMutBytes, RefDerefMut, RefWrapper, RefWrapperMutExt, RefWrapperTypes,
 };
+use crate::serialize::unsize::init::UnsizedInit;
 use crate::serialize::unsize::owned::UnsizedTypeToOwned;
 use crate::serialize::unsize::resize::Resize;
 use crate::serialize::unsize::unsized_type::FromBytesReturn;
@@ -15,7 +16,7 @@ use bytemuck::{
     bytes_of, cast_slice, cast_slice_mut, from_bytes, CheckedBitPattern, NoUninit, Pod,
 };
 use derivative::Derivative;
-use num_traits::{FromPrimitive, ToPrimitive};
+use num_traits::{FromPrimitive, ToPrimitive, Zero};
 use solana_program::program_memory::sol_memmove;
 use star_frame::serialize::ref_wrapper::RefDeref;
 use std::borrow::Borrow;
@@ -146,7 +147,7 @@ where
     T: CheckedBitPattern + NoUninit + Align1,
     L: Pod + ToPrimitive + FromPrimitive,
 {
-    type RefMeta = L;
+    type RefMeta = ();
     type RefData = ListRef<T, L>;
 
     fn from_bytes<S: AsBytes>(
@@ -159,7 +160,7 @@ where
             .ok_or_else(|| anyhow::anyhow!("Could not convert list size to usize"))?;
         Ok(FromBytesReturn {
             bytes_used: size_of::<L>() + size_of::<T>() * len,
-            meta: len_l.0,
+            meta: (),
             ref_wrapper: RefWrapper::new(bytes, ListRef(PhantomData)),
         })
     }
@@ -173,6 +174,22 @@ where
 
     fn owned<S: AsBytes>(r: RefWrapper<S, Self::RefData>) -> Result<Self::Owned> {
         Ok(r.as_checked_slice()?.to_vec())
+    }
+}
+impl<T, L> UnsizedInit<()> for List<T, L>
+where
+    T: CheckedBitPattern + NoUninit + Align1,
+    L: Pod + ToPrimitive + FromPrimitive + Zero,
+{
+    const INIT_BYTES: usize = size_of::<L>();
+
+    unsafe fn init<S: AsMutBytes>(
+        mut super_ref: S,
+        _arg: (),
+    ) -> Result<RefWrapper<S, Self::RefData>> {
+        let bytes = super_ref.as_mut_bytes()?;
+        bytes[0..size_of::<L>()].copy_from_slice(bytes_of(&L::zeroed()));
+        Ok(RefWrapper::new(super_ref, ListRef(PhantomData)))
     }
 }
 
@@ -238,7 +255,7 @@ pub trait ListExt: DerefMut<Target = List<Self::Item, Self::Len>> {
 impl<R, T, L> ListExt for R
 where
     R: DerefMut<Target = List<T, L>> + RefWrapperMutExt<Ref = ListRef<T, L>>,
-    R::Super: Resize<L>,
+    R::Super: Resize<()>,
     T: CheckedBitPattern + NoUninit + Align1,
     L: Pod + ToPrimitive + FromPrimitive,
 {
@@ -259,7 +276,7 @@ where
         let new_len_l = L::from_usize(new_len)
             .ok_or_else(|| anyhow::anyhow!("Could not convert list size {new_len} to L"))?;
         let new_byte_len = size_of::<L>() + size_of::<T>() * new_len;
-        unsafe { self.sup_mut().resize(new_byte_len, new_len_l)? }
+        unsafe { self.sup_mut().resize(new_byte_len, ())? }
         self.len = new_len_l.into();
 
         let start_byte_index = index * size_of::<T>();
@@ -310,7 +327,7 @@ where
             .ok_or_else(|| anyhow::anyhow!("Could not convert list size {new_len} to L"))?;
         let new_byte_len = size_of::<L>() + size_of::<T>() * new_len;
 
-        unsafe { self.sup_mut().resize(new_byte_len, new_len_l)? }
+        unsafe { self.sup_mut().resize(new_byte_len, ())? }
 
         self.len = new_len_l.into();
 

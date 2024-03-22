@@ -9,8 +9,9 @@ pub unsafe trait UnsizedType: 'static + Align1 {
     type RefMeta: 'static + Copy;
     type RefData;
 
-    fn from_bytes<S: AsBytes>(bytes: S)
-        -> Result<FromBytesReturn<S, Self::RefData, Self::RefMeta>>;
+    fn from_bytes<S: AsBytes>(
+        super_ref: S,
+    ) -> Result<FromBytesReturn<S, Self::RefData, Self::RefMeta>>;
 }
 
 #[derive(Debug, Copy, Clone)]

@@ -3,12 +3,13 @@ use crate::prelude::UnsizedType;
 use crate::serialize::ref_wrapper::{
     AsBytes, AsMutBytes, RefDeref, RefDerefMut, RefWrapper, RefWrapperMutExt, RefWrapperTypes,
 };
+use crate::serialize::unsize::init::UnsizedInit;
 use crate::serialize::unsize::owned::UnsizedTypeToOwned;
 use crate::serialize::unsize::unsized_type::FromBytesReturn;
 use crate::Result;
 use advance::Advance;
 use bytemuck::checked::try_from_bytes;
-use bytemuck::{CheckedBitPattern, NoUninit};
+use bytemuck::{bytes_of, CheckedBitPattern, NoUninit, Zeroable};
 use derivative::Derivative;
 use std::marker::PhantomData;
 use std::mem::size_of;
@@ -80,5 +81,42 @@ where
 
     fn owned<S: AsBytes>(r: RefWrapper<S, Self::RefData>) -> Result<Self::Owned> {
         Ok(*r)
+    }
+}
+
+impl<T> UnsizedInit<T> for T
+where
+    T: Align1 + CheckedBitPattern + NoUninit,
+{
+    const INIT_BYTES: usize = size_of::<T>();
+
+    unsafe fn init<S: AsMutBytes>(
+        mut super_ref: S,
+        arg: T,
+    ) -> Result<RefWrapper<S, Self::RefData>> {
+        super_ref
+            .as_mut_bytes()?
+            .try_advance(size_of::<T>())?
+            .copy_from_slice(bytes_of(&arg));
+        Ok(RefWrapper::new(super_ref, CheckRef(PhantomData)))
+    }
+}
+#[derive(Debug, Copy, Clone)]
+pub struct Zeroed;
+impl<T> UnsizedInit<Zeroed> for T
+where
+    T: Align1 + CheckedBitPattern + NoUninit + Zeroable,
+{
+    const INIT_BYTES: usize = size_of::<T>();
+
+    unsafe fn init<S: AsMutBytes>(
+        mut super_ref: S,
+        _arg: Zeroed,
+    ) -> Result<RefWrapper<S, Self::RefData>> {
+        super_ref
+            .as_mut_bytes()?
+            .try_advance(size_of::<T>())?
+            .copy_from_slice(bytes_of(&T::zeroed()));
+        Ok(RefWrapper::new(super_ref, CheckRef(PhantomData)))
     }
 }
