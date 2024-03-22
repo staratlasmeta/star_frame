@@ -206,7 +206,7 @@ where
 
 #[derive(Debug)]
 pub struct AccountInfoRef<'a> {
-    r: Ref<'a, [u8]>,
+    pub(crate) r: Ref<'a, [u8]>,
 }
 unsafe impl<'a> AsBytes for AccountInfoRef<'a> {
     fn as_bytes(&self) -> Result<&[u8]> {
@@ -224,9 +224,9 @@ impl<'a> Clone for AccountInfoRef<'a> {
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]
 pub struct AccountInfoRefMut<'a, 'info, P: StarFrameProgram> {
-    account_info: &'a AccountInfo<'info>,
-    r: RefMut<'a, &'info mut [u8]>,
-    phantom: PhantomData<fn() -> P>,
+    pub(crate) account_info: &'a AccountInfo<'info>,
+    pub(crate) r: RefMut<'a, &'info mut [u8]>,
+    pub(crate) phantom: PhantomData<fn() -> P>,
 }
 unsafe impl<'a, 'info, P: StarFrameProgram> AsBytes for AccountInfoRefMut<'a, 'info, P> {
     fn as_bytes(&self) -> Result<&[u8]> {

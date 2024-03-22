@@ -157,7 +157,7 @@ pub unsafe trait AsMutBytes: AsBytes {
 
 unsafe impl<'a, T> AsBytes for &'a T
 where
-    T: AsBytes,
+    T: ?Sized + AsBytes,
 {
     fn as_bytes(&self) -> Result<&[u8]> {
         T::as_bytes(*self)
@@ -165,7 +165,7 @@ where
 }
 unsafe impl<'a, T> AsBytes for &'a mut T
 where
-    T: AsBytes,
+    T: ?Sized + AsBytes,
 {
     fn as_bytes(&self) -> Result<&[u8]> {
         T::as_bytes(*self)
@@ -173,7 +173,7 @@ where
 }
 unsafe impl<'a, T> AsMutBytes for &'a mut T
 where
-    T: AsMutBytes,
+    T: ?Sized + AsMutBytes,
 {
     fn as_mut_bytes(&mut self) -> Result<&mut [u8]> {
         T::as_mut_bytes(*self)

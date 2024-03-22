@@ -1,11 +1,11 @@
 pub mod data_account;
-// pub mod init_account;
+pub mod init_account;
 pub mod mutable;
 pub mod program;
 pub mod rest;
 pub mod seeded_account;
-// pub mod seeded_data_account;
-// pub mod seeded_init_account;
+pub mod seeded_data_account;
+pub mod seeded_init_account;
 pub mod signer;
 pub mod system_account;
 
@@ -103,7 +103,7 @@ pub trait SingleAccountSet<'info>: AccountSet<'info> {
         self.account_info().info_data_bytes()
     }
     /// Gets the data of the contained account mutably.
-    fn info_data_bytes_mut<'a>(&'a self) -> Result<RefMut<'a, [u8]>>
+    fn info_data_bytes_mut<'a>(&'a self) -> Result<RefMut<'a, &'info mut [u8]>>
     where
         'info: 'a,
     {
