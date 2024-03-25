@@ -9,6 +9,7 @@ use bytemuck::{bytes_of, from_bytes};
 use derivative::Derivative;
 use solana_program::entrypoint::MAX_PERMITTED_DATA_INCREASE;
 use solana_program::program_memory::sol_memset;
+use solana_program::system_program;
 use star_frame::serialize::ref_wrapper::RefWrapper;
 use std::cell::{Ref, RefMut};
 use std::marker::PhantomData;
@@ -141,6 +142,23 @@ where
         ));
         **arg.recipient.account_info().try_borrow_mut_lamports()? += self.info.lamports();
         **self.info.try_borrow_mut_lamports()? = 0;
+        Ok(())
+    }
+
+    /// Closes the account by reallocing and transfering. This is the same as calling `close` but
+    /// not abusable and harder for indexer detection.
+    pub fn close_full(&mut self, arg: &CloseAccount<impl WritableAccount<'info>>) -> Result<()> {
+        self.info.realloc(
+            size_of::<<T::OwnerProgram as StarFrameProgram>::AccountDiscriminant>(),
+            false,
+        )?;
+        self.info.try_borrow_mut_data()?.copy_from_slice(bytes_of(
+            &<T::OwnerProgram as StarFrameProgram>::CLOSED_ACCOUNT_DISCRIMINANT,
+        ));
+        **arg.recipient.account_info().try_borrow_mut_lamports()? += self.info.lamports();
+        **self.info.try_borrow_mut_lamports()? = 0;
+        self.info.realloc(0, false)?;
+        self.info.assign(&system_program::ID);
         Ok(())
     }
 
