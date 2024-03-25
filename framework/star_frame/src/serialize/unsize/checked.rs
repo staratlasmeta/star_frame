@@ -1,11 +1,10 @@
 use crate::align1::Align1;
-use crate::prelude::UnsizedType;
 use crate::serialize::ref_wrapper::{
     AsBytes, AsMutBytes, RefDeref, RefDerefMut, RefWrapper, RefWrapperMutExt, RefWrapperTypes,
 };
 use crate::serialize::unsize::init::UnsizedInit;
-use crate::serialize::unsize::owned::UnsizedTypeToOwned;
-use crate::serialize::unsize::unsized_type::FromBytesReturn;
+use crate::serialize::unsize::FromBytesReturn;
+use crate::serialize::unsize::UnsizedType;
 use crate::Result;
 use advance::Advance;
 use bytemuck::checked::try_from_bytes;
@@ -13,6 +12,7 @@ use bytemuck::{bytes_of, CheckedBitPattern, NoUninit, Zeroable};
 use derivative::Derivative;
 use std::marker::PhantomData;
 use std::mem::size_of;
+use typenum::False;
 
 unsafe impl<T> UnsizedType for T
 where
@@ -20,6 +20,8 @@ where
 {
     type RefMeta = ();
     type RefData = CheckRef<T>;
+    type Owned = T;
+    type IsUnsized = False;
 
     fn from_bytes<S: AsBytes>(
         bytes: S,
@@ -30,6 +32,10 @@ where
             meta: (),
             ref_wrapper: RefWrapper::new(bytes, CheckRef(PhantomData)),
         })
+    }
+
+    fn owned<S: AsBytes>(r: RefWrapper<S, Self::RefData>) -> Result<Self::Owned> {
+        Ok(*r)
     }
 }
 
@@ -70,17 +76,6 @@ where
                 .as_mut_ptr()
                 .cast()
         }
-    }
-}
-
-impl<T> UnsizedTypeToOwned for T
-where
-    T: Align1 + CheckedBitPattern + NoUninit,
-{
-    type Owned = T;
-
-    fn owned<S: AsBytes>(r: RefWrapper<S, Self::RefData>) -> Result<Self::Owned> {
-        Ok(*r)
     }
 }
 

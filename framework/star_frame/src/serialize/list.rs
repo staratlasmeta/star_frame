@@ -1,13 +1,12 @@
 use crate::align1::Align1;
 use crate::packed_value::PackedValue;
-use crate::prelude::UnsizedType;
 use crate::serialize::ref_wrapper::{
     AsBytes, AsMutBytes, RefDerefMut, RefWrapper, RefWrapperMutExt, RefWrapperTypes,
 };
 use crate::serialize::unsize::init::UnsizedInit;
-use crate::serialize::unsize::owned::UnsizedTypeToOwned;
 use crate::serialize::unsize::resize::Resize;
-use crate::serialize::unsize::unsized_type::FromBytesReturn;
+use crate::serialize::unsize::FromBytesReturn;
+use crate::serialize::unsize::UnsizedType;
 use crate::Result;
 use advance::{Advance, Length};
 use anyhow::ensure;
@@ -27,6 +26,7 @@ use std::mem::size_of;
 use std::ops::{DerefMut, Index, IndexMut, RangeBounds};
 use std::ptr;
 use std::ptr::addr_of_mut;
+use typenum::True;
 
 #[derive(Align1, Debug, PartialEq, Eq)]
 #[repr(C)]
@@ -149,6 +149,8 @@ where
 {
     type RefMeta = ();
     type RefData = ListRef<T, L>;
+    type IsUnsized = True;
+    type Owned = Vec<T>;
 
     fn from_bytes<S: AsBytes>(
         bytes: S,
@@ -164,13 +166,6 @@ where
             ref_wrapper: RefWrapper::new(bytes, ListRef(PhantomData)),
         })
     }
-}
-impl<T, L> UnsizedTypeToOwned for List<T, L>
-where
-    T: CheckedBitPattern + NoUninit + Align1,
-    L: Pod + ToPrimitive + FromPrimitive,
-{
-    type Owned = Vec<T>;
 
     fn owned<S: AsBytes>(r: RefWrapper<S, Self::RefData>) -> Result<Self::Owned> {
         Ok(r.as_checked_slice()?.to_vec())

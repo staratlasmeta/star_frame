@@ -2,31 +2,35 @@ use crate::prelude::*;
 use crate::serialize::ref_wrapper::{
     AsBytes, AsMutBytes, RefBytesMut, RefWrapper, RefWrapperTypes,
 };
-use crate::serialize::unsize::owned::UnsizedTypeToOwned;
 use crate::serialize::unsize::resize::Resize;
-use crate::serialize::unsize::unsized_type::FromBytesReturn;
+use crate::serialize::unsize::{FromBytesReturn, LengthAccess};
 use advance::Advance;
 use derivative::Derivative;
 use derive_more::{Deref, DerefMut};
 use solana_program::program_memory::sol_memmove;
 use star_frame::serialize::ref_wrapper::{RefBytes, RefWrapperMutExt};
 use std::marker::PhantomData;
+use std::ops::BitOr;
 use std::ptr::addr_of_mut;
+use typenum::{Bit, Or};
 
 #[derive(Debug, Align1)]
 pub struct CombinedUnsized<T: ?Sized, U: ?Sized> {
     phantom_t: PhantomData<T>,
     phantom_u: PhantomData<U>,
-    _data: [u8],
 }
 
 unsafe impl<T, U> UnsizedType for CombinedUnsized<T, U>
 where
     T: ?Sized + UnsizedType,
     U: ?Sized + UnsizedType,
+    T::IsUnsized: BitOr<U::IsUnsized>,
+    <T::IsUnsized as BitOr<U::IsUnsized>>::Output: Bit + LengthAccess<Self>,
 {
-    type RefMeta = CombinedUnsizedRefMeta<T::RefMeta, U::RefMeta>;
+    type RefMeta = CombinedUnsizedRefMeta<T, U>;
     type RefData = CombinedRef<T, U>;
+    type IsUnsized = Or<T::IsUnsized, U::IsUnsized>;
+    type Owned = (T::Owned, U::Owned);
 
     fn from_bytes<S: AsBytes>(
         bytes: S,
@@ -45,8 +49,8 @@ where
         let meta = CombinedUnsizedRefMeta {
             t_meta,
             u_meta,
-            t_len,
-            u_len,
+            t_len: T::IsUnsized::from_len(t_len),
+            u_len: U::IsUnsized::from_len(u_len),
         };
         Ok(FromBytesReturn {
             bytes_used: t_len + u_len,
@@ -54,13 +58,17 @@ where
             ref_wrapper: RefWrapper::new(bytes, CombinedRef(meta)),
         })
     }
-}
-impl<T, U> UnsizedTypeToOwned for CombinedUnsized<T, U>
-where
-    T: ?Sized + UnsizedTypeToOwned,
-    U: ?Sized + UnsizedTypeToOwned,
-{
-    type Owned = (T::Owned, U::Owned);
+
+    unsafe fn from_bytes_and_meta<S: AsBytes>(
+        super_ref: S,
+        meta: Self::RefMeta,
+    ) -> Result<FromBytesReturn<S, Self::RefData, Self::RefMeta>> {
+        Ok(FromBytesReturn {
+            bytes_used: T::IsUnsized::len(meta.t_len) + U::IsUnsized::len(meta.u_len),
+            meta,
+            ref_wrapper: RefWrapper::new(super_ref, CombinedRef(meta)),
+        })
+    }
 
     fn owned<S: AsBytes>(r: RefWrapper<S, Self::RefData>) -> Result<Self::Owned> {
         Ok((T::owned((&r).t()?)?, U::owned(r.u()?)?))
@@ -73,7 +81,7 @@ where
     Clone(bound = ""),
     Copy(bound = "")
 )]
-pub struct CombinedRef<T, U>(CombinedUnsizedRefMeta<T::RefMeta, U::RefMeta>)
+pub struct CombinedRef<T, U>(CombinedUnsizedRefMeta<T, U>)
 where
     T: ?Sized + UnsizedType,
     U: ?Sized + UnsizedType;
@@ -90,12 +98,21 @@ where
     }
 }
 
-#[derive(Debug, Copy, Clone)]
-pub struct CombinedUnsizedRefMeta<TM, UM> {
-    t_meta: TM,
-    u_meta: UM,
-    t_len: usize,
-    u_len: usize,
+#[derive(Derivative)]
+#[derivative(
+    Debug(bound = "T::RefMeta: Debug, U::RefMeta: Debug"),
+    Clone(bound = ""),
+    Copy(bound = "")
+)]
+pub struct CombinedUnsizedRefMeta<T, U>
+where
+    T: ?Sized + UnsizedType,
+    U: ?Sized + UnsizedType,
+{
+    t_meta: T::RefMeta,
+    u_meta: U::RefMeta,
+    t_len: <T::IsUnsized as LengthAccess<T>>::LengthData,
+    u_len: <U::IsUnsized as LengthAccess<U>>::LengthData,
 }
 
 #[derive(Derivative)]
@@ -131,8 +148,9 @@ where
     fn bytes(wrapper: &RefWrapper<S, Self>) -> Result<&[u8]> {
         let (sup, r) = wrapper.sup().s_r();
         let mut bytes = sup.as_bytes()?;
-        let t_len = r.t_len;
-        bytes.try_advance(t_len).map_err(Into::into)
+        bytes
+            .try_advance(T::IsUnsized::len(r.t_len))
+            .map_err(Into::into)
     }
 }
 unsafe impl<S, T, U> RefBytesMut<S> for CombinedTRef<T, U>
@@ -145,8 +163,9 @@ where
     fn bytes_mut(wrapper: &mut RefWrapper<S, Self>) -> Result<&mut [u8]> {
         let (sup, r) = unsafe { wrapper.sup_mut().s_r_mut() };
         let mut bytes = sup.as_mut_bytes()?;
-        let t_len = r.t_len;
-        bytes.try_advance(t_len).map_err(Into::into)
+        bytes
+            .try_advance(T::IsUnsized::len(r.t_len))
+            .map_err(Into::into)
     }
 }
 unsafe impl<S, T, U> Resize<T::RefMeta> for RefWrapper<S, CombinedTRef<T, U>>
@@ -155,22 +174,24 @@ where
     S::Super: Resize<<CombinedUnsized<T, U> as UnsizedType>::RefMeta>,
     T: ?Sized + UnsizedType,
     U: ?Sized + UnsizedType,
+    T::IsUnsized: BitOr<U::IsUnsized>,
+    <T::IsUnsized as BitOr<U::IsUnsized>>::Output: Bit + LengthAccess<CombinedUnsized<T, U>>,
 {
     unsafe fn resize(&mut self, new_byte_len: usize, new_meta: T::RefMeta) -> Result<()> {
         let (sup, r) = unsafe { self.sup_mut().s_r_mut() };
-        let old_t_len = r.t_len;
+        let old_t_len = T::IsUnsized::len(r.t_len);
         r.t_meta = new_meta;
-        r.t_len = new_byte_len;
+        r.t_len = T::IsUnsized::from_len(new_byte_len);
         let bytes = sup.as_mut_bytes()?;
         let start_ptr = addr_of_mut!(bytes[old_t_len]);
         let end_ptr = addr_of_mut!(bytes[new_byte_len]);
-        let byte_len = r.u_len;
+        let byte_len = U::IsUnsized::len(r.u_len);
         if new_byte_len > old_t_len {
-            unsafe { sup.resize(r.t_len + r.u_len, r.0)? }
+            unsafe { sup.resize(new_byte_len + byte_len, r.0)? }
             unsafe { sol_memmove(end_ptr, start_ptr, byte_len) }
         } else {
             unsafe { sol_memmove(start_ptr, end_ptr, byte_len) }
-            unsafe { sup.resize(r.t_len + r.u_len, r.0)? }
+            unsafe { sup.resize(new_byte_len + byte_len, r.0)? }
         }
 
         Ok(())
@@ -187,8 +208,7 @@ where
     fn bytes(wrapper: &RefWrapper<S, Self>) -> Result<&[u8]> {
         let (sup, r) = wrapper.sup().s_r();
         let mut bytes = sup.as_bytes()?;
-        let t_len = r.t_len;
-        bytes.try_advance(t_len)?;
+        bytes.try_advance(T::IsUnsized::len(r.t_len))?;
         Ok(bytes)
     }
 }
@@ -202,8 +222,7 @@ where
     fn bytes_mut(wrapper: &mut RefWrapper<S, Self>) -> Result<&mut [u8]> {
         let (sup, r) = unsafe { wrapper.sup_mut().s_r_mut() };
         let mut bytes = sup.as_mut_bytes()?;
-        let t_len = r.t_len;
-        bytes.try_advance(t_len)?;
+        bytes.try_advance(T::IsUnsized::len(r.t_len))?;
         Ok(bytes)
     }
 }
@@ -213,12 +232,14 @@ where
     S::Super: Resize<<CombinedUnsized<T, U> as UnsizedType>::RefMeta>,
     T: ?Sized + UnsizedType,
     U: ?Sized + UnsizedType,
+    T::IsUnsized: BitOr<U::IsUnsized>,
+    <T::IsUnsized as BitOr<U::IsUnsized>>::Output: Bit + LengthAccess<CombinedUnsized<T, U>>,
 {
     unsafe fn resize(&mut self, new_byte_len: usize, new_meta: U::RefMeta) -> Result<()> {
         let (sup, r) = unsafe { self.sup_mut().s_r_mut() };
         r.u_meta = new_meta;
-        r.u_len = new_byte_len;
-        unsafe { sup.resize(r.t_len + r.u_len, r.0)? }
+        r.u_len = U::IsUnsized::from_len(new_byte_len);
+        unsafe { sup.resize(T::IsUnsized::len(r.t_len) + new_byte_len, r.0)? }
         Ok(())
     }
 }
@@ -263,7 +284,9 @@ where
             <Self::T as UnsizedType>::RefData,
         >,
     > {
-        T::from_bytes(RefWrapper::new(self, CombinedTRef::default())).map(|r| r.ref_wrapper)
+        let t_meta = self.r().t_meta;
+        unsafe { T::from_bytes_and_meta(RefWrapper::new(self, CombinedTRef::default()), t_meta) }
+            .map(|r| r.ref_wrapper)
     }
 
     fn u(
@@ -274,6 +297,8 @@ where
             <Self::U as UnsizedType>::RefData,
         >,
     > {
-        U::from_bytes(RefWrapper::new(self, CombinedURef::default())).map(|r| r.ref_wrapper)
+        let u_meta = self.r().u_meta;
+        unsafe { U::from_bytes_and_meta(RefWrapper::new(self, CombinedURef::default()), u_meta) }
+            .map(|r| r.ref_wrapper)
     }
 }
