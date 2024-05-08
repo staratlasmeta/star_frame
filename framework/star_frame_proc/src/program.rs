@@ -82,7 +82,7 @@ pub(crate) fn program_impl(item: ItemStruct, args: TokenStream) -> TokenStream {
                 instruction_data: &[u8],
             ) -> #program_result {
                 #crate_name::entrypoint::try_star_frame_entrypoint::<#ident>(program_id, accounts, instruction_data, #network)
-                    .map_err(crate::errors::handle_error)
+                    .map_err(#crate_name::errors::handle_error)
             }
         }
     }
