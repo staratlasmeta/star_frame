@@ -13,6 +13,7 @@ use syn::{bracketed, token, DataStruct, Field, Ident, Index, Token};
 
 mod cleanup;
 mod decode;
+#[cfg(feature = "idl")]
 mod idl;
 mod validate;
 

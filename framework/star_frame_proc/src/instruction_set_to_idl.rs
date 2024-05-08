@@ -133,7 +133,9 @@ fn derive_instruction_set_to_idl_impl_enum(
     let Paths {
         idl_definition,
         idl_instruction,
+        #[cfg(feature = "idl")]
         instruction_set_to_idl,
+        #[cfg(feature = "idl")]
         instruction_to_idl,
         result,
         ..

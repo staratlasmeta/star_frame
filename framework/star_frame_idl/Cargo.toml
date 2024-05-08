@@ -1,10 +1,8 @@
 [package]
 name = "star_frame_idl"
 version.workspace = true
-edition = "2021"
-publish = ["star-atlas"]
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+edition.workspace = true
+publish.workspace = true
 
 [features]
 default = []
