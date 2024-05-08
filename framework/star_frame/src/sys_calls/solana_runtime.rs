@@ -1,17 +1,13 @@
-use crate::sys_calls::{SysCallCore, SysCallInvoke, SysCallReturn};
-use crate::util::Network;
 use crate::SolanaInstruction;
-use solana_program::account_info::AccountInfo;
 use solana_program::clock::Clock;
 use solana_program::entrypoint::ProgramResult;
 use solana_program::program::{
     get_return_data, invoke, invoke_signed, invoke_signed_unchecked, invoke_unchecked,
     set_return_data,
 };
-use solana_program::program_error::ProgramError;
-use solana_program::pubkey::Pubkey;
 use solana_program::rent::Rent;
 use solana_program::sysvar::Sysvar;
+use crate::prelude::*;
 
 /// Sys-Calls provided by the solana runtime.
 #[derive(Debug)]
@@ -66,7 +62,37 @@ impl<'b> SysCallInvoke for SolanaRuntime<'b> {
         accounts: &[AccountInfo],
         signers_seeds: &[&[&[u8]]],
     ) -> ProgramResult {
-        invoke_signed(instruction, accounts, signers_seeds)
+        // Check that the account RefCells are consistent with the request
+        for account_meta in instruction.accounts.iter() {
+            for account_info in accounts.iter() {
+                if account_meta.pubkey == *account_info.key {
+                    if account_meta.is_writable {
+                        let _ = account_info.try_borrow_mut_lamports().map_err(|e| {
+                            msg!("lamports borrow_mut failed for {}", account_info.key);
+                            e
+                        })?;
+                        let _ = account_info.try_borrow_mut_data().map_err(|e| {
+                            msg!("data borrow_mut failed for {}", account_info.key);
+                            e
+                        })?;
+                    } else {
+                        let _ = account_info.try_borrow_lamports().map_err(|e| {
+                            msg!("lamports borrow failed for {}", account_info.key);
+                            e
+                        })?;
+                        let _ = account_info.try_borrow_data().map_err(|e| {
+                            msg!("data borrow failed for {}", account_info.key);
+                            e
+                        })?;
+                    }
+                    break;
+                }
+            }
+        }
+
+        // Safety: check logic for solana's invoke_signed is duplicated, with the only difference
+        // being the problematic pubkeys are now logged out on error.
+        invoke_signed_unchecked(instruction, accounts, signers_seeds)
     }
 
     unsafe fn invoke_signed_unchecked(
