@@ -6,7 +6,9 @@ members = [
 ]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.0.1"
+edition = "2021"
+publish = ["star-atlas"]
 
 [workspace.dependencies]
 star_frame_idl = { path = "framework/star_frame_idl", features = ["verifier"] }

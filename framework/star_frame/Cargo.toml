@@ -1,9 +1,8 @@
 [package]
 name = "star_frame"
 version.workspace = true
-edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+edition.workspace = true
+publish.workspace = true
 
 [features]
 default = ["idl", "cleanup_rent_warning"]
