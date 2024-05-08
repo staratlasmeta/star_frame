@@ -112,7 +112,8 @@ where
             let bytes = &mut &**bytes;
             bytes.try_advance(size_of::<
                 <T::OwnerProgram as StarFrameProgram>::AccountDiscriminant,
-            >())
+            >())?;
+            Result::<_>::Ok(*bytes)
         })?;
         let account_info_ref = AccountInfoRef { r };
         unsafe { T::from_bytes(account_info_ref).map(|ret| ret.ref_wrapper) }

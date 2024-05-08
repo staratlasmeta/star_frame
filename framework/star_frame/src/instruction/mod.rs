@@ -131,8 +131,10 @@ where
         let mut return_data = vec![0u8; MAX_RETURN_DATA];
         let mut return_data_ref = &mut return_data[..];
         ret.to_bytes(&mut return_data_ref)?;
-        let return_data_len = return_data_ref.len();
-        sys_calls.set_return_data(&return_data[..return_data_len]);
+        if return_data_ref.len() != MAX_RETURN_DATA {
+            let return_data_len = MAX_RETURN_DATA - return_data_ref.len();
+            sys_calls.set_return_data(&return_data[..return_data_len]);
+        }
         Ok(())
     }
 }
