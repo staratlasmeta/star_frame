@@ -88,10 +88,10 @@ impl<'a> SysCallCore for SolanaRuntime<'a> {
     }
 
     fn get_rent(&mut self) -> Result<Rent, ProgramError> {
-        match self.rent_cache {
+        match self.rent_cache.clone() {
             None => {
                 let rent = Rent::get()?;
-                self.rent_cache = Some(rent);
+                self.rent_cache = Some(rent.clone());
                 Ok(rent)
             }
             Some(rent) => Ok(rent),

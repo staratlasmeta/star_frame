@@ -76,13 +76,11 @@ impl<'info> SingleAccountSet<'info> for AccountInfo<'info> {
             .map_err(Into::into)
     }
 
-    fn info_data_bytes_mut<'a>(&'a self) -> Result<RefMut<'a, [u8]>>
+    fn info_data_bytes_mut<'a>(&'a self) -> Result<RefMut<'a, &'info mut [u8]>>
     where
         'info: 'a,
     {
-        self.try_borrow_mut_data()
-            .map(|d| RefMut::map(d, |d| &mut **d))
-            .map_err(Into::into)
+        self.try_borrow_mut_data().map_err(Into::into)
     }
 }
 impl<'__a, 'info> SingleAccountSet<'info> for &'__a AccountInfo<'info> {
@@ -123,13 +121,11 @@ impl<'__a, 'info> SingleAccountSet<'info> for &'__a AccountInfo<'info> {
             .map_err(Into::into)
     }
 
-    fn info_data_bytes_mut<'a>(&'a self) -> Result<RefMut<'a, [u8]>>
+    fn info_data_bytes_mut<'a>(&'a self) -> Result<RefMut<'a, &'info mut [u8]>>
     where
         'info: 'a,
     {
-        self.try_borrow_mut_data()
-            .map(|d| RefMut::map(d, |d| &mut **d))
-            .map_err(Into::into)
+        self.try_borrow_mut_data().map_err(Into::into)
     }
 }
 impl<'a, 'info> AccountSetDecode<'a, 'info, ()> for AccountInfo<'info> {

@@ -1,16 +1,15 @@
 use crate::idl::ProgramToIdl;
 use crate::program::system_program::SystemProgram;
 use crate::Result;
-use bytemuck::{CheckedBitPattern, NoUninit, Pod};
-use num_traits::{FromPrimitive, ToPrimitive};
+// use bytemuck::{CheckedBitPattern, NoUninit, Pod};
+// use num_traits::{FromPrimitive, ToPrimitive};
 use solana_program::pubkey::Pubkey;
-use star_frame::prelude::OptionalPubkey;
+// use star_frame::prelude::OptionalPubkey;
 use star_frame_idl::ty::{IdlDefinedType, IdlType, IdlTypeDef, TypeId};
 use star_frame_idl::{IdlDefinition, IdlDefinitionReference, SemVer};
-
-use crate::align1::Align1;
+// use crate::align1::Align1;
 use crate::prelude::PodBool;
-use crate::serialize::list::List;
+// use crate::serialize::list::List;
 pub use star_frame_proc::TypeToIdl;
 
 pub trait TypeToIdl {
@@ -55,7 +54,7 @@ impl_type_to_idl_for_defined!(
     bool: BorshBool,
     String: BorshString,
     PodBool: PodBool,
-    OptionalPubkey: OptionalPubkey,
+    // OptionalPubkey: OptionalPubkey,
 );
 
 impl TypeToIdl for Pubkey {
@@ -113,19 +112,19 @@ impl<T: TypeToIdl> TypeToIdl for Vec<T> {
     }
 }
 
-impl<T, L> TypeToIdl for List<T, L>
-where
-    T: CheckedBitPattern + NoUninit + TypeToIdl + Align1,
-    L: Pod + TypeToIdl + FromPrimitive + ToPrimitive,
-{
-    type AssociatedProgram = SystemProgram;
-    fn type_to_idl(idl_definition: &mut IdlDefinition) -> Result<IdlTypeDef> {
-        Ok(IdlTypeDef::BorshVec {
-            item_ty: Box::new(T::type_to_idl(idl_definition)?),
-            len_ty: Box::new(L::type_to_idl(idl_definition)?),
-        })
-    }
-}
+// impl<T, L> TypeToIdl for List<T, L>
+// where
+//     T: CheckedBitPattern + NoUninit + TypeToIdl + Align1,
+//     L: Pod + TypeToIdl + FromPrimitive + ToPrimitive,
+// {
+//     type AssociatedProgram = SystemProgram;
+//     fn type_to_idl(idl_definition: &mut IdlDefinition) -> Result<IdlTypeDef> {
+//         Ok(IdlTypeDef::BorshVec {
+//             item_ty: Box::new(T::type_to_idl(idl_definition)?),
+//             len_ty: Box::new(L::type_to_idl(idl_definition)?),
+//         })
+//     }
+// }
 
 impl<T: TypeToIdl, const N: usize> TypeToIdl for [T; N] {
     type AssociatedProgram = SystemProgram;

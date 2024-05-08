@@ -1,21 +1,10 @@
-use crate::account_set::data_account::{DataAccount, ProgramAccount};
-use crate::account_set::mutable::Writable;
-use crate::account_set::program::Program;
-use crate::account_set::seeded_account::GetSeeds;
-use crate::account_set::{AccountSetValidate, SignedAccount, SingleAccountSet};
+use crate::account_set::SignedAccount;
 use crate::prelude::*;
-use crate::program::system_program::SystemProgram;
-use crate::program::StarFrameProgram;
-use crate::serialize::FrameworkInit;
-use crate::sys_calls::SysCallInvoke;
-use crate::Result;
 use advance::Advance;
 use anyhow::{bail, Context};
 use bytemuck::bytes_of;
 use derivative::Derivative;
 use derive_more::{Deref, DerefMut};
-use solana_program::account_info::AccountInfo;
-use solana_program::program_error::ProgramError;
 use solana_program::program_memory::sol_memset;
 use solana_program::system_instruction;
 use star_frame::account_set::WritableAccount;
@@ -27,13 +16,13 @@ use std::mem::size_of;
 #[account_set(skip_default_validate)]
 #[validate(
     id = "create",
-    generics = [<A> where A: InitCreateArg<'info>, T: FrameworkInit<A::FrameworkInitArg>],
+    generics = [<A> where A: InitCreateArg<'info>, T: UnsizedInit<A::FrameworkInitArg>],
     arg = Create<A>,
     extra_validation = self.init_validate_create(arg.0, sys_calls),
 )]
 #[validate(
     id = "create_if_needed",
-    generics = [<A> where A: InitCreateArg<'info>, T: FrameworkInit<A::FrameworkInitArg>],
+    generics = [<A> where A: InitCreateArg<'info>, T: UnsizedInit<A::FrameworkInitArg>],
     arg = CreateIfNeeded<A>,
     extra_validation = self.init_if_needed(arg.0, sys_calls),
 )]
@@ -182,7 +171,7 @@ where
     fn init_if_needed<A>(&mut self, arg: A, sys_calls: &mut impl SysCallInvoke) -> Result<()>
     where
         A: InitCreateArg<'info>,
-        T: FrameworkInit<A::FrameworkInitArg>,
+        T: UnsizedInit<A::FrameworkInitArg>,
     {
         if self.owner() == arg.system_program().key()
             || self.account_info().data.borrow_mut()
@@ -204,7 +193,7 @@ where
     ) -> Result<()>
     where
         A: InitCreateArg<'info>,
-        T: FrameworkInit<A::FrameworkInitArg>,
+        T: UnsizedInit<A::FrameworkInitArg>,
     {
         self.inner
             .check_writable()
@@ -219,8 +208,8 @@ where
             bail!(ProgramError::IllegalOwner);
         }
         let rent = sys_calls.get_rent()?;
-        let size = T::INIT_LENGTH
-            + size_of::<<T::OwnerProgram as StarFrameProgram>::AccountDiscriminant>();
+        let size =
+            T::INIT_BYTES + size_of::<<T::OwnerProgram as StarFrameProgram>::AccountDiscriminant>();
         let ix = system_instruction::create_account(
             funder.key(),
             self.key(),
@@ -253,17 +242,17 @@ where
         }
 
         let mut data_bytes = self.info_data_bytes_mut()?;
-        let mut data_bytes = &mut *data_bytes;
+        let data_bytes = &mut *data_bytes;
 
         data_bytes
             .try_advance(size_of::<
                 <T::OwnerProgram as StarFrameProgram>::AccountDiscriminant,
             >())?
             .copy_from_slice(bytes_of(&T::DISCRIMINANT));
-        let data_bytes = data_bytes.try_advance(T::INIT_LENGTH)?;
+        let data_bytes = data_bytes.try_advance(T::INIT_BYTES)?;
         sol_memset(data_bytes, 0, data_bytes.len());
         unsafe {
-            T::init(data_bytes, arg, |_, _| panic!("Cannot resize during init"))?;
+            T::init(data_bytes, arg)?;
         }
 
         Ok(())

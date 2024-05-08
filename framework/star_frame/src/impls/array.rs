@@ -16,14 +16,14 @@ where
     where
         'info: 'a,
     {
-        for a in self.iter() {
+        for a in self {
             a.try_to_accounts(&mut add_account)?;
         }
         Ok(())
     }
 
     fn to_account_metas(&self, mut add_account_meta: impl FnMut(AccountMeta)) {
-        for a in self.iter() {
+        for a in self {
             a.to_account_metas(&mut add_account_meta);
         }
     }
@@ -77,7 +77,7 @@ where
         validate_input: [VArg; N],
         sys_calls: &mut impl SysCallInvoke,
     ) -> Result<()> {
-        for (a, v) in self.iter_mut().zip(validate_input.into_iter()) {
+        for (a, v) in self.iter_mut().zip(validate_input) {
             a.validate_accounts(v, sys_calls)?;
         }
         Ok(())
@@ -124,7 +124,7 @@ where
         cleanup_input: [VArg; N],
         sys_calls: &mut impl SysCallInvoke,
     ) -> Result<()> {
-        for (a, v) in self.iter_mut().zip(cleanup_input.into_iter()) {
+        for (a, v) in self.iter_mut().zip(cleanup_input) {
             a.cleanup_accounts(v, sys_calls)?;
         }
         Ok(())

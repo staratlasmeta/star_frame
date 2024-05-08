@@ -103,7 +103,7 @@ pub trait SingleAccountSet<'info>: AccountSet<'info> {
         self.account_info().info_data_bytes()
     }
     /// Gets the data of the contained account mutably.
-    fn info_data_bytes_mut<'a>(&'a self) -> Result<RefMut<'a, [u8]>>
+    fn info_data_bytes_mut<'a>(&'a self) -> Result<RefMut<'a, &'info mut [u8]>>
     where
         'info: 'a,
     {

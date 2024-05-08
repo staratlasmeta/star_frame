@@ -1,10 +1,9 @@
 use crate::instruction::InstructionSet;
-use crate::serialize::FrameworkFromBytes;
+use crate::prelude::*;
 use crate::sys_calls::SysCalls;
 use crate::Result;
 use solana_program::account_info::AccountInfo;
 use solana_program::pubkey::Pubkey;
-use star_frame::serialize::FrameworkSerialize;
 use star_frame_proc::Align1;
 
 #[derive(Align1, Debug, Copy, Clone)]

@@ -210,7 +210,6 @@ where
 #[cfg(feature = "idl")]
 mod idl_impl {
     use super::*;
-    use star_frame::idl::AccountSetToIdl;
     use star_frame_idl::account_set::IdlAccountSetDef;
     use star_frame_idl::IdlDefinition;
 

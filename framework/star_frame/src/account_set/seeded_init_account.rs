@@ -4,7 +4,6 @@ use crate::account_set::seeded_account::SeedProgram;
 use crate::account_set::seeded_account::Skip;
 use crate::account_set::SignedAccount;
 use crate::prelude::*;
-use crate::serialize::FrameworkInit;
 use derivative::Derivative;
 use derive_more::{Deref, DerefMut};
 use star_frame::account_set::seeded_account::CurrentProgram;
@@ -23,7 +22,7 @@ use star_frame_proc::AccountSet;
         <IC>
         where
             IC: InitCreateArg<'info>,
-            T: FrameworkInit<IC::FrameworkInitArg>,
+            T: UnsizedInit<IC::FrameworkInitArg>,
     ],
     arg = Create<SeededInit<T::Seeds, IC>>,
     extra_validation = seed_init_validate(self, arg.0, sys_calls)
@@ -34,7 +33,7 @@ use star_frame_proc::AccountSet;
         <IC>
         where
             IC: InitCreateArg<'info>,
-            T: FrameworkInit<IC::FrameworkInitArg>,
+            T: UnsizedInit<IC::FrameworkInitArg>,
     ],
     arg = CreateIfNeeded<SeededInit<T::Seeds, IC>>,
     extra_validation = seed_init_validate_if_needed(self, arg.0, sys_calls)
@@ -116,7 +115,7 @@ fn seed_init_validate<'info, T, IC, P: SeedProgram>(
     sys_calls: &mut impl SysCallInvoke,
 ) -> Result<()>
 where
-    T: SeededAccountData + UnsizedType + FrameworkInit<IC::FrameworkInitArg> + ?Sized,
+    T: SeededAccountData + UnsizedType + UnsizedInit<IC::FrameworkInitArg> + ?Sized,
     IC: InitCreateArg<'info>,
 {
     SeededAccount::validate_accounts(&mut account.0, (Skip, Seeds(arg.seeds)), sys_calls)?;
@@ -138,7 +137,7 @@ fn seed_init_validate_if_needed<'info, T, IC, P: SeedProgram>(
     sys_calls: &mut impl SysCallInvoke,
 ) -> Result<()>
 where
-    T: SeededAccountData + UnsizedType + FrameworkInit<IC::FrameworkInitArg> + ?Sized,
+    T: SeededAccountData + UnsizedType + UnsizedInit<IC::FrameworkInitArg> + ?Sized,
     IC: InitCreateArg<'info>,
 {
     SeededAccount::validate_accounts(&mut account.0, (Skip, Seeds(arg.seeds)), sys_calls)?;

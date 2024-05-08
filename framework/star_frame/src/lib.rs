@@ -1,5 +1,6 @@
 #![feature(ptr_metadata)]
-#![feature(pointer_byte_offsets)]
+#![cfg_attr(not(rust_1_75), feature(pointer_byte_offsets))]
+#![cfg_attr(not(rust_1_76), feature(type_name_of_val))]
 #![warn(
     clippy::pedantic,
     missing_copy_implementations,
@@ -7,6 +8,7 @@
     unsafe_op_in_unsafe_fn
 )]
 #![allow(
+    clippy::incorrect_clone_impl_on_copy_type,
     clippy::default_trait_access,
     clippy::manual_string_new,
     clippy::missing_errors_doc,
@@ -16,7 +18,6 @@
     clippy::wildcard_imports,
     clippy::expl_impl_clone_on_copy
 )]
-#![feature(type_name_of_val)]
 
 pub extern crate advance;
 pub extern crate anyhow;
@@ -39,6 +40,7 @@ pub extern crate typenum;
 
 pub mod account_set;
 pub mod align1;
+// mod arbitrary_struct;
 pub mod divisor;
 pub mod entrypoint;
 pub mod errors;
@@ -92,7 +94,7 @@ mod tests {
             patch: 0,
         };
         fn program_to_idl() -> Result<IdlDefinition> {
-            todo!()
+            unimplemented!()
         }
         fn idl_namespace() -> &'static str {
             "my_program"
