@@ -1,9 +1,5 @@
-use crate::instruction::InstructionSet;
 use crate::prelude::*;
-use crate::sys_calls::SysCalls;
 use crate::Result;
-use solana_program::account_info::AccountInfo;
-use solana_program::pubkey::Pubkey;
 use star_frame_proc::Align1;
 
 #[derive(Align1, Debug, Copy, Clone)]
@@ -36,7 +32,6 @@ impl InstructionSet for UnCallable {
 #[cfg(feature = "idl")]
 mod idl_impl {
     use super::*;
-    use crate::idl::InstructionSetToIdl;
     use star_frame_idl::IdlDefinition;
 
     impl InstructionSetToIdl for UnCallable {

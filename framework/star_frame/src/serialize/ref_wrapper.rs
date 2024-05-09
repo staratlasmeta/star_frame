@@ -1,11 +1,25 @@
+use crate::serialize::unsize::resize::Resize;
 use crate::Result;
-use derive_more::Constructor;
 use std::ops::{Deref, DerefMut};
 
-#[derive(Debug, Copy, Clone, Constructor)]
+#[derive(Debug, Copy, Clone)]
 pub struct RefWrapper<S, R> {
     super_ref: S,
     r: R,
+}
+impl<S, R> RefWrapper<S, R> {
+    /// # Safety
+    /// Only safe to use if `r` is valid for `super_ref`.
+    pub const unsafe fn new(super_ref: S, r: R) -> Self {
+        Self { super_ref, r }
+    }
+
+    /// # Safety
+    /// Only safe to use if `r` is valid for `super_ref`.
+    pub unsafe fn wrap_r<R2>(mut self, f: impl FnOnce(&mut S, R) -> R2) -> RefWrapper<S, R2> {
+        let new_r = f(&mut self.super_ref, self.r);
+        unsafe { RefWrapper::new(self.super_ref, new_r) }
+    }
 }
 pub trait RefWrapperTypes {
     type Super;
@@ -155,6 +169,22 @@ pub unsafe trait AsMutBytes: AsBytes {
     fn as_mut_bytes(&mut self) -> Result<&mut [u8]>;
 }
 
+/// # Safety
+/// Same requirements as [`Resize`].
+pub unsafe trait RefResize<S, M>: Sized {
+    /// # Safety
+    /// Same requirements as [`Resize::resize`].
+    unsafe fn resize(
+        wrapper: &mut RefWrapper<S, Self>,
+        new_byte_len: usize,
+        new_meta: M,
+    ) -> Result<()>;
+
+    /// # Safety
+    /// Same requirements as [`Resize::set_meta`].
+    unsafe fn set_meta(wrapper: &mut RefWrapper<S, Self>, new_meta: M) -> Result<()>;
+}
+
 unsafe impl<'a, T> AsBytes for &'a T
 where
     T: ?Sized + AsBytes,
@@ -232,5 +262,18 @@ where
 {
     fn as_mut_bytes(&mut self) -> Result<&mut [u8]> {
         R::bytes_mut(self)
+    }
+}
+unsafe impl<S, R, M> Resize<M> for RefWrapper<S, R>
+where
+    Self: AsMutBytes,
+    R: RefResize<S, M>,
+{
+    unsafe fn resize(&mut self, new_byte_len: usize, new_meta: M) -> Result<()> {
+        unsafe { R::resize(self, new_byte_len, new_meta) }
+    }
+
+    unsafe fn set_meta(&mut self, new_meta: M) -> Result<()> {
+        unsafe { R::set_meta(self, new_meta) }
     }
 }

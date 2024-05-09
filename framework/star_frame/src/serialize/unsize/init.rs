@@ -1,6 +1,8 @@
 use crate::prelude::*;
 use crate::serialize::ref_wrapper::{AsMutBytes, RefWrapper};
 
+// TODO: Remove this
+#[allow(clippy::type_complexity)]
 pub trait UnsizedInit<InitArg>: UnsizedType {
     const INIT_BYTES: usize;
 
@@ -9,5 +11,5 @@ pub trait UnsizedInit<InitArg>: UnsizedType {
     unsafe fn init<S: AsMutBytes>(
         super_ref: S,
         arg: InitArg,
-    ) -> Result<RefWrapper<S, Self::RefData>>;
+    ) -> Result<(RefWrapper<S, Self::RefData>, Self::RefMeta)>;
 }

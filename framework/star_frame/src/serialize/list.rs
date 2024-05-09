@@ -152,7 +152,7 @@ where
     type IsUnsized = True;
     type Owned = Vec<T>;
 
-    fn from_bytes<S: AsBytes>(
+    unsafe fn from_bytes<S: AsBytes>(
         bytes: S,
     ) -> Result<FromBytesReturn<S, Self::RefData, Self::RefMeta>> {
         let mut bytes_slice = bytes.as_bytes()?;
@@ -163,7 +163,7 @@ where
         Ok(FromBytesReturn {
             bytes_used: size_of::<L>() + size_of::<T>() * len,
             meta: (),
-            ref_wrapper: RefWrapper::new(bytes, ListRef(PhantomData)),
+            ref_wrapper: unsafe { RefWrapper::new(bytes, ListRef(PhantomData)) },
         })
     }
 
@@ -181,10 +181,13 @@ where
     unsafe fn init<S: AsMutBytes>(
         mut super_ref: S,
         _arg: (),
-    ) -> Result<RefWrapper<S, Self::RefData>> {
+    ) -> Result<(RefWrapper<S, Self::RefData>, Self::RefMeta)> {
         let bytes = super_ref.as_mut_bytes()?;
         bytes[0..size_of::<L>()].copy_from_slice(bytes_of(&L::zeroed()));
-        Ok(RefWrapper::new(super_ref, ListRef(PhantomData)))
+        Ok((
+            unsafe { RefWrapper::new(super_ref, ListRef(PhantomData)) },
+            (),
+        ))
     }
 }
 
