@@ -326,189 +326,237 @@ pub struct IdlGeneric {
 }
 
 // TODO: Fix this
-// #[cfg(test)]
-// mod test {
-//     use crate::{
-//         AccountId, DiscriminantId, IdlAccount, IdlAccountSet, IdlAccountSetDef,
-//         idl_account_set_struct_field, IdlDefinedType, IdlDefinition, IdlField, IdlGeneric,
-//         IdlRawInputAccount, IdlSeed, IdlSeedDef, IdlSeeds, IdlSeedsDef, IdlType, IdlTypeDef,
-//         Network, TypeId, Version,
-//     };
-//     use anyhow::Result;
-//     use solana_sdk::pubkey::Pubkey;
-//     use std::fs::File;
-//
-//     #[test]
-//     fn idl_example() -> Result<()> {
-//         let idl = IdlDefinition {
-//             idl_std_version: Version {
-//                 major: 0,
-//                 minor: 1,
-//                 patch: 0,
-//             },
-//             version: Version {
-//                 major: 1,
-//                 minor: 0,
-//                 patch: 0,
-//             },
-//             name: "Test Idl".to_string(),
-//             description: "Test Idl Description".to_string(),
-//             namespace: "@staratlas/test".to_string(),
-//             program_ids: [
-//                 (Network::MainNet, Pubkey::new_unique().into()),
-//                 (Network::MainNet, Pubkey::default().into()),
-//                 (
-//                     Network::Custom("AtlasNet".to_string()),
-//                     Pubkey::new_unique().into(),
-//                 ),
-//             ]
-//             .into_iter()
-//             .collect(),
-//             account_discriminant: DiscriminantId::U8,
-//             instruction_discriminant: DiscriminantId::U64,
-//             accounts: vec![
-//                 IdlAccount {
-//                     name: "Test Account 1".to_string(),
-//                     description: "Basic account".to_string(),
-//                     id: "test1".to_string(),
-//                     discriminant: serde_json::to_value(1u8)?,
-//                     type_id: TypeId {
-//                         namespace: None,
-//                         type_id: "TestType".to_string(),
-//                         provided_generics: vec![],
-//                         extension_fields: Default::default(),
-//                     },
-//                     seeds: IdlSeeds::NotRequired { possible: vec![] },
-//                     extension_fields: Default::default(),
-//                 },
-//                 IdlAccount {
-//                     name: "Test Account 2".to_string(),
-//                     description: "Account with seeds".to_string(),
-//                     id: "test2".to_string(),
-//                     discriminant: serde_json::to_value(2u8)?,
-//                     type_id: TypeId {
-//                         namespace: Some("Foreign".to_string()),
-//                         type_id: "SomeType".to_string(),
-//                         provided_generics: vec![],
-//                         extension_fields: Default::default(),
-//                     },
-//                     seeds: IdlSeeds::StoredAtHead(IdlSeedsDef {
-//                         discriminator: "test2".to_string(),
-//                         require_find: true,
-//                         seeds: vec![
-//                             IdlSeed {
-//                                 name: "Test 1".to_string(),
-//                                 description: "Test 1 Account".to_string(),
-//                                 ty: IdlSeedDef::Account {
-//                                     valid_types: vec![AccountId {
-//                                         namespace: None,
-//                                         account_id: "test1".to_string(),
-//                                         extension_fields: Default::default(),
-//                                     }],
-//                                 },
-//                             },
-//                             IdlSeed {
-//                                 name: "Random Value".to_string(),
-//                                 description: "Random Value to append".to_string(),
-//                                 ty: IdlSeedDef::Arg {
-//                                     ty: IdlDefinedType::U32,
-//                                 },
-//                             },
-//                         ],
-//                     }),
-//                     extension_fields: Default::default(),
-//                 },
-//             ],
-//             types: vec![
-//                 IdlType {
-//                     name: "Versioned Data".to_string(),
-//                     description: "Wraps data with a version byte".to_string(),
-//                     generics: vec![IdlGeneric {
-//                         name: "Data".to_string(),
-//                         description: "Data to wrap".to_string(),
-//                         generic_id: "data".to_string(),
-//                         extension_fields: Default::default(),
-//                     }],
-//                     type_id: "VersionedData".to_string(),
-//                     type_def: IdlTypeDef::Struct(vec![IdlField {
-//                         name: "Version".to_string(),
-//                         description: "Version of the data".to_string(),
-//                         path_id: "version".to_string(),
-//                         type_def: IdlTypeDef::Defined(IdlDefinedType::U8),
-//                         extension_fields: Default::default(),
-//                     }]),
-//                     extension_fields: Default::default(),
-//                 },
-//                 IdlType {
-//                     name: "TestType".to_string(),
-//                     description: "Test Type stuff".to_string(),
-//                     generics: vec![],
-//                     type_id: "TestType".into(),
-//                     type_def: IdlTypeDef::IdlType(TypeId {
-//                         namespace: None,
-//                         type_id: "VersionedData".to_string(),
-//                         provided_generics: vec![IdlTypeDef::Struct(vec![
-//                             IdlField {
-//                                 name: "Data1".to_string(),
-//                                 description: "Data val 1".to_string(),
-//                                 path_id: "data1".to_string(),
-//                                 type_def: IdlTypeDef::Defined(IdlDefinedType::U64),
-//                                 extension_fields: Default::default(),
-//                             },
-//                             IdlField {
-//                                 name: "Data2".to_string(),
-//                                 description: "Data val 2".to_string(),
-//                                 path_id: "data2".to_string(),
-//                                 type_def: IdlTypeDef::Defined(IdlDefinedType::Pubkey),
-//                                 extension_fields: Default::default(),
-//                             },
-//                         ])],
-//                         extension_fields: Default::default(),
-//                     }),
-//                     extension_fields: Default::default(),
-//                 },
-//             ],
-//             account_sets: vec![IdlAccountSet {
-//                 name: "Account Set 1".to_string(),
-//                 description: "Account Set".to_string(),
-//                 id: "set1".to_string(),
-//                 type_generics: vec![],
-//                 account_generics: vec![],
-//                 def: IdlAccountSetDef::Struct(vec![idl_account_set_struct_field {
-//                     name: "Funder".to_string(),
-//                     description: "The funder for the account".to_string(),
-//                     path: "funder".to_string(),
-//                     account_set: IdlAccountSetDef::RawAccount(IdlRawInputAccount {
-//                         possible_account_types: vec![],
-//                         allow_zeroed: false,
-//                         allow_uninitialized: true,
-//                         signer: true,
-//                         writable: true,
-//                         extension_fields: Default::default(),
-//                     }),
-//                     extension_fields: Default::default(),
-//                 }]),
-//                 extension_fields: Default::default(),
-//             }],
-//             instructions: vec![],
-//             extension_fields: [].into_iter().collect(),
-//         };
-//
-//         // struct VersionedData<T> {
-//         //     version: u8,
-//         //     data: T,
-//         // }
-//         //
-//         // type TestData = VersionedData<TestDataInner>;
-//         // struct TestDataInner {
-//         //     data1: u64,
-//         //     data2: Pubkey,
-//         // }
-//
-//         let path = "idl.json";
-//         println!("Path: {:?}", path);
-//         let file = File::create(path)?;
-//         serde_json::to_writer_pretty(file, &idl)?;
-//         Ok(())
-//     }
-// }
+#[cfg(test)]
+mod test {
+    use crate::account::AccountId;
+    use crate::account_set::IdlAccountSetDef::{RawAccount, Signer, Writable};
+    use crate::account_set::{IdlAccountSetDef, IdlAccountSetStructField, IdlRawInputAccount};
+    use crate::instruction::{IdlInstruction, IdlInstructionDef};
+    use crate::seeds::{IdlSeed, IdlSeedDef, IdlSeeds, IdlSeedsDef};
+    use crate::ty::{IdlDefinedType, IdlField, IdlTypeDef, TypeId};
+    use crate::{
+        DiscriminantId, IdlAccount, IdlAccountSet, IdlDefinition, IdlGeneric, IdlType, Network,
+        ProgramIds, Version,
+    };
+    use anyhow::Result;
+    use solana_sdk::pubkey::Pubkey;
+    use std::fs::File;
+
+    #[test]
+    fn idl_example() -> Result<()> {
+        let idl = IdlDefinition {
+            idl_std_version: Version {
+                major: 0,
+                minor: 1,
+                patch: 0,
+            },
+            version: Version {
+                major: 1,
+                minor: 0,
+                patch: 0,
+            },
+            name: "Test Idl".to_string(),
+            namespace: "@staratlas/test".to_string(),
+            description: "Test Idl Description".to_string(),
+            required_plugins: Default::default(),
+            required_idl_definitions: Default::default(),
+            program_ids: ProgramIds::Mapped(
+                [
+                    (Network::Mainnet, Pubkey::new_unique().into()),
+                    (Network::Devnet, Pubkey::default().into()),
+                    (
+                        Network::Custom("AtlasNet".to_string()),
+                        Pubkey::new_unique().into(),
+                    ),
+                ]
+                .into_iter()
+                .collect(),
+            ),
+            account_discriminant: DiscriminantId::U8,
+            instruction_discriminant: DiscriminantId::U64,
+            accounts: vec![
+                (
+                    String::from("testAccount1"),
+                    IdlAccount {
+                        name: "testAccount1".to_string(),
+                        description: "Basic account".to_string(),
+                        discriminant: serde_json::to_value(1u8)?,
+                        seeds: IdlSeeds::NotRequired { possible: vec![] },
+                        extension_fields: Default::default(),
+                        ty: Default::default(),
+                    },
+                ),
+                (
+                    String::from("testAccount2"),
+                    IdlAccount {
+                        name: "testAccount2".to_string(),
+                        description: "Account with seeds".to_string(),
+                        discriminant: serde_json::to_value(2u8)?,
+                        seeds: IdlSeeds::StoredAtHead(IdlSeedsDef {
+                            discriminator: "test2".to_string(),
+                            require_find: true,
+                            seeds: vec![
+                                IdlSeed {
+                                    name: "Test 1".to_string(),
+                                    description: "Test 1 Account".to_string(),
+                                    ty: IdlSeedDef::Account {
+                                        valid_types: vec![AccountId {
+                                            namespace: None,
+                                            account_id: "test1".to_string(),
+                                            extension_fields: Default::default(),
+                                        }],
+                                    },
+                                },
+                                IdlSeed {
+                                    name: "Random Value".to_string(),
+                                    description: "Random Value to append".to_string(),
+                                    ty: IdlSeedDef::Arg {
+                                        ty: IdlDefinedType::U32,
+                                    },
+                                },
+                            ],
+                        }),
+                        extension_fields: Default::default(),
+                        ty: Default::default(),
+                    },
+                ),
+            ]
+            .into_iter()
+            .collect(),
+            types: vec![
+                (
+                    String::from("VersionedData"),
+                    IdlType {
+                        name: "Versioned Data".to_string(),
+                        description: "Wraps data with a version byte".to_string(),
+                        generics: vec![IdlGeneric {
+                            name: "Data".to_string(),
+                            description: "Data to wrap".to_string(),
+                            generic_id: "data".to_string(),
+                            extension_fields: Default::default(),
+                        }],
+                        type_def: IdlTypeDef::Struct(vec![IdlField {
+                            name: "Version".to_string(),
+                            description: "Version of the data".to_string(),
+                            path_id: "version".to_string(),
+                            type_def: IdlTypeDef::Defined(IdlDefinedType::U8),
+                            extension_fields: Default::default(),
+                        }]),
+                        extension_fields: Default::default(),
+                    },
+                ),
+                (
+                    String::from("TestType"),
+                    IdlType {
+                        name: "TestType".to_string(),
+                        description: "Test Type stuff".to_string(),
+                        generics: vec![],
+                        type_def: IdlTypeDef::IdlType(TypeId {
+                            namespace: None,
+                            type_id: "VersionedData".to_string(),
+                            provided_generics: vec![IdlTypeDef::Struct(vec![
+                                IdlField {
+                                    name: "Data1".to_string(),
+                                    description: "Data val 1".to_string(),
+                                    path_id: "data1".to_string(),
+                                    type_def: IdlTypeDef::Defined(IdlDefinedType::U64),
+                                    extension_fields: Default::default(),
+                                },
+                                IdlField {
+                                    name: "Data2".to_string(),
+                                    description: "Data val 2".to_string(),
+                                    path_id: "data2".to_string(),
+                                    type_def: IdlTypeDef::PubkeyFor {
+                                        id: AccountId {
+                                            namespace: None,
+                                            account_id: "".to_string(),
+                                            extension_fields: Default::default(),
+                                        },
+                                        optional: false,
+                                    },
+                                    extension_fields: Default::default(),
+                                },
+                            ])],
+                            extension_fields: Default::default(),
+                        }),
+                        extension_fields: Default::default(),
+                    },
+                ),
+            ]
+            .into_iter()
+            .collect(),
+            account_sets: vec![(
+                String::from("set1"),
+                IdlAccountSet {
+                    name: "Account Set 1".to_string(),
+                    description: "Account Set".to_string(),
+                    type_generics: vec![],
+                    account_generics: vec![],
+                    def: IdlAccountSetDef::Struct(vec![IdlAccountSetStructField {
+                        name: "Funder".to_string(),
+                        description: "The funder for the account".to_string(),
+                        path: "funder".to_string(),
+                        account_set: IdlAccountSetDef::RawAccount(IdlRawInputAccount {
+                            possible_account_types: vec![],
+                            allow_zeroed: false,
+                            allow_uninitialized: true,
+                            signer: true,
+                            writable: true,
+                            extension_fields: Default::default(),
+                        }),
+                        extension_fields: Default::default(),
+                    }]),
+                    extension_fields: Default::default(),
+                },
+            )]
+            .into_iter()
+            .collect(),
+            instructions: vec![(
+                String::from("instruction1"),
+                IdlInstruction {
+                    name: "Instruction 1".to_string(),
+                    description: "The first instruction in the program".to_string(),
+                    discriminant: Default::default(),
+                    definition: IdlInstructionDef {
+                        account_set: Writable(Box::new(Signer(Box::new(RawAccount(
+                            IdlRawInputAccount {
+                                possible_account_types: vec![AccountId {
+                                    namespace: None,
+                                    account_id: "".to_string(),
+                                    extension_fields: Default::default(),
+                                }],
+                                allow_zeroed: false,
+                                allow_uninitialized: false,
+                                signer: false,
+                                writable: false,
+                                extension_fields: Default::default(),
+                            },
+                        ))))),
+                        data: Default::default(),
+                    },
+                    extension_fields: Default::default(),
+                },
+            )]
+            .into_iter()
+            .collect(),
+            extension_fields: [].into_iter().collect(),
+        };
+
+        // struct VersionedData<T> {
+        //     version: u8,
+        //     data: T,
+        // }
+        //
+        // type TestData = VersionedData<TestDataInner>;
+        // struct TestDataInner {
+        //     data1: u64,
+        //     data2: Pubkey,
+        // }
+
+        let path = "idl.json";
+        println!("Path: {:?}", path);
+        let file = File::create(path)?;
+        serde_json::to_writer_pretty(file, &idl)?;
+        Ok(())
+    }
+}
