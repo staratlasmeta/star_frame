@@ -2,7 +2,7 @@ use crate::SolanaInstruction;
 use solana_program::clock::Clock;
 use solana_program::entrypoint::ProgramResult;
 use solana_program::program::{
-    get_return_data, invoke, invoke_signed, invoke_signed_unchecked, invoke_unchecked,
+    get_return_data, invoke, invoke_signed_unchecked, invoke_unchecked,
     set_return_data,
 };
 use solana_program::rent::Rent;
@@ -63,8 +63,8 @@ impl<'b> SysCallInvoke for SolanaRuntime<'b> {
         signers_seeds: &[&[&[u8]]],
     ) -> ProgramResult {
         // Check that the account RefCells are consistent with the request
-        for account_meta in instruction.accounts.iter() {
-            for account_info in accounts.iter() {
+        for account_meta in &instruction.accounts {
+            for account_info in accounts {
                 if account_meta.pubkey == *account_info.key {
                     if account_meta.is_writable {
                         let _ = account_info.try_borrow_mut_lamports().map_err(|e| {
