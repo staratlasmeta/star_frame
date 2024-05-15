@@ -1,5 +1,5 @@
-use std::marker::PhantomData;
 use crate::prelude::*;
+use std::marker::PhantomData;
 
 #[derive(AccountSet, Debug)]
 #[validate(

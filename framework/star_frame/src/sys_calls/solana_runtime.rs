@@ -1,13 +1,12 @@
+use crate::prelude::*;
 use crate::SolanaInstruction;
 use solana_program::clock::Clock;
 use solana_program::entrypoint::ProgramResult;
 use solana_program::program::{
-    get_return_data, invoke, invoke_signed_unchecked, invoke_unchecked,
-    set_return_data,
+    get_return_data, invoke, invoke_signed_unchecked, invoke_unchecked, set_return_data,
 };
 use solana_program::rent::Rent;
 use solana_program::sysvar::Sysvar;
-use crate::prelude::*;
 
 /// Sys-Calls provided by the solana runtime.
 #[derive(Debug)]
