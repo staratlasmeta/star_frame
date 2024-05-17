@@ -16,7 +16,7 @@ use account_set::IdlAccountSet;
 use instruction::IdlInstruction;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use solana_sdk::pubkey::Pubkey;
+use solana_program::pubkey::Pubkey;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use ty::IdlType;
@@ -339,7 +339,7 @@ mod test {
         ProgramIds, Version,
     };
     use anyhow::Result;
-    use solana_sdk::pubkey::Pubkey;
+    use solana_program::pubkey::Pubkey;
     use std::fs::File;
 
     #[test]

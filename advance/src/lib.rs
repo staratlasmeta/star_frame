@@ -54,10 +54,10 @@ pub enum AdvanceError {
     NotEnoughData { needed: usize, remaining: usize },
 }
 #[cfg(feature = "solana")]
-impl From<AdvanceError> for solana_sdk::program_error::ProgramError {
+impl From<AdvanceError> for solana_program::program_error::ProgramError {
     fn from(value: AdvanceError) -> Self {
-        solana_sdk::msg!("AdvanceError: {:?}", value);
-        solana_sdk::program_error::ProgramError::Custom(10000)
+        solana_program::msg!("AdvanceError: {:?}", value);
+        solana_program::program_error::ProgramError::Custom(10000)
     }
 }
 

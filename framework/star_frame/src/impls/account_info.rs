@@ -2,9 +2,9 @@ use crate::account_set::{AccountSetDecode, SingleAccountSet};
 use crate::sys_calls::SysCallInvoke;
 use crate::Result;
 use advance::AdvanceArray;
-use solana_sdk::account_info::AccountInfo;
-use solana_sdk::instruction::AccountMeta;
-use solana_sdk::pubkey::Pubkey;
+use solana_program::account_info::AccountInfo;
+use solana_program::instruction::AccountMeta;
+use solana_program::pubkey::Pubkey;
 use star_frame::account_set::{AccountSet, AccountSetCleanup, AccountSetValidate};
 use std::cell::{Ref, RefMut};
 

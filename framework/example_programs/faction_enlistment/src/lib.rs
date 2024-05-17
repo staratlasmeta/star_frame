@@ -2,7 +2,12 @@
 
 use bytemuck::{Pod, Zeroable};
 use star_frame::anyhow::bail;
+use star_frame::borsh;
+use star_frame::borsh::{BorshDeserialize, BorshSerialize};
 use star_frame::prelude::*;
+use star_frame::serialize::ref_wrapper::{AsBytes, RefWrapper};
+use star_frame::serialize::unsize::checked::Zeroed;
+use star_frame::serialize::unsize::FromBytesReturn;
 use star_frame_idl::{IdlDefinition, Version};
 
 // Declare the Program ID here to embed
@@ -50,37 +55,38 @@ pub enum FactionEnlistmentInstructionSet {
     ProcessEnlistPlayer(ProcessEnlistPlayerIx),
 }
 
-#[derive(Copy, Clone, Zeroable, Align1, Pod)]
+#[derive(Copy, Clone, Zeroable, Align1, Pod, BorshDeserialize, BorshSerialize)]
+#[borsh(crate = "borsh")]
 #[repr(C, packed)]
 pub struct ProcessEnlistPlayerIx {
-    _bump: u8,
+    bump: u8,
     faction_id: u8,
 }
 
 impl FrameworkInstruction for ProcessEnlistPlayerIx {
-    type SelfData<'a> = <Self as UnsizedType>::Ref<'a>;
+    type SelfData<'a> = Self;
 
     type DecodeArg<'a> = ();
-    type ValidateArg<'a> = ();
+    type ValidateArg<'a> = u8;
     type RunArg<'a> = u8;
     type CleanupArg<'a> = ();
     type ReturnType = ();
     type Accounts<'b, 'c, 'info> = ProcessEnlistPlayer<'info>
         where 'info: 'b;
 
-    fn data_from_bytes<'a>(_bytes: &mut &'a [u8]) -> Result<Self::SelfData<'a>> {
-        todo!()
+    fn data_from_bytes<'a>(bytes: &mut &'a [u8]) -> Result<Self::SelfData<'a>> {
+        Self::deserialize(bytes).map_err(Into::into)
     }
 
     fn split_to_args<'a>(
-        _r: &'a <Self as UnsizedType>::Ref<'_>,
+        r: &'a Self::SelfData<'_>,
     ) -> (
         Self::DecodeArg<'a>,
         Self::ValidateArg<'a>,
         Self::RunArg<'a>,
         Self::CleanupArg<'a>,
     ) {
-        todo!()
+        ((), r.bump, r.faction_id, ())
     }
 
     fn run_instruction<'b, 'info>(
@@ -97,7 +103,7 @@ impl FrameworkInstruction for ProcessEnlistPlayerIx {
                 let clock = sys_calls.get_clock()?;
 
                 let bump = account_set.player_faction_account.access_seeds().bump;
-                **account_set.player_faction_account.data_mut()? = PlayerFactionData {
+                *account_set.player_faction_account.data_mut()? = PlayerFactionData {
                     owner: *account_set.player_account.key,
                     enlisted_at_timestamp: clock.unix_timestamp,
                     faction_id,
@@ -113,35 +119,24 @@ impl FrameworkInstruction for ProcessEnlistPlayerIx {
 
 // }
 
-// #[instruction(_faction_id: u8)]
-
-#[derive(AccountSet, Debug)]
-// #[account_set(skip_default_idl)]
+#[derive(AccountSet)]
+#[validate(arg = u8)]
+#[account_set(skip_default_idl)]
 pub struct ProcessEnlistPlayer<'info> {
     /// The player faction account
-    // #[account(
-    //     init,
-    //     payer = player_account,
-    //     seeds = [b"FACTION_ENLISTMENT".as_ref(), player_account.key.as_ref()],
-    //     bump,
-    //     space = PlayerFactionData::LEN
-    // )]
-    // #[validate(arg = AnchorValidateArgs::default())]
-    // #[cleanup(arg = AnchorCleanupArgs::default())]
-    // pub player_faction_account: Account<'info, PlayerFactionData>,
-    // TODO - How do we store/access the bump?
-    // TODO - This isn't the right way to build this struct
-    // #[validate(arg = (SeedsWithBump {
-    //     seeds: PlayerFactionAccountSeeds {
-    //         player_account: *self.player_account.key
-    //     },
-    //     bump: 255
-    // }, ()))]
-    // Trailing comma is super important here
-    #[validate(arg = Seeds(PlayerFactionAccountSeeds {
-        player_account: *self.player_account.key
-    }))]
-    pub player_faction_account: SeededDataAccount<'info, PlayerFactionData>,
+    #[validate(
+        arg = Create(SeededInit {
+            seeds: PlayerFactionAccountSeeds {
+                player_account: *self.player_account.key()
+            },
+            init_create: CreateAccountWithArg::new(
+                Zeroed,
+                &self.system_program,
+                &self.player_account,
+            )
+        })
+    )]
+    pub player_faction_account: SeededInitAccount<'info, PlayerFactionData>,
     /// The player account
     pub player_account: Signer<Writable<AccountInfo<'info>>>,
 

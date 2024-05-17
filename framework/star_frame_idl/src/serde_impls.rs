@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 pub mod serde_base58_pubkey {
     use serde::Deserialize;
-    use solana_sdk::pubkey::Pubkey;
+    use solana_program::pubkey::Pubkey;
     use std::str::FromStr;
 
     pub fn serialize<S>(val: &Pubkey, serializer: S) -> Result<S::Ok, S::Error>

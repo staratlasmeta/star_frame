@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "advance",
     "framework/star_*",
+    "framework/example_programs/faction_enlistment"
 ]
 
 [workspace.package]
