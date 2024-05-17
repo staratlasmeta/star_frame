@@ -18,8 +18,8 @@ use star_frame::serialize::unsize::checked::Zeroed;
 pub struct FactionEnlistment;
 
 impl StarFrameProgram for FactionEnlistment {
-    type InstructionSet<'a> = ();
-    type InstructionDiscriminant = ();
+    type InstructionSet<'a> = FactionEnlistmentInstructionSet<'a>;
+    type InstructionDiscriminant = u8;
 
     type AccountDiscriminant = [u8; 8];
 
@@ -158,11 +158,4 @@ impl GetSeeds for PlayerFactionAccountSeeds {
     fn seeds(&self) -> Vec<&[u8]> {
         vec![b"FACTION_ENLISTMENT".as_ref(), self.player_account.seed()]
     }
-}
-
-// #[error_code]
-pub enum FactionErrors {
-    /// 6000
-    // #[msg("Faction ID must be 0, 1, or 2.")]
-    FactionTypeError,
 }
