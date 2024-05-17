@@ -128,11 +128,7 @@ pub struct CreateAccountWithArg<'a, 'info, A, WT> {
     funder: &'a WT,
 }
 impl<'a, 'info, A, WT> CreateAccountWithArg<'a, 'info, A, WT> {
-    pub fn new(
-        arg: A,
-        system_program: &'a Program<'info, SystemProgram>,
-        funder: &'a Writable<WT>,
-    ) -> Self {
+    pub fn new(arg: A, system_program: &'a Program<'info, SystemProgram>, funder: &'a WT) -> Self {
         Self {
             arg: Some(arg),
             system_program,

@@ -38,17 +38,17 @@ impl StarFrameProgram for FactionEnlistment {
         ),
     ]);
 }
-impl ProgramToIdl for FactionEnlistment {
-    const VERSION: Version = Version::zeroed();
-
-    fn program_to_idl() -> Result<IdlDefinition> {
-        todo!()
-    }
-
-    fn idl_namespace() -> &'static str {
-        todo!()
-    }
-}
+// impl ProgramToIdl for FactionEnlistment {
+//     const VERSION: Version = Version::zeroed();
+//
+//     fn program_to_idl() -> Result<IdlDefinition> {
+//         todo!()
+//     }
+//
+//     fn idl_namespace() -> &'static str {
+//         todo!()
+//     }
+// }
 
 #[instruction_set2]
 pub enum FactionEnlistmentInstructionSet {
@@ -117,8 +117,6 @@ impl FrameworkInstruction for ProcessEnlistPlayerIx {
     }
 }
 
-// }
-
 #[derive(AccountSet)]
 #[validate(arg = u8)]
 #[account_set(skip_default_idl)]
@@ -138,16 +136,12 @@ pub struct ProcessEnlistPlayer<'info> {
     )]
     pub player_faction_account: SeededInitAccount<'info, PlayerFactionData>,
     /// The player account
-    pub player_account: Signer<Writable<AccountInfo<'info>>>,
-
+    pub player_account: Writable<Signer<SystemAccount<'info>>>,
     /// Solana System program
     pub system_program: Program<'info, SystemProgram>,
 }
-#[derive(Debug, Align1, Copy, Clone, Pod, Zeroable, TypeToIdl, AccountToIdl)]
-// #[derive(Debug, Align1, Copy, Clone, Pod, Zeroable)]
+#[derive(Debug, Align1, Copy, Clone, Pod, Zeroable /*TypeToIdl, AccountToIdl*/)]
 #[repr(C, packed)]
-// #[derive(AccountData)]
-// #[owner_program(FactionEnlistment)]
 pub struct PlayerFactionData {
     pub owner: Pubkey,
     pub enlisted_at_timestamp: i64,
@@ -158,8 +152,8 @@ pub struct PlayerFactionData {
 
 // TODO - Macro should derive this and with the idl feature enabled would also derive `AccountToIdl` and `TypeToIdl`
 impl ProgramAccount for PlayerFactionData {
-    type OwnerProgram = SystemProgram;
-    const DISCRIMINANT: <Self::OwnerProgram as StarFrameProgram>::AccountDiscriminant = ();
+    type OwnerProgram = StarFrameDeclaredProgram;
+    const DISCRIMINANT: <Self::OwnerProgram as StarFrameProgram>::AccountDiscriminant = [];
 }
 
 impl SeededAccountData for PlayerFactionData {
@@ -177,17 +171,6 @@ impl GetSeeds for PlayerFactionAccountSeeds {
     fn seeds(&self) -> Vec<&[u8]> {
         vec![b"FACTION_ENLISTMENT".as_ref(), self.player_account.seed()]
     }
-}
-
-pub const ANCHOR_DISC_LEN: usize = 8;
-
-impl PlayerFactionData {
-    pub const LEN: usize = ANCHOR_DISC_LEN
-        + 32 // owner
-        + 8 // enlisted_at_timestamp
-        + 1 // faction_id
-        + 1 // bump
-        + 8 * 5; // _padding
 }
 
 // #[error_code]
