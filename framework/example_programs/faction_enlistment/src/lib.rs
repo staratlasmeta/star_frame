@@ -5,10 +5,7 @@ use star_frame::anyhow::bail;
 use star_frame::borsh;
 use star_frame::borsh::{BorshDeserialize, BorshSerialize};
 use star_frame::prelude::*;
-use star_frame::serialize::ref_wrapper::{AsBytes, RefWrapper};
 use star_frame::serialize::unsize::checked::Zeroed;
-use star_frame::serialize::unsize::FromBytesReturn;
-use star_frame_idl::{IdlDefinition, Version};
 
 // Declare the Program ID here to embed
 
@@ -38,17 +35,6 @@ impl StarFrameProgram for FactionEnlistment {
         ),
     ]);
 }
-// impl ProgramToIdl for FactionEnlistment {
-//     const VERSION: Version = Version::zeroed();
-//
-//     fn program_to_idl() -> Result<IdlDefinition> {
-//         todo!()
-//     }
-//
-//     fn idl_namespace() -> &'static str {
-//         todo!()
-//     }
-// }
 
 #[instruction_set2]
 pub enum FactionEnlistmentInstructionSet {
@@ -153,7 +139,8 @@ pub struct PlayerFactionData {
 // TODO - Macro should derive this and with the idl feature enabled would also derive `AccountToIdl` and `TypeToIdl`
 impl ProgramAccount for PlayerFactionData {
     type OwnerProgram = StarFrameDeclaredProgram;
-    const DISCRIMINANT: <Self::OwnerProgram as StarFrameProgram>::AccountDiscriminant = [];
+    const DISCRIMINANT: <Self::OwnerProgram as StarFrameProgram>::AccountDiscriminant =
+        [47, 44, 255, 15, 103, 77, 139, 247];
 }
 
 impl SeededAccountData for PlayerFactionData {
