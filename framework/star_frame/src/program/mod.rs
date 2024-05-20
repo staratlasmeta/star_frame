@@ -79,7 +79,7 @@ mod tests {
             (Network::Custom("atlasnet"), &ATLASNET_ID),
         ]);
         assert_eq!(
-            search_for_network(PROGRAM_IDS, Network::Mainnet),
+            search_for_network(PROGRAM_IDS, Network::MainnetBeta),
             Some(MAINNET_ID)
         );
         assert_eq!(

@@ -291,9 +291,10 @@ impl From<Pubkey> for NetworkKey {
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, Hash)]
 pub enum Network {
-    Mainnet,
+    MainnetBeta,
     Devnet,
     Testnet,
+    Localhost,
     #[serde(untagged)]
     Custom(String),
 }
@@ -362,7 +363,7 @@ mod test {
             required_idl_definitions: Default::default(),
             program_ids: ProgramIds::Mapped(
                 [
-                    (Network::Mainnet, Pubkey::new_unique().into()),
+                    (Network::MainnetBeta, Pubkey::new_unique().into()),
                     (Network::Devnet, Pubkey::default().into()),
                     (
                         Network::Custom("AtlasNet".to_string()),

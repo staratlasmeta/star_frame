@@ -12,7 +12,7 @@ use std::fmt::{Debug, Display};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Network {
-    Mainnet,
+    MainnetBeta,
     Devnet,
     Testnet,
     Custom(&'static str),

@@ -26,7 +26,15 @@ impl StarFrameProgram for FactionEnlistment {
     const CLOSED_ACCOUNT_DISCRIMINANT: Self::AccountDiscriminant = [u8::MAX; 8];
     const PROGRAM_IDS: ProgramIds = ProgramIds::Mapped(&[
         (
-            Network::Mainnet,
+            Network::MainnetBeta,
+            &pubkey!("FACTNmq2FhA2QNTnGM2aWJH3i7zT3cND5CgvjYTjyVYe"),
+        ),
+        (
+            Network::Devnet,
+            &pubkey!("FACTNmq2FhA2QNTnGM2aWJH3i7zT3cND5CgvjYTjyVYe"),
+        ),
+        (
+            Network::Localhost,
             &pubkey!("FACTNmq2FhA2QNTnGM2aWJH3i7zT3cND5CgvjYTjyVYe"),
         ),
         (
@@ -128,6 +136,7 @@ pub struct ProcessEnlistPlayer<'info> {
 }
 #[derive(Debug, Align1, Copy, Clone, Pod, Zeroable /*TypeToIdl, AccountToIdl*/)]
 #[repr(C, packed)]
+// #[account(seeds = PlayerFactionAccountSeeds)]
 pub struct PlayerFactionData {
     pub owner: Pubkey,
     pub enlisted_at_timestamp: i64,

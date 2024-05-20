@@ -13,7 +13,7 @@ prod = []
 no-entrypoint = []
 no-idl = []
 cpi = ["no-entrypoint"]
-default = ["serde_json"]
+default = ["serde_json", "no-idl"]
 
 [dependencies]
 bytemuck = "1.14.0"
