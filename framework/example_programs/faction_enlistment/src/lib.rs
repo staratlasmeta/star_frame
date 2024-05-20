@@ -10,7 +10,7 @@ use star_frame::serialize::unsize::checked::Zeroed;
 // Declare the Program ID here to embed
 
 // #[cfg_attr(feature = "prod", program(Network::Mainnet))]
-#[program(Network::Mainnet)]
+#[program(Network::MainnetBeta)]
 #[cfg_attr(
     feature = "atlasnet",
     program(star_frame::util::Network::Custom("atlasnet"))

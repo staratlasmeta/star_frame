@@ -39,9 +39,10 @@ pub const fn search_for_network(program_ids: ProgramIds, network: Network) -> Op
 
                 let item_network = &ids[index];
                 match (&item_network.0, &network) {
-                    (Network::Mainnet, Network::Mainnet)
+                    (Network::MainnetBeta, Network::MainnetBeta)
                     | (Network::Devnet, Network::Devnet)
-                    | (Network::Testnet, Network::Testnet) => break Some(*item_network.1),
+                    | (Network::Testnet, Network::Testnet)
+                    | (Network::Localhost, Network::Localhost) => break Some(*item_network.1),
                     (Network::Custom(network1), Network::Custom(network2))
                         if compare_strings(network1, network2) =>
                     {
@@ -74,7 +75,7 @@ mod tests {
         const DEVNET_ID: Pubkey = Pubkey::new_from_array([1; 32]);
         const ATLASNET_ID: Pubkey = Pubkey::new_from_array([2; 32]);
         const PROGRAM_IDS: ProgramIds = ProgramIds::Mapped(&[
-            (Network::Mainnet, &MAINNET_ID),
+            (Network::MainnetBeta, &MAINNET_ID),
             (Network::Devnet, &DEVNET_ID),
             (Network::Custom("atlasnet"), &ATLASNET_ID),
         ]);

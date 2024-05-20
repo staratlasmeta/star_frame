@@ -15,15 +15,17 @@ pub enum Network {
     MainnetBeta,
     Devnet,
     Testnet,
+    Localhost,
     Custom(&'static str),
 }
 
 impl Display for Network {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Network::Mainnet => write!(f, "Mainnet"),
+            Network::MainnetBeta => write!(f, "MainnetBeta"),
             Network::Devnet => write!(f, "Devnet"),
             Network::Testnet => write!(f, "Testnet"),
+            Network::Localhost => write!(f, "Localhost"),
             Network::Custom(c) => write!(f, "Custom: {c}"),
         }
     }
@@ -33,9 +35,10 @@ impl Display for Network {
 impl From<Network> for star_frame_idl::Network {
     fn from(value: Network) -> Self {
         match value {
-            Network::Mainnet => Self::Mainnet,
+            Network::MainnetBeta => Self::MainnetBeta,
             Network::Devnet => Self::Devnet,
             Network::Testnet => Self::Testnet,
+            Network::Localhost => Self::Localhost,
             Network::Custom(c) => Self::Custom(c.to_string()),
         }
     }
