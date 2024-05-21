@@ -7,7 +7,6 @@ use derivative::Derivative;
 use derive_more::{Deref, DerefMut};
 use solana_program::program_memory::sol_memset;
 use solana_program::system_instruction;
-use star_frame::account_set::WritableAccount;
 use star_frame_proc::AccountSet;
 use std::fmt::Debug;
 use std::mem::size_of;

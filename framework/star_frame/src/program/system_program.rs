@@ -1,13 +1,6 @@
-use crate::program::{ProgramIds, StarFrameProgram};
-use crate::serialize::{FrameworkFromBytes, FrameworkSerialize};
-use crate::sys_calls::SysCalls;
-use crate::Result;
-use solana_program::account_info::AccountInfo;
-use solana_program::pubkey::Pubkey;
+use crate::prelude::*;
 use solana_program::system_instruction::SystemInstruction;
 use solana_program::system_program;
-use star_frame::instruction::InstructionSet;
-use star_frame_proc::Align1;
 
 #[derive(Debug, Copy, Clone, Align1)]
 pub struct SystemProgram;

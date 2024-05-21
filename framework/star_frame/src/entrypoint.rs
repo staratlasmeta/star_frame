@@ -36,7 +36,7 @@ mod tests {
         const CLOSED_ACCOUNT_DISCRIMINANT: Self::AccountDiscriminant = ();
         const PROGRAM_IDS: ProgramIds = ProgramIds::Mapped(&[
             (
-                Network::Mainnet,
+                Network::MainnetBeta,
                 &pubkey!("FACTNmq2FhA2QNTnGM2aWJH3i7zT3cND5CgvjYTjyVYe"),
             ),
             (
@@ -46,6 +46,6 @@ mod tests {
         ]);
     }
 
-    #[program(Network::Mainnet, no_entrypoint)]
+    #[program(Network::MainnetBeta, no_entrypoint)]
     pub struct Stuff;
 }

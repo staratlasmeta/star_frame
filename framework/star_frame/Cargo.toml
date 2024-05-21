@@ -5,7 +5,7 @@ edition.workspace = true
 publish.workspace = true
 
 [features]
-default = ["idl", "cleanup_rent_warning"]
+default = ["idl", "cleanup_rent_warning", "fake_solana_os"]
 fake_solana_os = []
 cleanup_rent_warning = []
 idl = ["star_frame_idl", "serde_json", "star_frame_proc/idl"]

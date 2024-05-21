@@ -168,3 +168,16 @@ impl GetSeeds for PlayerFactionAccountSeeds {
         vec![b"FACTION_ENLISTMENT".as_ref(), self.player_account.seed()]
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn init_stuff() {
+        println!("Hello, world!");
+        // let ix = solana_sdk::instruction::Instruction::new_with_bytes(FactionEnlistment::program_id(), data, accounts);
+
+    }
+}

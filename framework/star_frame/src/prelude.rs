@@ -2,6 +2,8 @@ pub use crate::account_set::{
     data_account::*,
     init_account::{Create, CreateAccount, CreateAccountWithArg, CreateIfNeeded, InitAccount},
     mutable::Writable,
+    WritableAccount,
+    SignedAccount,
     program::Program,
     rest::Rest,
     seeded_account::{GetSeeds, Seed, SeededAccount, Seeds, SeedsWithBump},
