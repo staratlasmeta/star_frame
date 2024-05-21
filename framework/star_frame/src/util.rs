@@ -1,6 +1,9 @@
-use crate::account_set::data_account::{DataAccount, ProgramAccount};
 use crate::account_set::{SignedAccount, WritableAccount};
 use crate::prelude::*;
+use crate::serialize::ref_wrapper::{
+    AsBytes, AsMutBytes, RefBytes, RefBytesMut, RefWrapper, RefWrapperMutExt, RefWrapperTypes,
+};
+use advance::Advance;
 use anyhow::anyhow;
 use solana_program::system_instruction::transfer;
 use std::cell::{Ref, RefMut};
@@ -151,5 +154,29 @@ pub fn refund_rent<'info, T: ?Sized + UnsizedType + ProgramAccount, F: WritableA
             **funder.account_info().lamports.borrow_mut() += transfer_amount;
             Ok(())
         }
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct OffsetRef(pub usize);
+unsafe impl<S> RefBytes<S> for OffsetRef
+where
+    S: AsBytes,
+{
+    fn bytes(wrapper: &RefWrapper<S, Self>) -> Result<&[u8]> {
+        let mut bytes = wrapper.sup().as_bytes()?;
+        bytes.try_advance(wrapper.r().0)?;
+        Ok(bytes)
+    }
+}
+unsafe impl<S> RefBytesMut<S> for OffsetRef
+where
+    S: AsMutBytes,
+{
+    fn bytes_mut(wrapper: &mut RefWrapper<S, Self>) -> Result<&mut [u8]> {
+        let (sup, r) = unsafe { wrapper.s_r_mut() };
+        let mut bytes = sup.as_mut_bytes()?;
+        bytes.try_advance(r.0)?;
+        Ok(bytes)
     }
 }

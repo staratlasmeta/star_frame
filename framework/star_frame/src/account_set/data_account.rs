@@ -115,7 +115,7 @@ where
             >())
         })?;
         let account_info_ref = AccountInfoRef { r };
-        T::from_bytes(account_info_ref).map(|ret| ret.ref_wrapper)
+        unsafe { T::from_bytes(account_info_ref).map(|ret| ret.ref_wrapper) }
     }
 
     pub fn data_mut<'a>(
@@ -128,7 +128,7 @@ where
             r,
             phantom: PhantomData,
         };
-        T::from_bytes(account_info_ref_mut).map(|ret| ret.ref_wrapper)
+        unsafe { T::from_bytes(account_info_ref_mut).map(|ret| ret.ref_wrapper) }
     }
 
     /// Closes the account
@@ -267,6 +267,10 @@ unsafe impl<'a, 'info, P: StarFrameProgram, M> Resize<M> for AccountInfoRefMut<'
             account_info_realloc(new_byte_len, true, &mut self.r, original_data_len)
                 .map_err(Into::into)
         }
+    }
+
+    unsafe fn set_meta(&mut self, _new_meta: M) -> Result<()> {
+        Ok(())
     }
 }
 /// Copied code from solana

@@ -23,14 +23,14 @@ where
     type Owned = T;
     type IsUnsized = False;
 
-    fn from_bytes<S: AsBytes>(
+    unsafe fn from_bytes<S: AsBytes>(
         bytes: S,
     ) -> Result<FromBytesReturn<S, Self::RefData, Self::RefMeta>> {
         try_from_bytes::<Self>(bytes.as_bytes()?.try_advance(size_of::<T>())?)?;
         Ok(FromBytesReturn {
             bytes_used: size_of::<T>(),
             meta: (),
-            ref_wrapper: RefWrapper::new(bytes, CheckRef(PhantomData)),
+            ref_wrapper: unsafe { RefWrapper::new(bytes, CheckRef(PhantomData)) },
         })
     }
 
@@ -88,12 +88,15 @@ where
     unsafe fn init<S: AsMutBytes>(
         mut super_ref: S,
         arg: T,
-    ) -> Result<RefWrapper<S, Self::RefData>> {
+    ) -> Result<(RefWrapper<S, Self::RefData>, Self::RefMeta)> {
         super_ref
             .as_mut_bytes()?
             .try_advance(size_of::<T>())?
             .copy_from_slice(bytes_of(&arg));
-        Ok(RefWrapper::new(super_ref, CheckRef(PhantomData)))
+        Ok((
+            unsafe { RefWrapper::new(super_ref, CheckRef(PhantomData)) },
+            (),
+        ))
     }
 }
 #[derive(Debug, Copy, Clone)]
@@ -107,11 +110,14 @@ where
     unsafe fn init<S: AsMutBytes>(
         mut super_ref: S,
         _arg: Zeroed,
-    ) -> Result<RefWrapper<S, Self::RefData>> {
+    ) -> Result<(RefWrapper<S, Self::RefData>, Self::RefMeta)> {
         super_ref
             .as_mut_bytes()?
             .try_advance(size_of::<T>())?
             .copy_from_slice(bytes_of(&T::zeroed()));
-        Ok(RefWrapper::new(super_ref, CheckRef(PhantomData)))
+        Ok((
+            unsafe { RefWrapper::new(super_ref, CheckRef(PhantomData)) },
+            (),
+        ))
     }
 }

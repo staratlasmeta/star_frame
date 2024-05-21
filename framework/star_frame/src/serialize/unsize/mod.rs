@@ -4,7 +4,6 @@ pub mod resize;
 
 pub use star_frame_proc::unsized_type;
 
-use crate::align1::Align1;
 use crate::serialize::ref_wrapper::{AsBytes, RefWrapper};
 use anyhow::Result;
 use std::fmt::Debug;
@@ -13,14 +12,16 @@ use typenum::{Bit, False, True};
 
 /// # Safety
 /// [`UnsizedType::from_bytes`] must return correct values.
-pub unsafe trait UnsizedType: 'static + Align1 {
+pub unsafe trait UnsizedType: 'static {
     type RefMeta: 'static + Copy;
     type RefData;
     type Owned;
 
     type IsUnsized: Bit + LengthAccess<Self>;
 
-    fn from_bytes<S: AsBytes>(
+    /// # Safety
+    /// TODO: Think through requirements here
+    unsafe fn from_bytes<S: AsBytes>(
         super_ref: S,
     ) -> Result<FromBytesReturn<S, Self::RefData, Self::RefMeta>>;
 
@@ -31,7 +32,7 @@ pub unsafe trait UnsizedType: 'static + Align1 {
         super_ref: S,
         meta: Self::RefMeta,
     ) -> Result<FromBytesReturn<S, Self::RefData, Self::RefMeta>> {
-        Self::from_bytes(super_ref)
+        unsafe { Self::from_bytes(super_ref) }
     }
 
     fn owned<S: AsBytes>(r: RefWrapper<S, Self::RefData>) -> Result<Self::Owned>;

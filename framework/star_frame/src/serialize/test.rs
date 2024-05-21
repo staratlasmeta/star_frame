@@ -36,14 +36,14 @@ where
     {
         self.bytes.resize(T::INIT_BYTES, 0);
         sol_memset(&mut self.bytes, 0, T::INIT_BYTES);
-        unsafe { T::init(&mut self.bytes, arg) }
+        unsafe { T::init(&mut self.bytes, arg).map(|r| r.0) }
     }
 
     pub fn immut(&self) -> Result<RefWrapper<&Vec<u8>, T::RefData>> {
-        T::from_bytes(&self.bytes).map(|r| r.ref_wrapper)
+        unsafe { T::from_bytes(&self.bytes).map(|r| r.ref_wrapper) }
     }
 
     pub fn mutable(&mut self) -> Result<RefWrapper<&mut Vec<u8>, T::RefData>> {
-        T::from_bytes(&mut self.bytes).map(|r| r.ref_wrapper)
+        unsafe { T::from_bytes(&mut self.bytes).map(|r| r.ref_wrapper) }
     }
 }

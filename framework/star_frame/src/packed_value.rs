@@ -1,4 +1,4 @@
-use bytemuck::{AnyBitPattern, CheckedBitPattern, Pod, Zeroable};
+use bytemuck::{AnyBitPattern, CheckedBitPattern, NoUninit, Pod, Zeroable};
 use derivative::Derivative;
 use derive_more::From;
 use num_traits::{FromPrimitive, ToPrimitive};
@@ -163,6 +163,7 @@ where
         T::is_valid_bit_pattern(&{ bits.0 })
     }
 }
+unsafe impl<T> NoUninit for PackedValueChecked<T> where T: NoUninit {}
 
 #[cfg(feature = "idl")]
 mod idl_impl {
