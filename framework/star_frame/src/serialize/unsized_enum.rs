@@ -926,7 +926,7 @@ mod test {
         let discriminant = TestEnumImpl::discriminant(&test_mut);
         assert_eq!(discriminant, TestEnumDiscriminant::B);
         let enumerated = TestEnumImpl::enumerated(test_mut)?;
-        let b = match enumerated {
+        let _b = match enumerated {
             TestEnumEnumerated::B(b) => b,
             x => bail!("Expected B, found {x:?}"),
         };
@@ -938,7 +938,7 @@ mod test {
         let discriminant = TestEnumImpl::discriminant(&test_mut);
         assert_eq!(discriminant, TestEnumDiscriminant::C);
         let enumerated = TestEnumImpl::enumerated(test_mut)?;
-        let c = match enumerated {
+        let _c = match enumerated {
             TestEnumEnumerated::C(c) => c,
             x => bail!("Expected C, found {x:?}"),
         };
