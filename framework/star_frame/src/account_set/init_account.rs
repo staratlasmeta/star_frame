@@ -1,5 +1,6 @@
 use crate::account_set::SignedAccount;
 use crate::prelude::*;
+use crate::serialize::unsize::checked::Zeroed;
 use advance::Advance;
 use anyhow::{bail, Context};
 use bytemuck::bytes_of;
@@ -86,48 +87,41 @@ pub struct Create<T>(pub T);
 pub struct CreateIfNeeded<T>(pub T);
 
 #[derive(Derivative)]
-#[derivative(
-    Debug(bound = "Program<'info, SystemProgram>: Debug, WT: Debug"),
-    Copy(bound = ""),
-    Clone(bound = "")
-)]
-pub struct CreateAccount<'a, 'info, WT> {
-    pub system_program: &'a Program<'info, SystemProgram>,
-    pub funder: &'a WT,
-}
-impl<'a, 'info, WT: SignedAccount<'info> + WritableAccount<'info>> InitCreateArg<'info>
-    for CreateAccount<'a, 'info, WT>
-{
-    type FrameworkInitArg = ();
-    type AccountSeeds = ();
-    type FunderAccount = WT;
-
-    fn system_program(&self) -> &Program<'info, SystemProgram> {
-        self.system_program
-    }
-
-    fn split<'b>(
-        &'b mut self,
-    ) -> CreateSplit<'b, 'info, Self::FrameworkInitArg, Self::AccountSeeds, Self::FunderAccount>
-    {
-        CreateSplit {
-            arg: (),
-            account_seeds: None,
-            system_program: self.system_program,
-            funder: self.funder,
-        }
-    }
-}
-
-#[derive(Derivative)]
 #[derivative(Debug(bound = "A: Debug, Program<'info, SystemProgram>: Debug, WT: Debug"))]
-pub struct CreateAccountWithArg<'a, 'info, A, WT> {
+pub struct CreateAccount<'a, 'info, A, WT> {
     arg: Option<A>,
     system_program: &'a Program<'info, SystemProgram>,
     funder: &'a WT,
 }
-impl<'a, 'info, A, WT> CreateAccountWithArg<'a, 'info, A, WT> {
-    pub fn new(arg: A, system_program: &'a Program<'info, SystemProgram>, funder: &'a WT) -> Self {
+
+impl<'a, 'info, WT> CreateAccount<'a, 'info, (), WT> {
+    pub fn new_with_unit(
+        system_program: &'a Program<'info, SystemProgram>,
+        funder: &'a WT,
+    ) -> Self {
+        Self::new_with_arg((), system_program, funder)
+    }
+}
+
+impl<'a, 'info, WT> CreateAccount<'a, 'info, Zeroed, WT> {
+    pub fn zeroed(system_program: &'a Program<'info, SystemProgram>, funder: &'a WT) -> Self {
+        Self::new_with_zeroed(system_program, funder)
+    }
+
+    pub fn new_with_zeroed(
+        system_program: &'a Program<'info, SystemProgram>,
+        funder: &'a WT,
+    ) -> Self {
+        Self::new_with_arg(Zeroed, system_program, funder)
+    }
+}
+
+impl<'a, 'info, A, WT> CreateAccount<'a, 'info, A, WT> {
+    pub fn new_with_arg(
+        arg: A,
+        system_program: &'a Program<'info, SystemProgram>,
+        funder: &'a WT,
+    ) -> Self {
         Self {
             arg: Some(arg),
             system_program,
@@ -136,7 +130,7 @@ impl<'a, 'info, A, WT> CreateAccountWithArg<'a, 'info, A, WT> {
     }
 }
 impl<'a, 'info, A, WT: SignedAccount<'info> + WritableAccount<'info>> InitCreateArg<'info>
-    for CreateAccountWithArg<'a, 'info, A, WT>
+    for CreateAccount<'a, 'info, A, WT>
 {
     type FrameworkInitArg = A;
     type AccountSeeds = ();
@@ -237,7 +231,7 @@ where
         }
 
         let mut data_bytes = self.info_data_bytes_mut()?;
-        let data_bytes = &mut *data_bytes;
+        let mut data_bytes = &mut **data_bytes;
 
         data_bytes
             .try_advance(size_of::<
