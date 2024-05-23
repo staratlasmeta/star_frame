@@ -278,12 +278,14 @@ where
         self.len = new_len_l.into();
 
         let start_byte_index = index * size_of::<T>();
-        let byte_count = item_count * size_of::<T>();
-        let end_byte_index = start_byte_index + byte_count;
+        if index < old_len {
+            let byte_count = item_count * size_of::<T>();
+            let end_byte_index = start_byte_index + byte_count;
 
-        let start_ptr = addr_of_mut!(self.bytes[start_byte_index]);
-        let end_ptr = addr_of_mut!(self.bytes[end_byte_index]);
-        unsafe { sol_memmove(end_ptr, start_ptr, byte_count) }
+            let start_ptr = addr_of_mut!(self.bytes[start_byte_index]);
+            let end_ptr = addr_of_mut!(self.bytes[end_byte_index]);
+            unsafe { sol_memmove(end_ptr, start_ptr, byte_count) }
+        }
         for (byte_index, item) in items
             .enumerate()
             .map(|(i, item)| (start_byte_index + i * size_of::<T>(), item))

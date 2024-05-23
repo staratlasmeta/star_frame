@@ -1,6 +1,7 @@
 use crate::prelude::{
     CombinedExt, CombinedRef, CombinedTRef, CombinedURef, CombinedUnsized, List, UnsizedType,
 };
+use crate::serialize::list::ListExt;
 use crate::serialize::ref_wrapper::{
     AsBytes, AsMutBytes, RefBytes, RefBytesMut, RefResize, RefWrapper, RefWrapperTypes,
 };
@@ -132,9 +133,9 @@ where
 }
 
 fn cool<S: AsMutBytes>(
-    r: impl RefWrapperTypes<Super = S, Ref = CombinedTestRef> + AsBytes,
+    mut r: impl RefWrapperTypes<Super = S, Ref = CombinedTestRef> + AsBytes,
 ) -> anyhow::Result<()> {
-    (&r).list1()?;
+    (&mut r).list1()?.push(0);
     r.list2()?;
     Ok(())
 }
