@@ -130,6 +130,15 @@ pub struct CombinedRef<T, U>(CombinedUnsizedRefMeta<T, U>)
 where
     T: ?Sized + UnsizedType,
     U: ?Sized + UnsizedType;
+impl<T, U> CombinedRef<T, U>
+where
+    T: ?Sized + UnsizedType,
+    U: ?Sized + UnsizedType,
+{
+    pub unsafe fn new(meta: CombinedUnsizedRefMeta<T, U>) -> Self {
+        Self(meta)
+    }
+}
 
 #[derive(Derivative)]
 #[derivative(

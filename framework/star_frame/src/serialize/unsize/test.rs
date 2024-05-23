@@ -1,8 +1,6 @@
 use crate::prelude::{
-    CombinedExt, CombinedRef, CombinedTRef, CombinedURef, CombinedUnsized, List, UnsizedInit,
-    UnsizedType,
+    CombinedExt, CombinedTRef, CombinedURef, CombinedUnsized, List, UnsizedInit, UnsizedType,
 };
-use crate::serialize::list::ListExt;
 use crate::serialize::ref_wrapper::{
     AsBytes, AsMutBytes, RefBytes, RefBytesMut, RefResize, RefWrapper, RefWrapperMutExt,
     RefWrapperTypes,
@@ -10,6 +8,7 @@ use crate::serialize::ref_wrapper::{
 use crate::serialize::unsize::resize::Resize;
 use crate::serialize::unsize::FromBytesReturn;
 use bytemuck::{Pod, Zeroable};
+use star_frame::prelude::CombinedRef;
 use star_frame_proc::Align1;
 
 #[derive(Debug, Copy, Clone, Pod, Zeroable, Align1, PartialEq, Eq)]
@@ -128,21 +127,32 @@ where
         unsafe { wrapper.sup_mut().as_mut_bytes() }
     }
 }
-unsafe impl<S, M> RefResize<S, M> for CombinedTestRef
+unsafe impl<S> RefResize<S, <CombinedUnsized<List<u8>, List<TestStruct>> as UnsizedType>::RefMeta>
+    for CombinedTestRef
 where
-    S: AsMutBytes,
-    S: Resize<M>,
+    S: Resize<CombinedTestMeta>,
 {
     unsafe fn resize(
         wrapper: &mut RefWrapper<S, Self>,
         new_byte_len: usize,
-        new_meta: M,
+        new_meta: <CombinedUnsized<List<u8>, List<TestStruct>> as UnsizedType>::RefMeta,
     ) -> anyhow::Result<()> {
-        wrapper.sup_mut().resize(new_byte_len, new_meta)
+        unsafe {
+            wrapper.r_mut().0 = CombinedRef::new(new_meta);
+            wrapper
+                .sup_mut()
+                .resize(new_byte_len, CombinedTestMeta(new_meta))
+        }
     }
 
-    unsafe fn set_meta(wrapper: &mut RefWrapper<S, Self>, new_meta: M) -> anyhow::Result<()> {
-        wrapper.sup_mut().set_meta(new_meta)
+    unsafe fn set_meta(
+        wrapper: &mut RefWrapper<S, Self>,
+        new_meta: <CombinedUnsized<List<u8>, List<TestStruct>> as UnsizedType>::RefMeta,
+    ) -> anyhow::Result<()> {
+        unsafe {
+            wrapper.r_mut().0 = CombinedRef::new(new_meta);
+            wrapper.sup_mut().set_meta(CombinedTestMeta(new_meta))
+        }
     }
 }
 
@@ -182,14 +192,20 @@ where
 
 #[cfg(test)]
 mod tests {
+    use crate::prelude::UnsizedType;
     use crate::serialize::list::ListExt;
-    use crate::serialize::ref_wrapper::{AsMutBytes, RefWrapper};
+    use crate::serialize::ref_wrapper::RefWrapper;
     use crate::serialize::test::TestByteSet;
     use crate::serialize::unsize::test::{
-        CombinedTest, CombinedTestExt, CombinedTestRef, TestStruct,
+        CombinedTest, CombinedTestExt, CombinedTestMeta, CombinedTestRef, CombinedTestRefWrapper,
+        TestStruct,
     };
+    use star_frame::serialize::unsize::resize::Resize;
 
-    fn cool(r: &mut RefWrapper<impl AsMutBytes, CombinedTestRef>, val: u32) -> anyhow::Result<()> {
+    fn cool(
+        r: &mut RefWrapper<impl Resize<CombinedTestMeta>, CombinedTestRef>,
+        val: u32,
+    ) -> anyhow::Result<()> {
         r.list1()?.push(0)?;
         r.list2()?.insert(0, TestStruct { val1: val, val2: 0 })?;
         Ok(())
@@ -199,6 +215,8 @@ mod tests {
     fn test() -> anyhow::Result<()> {
         let mut bytes = TestByteSet::<CombinedTest>::new(())?;
         let mut r = bytes.mutable()?;
+        assert_eq!(&**(&r).list1()?, &[] as &[u8]);
+        assert_eq!(&**(&r).list2()?, &[]);
         cool(&mut r, 1)?;
         assert_eq!(&**(&r).list1()?, &[0]);
         assert_eq!(&**(&r).list2()?, &[TestStruct { val1: 1, val2: 0 }]);
@@ -214,12 +232,7 @@ mod tests {
         );
         Ok(())
     }
-}
 
-#[cfg(test)]
-pub mod tests {
-    use super::*;
-    use crate::serialize::list::ListExt;
     #[test]
     fn test_stuff() -> anyhow::Result<()> {
         let bytes = vec![0u8; 100];

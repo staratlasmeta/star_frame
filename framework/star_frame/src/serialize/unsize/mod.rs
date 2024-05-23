@@ -75,7 +75,7 @@ pub struct FromBytesReturn<S, R, M> {
 impl<S, R, M> FromBytesReturn<S, R, M> {
     pub unsafe fn map_ref<R2>(self, f: impl FnOnce(&mut S, R) -> R2) -> FromBytesReturn<S, R2, M> {
         FromBytesReturn {
-            ref_wrapper: self.ref_wrapper.wrap_r(f),
+            ref_wrapper: unsafe { self.ref_wrapper.wrap_r(f) },
             meta: self.meta,
             bytes_used: self.bytes_used,
         }
