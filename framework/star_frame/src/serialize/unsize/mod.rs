@@ -1,6 +1,7 @@
 pub mod checked;
 pub mod init;
 pub mod resize;
+mod test;
 
 pub use star_frame_proc::unsized_type;
 
@@ -70,4 +71,21 @@ pub struct FromBytesReturn<S, R, M> {
     pub bytes_used: usize,
     pub meta: M,
     pub ref_wrapper: RefWrapper<S, R>,
+}
+impl<S, R, M> FromBytesReturn<S, R, M> {
+    pub unsafe fn map_ref<R2>(self, f: impl FnOnce(&mut S, R) -> R2) -> FromBytesReturn<S, R2, M> {
+        FromBytesReturn {
+            ref_wrapper: self.ref_wrapper.wrap_r(f),
+            meta: self.meta,
+            bytes_used: self.bytes_used,
+        }
+    }
+
+    pub unsafe fn map_meta<M2>(self, f: impl FnOnce(M) -> M2) -> FromBytesReturn<S, R, M2> {
+        FromBytesReturn {
+            ref_wrapper: self.ref_wrapper,
+            meta: f(self.meta),
+            bytes_used: self.bytes_used,
+        }
+    }
 }
