@@ -3,7 +3,8 @@ use crate::prelude::{
 };
 use crate::serialize::list::ListExt;
 use crate::serialize::ref_wrapper::{
-    AsBytes, AsMutBytes, RefBytes, RefBytesMut, RefResize, RefWrapper, RefWrapperTypes,
+    AsBytes, AsMutBytes, RefBytes, RefBytesMut, RefResize, RefWrapper, RefWrapperMutExt,
+    RefWrapperTypes,
 };
 use crate::serialize::unsize::resize::Resize;
 use crate::serialize::unsize::FromBytesReturn;
@@ -38,6 +39,8 @@ pub struct CombinedTestOwned {
     pub list2: <List<TestStruct> as UnsizedType>::Owned,
 }
 
+pub type CombinedTestRefWrapper<S> = RefWrapper<S, CombinedTestRef>;
+
 unsafe impl UnsizedType for CombinedTest {
     type RefMeta = CombinedTestMeta;
     type RefData = CombinedTestRef;
@@ -70,7 +73,7 @@ where
     S: AsBytes,
 {
     fn bytes(wrapper: &RefWrapper<S, Self>) -> anyhow::Result<&[u8]> {
-        wrapper.as_bytes()
+        wrapper.sup().as_bytes()
     }
 }
 unsafe impl<S> RefBytesMut<S> for CombinedTestRef
@@ -78,23 +81,24 @@ where
     S: AsMutBytes,
 {
     fn bytes_mut(wrapper: &mut RefWrapper<S, Self>) -> anyhow::Result<&mut [u8]> {
-        wrapper.as_mut_bytes()
+        unsafe { wrapper.sup_mut().as_mut_bytes() }
     }
 }
 unsafe impl<S, M> RefResize<S, M> for CombinedTestRef
 where
     S: AsMutBytes,
+    S: Resize<M>,
 {
     unsafe fn resize(
         wrapper: &mut RefWrapper<S, Self>,
         new_byte_len: usize,
         new_meta: M,
     ) -> anyhow::Result<()> {
-        wrapper.resize(new_byte_len, new_meta)
+        wrapper.sup_mut().resize(new_byte_len, new_meta)
     }
 
     unsafe fn set_meta(wrapper: &mut RefWrapper<S, Self>, new_meta: M) -> anyhow::Result<()> {
-        wrapper.set_meta(new_meta)
+        wrapper.sup_mut().set_meta(new_meta)
     }
 }
 
@@ -138,4 +142,23 @@ fn cool<S: AsMutBytes>(
     (&mut r).list1()?.push(0);
     r.list2()?;
     Ok(())
+}
+
+#[cfg(test)]
+pub mod tests {
+    use super::*;
+    use crate::serialize::list::ListExt;
+    #[test]
+    fn test_stuff() -> anyhow::Result<()> {
+        let bytes = vec![0u8; 100];
+        let mut combined: CombinedTestRefWrapper<_> =
+            unsafe { CombinedTest::from_bytes(bytes).unwrap() }.ref_wrapper;
+        println!("{:?}", combined);
+        let mut list = combined.list1().unwrap();
+        list.push(1)?;
+        list.insert(0, 2)?;
+        println!("{:?}", list.len());
+        println!("{:?}", list.as_slice());
+        Ok(())
+    }
 }
