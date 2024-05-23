@@ -1,5 +1,6 @@
 use crate::prelude::{
-    CombinedExt, CombinedRef, CombinedTRef, CombinedURef, CombinedUnsized, List, UnsizedType,
+    CombinedExt, CombinedRef, CombinedTRef, CombinedURef, CombinedUnsized, List, UnsizedInit,
+    UnsizedType,
 };
 use crate::serialize::list::ListExt;
 use crate::serialize::ref_wrapper::{
@@ -10,7 +11,7 @@ use crate::serialize::unsize::FromBytesReturn;
 use bytemuck::{Pod, Zeroable};
 use star_frame_proc::Align1;
 
-#[derive(Debug, Copy, Clone, Pod, Zeroable, Align1)]
+#[derive(Debug, Copy, Clone, Pod, Zeroable, Align1, PartialEq, Eq)]
 #[repr(C, packed)]
 pub struct TestStruct {
     pub val1: u32,
@@ -62,6 +63,49 @@ unsafe impl UnsizedType for CombinedTest {
         let (list1, list2) =
             CombinedUnsized::<List<u8>, List<TestStruct>>::owned(unsafe { r.wrap_r(|_, r| r.0) })?;
         Ok(CombinedTestOwned { list1, list2 })
+    }
+}
+pub struct CombinedTestInit<List1, List2> {
+    pub list1: List1,
+    pub list2: List2,
+}
+impl<List1, List2> UnsizedInit<CombinedTestInit<List1, List2>> for CombinedTest
+where
+    List<u8>: UnsizedInit<List1>,
+    List<TestStruct>: UnsizedInit<List2>,
+{
+    const INIT_BYTES: usize =
+        <CombinedUnsized<List<u8>, List<TestStruct>> as UnsizedInit<(List1, List2)>>::INIT_BYTES;
+
+    unsafe fn init<S: AsMutBytes>(
+        super_ref: S,
+        arg: CombinedTestInit<List1, List2>,
+    ) -> anyhow::Result<(RefWrapper<S, Self::RefData>, Self::RefMeta)> {
+        unsafe {
+            let (r, m) = CombinedUnsized::<List<u8>, List<TestStruct>>::init(
+                super_ref,
+                (arg.list1, arg.list2),
+            )?;
+            Ok((r.wrap_r(|_, r| CombinedTestRef(r)), CombinedTestMeta(m)))
+        }
+    }
+}
+impl UnsizedInit<()> for CombinedTest
+where
+    List<u8>: UnsizedInit<()>,
+    List<TestStruct>: UnsizedInit<()>,
+{
+    const INIT_BYTES: usize =
+        <CombinedUnsized<List<u8>, List<TestStruct>> as UnsizedInit<()>>::INIT_BYTES;
+
+    unsafe fn init<S: AsMutBytes>(
+        super_ref: S,
+        arg: (),
+    ) -> anyhow::Result<(RefWrapper<S, Self::RefData>, Self::RefMeta)> {
+        unsafe {
+            let (r, m) = CombinedUnsized::<List<u8>, List<TestStruct>>::init(super_ref, arg)?;
+            Ok((r.wrap_r(|_, r| CombinedTestRef(r)), CombinedTestMeta(m)))
+        }
     }
 }
 
@@ -132,10 +176,38 @@ where
     }
 }
 
-fn cool<S: AsMutBytes>(
-    mut r: impl RefWrapperTypes<Super = S, Ref = CombinedTestRef> + AsBytes,
-) -> anyhow::Result<()> {
-    (&mut r).list1()?.push(0);
-    r.list2()?;
-    Ok(())
+#[cfg(test)]
+mod tests {
+    use crate::serialize::list::ListExt;
+    use crate::serialize::ref_wrapper::{AsMutBytes, RefWrapper};
+    use crate::serialize::test::TestByteSet;
+    use crate::serialize::unsize::test::{
+        CombinedTest, CombinedTestExt, CombinedTestRef, TestStruct,
+    };
+
+    fn cool(r: &mut RefWrapper<impl AsMutBytes, CombinedTestRef>, val: u32) -> anyhow::Result<()> {
+        r.list1()?.push(0)?;
+        r.list2()?.insert(0, TestStruct { val1: val, val2: 0 })?;
+        Ok(())
+    }
+
+    #[test]
+    fn test() -> anyhow::Result<()> {
+        let mut bytes = TestByteSet::<CombinedTest>::new(())?;
+        let mut r = bytes.mutable()?;
+        cool(&mut r, 1)?;
+        assert_eq!(&**(&r).list1()?, &[0]);
+        assert_eq!(&**(&r).list2()?, &[TestStruct { val1: 1, val2: 0 }]);
+        cool(&mut r, 2)?;
+        let r = bytes.immut()?;
+        assert_eq!(&**r.list1()?, &[0, 0]);
+        assert_eq!(
+            &**r.list2()?,
+            &[
+                TestStruct { val1: 2, val2: 0 },
+                TestStruct { val1: 1, val2: 0 }
+            ]
+        );
+        Ok(())
+    }
 }

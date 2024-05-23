@@ -23,7 +23,7 @@ use std::fmt::Debug;
 use std::iter::once;
 use std::marker::PhantomData;
 use std::mem::size_of;
-use std::ops::{DerefMut, Index, IndexMut, RangeBounds};
+use std::ops::{Deref, DerefMut, Index, IndexMut, RangeBounds};
 use std::ptr;
 use std::ptr::addr_of_mut;
 use typenum::True;
@@ -72,6 +72,26 @@ where
 
     pub fn as_checked_mut_slice(&mut self) -> Result<&mut [T]> {
         try_cast_slice_mut(&mut self.bytes).map_err(Into::into)
+    }
+}
+impl<T, L> Deref for List<T, L>
+where
+    T: Pod + Align1,
+    L: Pod + ToPrimitive + FromPrimitive,
+{
+    type Target = [T];
+
+    fn deref(&self) -> &Self::Target {
+        self.as_slice()
+    }
+}
+impl<T, L> DerefMut for List<T, L>
+where
+    T: Pod + Align1,
+    L: Pod + ToPrimitive + FromPrimitive,
+{
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.as_mut_slice()
     }
 }
 impl<T, L> Index<usize> for List<T, L>
