@@ -39,8 +39,6 @@ pub struct CombinedTestOwned {
     pub list2: <List<TestStruct> as UnsizedType>::Owned,
 }
 
-pub type CombinedTestRefWrapper<S> = RefWrapper<S, CombinedTestRef>;
-
 unsafe impl UnsizedType for CombinedTest {
     type RefMeta = CombinedTestMeta;
     type RefData = CombinedTestRef;
@@ -197,8 +195,7 @@ mod tests {
     use crate::serialize::ref_wrapper::RefWrapper;
     use crate::serialize::test::TestByteSet;
     use crate::serialize::unsize::test::{
-        CombinedTest, CombinedTestExt, CombinedTestMeta, CombinedTestRef, CombinedTestRefWrapper,
-        TestStruct,
+        CombinedTest, CombinedTestExt, CombinedTestMeta, CombinedTestRef, TestStruct,
     };
     use star_frame::serialize::unsize::resize::Resize;
 
@@ -233,6 +230,7 @@ mod tests {
         Ok(())
     }
 
+    type CombinedTestRefWrapper<S> = RefWrapper<S, CombinedTestRef>;
     #[test]
     fn test_stuff() -> anyhow::Result<()> {
         let bytes = vec![0u8; 100];
