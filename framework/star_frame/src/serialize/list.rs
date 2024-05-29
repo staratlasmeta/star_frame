@@ -270,7 +270,7 @@ pub trait ListExt: DerefMut<Target = List<Self::Item, Self::Len>> {
     }
     fn remove_range(&mut self, range: impl RangeBounds<usize>) -> Result<()>;
 }
-impl<R, T, L> ListExt for R
+impl<R: ?Sized, T, L> ListExt for R
 where
     R: DerefMut<Target = List<T, L>> + RefWrapperMutExt<Ref = ListRef<T, L>>,
     R::Super: Resize<()>,
@@ -306,11 +306,12 @@ where
             let end_ptr = addr_of_mut!(self.bytes[end_byte_index]);
             unsafe { sol_memmove(end_ptr, start_ptr, byte_count) }
         }
+        let bytes = &mut self.bytes;
         for (byte_index, item) in items
             .enumerate()
             .map(|(i, item)| (start_byte_index + i * size_of::<T>(), item))
         {
-            self.bytes[byte_index..][..size_of::<T>()].copy_from_slice(bytes_of(item.borrow()));
+            bytes[byte_index..][..size_of::<T>()].copy_from_slice(bytes_of(item.borrow()));
         }
 
         Ok(())

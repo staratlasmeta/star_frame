@@ -1,8 +1,9 @@
-use crate::prelude::{List, UnsizedInit, UnsizedType};
+use crate::prelude::{CombinedRef, CombinedTRef, List, ListRef, UnsizedInit, UnsizedType};
+use crate::serialize::list::ListExt;
 use crate::serialize::ref_wrapper::{
     AsBytes, AsMutBytes, RefBytes, RefBytesMut, RefWrapper, RefWrapperMutExt, RefWrapperTypes,
 };
-use crate::serialize::unsize::test::CombinedTest;
+use crate::serialize::unsize::test::{CombinedTest, CombinedTestRef, TestStruct};
 use crate::serialize::unsize::unsized_enum::UnsizedEnum;
 use crate::serialize::unsize::FromBytesReturn;
 use crate::util::OffsetRef;
@@ -16,7 +17,7 @@ use typenum::True;
 
 // #[repr(u8)]
 // pub enum TestEnum {
-//     A,
+//     A(()),
 //     B(List<u8>) = 4,
 //     C(CombinedTest),
 // }
@@ -158,7 +159,9 @@ unsafe impl UnsizedType for TestEnum {
 impl UnsizedEnum for TestEnum {
     type Discriminant = TestEnumDiscriminant;
 
-    fn discriminant<S: AsBytes>(r: &RefWrapper<S, Self::RefData>) -> Self::Discriminant {
+    fn discriminant<S: AsBytes>(
+        r: &impl RefWrapperTypes<Super = S, Ref = Self::RefData>,
+    ) -> Self::Discriminant {
         match r.r() {
             TestEnumMeta::A(_) => Self::Discriminant::A,
             TestEnumMeta::B(_) => Self::Discriminant::B,
@@ -285,7 +288,12 @@ where
     ) -> anyhow::Result<()> {
         let meta = TestEnumMeta::A(new_meta);
         *unsafe { wrapper.sup_mut().r_mut() } = meta;
-        unsafe { wrapper.sup_mut().sup_mut().resize(new_byte_len, meta) }
+        unsafe {
+            wrapper
+                .sup_mut()
+                .sup_mut()
+                .resize(size_of::<TestEnumDiscriminant>() + new_byte_len, meta)
+        }
     }
 
     unsafe fn set_meta(
@@ -293,10 +301,9 @@ where
         new_meta: <AInner as UnsizedType>::RefMeta,
     ) -> anyhow::Result<()> {
         unsafe {
-            wrapper
-                .sup_mut()
-                .sup_mut()
-                .set_meta(TestEnumMeta::A(new_meta))
+            let meta = TestEnumMeta::A(new_meta);
+            *wrapper.sup_mut().r_mut() = meta;
+            wrapper.sup_mut().sup_mut().set_meta(meta)
         }
     }
 }
@@ -334,7 +341,12 @@ where
     ) -> anyhow::Result<()> {
         let meta = TestEnumMeta::B(new_meta);
         *unsafe { wrapper.sup_mut().r_mut() } = meta;
-        unsafe { wrapper.sup_mut().sup_mut().resize(new_byte_len, meta) }
+        unsafe {
+            wrapper
+                .sup_mut()
+                .sup_mut()
+                .resize(size_of::<TestEnumDiscriminant>() + new_byte_len, meta)
+        }
     }
 
     unsafe fn set_meta(
@@ -342,10 +354,9 @@ where
         new_meta: <BInner as UnsizedType>::RefMeta,
     ) -> anyhow::Result<()> {
         unsafe {
-            wrapper
-                .sup_mut()
-                .sup_mut()
-                .set_meta(TestEnumMeta::B(new_meta))
+            let meta = TestEnumMeta::B(new_meta);
+            *wrapper.sup_mut().r_mut() = meta;
+            wrapper.sup_mut().sup_mut().set_meta(meta)
         }
     }
 }
@@ -371,7 +382,7 @@ where
         Ok(bytes)
     }
 }
-unsafe impl<S> RefResize<S, <CInner as UnsizedType>::RefMeta> for TestEnumVariantB
+unsafe impl<S> RefResize<S, <CInner as UnsizedType>::RefMeta> for TestEnumVariantC
 where
     S: RefWrapperMutExt<Ref = <TestEnum as UnsizedType>::RefData>,
     S::Super: Resize<<TestEnum as UnsizedType>::RefMeta>,
@@ -383,7 +394,12 @@ where
     ) -> anyhow::Result<()> {
         let meta = TestEnumMeta::C(new_meta);
         *unsafe { wrapper.sup_mut().r_mut() } = meta;
-        unsafe { wrapper.sup_mut().sup_mut().resize(new_byte_len, meta) }
+        unsafe {
+            wrapper
+                .sup_mut()
+                .sup_mut()
+                .resize(size_of::<TestEnumDiscriminant>() + new_byte_len, meta)
+        }
     }
 
     unsafe fn set_meta(
@@ -391,10 +407,9 @@ where
         new_meta: <CInner as UnsizedType>::RefMeta,
     ) -> anyhow::Result<()> {
         unsafe {
-            wrapper
-                .sup_mut()
-                .sup_mut()
-                .set_meta(TestEnumMeta::C(new_meta))
+            let meta = TestEnumMeta::C(new_meta);
+            *wrapper.sup_mut().r_mut() = meta;
+            wrapper.sup_mut().sup_mut().set_meta(meta)
         }
     }
 }
@@ -408,19 +423,36 @@ pub enum TestEnumRefWrapper<S> {
     B(BRef<S>),
     C(CRef<S>),
 }
-pub trait TestEnumExt: Sized + RefWrapperTypes<Ref = <TestEnum as UnsizedType>::RefData> {
+pub trait TestEnumExt: Sized + RefWrapperTypes<Ref = <TestEnum as UnsizedType>::RefData>
+where
+    Self::Super: AsBytes,
+{
     fn get(self) -> anyhow::Result<TestEnumRefWrapper<Self>>;
-}
-pub trait TestEnumMutExt: TestEnumExt {
+
+    fn discriminant(&self) -> TestEnumDiscriminant {
+        TestEnum::discriminant(self)
+    }
+
     fn set_a<I>(self, a_init: I) -> anyhow::Result<ARef<Self>>
     where
+        Self: RefWrapperMutExt,
+        Self::Super: Resize<<TestEnum as UnsizedType>::RefMeta>,
         AInner: UnsizedInit<I>;
     fn set_b<I>(self, b_init: I) -> anyhow::Result<BRef<Self>>
     where
+        Self: RefWrapperMutExt,
+        Self::Super: Resize<<TestEnum as UnsizedType>::RefMeta>,
         BInner: UnsizedInit<I>;
     fn set_c<I>(self, c_init: I) -> anyhow::Result<CRef<Self>>
     where
+        Self: RefWrapperMutExt,
+        Self::Super: Resize<<TestEnum as UnsizedType>::RefMeta>,
         CInner: UnsizedInit<I>;
+}
+pub trait TestEnumMutExt: TestEnumExt
+where
+    Self::Super: AsBytes,
+{
 }
 
 impl<R> TestEnumExt for R
@@ -452,5 +484,189 @@ where
                 .ref_wrapper
             })),
         }
+    }
+
+    fn set_a<I>(mut self, a_init: I) -> anyhow::Result<ARef<Self>>
+    where
+        Self: RefWrapperMutExt,
+        Self::Super: Resize<<TestEnum as UnsizedType>::RefMeta>,
+        AInner: UnsizedInit<I>,
+    {
+        unsafe {
+            let current_meta = *self.r();
+            let sup = (&mut self).sup_mut();
+            sup.resize(
+                size_of::<TestEnumDiscriminant>() + <AInner as UnsizedInit<I>>::INIT_BYTES,
+                current_meta,
+            )?;
+            sup.as_mut_bytes()?[..size_of::<TestEnumDiscriminant>()]
+                .copy_from_slice(bytes_of(&TestEnumDiscriminant::A));
+        }
+        let (mut r, m) = unsafe {
+            <AInner as UnsizedInit<I>>::init(RefWrapper::new(self, TestEnumVariantA), a_init)?
+        };
+        unsafe {
+            r.sup_mut()
+                .sup_mut()
+                .sup_mut()
+                .set_meta(TestEnumMeta::A(m))?;
+            *r.sup_mut().sup_mut().r_mut() = TestEnumMeta::A(m);
+        }
+        Ok(r)
+    }
+
+    fn set_b<I>(mut self, b_init: I) -> anyhow::Result<BRef<Self>>
+    where
+        Self: RefWrapperMutExt,
+        Self::Super: Resize<<TestEnum as UnsizedType>::RefMeta>,
+        BInner: UnsizedInit<I>,
+    {
+        unsafe {
+            let current_meta = *self.r();
+            let sup = (&mut self).sup_mut();
+            sup.resize(
+                size_of::<TestEnumDiscriminant>() + <BInner as UnsizedInit<I>>::INIT_BYTES,
+                current_meta,
+            )?;
+            sup.as_mut_bytes()?[..size_of::<TestEnumDiscriminant>()]
+                .copy_from_slice(bytes_of(&TestEnumDiscriminant::B));
+        }
+        let (mut r, m) = unsafe {
+            <BInner as UnsizedInit<I>>::init(RefWrapper::new(self, TestEnumVariantB), b_init)?
+        };
+        unsafe {
+            r.sup_mut()
+                .sup_mut()
+                .sup_mut()
+                .set_meta(TestEnumMeta::B(m))?;
+            *r.sup_mut().sup_mut().r_mut() = TestEnumMeta::B(m);
+        }
+        Ok(r)
+    }
+
+    fn set_c<I>(mut self, c_init: I) -> anyhow::Result<CRef<Self>>
+    where
+        Self: RefWrapperMutExt,
+        Self::Super: Resize<<TestEnum as UnsizedType>::RefMeta>,
+        CInner: UnsizedInit<I>,
+    {
+        unsafe {
+            let current_meta = *self.r();
+            let sup = (&mut self).sup_mut();
+            sup.resize(
+                size_of::<TestEnumDiscriminant>() + <CInner as UnsizedInit<I>>::INIT_BYTES,
+                current_meta,
+            )?;
+            sup.as_mut_bytes()?[..size_of::<TestEnumDiscriminant>()]
+                .copy_from_slice(bytes_of(&TestEnumDiscriminant::C));
+        }
+        let (mut r, m) = unsafe {
+            <CInner as UnsizedInit<I>>::init(RefWrapper::new(self, TestEnumVariantC), c_init)?
+        };
+        unsafe {
+            r.sup_mut()
+                .sup_mut()
+                .sup_mut()
+                .set_meta(TestEnumMeta::C(m))?;
+            *r.sup_mut().sup_mut().r_mut() = TestEnumMeta::C(m);
+        }
+        Ok(r)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::prelude::{CombinedRef, CombinedTRef, CombinedUnsizedRefMeta, List, ListRef};
+    use crate::serialize::list::ListExt;
+    use crate::serialize::ref_wrapper::RefWrapper;
+    use crate::serialize::test::TestByteSet;
+    use crate::serialize::unsize::enum_stuff::{
+        TestEnum, TestEnumDiscriminant, TestEnumExt, TestEnumMeta, TestEnumRefWrapper,
+        TestEnumVariantC,
+    };
+    use crate::serialize::unsize::resize::Resize;
+    use crate::serialize::unsize::test::{CombinedTestExt, CombinedTestRef, TestStruct};
+    use star_frame::serialize::unsize::enum_stuff::TestEnumInitA;
+
+    #[test]
+    fn test() -> anyhow::Result<()> {
+        let mut bytes = TestByteSet::<TestEnum>::new(TestEnumInitA(()))?;
+        assert_eq!(bytes.immut()?.discriminant(), TestEnumDiscriminant::A);
+        {
+            let mut mutable = bytes.mutable()?;
+            {
+                let b = (&mut mutable).set_b(())?;
+                assert_eq!(&**b, &[] as &[u8]);
+            }
+            assert_eq!(mutable.discriminant(), TestEnumDiscriminant::B);
+            let mutable_b = match mutable.get()? {
+                TestEnumRefWrapper::A(_) | TestEnumRefWrapper::C(_) => unreachable!(),
+                TestEnumRefWrapper::B(r) => r,
+            };
+            assert_eq!(&**mutable_b, &[] as &[u8]);
+        }
+        match bytes.immut()?.get()? {
+            TestEnumRefWrapper::A(_) | TestEnumRefWrapper::C(_) => unreachable!(),
+            TestEnumRefWrapper::B(r) => assert_eq!(&**r, &[] as &[u8]),
+        };
+        {
+            let mut mutable = bytes.mutable()?;
+            assert_eq!(mutable.discriminant(), TestEnumDiscriminant::B);
+            let mut mutable_b = match mutable.get()? {
+                TestEnumRefWrapper::A(_) | TestEnumRefWrapper::C(_) => unreachable!(),
+                TestEnumRefWrapper::B(r) => r,
+            };
+            mutable_b.push(0)?;
+            assert_eq!(&**mutable_b, &[0]);
+        }
+        match bytes.immut()?.get()? {
+            TestEnumRefWrapper::A(_) | TestEnumRefWrapper::C(_) => unreachable!(),
+            TestEnumRefWrapper::B(r) => assert_eq!(&**r, &[0]),
+        };
+        {
+            let mut mutable = bytes.mutable()?;
+            {
+                let c = (&mut mutable).set_c(())?;
+                assert_eq!(&**(&c).list1()?, &[] as &[u8]);
+                assert_eq!(&**c.list2()?, &[]);
+            }
+            assert_eq!(mutable.discriminant(), TestEnumDiscriminant::C);
+            let mut mutable_c = match mutable.get()? {
+                TestEnumRefWrapper::A(_) | TestEnumRefWrapper::B(_) => unreachable!(),
+                TestEnumRefWrapper::C(r) => r,
+            };
+            assert_eq!(&**(&mut mutable_c).list1()?, &[] as &[u8]);
+            assert_eq!(&**mutable_c.list2()?, &[]);
+        }
+        match bytes.immut()?.get()? {
+            TestEnumRefWrapper::A(_) | TestEnumRefWrapper::B(_) => unreachable!(),
+            TestEnumRefWrapper::C(r) => {
+                assert_eq!(&**(&r).list1()?, &[] as &[u8]);
+                assert_eq!(&**(&r).list2()?, &[]);
+            }
+        };
+        {
+            let mut mutable = bytes.mutable()?;
+            assert_eq!(mutable.discriminant(), TestEnumDiscriminant::C);
+            let mut mutable_c = match mutable.get()? {
+                TestEnumRefWrapper::A(_) | TestEnumRefWrapper::B(_) => unreachable!(),
+                TestEnumRefWrapper::C(r) => r,
+            };
+            (&mut mutable_c).list1()?.push(0)?;
+            (&mut mutable_c)
+                .list2()?
+                .insert(0, TestStruct { val1: 1, val2: 0 })?;
+            assert_eq!(&**(&mutable_c).list1()?, &[0]);
+            assert_eq!(&**(&mutable_c).list2()?, &[TestStruct { val1: 1, val2: 0 }]);
+        }
+        match bytes.immut()?.get()? {
+            TestEnumRefWrapper::A(_) | TestEnumRefWrapper::B(_) => unreachable!(),
+            TestEnumRefWrapper::C(r) => {
+                assert_eq!(&**(&r).list1()?, &[0]);
+                assert_eq!(&**(&r).list2()?, &[TestStruct { val1: 1, val2: 0 }]);
+            }
+        };
+
+        Ok(())
     }
 }

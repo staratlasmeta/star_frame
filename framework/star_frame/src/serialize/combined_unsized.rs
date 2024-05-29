@@ -151,10 +151,10 @@ where
     T: ?Sized + UnsizedType,
     U: ?Sized + UnsizedType,
 {
-    t_meta: T::RefMeta,
-    u_meta: U::RefMeta,
-    t_len: <T::IsUnsized as LengthAccess<T>>::LengthData,
-    u_len: <U::IsUnsized as LengthAccess<U>>::LengthData,
+    pub(crate) t_meta: T::RefMeta,
+    pub(crate) u_meta: U::RefMeta,
+    pub(crate) t_len: <T::IsUnsized as LengthAccess<T>>::LengthData,
+    pub(crate) u_len: <U::IsUnsized as LengthAccess<U>>::LengthData,
 }
 
 #[derive(Derivative)]
