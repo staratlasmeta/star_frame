@@ -234,9 +234,9 @@ mod tests {
     #[test]
     fn test_stuff() -> anyhow::Result<()> {
         let bytes = vec![0u8; 100];
-        let mut combined: CombinedTestRefWrapper<_> =
+        let combined: CombinedTestRefWrapper<_> =
             unsafe { CombinedTest::from_bytes(bytes).unwrap() }.ref_wrapper;
-        println!("{:?}", combined);
+        println!("{combined:?}");
         let mut list = combined.list1().unwrap();
         list.push(1)?;
         list.insert(0, 2)?;

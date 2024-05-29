@@ -228,14 +228,17 @@ where
         let old_t_len = T::IsUnsized::len(r.t_len);
         r.t_meta = new_meta;
         r.t_len = T::IsUnsized::from_len(new_byte_len);
-        let bytes = sup.as_mut_bytes()?;
-        let start_ptr = addr_of_mut!(bytes[old_t_len]);
-        let end_ptr = addr_of_mut!(bytes[new_byte_len]);
         let byte_len = U::IsUnsized::len(r.u_len);
         if new_byte_len > old_t_len {
             unsafe { sup.resize(new_byte_len + byte_len, r.0)? }
+            let bytes = sup.as_mut_bytes()?;
+            let start_ptr = addr_of_mut!(bytes[old_t_len]);
+            let end_ptr = addr_of_mut!(bytes[new_byte_len]);
             unsafe { sol_memmove(end_ptr, start_ptr, byte_len) }
         } else {
+            let bytes = sup.as_mut_bytes()?;
+            let start_ptr = addr_of_mut!(bytes[old_t_len]);
+            let end_ptr = addr_of_mut!(bytes[new_byte_len]);
             unsafe { sol_memmove(start_ptr, end_ptr, byte_len) }
             unsafe { sup.resize(new_byte_len + byte_len, r.0)? }
         }

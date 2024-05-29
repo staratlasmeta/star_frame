@@ -339,8 +339,10 @@ where
         let remaining_bytes = self.bytes.len() - end_byte_index;
 
         let start_byte_ptr = addr_of_mut!(self.bytes[start_byte_index]);
-        let end_byte_ptr = addr_of_mut!(self.bytes[end_byte_index]);
-        unsafe { sol_memmove(start_byte_ptr, end_byte_ptr, remaining_bytes) }
+        if end_index != old_len {
+            let end_byte_ptr = addr_of_mut!(self.bytes[end_byte_index]);
+            unsafe { sol_memmove(start_byte_ptr, end_byte_ptr, remaining_bytes) }
+        }
 
         let new_len = old_len - (end_index - start_index);
         let new_len_l = L::from_usize(new_len)
@@ -350,6 +352,70 @@ where
         unsafe { self.sup_mut().resize(new_byte_len, ())? }
 
         self.len = new_len_l.into();
+
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::prelude::List;
+    use crate::serialize::list::ListExt;
+    use crate::serialize::test::TestByteSet;
+    use bytemuck::{Pod, Zeroable};
+    use star_frame_proc::Align1;
+
+    #[derive(Debug, PartialEq, Eq, Copy, Clone, Pod, Align1, Zeroable)]
+    #[repr(C, packed)]
+    struct TestStruct {
+        val1: u32,
+        val2: u32,
+    }
+
+    #[test]
+    fn list_test() -> anyhow::Result<()> {
+        let mut watcher = Vec::new();
+        let mut test_set = TestByteSet::<List<TestStruct>>::new(())?;
+
+        assert_eq!(**test_set.immut()?, watcher);
+        {
+            let mut mutable = test_set.mutable()?;
+            let val = TestStruct { val1: 1, val2: 2 };
+            mutable.push(val)?;
+            watcher.push(val);
+            assert_eq!(**mutable, watcher);
+        }
+        assert_eq!(**test_set.immut()?, watcher);
+        {
+            let mut mutable = test_set.mutable()?;
+            let val = TestStruct { val1: 3, val2: 4 };
+            mutable.insert(0, val)?;
+            watcher.insert(0, val);
+            assert_eq!(**mutable, watcher);
+        }
+        assert_eq!(**test_set.immut()?, watcher);
+        {
+            let mut mutable = test_set.mutable()?;
+            let val = TestStruct { val1: 5, val2: 6 };
+            mutable.insert(1, val)?;
+            watcher.insert(1, val);
+            assert_eq!(**mutable, watcher);
+        }
+        assert_eq!(**test_set.immut()?, watcher);
+        {
+            let mut mutable = test_set.mutable()?;
+            mutable.remove_range(0..=1)?;
+            watcher.drain(0..=1);
+            assert_eq!(**mutable, watcher);
+        }
+        assert_eq!(**test_set.immut()?, watcher);
+        {
+            let mut mutable = test_set.mutable()?;
+            mutable.remove(0)?;
+            watcher.remove(0);
+            assert_eq!(**mutable, watcher);
+        }
+        assert_eq!(**test_set.immut()?, watcher);
 
         Ok(())
     }
