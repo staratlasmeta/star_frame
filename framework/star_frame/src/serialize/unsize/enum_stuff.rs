@@ -1,9 +1,8 @@
-use crate::prelude::{CombinedRef, CombinedTRef, List, ListRef, UnsizedInit, UnsizedType};
-use crate::serialize::list::ListExt;
+use crate::prelude::{List, UnsizedInit, UnsizedType};
 use crate::serialize::ref_wrapper::{
     AsBytes, AsMutBytes, RefBytes, RefBytesMut, RefWrapper, RefWrapperMutExt, RefWrapperTypes,
 };
-use crate::serialize::unsize::test::{CombinedTest, CombinedTestRef, TestStruct};
+use crate::serialize::unsize::test::CombinedTest;
 use crate::serialize::unsize::unsized_enum::UnsizedEnum;
 use crate::serialize::unsize::FromBytesReturn;
 use crate::util::OffsetRef;
@@ -494,7 +493,7 @@ where
     {
         unsafe {
             let current_meta = *self.r();
-            let sup = (&mut self).sup_mut();
+            let sup = self.sup_mut();
             sup.resize(
                 size_of::<TestEnumDiscriminant>() + <AInner as UnsizedInit<I>>::INIT_BYTES,
                 current_meta,
@@ -523,7 +522,7 @@ where
     {
         unsafe {
             let current_meta = *self.r();
-            let sup = (&mut self).sup_mut();
+            let sup = self.sup_mut();
             sup.resize(
                 size_of::<TestEnumDiscriminant>() + <BInner as UnsizedInit<I>>::INIT_BYTES,
                 current_meta,
@@ -552,7 +551,7 @@ where
     {
         unsafe {
             let current_meta = *self.r();
-            let sup = (&mut self).sup_mut();
+            let sup = self.sup_mut();
             sup.resize(
                 size_of::<TestEnumDiscriminant>() + <CInner as UnsizedInit<I>>::INIT_BYTES,
                 current_meta,
@@ -576,16 +575,12 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::prelude::{CombinedRef, CombinedTRef, CombinedUnsizedRefMeta, List, ListRef};
     use crate::serialize::list::ListExt;
-    use crate::serialize::ref_wrapper::RefWrapper;
     use crate::serialize::test::TestByteSet;
     use crate::serialize::unsize::enum_stuff::{
-        TestEnum, TestEnumDiscriminant, TestEnumExt, TestEnumMeta, TestEnumRefWrapper,
-        TestEnumVariantC,
+        TestEnum, TestEnumDiscriminant, TestEnumExt, TestEnumRefWrapper,
     };
-    use crate::serialize::unsize::resize::Resize;
-    use crate::serialize::unsize::test::{CombinedTestExt, CombinedTestRef, TestStruct};
+    use crate::serialize::unsize::test::{CombinedTestExt, TestStruct};
     use star_frame::serialize::unsize::enum_stuff::TestEnumInitA;
 
     #[test]
@@ -610,7 +605,7 @@ mod tests {
             TestEnumRefWrapper::B(r) => assert_eq!(&**r, &[] as &[u8]),
         };
         {
-            let mut mutable = bytes.mutable()?;
+            let mutable = bytes.mutable()?;
             assert_eq!(mutable.discriminant(), TestEnumDiscriminant::B);
             let mut mutable_b = match mutable.get()? {
                 TestEnumRefWrapper::A(_) | TestEnumRefWrapper::C(_) => unreachable!(),
@@ -646,7 +641,7 @@ mod tests {
             }
         };
         {
-            let mut mutable = bytes.mutable()?;
+            let mutable = bytes.mutable()?;
             assert_eq!(mutable.discriminant(), TestEnumDiscriminant::C);
             let mut mutable_c = match mutable.get()? {
                 TestEnumRefWrapper::A(_) | TestEnumRefWrapper::B(_) => unreachable!(),
