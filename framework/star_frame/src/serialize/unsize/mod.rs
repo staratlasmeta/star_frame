@@ -2,8 +2,10 @@ pub mod checked;
 pub mod init;
 pub mod resize;
 
+mod enum_stuff;
 mod test;
 mod test2;
+mod unsized_enum;
 
 pub use star_frame_proc::unsized_type;
 
