@@ -18,6 +18,7 @@ pub struct TestStruct {
     pub val2: u64,
 }
 
+// TODO: More fields, generics, enums, tuple structs, unit structs, macro it all
 // #[unsized_type]
 // pub struct CombinedTest {
 //     pub list1: List<u8>,
@@ -34,6 +35,7 @@ pub struct CombinedTestMeta(<CombinedUnsized<List<u8>, List<TestStruct>> as Unsi
 #[derive(Debug, Copy, Clone)]
 #[repr(transparent)]
 pub struct CombinedTestRef(<CombinedUnsized<List<u8>, List<TestStruct>> as UnsizedType>::RefData);
+#[derive(Debug)]
 pub struct CombinedTestOwned {
     pub list1: <List<u8> as UnsizedType>::Owned,
     pub list2: <List<TestStruct> as UnsizedType>::Owned,

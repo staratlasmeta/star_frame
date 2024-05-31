@@ -3,8 +3,9 @@ pub mod init;
 pub mod resize;
 
 mod enum_stuff;
-mod test;
+pub mod test;
 mod test2;
+pub mod test_sized_struct;
 mod unsized_enum;
 
 pub use star_frame_proc::unsized_type;
