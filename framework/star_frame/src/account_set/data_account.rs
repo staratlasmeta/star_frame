@@ -265,8 +265,13 @@ unsafe impl<'a, 'info, P: StarFrameProgram, M> Resize<M> for AccountInfoRefMut<'
     unsafe fn resize(&mut self, new_byte_len: usize, _new_meta: M) -> Result<()> {
         let original_data_len = unsafe { self.account_info.original_data_len() };
         unsafe {
-            account_info_realloc(new_byte_len, true, &mut self.r, original_data_len)
-                .map_err(Into::into)
+            account_info_realloc(
+                new_byte_len + size_of::<P::AccountDiscriminant>(),
+                true,
+                &mut self.r,
+                original_data_len,
+            )
+            .map_err(Into::into)
         }
     }
 
