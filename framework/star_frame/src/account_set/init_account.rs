@@ -1,6 +1,6 @@
 use crate::account_set::SignedAccount;
 use crate::prelude::*;
-use crate::serialize::unsize::checked::Zeroed;
+use crate::serialize::unsize::init::Zeroed;
 use advance::Advance;
 use anyhow::{bail, Context};
 use bytemuck::bytes_of;
@@ -94,24 +94,8 @@ pub struct CreateAccount<'a, 'info, A, WT> {
     funder: &'a WT,
 }
 
-impl<'a, 'info, WT> CreateAccount<'a, 'info, (), WT> {
-    pub fn new_with_unit(
-        system_program: &'a Program<'info, SystemProgram>,
-        funder: &'a WT,
-    ) -> Self {
-        Self::new_with_arg((), system_program, funder)
-    }
-}
-
 impl<'a, 'info, WT> CreateAccount<'a, 'info, Zeroed, WT> {
-    pub fn zeroed(system_program: &'a Program<'info, SystemProgram>, funder: &'a WT) -> Self {
-        Self::new_with_zeroed(system_program, funder)
-    }
-
-    pub fn new_with_zeroed(
-        system_program: &'a Program<'info, SystemProgram>,
-        funder: &'a WT,
-    ) -> Self {
+    pub fn new(system_program: &'a Program<'info, SystemProgram>, funder: &'a WT) -> Self {
         Self::new_with_arg(Zeroed, system_program, funder)
     }
 }

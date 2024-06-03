@@ -5,6 +5,7 @@ use crate::serialize::ref_wrapper::{
     AsBytes, AsMutBytes, RefBytes, RefBytesMut, RefResize, RefWrapper, RefWrapperMutExt,
     RefWrapperTypes,
 };
+use crate::serialize::unsize::init::Zeroed;
 use crate::serialize::unsize::resize::Resize;
 use crate::serialize::unsize::test::TestStruct;
 use crate::serialize::unsize::FromBytesReturn;
@@ -126,26 +127,26 @@ where
         }
     }
 }
-impl UnsizedInit<()> for CombinedTest2
+impl UnsizedInit<Zeroed> for CombinedTest2
 where
-    List<u8>: UnsizedInit<()>,
-    List<TestStruct>: UnsizedInit<()>,
-    CombinedTest: UnsizedInit<()>,
+    List<u8>: UnsizedInit<Zeroed>,
+    List<TestStruct>: UnsizedInit<Zeroed>,
+    CombinedTest: UnsizedInit<Zeroed>,
 {
     const INIT_BYTES: usize = <CombinedUnsized<
         List<u8>,
         CombinedUnsized<List<TestStruct>, CombinedTest>,
-    > as UnsizedInit<()>>::INIT_BYTES;
+    > as UnsizedInit<Zeroed>>::INIT_BYTES;
 
     unsafe fn init<S: AsMutBytes>(
         super_ref: S,
-        arg: (),
+        arg: Zeroed,
     ) -> anyhow::Result<(RefWrapper<S, Self::RefData>, Self::RefMeta)> {
         unsafe {
             let (r, m) = <CombinedUnsized<
                 List<u8>,
                 CombinedUnsized<List<TestStruct>, CombinedTest>,
-            > as UnsizedInit<()>>::init(super_ref, arg)?;
+            > as UnsizedInit<Zeroed>>::init(super_ref, arg)?;
             Ok((r.wrap_r(|_, r| CombinedTest2Ref(r)), CombinedTest2Meta(m)))
         }
     }
@@ -266,6 +267,7 @@ mod tests {
     use crate::serialize::list::ListExt;
     use crate::serialize::ref_wrapper::RefWrapper;
     use crate::serialize::test::TestByteSet;
+    use crate::serialize::unsize::init::Zeroed;
     use crate::serialize::unsize::test::CombinedTestExt;
     use crate::serialize::unsize::test2::{
         CombinedTest2, CombinedTest2Ext, CombinedTest2Meta, CombinedTest2Ref, TestStruct,
@@ -287,7 +289,7 @@ mod tests {
 
     #[test]
     fn test() -> anyhow::Result<()> {
-        let mut bytes = TestByteSet::<CombinedTest2>::new(())?;
+        let mut bytes = TestByteSet::<CombinedTest2>::new(Zeroed)?;
         let mut r = bytes.mutable()?;
         assert_eq!(&**(&r).list1()?, &[] as &[u8]);
         assert_eq!(&**(&r).list2()?, &[]);

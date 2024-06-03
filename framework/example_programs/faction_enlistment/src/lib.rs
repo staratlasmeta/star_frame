@@ -168,7 +168,7 @@ pub struct ProcessEnlistPlayer<'info> {
             seeds: PlayerFactionAccountSeeds {
                 player_account: *self.player_account.key()
             },
-            init_create: CreateAccount::new_with_unit(
+            init_create: CreateAccount::new(
                 &self.system_program,
                 &self.player_account,
             )
@@ -273,7 +273,7 @@ mod combined_test_3_impls {
     use super::*;
     use bytemuck::checked::{try_from_bytes, try_from_bytes_mut};
     use star_frame::serialize::ref_wrapper::{RefDeref, RefDerefMut};
-    use star_frame::serialize::unsize::checked::Zeroed;
+    use star_frame::serialize::unsize::init::Zeroed;
     use std::ops::{Deref, DerefMut};
 
     type SizedField = CombinedTest3Sized;
@@ -395,21 +395,21 @@ mod combined_test_3_impls {
         }
     }
 
-    impl UnsizedInit<()> for CombinedTest3
+    impl UnsizedInit<Zeroed> for CombinedTest3
     where
-        SizedField: UnsizedInit<()>,
-        Field1: UnsizedInit<()>,
-        Field2: UnsizedInit<()>,
-        Field3: UnsizedInit<()>,
+        SizedField: UnsizedInit<Zeroed>,
+        Field1: UnsizedInit<Zeroed>,
+        Field2: UnsizedInit<Zeroed>,
+        Field3: UnsizedInit<Zeroed>,
     {
-        const INIT_BYTES: usize = <CombinedTest3Inner as UnsizedInit<()>>::INIT_BYTES;
+        const INIT_BYTES: usize = <CombinedTest3Inner as UnsizedInit<Zeroed>>::INIT_BYTES;
 
         unsafe fn init<S: AsMutBytes>(
             super_ref: S,
-            arg: (),
+            arg: Zeroed,
         ) -> anyhow::Result<(RefWrapper<S, Self::RefData>, Self::RefMeta)> {
             unsafe {
-                let (r, m) = <CombinedTest3Inner as UnsizedInit<()>>::init(super_ref, arg)?;
+                let (r, m) = <CombinedTest3Inner as UnsizedInit<Zeroed>>::init(super_ref, arg)?;
                 Ok((r.wrap_r(|_, r| CombinedTest3Ref(r)), CombinedTest3Meta(m)))
             }
         }
@@ -601,15 +601,15 @@ mod combined_test_3_impls {
     }
 }
 
-// }
-//     pub other: CombinedTest,
-//     pub list2: List<TestStruct>,
-//     pub list1: List<u8>,
-//     #[unsized_start]
-//     pub sized3: u8,
-//     pub sized2: PackedValue<u16>,
-//     pub sized1: u8,
 // pub struct CombinedTest3 {
+//     pub sized1: u8,
+//     pub sized2: PackedValue<u16>,
+//     pub sized3: bool,
+//     #[unsized_start]
+//     pub list1: List<u8>,
+//     pub list2: List<TestStruct>,
+//     pub other: CombinedTest,
+// }
 
 #[cfg(test)]
 mod tests {

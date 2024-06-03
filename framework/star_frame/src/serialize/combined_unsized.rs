@@ -2,6 +2,7 @@ use crate::prelude::*;
 use crate::serialize::ref_wrapper::{
     AsBytes, AsMutBytes, RefBytesMut, RefResize, RefWrapper, RefWrapperTypes,
 };
+use crate::serialize::unsize::init::Zeroed;
 use crate::serialize::unsize::resize::Resize;
 use crate::serialize::unsize::{FromBytesReturn, LengthAccess};
 use crate::util::OffsetRef;
@@ -103,10 +104,10 @@ where
         ))
     }
 }
-impl<T, U> UnsizedInit<()> for CombinedUnsized<T, U>
+impl<T, U> UnsizedInit<Zeroed> for CombinedUnsized<T, U>
 where
-    T: ?Sized + UnsizedInit<()>,
-    U: ?Sized + UnsizedInit<()>,
+    T: ?Sized + UnsizedInit<Zeroed>,
+    U: ?Sized + UnsizedInit<Zeroed>,
     T::IsUnsized: BitOr<U::IsUnsized>,
     <T::IsUnsized as BitOr<U::IsUnsized>>::Output: Bit + LengthAccess<Self>,
 {
@@ -114,9 +115,9 @@ where
 
     unsafe fn init<S: AsMutBytes>(
         super_ref: S,
-        _arg: (),
+        _arg: Zeroed,
     ) -> Result<(RefWrapper<S, Self::RefData>, Self::RefMeta)> {
-        unsafe { Self::init(super_ref, ((), ())) }
+        unsafe { Self::init(super_ref, (Zeroed, Zeroed)) }
     }
 }
 

@@ -4,6 +4,7 @@ use crate::serialize::ref_wrapper::{
     AsBytes, AsMutBytes, RefDerefMut, RefWrapper, RefWrapperMutExt, RefWrapperTypes,
 };
 use crate::serialize::unsize::init::UnsizedInit;
+use crate::serialize::unsize::init::Zeroed;
 use crate::serialize::unsize::resize::Resize;
 use crate::serialize::unsize::FromBytesReturn;
 use crate::serialize::unsize::UnsizedType;
@@ -191,7 +192,7 @@ where
         Ok(r.as_checked_slice()?.to_vec())
     }
 }
-impl<T, L> UnsizedInit<()> for List<T, L>
+impl<T, L> UnsizedInit<Zeroed> for List<T, L>
 where
     T: CheckedBitPattern + NoUninit + Align1,
     L: Pod + ToPrimitive + FromPrimitive + Zero,
@@ -200,7 +201,7 @@ where
 
     unsafe fn init<S: AsMutBytes>(
         mut super_ref: S,
-        _arg: (),
+        _arg: Zeroed,
     ) -> Result<(RefWrapper<S, Self::RefData>, Self::RefMeta)> {
         let bytes = super_ref.as_mut_bytes()?;
         bytes[0..size_of::<L>()].copy_from_slice(bytes_of(&L::zeroed()));
@@ -363,6 +364,7 @@ mod tests {
     use crate::prelude::List;
     use crate::serialize::list::ListExt;
     use crate::serialize::test::TestByteSet;
+    use crate::serialize::unsize::init::Zeroed;
     use bytemuck::{Pod, Zeroable};
     use star_frame_proc::Align1;
 
@@ -376,7 +378,7 @@ mod tests {
     #[test]
     fn list_test() -> anyhow::Result<()> {
         let mut watcher = Vec::new();
-        let mut test_set = TestByteSet::<List<TestStruct>>::new(())?;
+        let mut test_set = TestByteSet::<List<TestStruct>>::new(Zeroed)?;
 
         assert_eq!(**test_set.immut()?, watcher);
         {

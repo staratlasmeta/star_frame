@@ -2,7 +2,7 @@ use crate::align1::Align1;
 use crate::serialize::ref_wrapper::{
     AsBytes, AsMutBytes, RefDeref, RefDerefMut, RefWrapper, RefWrapperMutExt, RefWrapperTypes,
 };
-use crate::serialize::unsize::init::UnsizedInit;
+use crate::serialize::unsize::init::{UnsizedInit, Zeroed};
 use crate::serialize::unsize::FromBytesReturn;
 use crate::serialize::unsize::UnsizedType;
 use crate::Result;
@@ -99,8 +99,7 @@ where
         ))
     }
 }
-#[derive(Debug, Copy, Clone)]
-pub struct Zeroed;
+
 impl<T> UnsizedInit<Zeroed> for T
 where
     T: Align1 + CheckedBitPattern + NoUninit + Zeroable,

@@ -5,6 +5,7 @@ use crate::serialize::ref_wrapper::{
     AsBytes, AsMutBytes, RefBytes, RefBytesMut, RefResize, RefWrapper, RefWrapperMutExt,
     RefWrapperTypes,
 };
+use crate::serialize::unsize::init::Zeroed;
 use crate::serialize::unsize::resize::Resize;
 use crate::serialize::unsize::FromBytesReturn;
 use bytemuck::{Pod, Zeroable};
@@ -92,17 +93,17 @@ where
         }
     }
 }
-impl UnsizedInit<()> for CombinedTest
+impl UnsizedInit<Zeroed> for CombinedTest
 where
-    List<u8>: UnsizedInit<()>,
-    List<TestStruct>: UnsizedInit<()>,
+    List<u8>: UnsizedInit<Zeroed>,
+    List<TestStruct>: UnsizedInit<Zeroed>,
 {
     const INIT_BYTES: usize =
-        <CombinedUnsized<List<u8>, List<TestStruct>> as UnsizedInit<()>>::INIT_BYTES;
+        <CombinedUnsized<List<u8>, List<TestStruct>> as UnsizedInit<Zeroed>>::INIT_BYTES;
 
     unsafe fn init<S: AsMutBytes>(
         super_ref: S,
-        arg: (),
+        arg: Zeroed,
     ) -> anyhow::Result<(RefWrapper<S, Self::RefData>, Self::RefMeta)> {
         unsafe {
             let (r, m) = CombinedUnsized::<List<u8>, List<TestStruct>>::init(super_ref, arg)?;
@@ -196,6 +197,7 @@ mod tests {
     use crate::serialize::list::ListExt;
     use crate::serialize::ref_wrapper::RefWrapper;
     use crate::serialize::test::TestByteSet;
+    use crate::serialize::unsize::init::Zeroed;
     use crate::serialize::unsize::test::{
         CombinedTest, CombinedTestExt, CombinedTestMeta, CombinedTestRef, TestStruct,
     };
@@ -212,7 +214,7 @@ mod tests {
 
     #[test]
     fn test() -> anyhow::Result<()> {
-        let mut bytes = TestByteSet::<CombinedTest>::new(())?;
+        let mut bytes = TestByteSet::<CombinedTest>::new(Zeroed)?;
         let mut r = bytes.mutable()?;
         assert_eq!(&**(&r).list1()?, &[] as &[u8]);
         assert_eq!(&**(&r).list2()?, &[]);

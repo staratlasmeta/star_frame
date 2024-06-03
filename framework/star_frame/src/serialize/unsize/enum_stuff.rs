@@ -580,6 +580,7 @@ mod tests {
     use crate::serialize::unsize::enum_stuff::{
         TestEnum, TestEnumDiscriminant, TestEnumExt, TestEnumRefWrapper,
     };
+    use crate::serialize::unsize::init::Zeroed;
     use crate::serialize::unsize::test::{CombinedTestExt, TestStruct};
     use star_frame::serialize::unsize::enum_stuff::TestEnumInitA;
 
@@ -590,7 +591,7 @@ mod tests {
         {
             let mut mutable = bytes.mutable()?;
             {
-                let b = (&mut mutable).set_b(())?;
+                let b = (&mut mutable).set_b(Zeroed)?;
                 assert_eq!(&**b, &[] as &[u8]);
             }
             assert_eq!(mutable.discriminant(), TestEnumDiscriminant::B);
@@ -621,7 +622,7 @@ mod tests {
         {
             let mut mutable = bytes.mutable()?;
             {
-                let c = (&mut mutable).set_c(())?;
+                let c = (&mut mutable).set_c(Zeroed)?;
                 assert_eq!(&**(&c).list1()?, &[] as &[u8]);
                 assert_eq!(&**c.list2()?, &[]);
             }
