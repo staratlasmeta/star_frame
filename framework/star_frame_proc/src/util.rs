@@ -113,8 +113,9 @@ pub struct Paths {
     pub framework_serialize: TokenStream,
     pub pointer_breakup: TokenStream,
     pub resize_fn: TokenStream,
-    pub unsized_enum: TokenStream,
+    // pub unsized_enum: TokenStream,
     pub unsized_type: TokenStream,
+    pub combined_unsized: TokenStream,
 
     // bytemuck
     pub checked: TokenStream,
@@ -239,8 +240,9 @@ impl Default for Paths {
             framework_serialize: quote! { #crate_name::serialize::FrameworkSerialize },
             pointer_breakup: quote! { #crate_name::serialize::pointer_breakup::PointerBreakup },
             resize_fn: quote! { #crate_name::serialize::ResizeFn },
-            unsized_enum: quote! { #crate_name::serialize::unsized_enum::UnsizedEnum },
-            unsized_type: quote! { #crate_name::serialize::unsized_type::UnsizedType },
+            // unsized_enum: quote! { #crate_name::serialize::unsize::UnsizedEnum },
+            unsized_type: quote! { #crate_name::serialize::unsize::UnsizedType },
+            combined_unsized: quote! { #crate_name::serialize::combined_unsized::CombinedUnsized },
 
             // bytemuck
             checked: quote! { #crate_name::bytemuck::checked },
@@ -391,4 +393,123 @@ pub fn verify_repr(
     } else {
         Punctuated::new()
     }
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct StrippedAttribute {
+    pub index: usize,
+    pub attribute: Attribute,
+}
+
+pub trait EnumerableAttributes {
+    fn enumerate_attributes(&mut self) -> impl Iterator<Item = (usize, &mut Vec<Attribute>)>;
+}
+
+impl EnumerableAttributes for syn::ItemStruct {
+    fn enumerate_attributes(&mut self) -> impl Iterator<Item = (usize, &mut Vec<Attribute>)> {
+        self.fields
+            .iter_mut()
+            .enumerate()
+            .map(|(index, f)| (index, &mut f.attrs))
+    }
+}
+
+impl EnumerableAttributes for syn::ItemEnum {
+    fn enumerate_attributes(&mut self) -> impl Iterator<Item = (usize, &mut Vec<Attribute>)> {
+        self.variants
+            .iter_mut()
+            .enumerate()
+            .map(|(index, v)| (index, &mut v.attrs))
+    }
+}
+
+/// Strips the first matching attribute from each attribute group (e.g., struct fields, enum variants) and returns them with
+/// their group index. If there are multiple attributes with the same name in a group, only the first one is stripped.
+pub fn strip_inner_attributes<'a>(
+    item: &'a mut impl EnumerableAttributes,
+    attribute_name: &'a str,
+) -> impl Iterator<Item = StrippedAttribute> + 'a {
+    item.enumerate_attributes().filter_map(|(index, attrs)| {
+        attrs
+            .iter()
+            .position(|attr| attr.path().is_ident(attribute_name))
+            .map(|to_strip| StrippedAttribute {
+                index,
+                attribute: attrs.remove(to_strip),
+            })
+    })
+}
+
+#[test]
+fn test_strip_attributes_struct() {
+    let mut struct_item: syn::ItemStruct = syn::parse_quote! {
+        struct MyStruct {
+            #[my_attr]
+            field1: u8,
+            field2: u8,
+            #[my_attr(hello)]
+            #[my_attr]
+            field3: u8,
+        }
+    };
+    let stripped_attributes: Vec<_> = strip_inner_attributes(&mut struct_item, "my_attr").collect();
+    let expected_stripped_attributes = vec![
+        StrippedAttribute {
+            index: 0,
+            attribute: syn::parse_quote! { #[my_attr] },
+        },
+        StrippedAttribute {
+            index: 2,
+            attribute: syn::parse_quote! { #[my_attr(hello)] },
+        },
+    ];
+    assert_eq!(stripped_attributes, expected_stripped_attributes);
+    assert_eq!(
+        struct_item,
+        syn::parse_quote! {
+            struct MyStruct {
+                field1: u8,
+                field2: u8,
+                #[my_attr]
+                field3: u8,
+            }
+        }
+    );
+}
+
+#[test]
+fn test_strip_attributes_enum() {
+    let mut enum_item: syn::ItemEnum = syn::parse_quote! {
+        enum MyEnum {
+            #[my_attr]
+            Variant1,
+            Variant2,
+            #[my_attr(hello)]
+            #[my_attr(hello2)]
+            Variant3,
+        }
+    };
+    let stripped_attributes: Vec<_> = strip_inner_attributes(&mut enum_item, "my_attr").collect();
+    let expected_stripped_attributes = vec![
+        StrippedAttribute {
+            index: 0,
+            attribute: syn::parse_quote! { #[my_attr] },
+        },
+        StrippedAttribute {
+            index: 2,
+            attribute: syn::parse_quote! { #[my_attr(hello)] },
+        },
+    ];
+    assert_eq!(stripped_attributes, expected_stripped_attributes);
+    assert_eq!(
+        enum_item,
+        syn::parse_quote! {
+            enum MyEnum {
+                Variant1,
+                Variant2,
+                #[my_attr(hello2)]
+                Variant3,
+            }
+        }
+    );
 }

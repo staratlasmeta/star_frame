@@ -14,15 +14,18 @@ use star_frame::serialize::unsize::test::CombinedTest;
 use star_frame_proc::Align1;
 
 // #[unsized_type]
-// pub struct CombinedTest3<T, U> {
-//     pub sized1: u8,
+// pub struct CombinedTest3 {
+//     pub sized1: bool,
 //     pub sized2: PackedValue<u16>,
 //     pub sized3: u8,
 //     #[unsized_start]
-//     pub list1: List<T>,
+//     pub list1: List<u8>,
 //     pub list2: List<TestStruct>,
 //     pub other: CombinedTest,
 // }
+
+// #[unsized_type]
+// pub enum UnsizedMaybe {}
 
 #[derive(Debug, Copy, Clone, CheckedBitPattern, Zeroable, Align1, NoUninit, PartialEq, Eq)]
 #[repr(C, packed)]
@@ -37,10 +40,8 @@ pub use combined_test_3_impls::*;
 mod combined_test_3_impls {
 
     use super::*;
-    use crate::serialize;
     use crate::serialize::ref_wrapper::RefDerefMut;
     use crate::serialize::unsize::init::Zeroed;
-    use crate::serialize::unsize::LengthAccess;
     use star_frame::serialize::ref_wrapper::RefDeref;
     use std::ops::{BitOr, Deref, DerefMut};
     use typenum::Bit;
@@ -416,6 +417,7 @@ mod combined_test_3_impls {
         fn list2(self) -> anyhow::Result<List2<T, Self>>;
         fn other(self) -> anyhow::Result<Other<T, Self>>;
     }
+
     impl<T, R> CombinedTest3Ext<T> for R
     where
         T: CheckedBitPattern + NoUninit + Align1,

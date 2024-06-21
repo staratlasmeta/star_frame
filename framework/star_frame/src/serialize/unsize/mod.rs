@@ -3,6 +3,7 @@ pub mod init;
 pub mod resize;
 
 mod enum_stuff;
+mod proc_test;
 pub mod test;
 mod test2;
 pub mod test_sized_struct;

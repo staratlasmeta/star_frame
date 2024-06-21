@@ -365,7 +365,7 @@ pub fn unsized_type(
     args: proc_macro::TokenStream,
     item: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
+    println!("{}", item);
     let out = unsized_type::unsized_type_impl(parse_macro_input!(item as Item), args.into());
-    // println!("{}", out);
     out.into()
 }
