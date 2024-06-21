@@ -380,21 +380,6 @@ mod combined_test_3_impls {
         }
     }
 
-    impl UnsizedInit<()> for CombinedTest3Sized
-    where
-        CombinedTest3Sized: UnsizedInit<Zeroed>,
-    {
-        const INIT_BYTES: usize = <CombinedTest3Sized as UnsizedInit<Zeroed>>::INIT_BYTES;
-
-        unsafe fn init<S: AsMutBytes>(
-            super_ref: S,
-            _arg: (),
-        ) -> Result<(RefWrapper<S, Self::RefData>, Self::RefMeta)> {
-            //todo: is this valid?
-            unsafe { CombinedTest3Sized::init(super_ref, Zeroed) }
-        }
-    }
-
     impl UnsizedInit<Zeroed> for CombinedTest3
     where
         SizedField: UnsizedInit<Zeroed>,
