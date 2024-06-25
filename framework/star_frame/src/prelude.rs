@@ -9,7 +9,7 @@ pub use crate::account_set::{
     seeded_init_account::*,
     signer::Signer,
     system_account::SystemAccount,
-    AccountSet, AccountSetCleanup, AccountSetDecode, AccountSetValidate, SignedAccount,
+    AccountSet, AccountSetCleanup, AccountSetDecode, AccountSetValidate, GetSeeds, SignedAccount,
     SingleAccountSet, WritableAccount,
 };
 
