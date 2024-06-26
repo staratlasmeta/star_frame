@@ -299,7 +299,7 @@ mod tests {
     #[test]
     fn test_unit_with_const_seed() {
         #[derive(Debug, GetSeeds)]
-        #[seed_const("b(TEST_CONST)")]
+        #[seed_const(id = b"TEST_CONST")]
         pub struct TestAccount {}
 
         let account = TestAccount {};
@@ -307,5 +307,22 @@ mod tests {
         let intended_seeds = vec![b"TEST_CONST".as_ref()];
         assert_eq!(seeds, intended_seeds);
         assert_eq!(seeds.len(), 1);
+    }
+
+    #[test]
+    fn test_one_key_with_const_seed() {
+        #[derive(Debug, GetSeeds)]
+        #[seed_const(id = b"TEST_CONST")]
+        pub struct TestAccount {
+            key: Pubkey,
+        }
+
+        let account = TestAccount {
+            key: Pubkey::new_unique(),
+        };
+        let intended_seeds = vec![b"TEST_CONST".as_ref(), account.key.seed()];
+        let seeds = account.seeds();
+        assert_eq!(seeds, intended_seeds);
+        assert_eq!(seeds.len(), 2);
     }
 }
