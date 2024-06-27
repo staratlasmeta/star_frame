@@ -1,7 +1,4 @@
 use crate::prelude::*;
-use crate::prelude::{
-    CombinedExt, CombinedTRef, CombinedURef, CombinedUnsized, List, UnsizedInit, UnsizedType,
-};
 use crate::serialize::ref_wrapper::{
     AsBytes, AsMutBytes, RefBytes, RefBytesMut, RefResize, RefWrapper, RefWrapperMutExt,
     RefWrapperTypes,
@@ -9,9 +6,7 @@ use crate::serialize::ref_wrapper::{
 use crate::serialize::unsize::resize::Resize;
 use crate::serialize::unsize::test::TestStruct;
 use crate::serialize::unsize::FromBytesReturn;
-use star_frame::prelude::CombinedRef;
 use star_frame::serialize::unsize::test::CombinedTest;
-use star_frame_proc::Align1;
 
 // #[unsized_type]
 // pub struct CombinedTest3 {
@@ -42,6 +37,7 @@ mod combined_test_3_impls {
     use super::*;
     use crate::serialize::ref_wrapper::RefDerefMut;
     use crate::serialize::unsize::init::Zeroed;
+    use bytemuck::checked::{cast_mut, from_bytes, from_bytes_mut};
     use star_frame::serialize::ref_wrapper::RefDeref;
     use std::ops::{BitOr, Deref, DerefMut};
     use typenum::Bit;
@@ -103,106 +99,6 @@ mod combined_test_3_impls {
         }
     }
 
-    unsafe impl<T> UnsizedType for CombinedTest3<T>
-    where
-        T: CheckedBitPattern + NoUninit + Align1,
-    {
-        type RefMeta = CombinedTest3Meta<T>;
-        type RefData = CombinedTest3Ref<T>;
-        type Owned = CombinedTest3Owned<T>;
-        type IsUnsized = <CombinedTest3Inner<T> as UnsizedType>::IsUnsized;
-
-        unsafe fn from_bytes<S: AsBytes>(
-            super_ref: S,
-        ) -> anyhow::Result<FromBytesReturn<S, Self::RefData, Self::RefMeta>> {
-            unsafe {
-                Ok(
-                    <CombinedTest3Inner<T> as UnsizedType>::from_bytes(super_ref)?
-                        .map_ref(|_, r| CombinedTest3Ref(r))
-                        .map_meta(CombinedTest3Meta),
-                )
-            }
-        }
-
-        fn owned<S: AsBytes>(r: RefWrapper<S, Self::RefData>) -> anyhow::Result<Self::Owned> {
-            let (sized_struct, (list1, (list2, other))) =
-                <CombinedTest3Inner<T> as UnsizedType>::owned(unsafe { r.wrap_r(|_, r| r.0) })?;
-            Ok(CombinedTest3Owned {
-                sized_struct,
-                list1,
-                list2,
-                other,
-            })
-        }
-    }
-
-    // CombinedUnsized<CombinedTest3Sized, CombinedUnsized<<List<u8>, CombinedUnsized<List<TestStruct>, CombinedTest>>>
-    #[derive(Copy, Clone, Debug)]
-    pub struct CombinedTest3Init<List1, List2, Other> {
-        pub sized1: bool,
-        pub sized2: PackedValue<u16>,
-        pub sized3: u8,
-        pub list1: List1,
-        pub list2: List2,
-        pub other: Other,
-    }
-    impl<T, List1, List2, Other> UnsizedInit<CombinedTest3Init<List1, List2, Other>>
-        for CombinedTest3<T>
-    where
-        T: CheckedBitPattern + NoUninit + Align1,
-        SizedField: UnsizedInit<SizedField>,
-        Field1<T>: UnsizedInit<List1>,
-        Field2: UnsizedInit<List2>,
-        Field3: UnsizedInit<Other>,
-        CombinedTest3Inner<T>: UnsizedInit<(SizedField, (List1, (List2, Other)))>,
-    {
-        const INIT_BYTES: usize = <CombinedTest3Inner<T> as UnsizedInit<(
-            SizedField,
-            (List1, (List2, Other)),
-        )>>::INIT_BYTES;
-
-        unsafe fn init<S: AsMutBytes>(
-            super_ref: S,
-            arg: CombinedTest3Init<List1, List2, Other>,
-        ) -> anyhow::Result<(RefWrapper<S, Self::RefData>, Self::RefMeta)> {
-            unsafe {
-                let (r, m) = <CombinedTest3Inner<T> as UnsizedInit<(
-                    SizedField,
-                    (List1, (List2, Other)),
-                )>>::init(
-                    super_ref,
-                    (
-                        SizedField {
-                            sized1: arg.sized1,
-                            sized2: arg.sized2,
-                            sized3: arg.sized3,
-                        },
-                        (arg.list1, (arg.list2, arg.other)),
-                    ),
-                )?;
-                Ok((r.wrap_r(|_, r| CombinedTest3Ref(r)), CombinedTest3Meta(m)))
-            }
-        }
-    }
-
-    impl<T> UnsizedInit<Zeroed> for CombinedTest3<T>
-    where
-        T: CheckedBitPattern + NoUninit + Align1,
-        CombinedTest3Inner<T>: UnsizedInit<Zeroed>,
-    {
-        const INIT_BYTES: usize = <CombinedTest3Inner<T> as UnsizedInit<Zeroed>>::INIT_BYTES;
-
-        unsafe fn init<S: AsMutBytes>(
-            super_ref: S,
-            arg: Zeroed,
-        ) -> anyhow::Result<(RefWrapper<S, Self::RefData>, Self::RefMeta)> {
-            unsafe {
-                let (r, m) = <CombinedTest3Inner<T> as UnsizedInit<Zeroed>>::init(super_ref, arg)?;
-                Ok((r.wrap_r(|_, r| CombinedTest3Ref(r)), CombinedTest3Meta(m)))
-            }
-        }
-    }
-
     unsafe impl<T, S> RefBytes<S> for CombinedTest3Ref<T>
     where
         T: CheckedBitPattern + NoUninit + Align1,
@@ -259,7 +155,7 @@ mod combined_test_3_impls {
         type Target = CombinedTest3Sized;
         fn deref(wrapper: &RefWrapper<S, Self>) -> &Self::Target {
             let bytes = wrapper.sup().as_bytes().expect("Invalid bytes");
-            unsafe { &*bytes.as_ptr().cast::<Self::Target>() }
+            from_bytes::<CombinedTest3Sized>(bytes)
         }
     }
 
@@ -272,66 +168,112 @@ mod combined_test_3_impls {
             let bytes = unsafe { wrapper.sup_mut() }
                 .as_mut_bytes()
                 .expect("Invalid bytes");
-            unsafe { &mut *bytes.as_mut_ptr().cast::<Self::Target>() }
+            from_bytes_mut::<CombinedTest3Sized>(bytes)
         }
     }
 
-    // impl<S> RefDeref<S> for CombinedTest3Ref
-    //     where
-    //         S: AsBytes,
-    // {
-    //     type Target = CombinedTest3Sized;
-    //     fn deref(wrapper: &RefWrapper<S, Self>) -> &Self::Target {
-    //         let bytes = wrapper.sup().as_bytes().expect("Invalid bytes");
-    //         unsafe { &*(bytes.as_ptr() as *const Self::Target) }
-    //     }
-    // }
+    unsafe impl<T> UnsizedType for CombinedTest3<T>
+    where
+        T: CheckedBitPattern + NoUninit + Align1,
+    {
+        type RefMeta = CombinedTest3Meta<T>;
+        type RefData = CombinedTest3Ref<T>;
+        type Owned = CombinedTest3Owned<T>;
+        type IsUnsized = <CombinedTest3Inner<T> as UnsizedType>::IsUnsized;
 
-    // type SizedStruct<S> = RefWrapper<RefWrapper<RefWrapper<S, CombinedTest3Inner>>, <SizedField as UnsizedType>::RefData>;
+        unsafe fn from_bytes<S: AsBytes>(
+            super_ref: S,
+        ) -> anyhow::Result<FromBytesReturn<S, Self::RefData, Self::RefMeta>> {
+            unsafe {
+                Ok(
+                    <CombinedTest3Inner<T> as UnsizedType>::from_bytes(super_ref)?
+                        .map_ref(|_, r| CombinedTest3Ref(r))
+                        .map_meta(CombinedTest3Meta),
+                )
+            }
+        }
 
-    // type List1<S> =
-    // RefWrapper<
-    //     RefWrapper<
-    //         RefWrapper<S, <CombinedUnsized<
-    //             List<u8>,
-    //             CombinedUnsized<List<TestStruct>, CombinedTest>,
-    //         > as UnsizedType>::RefData>,
-    //         CombinedTRef<List<u8>, CombinedUnsized<List<TestStruct>, CombinedTest>>,
-    //     >,
-    //     <List<u8> as UnsizedType>::RefData,
-    // >;
-    // type List2<S> = RefWrapper<
-    //     RefWrapper<RefWrapper<RefWrapper<
-    //         RefWrapper<S, <CombinedUnsized<
-    //             List<u8>,
-    //             CombinedUnsized<List<TestStruct>, CombinedTest>,
-    //         > as UnsizedType>::RefData>,
-    //         CombinedURef<List<u8>, CombinedUnsized<List<TestStruct>, CombinedTest>>,
-    //     >, <CombinedUnsized<List<TestStruct>, CombinedTest> as UnsizedType>::RefData>, CombinedTRef<List<TestStruct>, CombinedTest>>,
-    //     <List<TestStruct> as UnsizedType>::RefData,
-    // >;
-    // type Other<S> = RefWrapper<
-    //     RefWrapper<RefWrapper<RefWrapper<
-    //         RefWrapper<S, <CombinedUnsized<
-    //             List<u8>,
-    //             CombinedUnsized<List<TestStruct>, CombinedTest>,
-    //         > as UnsizedType>::RefData>,
-    //         CombinedURef<List<u8>, CombinedUnsized<List<TestStruct>, CombinedTest>>,
-    //     >, <CombinedUnsized<List<TestStruct>, CombinedTest> as UnsizedType>::RefData>, CombinedURef<List<TestStruct>, CombinedTest>>,
-    //     <CombinedTest as UnsizedType>::RefData,
-    // >;
-    //
+        fn owned<S: AsBytes>(r: RefWrapper<S, Self::RefData>) -> anyhow::Result<Self::Owned> {
+            let (sized_struct, (list1, (list2, other))) =
+                <CombinedTest3Inner<T> as UnsizedType>::owned(unsafe { r.wrap_r(|_, r| r.0) })?;
+            Ok(CombinedTest3Owned {
+                sized_struct,
+                list1,
+                list2,
+                other,
+            })
+        }
+    }
+    // CombinedUnsized<CombinedTest3Sized, CombinedUnsized<<List<u8>, CombinedUnsized<List<TestStruct>, CombinedTest>>>
+    #[derive(Copy, Clone, Debug)]
+    pub struct CombinedTest3Init<List1, List2, Other> {
+        pub sized1: bool,
+        pub sized2: PackedValue<u16>,
+        pub sized3: u8,
+        pub list1: List1,
+        pub list2: List2,
+        pub other: Other,
+    }
+
+    impl<T, List1, List2, Other> UnsizedInit<CombinedTest3Init<List1, List2, Other>>
+        for CombinedTest3<T>
+    where
+        T: CheckedBitPattern + NoUninit + Align1,
+        // SizedField: UnsizedInit<SizedField>,
+        Field1<T>: UnsizedInit<List1>,
+        Field2: UnsizedInit<List2>,
+        Field3: UnsizedInit<Other>,
+        CombinedTest3Inner<T>: UnsizedInit<(SizedField, (List1, (List2, Other)))>,
+    {
+        const INIT_BYTES: usize = <CombinedTest3Inner<T> as UnsizedInit<(
+            SizedField,
+            (List1, (List2, Other)),
+        )>>::INIT_BYTES;
+
+        unsafe fn init<S: AsMutBytes>(
+            super_ref: S,
+            arg: CombinedTest3Init<List1, List2, Other>,
+        ) -> anyhow::Result<(RefWrapper<S, Self::RefData>, Self::RefMeta)> {
+            unsafe {
+                let (r, m) = <CombinedTest3Inner<T> as UnsizedInit<(
+                    SizedField,
+                    (List1, (List2, Other)),
+                )>>::init(
+                    super_ref,
+                    (
+                        SizedField {
+                            sized1: arg.sized1,
+                            sized2: arg.sized2,
+                            sized3: arg.sized3,
+                        },
+                        (arg.list1, (arg.list2, arg.other)),
+                    ),
+                )?;
+                Ok((r.wrap_r(|_, r| CombinedTest3Ref(r)), CombinedTest3Meta(m)))
+            }
+        }
+    }
+
+    impl<T> UnsizedInit<Zeroed> for CombinedTest3<T>
+    where
+        T: CheckedBitPattern + NoUninit + Align1,
+        CombinedTest3Inner<T>: UnsizedInit<Zeroed>,
+    {
+        const INIT_BYTES: usize = <CombinedTest3Inner<T> as UnsizedInit<Zeroed>>::INIT_BYTES;
+
+        unsafe fn init<S: AsMutBytes>(
+            super_ref: S,
+            arg: Zeroed,
+        ) -> anyhow::Result<(RefWrapper<S, Self::RefData>, Self::RefMeta)> {
+            unsafe {
+                let (r, m) = <CombinedTest3Inner<T> as UnsizedInit<Zeroed>>::init(super_ref, arg)?;
+                Ok((r.wrap_r(|_, r| CombinedTest3Ref(r)), CombinedTest3Meta(m)))
+            }
+        }
+    }
 
     type CombinedTest3RefInner<T> =
         CombinedRef<SizedField, CombinedUnsized<Field1<T>, CombinedUnsized<Field2, Field3>>>;
-
-    type SizedStruct<T, S> = RefWrapper<
-        RefWrapper<
-            RefWrapper<S, CombinedTest3RefInner<T>>,
-            CombinedTRef<SizedField, CombinedUnsized<Field1<T>, CombinedUnsized<Field2, Field3>>>,
-        >,
-        <SizedField as UnsizedType>::RefData,
-    >;
 
     type List1<T, S> = RefWrapper<
         RefWrapper<
@@ -423,11 +365,6 @@ mod combined_test_3_impls {
         T: CheckedBitPattern + NoUninit + Align1,
         R: RefWrapperTypes<Ref = CombinedTest3Ref<T>> + AsBytes,
     {
-        // fn sized_struct(self) -> anyhow::Result<SizedStruct<Self>> {
-        //     let r = self.r().0;
-        //     unsafe { RefWrapper::new(self, r).t() }
-        // }
-
         fn list1(self) -> anyhow::Result<List1<T, Self>> {
             let r = self.r().0;
             unsafe { RefWrapper::new(self, r).u()?.t() }
