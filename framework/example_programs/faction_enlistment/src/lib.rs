@@ -230,7 +230,7 @@ impl SeededAccountData for CombinedTest3 {
 }
 
 #[derive(Debug, GetSeeds)]
-#[seed_const(id = b"FACTION_ENLISTMENT")]
+#[seed_const(b"FACTION_ENLISTMENT")]
 pub struct PlayerFactionAccountSeeds {
     player_account: Pubkey,
 }

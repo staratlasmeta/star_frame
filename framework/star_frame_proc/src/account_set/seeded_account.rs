@@ -1,11 +1,9 @@
-use crate::account_set::AccountSetStructArgs;
-use crate::util;
 use crate::util::Paths;
-use easy_proc::{find_attr, ArgumentList};
+use easy_proc::find_attr;
 use proc_macro2::{Ident, Span, TokenStream};
 use proc_macro_error::abort;
-use quote::{quote, ToTokens};
-use syn::{Attribute, Data, DeriveInput, Expr, Generics, LitStr, Visibility};
+use quote::quote;
+use syn::{Attribute, Data, DeriveInput, Expr, Generics, Visibility};
 
 #[allow(dead_code)]
 struct StrippedDeriveInput {
@@ -13,12 +11,6 @@ struct StrippedDeriveInput {
     vis: Visibility,
     ident: Ident,
     generics: Generics,
-}
-
-// TODO - Rename "id" to something representative of string const. Support paths also. Is there a way to do this without requiring "id" to be passed in?
-#[derive(ArgumentList, Default)]
-pub struct GetSeedsStructArgs {
-    id: Option<Expr>,
 }
 
 pub fn derive_get_seeds_impl(input: DeriveInput) -> TokenStream {
@@ -50,11 +42,12 @@ fn derive_get_seeds_impl_struct(
     let ident = &input.ident;
     let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
 
-    let seed_struct_args = find_attr(&input.attrs, &Ident::new("seed_const", Span::call_site()))
-        .map(GetSeedsStructArgs::parse_arguments)
-        .unwrap_or_default();
+    let seed_struct_args = find_attr(&input.attrs, &Ident::new("seed_const", Span::call_site()));
 
-    let seed_const = seed_struct_args.id;
+    let opt_seed_expr = seed_struct_args.map(|attr| {
+        attr.parse_args::<Expr>()
+            .expect("Failed to parse seed expression")
+    });
 
     let field_names = data_struct
         .fields
@@ -62,29 +55,24 @@ fn derive_get_seeds_impl_struct(
         .map(|field| field.ident.as_ref().unwrap())
         .collect::<Vec<_>>();
 
-    let out = if let Some(seed_const) = seed_const {
-        quote! {
-            impl #impl_generics GetSeeds for #ident #type_generics #where_clause {
-                fn seeds(&self) -> Vec<&[u8]> {
-                    vec![
-                        #seed_const,
-                        #(
-                            self.#field_names.seed()
-                        ),*
-                    ]
-                }
-            }
-        }
-    } else {
-        quote! {
-            impl #impl_generics GetSeeds for #ident #type_generics #where_clause {
-                fn seeds(&self) -> Vec<&[u8]> {
-                    vec![
-                        #(
-                            self.#field_names.seed()
-                        ),*
-                    ]
-                }
+    let seeds_content = match opt_seed_expr {
+        Some(seed_expr) => quote! {
+            #seed_expr,
+            #(
+                self.#field_names.seed()
+            ),*
+        },
+        None => quote! {
+            #(
+                self.#field_names.seed()
+            ),*
+        },
+    };
+
+    let out = quote! {
+        impl #impl_generics GetSeeds for #ident #type_generics #where_clause {
+            fn seeds(&self) -> Vec<&[u8]> {
+                vec![#seeds_content]
             }
         }
     };
