@@ -1,14 +1,22 @@
 use crate::prelude::*;
-use crate::serialize::unsize::test::{CombinedTest, TestStruct};
-use star_frame_proc::unsized_type;
+use crate::serialize::unsize::test::CombinedTest;
 
 #[unsized_type]
-pub struct SomeUnsizedType {
+pub struct SizedAndUnsized {
     pub sized1: bool,
     pub sized2: PackedValue<u16>,
     pub sized3: u8,
     #[unsized_start]
     pub list1: List<u8>,
-    pub list2: List<TestStruct>,
+    pub list2: List<bool>,
     pub other: CombinedTest,
+}
+
+#[unsized_type]
+pub struct OnlyUnsized {
+    #[unsized_start]
+    pub list1: List<u8>,
+    pub list2: List<bool>,
+    pub other: CombinedTest,
+    pub thing1: List<PackedValue<u16>>,
 }
