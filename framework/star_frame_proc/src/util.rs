@@ -11,7 +11,12 @@ use syn::{
     Ident, Lifetime, LifetimeParam, Lit, Meta, MetaNameValue, Token, Type, TypeParam,
 };
 
+#[derive(Debug, Clone)]
 pub struct Paths {
+    pub crate_name: TokenStream,
+    pub macro_prelude: TokenStream,
+    pub prelude: TokenStream,
+
     // std
     pub box_ty: TokenStream,
     pub clone: TokenStream,
@@ -102,43 +107,33 @@ pub struct Paths {
     pub advance: TokenStream,
     pub advance_array: TokenStream,
 
-    // serialize
-    pub build_pointer: TokenStream,
-    pub build_pointer_mut: TokenStream,
-    pub enum_ref_mut_wrapper: TokenStream,
-    pub enum_ref_wrapper: TokenStream,
-    pub framework_from_bytes: TokenStream,
-    pub framework_from_bytes_mut: TokenStream,
-    pub framework_init: TokenStream,
-    pub framework_serialize: TokenStream,
-    pub pointer_breakup: TokenStream,
-    pub resize_fn: TokenStream,
-    // pub unsized_enum: TokenStream,
-    pub unsized_type: TokenStream,
-    pub combined_unsized: TokenStream,
-
     // bytemuck
     pub checked: TokenStream,
     pub checked_bit_pattern: TokenStream,
-    pub pod: TokenStream,
 
+    pub pod: TokenStream,
     // solana
     pub account_info: TokenStream,
     pub program_error: TokenStream,
     pub program_result: TokenStream,
     pub sol_memset: TokenStream,
     pub pubkey: TokenStream,
+
     pub msg: TokenStream,
 
     // anyhow
     pub anyhow_macro: TokenStream,
-
-    pub crate_name: TokenStream,
 }
+
 impl Default for Paths {
     fn default() -> Self {
         let crate_name = get_crate_name();
         Self {
+            crate_name: crate_name.clone(),
+
+            macro_prelude: quote! { #crate_name::macro_prelude },
+            prelude: quote! { #crate_name::prelude },
+
             // std
             box_ty: quote! { ::std::boxed::Box },
             clone: quote! { ::std::clone::Clone },
@@ -229,21 +224,6 @@ impl Default for Paths {
             advance_array: quote! { #crate_name::advance::AdvanceArray },
             advance: quote! { #crate_name::advance::Advance},
 
-            // serialize
-            build_pointer: quote! { #crate_name::serialize::pointer_breakup::BuildPointer },
-            build_pointer_mut: quote! { #crate_name::serialize::pointer_breakup::BuildPointerMut },
-            enum_ref_mut_wrapper: quote! { #crate_name::serialize::unsized_enum::EnumRefMutWrapper },
-            enum_ref_wrapper: quote! { #crate_name::serialize::unsized_enum::EnumRefWrapper },
-            framework_from_bytes: quote! { #crate_name::serialize::FrameworkFromBytes },
-            framework_from_bytes_mut: quote! { #crate_name::serialize::FrameworkFromBytesMut },
-            framework_init: quote! { #crate_name::serialize::FrameworkInit },
-            framework_serialize: quote! { #crate_name::serialize::FrameworkSerialize },
-            pointer_breakup: quote! { #crate_name::serialize::pointer_breakup::PointerBreakup },
-            resize_fn: quote! { #crate_name::serialize::ResizeFn },
-            // unsized_enum: quote! { #crate_name::serialize::unsize::UnsizedEnum },
-            unsized_type: quote! { #crate_name::serialize::unsize::UnsizedType },
-            combined_unsized: quote! { #crate_name::serialize::combined_unsized::CombinedUnsized },
-
             // bytemuck
             checked: quote! { #crate_name::bytemuck::checked },
             checked_bit_pattern: quote! { #crate_name::bytemuck::checked::CheckedBitPattern },
@@ -259,8 +239,6 @@ impl Default for Paths {
 
             // anyhow
             anyhow_macro: quote! { #crate_name::anyhow::anyhow },
-
-            crate_name,
         }
     }
 }

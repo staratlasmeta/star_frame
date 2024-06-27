@@ -59,6 +59,10 @@ pub mod unit_enum_from_repr;
 pub mod unit_val;
 pub mod util;
 
+/// Prelude solely for use in macros. NOT PART OF THE PUBLIC API.
+#[doc(hidden)]
+pub mod macro_prelude;
+
 pub use anyhow::Result;
 pub use solana_program::instruction::Instruction as SolanaInstruction;
 pub use star_frame_proc::pubkey;

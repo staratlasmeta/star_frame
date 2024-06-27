@@ -26,10 +26,12 @@ pub use crate::serialize::{
     list::{List, ListRef},
     optional_key_for::*,
     pod_bool::*,
-    // unsized_enum::UnsizedEnum,
-    unsize::{init::UnsizedInit, unsized_type, UnsizedType},
-    FrameworkFromBytes,
-    FrameworkSerialize,
+    ref_wrapper::{
+        AsBytes, AsMutBytes, RefBytes, RefBytesMut, RefDeref, RefDerefMut, RefResize,
+        RefWrapperExt, RefWrapperMutExt, RefWrapperTypes,
+    },
+    unsize::{init::UnsizedInit, init::Zeroed, unsized_type, LengthAccess, UnsizedType},
+    FrameworkFromBytes, FrameworkSerialize,
 };
 
 pub use crate::unit_val::*;
