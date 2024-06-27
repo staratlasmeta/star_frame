@@ -37,7 +37,7 @@ fn derive_get_seeds_impl_struct(
     data_struct: syn::DataStruct,
     input: StrippedDeriveInput,
 ) -> TokenStream {
-    let Paths { .. } = paths;
+    let Paths { get_seeds, .. } = paths;
 
     let ident = &input.ident;
     let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
@@ -70,7 +70,7 @@ fn derive_get_seeds_impl_struct(
     };
 
     let out = quote! {
-        impl #impl_generics GetSeeds for #ident #type_generics #where_clause {
+        impl #impl_generics #get_seeds for #ident #type_generics #where_clause {
             fn seeds(&self) -> Vec<&[u8]> {
                 vec![#seeds_content]
             }
