@@ -19,7 +19,7 @@ macro_rules! impl_align1 {
     };
 }
 
-impl_align1!((), u8, i8, Pubkey);
+impl_align1!((), u8, i8, bool, Pubkey);
 
 // Safety: Allowed because `PhantomData` is a ZST.
 unsafe impl<T: ?Sized> Align1 for PhantomData<T> {}
