@@ -243,7 +243,7 @@ impl Default for Paths {
     }
 }
 
-#[derive(Debug, Deref, DerefMut)]
+#[derive(Debug, Deref, DerefMut, Clone, Default)]
 pub struct BetterGenerics {
     _bracket: token::Bracket,
     #[deref]
