@@ -1,8 +1,8 @@
 use crate::util::Paths;
 use easy_proc::find_attr;
-use proc_macro2::{Ident, Span, TokenStream};
+use proc_macro2::TokenStream;
 use proc_macro_error::abort;
-use quote::quote;
+use quote::{format_ident, quote};
 use syn::{Data, DeriveInput, Expr};
 
 pub fn derive_get_seeds_impl(input: DeriveInput) -> TokenStream {
@@ -17,17 +17,24 @@ pub fn derive_get_seeds_impl(input: DeriveInput) -> TokenStream {
     let ident = &input.ident;
     let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
 
-    let seed_struct_args = find_attr(&input.attrs, &Ident::new("seed_const", Span::call_site()));
+    let seed_struct_args = find_attr(&input.attrs, &format_ident!("seed_const"));
 
     let opt_seed_expr = seed_struct_args.map(|attr| {
         attr.parse_args::<Expr>()
             .expect("Failed to parse seed expression")
     });
 
+    if matches!(data_struct.fields, syn::Fields::Unnamed(_)) {
+        abort!(
+            data_struct.fields,
+            "GetSeeds cannot be derived for tuple structs"
+        );
+    }
+
     let field_names = data_struct
         .fields
         .iter()
-        .map(|field| field.ident.as_ref().unwrap())
+        .map(|field| field.ident.as_ref().expect("Field must have an identifier"))
         .collect::<Vec<_>>();
 
     let seeds_content = match opt_seed_expr {
@@ -44,13 +51,11 @@ pub fn derive_get_seeds_impl(input: DeriveInput) -> TokenStream {
         },
     };
 
-    let out = quote! {
+    quote! {
         impl #impl_generics #get_seeds for #ident #type_generics #where_clause {
             fn seeds(&self) -> Vec<&[u8]> {
                 vec![#seeds_content]
             }
         }
-    };
-
-    out
+    }
 }

@@ -230,6 +230,14 @@ mod idl_impl {
     }
 }
 
+///
+///```compile_fail
+/// use star_frame_proc::GetSeeds;
+/// #[derive(GetSeeds)]
+/// struct Banana(i32, i32);
+/// ```
+fn _unnamed_seed_structs_fail() {}
+
 #[cfg(test)]
 mod tests {
     use crate::prelude::*;
