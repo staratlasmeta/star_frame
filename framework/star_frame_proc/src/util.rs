@@ -2,21 +2,27 @@ use crate::get_crate_name;
 use derive_more::{Deref, DerefMut};
 use proc_macro2::TokenStream;
 use proc_macro_error::{abort, abort_call_site};
-use quote::{format_ident, quote};
+use quote::{format_ident, quote, quote_spanned};
 use std::fmt::Debug;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
+use syn::spanned::Spanned;
 use syn::{
-    bracketed, parse_quote, token, Attribute, ConstParam, Expr, ExprLit, GenericParam, Generics,
-    Ident, Lifetime, LifetimeParam, Lit, Meta, MetaNameValue, Token, Type, TypeParam,
+    bracketed, parse_quote, token, Attribute, ConstParam, Data, DataEnum, DataStruct, DataUnion,
+    DeriveInput, Expr, ExprLit, Fields, GenericParam, Generics, Ident, ItemEnum, ItemStruct,
+    Lifetime, LifetimeParam, Lit, Meta, MetaNameValue, Token, Type, TypeParam, Variant,
+    WhereClause,
 };
 
 #[derive(Debug, Clone)]
 pub struct Paths {
     pub crate_name: TokenStream,
     pub macro_prelude: TokenStream,
-    pub prelude: TokenStream,
 
+    // static_assertions
+    pub static_assertions: TokenStream,
+
+    pub prelude: TokenStream,
     // std
     pub box_ty: TokenStream,
     pub clone: TokenStream,
@@ -31,11 +37,11 @@ pub struct Paths {
     pub partial_eq: TokenStream,
     pub phantom_data: TokenStream,
     pub ptr: TokenStream,
+
     pub size_of: TokenStream,
 
     // derivative
     pub derivative: TokenStream,
-
     // account set
     pub account_set: TokenStream,
     pub account_set_decode: TokenStream,
@@ -43,14 +49,13 @@ pub struct Paths {
     pub account_set_cleanup: TokenStream,
     pub get_seeds: TokenStream,
     pub program_account: TokenStream,
-
     // syscalls
     pub sys_calls: TokenStream,
     pub sys_call_invoke: TokenStream,
+
     pub solana_runtime: TokenStream,
 
     pub result: TokenStream,
-
     // idl
     #[cfg(feature = "idl")]
     pub account_to_idl: TokenStream,
@@ -62,9 +67,9 @@ pub struct Paths {
     pub instruction_set_to_idl: TokenStream,
     #[cfg(feature = "idl")]
     pub type_to_idl: TokenStream,
+
     #[cfg(feature = "idl")]
     pub program_to_idl: TokenStream,
-
     // star frame idl
     pub semver: TokenStream,
     pub idl_definition: TokenStream,
@@ -81,18 +86,18 @@ pub struct Paths {
     pub idl_instruction: TokenStream,
     pub idl_seeds: TokenStream,
     pub account_id: TokenStream,
-    pub account_set_id: TokenStream,
 
+    pub account_set_id: TokenStream,
     // instruction
     pub framework_instruction: TokenStream,
     pub instruction_set: TokenStream,
-    pub instruction: TokenStream,
 
+    pub instruction: TokenStream,
     // program
     pub system_program: TokenStream,
     pub star_frame_program: TokenStream,
-    pub declared_program_type: Type,
 
+    pub declared_program_type: Type,
     // idents
     pub account_ident: Ident,
     pub account_set_ident: Ident,
@@ -100,27 +105,28 @@ pub struct Paths {
     pub validate_ident: Ident,
     pub cleanup_ident: Ident,
     pub idl_ident: Ident,
-    pub idl_ty_program_ident: Ident,
 
+    pub idl_ty_program_ident: Ident,
     pub align1: TokenStream,
     pub packed_value_checked: TokenStream,
     pub advance: TokenStream,
+
     pub advance_array: TokenStream,
 
     // bytemuck
     pub checked: TokenStream,
+    pub bytemuck: TokenStream,
     pub checked_bit_pattern: TokenStream,
-
     pub pod: TokenStream,
     // solana
     pub account_info: TokenStream,
     pub program_error: TokenStream,
     pub program_result: TokenStream,
     pub sol_memset: TokenStream,
+
     pub pubkey: TokenStream,
 
     pub msg: TokenStream,
-
     // anyhow
     pub anyhow_macro: TokenStream,
 }
@@ -133,6 +139,9 @@ impl Default for Paths {
 
             macro_prelude: quote! { #crate_name::macro_prelude },
             prelude: quote! { #crate_name::prelude },
+
+            // static_assertions
+            static_assertions: quote! { #crate_name::static_assertions },
 
             // std
             box_ty: quote! { ::std::boxed::Box },
@@ -225,6 +234,7 @@ impl Default for Paths {
             advance: quote! { #crate_name::advance::Advance},
 
             // bytemuck
+            bytemuck: quote! { #crate_name::bytemuck },
             checked: quote! { #crate_name::bytemuck::checked },
             checked_bit_pattern: quote! { #crate_name::bytemuck::checked::CheckedBitPattern },
             pod: quote! { #crate_name::bytemuck::Pod },
@@ -309,6 +319,40 @@ impl Parse for BetterGenerics {
         };
         generics.where_clause = content.parse()?;
         Ok(Self { _bracket, generics })
+    }
+}
+
+pub trait CombineGenerics {
+    fn combine(&self, other: Self) -> Self;
+}
+
+impl CombineGenerics for Generics {
+    fn combine(&self, other: Self) -> Self {
+        let generics_a = self.clone();
+
+        let params = generics_a.params.into_iter().chain(other.params).collect();
+
+        let where_clause: Option<WhereClause> =
+            if generics_a.where_clause.is_some() || other.where_clause.is_some() {
+                let predicates = other
+                    .where_clause
+                    .into_iter()
+                    .chain(generics_a.where_clause)
+                    .flat_map(|w| w.predicates)
+                    .collect();
+                Some(WhereClause {
+                    where_token: Default::default(),
+                    predicates,
+                })
+            } else {
+                None
+            };
+
+        Generics {
+            params,
+            where_clause,
+            ..Default::default()
+        }
     }
 }
 
@@ -418,76 +462,185 @@ pub fn strip_inner_attributes<'a>(
     })
 }
 
-#[test]
-fn test_strip_attributes_struct() {
-    let mut struct_item: syn::ItemStruct = syn::parse_quote! {
-        struct MyStruct {
-            #[my_attr]
-            field1: u8,
-            field2: u8,
-            #[my_attr(hello)]
-            #[my_attr]
-            field3: u8,
+pub fn get_fields(input: &DeriveInput) -> Fields {
+    match &input.data {
+        Data::Struct(DataStruct { fields, .. }) => fields.clone(),
+        Data::Union(DataUnion { fields, .. }) => Fields::Named(fields.clone()),
+        Data::Enum(_) => abort!(input, "deriving this trait is not supported for enums"),
+    }
+}
+
+pub fn get_enum_variants<'a>(
+    input: &'a DeriveInput,
+) -> impl Iterator<Item = &'a Variant> + Clone + 'a {
+    if let Data::Enum(DataEnum { variants, .. }) = &input.data {
+        variants.iter()
+    } else {
+        abort!(input, "deriving this trait is only supported for enums")
+    }
+}
+
+pub fn get_field_types(fields: &impl GetFields) -> impl Iterator<Item = &Type> {
+    fields.get_fields().iter().map(|field| &field.ty)
+}
+
+/// Check that all fields implement a given trait
+/// Adapted from the bytemuck derive crate
+pub fn generate_fields_are_trait<T: GetGenerics + GetFields + Spanned>(
+    input: &T,
+    trait_: syn::Path,
+) -> TokenStream {
+    let generics = input.get_generics();
+    let (impl_generics, _ty_generics, where_clause) = generics.split_for_impl();
+    let fields = input.get_fields();
+    let span = input.span();
+    let field_types = get_field_types(fields);
+    quote_spanned! {span => #(const _: fn() = || {
+        #[allow(clippy::missing_const_for_fn)]
+        #[doc(hidden)]
+        fn check #impl_generics () #where_clause {
+          fn assert_impl<T: #trait_>() {}
+          assert_impl::<#field_types>();
         }
+      };)*
+    }
+}
+
+pub trait GetGenerics {
+    fn get_generics(&self) -> &Generics;
+}
+
+impl GetGenerics for Generics {
+    fn get_generics(&self) -> &Generics {
+        self
+    }
+}
+
+macro_rules! get_generics {
+    ($($item:ty),*) => {
+        $(
+            impl GetGenerics for $item {
+                fn get_generics(&self) -> &Generics {
+                    &self.generics
+                }
+            }
+        )*
     };
-    let stripped_attributes: Vec<_> = strip_inner_attributes(&mut struct_item, "my_attr").collect();
-    let expected_stripped_attributes = vec![
-        StrippedAttribute {
-            index: 0,
-            attribute: syn::parse_quote! { #[my_attr] },
-        },
-        StrippedAttribute {
-            index: 2,
-            attribute: syn::parse_quote! { #[my_attr(hello)] },
-        },
-    ];
-    assert_eq!(stripped_attributes, expected_stripped_attributes);
-    assert_eq!(
-        struct_item,
-        syn::parse_quote! {
+}
+
+get_generics!(DeriveInput, ItemStruct, ItemEnum);
+
+pub trait GetFields {
+    fn get_fields(&self) -> &Fields;
+}
+
+impl GetFields for Fields {
+    fn get_fields(&self) -> &Fields {
+        self
+    }
+}
+
+macro_rules! get_fields {
+    ($($item:ty),*) => {
+        $(
+            impl GetFields for $item {
+                fn get_fields(&self) -> &Fields {
+                    &self.fields
+                }
+            }
+        )*
+    };
+}
+
+get_fields!(DataStruct, ItemStruct);
+
+impl GetFields for DeriveInput {
+    fn get_fields(&self) -> &Fields {
+        match &self.data {
+            Data::Struct(DataStruct { fields, .. }) => fields,
+            Data::Union(DataUnion { .. }) => abort!(self, "cannot get fields on a union"),
+            Data::Enum(_) => abort!(self, "cannot get fields on an enum"),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_strip_attributes_struct() {
+        let mut struct_item: syn::ItemStruct = syn::parse_quote! {
             struct MyStruct {
+                #[my_attr]
                 field1: u8,
                 field2: u8,
+                #[my_attr(hello)]
                 #[my_attr]
                 field3: u8,
             }
-        }
-    );
-}
+        };
+        let stripped_attributes: Vec<_> =
+            strip_inner_attributes(&mut struct_item, "my_attr").collect();
+        let expected_stripped_attributes = vec![
+            StrippedAttribute {
+                index: 0,
+                attribute: syn::parse_quote! { #[my_attr] },
+            },
+            StrippedAttribute {
+                index: 2,
+                attribute: syn::parse_quote! { #[my_attr(hello)] },
+            },
+        ];
+        assert_eq!(stripped_attributes, expected_stripped_attributes);
+        assert_eq!(
+            struct_item,
+            syn::parse_quote! {
+                struct MyStruct {
+                    field1: u8,
+                    field2: u8,
+                    #[my_attr]
+                    field3: u8,
+                }
+            }
+        );
+    }
 
-#[test]
-fn test_strip_attributes_enum() {
-    let mut enum_item: syn::ItemEnum = syn::parse_quote! {
-        enum MyEnum {
-            #[my_attr]
-            Variant1,
-            Variant2,
-            #[my_attr(hello)]
-            #[my_attr(hello2)]
-            Variant3,
-        }
-    };
-    let stripped_attributes: Vec<_> = strip_inner_attributes(&mut enum_item, "my_attr").collect();
-    let expected_stripped_attributes = vec![
-        StrippedAttribute {
-            index: 0,
-            attribute: syn::parse_quote! { #[my_attr] },
-        },
-        StrippedAttribute {
-            index: 2,
-            attribute: syn::parse_quote! { #[my_attr(hello)] },
-        },
-    ];
-    assert_eq!(stripped_attributes, expected_stripped_attributes);
-    assert_eq!(
-        enum_item,
-        syn::parse_quote! {
+    #[test]
+    fn test_strip_attributes_enum() {
+        let mut enum_item: syn::ItemEnum = syn::parse_quote! {
             enum MyEnum {
+                #[my_attr]
                 Variant1,
                 Variant2,
+                #[my_attr(hello)]
                 #[my_attr(hello2)]
                 Variant3,
             }
-        }
-    );
+        };
+        let stripped_attributes: Vec<_> =
+            strip_inner_attributes(&mut enum_item, "my_attr").collect();
+        let expected_stripped_attributes = vec![
+            StrippedAttribute {
+                index: 0,
+                attribute: syn::parse_quote! { #[my_attr] },
+            },
+            StrippedAttribute {
+                index: 2,
+                attribute: syn::parse_quote! { #[my_attr(hello)] },
+            },
+        ];
+        assert_eq!(stripped_attributes, expected_stripped_attributes);
+        assert_eq!(
+            enum_item,
+            syn::parse_quote! {
+                enum MyEnum {
+                    Variant1,
+                    Variant2,
+                    #[my_attr(hello2)]
+                    Variant3,
+                }
+            }
+        );
+    }
 }
