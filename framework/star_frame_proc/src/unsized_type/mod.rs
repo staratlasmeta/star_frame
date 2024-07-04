@@ -1,24 +1,25 @@
-use crate::util::{
-    generate_fields_are_trait, get_field_types, strip_inner_attributes, BetterGenerics,
-    CombineGenerics, GetFields, Paths,
-};
-use easy_proc::ArgumentList;
 use heck::ToUpperCamelCase;
 use proc_macro2::Ident;
 use proc_macro2::TokenStream;
-use proc_macro_error::{abort, abort_call_site};
+use proc_macro_error::{abort, abort_call_site, ResultExt};
 use quote::{format_ident, quote, ToTokens};
+use std::fmt::{Display, Formatter};
+use syn::parse::Nothing;
 use syn::punctuated::Punctuated;
-use syn::token::Comma;
 use syn::{
-    parse_quote, Attribute, Field, GenericParam, Generics, ImplGenerics, Item, ItemStruct,
-    TypeParam, WhereClause, WherePredicate,
+    parse_quote, Field, GenericParam, Generics, ImplGenerics, Item, ItemStruct, TypeParam,
+    WhereClause, WherePredicate,
+};
+
+use crate::util::{
+    generate_fields_are_trait, get_field_types, strip_inner_attributes, CombineGenerics, GetFields,
+    Paths,
 };
 
 pub fn unsized_type_impl(item: Item, args: TokenStream) -> TokenStream {
-    // syn::parse2::<Nothing>(args.clone()).expect_or_abort("`unsized_type` takes no arguments");
+    syn::parse2::<Nothing>(args.clone()).expect_or_abort("`unsized_type` takes no arguments");
     match item {
-        Item::Struct(struct_item) => unsized_type_struct_impl(struct_item, args),
+        Item::Struct(struct_item) => unsized_type_struct_impl(struct_item),
         Item::Enum(_enum_item) => {
             abort!(
                 args,
@@ -34,34 +35,15 @@ pub fn unsized_type_impl(item: Item, args: TokenStream) -> TokenStream {
     }
 }
 
-#[derive(ArgumentList, Default, Debug, Clone)]
-pub struct UnsizedTypeArgs {
-    #[argument(default)]
-    pub sized_generics: BetterGenerics,
-    #[argument(default)]
-    pub unsized_generics: BetterGenerics,
-}
-
-impl UnsizedTypeArgs {
-    fn combined_generics(&self) -> Generics {
-        let sized_generics = self.sized_generics.clone().into_inner();
-        let unsized_generics = self.unsized_generics.clone().into_inner();
-
-        sized_generics.combine(unsized_generics)
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct UnsizedTypeContext {
     pub item_struct: ItemStruct,
     pub sized_fields: Vec<Field>,
     pub unsized_fields: Vec<Field>,
-    pub args: UnsizedTypeArgs,
-    // pub generics: Vec<syn::GenericParam>,
 }
 
 impl UnsizedTypeContext {
-    fn parse(mut item_struct: ItemStruct, args: TokenStream) -> Self {
+    fn parse(mut item_struct: ItemStruct) -> Self {
         let unsized_start =
             strip_inner_attributes(&mut item_struct, "unsized_start").collect::<Vec<_>>();
         if unsized_start.is_empty() {
@@ -82,12 +64,9 @@ impl UnsizedTypeContext {
         let all_fields = item_struct.fields.iter().cloned().collect::<Vec<_>>();
         let (sized_fields, unsized_fields) = all_fields.split_at(first_unsized);
 
-        let args_attr: Attribute = parse_quote!(#[unsized_type(#args)]);
-        let args = UnsizedTypeArgs::parse_arguments(&args_attr);
-
         Self {
             item_struct,
-            args,
+            // args,
             sized_fields: sized_fields.to_vec(),
             unsized_fields: unsized_fields.to_vec(),
         }
@@ -106,13 +85,13 @@ impl UnsizedTypeContext {
     }
 }
 
-fn derive_bytemucks(sized_struct: &ItemStruct, sized_generics: &Generics) -> TokenStream {
+fn derive_bytemucks(sized_struct: &ItemStruct) -> TokenStream {
     let Paths {
         bytemuck,
         derivative,
         ..
     } = Default::default();
-    let (impl_generics, type_generics, where_clause) = sized_generics.split_for_impl();
+    let (impl_generics, type_generics, where_clause) = sized_struct.generics.split_for_impl();
     let struct_ident = sized_struct.ident.clone();
 
     let bit_ident = format_ident!("{}Bits", struct_ident);
@@ -139,21 +118,38 @@ fn derive_bytemucks(sized_struct: &ItemStruct, sized_generics: &Generics) -> Tok
     let derivitive_bounds = get_field_types(&bit_fields)
         .map(|ty| quote!(#ty: Debug))
         .collect::<Vec<_>>();
-    let derivitive_bounds = quote!(#(#derivitive_bounds)*).to_string();
+    let derivitive_bounds = quote!(#(#derivitive_bounds),*).to_string();
     let bit_fields = bit_fields.iter();
+
+    let bytemuck_print = bytemuck.to_string().replace(" :: ", "::");
+    let zeroable_safety = format!("# Safety\nThis is safe because all fields are [`{bytemuck_print}::CheckedBitPattern::Bits`], which requires [`{bytemuck_print}::AnyBitPattern`], which requires [`{bytemuck_print}::Zeroable`]");
+    let any_bit_pattern_safety = format!("# Safety\nThis is safe because all fields are [`{bytemuck_print}::CheckedBitPattern::Bits`], which requires [`{bytemuck_print}::AnyBitPattern`]");
+    let no_uninit_safety = format!("# Safety\nThis is safe because the struct is `#[repr(C, packed)` (no padding bytes) and all fields are [`{bytemuck_print}::NoUninit`]");
+    let checked_safety = format!(
+        "# Safety\nThis is safe because all fields in [`Self::Bits`] are [`{bytemuck_print}::CheckedBitPattern::Bits`] and share the same repr. The checks are correctly (hopefully) and automatically generated by the macro."
+    );
+
     quote! {
         #ensure_no_uninit
         #ensure_checked
 
+        #[doc = #no_uninit_safety]
         unsafe impl #impl_generics NoUninit for #struct_ident #type_generics #where_clause {}
 
         #[repr(C, packed)]
-        #[derive(Clone, Copy, #bytemuck::AnyBitPattern, #derivative)]
+        #[derive(Clone, Copy, #derivative)]
         #[derivative(Debug(bound = #derivitive_bounds))]
         pub struct #bit_ident #type_generics #where_clause {
             #(#bit_fields),*
         }
 
+        #[doc = #zeroable_safety]
+        unsafe impl #impl_generics #bytemuck::Zeroable for #bit_ident #type_generics #where_clause {}
+
+        #[doc = #any_bit_pattern_safety]
+        unsafe impl #impl_generics #bytemuck::AnyBitPattern for #bit_ident #type_generics #where_clause {}
+
+        #[doc = #checked_safety]
         unsafe impl #impl_generics #bytemuck::CheckedBitPattern for #struct_ident #type_generics #where_clause {
             type Bits = #bit_ident #type_generics;
             #[inline]
@@ -165,7 +161,7 @@ fn derive_bytemucks(sized_struct: &ItemStruct, sized_generics: &Generics) -> Tok
     }
 }
 
-fn unsized_type_struct_impl(item_struct: ItemStruct, args: TokenStream) -> TokenStream {
+fn unsized_type_struct_impl(item_struct: ItemStruct) -> TokenStream {
     let Paths {
         macro_prelude: prelude,
         deref,
@@ -173,22 +169,30 @@ fn unsized_type_struct_impl(item_struct: ItemStruct, args: TokenStream) -> Token
         result,
         checked,
         size_of,
+        phantom_data,
         ..
     } = Default::default();
-    let context = UnsizedTypeContext::parse(item_struct, args);
+    let context = UnsizedTypeContext::parse(item_struct);
     let sized_ident = context.sized_ident();
 
     let UnsizedTypeContext {
-        sized_fields,
+        mut sized_fields,
         unsized_fields,
         item_struct,
-        args,
     } = context;
 
-    let combined_generics = args.combined_generics();
+    let type_generic_idents: Vec<_> = item_struct
+        .generics
+        .type_params()
+        .map(|p| &p.ident)
+        .collect();
+    if !type_generic_idents.is_empty() {
+        sized_fields.push(parse_quote!(pub __phantom_generics: #phantom_data<fn() -> (#(#type_generic_idents),*)>));
+    }
+
+    let combined_generics = item_struct.generics.clone();
     let (combined_impl_generics, combined_type_generics, combined_where) =
         combined_generics.split_for_impl();
-    let (_, sized_type_generics, sized_where) = args.sized_generics.split_for_impl();
 
     let struct_ident = item_struct.ident.clone();
     let struct_type = quote!(#struct_ident #combined_type_generics);
@@ -203,7 +207,7 @@ fn unsized_type_struct_impl(item_struct: ItemStruct, args: TokenStream) -> Token
     let sized_ident = sized_ident.as_ref();
     let sized_type = sized_ident.map(|sized_ident| {
         quote! {
-            #sized_ident #sized_type_generics
+            #sized_ident #combined_type_generics
         }
     });
     let sized_type = sized_type.as_ref();
@@ -304,7 +308,7 @@ fn unsized_type_struct_impl(item_struct: ItemStruct, args: TokenStream) -> Token
     let (unsized_init_impl_generics, _, init_where_clause) =
         combined_unsized_init_generics.split_for_impl();
 
-    let init_struct_generics = args.sized_generics.combine(unsized_init_generics.clone());
+    let init_struct_generics = combined_generics.combine(unsized_init_generics.clone());
     let (_, init_struct_type_generics, _) = init_struct_generics.split_for_impl();
 
     let init_struct_type = quote!(#init_struct_ident #init_struct_type_generics);
@@ -328,7 +332,7 @@ fn unsized_type_struct_impl(item_struct: ItemStruct, args: TokenStream) -> Token
 
     let init_with_struct = quote! {
         #[derive(Copy, Clone, Debug)]
-        pub struct #init_struct_type #sized_where {
+        pub struct #init_struct_type #combined_where {
             #(#sized_fields,)*
             #(pub #unsized_field_idents: #init_generic_idents),*
         }
@@ -352,28 +356,26 @@ fn unsized_type_struct_impl(item_struct: ItemStruct, args: TokenStream) -> Token
         }
     };
 
-    // We can only derive CheckedBitPattern and NoUninit if there are no generics. This restriction may be relaxed in the future in bytemuck
-    let sized_bytemuck_derives = if args.sized_generics.params.is_empty() {
-        quote!(CheckedBitPattern, NoUninit)
-    } else {
-        Default::default()
-    };
-
-    let sized_struct: ItemStruct = parse_quote! {
-        #[derive(Debug, Copy, Clone, Zeroable, Align1, PartialEq, Eq, #sized_bytemuck_derives)]
-        #[repr(C, packed)]
-        pub struct #sized_type #sized_where {
-            #(#sized_fields),*
-        }
-    };
-
-    let sized_bytemuck_impls = if !args.sized_generics.params.is_empty() {
-        derive_bytemucks(&sized_struct, &args.sized_generics)
-    } else {
-        Default::default()
-    };
-
     let sized_stuff = sized_type.map(|sized_type| {
+        let sized_bytemuck_derives = combined_generics
+            .params
+            .is_empty()
+            .then_some(quote!(CheckedBitPattern, NoUninit));
+
+        let sized_struct: ItemStruct = parse_quote! {
+            #[derive(Debug, Copy, Clone, Zeroable, Align1, PartialEq, Eq, #sized_bytemuck_derives)]
+            #[repr(C, packed)]
+            pub struct #sized_type #combined_where {
+                #(#sized_fields),*
+            }
+        };
+
+        // We can only derive CheckedBitPattern and NoUninit if there are no generics. This restriction may be relaxed in the future in bytemuck
+        let sized_bytemuck_impls = combined_generics
+            .params
+            .first()
+            .map(|_| derive_bytemucks(&sized_struct));
+
         quote! {
             #sized_struct
             #sized_bytemuck_impls
@@ -548,6 +550,21 @@ fn combine_with_sized(
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+enum CombinePath {
+    U,
+    T,
+}
+
+impl Display for CombinePath {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CombinePath::U => write!(f, "U"),
+            CombinePath::T => write!(f, "T"),
+        }
+    }
+}
+
 fn combine_streams(
     stuff: &[impl ToTokens],
     combine: impl Fn(&TokenStream, &TokenStream) -> TokenStream + Copy,
@@ -565,6 +582,42 @@ fn combine_streams(
         combine(&first, &second)
     }
 }
+//
+// fn somehow_work_maybe(stuff: &[impl ToTokens], path: &[CombinePath]) -> TokenStream {
+//     if stuff.is_empty() {
+//         abort_call_site!("Tried to combine nothing!")
+//     }
+//     if stuff.len() == 1 {
+//         let path_ident = path
+//             .iter()
+//             .map(ToString::to_string)
+//             .collect::<Vec<_>>()
+//             .join("");
+//
+//         let stuff = &stuff[0];
+//         quote!(#stuff)
+//     } else {
+//         let half_mark = stuff.len().div_ceil(2);
+//         let first = crate::unsized_type::combine_streams(&stuff[0..half_mark], combine);
+//         let second = crate::unsized_type::combine_streams(&stuff[half_mark..], combine);
+//         combine(&first, &second)
+//     }
+// }
+//
+// fn ext_type_ident(main_ident: &Ident, path: &[CombinePath]) -> Ident {
+//     // let mut ident = main_ident.clone();
+//     for p in path {
+//         match p {
+//             CombinePath::U => {
+//                 ident = format_ident!("{}U", ident);
+//             }
+//             CombinePath::T => {
+//                 ident = format_ident!("{}T", ident);
+//             }
+//         }
+//     }
+//     ident
+// }
 
 fn with_parenthesis(first: &TokenStream, second: &TokenStream) -> TokenStream {
     quote!((#first, #second))
