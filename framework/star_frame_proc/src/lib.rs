@@ -56,6 +56,15 @@ pub fn derive_account_set(input: proc_macro::TokenStream) -> proc_macro::TokenSt
     out.into()
 }
 
+#[proc_macro_error]
+#[proc_macro_derive(GetSeeds, attributes(seed_const))]
+pub fn derive_get_seeds(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let out = account_set::seeded_account::derive_get_seeds_impl(parse_macro_input!(
+        input as DeriveInput
+    ));
+    out.into()
+}
+
 /// Similar to strum's `FromRepr` derive but includes a trait for generic implementations and does not support non-unit enums.
 #[proc_macro_error]
 #[proc_macro_derive(UnitEnumFromRepr)]

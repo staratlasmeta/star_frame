@@ -229,3 +229,127 @@ mod idl_impl {
         }
     }
 }
+
+///
+///```compile_fail
+/// use star_frame_proc::GetSeeds;
+/// #[derive(GetSeeds)]
+/// struct Banana(i32, i32);
+/// ```
+fn _unnamed_seed_structs_fail() {}
+
+#[cfg(test)]
+mod tests {
+    use crate::prelude::*;
+
+    #[test]
+    fn test_unit_struct() {
+        #[derive(Debug, GetSeeds)]
+        pub struct TestAccount {}
+
+        let account = TestAccount {};
+        let seeds = account.seeds();
+        assert_eq!(seeds.len(), 0);
+    }
+
+    #[test]
+    fn test_single_key() {
+        #[derive(Debug, GetSeeds)]
+        pub struct TestAccount {
+            key: Pubkey,
+        }
+
+        let account = TestAccount {
+            key: Pubkey::new_unique(),
+        };
+        let intended_seeds = vec![account.key.seed()];
+        let seeds = account.seeds();
+        assert_eq!(seeds, intended_seeds);
+        assert_eq!(seeds.len(), 1);
+    }
+
+    #[test]
+    fn test_two_keys() {
+        #[derive(Debug, GetSeeds)]
+        pub struct TestAccount {
+            key1: Pubkey,
+            key2: Pubkey,
+        }
+
+        let account = TestAccount {
+            key1: Pubkey::new_unique(),
+            key2: Pubkey::new_unique(),
+        };
+        let intended_seeds = vec![account.key1.seed(), account.key2.seed()];
+        let seeds = account.seeds();
+        assert_eq!(seeds, intended_seeds);
+        assert_eq!(seeds.len(), 2);
+    }
+
+    #[test]
+    fn test_key_and_number() {
+        #[derive(Debug, GetSeeds)]
+        pub struct TestAccount {
+            key: Pubkey,
+            number: u64,
+        }
+
+        let account = TestAccount {
+            key: Pubkey::new_unique(),
+            number: 42,
+        };
+        let intended_seeds = vec![account.key.seed(), account.number.seed()];
+        let seeds = account.seeds();
+        assert_eq!(seeds, intended_seeds);
+        assert_eq!(seeds.len(), 2);
+    }
+
+    #[test]
+    fn test_unit_with_const_seed() {
+        #[derive(Debug, GetSeeds)]
+        #[seed_const(b"TEST_CONST")]
+        pub struct TestAccount {}
+
+        let account = TestAccount {};
+        let seeds = account.seeds();
+        let intended_seeds = vec![b"TEST_CONST".as_ref()];
+        assert_eq!(seeds, intended_seeds);
+        assert_eq!(seeds.len(), 1);
+    }
+
+    #[test]
+    fn test_one_key_with_const_seed() {
+        #[derive(Debug, GetSeeds)]
+        #[seed_const(b"TEST_CONST")]
+        pub struct TestAccount {
+            key: Pubkey,
+        }
+
+        let account = TestAccount {
+            key: Pubkey::new_unique(),
+        };
+        let intended_seeds = vec![b"TEST_CONST".as_ref(), account.key.seed()];
+        let seeds = account.seeds();
+        assert_eq!(seeds, intended_seeds);
+        assert_eq!(seeds.len(), 2);
+    }
+
+    #[test]
+    fn test_path_seed() {
+        pub struct Cool {}
+
+        impl Cool {
+            const DISC: &'static [u8] = b"TEST_CONST";
+        }
+
+        #[derive(Debug, GetSeeds)]
+        #[seed_const(Cool::DISC)]
+        pub struct TestAccount {}
+
+        let account = TestAccount {};
+        let seeds = account.seeds();
+        let intended_seeds = vec![b"TEST_CONST".as_ref()];
+        assert_eq!(seeds, intended_seeds);
+        assert_eq!(seeds.len(), 1);
+    }
+}

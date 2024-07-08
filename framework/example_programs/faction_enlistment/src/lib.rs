@@ -229,24 +229,13 @@ impl SeededAccountData for CombinedTest3 {
     type Seeds = PlayerFactionAccountSeeds;
 }
 
-#[derive(Debug)]
+#[derive(Debug, GetSeeds)]
+#[seed_const(b"FACTION_ENLISTMENT")]
 pub struct PlayerFactionAccountSeeds {
-    // #[constant(FACTION_ENLISTMENT)]
     player_account: Pubkey,
 }
 
-// TODO - Macro this
-impl GetSeeds for PlayerFactionAccountSeeds {
-    fn seeds(&self) -> Vec<&[u8]> {
-        vec![b"FACTION_ENLISTMENT".as_ref(), self.player_account.seed()]
-    }
-}
-
 use star_frame::prelude::CombinedRef;
-use star_frame::prelude::*;
-use star_frame::prelude::{
-    CombinedExt, CombinedTRef, CombinedURef, CombinedUnsized, List, UnsizedInit, UnsizedType,
-};
 use star_frame::serialize::ref_wrapper::{
     AsBytes, AsMutBytes, RefBytes, RefBytesMut, RefResize, RefWrapper, RefWrapperMutExt,
     RefWrapperTypes,
