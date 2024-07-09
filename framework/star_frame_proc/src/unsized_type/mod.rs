@@ -4,20 +4,21 @@ use proc_macro2::TokenStream;
 use proc_macro_error::{abort, abort_call_site, ResultExt};
 use quote::{format_ident, quote, ToTokens};
 use std::fmt::{Display, Formatter};
+use std::str::FromStr;
 use syn::parse::Nothing;
 use syn::punctuated::Punctuated;
 use syn::{
-    parse_quote, Field, GenericParam, Generics, ImplGenerics, Item, ItemStruct, TypeParam,
+    parse2, parse_quote, Field, GenericParam, Generics, ImplGenerics, Item, ItemStruct, TypeParam,
     WhereClause, WherePredicate,
 };
 
 use crate::util::{
-    generate_fields_are_trait, get_field_types, strip_inner_attributes, CombineGenerics, GetFields,
-    Paths,
+    generate_fields_are_trait, get_field_types, strip_inner_attributes, type_generic_idents,
+    BetterGenerics, CombineGenerics, Paths,
 };
 
 pub fn unsized_type_impl(item: Item, args: TokenStream) -> TokenStream {
-    syn::parse2::<Nothing>(args.clone()).expect_or_abort("`unsized_type` takes no arguments");
+    parse2::<Nothing>(args.clone()).expect_or_abort("`unsized_type` takes no arguments");
     match item {
         Item::Struct(struct_item) => unsized_type_struct_impl(struct_item),
         Item::Enum(_enum_item) => {
@@ -66,7 +67,6 @@ impl UnsizedTypeContext {
 
         Self {
             item_struct,
-            // args,
             sized_fields: sized_fields.to_vec(),
             unsized_fields: unsized_fields.to_vec(),
         }
@@ -181,13 +181,11 @@ fn unsized_type_struct_impl(item_struct: ItemStruct) -> TokenStream {
         item_struct,
     } = context;
 
-    let type_generic_idents: Vec<_> = item_struct
-        .generics
-        .type_params()
-        .map(|p| &p.ident)
-        .collect();
-    if !type_generic_idents.is_empty() {
-        sized_fields.push(parse_quote!(pub __phantom_generics: #phantom_data<fn() -> (#(#type_generic_idents),*)>));
+    let generic_idents: Vec<_> = type_generic_idents(&item_struct);
+    if !generic_idents.is_empty() {
+        sized_fields.push(
+            parse_quote!(pub __phantom_generics: #phantom_data<fn() -> (#(#generic_idents),*)>),
+        );
     }
 
     let combined_generics = item_struct.generics.clone();
@@ -274,7 +272,7 @@ fn unsized_type_struct_impl(item_struct: ItemStruct) -> TokenStream {
         .map(|i| {
             let ident_string = i.to_string().to_upper_camel_case();
             let struct_ident_string = struct_ident.to_string().to_upper_camel_case();
-            format_ident!("{struct_ident_string}{ident_string}")
+            format_ident!("{struct_ident_string}{ident_string}Init")
         })
         .collect();
 
@@ -329,6 +327,80 @@ fn unsized_type_struct_impl(item_struct: ItemStruct) -> TokenStream {
         &unsized_field_accesses,
         with_parenthesis,
     );
+
+    let extension_ident = format_ident!("{}Ext", struct_ident);
+    let unsized_ext_idents = unsized_field_idents
+        .iter()
+        .map(|i| {
+            let ident_string = i.to_string().to_upper_camel_case();
+            format_ident!("{struct_ident}{ident_string}")
+        })
+        .collect::<Vec<_>>();
+
+    let r = quote!(__R);
+    let extension_type_generics = type_generic_idents(&combined_generics);
+    let combined_extension_type_generics = quote!(#(#extension_type_generics),*);
+    let all_extension_type_generics = quote!(#r, #combined_extension_type_generics);
+
+    let root_ident = format_ident!("{struct_ident}Root");
+    let root_type = quote!(#root_ident<#all_extension_type_generics>);
+
+    let root_inner_type =
+        quote!(#prelude::RefWrapper<#r, <#inner_type as #prelude::UnsizedType>::RefData>);
+
+    let root_type_def = sized_type
+        .map(|sized_type| {
+            let unsized_combined = combine_streams(&unsized_field_types, combine_unsized);
+            quote!(#prelude::RefWrapperU<#root_inner_type, #sized_type, #unsized_combined>)
+        })
+        .unwrap_or(root_inner_type);
+
+    let (ext_type_defs, path_methods): (Vec<_>, Vec<_>) = unsized_ext_idents
+        .iter()
+        .enumerate()
+        .map(|(index, _ident)| {
+            let (ext_type_def, paths) = make_ext_type(&root_type, &unsized_field_types, index);
+            let path_methods = CombinePath::make_method_chain(&paths);
+            (ext_type_def, path_methods)
+        })
+        .unzip();
+
+    let ext_generics: BetterGenerics = parse2(
+        quote! { [<#r> where #r: #prelude::RefWrapperTypes<Ref = #ref_type> + #prelude::AsBytes] },
+    )
+    .expect("Shouldn't fail to parse better generics for ext type");
+
+    let ext_generics = combined_generics.combine(ext_generics.into_inner());
+
+    let (ext_impl_generics, _, ext_where) = ext_generics.split_for_impl();
+
+    let root_method = sized_type.map(|_| quote!(.u()?));
+
+    let extension_trait = quote! {
+        type #root_type = #root_type_def;
+
+        #(
+            pub type #unsized_ext_idents<#all_extension_type_generics> = #ext_type_defs;
+        )*
+
+        pub trait #extension_ident #combined_type_generics: Sized + #prelude::RefWrapperTypes
+        #combined_where
+        {
+            #(
+                fn #unsized_field_idents(self) -> #result<#unsized_ext_idents<Self, #combined_extension_type_generics>>;
+            )*
+        }
+
+        impl #ext_impl_generics #extension_ident #combined_type_generics for #r #ext_where {
+            #(
+                fn #unsized_field_idents(self) -> #result<#unsized_ext_idents<Self, #combined_extension_type_generics>> {
+                    let r = self.r().0;
+                    let res = unsafe { #prelude::RefWrapper::new(self, r) } #root_method #path_methods;
+                    Ok(res)
+                }
+            )*
+        }
+    };
 
     let init_with_struct = quote! {
         #[derive(Copy, Clone, Debug)]
@@ -522,6 +594,8 @@ fn unsized_type_struct_impl(item_struct: ItemStruct) -> TokenStream {
                 })
             }
         }
+
+        #extension_trait
     }
 }
 
@@ -550,10 +624,50 @@ fn combine_with_sized(
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+fn with_parenthesis(first: &TokenStream, second: &TokenStream) -> TokenStream {
+    quote!((#first, #second))
+}
+
+fn combine_unsized(first: &TokenStream, second: &TokenStream) -> TokenStream {
+    let Paths { macro_prelude, .. } = Paths::default();
+    quote!(#macro_prelude::CombinedUnsized<#first, #second>)
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
 enum CombinePath {
     U,
     T,
+}
+
+impl CombinePath {
+    fn to_wrapper_type(self, macro_prelude: &TokenStream) -> TokenStream {
+        match self {
+            CombinePath::U => quote!(#macro_prelude::RefWrapperU),
+            CombinePath::T => quote!(#macro_prelude::RefWrapperT),
+        }
+    }
+
+    fn to_method(self) -> String {
+        match self {
+            CombinePath::U => "u()",
+            CombinePath::T => "t()",
+        }
+        .into()
+    }
+
+    fn make_method_chain(paths: &[Self]) -> TokenStream {
+        if paths.is_empty() {
+            TokenStream::default()
+        } else {
+            let method_vec = paths
+                .iter()
+                .copied()
+                .map(CombinePath::to_method)
+                .collect::<Vec<_>>();
+            let method_string = format!(".{}?", method_vec.join("?."));
+            TokenStream::from_str(&method_string).expect("Should be a valid function call chain")
+        }
+    }
 }
 
 impl Display for CombinePath {
@@ -576,56 +690,71 @@ fn combine_streams(
         let stuff = &stuff[0];
         quote!(#stuff)
     } else {
-        let half_mark = stuff.len().div_ceil(2);
-        let first = combine_streams(&stuff[0..half_mark], combine);
-        let second = combine_streams(&stuff[half_mark..], combine);
-        combine(&first, &second)
+        let (first, second) = split_items(stuff);
+        let first_stream = combine_streams(first, combine);
+        let second_stream = combine_streams(second, combine);
+        combine(&first_stream, &second_stream)
     }
 }
-//
-// fn somehow_work_maybe(stuff: &[impl ToTokens], path: &[CombinePath]) -> TokenStream {
-//     if stuff.is_empty() {
-//         abort_call_site!("Tried to combine nothing!")
-//     }
-//     if stuff.len() == 1 {
-//         let path_ident = path
-//             .iter()
-//             .map(ToString::to_string)
-//             .collect::<Vec<_>>()
-//             .join("");
-//
-//         let stuff = &stuff[0];
-//         quote!(#stuff)
-//     } else {
-//         let half_mark = stuff.len().div_ceil(2);
-//         let first = crate::unsized_type::combine_streams(&stuff[0..half_mark], combine);
-//         let second = crate::unsized_type::combine_streams(&stuff[half_mark..], combine);
-//         combine(&first, &second)
-//     }
-// }
-//
-// fn ext_type_ident(main_ident: &Ident, path: &[CombinePath]) -> Ident {
-//     // let mut ident = main_ident.clone();
-//     for p in path {
-//         match p {
-//             CombinePath::U => {
-//                 ident = format_ident!("{}U", ident);
-//             }
-//             CombinePath::T => {
-//                 ident = format_ident!("{}T", ident);
-//             }
-//         }
-//     }
-//     ident
-// }
 
-fn with_parenthesis(first: &TokenStream, second: &TokenStream) -> TokenStream {
-    quote!((#first, #second))
+fn get_combine_paths(mut length: usize, target: usize) -> Vec<CombinePath> {
+    let mut paths = vec![];
+    let mut offset = 0;
+    while length > 1 {
+        let half = length.div_ceil(2);
+        if target < half + offset {
+            // look at the first half
+            paths.push(CombinePath::T);
+            length = half;
+        } else {
+            // look at the second half
+            paths.push(CombinePath::U);
+            length -= half;
+            offset += half;
+        }
+    }
+    paths
 }
 
-fn combine_unsized(first: &TokenStream, second: &TokenStream) -> TokenStream {
+fn make_ext_type(
+    root: &impl ToTokens,
+    fields: &[impl ToTokens],
+    index: usize,
+) -> (TokenStream, Vec<CombinePath>) {
+    let paths = get_combine_paths(fields.len(), index);
     let Paths { macro_prelude, .. } = Paths::default();
-    quote!(#macro_prelude::CombinedUnsized<#first, #second>)
+    fn make_ext_type_inner(
+        super_ref: &impl ToTokens,
+        fields: &[impl ToTokens],
+        paths: &[CombinePath],
+        macro_prelude: &TokenStream,
+    ) -> TokenStream {
+        if paths.is_empty() {
+            return super_ref.to_token_stream();
+        }
+        let (t, u) = split_items(fields);
+
+        let first = paths.first().expect("Paths isn't empty");
+
+        let first_ref = first.to_wrapper_type(macro_prelude);
+
+        let combined_t = combine_streams(t, combine_unsized);
+        let combined_u = combine_streams(u, combine_unsized);
+
+        let new_super = quote!(#first_ref<#super_ref, #combined_t, #combined_u>);
+        let new_paths = &paths[1..];
+
+        match first {
+            CombinePath::T => make_ext_type_inner(&new_super, t, new_paths, macro_prelude),
+            CombinePath::U => make_ext_type_inner(&new_super, u, new_paths, macro_prelude),
+        }
+    }
+    let ty = make_ext_type_inner(root, fields, &paths, &macro_prelude);
+    (ty, paths)
+}
+
+fn split_items<T>(items: &[T]) -> (&[T], &[T]) {
+    items.split_at(items.len().div_ceil(2))
 }
 
 #[cfg(test)]
@@ -665,5 +794,38 @@ mod tests {
         let combined = combine_with_sized(sized.as_ref(), &to_combine, with_parenthesis);
 
         assert_eq!(combined.to_string(), "(Sized , ((A , B) , C))");
+    }
+
+    #[test]
+    fn test_paths() {
+        use CombinePath::*;
+        let paths = get_combine_paths(5, 0);
+        // [ 0 , 1 , 2 , 3 , 4 ]
+        // [ 0 , 1 , 2], [ 3 , 4 ] => T
+        // [ 0 , 1 ], [ 2 ] => T
+        // [ 0 ], [ 1 ] => T
+        assert_eq!(paths, vec![T, T, T]);
+
+        let paths = get_combine_paths(5, 1);
+        // [ 0 , 1 , 2 , 3 , 4 ]
+        // [ 0 , 1 , 2], [ 3 , 4 ] => T
+        // [ 0 , 1 ], [ 2 ] => T
+        // [ 0 ], [ 1 ] => U
+        assert_eq!(paths, vec![T, T, U]);
+
+        let paths = get_combine_paths(5, 4);
+        // [ 0 , 1 , 2 , 3 , 4 ]
+        // [ 0 , 1 , 2], [ 3 , 4 ] => U
+        // [ 3 ] , [ 4 ] => U
+        assert_eq!(paths, vec![U, U]);
+
+        let paths = get_combine_paths(5, 2);
+        // [ 0 , 1 , 2 , 3 , 4 ]
+        // [ 0 , 1 , 2], [ 3 , 4 ] => T
+        // [ 0 , 1 ] , [ 2 ] => U
+        assert_eq!(paths, vec![T, U]);
+
+        let paths = get_combine_paths(1, 0);
+        assert_eq!(paths, vec![]);
     }
 }

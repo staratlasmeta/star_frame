@@ -1,4 +1,5 @@
 use crate::get_crate_name;
+use daggy::Walker;
 use derive_more::{Deref, DerefMut};
 use proc_macro2::TokenStream;
 use proc_macro_error::{abort, abort_call_site};
@@ -10,8 +11,8 @@ use syn::spanned::Spanned;
 use syn::{
     bracketed, parse_quote, token, Attribute, ConstParam, Data, DataEnum, DataStruct, DataUnion,
     DeriveInput, Expr, ExprLit, Fields, GenericParam, Generics, Ident, ItemEnum, ItemStruct,
-    Lifetime, LifetimeParam, Lit, Meta, MetaNameValue, Token, Type, TypeParam, Variant,
-    WhereClause,
+    Lifetime, LifetimeParam, Lit, Meta, MetaNameValue, Token, Type, TypeGenerics, TypeParam,
+    Variant, WhereClause,
 };
 
 #[derive(Debug, Clone)]
@@ -562,6 +563,14 @@ impl GetFields for DeriveInput {
             Data::Enum(_) => abort!(self, "cannot get fields on an enum"),
         }
     }
+}
+
+pub fn type_generic_idents<G: GetGenerics>(generics: &G) -> Vec<Ident> {
+    generics
+        .get_generics()
+        .type_params()
+        .map(|p| p.ident.clone())
+        .collect()
 }
 
 #[cfg(test)]
