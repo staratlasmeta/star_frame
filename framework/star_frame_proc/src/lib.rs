@@ -30,7 +30,11 @@ use syn::{
 };
 
 fn get_crate_name() -> TokenStream {
+    #[cfg(not(test))]
     let generator_crate = crate_name("star_frame").expect("Could not find `star_frame`");
+    // This crate doesn't have a `star_frame` dependency, so we need to mock it for unit testing
+    #[cfg(test)]
+    let generator_crate = FoundCrate::Itself;
     match generator_crate {
         FoundCrate::Itself => quote! { star_frame },
         FoundCrate::Name(name) => {
