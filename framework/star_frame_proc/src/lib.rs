@@ -56,6 +56,62 @@ pub fn derive_account_set(input: proc_macro::TokenStream) -> proc_macro::TokenSt
     out.into()
 }
 
+/**
+# Derive proc macro for `GetSeeds` trait
+
+## Attributes
+
+### 1. `#[seed_const = <expr>]` (item level attribute)
+
+##### syntax
+
+Attribute takes an `Expr` which resolves to a `&[u8]` seed for the account.
+
+##### usage
+
+Attribute is optional. If the attribute is present, the seed for the account will be the concatenation
+of the seed provided in the attribute and the seeds of the fields of the account.
+
+```ignore
+    /// `seed_const` is not present
+    /// Resulting `account.seeds()` is `vec![account.key.seed(), account.number.seed()];`
+    #[derive(Debug, GetSeeds)]
+    pub struct TestAccount {
+        key: Pubkey,
+        number: u64,
+    }
+
+    let account = TestAccount {
+        key: Pubkey::new_unique(),
+        number: 42,
+    };
+    let intended_seeds =
+```
+
+```ignore
+    // `seed_const` here resolves to the `DISC` constant of the `Cool` struct
+    // Resulting `account.seeds()` is `vec![b"TEST_CONST".as_ref()];`
+    pub struct Cool {}
+
+    impl Cool {
+        const DISC: &'static [u8] = b"TEST_CONST";
+    }
+
+    #[derive(Debug, GetSeeds)]
+    #[seed_const(Cool::DISC)]
+    pub struct TestAccount {}
+```
+
+```ignore
+    // `seed_const` here resolves to the byte string `b"TEST_CONST"`
+    // Resulting `account.seeds()` is `vec![b"TEST_CONST".as_ref(), account.key.seed()];`
+    #[derive(Debug, GetSeeds)]
+    #[seed_const(b"TEST_CONST")]
+    pub struct TestAccount {
+        key: Pubkey,
+    }
+```
+**/
 #[proc_macro_error]
 #[proc_macro_derive(GetSeeds, attributes(seed_const))]
 pub fn derive_get_seeds(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
