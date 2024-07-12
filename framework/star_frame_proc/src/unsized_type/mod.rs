@@ -376,6 +376,14 @@ fn unsized_type_struct_impl(item_struct: ItemStruct) -> TokenStream {
 
     let root_method = sized_type.map(|_| quote!(.u()?));
 
+    let combine_resize = if item_struct.fields.len() > 1 {
+        quote! {
+            wrapper.r_mut().0 = #prelude::CombinedRef::new(new_meta);
+        }
+    } else {
+        Default::default()
+    };
+
     let extension_trait = quote! {
         type #root_type = #root_type_def;
 
@@ -534,7 +542,7 @@ fn unsized_type_struct_impl(item_struct: ItemStruct) -> TokenStream {
                 new_meta: <#inner_type as #prelude::UnsizedType>::RefMeta,
             ) -> #result<()> {
                 unsafe {
-                    wrapper.r_mut().0 = #prelude::CombinedRef::new(new_meta);
+                    #combine_resize
                     wrapper
                         .sup_mut()
                         .resize(new_byte_len, #meta_ident(new_meta))
@@ -546,7 +554,7 @@ fn unsized_type_struct_impl(item_struct: ItemStruct) -> TokenStream {
                 new_meta: <#inner_type as #prelude::UnsizedType>::RefMeta,
             ) -> #result<()> {
                 unsafe {
-                    wrapper.r_mut().0 = #prelude::CombinedRef::new(new_meta);
+                    #combine_resize
                     wrapper.sup_mut().set_meta(#meta_ident(new_meta))
                 }
             }
@@ -570,8 +578,8 @@ fn unsized_type_struct_impl(item_struct: ItemStruct) -> TokenStream {
         #init_with_struct
 
         unsafe impl #combined_impl_generics #prelude::UnsizedType for #struct_type #combined_where {
-            type RefData = #ref_type;
             type RefMeta = #meta_type;
+            type RefData = #ref_type;
             type Owned = #owned_type;
             type IsUnsized = <#inner_type as #prelude::UnsizedType>::IsUnsized;
 
