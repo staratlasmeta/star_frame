@@ -343,3 +343,50 @@ where
             .map(|r| r.ref_wrapper)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::serialize::test::TestByteSet;
+
+    #[test]
+    fn test_all_sized() -> Result<()> {
+        type Thingy = CombinedUnsized<CombinedUnsized<u8, u8>, u8>;
+        let bytes = TestByteSet::<Thingy>::new(Zeroed)?;
+        let r = bytes.immut()?;
+        assert_eq!(*r.t()?.t()?, 0);
+        assert_eq!(*r.t()?.u()?, 0);
+        assert_eq!(*r.u()?, 0);
+        Ok(())
+    }
+
+    #[test]
+    fn test_all_unsized() -> Result<()> {
+        type Thingy = CombinedUnsized<CombinedUnsized<List<u8>, List<u8>>, List<u8>>;
+        let bytes = TestByteSet::<Thingy>::new(Zeroed)?;
+        let r = bytes.immut()?;
+        assert_eq!(r.t()?.t()?.len(), 0);
+        assert_eq!(r.t()?.u()?.len(), 0);
+        assert_eq!(r.u()?.len(), 0);
+        Ok(())
+    }
+
+    #[test]
+    fn test_combined_size() -> Result<()> {
+        type Thingy1 = CombinedUnsized<CombinedUnsized<List<u8>, u8>, List<u8>>;
+        type Thingy2 = CombinedUnsized<CombinedUnsized<List<u8>, u8>, u8>;
+
+        let bytes = TestByteSet::<Thingy1>::new(Zeroed)?;
+        let r = bytes.immut()?;
+        assert_eq!(r.t()?.t()?.len(), 0);
+        assert_eq!(*r.t()?.u()?, 0);
+        assert_eq!(r.u()?.len(), 0);
+
+        let bytes = TestByteSet::<Thingy2>::new(Zeroed)?;
+        let r = bytes.immut()?;
+        assert_eq!(r.t()?.t()?.len(), 0);
+        assert_eq!(*r.t()?.u()?, 0);
+        assert_eq!(*r.u()?, 0);
+        Ok(())
+    }
+}
