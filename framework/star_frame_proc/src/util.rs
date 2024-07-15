@@ -138,7 +138,7 @@ impl Default for Paths {
         Self {
             crate_name: crate_name.clone(),
 
-            macro_prelude: quote! { #crate_name::macro_prelude },
+            macro_prelude: quote! { #crate_name::__private::macro_prelude },
             prelude: quote! { #crate_name::prelude },
 
             // static_assertions

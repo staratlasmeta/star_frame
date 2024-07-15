@@ -23,14 +23,16 @@ pub use crate::serialize::{
     borsh::framework_serialize_borsh,
     combined_unsized::*,
     key_for::*,
-    list::{List, ListRef},
+    list::{List, ListExt, ListRef},
     optional_key_for::*,
     pod_bool::*,
     ref_wrapper::{
-        AsBytes, AsMutBytes, RefBytes, RefBytesMut, RefDeref, RefDerefMut, RefResize,
+        AsBytes, AsMutBytes, RefBytes, RefBytesMut, RefDeref, RefDerefMut, RefResize, RefWrapper,
         RefWrapperExt, RefWrapperMutExt, RefWrapperTypes,
     },
-    unsize::{init::UnsizedInit, init::Zeroed, unsized_type, LengthAccess, UnsizedType},
+    unsize::{
+        init::UnsizedInit, init::Zeroed, resize::Resize, unsized_type, LengthAccess, UnsizedType,
+    },
     FrameworkFromBytes, FrameworkSerialize,
 };
 

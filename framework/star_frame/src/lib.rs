@@ -59,9 +59,9 @@ pub mod unit_enum_from_repr;
 pub mod unit_val;
 pub mod util;
 
-/// Prelude solely for use in macros. NOT PART OF THE PUBLIC API.
+/// Internal paths mainly for use in macros. DO NOT USE MANUALLY. NOT PART OF THE PUBLIC API.
 #[doc(hidden)]
-pub mod macro_prelude;
+pub mod __private;
 
 pub use anyhow::Result;
 pub use solana_program::instruction::Instruction as SolanaInstruction;

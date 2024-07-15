@@ -25,4 +25,4 @@ strum = { workspace = true }
 syn = { workspace = true }
 
 [dev-dependencies]
-star_frame = { path = "../star_frame" }
+star_frame = { workspace = true }

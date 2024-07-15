@@ -12,6 +12,7 @@ edition = "2021"
 publish = ["star-atlas"]
 
 [workspace.dependencies]
+star_frame = { path = "framework/star_frame" }
 star_frame_idl = { path = "framework/star_frame_idl", features = ["verifier"] }
 star_frame_proc = { path = "framework/star_frame_proc" }
 advance = { path = "advance", features = ["solana"] }
