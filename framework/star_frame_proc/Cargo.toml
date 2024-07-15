@@ -23,6 +23,3 @@ proc-macro2 = { workspace = true }
 quote = { workspace = true }
 strum = { workspace = true }
 syn = { workspace = true }
-
-[dev-dependencies]
-star_frame = { workspace = true }
