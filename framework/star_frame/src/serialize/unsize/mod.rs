@@ -5,14 +5,14 @@ pub mod resize;
 mod enum_stuff;
 mod proc_test;
 pub mod test;
-mod test2;
-pub mod test_sized_struct;
 mod unsized_enum;
 
 pub use star_frame_proc::unsized_type;
 
+use crate::prelude::CombinedUnsized;
 use crate::serialize::ref_wrapper::{AsBytes, RefWrapper};
 use anyhow::Result;
+use bytemuck::CheckedBitPattern;
 use std::fmt::Debug;
 use std::mem::size_of;
 use typenum::{Bit, False, True};
@@ -45,6 +45,27 @@ pub unsafe trait UnsizedType: 'static {
     fn owned<S: AsBytes>(r: RefWrapper<S, Self::RefData>) -> Result<Self::Owned>;
 }
 
+/// This is a helper trait for the [`LengthAccess`] trait. It should probably not be implemented manually.
+///
+/// # Safety
+/// [`Self::LENGTH`] must be the correct size of underlying type, which must be Sized
+pub unsafe trait StaticLength: UnsizedType<IsUnsized = False> {
+    const LENGTH: usize;
+}
+unsafe impl<T> StaticLength for T
+where
+    T: CheckedBitPattern + UnsizedType<IsUnsized = False>,
+{
+    const LENGTH: usize = size_of::<T>();
+}
+unsafe impl<T, U> StaticLength for CombinedUnsized<T, U>
+where
+    T: ?Sized + StaticLength,
+    U: ?Sized + StaticLength,
+{
+    const LENGTH: usize = T::LENGTH + U::LENGTH;
+}
+
 /// # Safety
 /// [`LengthAccess::len`] must return the same value that was passed to [`LengthAccess::from_len`].
 pub unsafe trait LengthAccess<T: ?Sized> {
@@ -63,12 +84,15 @@ unsafe impl<T: ?Sized> LengthAccess<T> for True {
         data
     }
 }
-unsafe impl<T> LengthAccess<T> for False {
+unsafe impl<T> LengthAccess<T> for False
+where
+    T: StaticLength,
+{
     type LengthData = ();
 
     fn from_len(_len: usize) -> Self::LengthData {}
     fn len(_data: Self::LengthData) -> usize {
-        size_of::<T>()
+        T::LENGTH
     }
 }
 
