@@ -5,6 +5,34 @@ use bytemuck::bytes_of;
 use derive_more::{Deref, DerefMut};
 use std::marker::PhantomData;
 
+/// A trait for getting the seed bytes of an account.
+///
+/// ## Derivable
+///
+/// This trait can be derived for structs with named fields using the `#[derive(GetSeeds)]` attribute.
+///
+/// ## Manually Implementing `GetSeeds`
+///
+/// `GetSeeds` can be manually implemented by defining a `seeds` method that returns a `Vec<&[u8]>`.
+/// The `seeds` method should optionally include a constant seed at the beginning of the vector,
+/// followed by calling the `seed` method on each field of the struct.
+///
+/// ```
+/// # use star_frame::prelude::*;
+/// #[derive(Debug)]
+/// pub struct Cool {
+///     key: Pubkey,
+///     number: u64,
+/// }
+///
+/// impl GetSeeds for Cool {
+///    fn seeds(&self) -> Vec<&[u8]> {
+///       vec![b"TEST_CONST", self.key.seed(), self.number.seed()]
+///     }
+/// }
+///
+/// ```
+///
 pub trait GetSeeds: Debug {
     fn seeds(&self) -> Vec<&[u8]>;
 }
