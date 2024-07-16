@@ -5,8 +5,8 @@ pub mod list;
 pub mod optional_key_for;
 pub mod pod_bool;
 pub mod ref_wrapper;
-#[cfg(test)]
-pub mod test;
+#[cfg(feature = "test_helpers")]
+pub mod test_helpers;
 pub mod unsize;
 
 use crate::align1::Align1;

@@ -71,6 +71,9 @@ pub use star_frame_proc::pubkey;
 #[cfg(test)]
 use tests::StarFrameDeclaredProgram;
 
+#[cfg(all(not(feature = "test_helpers"), any(doctest, test)))]
+compile_error!("You must enable the `test_helpers` feature for running tests!");
+
 #[cfg(test)]
 mod tests {
     use super::*;

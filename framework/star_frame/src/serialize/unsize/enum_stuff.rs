@@ -576,7 +576,7 @@ where
 #[cfg(test)]
 mod tests {
     use crate::serialize::list::ListExt;
-    use crate::serialize::test::TestByteSet;
+    use crate::serialize::test_helpers::TestByteSet;
     use crate::serialize::unsize::enum_stuff::{
         TestEnum, TestEnumDiscriminant, TestEnumExt, TestEnumRefWrapper,
     };

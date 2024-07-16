@@ -31,7 +31,8 @@ pub use crate::serialize::{
         RefWrapperExt, RefWrapperMutExt, RefWrapperTypes,
     },
     unsize::{
-        init::UnsizedInit, init::Zeroed, resize::Resize, unsized_type, LengthAccess, UnsizedType,
+        init::UnsizedInit, init::Zeroed, resize::Resize, unsized_type, LengthAccess,
+        UnsizedGenerics, UnsizedType,
     },
     FrameworkFromBytes, FrameworkSerialize,
 };

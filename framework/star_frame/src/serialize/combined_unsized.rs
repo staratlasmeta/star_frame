@@ -347,7 +347,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::serialize::test::TestByteSet;
+    use crate::serialize::test_helpers::TestByteSet;
 
     #[test]
     fn test_all_sized() -> Result<()> {

@@ -363,7 +363,7 @@ where
 mod tests {
     use crate::prelude::List;
     use crate::serialize::list::ListExt;
-    use crate::serialize::test::TestByteSet;
+    use crate::serialize::test_helpers::TestByteSet;
     use crate::serialize::unsize::init::Zeroed;
     use bytemuck::{Pod, Zeroable};
     use star_frame_proc::Align1;
