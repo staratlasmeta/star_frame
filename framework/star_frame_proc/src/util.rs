@@ -489,7 +489,7 @@ pub fn get_field_types(fields: &impl GetFields) -> impl Iterator<Item = &Type> {
 /// Adapted from the bytemuck derive crate
 pub fn generate_fields_are_trait<T: GetGenerics + GetFields + Spanned>(
     input: &T,
-    trait_: syn::Path,
+    trait_: Punctuated<syn::Path, Token![+]>,
 ) -> TokenStream {
     let generics = input.get_generics();
     let (impl_generics, _ty_generics, where_clause) = generics.split_for_impl();
