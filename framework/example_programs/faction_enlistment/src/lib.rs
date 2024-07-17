@@ -41,7 +41,7 @@ impl StarFrameProgram for FactionEnlistment {
     ]);
 }
 
-#[instruction_set2]
+#[star_frame_instruction_set]
 pub enum FactionEnlistmentInstructionSet {
     ProcessEnlistPlayer(ProcessEnlistPlayerIx),
 }

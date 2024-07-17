@@ -1,6 +1,6 @@
 pub mod un_callable;
 
-pub use star_frame_proc::instruction_set2;
+pub use star_frame_proc::star_frame_instruction_set;
 pub use star_frame_proc::InstructionToIdl;
 
 use crate::account_set::{AccountSetCleanup, AccountSetDecode, AccountSetValidate};
@@ -145,7 +145,7 @@ mod test {
     use crate::prelude::SysCalls;
     use solana_program::account_info::AccountInfo;
     use solana_program::pubkey::Pubkey;
-    use star_frame_proc::instruction_set2;
+    use star_frame_proc::star_frame_instruction_set;
 
     #[allow(dead_code)]
     struct Ix1 {
@@ -188,7 +188,7 @@ mod test {
         }
     }
 
-    #[instruction_set2]
+    #[star_frame_instruction_set]
     enum TestInstructionSet1 {
         Ix1(Ix1),
         Ix2(Ix2),
