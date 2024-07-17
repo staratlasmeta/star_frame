@@ -270,16 +270,28 @@ fn derive_align1_for_struct(
     .into()
 }
 
-/// Derives `InstructionSet` for a valid type.
+/// # Attribute proc macro for `InstructionSet`
+///
+/// Implements the `InstructionSet` trait for an enum of instructions and marks the enum as `#[repr(u8)]`.
+///
+/// ```
+/// # use star_frame::prelude::*;
+/// #[star_frame_instruction_set]
+/// pub enum CoolInstructionSet {
+///     CoolInstruction(CoolIx),
+/// }
+///
+/// // An example instruction
+/// pub struct CoolIx {}
+/// ```
 #[proc_macro_error]
 #[proc_macro_attribute]
-pub fn instruction_set2(
+pub fn star_frame_instruction_set(
     args: proc_macro::TokenStream,
     item: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
     let out =
         instruction_set::instruction_set_impl(parse_macro_input!(item as ItemEnum), args.into());
-    // println!("{}", out);
     out.into()
 }
 
