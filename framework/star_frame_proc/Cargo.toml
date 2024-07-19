@@ -15,6 +15,7 @@ idl = []
 bs58 = { workspace = true }
 daggy = { workspace = true }
 derive_more = { workspace = true }
+itertools = { workspace = true }
 easy_proc = { workspace = true }
 heck = { workspace = true }
 proc-macro-crate = { workspace = true }
@@ -25,4 +26,5 @@ strum = { workspace = true }
 syn = { workspace = true }
 
 [dev-dependencies]
-star_frame = { path = "../star_frame" }
+pretty_assertions = { workspace = true }
+star_frame = { workspace = true }

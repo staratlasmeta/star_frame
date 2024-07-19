@@ -12,7 +12,7 @@ mod solana_pubkey;
 #[cfg(feature = "idl")]
 mod ty;
 mod unit_enum_from_repr;
-mod unsized_type;
+mod unsize;
 mod util;
 
 #[cfg(feature = "idl")]
@@ -365,7 +365,6 @@ pub fn unsized_type(
     args: proc_macro::TokenStream,
     item: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
-    let out = unsized_type::unsized_type_impl(parse_macro_input!(item as Item), args.into());
-    // println!("{}", out);
+    let out = unsize::unsized_type_impl(parse_macro_input!(item as Item), args.into());
     out.into()
 }

@@ -59,6 +59,10 @@ pub mod unit_enum_from_repr;
 pub mod unit_val;
 pub mod util;
 
+/// Internal paths mainly for use in macros. DO NOT USE MANUALLY. NOT PART OF THE PUBLIC API.
+#[doc(hidden)]
+pub mod __private;
+
 pub use anyhow::Result;
 pub use solana_program::instruction::Instruction as SolanaInstruction;
 pub use star_frame_proc::pubkey;
@@ -66,6 +70,9 @@ pub use star_frame_proc::pubkey;
 #[allow(unused_imports)]
 #[cfg(test)]
 use tests::StarFrameDeclaredProgram;
+
+#[cfg(all(not(feature = "test_helpers"), any(doctest, test)))]
+compile_error!("You must enable the `test_helpers` feature for running tests!");
 
 #[cfg(test)]
 mod tests {

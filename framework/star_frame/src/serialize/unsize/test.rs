@@ -1,16 +1,6 @@
-use crate::prelude::{
-    CombinedExt, CombinedTRef, CombinedURef, CombinedUnsized, List, UnsizedInit, UnsizedType,
-};
-use crate::serialize::ref_wrapper::{
-    AsBytes, AsMutBytes, RefBytes, RefBytesMut, RefResize, RefWrapper, RefWrapperMutExt,
-    RefWrapperTypes,
-};
-use crate::serialize::unsize::init::Zeroed;
-use crate::serialize::unsize::resize::Resize;
-use crate::serialize::unsize::FromBytesReturn;
-use bytemuck::{Pod, Zeroable};
-use star_frame::prelude::CombinedRef;
-use star_frame_proc::Align1;
+use crate::prelude::*;
+use crate::serialize::test_helpers::TestByteSet;
+use pretty_assertions::assert_eq;
 
 #[derive(Debug, Copy, Clone, Pod, Zeroable, Align1, PartialEq, Eq)]
 #[repr(C, packed)]
@@ -19,233 +9,256 @@ pub struct TestStruct {
     pub val2: u64,
 }
 
-// TODO: More fields, generics, enums, tuple structs, unit structs, macro it all
-// #[unsized_type]
-// pub struct CombinedTest {
-//     pub list1: List<u8>,
-//     pub list2: List<TestStruct>,
-// }
-
-#[derive(Debug, Align1)]
-#[repr(transparent)]
-pub struct CombinedTest(CombinedUnsized<List<u8>, List<TestStruct>>);
-#[derive(Debug, Copy, Clone)]
-#[repr(transparent)]
-pub struct CombinedTestMeta(<CombinedUnsized<List<u8>, List<TestStruct>> as UnsizedType>::RefMeta);
-// TODO: Where clause for derives?
-#[derive(Debug, Copy, Clone)]
-#[repr(transparent)]
-pub struct CombinedTestRef(<CombinedUnsized<List<u8>, List<TestStruct>> as UnsizedType>::RefData);
-#[derive(Debug)]
-pub struct CombinedTestOwned {
-    pub list1: <List<u8> as UnsizedType>::Owned,
-    pub list2: <List<TestStruct> as UnsizedType>::Owned,
+#[unsized_type(
+    owned_attributes = [
+        derive(PartialEq, Eq, Clone)
+    ]
+)]
+pub struct SingleUnsized {
+    #[unsized_start]
+    pub unsized1: List<PackedValue<u16>>,
 }
 
-unsafe impl UnsizedType for CombinedTest {
-    type RefMeta = CombinedTestMeta;
-    type RefData = CombinedTestRef;
-    type Owned = CombinedTestOwned;
-    type IsUnsized = <CombinedUnsized<List<u8>, List<TestStruct>> as UnsizedType>::IsUnsized;
-
-    unsafe fn from_bytes<S: AsBytes>(
-        super_ref: S,
-    ) -> anyhow::Result<FromBytesReturn<S, Self::RefData, Self::RefMeta>> {
-        unsafe {
-            Ok(
-                <CombinedUnsized<List<u8>, List<TestStruct>> as UnsizedType>::from_bytes(
-                    super_ref,
-                )?
-                .map_ref(|_, r| CombinedTestRef(r))
-                .map_meta(CombinedTestMeta),
-            )
+#[test]
+fn test_single_unsized() -> Result<()> {
+    TestByteSet::<SingleUnsized>::new(Zeroed)?;
+    let r = &mut TestByteSet::<SingleUnsized>::new(SingleUnsizedInit {
+        unsized1: [PackedValue(1)],
+    })?;
+    let owned = SingleUnsized::owned(r.immut()?)?;
+    assert_eq!(
+        owned,
+        SingleUnsizedOwned {
+            unsized1: vec![1.into()]
         }
-    }
-
-    fn owned<S: AsBytes>(r: RefWrapper<S, Self::RefData>) -> anyhow::Result<Self::Owned> {
-        let (list1, list2) =
-            CombinedUnsized::<List<u8>, List<TestStruct>>::owned(unsafe { r.wrap_r(|_, r| r.0) })?;
-        Ok(CombinedTestOwned { list1, list2 })
-    }
-}
-pub struct CombinedTestInit<List1, List2> {
-    pub list1: List1,
-    pub list2: List2,
-}
-impl<List1, List2> UnsizedInit<CombinedTestInit<List1, List2>> for CombinedTest
-where
-    List<u8>: UnsizedInit<List1>,
-    List<TestStruct>: UnsizedInit<List2>,
-{
-    const INIT_BYTES: usize =
-        <CombinedUnsized<List<u8>, List<TestStruct>> as UnsizedInit<(List1, List2)>>::INIT_BYTES;
-
-    unsafe fn init<S: AsMutBytes>(
-        super_ref: S,
-        arg: CombinedTestInit<List1, List2>,
-    ) -> anyhow::Result<(RefWrapper<S, Self::RefData>, Self::RefMeta)> {
-        unsafe {
-            let (r, m) = CombinedUnsized::<List<u8>, List<TestStruct>>::init(
-                super_ref,
-                (arg.list1, arg.list2),
-            )?;
-            Ok((r.wrap_r(|_, r| CombinedTestRef(r)), CombinedTestMeta(m)))
-        }
-    }
-}
-impl UnsizedInit<Zeroed> for CombinedTest
-where
-    List<u8>: UnsizedInit<Zeroed>,
-    List<TestStruct>: UnsizedInit<Zeroed>,
-{
-    const INIT_BYTES: usize =
-        <CombinedUnsized<List<u8>, List<TestStruct>> as UnsizedInit<Zeroed>>::INIT_BYTES;
-
-    unsafe fn init<S: AsMutBytes>(
-        super_ref: S,
-        arg: Zeroed,
-    ) -> anyhow::Result<(RefWrapper<S, Self::RefData>, Self::RefMeta)> {
-        unsafe {
-            let (r, m) = CombinedUnsized::<List<u8>, List<TestStruct>>::init(super_ref, arg)?;
-            Ok((r.wrap_r(|_, r| CombinedTestRef(r)), CombinedTestMeta(m)))
-        }
-    }
+    );
+    Ok(())
 }
 
-unsafe impl<S> RefBytes<S> for CombinedTestRef
-where
-    S: AsBytes,
-{
-    fn bytes(wrapper: &RefWrapper<S, Self>) -> anyhow::Result<&[u8]> {
-        wrapper.sup().as_bytes()
-    }
-}
-unsafe impl<S> RefBytesMut<S> for CombinedTestRef
-where
-    S: AsMutBytes,
-{
-    fn bytes_mut(wrapper: &mut RefWrapper<S, Self>) -> anyhow::Result<&mut [u8]> {
-        unsafe { wrapper.sup_mut().as_mut_bytes() }
-    }
-}
-unsafe impl<S> RefResize<S, <CombinedUnsized<List<u8>, List<TestStruct>> as UnsizedType>::RefMeta>
-    for CombinedTestRef
-where
-    S: Resize<CombinedTestMeta>,
-{
-    unsafe fn resize(
-        wrapper: &mut RefWrapper<S, Self>,
-        new_byte_len: usize,
-        new_meta: <CombinedUnsized<List<u8>, List<TestStruct>> as UnsizedType>::RefMeta,
-    ) -> anyhow::Result<()> {
-        unsafe {
-            wrapper.r_mut().0 = CombinedRef::new(new_meta);
-            wrapper
-                .sup_mut()
-                .resize(new_byte_len, CombinedTestMeta(new_meta))
-        }
-    }
-
-    unsafe fn set_meta(
-        wrapper: &mut RefWrapper<S, Self>,
-        new_meta: <CombinedUnsized<List<u8>, List<TestStruct>> as UnsizedType>::RefMeta,
-    ) -> anyhow::Result<()> {
-        unsafe {
-            wrapper.r_mut().0 = CombinedRef::new(new_meta);
-            wrapper.sup_mut().set_meta(CombinedTestMeta(new_meta))
-        }
-    }
+#[unsized_type(owned_attributes = [derive(PartialEq, Eq, Clone)])]
+pub struct ManyUnsized {
+    #[unsized_start]
+    pub unsized1: List<PackedValue<u16>>,
+    pub unsized2: SingleUnsized,
+    pub unsized3: u8,
+    pub unsized4: List<TestStruct>,
+    pub unsized5: List<TestStruct>,
 }
 
-type List1<S> = RefWrapper<
-    RefWrapper<
-        RefWrapper<S, <CombinedUnsized<List<u8>, List<TestStruct>> as UnsizedType>::RefData>,
-        CombinedTRef<List<u8>, List<TestStruct>>,
-    >,
-    <List<u8> as UnsizedType>::RefData,
->;
-type List2<S> = RefWrapper<
-    RefWrapper<
-        RefWrapper<S, <CombinedUnsized<List<u8>, List<TestStruct>> as UnsizedType>::RefData>,
-        CombinedURef<List<u8>, List<TestStruct>>,
-    >,
-    <List<TestStruct> as UnsizedType>::RefData,
->;
+#[test]
+fn test_many_unsized() -> Result<()> {
+    TestByteSet::<ManyUnsized>::new(Zeroed)?;
+    let r = TestByteSet::<ManyUnsized>::new(ManyUnsizedInit {
+        unsized1: [PackedValue(1)],
+        unsized2: SingleUnsizedInit {
+            unsized1: [PackedValue(2)],
+        },
+        unsized3: 3,
+        unsized4: [TestStruct { val1: 4, val2: 5 }],
+        unsized5: [TestStruct { val1: 6, val2: 7 }],
+    })?;
 
-pub trait CombinedTestExt: Sized + RefWrapperTypes {
-    fn list1(self) -> anyhow::Result<List1<Self>>;
-    fn list2(self) -> anyhow::Result<List2<Self>>;
-}
-impl<R> CombinedTestExt for R
-where
-    R: RefWrapperTypes<Ref = CombinedTestRef> + AsBytes,
-{
-    fn list1(self) -> anyhow::Result<List1<Self>> {
-        let r = self.r().0;
-        unsafe { RefWrapper::new(self, r).t() }
-    }
-
-    fn list2(self) -> anyhow::Result<List2<Self>> {
-        let r = self.r().0;
-        unsafe { RefWrapper::new(self, r).u() }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::prelude::UnsizedType;
-    use crate::serialize::list::ListExt;
-    use crate::serialize::ref_wrapper::RefWrapper;
-    use crate::serialize::test::TestByteSet;
-    use crate::serialize::unsize::init::Zeroed;
-    use crate::serialize::unsize::test::{
-        CombinedTest, CombinedTestExt, CombinedTestMeta, CombinedTestRef, TestStruct,
+    let expected = ManyUnsizedOwned {
+        unsized1: vec![PackedValue(1)],
+        unsized2: SingleUnsizedOwned {
+            unsized1: vec![PackedValue(2)],
+        },
+        unsized3: 3,
+        unsized4: vec![TestStruct { val1: 4, val2: 5 }],
+        unsized5: vec![TestStruct { val1: 6, val2: 7 }],
     };
-    use star_frame::serialize::unsize::resize::Resize;
-
-    fn cool(
-        r: &mut RefWrapper<impl Resize<CombinedTestMeta>, CombinedTestRef>,
-        val: u32,
-    ) -> anyhow::Result<()> {
-        r.list1()?.push(0)?;
-        r.list2()?.insert(0, TestStruct { val1: val, val2: 0 })?;
-        Ok(())
-    }
-
-    #[test]
-    fn test() -> anyhow::Result<()> {
-        let mut bytes = TestByteSet::<CombinedTest>::new(Zeroed)?;
-        let mut r = bytes.mutable()?;
-        assert_eq!(&**(&r).list1()?, &[] as &[u8]);
-        assert_eq!(&**(&r).list2()?, &[]);
-        cool(&mut r, 1)?;
-        assert_eq!(&**(&r).list1()?, &[0]);
-        assert_eq!(&**(&r).list2()?, &[TestStruct { val1: 1, val2: 0 }]);
-        cool(&mut r, 2)?;
-        let r = bytes.immut()?;
-        assert_eq!(&**r.list1()?, &[0, 0]);
-        assert_eq!(
-            &**r.list2()?,
-            &[
-                TestStruct { val1: 2, val2: 0 },
-                TestStruct { val1: 1, val2: 0 }
-            ]
-        );
-        Ok(())
-    }
-
-    type CombinedTestRefWrapper<S> = RefWrapper<S, CombinedTestRef>;
-    #[test]
-    fn test_stuff() -> anyhow::Result<()> {
-        let bytes = vec![0u8; 100];
-        let combined: CombinedTestRefWrapper<_> =
-            unsafe { CombinedTest::from_bytes(bytes).unwrap() }.ref_wrapper;
-        println!("{combined:?}");
-        let mut list = combined.list1().unwrap();
-        list.push(1)?;
-        list.insert(0, 2)?;
-        println!("{:?}", list.len());
-        println!("{:?}", list.as_slice());
-        Ok(())
-    }
+    let owned = ManyUnsized::owned(r.immut()?)?;
+    assert_eq!(owned, expected);
+    Ok(())
 }
+
+#[unsized_type(owned_attributes = [derive(PartialEq, Eq, Clone)])]
+pub struct SingleUnsizedWithSized {
+    pub sized1: bool,
+    #[unsized_start]
+    pub unsized1: List<PackedValue<u16>>,
+}
+
+#[test]
+fn test_single_unsized_with_sized() -> Result<()> {
+    TestByteSet::<SingleUnsizedWithSized>::new(Zeroed)?;
+    let r = TestByteSet::<SingleUnsizedWithSized>::new(SingleUnsizedWithSizedInit {
+        sized1: true,
+        unsized1: [PackedValue(1)],
+    })?;
+    let owned = SingleUnsizedWithSized::owned(r.immut()?)?;
+    assert_eq!(
+        owned,
+        SingleUnsizedWithSizedOwned {
+            sized1: true,
+            unsized1: vec![PackedValue(1)],
+        }
+    );
+    Ok(())
+}
+
+#[unsized_type(owned_attributes = [derive(PartialEq, Eq, Clone)])]
+pub struct SizedAndUnsized {
+    pub sized1: bool,
+    pub sized2: PackedValue<u16>,
+    pub sized3: u8,
+    pub sized4: [u8; 10],
+    #[unsized_start]
+    pub unsized1: List<PackedValue<u16>>,
+    pub unsized2: List<TestStruct>,
+    pub unsized3: u8,
+}
+
+#[test]
+fn test_sized_and_unsized() -> Result<()> {
+    TestByteSet::<SizedAndUnsized>::new(Zeroed)?;
+    let r = TestByteSet::<SizedAndUnsized>::new(SizedAndUnsizedInit {
+        sized1: true,
+        sized2: PackedValue(1),
+        sized3: 2,
+        sized4: [3; 10],
+        unsized1: [PackedValue(4)],
+        unsized2: [TestStruct { val1: 5, val2: 6 }],
+        unsized3: 7,
+    })?;
+    let owned = SizedAndUnsized::owned(r.immut()?)?;
+    assert_eq!(
+        owned,
+        SizedAndUnsizedOwned {
+            sized1: true,
+            sized2: PackedValue(1),
+            sized3: 2,
+            sized4: [3; 10],
+            unsized1: vec![PackedValue(4)],
+            unsized2: vec![TestStruct { val1: 5, val2: 6 }],
+            unsized3: 7,
+        }
+    );
+    Ok(())
+}
+
+#[unsized_type(owned_attributes = [derive(PartialEq, Eq, Clone)])]
+pub struct WithSizedGenerics<A: UnsizedGenerics, B>
+where
+    B: UnsizedGenerics,
+{
+    pub sized1: A,
+    pub sized2: B,
+    pub sized3: u8,
+    #[unsized_start]
+    pub unsized1: List<TestStruct>,
+}
+
+#[test]
+fn test_with_sized_generics() -> Result<()> {
+    TestByteSet::<WithSizedGenerics<TestStruct, bool>>::new(Zeroed)?;
+    let r = TestByteSet::<WithSizedGenerics<TestStruct, bool>>::new(WithSizedGenericsInit {
+        sized1: TestStruct { val1: 1, val2: 2 },
+        sized2: true,
+        sized3: 4,
+        unsized1: [TestStruct { val1: 5, val2: 6 }],
+        __phantom_generics: Default::default(),
+    })?;
+    let owned = WithSizedGenerics::owned(r.immut()?)?;
+    assert_eq!(
+        owned,
+        WithSizedGenericsOwned {
+            sized1: TestStruct { val1: 1, val2: 2 },
+            sized2: true,
+            sized3: 4,
+            unsized1: vec![TestStruct { val1: 5, val2: 6 }],
+            __phantom_generics: Default::default(),
+        }
+    );
+    Ok(())
+}
+
+#[unsized_type(owned_attributes = [derive(PartialEq, Eq, Clone)])]
+pub struct WithUnsizedGenerics<A: UnsizedGenerics, B>
+where
+    B: UnsizedGenerics,
+{
+    pub sized1: u8,
+    #[unsized_start]
+    pub unsized1: List<A>,
+    pub unsized2: CombinedUnsized<A, B>,
+}
+
+#[test]
+fn test_with_unsized_generics() -> Result<()> {
+    TestByteSet::<WithUnsizedGenerics<PackedValueChecked<u16>, TestStruct>>::new(Zeroed)?;
+    let r = TestByteSet::<WithUnsizedGenerics<PackedValueChecked<u16>, TestStruct>>::new(
+        WithUnsizedGenericsInit {
+            sized1: 1,
+            unsized1: [PackedValueChecked(2u16)],
+            unsized2: (
+                PackedValueChecked(u16::MAX),
+                TestStruct { val1: 3, val2: 4 },
+            ),
+            __phantom_generics: Default::default(),
+        },
+    )?;
+    let owned = WithUnsizedGenerics::owned(r.immut()?)?;
+    assert_eq!(
+        owned,
+        WithUnsizedGenericsOwned {
+            sized1: 1,
+            unsized1: vec![PackedValueChecked(2u16)],
+            unsized2: (
+                PackedValueChecked(u16::MAX),
+                TestStruct { val1: 3, val2: 4 }
+            ),
+            __phantom_generics: Default::default(),
+        }
+    );
+    Ok(())
+}
+
+#[unsized_type(owned_attributes = [derive(PartialEq, Eq, Clone)])]
+pub struct WithSizedAndUnsizedGenerics<A: UnsizedGenerics, B, C>
+where
+    B: UnsizedGenerics,
+    C: CheckedBitPattern + Align1 + NoUninit + Zeroable,
+{
+    pub sized1: A,
+    pub sized2: B,
+    #[unsized_start]
+    pub unsized1: List<A>,
+    pub unsized2: CombinedUnsized<A, C>,
+}
+
+#[test]
+fn test_with_sized_and_unsized_generics() -> Result<()> {
+    TestByteSet::<
+        WithSizedAndUnsizedGenerics<TestStruct, PackedValueChecked<u16>, PackedValueChecked<u32>>,
+    >::new(Zeroed)?;
+    let r = TestByteSet::<
+        WithSizedAndUnsizedGenerics<TestStruct, PackedValueChecked<u16>, PackedValueChecked<u32>>,
+    >::new(WithSizedAndUnsizedGenericsInit {
+        sized1: TestStruct { val1: 1, val2: 2 },
+        sized2: PackedValueChecked(3u16),
+        unsized1: [TestStruct { val1: 4, val2: 5 }],
+        unsized2: (
+            TestStruct { val1: 6, val2: 7 },
+            PackedValueChecked(u32::MAX / 4),
+        ),
+        __phantom_generics: Default::default(),
+    })?;
+    let owned = WithSizedAndUnsizedGenerics::owned(r.immut()?)?;
+    assert_eq!(
+        owned,
+        WithSizedAndUnsizedGenericsOwned {
+            sized1: TestStruct { val1: 1, val2: 2 },
+            sized2: PackedValueChecked(3u16),
+            unsized1: vec![TestStruct { val1: 4, val2: 5 }],
+            unsized2: (
+                TestStruct { val1: 6, val2: 7 },
+                PackedValueChecked(u32::MAX / 4),
+            ),
+            __phantom_generics: Default::default(),
+        }
+    );
+    Ok(())
+}
+
+//todo: make a single very complex struct and test it with a watcher on owned like list

@@ -140,6 +140,19 @@ where
     }
 }
 
+macro_rules! packed_eq {
+    ($($ident:ident),* $(,)?) => {
+        $(
+            impl<T: Copy + PartialEq> PartialEq<T> for $ident<T> {
+                fn eq(&self, other: &T) -> bool {
+                    { self.0 }.eq(other)
+                }
+            }
+        )*
+    };
+}
+packed_eq!(PackedValue, PackedValueChecked);
+
 #[derive(Align1, Derivative)]
 #[derivative(
     Debug(bound = "T: Debug + Copy"),
@@ -164,6 +177,7 @@ where
     }
 }
 unsafe impl<T> NoUninit for PackedValueChecked<T> where T: NoUninit {}
+unsafe impl<T> Zeroable for PackedValueChecked<T> where T: Zeroable {}
 
 #[cfg(feature = "idl")]
 mod idl_impl {

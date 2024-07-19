@@ -1,3 +1,26 @@
+use std::any::type_name;
+use std::borrow::Borrow;
+use std::fmt::Debug;
+use std::iter::once;
+use std::marker::PhantomData;
+use std::mem::size_of;
+use std::ops::{Deref, DerefMut, Index, IndexMut, RangeBounds};
+use std::ptr;
+use std::ptr::addr_of_mut;
+
+use anyhow::{ensure, Context};
+use bytemuck::checked::{try_cast_slice, try_cast_slice_mut, try_from_bytes, try_from_bytes_mut};
+use bytemuck::{
+    bytes_of, cast_slice, cast_slice_mut, from_bytes, CheckedBitPattern, NoUninit, Pod,
+};
+use derivative::Derivative;
+use num_traits::{FromPrimitive, ToPrimitive, Zero};
+use solana_program::program_memory::sol_memmove;
+use typenum::True;
+
+use advance::{Advance, Length};
+use star_frame::serialize::ref_wrapper::RefDeref;
+
 use crate::align1::Align1;
 use crate::packed_value::PackedValue;
 use crate::serialize::ref_wrapper::{
@@ -8,26 +31,8 @@ use crate::serialize::unsize::init::Zeroed;
 use crate::serialize::unsize::resize::Resize;
 use crate::serialize::unsize::FromBytesReturn;
 use crate::serialize::unsize::UnsizedType;
+use crate::util::uninit_array_bytes;
 use crate::Result;
-use advance::{Advance, Length};
-use anyhow::ensure;
-use bytemuck::checked::{try_cast_slice, try_cast_slice_mut, try_from_bytes, try_from_bytes_mut};
-use bytemuck::{
-    bytes_of, cast_slice, cast_slice_mut, from_bytes, CheckedBitPattern, NoUninit, Pod,
-};
-use derivative::Derivative;
-use num_traits::{FromPrimitive, ToPrimitive, Zero};
-use solana_program::program_memory::sol_memmove;
-use star_frame::serialize::ref_wrapper::RefDeref;
-use std::borrow::Borrow;
-use std::fmt::Debug;
-use std::iter::once;
-use std::marker::PhantomData;
-use std::mem::size_of;
-use std::ops::{Deref, DerefMut, Index, IndexMut, RangeBounds};
-use std::ptr;
-use std::ptr::addr_of_mut;
-use typenum::True;
 
 #[derive(Align1, Debug, PartialEq, Eq)]
 #[repr(C)]
@@ -212,6 +217,33 @@ where
     }
 }
 
+impl<const N: usize, T, L> UnsizedInit<[T; N]> for List<T, L>
+where
+    T: CheckedBitPattern + NoUninit + Align1,
+    L: Pod + ToPrimitive + FromPrimitive + Zero,
+{
+    const INIT_BYTES: usize = size_of::<L>() + size_of::<T>() * N;
+
+    unsafe fn init<S: AsMutBytes>(
+        mut super_ref: S,
+        array: [T; N],
+    ) -> Result<(RefWrapper<S, Self::RefData>, Self::RefMeta)> {
+        let bytes = super_ref.as_mut_bytes()?;
+        let len_bytes = L::from_usize(N).with_context(|| {
+            format!(
+                "Init array length larger than max size of List length {}",
+                type_name::<L>()
+            )
+        })?;
+        bytes[0..size_of::<L>()].copy_from_slice(bytes_of(&len_bytes));
+        bytes[size_of::<L>()..].copy_from_slice(uninit_array_bytes(&array));
+        Ok((
+            unsafe { RefWrapper::new(super_ref, ListRef(PhantomData)) },
+            (),
+        ))
+    }
+}
+
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""), Clone(bound = ""), Copy(bound = ""))]
 pub struct ListRef<T, L>(PhantomData<fn() -> (T, L)>);
@@ -270,6 +302,15 @@ pub trait ListExt: DerefMut<Target = List<Self::Item, Self::Len>> {
         self.remove_range(index..=index)
     }
     fn remove_range(&mut self, range: impl RangeBounds<usize>) -> Result<()>;
+    fn pop(&mut self) -> Result<Option<Self::Item>> {
+        let len = self.len();
+        if len == 0 {
+            return Ok(None);
+        }
+        let item = self[len - 1];
+        self.remove(len - 1)?;
+        Ok(Some(item))
+    }
 }
 impl<R: ?Sized, T, L> ListExt for R
 where
@@ -300,8 +341,9 @@ where
 
         let start_byte_index = index * size_of::<T>();
         if index < old_len {
-            let byte_count = item_count * size_of::<T>();
-            let end_byte_index = start_byte_index + byte_count;
+            let end_byte_index = start_byte_index + item_count * size_of::<T>();
+            // just need to shift the displaced bytes
+            let byte_count = (old_len - index) * size_of::<T>();
 
             let start_ptr = addr_of_mut!(self.bytes[start_byte_index]);
             let end_ptr = addr_of_mut!(self.bytes[end_byte_index]);
@@ -361,12 +403,14 @@ where
 
 #[cfg(test)]
 mod tests {
+    use bytemuck::{Pod, Zeroable};
+    use pretty_assertions::assert_eq;
+    use star_frame_proc::Align1;
+
     use crate::prelude::List;
     use crate::serialize::list::ListExt;
-    use crate::serialize::test::TestByteSet;
+    use crate::serialize::test_helpers::TestByteSet;
     use crate::serialize::unsize::init::Zeroed;
-    use bytemuck::{Pod, Zeroable};
-    use star_frame_proc::Align1;
 
     #[derive(Debug, PartialEq, Eq, Copy, Clone, Pod, Align1, Zeroable)]
     #[repr(C, packed)]
@@ -383,7 +427,16 @@ mod tests {
         assert_eq!(**test_set.immut()?, watcher);
         {
             let mut mutable = test_set.mutable()?;
-            let val = TestStruct { val1: 1, val2: 2 };
+            let struct1 = TestStruct { val1: 0, val2: 1 };
+            let struct2 = TestStruct { val1: 2, val2: 3 };
+            mutable.push_all([struct1, struct2])?;
+            watcher.extend([struct1, struct2]);
+            assert_eq!(**mutable, watcher);
+        }
+        assert_eq!(**test_set.immut()?, watcher);
+        {
+            let mut mutable = test_set.mutable()?;
+            let val = TestStruct { val1: 4, val2: 5 };
             mutable.push(val)?;
             watcher.push(val);
             assert_eq!(**mutable, watcher);
@@ -391,7 +444,7 @@ mod tests {
         assert_eq!(**test_set.immut()?, watcher);
         {
             let mut mutable = test_set.mutable()?;
-            let val = TestStruct { val1: 3, val2: 4 };
+            let val = TestStruct { val1: 6, val2: 7 };
             mutable.insert(0, val)?;
             watcher.insert(0, val);
             assert_eq!(**mutable, watcher);
@@ -399,7 +452,7 @@ mod tests {
         assert_eq!(**test_set.immut()?, watcher);
         {
             let mut mutable = test_set.mutable()?;
-            let val = TestStruct { val1: 5, val2: 6 };
+            let val = TestStruct { val1: 8, val2: 9 };
             mutable.insert(1, val)?;
             watcher.insert(1, val);
             assert_eq!(**mutable, watcher);
@@ -417,6 +470,15 @@ mod tests {
             mutable.remove(0)?;
             watcher.remove(0);
             assert_eq!(**mutable, watcher);
+        }
+        assert_eq!(**test_set.immut()?, watcher);
+        {
+            let mut mutable = test_set.mutable()?;
+            let byte_pop = mutable.pop()?;
+            let watcher_pop = watcher.pop();
+            assert!(byte_pop.is_some());
+            assert_eq!(**mutable, watcher);
+            assert_eq!(byte_pop, watcher_pop);
         }
         assert_eq!(**test_set.immut()?, watcher);
 

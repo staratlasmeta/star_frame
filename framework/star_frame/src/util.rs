@@ -9,6 +9,7 @@ use solana_program::system_instruction::transfer;
 use std::cell::{Ref, RefMut};
 use std::cmp::Ordering;
 use std::fmt::{Debug, Display};
+use std::mem::size_of;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Network {
@@ -182,4 +183,12 @@ where
         bytes.try_advance(r.0)?;
         Ok(bytes)
     }
+}
+
+/// Returns a slice of bytes from an array of [`NoUninit`] types.
+pub fn uninit_array_bytes<T: NoUninit, const N: usize>(array: &[T; N]) -> &[u8] {
+    // Safety: `T` is `NoUninit`, so all underlying reads are valid since there's no padding
+    // between array elements. The pointer is valid. The entire memory is valid.
+    // The size is correct. Everything is fine.
+    unsafe { core::slice::from_raw_parts(array.as_ptr().cast::<u8>(), size_of::<T>() * N) }
 }
