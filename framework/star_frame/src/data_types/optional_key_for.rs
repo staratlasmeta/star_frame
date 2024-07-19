@@ -29,6 +29,7 @@ pub struct OptionalKeyFor<T: ?Sized> {
     phantom: PhantomData<fn() -> T>,
 }
 
+/// An optionally set [`Pubkey`].
 pub type OptionalPubkey = OptionalKeyFor<()>;
 
 impl<T> Display for OptionalKeyFor<T> {

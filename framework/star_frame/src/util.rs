@@ -11,12 +11,18 @@ use std::cmp::Ordering;
 use std::fmt::{Debug, Display};
 use std::mem::size_of;
 
+/// A solana cluster identifier.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Network {
+    /// Solana's Mainnet
     MainnetBeta,
+    /// Solana's Devnet
     Devnet,
+    /// Solana's Testnet
     Testnet,
+    /// Local test validator
     Localhost,
+    /// Custom defined cluster using an identifier.
     Custom(&'static str),
 }
 
@@ -71,6 +77,7 @@ pub fn try_map_ref_mut<'a, I: 'a + ?Sized, O: 'a + ?Sized, E>(
     }
 }
 
+/// Constant string comparison. Replaced when const traits enabled.
 #[must_use]
 pub const fn compare_strings(a: &str, b: &str) -> bool {
     if a.len() != b.len() {
@@ -92,12 +99,8 @@ pub const fn compare_strings(a: &str, b: &str) -> bool {
 
 /// Normalizes the rent of an account if data size is changed.
 /// Assumes `info` is owned by this program.
-pub fn normalize_rent<
-    'info,
-    T: ?Sized + UnsizedType + ProgramAccount,
-    F: WritableAccount<'info> + SignedAccount<'info>,
->(
-    info: &DataAccount<'info, T>,
+pub fn normalize_rent<'info, F: WritableAccount<'info> + SignedAccount<'info>>(
+    info: &AccountInfo<'info>,
     funder: &F,
     system_program: &Program<'info, SystemProgram>,
     sys_calls: &mut impl SysCallInvoke,
@@ -140,8 +143,8 @@ pub fn normalize_rent<
 
 /// Refunds rent to the funder so long as the account has more than the minimum rent.
 /// Assumes `info` is owned by this program.
-pub fn refund_rent<'info, T: ?Sized + UnsizedType + ProgramAccount, F: WritableAccount<'info>>(
-    info: &DataAccount<'info, T>,
+pub fn refund_rent<'info, F: WritableAccount<'info>>(
+    info: &AccountInfo<'info>,
     funder: &F,
     sys_calls: &mut impl SysCallInvoke,
 ) -> Result<()> {
@@ -161,6 +164,7 @@ pub fn refund_rent<'info, T: ?Sized + UnsizedType + ProgramAccount, F: WritableA
     }
 }
 
+/// A ref that offsets bytes by a given amount.
 #[derive(Debug, Copy, Clone)]
 pub struct OffsetRef(pub usize);
 unsafe impl<S> RefBytes<S> for OffsetRef

@@ -1,3 +1,6 @@
+//! Anchor replacement.
+// TODO: Expand docs
+
 #![feature(ptr_metadata)]
 #![cfg_attr(not(rust_1_75), feature(pointer_byte_offsets))]
 #![cfg_attr(not(rust_1_76), feature(type_name_of_val))]
@@ -5,7 +8,8 @@
     clippy::pedantic,
     missing_copy_implementations,
     missing_debug_implementations,
-    unsafe_op_in_unsafe_fn
+    unsafe_op_in_unsafe_fn,
+    missing_docs
 )]
 #![allow(
     clippy::non_canonical_clone_impl,
@@ -41,27 +45,22 @@ pub extern crate typenum;
 
 pub mod account_set;
 pub mod align1;
-// mod arbitrary_struct;
-pub mod divisor;
 pub mod entrypoint;
 pub mod errors;
-pub mod fixed_point;
 #[cfg(feature = "idl")]
 pub mod idl;
-pub mod impls;
 pub mod instruction;
-pub mod packed_value;
 pub mod prelude;
 pub mod program;
 pub mod serialize;
 pub mod sys_calls;
 pub mod unit_enum_from_repr;
-pub mod unit_val;
 pub mod util;
 
 /// Internal paths mainly for use in macros. DO NOT USE MANUALLY. NOT PART OF THE PUBLIC API.
 #[doc(hidden)]
 pub mod __private;
+mod data_types;
 
 pub use anyhow::Result;
 pub use solana_program::instruction::Instruction as SolanaInstruction;

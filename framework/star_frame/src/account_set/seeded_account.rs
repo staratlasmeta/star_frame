@@ -3,13 +3,14 @@ use crate::prelude::*;
 use anyhow::bail;
 use bytemuck::bytes_of;
 use derive_more::{Deref, DerefMut};
+pub use star_frame_proc::GetSeeds;
 use std::marker::PhantomData;
 
 /// A trait for getting the seed bytes of an account.
 ///
 /// ## Derivable
 ///
-/// This trait can be derived for structs with named fields using the `#[derive(GetSeeds)]` attribute.
+/// This trait can be derived for structs with named fields using the [`GetSeeds`](star_frame_proc::GetSeeds) derive macro.
 ///
 /// ## Manually Implementing `GetSeeds`
 ///

@@ -34,14 +34,14 @@ where
     type IsUnsized = Or<T::IsUnsized, U::IsUnsized>;
     type Owned = (T::Owned, U::Owned);
 
-    unsafe fn from_bytes<S: AsBytes>(
+    fn from_bytes<S: AsBytes>(
         bytes: S,
     ) -> Result<FromBytesReturn<S, Self::RefData, Self::RefMeta>> {
         let FromBytesReturn {
             bytes_used: t_len,
             meta: t_meta,
             ..
-        } = unsafe { T::from_bytes(&bytes)? };
+        } = T::from_bytes(&bytes)?;
         let FromBytesReturn {
             bytes_used: u_len,
             meta: u_meta,
@@ -136,6 +136,10 @@ where
     T: ?Sized + UnsizedType,
     U: ?Sized + UnsizedType,
 {
+    /// Creates a new [`CombinedRef`] from a [`CombinedUnsizedRefMeta`].
+    ///
+    /// # Safety
+    /// This should only be called where the meta results in a valid ref and usage.
     pub unsafe fn new(meta: CombinedUnsizedRefMeta<T, U>) -> Self {
         Self(meta)
     }

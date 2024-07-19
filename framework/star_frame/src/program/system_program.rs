@@ -2,6 +2,7 @@ use crate::prelude::*;
 use solana_program::system_instruction::SystemInstruction;
 use solana_program::system_program;
 
+/// Solana's system program.
 #[derive(Debug, Copy, Clone, Align1)]
 pub struct SystemProgram;
 impl StarFrameProgram for SystemProgram {
@@ -40,8 +41,6 @@ impl InstructionSet for SystemInstruction {
 #[cfg(feature = "idl")]
 mod idl_impl {
     use super::*;
-    use crate::account_set::mutable::Writable;
-    use crate::account_set::signer::Signer;
     use crate::account_set::AccountSet;
     use crate::idl::ty::TypeToIdl;
     use crate::idl::{AccountSetToIdl, InstructionSetToIdl, ProgramToIdl};

@@ -153,6 +153,7 @@ macro_rules! packed_eq {
 }
 packed_eq!(PackedValue, PackedValueChecked);
 
+/// Equivalent to [`PackedValue`] but [`CheckedBitPattern`] instead of [`Pod`].
 #[derive(Align1, Derivative)]
 #[derivative(
     Debug(bound = "T: Debug + Copy"),

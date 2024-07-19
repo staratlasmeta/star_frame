@@ -221,15 +221,13 @@ fn derive_bytemucks(sized_struct: &ItemStruct) -> TokenStream {
 
 fn unsized_type_struct_impl(item_struct: ItemStruct, _args: TokenStream) -> TokenStream {
     let Paths {
-        macro_prelude: prelude,
-        deref,
-        deref_mut,
-        result,
-        checked,
-        size_of,
-        phantom_data,
         bytemuck,
+        checked,
         derivative,
+        macro_prelude: prelude,
+        phantom_data,
+        result,
+        size_of,
         ..
     } = Default::default();
     let context = UnsizedTypeContext::parse(item_struct, _args);
@@ -678,8 +676,8 @@ fn unsized_type_struct_impl(item_struct: ItemStruct, _args: TokenStream) -> Toke
             type Owned = #owned_type;
             type IsUnsized = <#inner_type as #prelude::UnsizedType>::IsUnsized;
 
-            unsafe fn from_bytes<#as_bytes_generic>(
-                super_ref: #s
+            fn from_bytes<#as_bytes_generic>(
+                super_ref: #s,
             ) -> #result<#prelude::FromBytesReturn<#s, Self::RefData, Self::RefMeta>> {
                 unsafe {
                     Ok(
@@ -688,6 +686,19 @@ fn unsized_type_struct_impl(item_struct: ItemStruct, _args: TokenStream) -> Toke
                             .map_meta(#meta_ident)
                     )
                 }
+            }
+
+            unsafe fn from_bytes_and_meta<#as_bytes_generic>(
+                super_ref: #s,
+                meta: Self::RefMeta,
+            ) -> #result<#prelude::FromBytesReturn<#s, Self::RefData, Self::RefMeta>> {
+                Ok(
+                    unsafe {
+                        <#inner_type as #prelude::UnsizedType>::from_bytes_and_meta(super_ref, meta.0)?
+                            .map_ref(|_, r| #ref_ident(r))
+                            .map_meta(#meta_ident)
+                    }
+                )
             }
 
             fn owned<#as_bytes_generic>(r: #prelude::RefWrapper<#s, Self::RefData>) -> #result <Self::Owned> {
@@ -863,6 +874,7 @@ fn split_items<T>(items: &[T]) -> (&[T], &[T]) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pretty_assertions::assert_eq;
 
     #[test]
     fn test_combine() {

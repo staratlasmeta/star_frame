@@ -167,8 +167,8 @@ impl Default for Paths {
             account_set_decode: quote! { #crate_name::account_set::AccountSetDecode },
             account_set_validate: quote! { #crate_name::account_set::AccountSetValidate },
             account_set_cleanup: quote! { #crate_name::account_set::AccountSetCleanup },
-            get_seeds: quote! { #crate_name::account_set::seeded_account::GetSeeds },
-            program_account: quote! { #crate_name::account_set::data_account::ProgramAccount },
+            get_seeds: quote! { #crate_name::account_set::GetSeeds },
+            program_account: quote! { #crate_name::account_set::ProgramAccount },
 
             // syscalls
             sys_calls: quote! { #crate_name::sys_calls::SysCalls },
@@ -229,7 +229,7 @@ impl Default for Paths {
             idl_ty_program_ident: format_ident!("program"),
 
             align1: quote! { #crate_name::align1::Align1 },
-            packed_value_checked: quote! { #crate_name::packed_value::PackedValueChecked },
+            packed_value_checked: quote! { #crate_name::data_types::PackedValueChecked },
             advance_array: quote! { #crate_name::advance::AdvanceArray },
             advance: quote! { #crate_name::advance::Advance},
 

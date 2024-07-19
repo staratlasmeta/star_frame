@@ -1,3 +1,4 @@
+mod no_op;
 pub mod un_callable;
 
 pub use star_frame_proc::star_frame_instruction_set;

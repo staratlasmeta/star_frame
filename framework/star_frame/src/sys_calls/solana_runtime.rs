@@ -1,3 +1,5 @@
+//! The runtime while running on Solana.
+
 use crate::prelude::*;
 use crate::SolanaInstruction;
 use solana_program::clock::Clock;
@@ -13,6 +15,7 @@ use solana_program::sysvar::Sysvar;
 pub struct SolanaRuntime<'a> {
     /// The program id of the currently executing program.
     pub program_id: &'a Pubkey,
+    /// The current network cluster.
     pub network: Network,
     rent_cache: Option<Rent>,
     clock_cache: Option<Clock>,

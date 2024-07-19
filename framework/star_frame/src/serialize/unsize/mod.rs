@@ -20,13 +20,15 @@ use std::fmt::Debug;
 use std::mem::size_of;
 use typenum::{Bit, False, True};
 
-// todo: @expand on this for better docs on what exactly this needs. Connect to RefWrapper, FromBytesReturn?
 /// Allows for zero copy deserialization of sized and unsized types over a set of bytes with [`AsBytes`].
 ///
 /// The [`unsized_type`] attribute macro allows for the creation of structs with multiple unsized fields
 /// under the hood using normal Rust syntax.
 ///
-/// # Example
+/// # Blanket Implementations
+/// This trait is implemented for all types that meet [`UnsizedGenerics`]. This includes all [`Pod`](bytemuck::Pod) types that also implement [`Align1`].
+///
+/// # Macro Example
 /// ```
 /// # use star_frame::serialize::test_helpers::TestByteSet;
 /// use star_frame::prelude::*;
@@ -60,19 +62,28 @@ use typenum::{Bit, False, True};
 ///
 /// # Safety
 /// [`UnsizedType::from_bytes`] must return correct values.
+/// TODO: make this more descriptive
 pub unsafe trait UnsizedType: 'static {
+    /// Any extra metadata needed to rebuild the type. Usually an optimization to allow for rebuilding
+    /// without reading all the inner data, such as with [`CombinedUnsized`].
     type RefMeta: 'static + Copy;
+    /// What's stored in a [`RefWrapper`] return from [`UnsizedType::from_bytes`] and [`UnsizedType::from_bytes_and_meta`].
+    /// Usually a unique type that stores an [`UnsizedType::RefMeta`] and adds relevant functions to the [`RefWrapper`].
     type RefData;
+    /// The owned version of the underlying type. For example, a [`Vec<T>`] for an unsized [`List<T>`].
+    /// If [`Self::IsUnsized`] is [`False`], `Owned` can be [`Self`]. The data should try to convey
+    /// the same information, but it doesn't have to be a 1:1 representation.
     type Owned;
-
+    /// [`True`] if this type doesn't have a statically known size, [`False`] otherwise.
     type IsUnsized: Bit + LengthAccess<Self>;
 
-    /// # Safety
-    /// TODO: Think through requirements here
-    unsafe fn from_bytes<S: AsBytes>(
+    /// Reads this type from the provider `super_ref` and returns a deeper layer of [`RefWrapper`].
+    fn from_bytes<S: AsBytes>(
         super_ref: S,
     ) -> Result<FromBytesReturn<S, Self::RefData, Self::RefMeta>>;
 
+    /// Performs the same operation as [`UnsizedType::from_bytes`] but has access to a previously read [`UnsizedType::RefMeta`].
+    /// This should be called where possible for optimization.
     /// # Safety
     /// `meta` must have come from a call to [`UnsizedType::from_bytes`] on the same `super_ref`.
     #[allow(unused_variables)]
@@ -80,7 +91,7 @@ pub unsafe trait UnsizedType: 'static {
         super_ref: S,
         meta: Self::RefMeta,
     ) -> Result<FromBytesReturn<S, Self::RefData, Self::RefMeta>> {
-        unsafe { Self::from_bytes(super_ref) }
+        Self::from_bytes(super_ref)
     }
 
     fn owned<S: AsBytes>(r: RefWrapper<S, Self::RefData>) -> Result<Self::Owned>;
@@ -140,13 +151,24 @@ where
     }
 }
 
+/// A return type for [`UnsizedType::from_bytes`] and [`UnsizedType::from_bytes_and_meta`].
+///
+/// `S` is the `super_ref` passed in to `from_bytes`, `R` is the [`UnsizedType::RefData`], and
+/// `M` is the [`UnsizedType::RefMeta`].
 #[derive(Debug, Copy, Clone)]
 pub struct FromBytesReturn<S, R, M> {
+    /// How many bytes the [`UnsizedType::from_bytes`] used on the underlying bytes.
     pub bytes_used: usize,
-    pub meta: M,
+    /// The resulting [`RefWrapper`] from the operation, where S is the SuperRef
     pub ref_wrapper: RefWrapper<S, R>,
+    /// The resulting [`UnsizedType::RefData`] from the operation.
+    pub meta: M,
 }
 impl<S, R, M> FromBytesReturn<S, R, M> {
+    /// Maps the inner data using a mapper function `f`.
+    ///
+    /// # Safety
+    /// Same requirements as [`RefWrapper::wrap_r`].
     pub unsafe fn map_ref<R2>(self, f: impl FnOnce(&mut S, R) -> R2) -> FromBytesReturn<S, R2, M> {
         FromBytesReturn {
             ref_wrapper: unsafe { self.ref_wrapper.wrap_r(f) },
@@ -155,6 +177,10 @@ impl<S, R, M> FromBytesReturn<S, R, M> {
         }
     }
 
+    /// Maps the meta using a mapper function `f`.
+    ///
+    /// # Safety
+    /// Meta must be correct for [`FromBytesReturn::ref_wrapper`].
     pub unsafe fn map_meta<M2>(self, f: impl FnOnce(M) -> M2) -> FromBytesReturn<S, R, M2> {
         FromBytesReturn {
             ref_wrapper: self.ref_wrapper,

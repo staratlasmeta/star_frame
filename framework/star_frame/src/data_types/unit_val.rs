@@ -11,6 +11,7 @@ use std::marker::PhantomData;
 use std::ops::{Add, AddAssign, Div, Mul, Rem, Sub, SubAssign};
 use typenum::{IsEqual, Mod, True, Unsigned, P2, Z0};
 
+/// A value within a unit system.
 #[derive(Derivative, Serialize, Deserialize, Align1)]
 #[derivative(
     Copy(bound = "T: Copy"),
@@ -36,20 +37,28 @@ where
 {
 }
 impl<T, Unit> UnitVal<T, Unit> {
+    /// Creates a new [`UnitVal`] from a given value.
+    /// Note: This will make any unit unless generics are specified.
     pub const fn new(val: T) -> Self {
         Self {
             val,
             _unit: PhantomData,
         }
     }
+    /// Gets the value if [`Copy`].
     pub fn val(self) -> T
     where
         T: Copy,
     {
         self.val
     }
+    /// Gets a reference to the value.
     pub fn val_ref(&self) -> &T {
         &self.val
+    }
+    /// Gets a mutable reference to the value.
+    pub fn val_mut(&mut self) -> &mut T {
+        &mut self.val
     }
 }
 impl<T1, T2, Unit1, Unit2> Add<UnitVal<T2, Unit2>> for UnitVal<T1, Unit1>
@@ -115,6 +124,7 @@ where
     }
 }
 impl<T1, Unit1> UnitVal<T1, Unit1> {
+    /// Puts this unit to the power of provided generic.
     pub fn pow<Value>(self) -> UnitVal<T1::Output, Unit1::Output>
     where
         Value: Unsigned,
@@ -124,6 +134,7 @@ impl<T1, Unit1> UnitVal<T1, Unit1> {
         UnitVal::new(self.val.pow(Value::U32))
     }
 
+    /// Gets the square root of this unit val. Can
     pub fn sqrt(self) -> UnitVal<T1, <Unit1 as Div<P2>>::Output>
     where
         T1: Real,
@@ -133,6 +144,7 @@ impl<T1, Unit1> UnitVal<T1, Unit1> {
         UnitVal::new(self.val.sqrt())
     }
 
+    /// Converts between two unit systems.
     pub fn convert<Unit2>(self) -> UnitVal<T1, Unit2>
     where
         Unit1: Convert<Unit2>,
@@ -141,6 +153,7 @@ impl<T1, Unit1> UnitVal<T1, Unit1> {
     }
 }
 
+/// Marks that a given unit can be converted to a different unit system's unit.
 pub trait Convert<Rhs> {}
 
 #[cfg(feature = "idl")]
@@ -162,24 +175,55 @@ mod idl {
     }
 }
 
+/// Creates a new unit system type.
+///
+/// # Example
+/// ```
+/// use star_frame::create_unit_system;
+/// use typenum::Z0;
+/// // Creates a unit system with 3 axis.
+/// create_unit_system!(struct CreatedUnitSystem<Seconds, Meters, Kilograms>);
+///
+/// // Creates a unit system with 2 axis and makes it convertable to `CreatedUnitSystem`.
+/// // `==` can be replaced with `to` or `from` if unidirectional conversion is desired.
+/// create_unit_system!(struct OtherUnitSystem<Seconds, Meters>{
+///     impl<Seconds, Meters>: <Seconds, Meters> == CreatedUnitSystem<Seconds, Meters, Z0>,
+/// });
+///
+/// // Creates a unit system with 2 axis and makes it convertable to `CreatedUnitSystem` and `OtherUnitSystem`.
+/// create_unit_system!(struct ThirdUnitSystem<Seconds, Kilograms>{
+///     impl<Seconds, Kilograms>: <Seconds, Kilograms> == CreatedUnitSystem<Seconds, Z0, Kilograms>,
+///     impl<S>: <S, Z0> == OtherUnitSystem<S, Z0>,
+/// });
+/// ```
 // TODO: Replace with proc macro for proper `IsEqual` impl
 #[macro_export]
 macro_rules! create_unit_system {
     (
-        $vis:vis struct $ident:ident<$($unit:ident),+ $(,)?>:
-            $conv_ident:ident[<$($gen:ident),* $(,)?> <$($from:tt),* $(,)?> -> <$($to:tt),* $(,)?>]
-            $(+ $conv_ident2:ident[<$($gen2:ident),* $(,)?> <$($from2:tt),* $(,)?> -> <$($to2:tt),* $(,)?>] )*
+        $vis:vis struct $ident:ident<$($unit:ident),+ $(,)?>{
+            $(
+                impl<$($gen:ident),* $(,)?>: <$($from:ty),* $(,)?> $op:tt $conv_ident:ident<$($to:ty),* $(,)?>
+            ),* $(,)?
+        }
     ) => {
         $crate::create_unit_system!($vis struct $ident<$($unit),+>);
-        impl<$($gen,)*> $crate::unit_val::Convert<$conv_ident<$($to,)*>> for $ident<$($from,)*>{}
-        impl<$($gen,)*> $crate::unit_val::Convert<$ident<$($from,)*>> for $conv_ident<$($to,)*>{}
         $(
-            impl<$($gen2,)*> $crate::unit_val::Convert<$conv_ident2<$($to2,)*>> for $ident<$($from2,)*>{}
-            impl<$($gen2,)*> $crate::unit_val::Convert<$ident<$($from2,)*>> for $conv_ident2<$($to2,)*>{}
+            $crate::create_unit_system!(@convert $ident <$($gen,)*>: <$($from,)*> $op $conv_ident<$($to,)*>);
         )*
     };
 
-    ($vis:vis struct $ident:ident<$($unit:ident),+ $(,)?>) => {
+    (@convert $ident:ident <$($gen:ident),* $(,)?>: <$($from:ty),* $(,)?> == $conv_ident:ident<$($to:ty),* $(,)?>) => {
+        $crate::create_unit_system!(@convert $ident <$($gen,)*>: <$($from,)*> to $conv_ident<$($to,)*>);
+        $crate::create_unit_system!(@convert $ident <$($gen,)*>: <$($from,)*> from $conv_ident<$($to,)*>);
+    };
+    (@convert $ident:ident <$($gen:ident),* $(,)?>: <$($from:ty),* $(,)?> to $conv_ident:ident<$($to:ty),* $(,)?>) => {
+        impl<$($gen,)*> $crate::data_types::unit_val::Convert<$conv_ident<$($to,)*>> for $ident<$($from,)*>{}
+    };
+    (@convert $ident:ident <$($gen:ident),* $(,)?>: <$($from:ty),* $(,)?> from $conv_ident:ident<$($to:ty),* $(,)?>) => {
+        impl<$($gen,)*> $crate::data_types::unit_val::Convert<$ident<$($from,)*>> for $conv_ident<$($to,)*>{}
+    };
+
+    ($vis:vis struct $ident:ident<$($unit:ident),* $(,)?>) => {
         #[derive(
             $crate::derivative::Derivative,
             $crate::serde::Serialize,
@@ -304,12 +348,19 @@ macro_rules! create_unit_system {
 
 #[cfg(test)]
 mod test {
-    use crate::unit_val::UnitVal;
+    use crate::data_types::UnitVal;
     use fixed::types::I53F11;
     use typenum::{Diff, Sum, N2, P1, Z0};
     create_unit_system!(struct CreatedUnitSystem<Seconds, Meters, Kilograms>);
 
-    create_unit_system!(struct OtherUnitSystem<Seconds, Meters>: CreatedUnitSystem[<Seconds, Meters> <Seconds, Meters> -> <Seconds, Meters, Z0>]);
+    create_unit_system!(struct OtherUnitSystem<Seconds, Meters>{
+        impl<Seconds, Meters>: <Seconds, Meters> == CreatedUnitSystem<Seconds, Meters, Z0>
+    });
+
+    create_unit_system!(struct ThirdUnitSystem<Seconds, Kilograms>{
+        impl<Seconds, Kilograms>: <Seconds, Kilograms> == CreatedUnitSystem<Seconds, Z0, Kilograms>,
+        impl<S>: <S, Z0> to OtherUnitSystem<S, Z0>
+    });
 
     type Unitless = CreatedUnitSystem<Z0, Z0, Z0>;
     type Seconds = CreatedUnitSystem<P1, Z0, Z0>;
