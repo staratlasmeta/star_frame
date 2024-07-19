@@ -1,6 +1,6 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="Test star_frame" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
-    <option name="command" value="test --workspace" />
+    <option name="command" value="test --workspace --features test_helpers" />
     <option name="workingDirectory" value="file://$PROJECT_DIR$" />
     <envs />
     <option name="emulateTerminal" value="true" />

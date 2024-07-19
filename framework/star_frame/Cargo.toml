@@ -39,6 +39,7 @@ star_frame_idl = { workspace = true, optional = true }
 bumpalo = { workspace = true }
 
 [dev-dependencies]
+pretty_assertions = { workspace = true }
 lazy_static = { workspace = true }
 strum = { workspace = true, features = ["derive"] }
 

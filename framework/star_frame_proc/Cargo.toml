@@ -26,4 +26,5 @@ strum = { workspace = true }
 syn = { workspace = true }
 
 [dev-dependencies]
+pretty_assertions = { workspace = true }
 star_frame = { workspace = true }
