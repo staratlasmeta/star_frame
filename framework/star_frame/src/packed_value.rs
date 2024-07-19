@@ -177,6 +177,7 @@ where
     }
 }
 unsafe impl<T> NoUninit for PackedValueChecked<T> where T: NoUninit {}
+unsafe impl<T> Zeroable for PackedValueChecked<T> where T: Zeroable {}
 
 #[cfg(feature = "idl")]
 mod idl_impl {

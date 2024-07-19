@@ -1,4 +1,6 @@
 use crate::prelude::*;
+use crate::serialize::test_helpers::TestByteSet;
+use pretty_assertions::assert_eq;
 
 #[derive(Debug, Copy, Clone, Pod, Zeroable, Align1, PartialEq, Eq)]
 #[repr(C, packed)]
@@ -7,21 +9,33 @@ pub struct TestStruct {
     pub val2: u64,
 }
 
-#[unsized_type]
-pub struct CombinedTest {
-    #[unsized_start]
-    pub list1: List<u8>,
-    pub list2: List<TestStruct>,
-}
-
-// TODO: More fields, generics, enums, tuple structs, unit structs, macro it all
-#[unsized_type]
+#[unsized_type(
+    owned_attributes = [
+        derive(PartialEq, Eq, Clone)
+    ]
+)]
 pub struct SingleUnsized {
     #[unsized_start]
     pub unsized1: List<PackedValue<u16>>,
 }
 
-#[unsized_type]
+#[test]
+fn test_single_unsized() -> Result<()> {
+    TestByteSet::<SingleUnsized>::new(Zeroed)?;
+    let r = &mut TestByteSet::<SingleUnsized>::new(SingleUnsizedInit {
+        unsized1: [PackedValue(1)],
+    })?;
+    let owned = SingleUnsized::owned(r.immut()?)?;
+    assert_eq!(
+        owned,
+        SingleUnsizedOwned {
+            unsized1: vec![1.into()]
+        }
+    );
+    Ok(())
+}
+
+#[unsized_type(owned_attributes = [derive(PartialEq, Eq, Clone)])]
 pub struct ManyUnsized {
     #[unsized_start]
     pub unsized1: List<PackedValue<u16>>,
@@ -31,14 +45,59 @@ pub struct ManyUnsized {
     pub unsized5: List<TestStruct>,
 }
 
-#[unsized_type]
+#[test]
+fn test_many_unsized() -> Result<()> {
+    TestByteSet::<ManyUnsized>::new(Zeroed)?;
+    let r = TestByteSet::<ManyUnsized>::new(ManyUnsizedInit {
+        unsized1: [PackedValue(1)],
+        unsized2: SingleUnsizedInit {
+            unsized1: [PackedValue(2)],
+        },
+        unsized3: 3,
+        unsized4: [TestStruct { val1: 4, val2: 5 }],
+        unsized5: [TestStruct { val1: 6, val2: 7 }],
+    })?;
+
+    let expected = ManyUnsizedOwned {
+        unsized1: vec![PackedValue(1)],
+        unsized2: SingleUnsizedOwned {
+            unsized1: vec![PackedValue(2)],
+        },
+        unsized3: 3,
+        unsized4: vec![TestStruct { val1: 4, val2: 5 }],
+        unsized5: vec![TestStruct { val1: 6, val2: 7 }],
+    };
+    let owned = ManyUnsized::owned(r.immut()?)?;
+    assert_eq!(owned, expected);
+    Ok(())
+}
+
+#[unsized_type(owned_attributes = [derive(PartialEq, Eq, Clone)])]
 pub struct SingleUnsizedWithSized {
     pub sized1: bool,
     #[unsized_start]
     pub unsized1: List<PackedValue<u16>>,
 }
 
-#[unsized_type]
+#[test]
+fn test_single_unsized_with_sized() -> Result<()> {
+    TestByteSet::<SingleUnsizedWithSized>::new(Zeroed)?;
+    let r = TestByteSet::<SingleUnsizedWithSized>::new(SingleUnsizedWithSizedInit {
+        sized1: true,
+        unsized1: [PackedValue(1)],
+    })?;
+    let owned = SingleUnsizedWithSized::owned(r.immut()?)?;
+    assert_eq!(
+        owned,
+        SingleUnsizedWithSizedOwned {
+            sized1: true,
+            unsized1: vec![PackedValue(1)],
+        }
+    );
+    Ok(())
+}
+
+#[unsized_type(owned_attributes = [derive(PartialEq, Eq, Clone)])]
 pub struct SizedAndUnsized {
     pub sized1: bool,
     pub sized2: PackedValue<u16>,
@@ -50,159 +109,156 @@ pub struct SizedAndUnsized {
     pub unsized3: u8,
 }
 
-#[unsized_type]
-pub struct WithSizedGenerics<A, B, C>
+#[test]
+fn test_sized_and_unsized() -> Result<()> {
+    TestByteSet::<SizedAndUnsized>::new(Zeroed)?;
+    let r = TestByteSet::<SizedAndUnsized>::new(SizedAndUnsizedInit {
+        sized1: true,
+        sized2: PackedValue(1),
+        sized3: 2,
+        sized4: [3; 10],
+        unsized1: [PackedValue(4)],
+        unsized2: [TestStruct { val1: 5, val2: 6 }],
+        unsized3: 7,
+    })?;
+    let owned = SizedAndUnsized::owned(r.immut()?)?;
+    assert_eq!(
+        owned,
+        SizedAndUnsizedOwned {
+            sized1: true,
+            sized2: PackedValue(1),
+            sized3: 2,
+            sized4: [3; 10],
+            unsized1: vec![PackedValue(4)],
+            unsized2: vec![TestStruct { val1: 5, val2: 6 }],
+            unsized3: 7,
+        }
+    );
+    Ok(())
+}
+
+#[unsized_type(owned_attributes = [derive(PartialEq, Eq, Clone)])]
+pub struct WithSizedGenerics<A: UnsizedGenerics, B>
 where
-    A: UnsizedGenerics,
     B: UnsizedGenerics,
-    C: UnsizedGenerics,
 {
     pub sized1: A,
     pub sized2: B,
-    // pub sized3: C,
-    pub sized4: u8,
+    pub sized3: u8,
     #[unsized_start]
-    pub unsized1: C,
-    pub unsized2: List<TestStruct>,
+    pub unsized1: List<TestStruct>,
 }
 
-//
-// #[unsized_type]
-// pub struct SizedAndUnsized {
-//     pub sized1: bool,
-//     pub sized2: PackedValue<u16>,
-//     pub sized3: u8,
-//     #[unsized_start]
-//     pub list1: List<u8>,
-//     pub list2: List<bool>,
-//     pub other: CombinedTest,
-// }
-//
-// #[unsized_type]
-// pub struct OnlyUnsized {
-//     #[unsized_start]
-//     pub list1: List<u8>,
-//     pub list2: List<bool>,
-//     pub other: CombinedTest,
-//     pub thing1: List<PackedValue<u16>>,
-// }
-//
-// #[unsized_type]
-// pub struct BigBoi
-// // pub struct BigBoi<T0, T1, T2>
-// // where
-// //     T0: CheckedBitPattern + Zeroable + Align1 + Copy,
-// //     T1: CheckedBitPattern + Zeroable + Align1 + Copy,
-// //     T2: CheckedBitPattern + Zeroable + Align1 + Copy,
-// {
-//     pub sized00: u8,
-//     // pub sized00: T0,
-//     pub sized01: u8,
-//     // pub sized01: T1,
-//     pub sized02: u8,
-//     // pub sized02: T2,
-//     #[unsized_start]
-//     pub unsized00: List<u8>,
-//     // pub unsized01: List<u8>,
-//     // pub unsized02: List<u8>,
-//     // pub unsized03: List<u8>,
-//     // pub unsized04: List<u8>,
-//     // pub unsized05: List<u8>,
-//     // pub unsized06: List<u8>,
-//     // pub unsized07: List<u8>,
-//     // pub unsized08: List<u8>,
-//     // pub unsized09: List<u8>,
-//     // pub unsized10: List<u8>,
-//     // pub unsized11: List<u8>,
-//     // pub unsized12: List<u8>,
-//     // pub unsized13: List<u8>,
-//     // pub unsized14: List<u8>,
-//     // pub unsized15: List<u8>,
-//     // pub unsized16: List<u8>,
-//     // pub unsized17: List<u8>,
-//     // pub unsized18: List<u8>,
-//     // pub unsized19: List<u8>,
-//     // pub unsized20: List<u8>,
-// }
-//
-// #[unsized_type]
-// pub struct BigBoi<T0, T1, T2>
-// where
-//     T0: CheckedBitPattern + Zeroable + Align1,
-//     T1: CheckedBitPattern + Zeroable + Align1,
-//     T2: CheckedBitPattern + Zeroable + Align1,
-// {
-//     pub sized00: T0,
-//     pub sized01: T1,
-//     pub sized02: T2,
-//     #[unsized_start]
-//     pub unsized00: List<u8>,
-// }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::prelude::Zeroed;
-    use crate::serialize::test_helpers::TestByteSet;
-    use advance::Length;
-    //
-    // #[test]
-    // fn test_minimum() -> anyhow::Result<()> {
-    //     type Thingy = CombinedUnsized<CombinedUnsized<u8, u8>, u8>;
-    //     let mut bytes = TestByteSet::<BigBoi>::new(Zeroed)?;
-    //     let r = bytes.immut()?;
-    //     assert_eq!(r.field10()?.len(), 0);
-    //     assert_eq!(r.field20()?.len(), 0);
-    //
-    //     let owned = BigBoi::owned(r)?;
-    //     println!("Owned: {:#?}", owned);
-    //
-    //     Ok(())
-    // }
-    //
-    // fn cool(
-    //     r: &mut RefWrapper<impl Resize<CombinedTestMeta>, CombinedTestRef>,
-    //     val: u32,
-    // ) -> anyhow::Result<()> {
-    //     r.list1()?.push(0)?;
-    //     r.list2()?.insert(0, TestStruct { val1: val, val2: 0 })?;
-    //     Ok(())
-    // }
-    //
-    // #[test]
-    // fn test() -> anyhow::Result<()> {
-    //     let mut bytes = TestByteSet::<CombinedTest>::new(Zeroed)?;
-    //     let mut r = bytes.mutable()?;
-    //     assert_eq!(&**(&r).list1()?, &[] as &[u8]);
-    //     assert_eq!(&**(&r).list2()?, &[]);
-    //     cool(&mut r, 1)?;
-    //     assert_eq!(&**(&r).list1()?, &[0]);
-    //     assert_eq!(&**(&r).list2()?, &[TestStruct { val1: 1, val2: 0 }]);
-    //     cool(&mut r, 2)?;
-    //     let r = bytes.immut()?;
-    //     assert_eq!(&**r.list1()?, &[0, 0]);
-    //     assert_eq!(
-    //         &**r.list2()?,
-    //         &[
-    //             TestStruct { val1: 2, val2: 0 },
-    //             TestStruct { val1: 1, val2: 0 }
-    //         ]
-    //     );
-    //     Ok(())
-    // }
-    //
-    // type CombinedTestRefWrapper<S> = RefWrapper<S, CombinedTestRef>;
-    // #[test]
-    // fn test_stuff() -> anyhow::Result<()> {
-    //     let bytes = vec![0u8; 100];
-    //     let combined: CombinedTestRefWrapper<_> =
-    //         unsafe { CombinedTest::from_bytes(bytes).unwrap() }.ref_wrapper;
-    //     println!("{combined:?}");
-    //     let mut list = combined.list1().unwrap();
-    //     list.push(1)?;
-    //     list.insert(0, 2)?;
-    //     println!("{:?}", list.len());
-    //     println!("{:?}", list.as_slice());
-    //     Ok(())
-    // }
+#[test]
+fn test_with_sized_generics() -> Result<()> {
+    TestByteSet::<WithSizedGenerics<TestStruct, bool>>::new(Zeroed)?;
+    let r = TestByteSet::<WithSizedGenerics<TestStruct, bool>>::new(WithSizedGenericsInit {
+        sized1: TestStruct { val1: 1, val2: 2 },
+        sized2: true,
+        sized3: 4,
+        unsized1: [TestStruct { val1: 5, val2: 6 }],
+        __phantom_generics: Default::default(),
+    })?;
+    let owned = WithSizedGenerics::owned(r.immut()?)?;
+    assert_eq!(
+        owned,
+        WithSizedGenericsOwned {
+            sized1: TestStruct { val1: 1, val2: 2 },
+            sized2: true,
+            sized3: 4,
+            unsized1: vec![TestStruct { val1: 5, val2: 6 }],
+            __phantom_generics: Default::default(),
+        }
+    );
+    Ok(())
 }
+
+#[unsized_type(owned_attributes = [derive(PartialEq, Eq, Clone)])]
+pub struct WithUnsizedGenerics<A: UnsizedGenerics, B>
+where
+    B: UnsizedGenerics,
+{
+    pub sized1: u8,
+    #[unsized_start]
+    pub unsized1: List<A>,
+    pub unsized2: CombinedUnsized<A, B>,
+}
+
+#[test]
+fn test_with_unsized_generics() -> Result<()> {
+    TestByteSet::<WithUnsizedGenerics<PackedValueChecked<u16>, TestStruct>>::new(Zeroed)?;
+    let r = TestByteSet::<WithUnsizedGenerics<PackedValueChecked<u16>, TestStruct>>::new(
+        WithUnsizedGenericsInit {
+            sized1: 1,
+            unsized1: [PackedValueChecked(2u16)],
+            unsized2: (
+                PackedValueChecked(u16::MAX),
+                TestStruct { val1: 3, val2: 4 },
+            ),
+            __phantom_generics: Default::default(),
+        },
+    )?;
+    let owned = WithUnsizedGenerics::owned(r.immut()?)?;
+    assert_eq!(
+        owned,
+        WithUnsizedGenericsOwned {
+            sized1: 1,
+            unsized1: vec![PackedValueChecked(2u16)],
+            unsized2: (
+                PackedValueChecked(u16::MAX),
+                TestStruct { val1: 3, val2: 4 }
+            ),
+            __phantom_generics: Default::default(),
+        }
+    );
+    Ok(())
+}
+
+#[unsized_type(owned_attributes = [derive(PartialEq, Eq, Clone)])]
+pub struct WithSizedAndUnsizedGenerics<A: UnsizedGenerics, B, C>
+where
+    B: UnsizedGenerics,
+    C: CheckedBitPattern + Align1 + NoUninit + Zeroable,
+{
+    pub sized1: A,
+    pub sized2: B,
+    #[unsized_start]
+    pub unsized1: List<A>,
+    pub unsized2: CombinedUnsized<A, C>,
+}
+
+#[test]
+fn test_with_sized_and_unsized_generics() -> Result<()> {
+    TestByteSet::<
+        WithSizedAndUnsizedGenerics<TestStruct, PackedValueChecked<u16>, PackedValueChecked<u32>>,
+    >::new(Zeroed)?;
+    let r = TestByteSet::<
+        WithSizedAndUnsizedGenerics<TestStruct, PackedValueChecked<u16>, PackedValueChecked<u32>>,
+    >::new(WithSizedAndUnsizedGenericsInit {
+        sized1: TestStruct { val1: 1, val2: 2 },
+        sized2: PackedValueChecked(3u16),
+        unsized1: [TestStruct { val1: 4, val2: 5 }],
+        unsized2: (
+            TestStruct { val1: 6, val2: 7 },
+            PackedValueChecked(u32::MAX / 4),
+        ),
+        __phantom_generics: Default::default(),
+    })?;
+    let owned = WithSizedAndUnsizedGenerics::owned(r.immut()?)?;
+    assert_eq!(
+        owned,
+        WithSizedAndUnsizedGenericsOwned {
+            sized1: TestStruct { val1: 1, val2: 2 },
+            sized2: PackedValueChecked(3u16),
+            unsized1: vec![TestStruct { val1: 4, val2: 5 }],
+            unsized2: (
+                TestStruct { val1: 6, val2: 7 },
+                PackedValueChecked(u32::MAX / 4),
+            ),
+            __phantom_generics: Default::default(),
+        }
+    );
+    Ok(())
+}
+
+//todo: make a single very complex struct and test it with a watcher on owned like list
