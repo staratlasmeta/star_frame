@@ -293,7 +293,6 @@ fn unsized_type_struct_impl(item_struct: ItemStruct, _args: TokenStream) -> Toke
     });
     let sized_type = sized_type.as_ref();
 
-    let sized_field_ident = format_ident!("sized_struct");
     let init_struct_ident = format_ident!("{struct_ident}Init");
 
     let sized_field_idents = field_idents(&sized_fields);
@@ -302,13 +301,9 @@ fn unsized_type_struct_impl(item_struct: ItemStruct, _args: TokenStream) -> Toke
 
     let combined_inner = combine_with_sized(sized_type, &unsized_field_types, combine_unsized);
 
-    let owned_fields = sized_type
+    let owned_fields = sized_fields
         .iter()
-        .map(|sized_type| {
-            parse_quote!(
-                #sized_field_ident: <#sized_type as #prelude::UnsizedType>::Owned
-            )
-        })
+        .cloned()
         .chain(unsized_fields.iter().cloned().map(|mut field| {
             let field_ty = field.ty.clone();
             field.ty = parse_quote!(<#field_ty as #prelude::UnsizedType>::Owned);
@@ -318,8 +313,15 @@ fn unsized_type_struct_impl(item_struct: ItemStruct, _args: TokenStream) -> Toke
 
     let owned_field_idents = field_idents(&owned_fields);
 
+    let sized_owned_destructure = sized_ident.map(|sized_ident| {
+        quote! {
+             #sized_ident {
+                #(#sized_field_idents),*
+            }
+        }
+    });
     let combined_names = combine_with_sized(
-        sized_ident.map(|_| &sized_field_ident),
+        sized_owned_destructure,
         &unsized_field_idents,
         with_parenthesis,
     );
@@ -561,21 +563,6 @@ fn unsized_type_struct_impl(item_struct: ItemStruct, _args: TokenStream) -> Toke
                         .expect("Invalid bytes");
                     let bytes = &mut bytes[..#size_of::<#sized_type>()];
                     #checked::from_bytes_mut::<#sized_type>(bytes)
-                }
-            }
-
-            impl #combined_impl_generics #deref for #owned_type #combined_where
-            {
-                type Target = <#sized_type as #prelude::UnsizedType>::Owned;
-                fn deref(&self) -> &Self::Target {
-                    &self.#sized_field_ident
-                }
-            }
-
-            impl #combined_impl_generics #deref_mut for #owned_type #combined_where
-            {
-                fn deref_mut(&mut self) -> &mut Self::Target {
-                    &mut self.#sized_field_ident
                 }
             }
         }
