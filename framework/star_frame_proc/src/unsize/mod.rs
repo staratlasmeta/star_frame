@@ -6,7 +6,7 @@ use heck::ToUpperCamelCase;
 use itertools::Itertools;
 use proc_macro2::Ident;
 use proc_macro2::TokenStream;
-use proc_macro_error::{abort, abort_call_site, ResultExt};
+use proc_macro_error::{abort, abort_call_site};
 use quote::{format_ident, quote, ToTokens};
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
@@ -39,6 +39,7 @@ impl Parse for UnsizedAttributeMetas {
 }
 
 // todo: figure out what args this may need
+// todo: derives for each new struct. allow disabling unnecessary default derives
 #[derive(ArgumentList, Debug, Clone)]
 pub struct UnsizedTypeArgs {
     #[argument(default)]
