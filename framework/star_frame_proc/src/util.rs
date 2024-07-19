@@ -1,18 +1,17 @@
 use crate::get_crate_name;
-use daggy::Walker;
 use derive_more::{Deref, DerefMut};
+use itertools::Itertools;
 use proc_macro2::TokenStream;
 use proc_macro_error::{abort, abort_call_site};
-use quote::{format_ident, quote, quote_spanned};
+use quote::{format_ident, quote, quote_spanned, ToTokens};
 use std::fmt::Debug;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 use syn::{
-    bracketed, parse_quote, token, Attribute, ConstParam, Data, DataEnum, DataStruct, DataUnion,
-    DeriveInput, Expr, ExprLit, Fields, GenericParam, Generics, Ident, ItemEnum, ItemStruct,
-    Lifetime, LifetimeParam, Lit, Meta, MetaNameValue, Token, Type, TypeGenerics, TypeParam,
-    Variant, WhereClause,
+    bracketed, parse_quote, token, Attribute, ConstParam, Data, DataStruct, DataUnion, DeriveInput,
+    Expr, ExprLit, Field, Fields, GenericParam, Generics, Ident, ItemEnum, ItemStruct, Lifetime,
+    LifetimeParam, Lit, Meta, MetaNameValue, Path, Token, Type, TypeParam, WhereClause,
 };
 
 #[derive(Debug, Clone)]
@@ -463,47 +462,52 @@ pub fn strip_inner_attributes<'a>(
     })
 }
 
-pub fn get_fields(input: &DeriveInput) -> Fields {
-    match &input.data {
-        Data::Struct(DataStruct { fields, .. }) => fields.clone(),
-        Data::Union(DataUnion { fields, .. }) => Fields::Named(fields.clone()),
-        Data::Enum(_) => abort!(input, "deriving this trait is not supported for enums"),
-    }
+pub fn make_derivative_attribute(
+    traits: Punctuated<Path, Token![,]>,
+    types: &[impl ToTokens],
+) -> Attribute {
+    let bounds = traits
+        .iter()
+        .map(|t| {
+            let derivitive_bounds = types.iter().map(|ty| quote!(#ty: #t)).collect::<Vec<_>>();
+            let derivative_bounds = quote!(#(#derivitive_bounds),*).to_string();
+            quote!(#t(bound = #derivative_bounds))
+        })
+        .collect_vec();
+    parse_quote!(#[derivative(#(#bounds),*)])
 }
 
-pub fn get_enum_variants<'a>(
-    input: &'a DeriveInput,
-) -> impl Iterator<Item = &'a Variant> + Clone + 'a {
-    if let Data::Enum(DataEnum { variants, .. }) = &input.data {
-        variants.iter()
-    } else {
-        abort!(input, "deriving this trait is only supported for enums")
-    }
+pub fn add_derivative_attributes(
+    struct_item: &mut ItemStruct,
+    traits: Punctuated<Path, Token![,]>,
+) {
+    let attributes = make_derivative_attribute(traits, &get_field_types(struct_item).collect_vec());
+    struct_item.attrs.push(attributes);
 }
 
-pub fn get_field_types(fields: &impl GetFields) -> impl Iterator<Item = &Type> {
-    fields.get_fields().iter().map(|field| &field.ty)
+pub fn get_field_types(fields: &impl FieldIter) -> impl Iterator<Item = &Type> {
+    fields.field_iter().map(|field| &field.ty)
 }
 
 /// Check that all fields implement a given trait
+///
 /// Adapted from the bytemuck derive crate
-pub fn generate_fields_are_trait<T: GetGenerics + GetFields + Spanned>(
+pub fn generate_fields_are_trait<T: GetGenerics + FieldIter + Spanned>(
     input: &T,
     trait_: Punctuated<syn::Path, Token![+]>,
 ) -> TokenStream {
     let generics = input.get_generics();
     let (impl_generics, _ty_generics, where_clause) = generics.split_for_impl();
-    let fields = input.get_fields();
     let span = input.span();
-    let field_types = get_field_types(fields);
-    quote_spanned! {span => #(const _: fn() = || {
+    let field_types = get_field_types(input);
+    quote_spanned! {span => const _: fn() = || {
         #[allow(clippy::missing_const_for_fn)]
         #[doc(hidden)]
         fn check #impl_generics () #where_clause {
           fn assert_impl<T: #trait_>() {}
-          assert_impl::<#field_types>();
+          #(assert_impl::<#field_types>();)*
         }
-      };)*
+      };
     }
 }
 
@@ -531,35 +535,41 @@ macro_rules! get_generics {
 
 get_generics!(DeriveInput, ItemStruct, ItemEnum);
 
-pub trait GetFields {
-    fn get_fields(&self) -> &Fields;
+pub trait FieldIter {
+    fn field_iter(&self) -> impl Iterator<Item = &Field>;
 }
 
-impl GetFields for Fields {
-    fn get_fields(&self) -> &Fields {
-        self
+impl FieldIter for Fields {
+    fn field_iter(&self) -> impl Iterator<Item = &Field> {
+        self.iter()
     }
 }
 
-macro_rules! get_fields {
+impl FieldIter for Vec<Field> {
+    fn field_iter(&self) -> impl Iterator<Item = &Field> {
+        self.iter()
+    }
+}
+
+macro_rules! field_iter {
     ($($item:ty),*) => {
         $(
-            impl GetFields for $item {
-                fn get_fields(&self) -> &Fields {
-                    &self.fields
+            impl FieldIter for $item {
+                fn field_iter(&self) -> impl Iterator<Item = &Field> {
+                    self.fields.iter()
                 }
             }
         )*
     };
 }
 
-get_fields!(DataStruct, ItemStruct);
+field_iter!(DataStruct, ItemStruct);
 
-impl GetFields for DeriveInput {
-    fn get_fields(&self) -> &Fields {
+impl FieldIter for DeriveInput {
+    fn field_iter(&self) -> impl Iterator<Item = &Field> {
         match &self.data {
-            Data::Struct(DataStruct { fields, .. }) => fields,
-            Data::Union(DataUnion { .. }) => abort!(self, "cannot get fields on a union"),
+            Data::Struct(DataStruct { fields, .. }) => fields.iter(),
+            Data::Union(DataUnion { fields, .. }) => fields.named.iter(),
             Data::Enum(_) => abort!(self, "cannot get fields on an enum"),
         }
     }

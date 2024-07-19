@@ -1,26 +1,53 @@
+use std::fmt::{Display, Formatter};
+use std::str::FromStr;
+
+use easy_proc::ArgumentList;
 use heck::ToUpperCamelCase;
+use itertools::Itertools;
 use proc_macro2::Ident;
 use proc_macro2::TokenStream;
 use proc_macro_error::{abort, abort_call_site, ResultExt};
 use quote::{format_ident, quote, ToTokens};
-use std::fmt::{Display, Formatter};
-use std::str::FromStr;
-use syn::parse::Nothing;
+use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
+use syn::token::Bracket;
 use syn::{
-    parse2, parse_quote, Field, GenericParam, Generics, ImplGenerics, Item, ItemStruct, TypeParam,
-    WhereClause, WherePredicate,
+    bracketed, parse2, parse_quote, Attribute, Field, GenericParam, Generics, ImplGenerics, Item,
+    ItemStruct, Meta, Token, TypeParam, WhereClause, WherePredicate,
 };
 
 use crate::util::{
-    generate_fields_are_trait, get_field_types, strip_inner_attributes, type_generic_idents,
-    BetterGenerics, CombineGenerics, Paths,
+    add_derivative_attributes, generate_fields_are_trait, get_field_types,
+    make_derivative_attribute, strip_inner_attributes, type_generic_idents, BetterGenerics,
+    CombineGenerics, Paths,
 };
 
+#[derive(Debug, Clone, Default)]
+pub struct UnsizedAttributeMetas {
+    _bracket: Bracket,
+    attributes: Punctuated<Meta, Token![,]>,
+}
+
+impl Parse for UnsizedAttributeMetas {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let attributes;
+        Ok(Self {
+            _bracket: bracketed!(attributes in input),
+            attributes: attributes.parse_terminated(Meta::parse, Token![,])?,
+        })
+    }
+}
+
+// todo: figure out what args this may need
+#[derive(ArgumentList, Debug, Clone)]
+pub struct UnsizedTypeArgs {
+    #[argument(default)]
+    pub owned_attributes: UnsizedAttributeMetas,
+}
+
 pub fn unsized_type_impl(item: Item, args: TokenStream) -> TokenStream {
-    parse2::<Nothing>(args.clone()).expect_or_abort("`unsized_type` takes no arguments");
     match item {
-        Item::Struct(struct_item) => unsized_type_struct_impl(struct_item),
+        Item::Struct(struct_item) => unsized_type_struct_impl(struct_item, args),
         Item::Enum(_enum_item) => {
             abort!(
                 args,
@@ -41,10 +68,11 @@ pub struct UnsizedTypeContext {
     pub item_struct: ItemStruct,
     pub sized_fields: Vec<Field>,
     pub unsized_fields: Vec<Field>,
+    pub args: UnsizedTypeArgs,
 }
 
 impl UnsizedTypeContext {
-    fn parse(mut item_struct: ItemStruct) -> Self {
+    fn parse(mut item_struct: ItemStruct, args: TokenStream) -> Self {
         let unsized_start =
             strip_inner_attributes(&mut item_struct, "unsized_start").collect::<Vec<_>>();
         if unsized_start.is_empty() {
@@ -65,10 +93,35 @@ impl UnsizedTypeContext {
         let all_fields = item_struct.fields.iter().cloned().collect::<Vec<_>>();
         let (sized_fields, unsized_fields) = all_fields.split_at(first_unsized);
 
+        let args_attr: Attribute = parse_quote!(#[unsized_type(#args)]);
+        let unsized_args = UnsizedTypeArgs::parse_arguments(&args_attr);
+
+        const LIFETIME_ERROR: &str = "Lifetimes are not allowed in unsized types";
+        if !item_struct.generics.lifetimes().collect_vec().is_empty() {
+            abort!(item_struct.generics, LIFETIME_ERROR)
+        }
+
+        if !item_struct.generics.const_params().collect_vec().is_empty() {
+            abort!(
+                item_struct.generics,
+                "Const generics are not allowed in unsized types (yet)"
+            )
+        }
+
+        // if !unsized_args
+        //     .unsized_generics
+        //     .lifetimes()
+        //     .collect_vec()
+        //     .is_empty()
+        // {
+        //     abort!(args, LIFETIME_ERROR)
+        // }
+
         Self {
             item_struct,
             sized_fields: sized_fields.to_vec(),
             unsized_fields: unsized_fields.to_vec(),
+            args: unsized_args,
         }
     }
 
@@ -109,41 +162,45 @@ fn derive_bytemucks(sized_struct: &ItemStruct) -> TokenStream {
         }
     }).collect::<Vec<_>>();
 
-    let ensure_no_uninit =
-        generate_fields_are_trait(sized_struct, parse_quote!(#bytemuck::NoUninit));
+    let validate_fields_are_trait = generate_fields_are_trait(
+        sized_struct,
+        parse_quote!(#bytemuck::NoUninit + #bytemuck::Zeroable + #bytemuck::CheckedBitPattern),
+    );
 
-    let ensure_checked =
-        generate_fields_are_trait(sized_struct, parse_quote!(#bytemuck::CheckedBitPattern));
+    let derivative_attribute = make_derivative_attribute(
+        parse_quote!(Debug, Copy, Clone),
+        &get_field_types(&bit_fields).collect_vec(),
+    );
 
-    let derivitive_bounds = get_field_types(&bit_fields)
-        .map(|ty| quote!(#ty: Debug))
-        .collect::<Vec<_>>();
-    let derivitive_bounds = quote!(#(#derivitive_bounds),*).to_string();
     let bit_fields = bit_fields.iter();
-
     let bytemuck_print = bytemuck.to_string().replace(" :: ", "::");
-    let zeroable_safety = format!("# Safety\nThis is safe because all fields are [`{bytemuck_print}::CheckedBitPattern::Bits`], which requires [`{bytemuck_print}::AnyBitPattern`], which requires [`{bytemuck_print}::Zeroable`]");
+    let zeroable_bit_safety = format!("# Safety\nThis is safe because all fields are [`{bytemuck_print}::CheckedBitPattern::Bits`], which requires [`{bytemuck_print}::AnyBitPattern`], which requires [`{bytemuck_print}::Zeroable`]");
     let any_bit_pattern_safety = format!("# Safety\nThis is safe because all fields are [`{bytemuck_print}::CheckedBitPattern::Bits`], which requires [`{bytemuck_print}::AnyBitPattern`]");
     let no_uninit_safety = format!("# Safety\nThis is safe because the struct is `#[repr(C, packed)` (no padding bytes) and all fields are [`{bytemuck_print}::NoUninit`]");
+    let zeroable_safety =
+        format!("# Safety\nThis is safe because all fields are [`{bytemuck_print}::Zeroable`]");
     let checked_safety = format!(
         "# Safety\nThis is safe because all fields in [`Self::Bits`] are [`{bytemuck_print}::CheckedBitPattern::Bits`] and share the same repr. The checks are correctly (hopefully) and automatically generated by the macro."
     );
 
     quote! {
-        #ensure_no_uninit
-        #ensure_checked
+
+        #validate_fields_are_trait
+
+        #[doc = #zeroable_safety]
+        unsafe impl #impl_generics #bytemuck::Zeroable for #struct_ident #type_generics #where_clause {}
 
         #[doc = #no_uninit_safety]
-        unsafe impl #impl_generics NoUninit for #struct_ident #type_generics #where_clause {}
+        unsafe impl #impl_generics #bytemuck::NoUninit for #struct_ident #type_generics #where_clause {}
 
         #[repr(C, packed)]
-        #[derive(Clone, Copy, #derivative)]
-        #[derivative(Debug(bound = #derivitive_bounds))]
-        pub struct #bit_ident #type_generics #where_clause {
+        #[derive(#derivative)]
+        #derivative_attribute
+        pub struct #bit_ident #impl_generics #where_clause {
             #(#bit_fields),*
         }
 
-        #[doc = #zeroable_safety]
+        #[doc = #zeroable_bit_safety]
         unsafe impl #impl_generics #bytemuck::Zeroable for #bit_ident #type_generics #where_clause {}
 
         #[doc = #any_bit_pattern_safety]
@@ -161,7 +218,7 @@ fn derive_bytemucks(sized_struct: &ItemStruct) -> TokenStream {
     }
 }
 
-fn unsized_type_struct_impl(item_struct: ItemStruct) -> TokenStream {
+fn unsized_type_struct_impl(item_struct: ItemStruct, _args: TokenStream) -> TokenStream {
     let Paths {
         macro_prelude: prelude,
         deref,
@@ -170,25 +227,50 @@ fn unsized_type_struct_impl(item_struct: ItemStruct) -> TokenStream {
         checked,
         size_of,
         phantom_data,
+        bytemuck,
+        derivative,
         ..
     } = Default::default();
-    let context = UnsizedTypeContext::parse(item_struct);
+    let context = UnsizedTypeContext::parse(item_struct, _args);
     let sized_ident = context.sized_ident();
 
     let UnsizedTypeContext {
         mut sized_fields,
         unsized_fields,
         item_struct,
+        args: unsized_args,
     } = context;
 
-    let generic_idents: Vec<_> = type_generic_idents(&item_struct);
+    let combined_generics = item_struct.generics.clone();
+
+    let generic_idents: Vec<_> = type_generic_idents(&combined_generics);
     if !generic_idents.is_empty() {
         sized_fields.push(
             parse_quote!(pub __phantom_generics: #phantom_data<fn() -> (#(#generic_idents),*)>),
         );
     }
 
-    let combined_generics = item_struct.generics.clone();
+    // todo: figure out these bounds potentially
+    // WithUnsizedGenericsInner<A, D>: UnsizedType<
+    //         RefMeta = CombinedUnsizedRefMeta<WithUnsizedGenericsSized<A, D>, D>,
+    //         RefData = CombinedRef<WithUnsizedGenericsSized<A, D>, D>,
+    //         Owned = (
+    //             <WithUnsizedGenericsSized<A, D> as UnsizedType>::Owned,
+    //             <D as UnsizedType>::Owned,
+    //         ),
+    //     >,
+    //     <WithUnsizedGenericsInner<A, D> as UnsizedType>::IsUnsized:
+    //         LengthAccess<WithUnsizedGenerics<A, D>>,
+    //
+    // if item_struct.fields.len() > 1 {
+    //     combined_generics.make_where_clause().predicates.extend([
+    //         parse_quote!(#inner_type: #prelude::UnsizedType<
+    //             RefMeta = #meta_type,
+    //         >
+    //         ),
+    //     ]);
+    // }
+
     let (combined_impl_generics, combined_type_generics, combined_where) =
         combined_generics.split_for_impl();
 
@@ -256,77 +338,13 @@ fn unsized_type_struct_impl(item_struct: ItemStruct) -> TokenStream {
     let mut ref_resize_combined = combined_generics.clone();
     let ref_resize_impl_generics =
         impl_generics_with(&mut ref_resize_combined, ref_resize_generic.clone());
-
-    let init_zeroed_generics = Generics {
-        where_clause: Some(
-            parse_quote!(where #inner_type: #prelude::UnsizedInit<#prelude::Zeroed>),
-        ),
-        ..Default::default()
-    };
-
-    let init_zeroed_generics = combined_generics.combine(init_zeroed_generics);
-    let (_, _, init_zeroed_where) = init_zeroed_generics.split_for_impl();
-
-    let init_generic_idents: Vec<_> = unsized_field_idents
-        .iter()
-        .map(|i| {
-            let ident_string = i.to_string().to_upper_camel_case();
-            let struct_ident_string = struct_ident.to_string().to_upper_camel_case();
-            format_ident!("{struct_ident_string}{ident_string}Init")
-        })
-        .collect();
-
-    let init_type_params: Punctuated<GenericParam, _> = init_generic_idents
-        .iter()
-        .map::<GenericParam, _>(|i| parse_quote!(#i))
-        .collect();
-
-    let unsized_init_type_generics =
-        combine_with_sized(sized_type, &init_generic_idents, with_parenthesis);
-
-    let unsized_init_where = WhereClause {
-        predicates: init_generic_idents
-            .iter()
-            .zip(unsized_field_types.iter())
-            .map(|(generic, field_type)| parse_quote!(#field_type: #prelude::UnsizedInit<#generic>))
-            .chain(std::iter::once::<WherePredicate>(
-                parse_quote!(#inner_type: #prelude::UnsizedInit<#unsized_init_type_generics>),
-            ))
-            .collect(),
-        where_token: Default::default(),
-    };
-
-    let unsized_init_generics = Generics {
-        params: init_type_params,
-        where_clause: Some(unsized_init_where),
-        ..Default::default()
-    };
-
-    let combined_unsized_init_generics = combined_generics.combine(unsized_init_generics.clone());
-    let (unsized_init_impl_generics, _, init_where_clause) =
-        combined_unsized_init_generics.split_for_impl();
-
-    let init_struct_generics = combined_generics.combine(unsized_init_generics.clone());
-    let (_, init_struct_type_generics, _) = init_struct_generics.split_for_impl();
-
-    let init_struct_type = quote!(#init_struct_ident #init_struct_type_generics);
-
-    let sized_field_accesses = sized_ident.map(|sized_ident| {
+    let combine_resize = if item_struct.fields.len() > 1 {
         quote! {
-             #sized_ident {
-                #(#sized_field_idents: arg.#sized_field_idents),*
-            }
+            wrapper.r_mut().0 = #prelude::CombinedRef::new(new_meta);
         }
-    });
-    let unsized_field_accesses = unsized_field_idents
-        .iter()
-        .map(|i| quote!(arg.#i))
-        .collect::<Vec<_>>();
-    let field_accesses = combine_with_sized(
-        sized_field_accesses,
-        &unsized_field_accesses,
-        with_parenthesis,
-    );
+    } else {
+        Default::default()
+    };
 
     let extension_ident = format_ident!("{}Ext", struct_ident);
     let unsized_ext_idents = unsized_field_idents
@@ -376,14 +394,6 @@ fn unsized_type_struct_impl(item_struct: ItemStruct) -> TokenStream {
 
     let root_method = sized_type.map(|_| quote!(.u()?));
 
-    let combine_resize = if item_struct.fields.len() > 1 {
-        quote! {
-            wrapper.r_mut().0 = #prelude::CombinedRef::new(new_meta);
-        }
-    } else {
-        Default::default()
-    };
-
     let extension_trait = quote! {
         type #root_type = #root_type_def;
 
@@ -391,7 +401,7 @@ fn unsized_type_struct_impl(item_struct: ItemStruct) -> TokenStream {
             pub type #unsized_ext_idents<#all_extension_type_generics> = #ext_type_defs;
         )*
 
-        pub trait #extension_ident #combined_type_generics: Sized + #prelude::RefWrapperTypes
+        pub trait #extension_ident #combined_impl_generics: Sized + #prelude::RefWrapperTypes
         #combined_where
         {
             #(
@@ -410,11 +420,79 @@ fn unsized_type_struct_impl(item_struct: ItemStruct) -> TokenStream {
         }
     };
 
+    let init_zeroed_generics = Generics {
+        where_clause: Some(
+            parse_quote!(where #inner_type: #prelude::UnsizedInit<#prelude::Zeroed>),
+        ),
+        ..Default::default()
+    };
+
+    let init_zeroed_generics = combined_generics.combine(init_zeroed_generics);
+    let (_, _, init_zeroed_where) = init_zeroed_generics.split_for_impl();
+
+    let init_generic_idents: Vec<_> = unsized_field_idents
+        .iter()
+        .map(|i| {
+            let ident_string = i.to_string().to_upper_camel_case();
+            let struct_ident_string = struct_ident.to_string().to_upper_camel_case();
+            format_ident!("{struct_ident_string}{ident_string}Init")
+        })
+        .collect();
+
+    let init_type_params: Punctuated<GenericParam, _> = init_generic_idents
+        .iter()
+        .map::<GenericParam, _>(|i| parse_quote!(#i))
+        .collect();
+
+    let unsized_init_type_generics =
+        combine_with_sized(sized_type, &init_generic_idents, with_parenthesis);
+
+    let unsized_init_where = WhereClause {
+        predicates: init_generic_idents
+            .iter()
+            .zip(unsized_field_types.iter())
+            .map(|(generic, field_type)| parse_quote!(#field_type: #prelude::UnsizedInit<#generic>))
+            .chain(std::iter::once::<WherePredicate>(
+                parse_quote!(#inner_type: #prelude::UnsizedInit<#unsized_init_type_generics>),
+            ))
+            .collect(),
+        where_token: Default::default(),
+    };
+
+    let unsized_init_generics = Generics {
+        params: init_type_params,
+        where_clause: Some(unsized_init_where),
+        ..Default::default()
+    };
+
+    let combined_unsized_init_generics = combined_generics.combine(unsized_init_generics.clone());
+    let (unsized_init_impl_generics, unsized_init_struct_type_generics, init_where_clause) =
+        combined_unsized_init_generics.split_for_impl();
+
+    let init_struct_type = quote!(#init_struct_ident #unsized_init_struct_type_generics);
+
+    let sized_field_accesses = sized_ident.map(|sized_ident| {
+        quote! {
+             #sized_ident {
+                #(#sized_field_idents: arg.#sized_field_idents),*
+            }
+        }
+    });
+    let unsized_field_accesses = unsized_field_idents
+        .iter()
+        .map(|i| quote!(arg.#i))
+        .collect::<Vec<_>>();
+    let field_accesses = combine_with_sized(
+        sized_field_accesses,
+        &unsized_field_accesses,
+        with_parenthesis,
+    );
+
     let init_with_struct = quote! {
         #[derive(Copy, Clone, Debug)]
-        pub struct #init_struct_type #combined_where {
+        pub struct #init_struct_ident #unsized_init_impl_generics #init_where_clause {
             #(#sized_fields,)*
-            #(pub #unsized_field_idents: #init_generic_idents),*
+            #(pub #unsized_field_idents: #init_generic_idents,)*
         }
 
         impl #unsized_init_impl_generics #prelude::UnsizedInit<#init_struct_type> for #struct_type #init_where_clause
@@ -436,19 +514,23 @@ fn unsized_type_struct_impl(item_struct: ItemStruct) -> TokenStream {
         }
     };
 
-    let sized_stuff = sized_type.map(|sized_type| {
-        let sized_bytemuck_derives = combined_generics
-            .params
-            .is_empty()
-            .then_some(quote!(CheckedBitPattern, NoUninit));
+    let sized_stuff = sized_ident.map(|sized_ident| {
+        let sized_bytemuck_derives = combined_generics.params.is_empty().then_some(
+            quote!(#bytemuck::CheckedBitPattern, #bytemuck::NoUninit, #bytemuck::Zeroable),
+        );
 
-        let sized_struct: ItemStruct = parse_quote! {
-            #[derive(Debug, Copy, Clone, Zeroable, Align1, PartialEq, Eq, #sized_bytemuck_derives)]
+        let mut sized_struct: ItemStruct = parse_quote! {
+            #[derive(Align1, #derivative, #sized_bytemuck_derives)]
             #[repr(C, packed)]
-            pub struct #sized_type #combined_where {
+            pub struct #sized_ident #combined_impl_generics #combined_where {
                 #(#sized_fields),*
             }
         };
+
+        add_derivative_attributes(
+            &mut sized_struct,
+            parse_quote!(Copy, Clone, Debug, PartialEq, Eq),
+        );
 
         // We can only derive CheckedBitPattern and NoUninit if there are no generics. This restriction may be relaxed in the future in bytemuck
         let sized_bytemuck_impls = combined_generics
@@ -498,27 +580,52 @@ fn unsized_type_struct_impl(item_struct: ItemStruct) -> TokenStream {
         }
     });
 
+    let mut main_struct: ItemStruct = parse_quote! {
+        #[derive(Align1, #derivative)]
+        #[repr(transparent)]
+        pub struct #struct_ident #combined_impl_generics (#inner_type) #combined_where;
+    };
+    add_derivative_attributes(&mut main_struct, parse_quote!(Debug));
+
+    let mut meta_struct: ItemStruct = parse_quote! {
+        #[derive(#derivative)]
+        #[repr(transparent)]
+        pub struct #meta_ident #combined_impl_generics (<#inner_type as #prelude::UnsizedType>::RefMeta) #combined_where;
+    };
+    add_derivative_attributes(&mut meta_struct, parse_quote!(Debug, Copy, Clone));
+
+    let mut ref_struct: ItemStruct = parse_quote! {
+        #[derive(Copy, Clone, #derivative)]
+        #[repr(transparent)]
+        pub struct #ref_ident #combined_impl_generics (<#inner_type as #prelude::UnsizedType>::RefData) #combined_where;
+    };
+    add_derivative_attributes(&mut ref_struct, parse_quote!(Debug));
+
+    let additional_attributes = unsized_args.owned_attributes.attributes.iter();
+    let mut owned_struct = parse_quote! {
+        #[derive(#derivative)]
+        #(
+            #[#additional_attributes]
+        )*
+        pub struct #owned_ident #combined_impl_generics  #combined_where {
+            #(#owned_fields),*
+        }
+    };
+    add_derivative_attributes(&mut owned_struct, parse_quote!(Debug));
+
     quote! {
-        pub type #inner_type = #combined_inner;
+        #[allow(type_alias_bounds)]
+        pub type #inner_ident #combined_impl_generics = #combined_inner;
 
-        #[derive(Debug, Align1)]
-        #[repr(transparent)]
-        pub struct #struct_type(#inner_type) #combined_where;
+        #main_struct
 
-        #[derive(Debug, Copy, Clone)]
-        #[repr(transparent)]
-        pub struct #meta_type(<#inner_type as #prelude::UnsizedType>::RefMeta) #combined_where;
+        #meta_struct
 
-        #[derive(Debug, Copy, Clone)]
-        #[repr(transparent)]
-        pub struct #ref_type(<#inner_type as #prelude::UnsizedType>::RefData) #combined_where;
+        #ref_struct
 
         #sized_stuff
 
-        #[derive(Debug)]
-        pub struct #owned_type #combined_where {
-            #(#owned_fields),*
-        }
+        #owned_struct
 
         unsafe impl #as_bytes_impl_generics #prelude::RefBytes<#s> for #ref_type #combined_where
         {

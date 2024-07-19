@@ -1,8 +1,8 @@
-use crate::prelude::{List, UnsizedInit, UnsizedType};
+use crate::prelude::*;
 use crate::serialize::ref_wrapper::{
     AsBytes, AsMutBytes, RefBytes, RefBytesMut, RefWrapper, RefWrapperMutExt, RefWrapperTypes,
 };
-use crate::serialize::unsize::test::CombinedTest;
+use crate::serialize::unsize::test::TestStruct;
 use crate::serialize::unsize::unsized_enum::UnsizedEnum;
 use crate::serialize::unsize::FromBytesReturn;
 use crate::util::OffsetRef;
@@ -13,13 +13,19 @@ use star_frame::serialize::ref_wrapper::RefResize;
 use star_frame::serialize::unsize::resize::Resize;
 use std::mem::size_of;
 use typenum::True;
-
 // #[repr(u8)]
 // pub enum TestEnum {
 //     A(()),
 //     B(List<u8>) = 4,
 //     C(CombinedTest),
 // }
+
+#[unsized_type]
+pub struct CombinedTest {
+    #[unsized_start]
+    pub list1: List<u8>,
+    pub list2: List<TestStruct>,
+}
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, CheckedBitPattern, NoUninit)]
 #[repr(u8)]
@@ -575,14 +581,8 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::serialize::list::ListExt;
+    use super::*;
     use crate::serialize::test_helpers::TestByteSet;
-    use crate::serialize::unsize::enum_stuff::{
-        TestEnum, TestEnumDiscriminant, TestEnumExt, TestEnumRefWrapper,
-    };
-    use crate::serialize::unsize::init::Zeroed;
-    use crate::serialize::unsize::test::{CombinedTestExt, TestStruct};
-    use star_frame::serialize::unsize::enum_stuff::TestEnumInitA;
 
     #[test]
     fn test() -> anyhow::Result<()> {
