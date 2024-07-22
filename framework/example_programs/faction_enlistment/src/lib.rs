@@ -225,8 +225,8 @@ mod tests {
     use solana_sdk::signature::{Keypair, Signer};
     use star_frame::solana_program::instruction::AccountMeta;
 
-    #[tokio::test]
-    async fn init_stuff() -> Result<()> {
+    // #[tokio::test]
+    async fn _init_stuff() -> Result<()> {
         let client = solana_client::nonblocking::rpc_client::RpcClient::new_with_commitment(
             "http://localhost:8899".to_string(),
             CommitmentConfig::confirmed(),
