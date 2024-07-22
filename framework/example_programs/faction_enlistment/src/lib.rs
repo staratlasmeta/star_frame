@@ -14,7 +14,7 @@ use star_frame::prelude::*;
     program(id = "FLisTRH6dJnCK8AzTfenGJgHBPMHoat9XRc65Qpk7Yuc")
 )]
 #[cfg_attr(
-    feature = "atlasnet",
+    not(feature = "prod"),
     program(id = "FLisTRH6dJnCK8AzTfenGJgHBPMHoat9XRc65Qpk7Yuc")
 )]
 pub struct FactionEnlistment;
@@ -93,7 +93,7 @@ pub struct ProcessEnlistPlayerIx {
     faction_id: FactionId,
 }
 
-impl FrameworkInstruction for ProcessEnlistPlayerIx {
+impl StarFrameInstruction for ProcessEnlistPlayerIx {
     type SelfData<'a> = Self;
 
     type DecodeArg<'a> = ();

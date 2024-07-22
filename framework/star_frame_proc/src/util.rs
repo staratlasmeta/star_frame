@@ -89,7 +89,7 @@ pub struct Paths {
 
     pub account_set_id: TokenStream,
     // instruction
-    pub framework_instruction: TokenStream,
+    pub star_frame_instruction: TokenStream,
     pub instruction_set: TokenStream,
 
     pub instruction: TokenStream,
@@ -212,7 +212,7 @@ impl Default for Paths {
             account_set_id: quote! { #crate_name::star_frame_idl::account_set::AccountSetId },
 
             // instruction
-            framework_instruction: quote! { #crate_name::instruction::FrameworkInstruction },
+            star_frame_instruction: quote! { #crate_name::instruction::StarFrameInstruction },
             instruction_set: quote! { #crate_name::instruction::InstructionSet },
             instruction: quote! { #crate_name::instruction::Instruction },
 

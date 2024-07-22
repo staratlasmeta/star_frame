@@ -22,7 +22,7 @@ use star_frame_proc::AccountSet;
         <IC>
         where
             IC: InitCreateArg<'info>,
-            T: UnsizedInit<IC::FrameworkInitArg>,
+            T: UnsizedInit<IC::StarFrameInitArg>,
     ],
     arg = Create<SeededInit<T::Seeds, IC>>,
     extra_validation = seed_init_validate(self, arg.0, sys_calls)
@@ -33,7 +33,7 @@ use star_frame_proc::AccountSet;
         <IC>
         where
             IC: InitCreateArg<'info>,
-            T: UnsizedInit<IC::FrameworkInitArg>,
+            T: UnsizedInit<IC::StarFrameInitArg>,
     ],
     arg = CreateIfNeeded<SeededInit<T::Seeds, IC>>,
     extra_validation = seed_init_validate_if_needed(self, arg.0, sys_calls)

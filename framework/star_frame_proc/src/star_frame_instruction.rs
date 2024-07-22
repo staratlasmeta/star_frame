@@ -16,10 +16,10 @@ struct StrippedDeriveInput {
 }
 
 #[cfg_attr(not(feature = "idl"), allow(unused_variables))]
-pub fn derive_framework_instruction_impl(input: DeriveInput) -> TokenStream {
+pub fn derive_star_frame_instruction_impl(input: DeriveInput) -> TokenStream {
     #[cfg(feature = "idl")]
     let out = match input.data {
-        Data::Struct(s) => derive_framework_instruction_impl_struct(
+        Data::Struct(s) => derive_star_frame_instruction_impl_struct(
             Paths::default(),
             s,
             StrippedDeriveInput {
@@ -30,11 +30,11 @@ pub fn derive_framework_instruction_impl(input: DeriveInput) -> TokenStream {
         ),
         Data::Enum(e) => abort!(
             e.enum_token,
-            "FrameworkInstruction cannot be derived for enums"
+            "StarFrameInstruction cannot be derived for enums"
         ),
         Data::Union(u) => abort!(
             u.union_token,
-            "FrameworkInstruction cannot be derived for unions"
+            "StarFrameInstruction cannot be derived for unions"
         ),
     };
     #[cfg(not(feature = "idl"))]
@@ -43,7 +43,7 @@ pub fn derive_framework_instruction_impl(input: DeriveInput) -> TokenStream {
 }
 
 #[cfg(feature = "idl")]
-fn derive_framework_instruction_impl_struct(
+fn derive_star_frame_instruction_impl_struct(
     paths: Paths,
     data_struct: syn::DataStruct,
     input: StrippedDeriveInput,
@@ -55,7 +55,7 @@ fn derive_framework_instruction_impl_struct(
         idl_field,
         idl_type_def,
         idl_instruction_def,
-        framework_instruction,
+        star_frame_instruction,
         #[cfg(feature = "idl")]
         type_to_idl,
         ..
@@ -115,7 +115,7 @@ fn derive_framework_instruction_impl_struct(
                     let #field_name = <#field_type as #type_to_idl>::type_to_idl(idl_definition)?;
                 )*
                 Ok(#idl_instruction_def {
-                    account_set: <Self as #framework_instruction>::Accounts::account_set_to_idl(
+                    account_set: <Self as #star_frame_instruction>::Accounts::account_set_to_idl(
                         idl_definition,
                         arg,
                     )?,

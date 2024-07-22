@@ -8,7 +8,6 @@ pub use crate::sys_calls::{SysCallCore, SysCallInvoke, SysCallReturn, SysCalls};
 pub use crate::instruction::*;
 
 pub use crate::serialize::{
-    borsh::framework_serialize_borsh,
     combined_unsized::*,
     list::{List, ListExt, ListRef},
     ref_wrapper::{
@@ -19,7 +18,7 @@ pub use crate::serialize::{
         init::UnsizedInit, init::Zeroed, resize::Resize, unsized_type, LengthAccess,
         UnsizedGenerics, UnsizedType,
     },
-    FrameworkFromBytes, FrameworkSerialize,
+    StarFrameFromBytes, StarFrameSerialize,
 };
 
 pub use crate::align1::Align1;

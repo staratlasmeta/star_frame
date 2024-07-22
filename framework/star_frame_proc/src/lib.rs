@@ -4,12 +4,12 @@ use proc_macro2::TokenStream;
 #[cfg(feature = "idl")]
 mod account;
 mod account_set;
-mod framework_instruction;
 mod instruction_set;
 #[cfg(feature = "idl")]
 mod instruction_set_to_idl;
 mod program;
 mod solana_pubkey;
+mod star_frame_instruction;
 #[cfg(feature = "idl")]
 mod ty;
 mod unit_enum_from_repr;
@@ -42,8 +42,8 @@ fn get_crate_name() -> TokenStream {
 
 #[proc_macro_error]
 #[proc_macro_derive(InstructionToIdl)]
-pub fn derive_framework_instruction(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let out = framework_instruction::derive_framework_instruction_impl(parse_macro_input!(
+pub fn derive_star_frame_instruction(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let out = star_frame_instruction::derive_star_frame_instruction_impl(parse_macro_input!(
         input as DeriveInput
     ));
     out.into()

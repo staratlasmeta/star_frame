@@ -18,7 +18,7 @@ unsafe impl<'a> FrameworkFromBytes<'a> for SystemInstruction {
     }
 }
 
-impl FrameworkSerialize for SystemInstruction {
+impl StarFrameSerialize for SystemInstruction {
     fn to_bytes(&self, _output: &mut &mut [u8]) -> Result<()> {
         todo!()
     }

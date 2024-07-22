@@ -1,9 +1,9 @@
 use solana_program::pubkey::Pubkey;
 
 #[macro_export]
-macro_rules! _framework_serialize_borsh {
+macro_rules! star_frame_serialize_borsh {
     (@impl $ty:ty) => {
-        impl $crate::serialize::FrameworkSerialize for $ty {
+        impl $crate::serialize::StarFrameSerialize for $ty {
             fn to_bytes(&self, output: &mut &mut [u8]) -> $crate::Result<()> {
                 <$ty as $crate::borsh::BorshSerialize>::serialize(self, output).map_err(Into::into)
             }
@@ -15,13 +15,11 @@ macro_rules! _framework_serialize_borsh {
         }
     };
     ($($ty:ty),* $(,)?) => {
-        $($crate::_framework_serialize_borsh!(@impl $ty);)*
+        $($crate::star_frame_serialize_borsh!(@impl $ty);)*
     };
 }
 
-pub use _framework_serialize_borsh as framework_serialize_borsh;
-
-framework_serialize_borsh!(
+star_frame_serialize_borsh!(
     (),
     u8,
     u16,
