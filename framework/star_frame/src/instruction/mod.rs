@@ -129,6 +129,7 @@ where
         Self::extra_validations(&mut account_set, &mut run, sys_calls)?;
         let ret = Self::run_instruction(run, program_id, &mut account_set, sys_calls)?;
         account_set.cleanup_accounts(cleanup, sys_calls)?;
+        // todo: handle return data better
         let mut return_data = vec![0u8; MAX_RETURN_DATA];
         let mut return_data_ref = &mut return_data[..];
         ret.to_bytes(&mut return_data_ref)?;

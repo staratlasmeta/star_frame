@@ -163,13 +163,13 @@ mod tests {
     }
 
     use super::*;
-    use star_frame_idl::{DiscriminantId, ProgramIds};
+    use star_frame_idl::DiscriminantId;
 
     #[test]
     fn print_idl() -> Result<()> {
         let mut idl_definition = IdlDefinition {
             namespace: "my_program".to_string(),
-            program_ids: ProgramIds::AllNetworks(Pubkey::default().into()),
+            program_id: Pubkey::default(),
             account_discriminant: DiscriminantId::None,
             instruction_discriminant: DiscriminantId::None,
             idl_std_version: Default::default(),

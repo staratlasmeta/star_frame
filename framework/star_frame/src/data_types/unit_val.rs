@@ -159,7 +159,7 @@ pub trait Convert<Rhs> {}
 #[cfg(feature = "idl")]
 mod idl {
     use super::*;
-    use crate::idl::ty::TypeToIdl;
+    use crate::idl::TypeToIdl;
     use star_frame_idl::ty::IdlTypeDef;
     use star_frame_idl::{IdlDefinition, SemVer};
     impl<T: TypeToIdl, Unit> TypeToIdl for UnitVal<T, Unit> {

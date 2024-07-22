@@ -18,7 +18,6 @@ default = ["serde_json", "no-idl"]
 [dependencies]
 bytemuck = "1.14.0"
 star_frame = { path = "../../star_frame" }
-star_frame_idl = { path = "../../star_frame_idl" }
 serde_json = { version = "1.0.108", optional = true }
 
 [dev-dependencies]

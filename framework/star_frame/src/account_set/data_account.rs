@@ -26,11 +26,11 @@ pub trait ProgramAccount {
     }
 }
 
-fn validate_data_account<T>(account: &DataAccount<T>, sys_calls: &impl SysCallCore) -> Result<()>
+fn validate_data_account<T>(account: &DataAccount<T>, _sys_calls: &impl SysCallCore) -> Result<()>
 where
     T: ProgramAccount + UnsizedType + ?Sized,
 {
-    if account.info.owner != &T::OwnerProgram::program_id(sys_calls)? {
+    if account.info.owner != &T::OwnerProgram::PROGRAM_ID {
         bail!(ProgramError::IllegalOwner);
     }
 

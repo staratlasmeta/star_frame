@@ -8,48 +8,8 @@ use anyhow::anyhow;
 use solana_program::system_instruction::transfer;
 use std::cell::{Ref, RefMut};
 use std::cmp::Ordering;
-use std::fmt::{Debug, Display};
+use std::fmt::Debug;
 use std::mem::size_of;
-
-/// A solana cluster identifier.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Network {
-    /// Solana's Mainnet
-    MainnetBeta,
-    /// Solana's Devnet
-    Devnet,
-    /// Solana's Testnet
-    Testnet,
-    /// Local test validator
-    Localhost,
-    /// Custom defined cluster using an identifier.
-    Custom(&'static str),
-}
-
-impl Display for Network {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Network::MainnetBeta => write!(f, "MainnetBeta"),
-            Network::Devnet => write!(f, "Devnet"),
-            Network::Testnet => write!(f, "Testnet"),
-            Network::Localhost => write!(f, "Localhost"),
-            Network::Custom(c) => write!(f, "Custom: {c}"),
-        }
-    }
-}
-
-#[cfg(feature = "idl")]
-impl From<Network> for star_frame_idl::Network {
-    fn from(value: Network) -> Self {
-        match value {
-            Network::MainnetBeta => Self::MainnetBeta,
-            Network::Devnet => Self::Devnet,
-            Network::Testnet => Self::Testnet,
-            Network::Localhost => Self::Localhost,
-            Network::Custom(c) => Self::Custom(c.to_string()),
-        }
-    }
-}
 
 /// Similar to [`Ref::map`], but the closure can return an error.
 pub fn try_map_ref<'a, I: 'a + ?Sized, O: 'a + ?Sized, E>(
@@ -195,4 +155,16 @@ pub fn uninit_array_bytes<T: NoUninit, const N: usize>(array: &[T; N]) -> &[u8] 
     // between array elements. The pointer is valid. The entire memory is valid.
     // The size is correct. Everything is fine.
     unsafe { core::slice::from_raw_parts(array.as_ptr().cast::<u8>(), size_of::<T>() * N) }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn test_compare_strings() {
+        assert!(compare_strings("hello", "hello"));
+        assert!(!compare_strings("hello", "world"));
+        assert!(!compare_strings("hello", "hell"));
+        assert!(!compare_strings("hello", "hellp"));
+    }
 }

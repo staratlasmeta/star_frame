@@ -1460,7 +1460,6 @@ dependencies = [
  "solana-sdk",
  "solana-transaction-status",
  "star_frame",
- "star_frame_idl",
  "tokio",
 ]
 

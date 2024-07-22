@@ -1,5 +1,6 @@
 #![allow(clippy::let_and_return)]
 
+use proc_macro2::TokenStream;
 #[cfg(feature = "idl")]
 mod account;
 mod account_set;
@@ -18,7 +19,6 @@ mod util;
 #[cfg(feature = "idl")]
 use crate::account::derive_account_to_idl_impl;
 use crate::unit_enum_from_repr::unit_enum_from_repr_impl;
-use proc_macro2::TokenStream;
 use proc_macro_crate::{crate_name, FoundCrate};
 use proc_macro_error::{abort, proc_macro_error};
 use quote::{format_ident, quote, ToTokens};
@@ -26,7 +26,7 @@ use syn::parse::{Parse, ParseStream};
 use syn::token::Token;
 use syn::{
     parenthesized, parse_macro_input, parse_quote, token, Data, DataStruct, DataUnion, DeriveInput,
-    Fields, Ident, Item, ItemEnum, ItemStruct, LitInt, Token,
+    Fields, Ident, Item, ItemEnum, LitInt, Token,
 };
 
 fn get_crate_name() -> TokenStream {
@@ -343,13 +343,48 @@ pub fn derive_account_to_idl(input: proc_macro::TokenStream) -> proc_macro::Toke
     out.into()
 }
 
+/// Derives `StarFrameProgram` and sets up the entrypoint for a program.
+///
+/// While it is possible to implement this manually, the derive macro has helpful defaults and
+/// additionally creates useful top level items for the crate.
+///
+/// ## Additional code generated:
+/// - `StarFrameDeclaredProgram` - This is a type alias around the struct that is used in other `star_frame` macros. This
+/// derive should be placed at the root of the crate, or be re-exported there.
+/// - Solana entrypoint - This will call the `star_frame_entrypoint` macro with the program struct.
+/// - `declare_id!` - It also generates the `crate::ID` and `id()` constants like how Solana's `declare_id` macro works.
+///
+/// # Example
+/// ```
+/// use star_frame::prelude::*;
+///
+/// #[derive(StarFrameProgram)]
+/// #[program(
+///     // This will be whatever instruction set you make for your program
+///     instruction_set = (),
+///     id = Pubkey::new_from_array([0; 32]),
+///     // Defaults to [u8; 8]
+///     account_discriminant = [u8; 8],
+///     // Defaults to [u8::MAX; 8]
+///     closed_account_discriminant = [u8::MAX; 8],
+///     // If present, the macro will not generate an entrypoint for the program. If not present, entrypoint is still gated with `no_entrypoint` feature
+///     no_entrypoint
+/// )]
+/// struct MyProgram;
+/// ```
+///
+/// # Arguments
+/// `#[program(instruction_set = <type>, id = <expr>, account_discriminant = <type>, closed_account_discriminant = <expr>, no_entrypoint)]`
+/// - `instruction_set` - The enum that implements `InstructionSet` for the program
+/// - `id` - The program id for the program. This can be either a literal string in base58 ("AABBCC42") or an expression that resolves to a `Pubkey`
+/// - `account_discriminant` - The `AccountDiscriminant` type used for the program. Defaults to `[u8; 8]` (similarly to Anchor)
+/// - `closed_account_discriminant` - The `AccountDiscriminant` value used for closed accounts. Defaults to `[u8::MAX; 8]`
+/// - `no_entrypoint` - If present, the macro will not generate an entrypoint for the program. While the generated entrypoint is already feature gated, this may be useful in some cases where features aren't
+/// convenient.
 #[proc_macro_error]
-#[proc_macro_attribute]
-pub fn program(
-    args: proc_macro::TokenStream,
-    item: proc_macro::TokenStream,
-) -> proc_macro::TokenStream {
-    let out = program::program_impl(parse_macro_input!(item as ItemStruct), args.into());
+#[proc_macro_derive(StarFrameProgram, attributes(program, program_id))]
+pub fn program(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let out = program::program_impl(parse_macro_input!(input as DeriveInput));
     out.into()
 }
 

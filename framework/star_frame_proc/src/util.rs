@@ -105,6 +105,8 @@ pub struct Paths {
     pub validate_ident: Ident,
     pub cleanup_ident: Ident,
     pub idl_ident: Ident,
+    pub star_frame_program_ident: Ident,
+    pub program_id_ident: Ident,
 
     pub idl_ty_program_ident: Ident,
     pub align1: TokenStream,
@@ -187,7 +189,7 @@ impl Default for Paths {
             #[cfg(feature = "idl")]
             instruction_set_to_idl: quote! { #crate_name::idl::InstructionSetToIdl },
             #[cfg(feature = "idl")]
-            type_to_idl: quote! { #crate_name::idl::ty::TypeToIdl },
+            type_to_idl: quote! { #crate_name::idl::TypeToIdl },
             #[cfg(feature = "idl")]
             program_to_idl: quote! { #crate_name::idl::ProgramToIdl },
 
@@ -227,6 +229,8 @@ impl Default for Paths {
             cleanup_ident: format_ident!("cleanup"),
             idl_ident: format_ident!("idl"),
             idl_ty_program_ident: format_ident!("program"),
+            star_frame_program_ident: format_ident!("program"),
+            program_id_ident: format_ident!("program_id"),
 
             align1: quote! { #crate_name::align1::Align1 },
             packed_value_checked: quote! { #crate_name::data_types::PackedValueChecked },

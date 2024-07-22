@@ -157,8 +157,8 @@ impl<P> SeedProgram for P
 where
     P: StarFrameProgram,
 {
-    fn id(sys_calls: &mut impl SysCallInvoke) -> Result<Pubkey> {
-        P::program_id(sys_calls)
+    fn id(_sys_calls: &mut impl SysCallInvoke) -> Result<Pubkey> {
+        Ok(P::PROGRAM_ID)
     }
 }
 

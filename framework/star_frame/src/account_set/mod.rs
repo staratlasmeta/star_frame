@@ -162,7 +162,6 @@ pub trait AccountSetCleanup<'info, A>: AccountSet<'info> + Sized {
 #[cfg(test)]
 mod test {
     use crate::account_set::AccountSetValidate;
-    use crate::prelude::Network;
     use crate::sys_calls::{SysCallCore, SysCallInvoke};
     use crate::SolanaInstruction;
     use solana_program::account_info::AccountInfo;
@@ -224,10 +223,6 @@ mod test {
     struct DummyRuntime;
     impl SysCallCore for DummyRuntime {
         fn current_program_id(&self) -> &Pubkey {
-            unimplemented!()
-        }
-
-        fn current_network(&self) -> &Network {
             unimplemented!()
         }
 

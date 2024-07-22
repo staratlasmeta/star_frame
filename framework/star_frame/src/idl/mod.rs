@@ -4,7 +4,10 @@ use star_frame_idl::account_set::IdlAccountSetDef;
 use star_frame_idl::instruction::IdlInstructionDef;
 use star_frame_idl::{IdlDefinition, SemVer, Version};
 
-pub mod ty;
+pub use star_frame_proc::{AccountToIdl, InstructionSetToIdl};
+
+mod ty;
+pub use ty::*;
 
 pub trait AccountSetToIdl<'info, A>: AccountSet<'info> {
     /// Returns the idl of this account set.

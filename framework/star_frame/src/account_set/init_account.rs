@@ -188,7 +188,7 @@ where
             self.key(),
             rent.minimum_balance(size),
             size as u64,
-            &T::OwnerProgram::program_id(sys_calls)?,
+            &T::OwnerProgram::PROGRAM_ID,
         );
         let accounts: &[AccountInfo<'info>] = &[
             self.account_info_cloned(),
