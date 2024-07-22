@@ -87,7 +87,7 @@ where
     S: GetSeeds,
     IC: InitCreateArg<'info>,
 {
-    type FrameworkInitArg = IC::FrameworkInitArg;
+    type StarFrameInitArg = IC::StarFrameInitArg;
     type AccountSeeds = S;
     type FunderAccount = IC::FunderAccount;
 
@@ -97,7 +97,7 @@ where
 
     fn split<'b>(
         &'b mut self,
-    ) -> CreateSplit<'b, 'info, Self::FrameworkInitArg, Self::AccountSeeds, Self::FunderAccount>
+    ) -> CreateSplit<'b, 'info, Self::StarFrameInitArg, Self::AccountSeeds, Self::FunderAccount>
     {
         let split = self.init_arg.split();
         CreateSplit {
@@ -115,7 +115,7 @@ fn seed_init_validate<'info, T, IC, P: SeedProgram>(
     sys_calls: &mut impl SysCallInvoke,
 ) -> Result<()>
 where
-    T: SeededAccountData + UnsizedType + UnsizedInit<IC::FrameworkInitArg> + ?Sized,
+    T: SeededAccountData + UnsizedType + UnsizedInit<IC::StarFrameInitArg> + ?Sized,
     IC: InitCreateArg<'info>,
 {
     SeededAccount::validate_accounts(&mut account.0, (Skip, Seeds(arg.seeds)), sys_calls)?;
@@ -137,7 +137,7 @@ fn seed_init_validate_if_needed<'info, T, IC, P: SeedProgram>(
     sys_calls: &mut impl SysCallInvoke,
 ) -> Result<()>
 where
-    T: SeededAccountData + UnsizedType + UnsizedInit<IC::FrameworkInitArg> + ?Sized,
+    T: SeededAccountData + UnsizedType + UnsizedInit<IC::StarFrameInitArg> + ?Sized,
     IC: InitCreateArg<'info>,
 {
     SeededAccount::validate_accounts(&mut account.0, (Skip, Seeds(arg.seeds)), sys_calls)?;

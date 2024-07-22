@@ -10,7 +10,7 @@ impl StarFrameSerialize for UnCallable {
         panic!("Cannot call `to_bytes` on Uncallable")
     }
 }
-unsafe impl<'a> FrameworkFromBytes<'a> for UnCallable {
+unsafe impl<'a> StarFrameFromBytes<'a> for UnCallable {
     fn from_bytes(_bytes: &mut &'a [u8]) -> Result<Self> {
         panic!("Cannot call `from_bytes` on Uncallable")
     }

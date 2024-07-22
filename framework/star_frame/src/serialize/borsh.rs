@@ -8,7 +8,7 @@ macro_rules! star_frame_serialize_borsh {
                 <$ty as $crate::borsh::BorshSerialize>::serialize(self, output).map_err(Into::into)
             }
         }
-        unsafe impl<'a> $crate::serialize::FrameworkFromBytes<'a> for $ty {
+        unsafe impl<'a> $crate::serialize::StarFrameFromBytes<'a> for $ty {
             fn from_bytes(bytes: &mut &'a [u8]) -> $crate::Result<Self> {
                 <$ty as $crate::borsh::BorshDeserialize>::deserialize(bytes).map_err(Into::into)
             }
