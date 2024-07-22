@@ -4,7 +4,7 @@ use std::marker::PhantomData;
 #[derive(AccountSet, Debug)]
 #[validate(
     generics = [where T: StarFrameProgram],
-    extra_validation = self.check_id(sys_calls),
+    extra_validation = self.check_id(),
 )]
 pub struct Program<'info, T>(AccountInfo<'info>, PhantomData<T>);
 
@@ -15,8 +15,8 @@ impl<'info, T> SingleAccountSet<'info> for Program<'info, T> {
 }
 
 impl<T: StarFrameProgram> Program<'_, T> {
-    pub fn check_id(&self, sys_calls: &impl SysCallCore) -> Result<()> {
-        if self.0.key() == &T::program_id(sys_calls)? {
+    pub fn check_id(&self) -> Result<()> {
+        if self.0.key() == &T::PROGRAM_ID {
             Ok(())
         } else {
             Err(ProgramError::IncorrectProgramId.into())

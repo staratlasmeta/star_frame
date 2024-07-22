@@ -23,7 +23,7 @@ where
     type Owned = T;
     type IsUnsized = False;
 
-    unsafe fn from_bytes<S: AsBytes>(
+    fn from_bytes<S: AsBytes>(
         bytes: S,
     ) -> Result<FromBytesReturn<S, Self::RefData, Self::RefMeta>> {
         try_from_bytes::<Self>(bytes.as_bytes()?.try_advance(size_of::<T>())?)?;
@@ -39,6 +39,7 @@ where
     }
 }
 
+/// A ref to a [`CheckedBitPatternValue`]. Used in a [`RefWrapper`].
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""), Clone(bound = ""), Copy(bound = ""))]
 pub struct CheckRef<T>(PhantomData<fn() -> T>);

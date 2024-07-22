@@ -1,11 +1,16 @@
+//! Anchor replacement.
+// TODO: Expand docs
+
 #![feature(ptr_metadata)]
+#![feature(associated_type_defaults)]
 #![cfg_attr(not(rust_1_75), feature(pointer_byte_offsets))]
 #![cfg_attr(not(rust_1_76), feature(type_name_of_val))]
 #![warn(
     clippy::pedantic,
     missing_copy_implementations,
     missing_debug_implementations,
-    unsafe_op_in_unsafe_fn
+    unsafe_op_in_unsafe_fn,
+    // missing_docs
 )]
 #![allow(
     clippy::non_canonical_clone_impl,
@@ -41,27 +46,22 @@ pub extern crate typenum;
 
 pub mod account_set;
 pub mod align1;
-// mod arbitrary_struct;
-pub mod divisor;
 pub mod entrypoint;
 pub mod errors;
-pub mod fixed_point;
 #[cfg(feature = "idl")]
 pub mod idl;
-pub mod impls;
 pub mod instruction;
-pub mod packed_value;
 pub mod prelude;
 pub mod program;
 pub mod serialize;
 pub mod sys_calls;
 pub mod unit_enum_from_repr;
-pub mod unit_val;
 pub mod util;
 
 /// Internal paths mainly for use in macros. DO NOT USE MANUALLY. NOT PART OF THE PUBLIC API.
 #[doc(hidden)]
 pub mod __private;
+mod data_types;
 
 pub use anyhow::Result;
 pub use solana_program::instruction::Instruction as SolanaInstruction;
@@ -78,22 +78,17 @@ compile_error!("You must enable the `test_helpers` feature for running tests!");
 mod tests {
     use super::*;
     use crate::idl::ProgramToIdl;
-    use crate::program::{ProgramIds, StarFrameProgram};
-    use crate::util::Network;
+    use crate::program::StarFrameProgram;
     use solana_program::pubkey::Pubkey;
     use star_frame_idl::{IdlDefinition, Version};
-    use star_frame_proc::program;
 
-    #[program(Network::MainnetBeta, no_entrypoint)]
+    #[derive(StarFrameProgram)]
+    #[program(
+        instruction_set = (),
+        id = Pubkey::new_from_array([0; 32]),
+        no_entrypoint,
+    )]
     pub struct MyProgram;
-
-    impl StarFrameProgram for MyProgram {
-        type InstructionSet<'a> = ();
-        type InstructionDiscriminant = ();
-        type AccountDiscriminant = ();
-        const CLOSED_ACCOUNT_DISCRIMINANT: Self::AccountDiscriminant = ();
-        const PROGRAM_IDS: ProgramIds = ProgramIds::AllNetworks(&Pubkey::new_from_array([0; 32]));
-    }
 
     impl ProgramToIdl for MyProgram {
         const VERSION: Version = Version {

@@ -1,8 +1,8 @@
+#[cfg(feature = "idl")]
+use crate::account_set::impls::vec::idl_impl::VecSize;
 use crate::account_set::{AccountSet, AccountSetCleanup, AccountSetDecode, AccountSetValidate};
 #[cfg(feature = "idl")]
 use crate::idl::AccountSetToIdl;
-#[cfg(feature = "idl")]
-use crate::impls::vec::idl_impl::VecSize;
 use crate::sys_calls::SysCallInvoke;
 use solana_program::account_info::AccountInfo;
 use std::marker::PhantomData;

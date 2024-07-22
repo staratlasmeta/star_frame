@@ -37,7 +37,8 @@ pub struct IdlDefinition {
     /// Plugin id example: `@staratlas/binary-heap`
     pub required_plugins: HashMap<String, Plugin>,
     pub required_idl_definitions: HashMap<String, IdlDefinitionReference>,
-    pub program_ids: ProgramIds,
+    #[serde(with = "serde_base58_pubkey")]
+    pub program_id: Pubkey,
     pub account_discriminant: DiscriminantId,
     pub instruction_discriminant: DiscriminantId,
     pub accounts: HashMap<String, IdlAccount>,
@@ -267,38 +268,6 @@ impl SemVer {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub enum ProgramIds {
-    Mapped(HashMap<Network, NetworkKey>),
-    AllNetworks(NetworkKey),
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
-pub struct NetworkKey {
-    #[serde(with = "serde_base58_pubkey")]
-    pub key: Pubkey,
-    #[serde(skip_serializing_if = "HashMap::is_empty")]
-    pub extension_fields: HashMap<ExtensionClass, Value>,
-}
-impl From<Pubkey> for NetworkKey {
-    fn from(value: Pubkey) -> Self {
-        Self {
-            key: value,
-            extension_fields: HashMap::new(),
-        }
-    }
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, Hash)]
-pub enum Network {
-    MainnetBeta,
-    Devnet,
-    Testnet,
-    Localhost,
-    #[serde(untagged)]
-    Custom(String),
-}
-
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 pub enum DiscriminantId {
     None,
@@ -336,8 +305,7 @@ mod test {
     use crate::seeds::{IdlSeed, IdlSeedDef, IdlSeeds, IdlSeedsDef};
     use crate::ty::{IdlDefinedType, IdlField, IdlTypeDef, TypeId};
     use crate::{
-        DiscriminantId, IdlAccount, IdlAccountSet, IdlDefinition, IdlGeneric, IdlType, Network,
-        ProgramIds, Version,
+        DiscriminantId, IdlAccount, IdlAccountSet, IdlDefinition, IdlGeneric, IdlType, Version,
     };
     use anyhow::Result;
     use solana_program::pubkey::Pubkey;
@@ -361,18 +329,7 @@ mod test {
             description: "Test Idl Description".to_string(),
             required_plugins: Default::default(),
             required_idl_definitions: Default::default(),
-            program_ids: ProgramIds::Mapped(
-                [
-                    (Network::MainnetBeta, Pubkey::new_unique().into()),
-                    (Network::Devnet, Pubkey::default().into()),
-                    (
-                        Network::Custom("AtlasNet".to_string()),
-                        Pubkey::new_unique().into(),
-                    ),
-                ]
-                .into_iter()
-                .collect(),
-            ),
+            program_id: Pubkey::default(),
             account_discriminant: DiscriminantId::U8,
             instruction_discriminant: DiscriminantId::U64,
             accounts: vec![

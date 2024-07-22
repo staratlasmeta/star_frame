@@ -89,7 +89,7 @@ pub struct Paths {
 
     pub account_set_id: TokenStream,
     // instruction
-    pub framework_instruction: TokenStream,
+    pub star_frame_instruction: TokenStream,
     pub instruction_set: TokenStream,
 
     pub instruction: TokenStream,
@@ -105,6 +105,8 @@ pub struct Paths {
     pub validate_ident: Ident,
     pub cleanup_ident: Ident,
     pub idl_ident: Ident,
+    pub star_frame_program_ident: Ident,
+    pub program_id_ident: Ident,
 
     pub idl_ty_program_ident: Ident,
     pub align1: TokenStream,
@@ -167,8 +169,8 @@ impl Default for Paths {
             account_set_decode: quote! { #crate_name::account_set::AccountSetDecode },
             account_set_validate: quote! { #crate_name::account_set::AccountSetValidate },
             account_set_cleanup: quote! { #crate_name::account_set::AccountSetCleanup },
-            get_seeds: quote! { #crate_name::account_set::seeded_account::GetSeeds },
-            program_account: quote! { #crate_name::account_set::data_account::ProgramAccount },
+            get_seeds: quote! { #crate_name::account_set::GetSeeds },
+            program_account: quote! { #crate_name::account_set::ProgramAccount },
 
             // syscalls
             sys_calls: quote! { #crate_name::sys_calls::SysCalls },
@@ -187,7 +189,7 @@ impl Default for Paths {
             #[cfg(feature = "idl")]
             instruction_set_to_idl: quote! { #crate_name::idl::InstructionSetToIdl },
             #[cfg(feature = "idl")]
-            type_to_idl: quote! { #crate_name::idl::ty::TypeToIdl },
+            type_to_idl: quote! { #crate_name::idl::TypeToIdl },
             #[cfg(feature = "idl")]
             program_to_idl: quote! { #crate_name::idl::ProgramToIdl },
 
@@ -210,7 +212,7 @@ impl Default for Paths {
             account_set_id: quote! { #crate_name::star_frame_idl::account_set::AccountSetId },
 
             // instruction
-            framework_instruction: quote! { #crate_name::instruction::FrameworkInstruction },
+            star_frame_instruction: quote! { #crate_name::instruction::StarFrameInstruction },
             instruction_set: quote! { #crate_name::instruction::InstructionSet },
             instruction: quote! { #crate_name::instruction::Instruction },
 
@@ -227,9 +229,11 @@ impl Default for Paths {
             cleanup_ident: format_ident!("cleanup"),
             idl_ident: format_ident!("idl"),
             idl_ty_program_ident: format_ident!("program"),
+            star_frame_program_ident: format_ident!("program"),
+            program_id_ident: format_ident!("program_id"),
 
             align1: quote! { #crate_name::align1::Align1 },
-            packed_value_checked: quote! { #crate_name::packed_value::PackedValueChecked },
+            packed_value_checked: quote! { #crate_name::data_types::PackedValueChecked },
             advance_array: quote! { #crate_name::advance::AdvanceArray },
             advance: quote! { #crate_name::advance::Advance},
 

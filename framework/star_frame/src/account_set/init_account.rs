@@ -16,13 +16,13 @@ use std::mem::size_of;
 #[account_set(skip_default_validate)]
 #[validate(
     id = "create",
-    generics = [<A> where A: InitCreateArg<'info>, T: UnsizedInit<A::FrameworkInitArg>],
+    generics = [<A> where A: InitCreateArg<'info>, T: UnsizedInit<A::StarFrameInitArg>],
     arg = Create<A>,
     extra_validation = self.init_validate_create(arg.0, sys_calls),
 )]
 #[validate(
     id = "create_if_needed",
-    generics = [<A> where A: InitCreateArg<'info>, T: UnsizedInit<A::FrameworkInitArg>],
+    generics = [<A> where A: InitCreateArg<'info>, T: UnsizedInit<A::StarFrameInitArg>],
     arg = CreateIfNeeded<A>,
     extra_validation = self.init_if_needed(arg.0, sys_calls),
 )]
@@ -53,7 +53,7 @@ impl<'info, T> WritableAccount<'info> for InitAccount<'info, T> where
 }
 
 pub trait InitCreateArg<'info> {
-    type FrameworkInitArg;
+    type StarFrameInitArg;
     type AccountSeeds: GetSeeds;
     type FunderAccount: SignedAccount<'info> + WritableAccount<'info>;
 
@@ -61,7 +61,7 @@ pub trait InitCreateArg<'info> {
 
     fn split<'a>(
         &'a mut self,
-    ) -> CreateSplit<'a, 'info, Self::FrameworkInitArg, Self::AccountSeeds, Self::FunderAccount>;
+    ) -> CreateSplit<'a, 'info, Self::StarFrameInitArg, Self::AccountSeeds, Self::FunderAccount>;
 }
 #[derive(Derivative)]
 #[derivative(
@@ -116,7 +116,7 @@ impl<'a, 'info, A, WT> CreateAccount<'a, 'info, A, WT> {
 impl<'a, 'info, A, WT: SignedAccount<'info> + WritableAccount<'info>> InitCreateArg<'info>
     for CreateAccount<'a, 'info, A, WT>
 {
-    type FrameworkInitArg = A;
+    type StarFrameInitArg = A;
     type AccountSeeds = ();
     type FunderAccount = WT;
 
@@ -126,7 +126,7 @@ impl<'a, 'info, A, WT: SignedAccount<'info> + WritableAccount<'info>> InitCreate
 
     fn split<'b>(
         &'b mut self,
-    ) -> CreateSplit<'b, 'info, Self::FrameworkInitArg, Self::AccountSeeds, Self::FunderAccount>
+    ) -> CreateSplit<'b, 'info, Self::StarFrameInitArg, Self::AccountSeeds, Self::FunderAccount>
     {
         CreateSplit {
             arg: self.arg.take().unwrap(),
@@ -144,7 +144,7 @@ where
     fn init_if_needed<A>(&mut self, arg: A, sys_calls: &mut impl SysCallInvoke) -> Result<()>
     where
         A: InitCreateArg<'info>,
-        T: UnsizedInit<A::FrameworkInitArg>,
+        T: UnsizedInit<A::StarFrameInitArg>,
     {
         if self.owner() == arg.system_program().key()
             || self.account_info().data.borrow_mut()
@@ -166,7 +166,7 @@ where
     ) -> Result<()>
     where
         A: InitCreateArg<'info>,
-        T: UnsizedInit<A::FrameworkInitArg>,
+        T: UnsizedInit<A::StarFrameInitArg>,
     {
         self.inner
             .check_writable()
@@ -188,7 +188,7 @@ where
             self.key(),
             rent.minimum_balance(size),
             size as u64,
-            &T::OwnerProgram::program_id(sys_calls)?,
+            &T::OwnerProgram::PROGRAM_ID,
         );
         let accounts: &[AccountInfo<'info>] = &[
             self.account_info_cloned(),

@@ -5,12 +5,16 @@ use star_frame_proc::Align1;
 use std::io::Read;
 use std::ops::{Add, AddAssign, Mul, MulAssign, Sub, SubAssign};
 
+/// A number divided by a constant.
+/// Should use fixed point numbers instead if possible (div is power of 2).
 #[derive(
     Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default, Pod, Zeroable, Align1,
 )]
 #[repr(transparent)]
 pub struct Divisor<T, const DIV: u32>(T);
 impl<T, const DIV: u32> Divisor<T, DIV> {
+    /// Creates a new [`Divisor`] from a [`f64`] by multiplting the value and the divisor then
+    /// converting.
     #[must_use]
     pub fn new(val: f64) -> Self
     where
@@ -19,17 +23,21 @@ impl<T, const DIV: u32> Divisor<T, DIV> {
         Self(T::from_f64(val * f64::from(DIV)).unwrap())
     }
 
+    /// Gets the value from the divisor by converting the internal value to a [`f64`], then dividing
+    /// by the divisor.
     pub fn to_f64(&self) -> f64
     where
         T: ToPrimitive,
     {
-        f64::from_f64(self.0.to_f64().unwrap() / f64::from(DIV)).unwrap()
+        self.0.to_f64().unwrap() / f64::from(DIV)
     }
 
+    /// Creates a new [`Divisor`] with a raw internal value.
     pub fn from_raw(t: T) -> Self {
         Self(t)
     }
 
+    /// Gets the raw internal value.
     pub fn into_raw(self) -> T {
         self.0
     }

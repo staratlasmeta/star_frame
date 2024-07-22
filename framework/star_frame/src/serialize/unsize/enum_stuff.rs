@@ -58,7 +58,7 @@ unsafe impl UnsizedType for TestEnum {
     type Owned = TestEnumOwned;
     type IsUnsized = True;
 
-    unsafe fn from_bytes<S: AsBytes>(
+    fn from_bytes<S: AsBytes>(
         super_ref: S,
     ) -> anyhow::Result<FromBytesReturn<S, Self::RefData, Self::RefMeta>> {
         let repr: &TestEnumDiscriminant =

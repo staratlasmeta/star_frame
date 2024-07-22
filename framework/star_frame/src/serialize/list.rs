@@ -8,7 +8,7 @@ use std::ops::{Deref, DerefMut, Index, IndexMut, RangeBounds};
 use std::ptr;
 use std::ptr::addr_of_mut;
 
-use anyhow::{ensure, Context};
+use anyhow::{bail, ensure, Context};
 use bytemuck::checked::{try_cast_slice, try_cast_slice_mut, try_from_bytes, try_from_bytes_mut};
 use bytemuck::{
     bytes_of, cast_slice, cast_slice_mut, from_bytes, CheckedBitPattern, NoUninit, Pod,
@@ -22,7 +22,7 @@ use advance::{Advance, Length};
 use star_frame::serialize::ref_wrapper::RefDeref;
 
 use crate::align1::Align1;
-use crate::packed_value::PackedValue;
+use crate::data_types::PackedValue;
 use crate::serialize::ref_wrapper::{
     AsBytes, AsMutBytes, RefDerefMut, RefWrapper, RefWrapperMutExt, RefWrapperTypes,
 };
@@ -178,7 +178,7 @@ where
     type IsUnsized = True;
     type Owned = Vec<T>;
 
-    unsafe fn from_bytes<S: AsBytes>(
+    fn from_bytes<S: AsBytes>(
         bytes: S,
     ) -> Result<FromBytesReturn<S, Self::RefData, Self::RefMeta>> {
         let mut bytes_slice = bytes.as_bytes()?;
@@ -186,6 +186,13 @@ where
         let len = len_l
             .to_usize()
             .ok_or_else(|| anyhow::anyhow!("Could not convert list size to usize"))?;
+        if bytes_slice.len() < len * size_of::<T>() {
+            bail!(
+                "Bytes (len: {}) not long enough for list (list bytes len: {})",
+                bytes_slice.len(),
+                len * size_of::<T>()
+            );
+        }
         Ok(FromBytesReturn {
             bytes_used: size_of::<L>() + size_of::<T>() * len,
             meta: (),

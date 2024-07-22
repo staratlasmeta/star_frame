@@ -5,12 +5,12 @@ use star_frame_proc::Align1;
 #[derive(Align1, Debug, Copy, Clone)]
 pub struct UnCallable;
 
-impl FrameworkSerialize for UnCallable {
+impl StarFrameSerialize for UnCallable {
     fn to_bytes(&self, _output: &mut &mut [u8]) -> Result<()> {
         panic!("Cannot call `to_bytes` on Uncallable")
     }
 }
-unsafe impl<'a> FrameworkFromBytes<'a> for UnCallable {
+unsafe impl<'a> StarFrameFromBytes<'a> for UnCallable {
     fn from_bytes(_bytes: &mut &'a [u8]) -> Result<Self> {
         panic!("Cannot call `from_bytes` on Uncallable")
     }

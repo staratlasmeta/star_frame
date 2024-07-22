@@ -153,6 +153,7 @@ macro_rules! packed_eq {
 }
 packed_eq!(PackedValue, PackedValueChecked);
 
+/// Equivalent to [`PackedValue`] but [`CheckedBitPattern`] instead of [`Pod`].
 #[derive(Align1, Derivative)]
 #[derivative(
     Debug(bound = "T: Debug + Copy"),
@@ -182,7 +183,7 @@ unsafe impl<T> Zeroable for PackedValueChecked<T> where T: Zeroable {}
 #[cfg(feature = "idl")]
 mod idl_impl {
     use super::*;
-    use crate::idl::ty::TypeToIdl;
+    use crate::idl::TypeToIdl;
     use crate::Result;
     use star_frame_idl::ty::IdlTypeDef;
     use star_frame_idl::IdlDefinition;

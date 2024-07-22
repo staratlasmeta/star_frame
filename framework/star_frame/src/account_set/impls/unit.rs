@@ -1,16 +1,14 @@
 use crate::account_set::{AccountSet, AccountSetCleanup, AccountSetDecode, AccountSetValidate};
-use crate::sys_calls::{SysCallInvoke, SysCalls};
+use crate::sys_calls::SysCallInvoke;
 use crate::Result;
 use solana_program::account_info::AccountInfo;
 use solana_program::instruction::AccountMeta;
-use solana_program::pubkey::Pubkey;
-use star_frame::instruction::InstructionSet;
 
 impl<'info> AccountSet<'info> for () {
     fn try_to_accounts<'a, E>(
         &'a self,
-        _add_account: impl FnMut(&'a AccountInfo<'info>) -> crate::Result<(), E>,
-    ) -> crate::Result<(), E>
+        _add_account: impl FnMut(&'a AccountInfo<'info>) -> Result<(), E>,
+    ) -> Result<(), E>
     where
         'info: 'a,
     {
@@ -45,18 +43,5 @@ impl<'info> AccountSetCleanup<'info, ()> for () {
         _sys_calls: &mut impl SysCallInvoke,
     ) -> Result<()> {
         Ok(cleanup_input)
-    }
-}
-
-impl InstructionSet for () {
-    type Discriminant = ();
-
-    fn handle_ix(
-        _ix_bytes: &[u8],
-        _program_id: &Pubkey,
-        _accounts: &[AccountInfo],
-        _sys_calls: &mut impl SysCalls,
-    ) -> Result<()> {
-        Ok(())
     }
 }

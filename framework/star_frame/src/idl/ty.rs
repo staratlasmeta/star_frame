@@ -1,15 +1,10 @@
+use crate::data_types::PodBool;
 use crate::idl::ProgramToIdl;
 use crate::program::system_program::SystemProgram;
 use crate::Result;
-// use bytemuck::{CheckedBitPattern, NoUninit, Pod};
-// use num_traits::{FromPrimitive, ToPrimitive};
 use solana_program::pubkey::Pubkey;
-// use star_frame::prelude::OptionalPubkey;
 use star_frame_idl::ty::{IdlDefinedType, IdlType, IdlTypeDef, TypeId};
 use star_frame_idl::{IdlDefinition, IdlDefinitionReference, SemVer};
-// use crate::align1::Align1;
-use crate::prelude::PodBool;
-// use crate::serialize::list::List;
 pub use star_frame_proc::TypeToIdl;
 
 pub trait TypeToIdl {
@@ -168,13 +163,13 @@ mod tests {
     }
 
     use super::*;
-    use star_frame_idl::{DiscriminantId, ProgramIds};
+    use star_frame_idl::DiscriminantId;
 
     #[test]
     fn print_idl() -> Result<()> {
         let mut idl_definition = IdlDefinition {
             namespace: "my_program".to_string(),
-            program_ids: ProgramIds::AllNetworks(Pubkey::default().into()),
+            program_id: Pubkey::default(),
             account_discriminant: DiscriminantId::None,
             instruction_discriminant: DiscriminantId::None,
             idl_std_version: Default::default(),

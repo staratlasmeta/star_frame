@@ -1,17 +1,28 @@
-pub mod data_account;
-pub mod init_account;
-pub mod mutable;
-pub mod program;
-pub mod rest;
-pub mod seeded_account;
-pub mod seeded_data_account;
-pub mod seeded_init_account;
-pub mod signer;
-pub mod system_account;
+mod data_account;
+mod impls;
+mod init_account;
+mod mutable;
+mod program;
+mod rest;
+mod seeded_account;
+mod seeded_data_account;
+mod seeded_init_account;
+mod signer;
+mod system_account;
 
+pub use data_account::*;
+pub use impls::*;
+pub use init_account::*;
+pub use mutable::*;
+pub use program::*;
+pub use rest::*;
+pub use seeded_account::*;
+pub use seeded_data_account::*;
+pub use seeded_init_account::*;
+pub use signer::*;
 pub use star_frame_proc::AccountSet;
 pub use star_frame_proc::AccountToIdl;
-pub use star_frame_proc::GetSeeds;
+pub use system_account::*;
 
 use crate::sys_calls::SysCallInvoke;
 use crate::Result;
@@ -151,7 +162,6 @@ pub trait AccountSetCleanup<'info, A>: AccountSet<'info> + Sized {
 #[cfg(test)]
 mod test {
     use crate::account_set::AccountSetValidate;
-    use crate::prelude::Network;
     use crate::sys_calls::{SysCallCore, SysCallInvoke};
     use crate::SolanaInstruction;
     use solana_program::account_info::AccountInfo;
@@ -213,10 +223,6 @@ mod test {
     struct DummyRuntime;
     impl SysCallCore for DummyRuntime {
         fn current_program_id(&self) -> &Pubkey {
-            unimplemented!()
-        }
-
-        fn current_network(&self) -> &Network {
             unimplemented!()
         }
 

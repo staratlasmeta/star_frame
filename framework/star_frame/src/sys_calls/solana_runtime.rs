@@ -1,3 +1,5 @@
+//! The runtime while running on Solana.
+
 use crate::prelude::*;
 use crate::SolanaInstruction;
 use solana_program::clock::Clock;
@@ -13,17 +15,15 @@ use solana_program::sysvar::Sysvar;
 pub struct SolanaRuntime<'a> {
     /// The program id of the currently executing program.
     pub program_id: &'a Pubkey,
-    pub network: Network,
     rent_cache: Option<Rent>,
     clock_cache: Option<Clock>,
 }
 impl<'a> SolanaRuntime<'a> {
     /// Create a new solana runtime.
     #[must_use]
-    pub fn new(program_id: &'a Pubkey, network: Network) -> Self {
+    pub fn new(program_id: &'a Pubkey) -> Self {
         Self {
             program_id,
-            network,
             rent_cache: None,
             clock_cache: None,
         }
@@ -106,10 +106,6 @@ impl<'b> SysCallInvoke for SolanaRuntime<'b> {
 impl<'a> SysCallCore for SolanaRuntime<'a> {
     fn current_program_id(&self) -> &Pubkey {
         self.program_id
-    }
-
-    fn current_network(&self) -> &Network {
-        &self.network
     }
 
     fn get_rent(&mut self) -> Result<Rent, ProgramError> {
