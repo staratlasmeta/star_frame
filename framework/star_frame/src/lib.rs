@@ -61,7 +61,7 @@ pub mod util;
 /// Internal paths mainly for use in macros. DO NOT USE MANUALLY. NOT PART OF THE PUBLIC API.
 #[doc(hidden)]
 pub mod __private;
-mod data_types;
+pub mod data_types;
 
 pub use anyhow::Result;
 pub use solana_program::instruction::Instruction as SolanaInstruction;

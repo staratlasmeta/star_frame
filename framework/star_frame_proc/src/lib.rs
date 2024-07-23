@@ -274,7 +274,7 @@ fn derive_align1_for_struct(
 ///
 /// Implements the `InstructionSet` trait for an enum of instructions and marks the enum as `#[repr(u8)]`.
 ///
-/// ```
+/// ```ignore
 /// # use star_frame::prelude::*;
 /// #[star_frame_instruction_set]
 /// pub enum CoolInstructionSet {

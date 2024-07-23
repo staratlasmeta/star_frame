@@ -217,10 +217,10 @@ macro_rules! create_unit_system {
         $crate::create_unit_system!(@convert $ident <$($gen,)*>: <$($from,)*> from $conv_ident<$($to,)*>);
     };
     (@convert $ident:ident <$($gen:ident),* $(,)?>: <$($from:ty),* $(,)?> to $conv_ident:ident<$($to:ty),* $(,)?>) => {
-        impl<$($gen,)*> $crate::data_types::unit_val::Convert<$conv_ident<$($to,)*>> for $ident<$($from,)*>{}
+        impl<$($gen,)*> $crate::data_types::Convert<$conv_ident<$($to,)*>> for $ident<$($from,)*>{}
     };
     (@convert $ident:ident <$($gen:ident),* $(,)?>: <$($from:ty),* $(,)?> from $conv_ident:ident<$($to:ty),* $(,)?>) => {
-        impl<$($gen,)*> $crate::data_types::unit_val::Convert<$ident<$($from,)*>> for $conv_ident<$($to,)*>{}
+        impl<$($gen,)*> $crate::data_types::Convert<$ident<$($from,)*>> for $conv_ident<$($to,)*>{}
     };
 
     ($vis:vis struct $ident:ident<$($unit:ident),* $(,)?>) => {
