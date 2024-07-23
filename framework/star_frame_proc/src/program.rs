@@ -149,8 +149,8 @@ pub(crate) fn program_impl(input: DeriveInput) -> TokenStream {
 
     quote! {
         impl #star_frame_program for #ident {
-            type InstructionSet<'a> = #instruction_set_type;
-            type InstructionDiscriminant = <Self::InstructionSet<'static> as #instruction_set>::Discriminant;
+            type InstructionSet = #instruction_set_type;
+            type InstructionDiscriminant = <Self::InstructionSet as #instruction_set>::Discriminant;
             type AccountDiscriminant = #account_discriminant;
             const CLOSED_ACCOUNT_DISCRIMINANT: Self::AccountDiscriminant = #closed_account_discriminant;
             const PROGRAM_ID: #pubkey = #program_id;

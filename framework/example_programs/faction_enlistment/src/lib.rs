@@ -7,7 +7,7 @@ use star_frame::prelude::*;
 
 #[derive(StarFrameProgram)]
 #[program(
-    instruction_set = FactionEnlistmentInstructionSet<'a>
+    instruction_set = FactionEnlistmentInstructionSet<'static>
 )]
 #[cfg_attr(
     feature = "prod",
@@ -22,18 +22,9 @@ pub struct FactionEnlistment;
 // use star_frame::idl::InstructionSetToIdl;
 
 // todo: better instruction set w/ anchor hash stuff
-// #[star_frame_instruction_set]
-// #[derive(InstructionSetToIdl)]
-// pub enum FactionEnlistmentInstructionSet {
-//     ProcessEnlistPlayer(ProcessEnlistPlayerIx),
-// }
-
-// #[derive(star_frame::idl::InstructionSetToIdl)]
-#[repr(u8)]
-pub enum FactionEnlistmentInstructionSet<'__a> {
-    ProcessEnlistPlayer(
-        <ProcessEnlistPlayerIx as ::star_frame::instruction::Instruction>::SelfData<'__a>,
-    ) = 0,
+#[star_frame_instruction_set]
+pub enum FactionEnlistmentInstructionSet {
+    ProcessEnlistPlayer(ProcessEnlistPlayerIx),
 }
 
 pub trait InstructionDiscriminant {
@@ -47,40 +38,6 @@ impl InstructionDiscriminant for ProcessEnlistPlayerIx {
     const DISCRIMINANT:
         <FactionEnlistment as star_frame::prelude::StarFrameProgram>::InstructionDiscriminant =
         [0; 8];
-}
-
-impl<'__a> ::star_frame::instruction::InstructionSet for FactionEnlistmentInstructionSet<'__a> {
-    type Discriminant = [u8; 8];
-    fn handle_ix(
-        mut ix_bytes: &[u8],
-        program_id: &::star_frame::solana_program::pubkey::Pubkey,
-        accounts: &[::star_frame::solana_program::account_info::AccountInfo],
-        sys_calls: &mut impl ::star_frame::sys_calls::SysCalls,
-    ) -> ::star_frame::Result<()> {
-        // if not anchor
-        // type Repr = u8;
-        // if anchor hash
-        type Repr = [u8; 8];
-
-        let bytes: &[u8; core::mem::size_of::<Repr>()] =
-            star_frame::advance::AdvanceArray::try_advance_array(&mut ix_bytes)?;
-        let discriminant: &Repr = try_from_bytes(bytes)?;
-        //     *::star_frame::advance::AdvanceArray::try_advance_array(&mut ix_bytes)?,
-        // );
-
-        match discriminant {
-            &ProcessEnlistPlayerIx::DISCRIMINANT => {
-                let data = <ProcessEnlistPlayerIx as ::star_frame::instruction::Instruction>::data_from_bytes(&mut ix_bytes)?;
-                <ProcessEnlistPlayerIx as ::star_frame::instruction::Instruction>::run_ix_from_raw(
-                    &data, program_id, accounts, sys_calls,
-                )
-            }
-            x => Err(::star_frame::anyhow::anyhow!(
-                "Invalid ix discriminant: {:?}",
-                x
-            )),
-        }
-    }
 }
 
 #[derive(
