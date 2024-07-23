@@ -18,7 +18,7 @@ pub trait InstructionSet {
     /// The discriminant type used by this program's instructions.
     type Discriminant: Pod;
 
-    /// Handles the data input the program entrypoint (along with the `sys_calls`).
+    /// Handles the input from the program entrypoint (along with the `sys_calls`).
     /// This is called directly in [`try_star_frame_entrypoint`](crate::entrypoint::try_star_frame_entrypoint).
     fn handle_ix(
         ix_bytes: &[u8],
