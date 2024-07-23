@@ -1,19 +1,22 @@
-mod no_op;
-pub mod un_callable;
+use bytemuck::Pod;
+use solana_program::account_info::AccountInfo;
+use solana_program::program::MAX_RETURN_DATA;
+use solana_program::pubkey::Pubkey;
 
+use star_frame::serialize::StarFrameSerialize;
 pub use star_frame_proc::star_frame_instruction_set;
 pub use star_frame_proc::InstructionToIdl;
 
 use crate::account_set::{AccountSetCleanup, AccountSetDecode, AccountSetValidate};
 use crate::sys_calls::{SysCallInvoke, SysCalls};
 use crate::Result;
-use bytemuck::Pod;
-use solana_program::account_info::AccountInfo;
-use solana_program::program::MAX_RETURN_DATA;
-use solana_program::pubkey::Pubkey;
-use star_frame::serialize::StarFrameSerialize;
 
-/// A set of instructions that can be used as input to a program.
+mod no_op;
+pub mod un_callable;
+
+/// A set of instructions that can be used as input to a program. This can be derived using the
+/// [`star_frame_instruction_set`] macro on an enum. If implemented manually, [`Self::handle_ix`] should
+/// probably match on each of its instructions discriminants and call the appropriate instruction on a match.
 pub trait InstructionSet {
     /// The discriminant type used by this program's accounts.
     type Discriminant: Pod;
@@ -25,6 +28,17 @@ pub trait InstructionSet {
         accounts: &[AccountInfo],
         sys_calls: &mut impl SysCalls,
     ) -> Result<()>;
+}
+
+/// A helper trait for the value of the instruction discriminant on an instruction. Since a single
+/// instruction can be in multiple [`InstructionSet`]s, this trait is generic over it (with `IxSet`).
+pub trait InstructionDiscriminant<IxSet>
+where
+    IxSet: InstructionSet,
+{
+    /// The actual value of the discriminant. For a single [`InstructionSet`], each member should
+    /// have a unique discriminant.
+    const DISCRIMINANT: <IxSet as InstructionSet>::Discriminant;
 }
 
 /// A callable instruction that can be used as input to a program.
@@ -143,11 +157,13 @@ where
 
 #[cfg(test)]
 mod test {
-    use crate::instruction::Instruction;
-    use crate::prelude::SysCalls;
     use solana_program::account_info::AccountInfo;
     use solana_program::pubkey::Pubkey;
+
     use star_frame_proc::star_frame_instruction_set;
+
+    use crate::instruction::{Instruction, InstructionDiscriminant};
+    use crate::prelude::SysCalls;
 
     #[allow(dead_code)]
     struct Ix1 {
@@ -190,9 +206,51 @@ mod test {
         }
     }
 
-    #[star_frame_instruction_set]
-    enum TestInstructionSet1 {
+    #[star_frame_instruction_set(u8)]
+    enum TestInstructionSet3 {
         Ix1(Ix1),
         Ix2(Ix2),
     }
+
+    // fn stuff() {
+    //     let thingy = TestInstructionSet1::Ix1(());
+    //     let thingy_disc = <Ix1 as InstructionDiscriminant<TestInstructionSet2>>::DISCRIMINANT;
+    // }
+    //
+    // impl<'__a> star_frame::instruction::InstructionSet for TestInstructionSet1<'__a> {
+    //     type Discriminant = u8;
+    //     fn handle_ix(
+    //         mut ix_bytes: &[u8],
+    //         program_id: &star_frame::solana_program::pubkey::Pubkey,
+    //         accounts: &[star_frame::solana_program::account_info::AccountInfo],
+    //         sys_calls: &mut impl star_frame::sys_calls::SysCalls,
+    //     ) -> star_frame::Result<()> {
+    //         const DISC0: u8 = 0;
+    //         const DISC1: u8 = (0) + 1;
+    //         let discriminant = u8::from_le_bytes(
+    //             *star_frame::advance::AdvanceArray::try_advance_array(&mut ix_bytes)?,
+    //         );
+    //         match discriminant {
+    //             DISC0 => {
+    //                 let data = <Ix1 as star_frame::instruction::Instruction>::data_from_bytes(
+    //                     &mut ix_bytes,
+    //                 )?;
+    //                 <Ix1 as star_frame::instruction::Instruction>::run_ix_from_raw(
+    //                     &data, program_id, accounts, sys_calls,
+    //                 )
+    //             }
+    //             DISC1 => {
+    //                 let data = <Ix2 as star_frame::instruction::Instruction>::data_from_bytes(
+    //                     &mut ix_bytes,
+    //                 )?;
+    //                 <Ix2 as star_frame::instruction::Instruction>::run_ix_from_raw(
+    //                     &data, program_id, accounts, sys_calls,
+    //                 )
+    //             }
+    //             x => Err(star_frame::anyhow::anyhow!(
+    //                 "Invalid ix discriminant: {}",
+    //                 x
+    //             )),
+    //         }
+    //     }
 }

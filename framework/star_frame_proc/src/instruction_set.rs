@@ -1,14 +1,37 @@
-use crate::util::{verify_repr, Paths};
+use heck::ToSnakeCase;
+use itertools::Itertools;
 use proc_macro2::TokenStream;
 use proc_macro_error::abort;
-use quote::{format_ident, quote};
+use quote::quote;
+use syn::punctuated::Punctuated;
+use syn::token::Comma;
+use syn::*;
 use syn::{parse_quote, Field, Fields, FieldsUnnamed, ItemEnum, Lifetime, Type};
 
-pub fn instruction_set_impl(item: ItemEnum, _args: TokenStream) -> TokenStream {
+use crate::hash::{hash_tts, sighash, SIGHASH_GLOBAL_NAMESPACE};
+use crate::util::{verify_repr, Paths};
+
+pub fn instruction_set_impl(item: ItemEnum, args: TokenStream) -> TokenStream {
     let vis = &item.vis;
     let ident = &item.ident;
     let attrs = &item.attrs;
     let a_lifetime: Lifetime = parse_quote! { '__a };
+
+    let valid_reprs: Punctuated<Type, Comma> =
+        parse_quote! { u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize };
+
+    let (discriminant_type, use_repr) = if args.is_empty() {
+        (parse_quote! { [u8; 8] }, false)
+    } else {
+        let Ok(repr_ident) = syn::parse2::<Type>(args.clone()) else {
+            abort!(args, "Invalid repr type")
+        };
+
+        if !valid_reprs.iter().contains(&repr_ident) {
+            abort!(repr_ident, "Invalid repr type")
+        }
+        (repr_ident, true)
+    };
 
     let Paths {
         account_info,
@@ -19,6 +42,7 @@ pub fn instruction_set_impl(item: ItemEnum, _args: TokenStream) -> TokenStream {
         pubkey,
         result,
         sys_calls,
+        macro_prelude: prelude,
         ..
     } = Paths::default();
 
@@ -26,21 +50,29 @@ pub fn instruction_set_impl(item: ItemEnum, _args: TokenStream) -> TokenStream {
         abort!(item.generics, "Generics are unsupported");
     }
     let reprs = verify_repr(attrs, [], true, false);
-    if reprs.len() > 1 {
-        abort!(reprs, "Invalid enum reprs")
+    // todo: potentially allow reprs in the future. Shouldn't really matter with the InstructionDiscriminant trait anymore
+    if !reprs.is_empty() {
+        abort!(reprs, "Enum reprs are unsupported. Use the `#[star_frame_instruction_set(<repr>)]` syntax instead for repr discriminants.");
     }
-    let forced_repr;
-    let repr: Type = if reprs.is_empty() {
-        forced_repr = quote! { #[repr(u8)] };
-        parse_quote! { u8 }
+    let forced_repr = if use_repr {
+        quote! { #[repr(#discriminant_type)] }
+    } else if item.variants.len() > u8::MAX as usize {
+        quote! { #[repr(u16)] }
     } else {
-        forced_repr = quote! {};
-        let repr = &reprs[0];
-        if repr == "C" {
-            abort!(repr, "#[repr(C)] is unsupported");
-        }
-        parse_quote! { #repr }
+        quote! { #[repr(u8)] }
     };
+
+    // let repr: Type = if use_repr {
+    //     forced_repr = quote! { #[repr(u8)] };
+    //     parse_quote! { u8 }
+    // } else {
+    //     forced_repr = quote! {};
+    //     let repr = &reprs[0];
+    //     if repr == "C" {
+    //         abort!(repr, "#[repr(C)] is unsupported");
+    //     }
+    //     parse_quote! { #repr }
+    // };
 
     let mut variant_discriminants = Vec::new();
     let mut variant_tys = Vec::new();
@@ -58,6 +90,7 @@ pub fn instruction_set_impl(item: ItemEnum, _args: TokenStream) -> TokenStream {
                 None => parse_quote! { 0 },
             });
         last_discriminant = Some(discriminant.clone());
+
         match &variant.fields {
             Fields::Unnamed(FieldsUnnamed { unnamed, .. }) => {
                 if unnamed.len() != 1 {
@@ -80,11 +113,29 @@ pub fn instruction_set_impl(item: ItemEnum, _args: TokenStream) -> TokenStream {
             }
         }
     }
-    let disc_names = variant_discriminants
-        .iter()
-        .enumerate()
-        .map(|(index, _)| format_ident!("DISC{}", index))
-        .collect::<Vec<_>>();
+
+    let get_discriminant = if use_repr {
+        quote! {
+            let discriminant = #discriminant_type::from_le_bytes(*#advance_array::try_advance_array(&mut ix_bytes)?);
+        }
+    } else {
+        quote! {
+            let discriminant = *#advance_array::try_advance_array(&mut ix_bytes)?;
+        }
+    };
+
+    let ix_disc_values = if use_repr {
+        variant_discriminants.clone()
+    } else {
+        item.variants
+            .iter()
+            .map(|v| {
+                let method_name = v.ident.to_string().to_snake_case();
+                parse2(hash_tts(&sighash(SIGHASH_GLOBAL_NAMESPACE, &method_name)))
+                    .expect("Hash should be valid expression")
+            })
+            .collect()
+    };
 
     quote! {
         #(#attrs)*
@@ -92,8 +143,10 @@ pub fn instruction_set_impl(item: ItemEnum, _args: TokenStream) -> TokenStream {
         #vis enum #ident<#a_lifetime> {
             #(#variants = #variant_discriminants,)*
         }
+
+        #[automatically_derived]
         impl<#a_lifetime> #instruction_set for #ident<#a_lifetime> {
-            type Discriminant = #repr;
+            type Discriminant = #discriminant_type;
 
             fn handle_ix(
                 mut ix_bytes: &[u8],
@@ -101,20 +154,25 @@ pub fn instruction_set_impl(item: ItemEnum, _args: TokenStream) -> TokenStream {
                 accounts: &[#account_info],
                 sys_calls: &mut impl #sys_calls,
             ) -> #result<()> {
-                #(
-                    const #disc_names: #repr = #variant_discriminants;
-                )*
-                let discriminant = #repr::from_le_bytes(*#advance_array::try_advance_array(&mut ix_bytes)?);
+                #get_discriminant
+                #[deny(unreachable_patterns)]
                 match discriminant {
                     #(
-                        #disc_names => {
+                        <#variant_tys as #prelude::InstructionDiscriminant<#ident<#a_lifetime>>>::DISCRIMINANT => {
                             let data = <#variant_tys as #instruction>::data_from_bytes(&mut ix_bytes)?;
                             <#variant_tys as #instruction>::run_ix_from_raw(&data, program_id, accounts, sys_calls)
                         }
                     )*
-                    x => Err(#anyhow_macro!("Invalid ix discriminant: {}", x)),
+                    x => Err(#anyhow_macro!("Invalid ix discriminant: {:?}", x)),
                 }
             }
         }
+
+        #(
+            #[automatically_derived]
+            impl #prelude::InstructionDiscriminant<#ident <'_>> for #variant_tys {
+                const DISCRIMINANT: #discriminant_type = #ix_disc_values;
+            }
+        )*
     }
 }
