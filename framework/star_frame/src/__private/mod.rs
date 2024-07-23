@@ -1,4 +1,5 @@
 pub mod macro_prelude {
+    pub use crate::instruction::{Instruction, InstructionDiscriminant};
     pub use crate::serialize::{
         combined_unsized::{CombinedExt, CombinedRef, CombinedUnsized, RefWrapperT, RefWrapperU},
         ref_wrapper::{

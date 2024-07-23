@@ -24,7 +24,8 @@ proc-macro2 = { workspace = true }
 quote = { workspace = true }
 strum = { workspace = true }
 syn = { workspace = true }
+sha2 = { workspace = true }
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }
-star_frame = { workspace = true }
+star_frame = { workspace = true, features = ["test_helpers"] }

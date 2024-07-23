@@ -39,7 +39,7 @@ where
     }
 }
 
-/// A ref to a [`CheckedBitPatternValue`]. Used in a [`RefWrapper`].
+/// A ref to a [`CheckedBitPattern`] value. Used in a [`RefWrapper`].
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""), Clone(bound = ""), Copy(bound = ""))]
 pub struct CheckRef<T>(PhantomData<fn() -> T>);
