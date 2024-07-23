@@ -5,7 +5,7 @@ use derivative::Derivative;
 use std::fmt::{Display, Formatter};
 use std::marker::PhantomData;
 
-/// Allows setting a [`OptionalKeyFor`] from an [`AccountLoader`] or an [`Account`].
+/// Allows setting an [`OptionalKeyFor`] from other types.
 pub trait SetOptionalKeyFor<T: ?Sized, I> {
     /// Sets the contained pubkey.
     fn set_pubkey(&mut self, pubkey: Option<I>);

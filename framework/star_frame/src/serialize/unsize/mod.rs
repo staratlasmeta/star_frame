@@ -70,7 +70,7 @@ pub unsafe trait UnsizedType: 'static {
     /// What's stored in a [`RefWrapper`] return from [`UnsizedType::from_bytes`] and [`UnsizedType::from_bytes_and_meta`].
     /// Usually a unique type that stores an [`UnsizedType::RefMeta`] and adds relevant functions to the [`RefWrapper`].
     type RefData;
-    /// The owned version of the underlying type. For example, a [`Vec<T>`] for an unsized [`List<T>`].
+    /// The owned version of the underlying type. For example, a [`Vec<T>`] for an unsized [`List<T>`](crate::prelude::List).
     /// If [`Self::IsUnsized`] is [`False`], `Owned` can be [`Self`]. The data should try to convey
     /// the same information, but it doesn't have to be a 1:1 representation.
     type Owned;

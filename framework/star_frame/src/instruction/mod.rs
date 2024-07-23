@@ -3,13 +3,10 @@ use solana_program::account_info::AccountInfo;
 use solana_program::program::MAX_RETURN_DATA;
 use solana_program::pubkey::Pubkey;
 
-use star_frame::serialize::StarFrameSerialize;
+use crate::prelude::*;
+use crate::sys_calls::{SysCallInvoke, SysCalls};
 pub use star_frame_proc::star_frame_instruction_set;
 pub use star_frame_proc::InstructionToIdl;
-
-use crate::account_set::{AccountSetCleanup, AccountSetDecode, AccountSetValidate};
-use crate::sys_calls::{SysCallInvoke, SysCalls};
-use crate::Result;
 
 mod no_op;
 pub mod un_callable;
@@ -18,10 +15,11 @@ pub mod un_callable;
 /// [`star_frame_instruction_set`] macro on an enum. If implemented manually, [`Self::handle_ix`] should
 /// probably match on each of its instructions discriminants and call the appropriate instruction on a match.
 pub trait InstructionSet {
-    /// The discriminant type used by this program's accounts.
+    /// The discriminant type used by this program's instructions.
     type Discriminant: Pod;
 
-    /// Handles the instruction obtained from [`InstructionSet::from_bytes`].
+    /// Handles the data input the program entrypoint (along with the `sys_calls`).
+    /// This is called directly in [`try_star_frame_entrypoint`](crate::entrypoint::try_star_frame_entrypoint).
     fn handle_ix(
         ix_bytes: &[u8],
         program_id: &Pubkey,
@@ -55,15 +53,23 @@ pub trait Instruction {
     ) -> Result<()>;
 }
 
+/// Helper type for the return of [`StarFrameInstruction::split_to_args`].
+pub type SplitToArgsReturn<'a, T> = (
+    <T as StarFrameInstruction>::DecodeArg<'a>,
+    <T as StarFrameInstruction>::ValidateArg<'a>,
+    <T as StarFrameInstruction>::RunArg<'a>,
+    <T as StarFrameInstruction>::CleanupArg<'a>,
+);
+
 /// A `star_frame` defined instruction using [`AccountSet`] and other traits.
 ///
 /// The steps are as follows:
-/// 1. Split self into decode, validate, and run args using [`Instruction::split_to_args`].
-/// 2. Decode the accounts using [`Instruction::Accounts::decode_accounts`](AccountSetDecode::decode_accounts).
-/// 3. Run any extra instruction validations using [`Instruction::extra_validations`].
-/// 4. Validate the accounts using [`Instruction::Accounts::validate_accounts`](AccountSetValidate::validate_accounts).
-/// 5. Run the instruction using [`Instruction::run_instruction`].
-/// 6. Set the solana return data using [`Instruction::ReturnType::to_bytes`].
+/// 1. Split self into decode, validate, and run args using [`Self::split_to_args`].
+/// 2. Decode the accounts using [`Self::Accounts::decode_accounts`](AccountSetDecode::decode_accounts).
+/// 3. Run any extra instruction validations using [`Self::extra_validations`].
+/// 4. Validate the accounts using [`Self::Accounts::validate_accounts`](AccountSetValidate::validate_accounts).
+/// 5. Run the instruction using [`Self::run_instruction`].
+/// 6. Set the solana return data using [`StarFrameSerialize::to_bytes`].
 pub trait StarFrameInstruction {
     type SelfData<'a>;
 
@@ -71,6 +77,7 @@ pub trait StarFrameInstruction {
     type DecodeArg<'a>;
     /// The instruction data type used to validate accounts.
     type ValidateArg<'a>;
+
     /// The instruction data type used to run the instruction.
     type RunArg<'a>;
     /// The instruction data type used to cleanup accounts.
@@ -89,14 +96,8 @@ pub trait StarFrameInstruction {
     fn data_from_bytes<'a>(bytes: &mut &'a [u8]) -> Result<Self::SelfData<'a>>;
 
     /// Splits self into decode, validate, and run args.
-    fn split_to_args<'a>(
-        r: &'a Self::SelfData<'_>,
-    ) -> (
-        Self::DecodeArg<'a>,
-        Self::ValidateArg<'a>,
-        Self::RunArg<'a>,
-        Self::CleanupArg<'a>,
-    );
+    fn split_to_args<'a>(r: &'a Self::SelfData<'_>) -> SplitToArgsReturn<'a, Self>;
+
     /// Runs any extra validations on the accounts.
     #[allow(unused_variables)]
     fn extra_validations(

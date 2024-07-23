@@ -108,14 +108,7 @@ impl StarFrameInstruction for ProcessEnlistPlayerIx {
         Self::deserialize(bytes).map_err(Into::into)
     }
 
-    fn split_to_args<'a>(
-        r: &'a Self::SelfData<'_>,
-    ) -> (
-        Self::DecodeArg<'a>,
-        Self::ValidateArg<'a>,
-        Self::RunArg<'a>,
-        Self::CleanupArg<'a>,
-    ) {
+    fn split_to_args<'a>(r: &'a Self::SelfData<'_>) -> SplitToArgsReturn<'a, Self> {
         ((), r.bump, r.faction_id, ())
     }
 
