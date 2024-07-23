@@ -284,6 +284,7 @@ fn derive_align1_for_struct(
 ///
 /// Default 8 byte hash discriminants:
 /// ```
+/// use star_frame::impl_blank_ix;
 /// use star_frame::prelude::*;
 ///
 /// #[star_frame_instruction_set]
@@ -300,27 +301,12 @@ fn derive_align1_for_struct(
 ///
 /// // An example instruction (which implements `StarFrameInstruction`)
 /// pub struct CoolIx {}
-///
-/// # impl Instruction for CoolIx {
-/// #    type SelfData<'a> = ();
-/// #
-/// #    fn data_from_bytes<'a>(_bytes: &mut &'a [u8]) -> anyhow::Result<Self::SelfData<'a>> {
-/// #        todo!()
-/// #    }
-/// #
-/// #    fn run_ix_from_raw(
-/// #        _data: &Self::SelfData<'_>,
-/// #        _program_id: &Pubkey,
-/// #        _accounts: &[AccountInfo],
-/// #        _sys_calls: &mut impl SysCalls,
-/// #    ) -> anyhow::Result<()> {
-/// #        todo!()
-/// #    }
-/// # }
+/// # impl_blank_ix!(CoolIx);
 /// ```
 ///
 /// Using enum reprs as discriminants:
 /// ```
+/// use star_frame::impl_blank_ix;
 /// use star_frame::prelude::*;
 ///
 /// // Example Instructions (which implement `StarFrameInstruction`)
@@ -350,27 +336,6 @@ fn derive_align1_for_struct(
 /// assert_eq!(<CoolIx2 as InstructionDiscriminant<CoolIxSetU32>>::DISCRIMINANT, -998i32);
 /// assert_eq!(<CoolIx3 as InstructionDiscriminant<CoolIxSetU32>>::DISCRIMINANT, 9999i32);
 ///
-/// # macro_rules! impl_blank_ix {
-/// #     ($($ix:ident),*) => {
-/// #         $(
-/// #             impl Instruction for $ix {
-/// #                 type SelfData<'a> = ();
-/// #                 fn data_from_bytes<'a>(_bytes: &mut &'a [u8]) -> anyhow::Result<Self::SelfData<'a>> {
-/// #                     todo!()
-/// #                 }
-/// #
-/// #                 fn run_ix_from_raw(
-/// #                     _data: &Self::SelfData<'_>,
-/// #                     _program_id: &Pubkey,
-/// #                     _accounts: &[AccountInfo],
-/// #                     _sys_calls: &mut impl SysCalls,
-/// #                 ) -> anyhow::Result<()> {
-/// #                     todo!()
-/// #                 }
-/// #             }
-/// #         )*
-/// #     };
-/// # }
 /// # impl_blank_ix!(CoolIx1, CoolIx2, CoolIx3);
 /// ```
 #[proc_macro_error]

@@ -155,102 +155,58 @@ where
     }
 }
 
+#[cfg(feature = "test_helpers")]
+mod test_helpers {
+    /// A helper macro for implementing blank instructions for testing.
+    #[macro_export]
+    macro_rules! impl_blank_ix {
+        ($($ix:ident),*) => {
+            $(
+                impl Instruction for $ix {
+                    type SelfData<'a> = ();
+                    fn data_from_bytes<'a>(_bytes: &mut &'a [u8]) -> anyhow::Result<Self::SelfData<'a>> {
+                        todo!()
+                    }
+
+                    fn run_ix_from_raw(
+                        _data: &Self::SelfData<'_>,
+                        _program_id: &Pubkey,
+                        _accounts: &[AccountInfo],
+                        _sys_calls: &mut impl SysCalls,
+                    ) -> anyhow::Result<()> {
+                        todo!()
+                    }
+                }
+            )*
+        };
+    }
+}
+
 #[cfg(test)]
 mod test {
     use solana_program::account_info::AccountInfo;
     use solana_program::pubkey::Pubkey;
 
-    use star_frame_proc::star_frame_instruction_set;
-
-    use crate::instruction::{Instruction, InstructionDiscriminant};
+    use crate::impl_blank_ix;
+    use crate::instruction::Instruction;
     use crate::prelude::SysCalls;
+    use star_frame_proc::star_frame_instruction_set;
+    // todo: better testing here
 
     #[allow(dead_code)]
     struct Ix1 {
         val: u8,
     }
-    impl Instruction for Ix1 {
-        type SelfData<'a> = ();
-
-        fn data_from_bytes<'a>(_bytes: &mut &'a [u8]) -> anyhow::Result<Self::SelfData<'a>> {
-            todo!()
-        }
-
-        fn run_ix_from_raw(
-            _data: &Self::SelfData<'_>,
-            _program_id: &Pubkey,
-            _accounts: &[AccountInfo],
-            _sys_calls: &mut impl SysCalls,
-        ) -> anyhow::Result<()> {
-            todo!()
-        }
-    }
     #[allow(dead_code)]
     struct Ix2 {
         val: u64,
     }
-    impl Instruction for Ix2 {
-        type SelfData<'a> = ();
 
-        fn data_from_bytes<'a>(_bytes: &mut &'a [u8]) -> anyhow::Result<Self::SelfData<'a>> {
-            todo!()
-        }
-
-        fn run_ix_from_raw(
-            _data: &Self::SelfData<'_>,
-            _program_id: &Pubkey,
-            _accounts: &[AccountInfo],
-            _sys_calls: &mut impl SysCalls,
-        ) -> anyhow::Result<()> {
-            todo!()
-        }
-    }
+    impl_blank_ix!(Ix1, Ix2);
 
     #[star_frame_instruction_set(u8)]
     enum TestInstructionSet3 {
         Ix1(Ix1),
         Ix2(Ix2),
     }
-
-    // fn stuff() {
-    //     let thingy = TestInstructionSet1::Ix1(());
-    //     let thingy_disc = <Ix1 as InstructionDiscriminant<TestInstructionSet2>>::DISCRIMINANT;
-    // }
-    //
-    // impl<'__a> star_frame::instruction::InstructionSet for TestInstructionSet1<'__a> {
-    //     type Discriminant = u8;
-    //     fn handle_ix(
-    //         mut ix_bytes: &[u8],
-    //         program_id: &star_frame::solana_program::pubkey::Pubkey,
-    //         accounts: &[star_frame::solana_program::account_info::AccountInfo],
-    //         sys_calls: &mut impl star_frame::sys_calls::SysCalls,
-    //     ) -> star_frame::Result<()> {
-    //         const DISC0: u8 = 0;
-    //         const DISC1: u8 = (0) + 1;
-    //         let discriminant = u8::from_le_bytes(
-    //             *star_frame::advance::AdvanceArray::try_advance_array(&mut ix_bytes)?,
-    //         );
-    //         match discriminant {
-    //             DISC0 => {
-    //                 let data = <Ix1 as star_frame::instruction::Instruction>::data_from_bytes(
-    //                     &mut ix_bytes,
-    //                 )?;
-    //                 <Ix1 as star_frame::instruction::Instruction>::run_ix_from_raw(
-    //                     &data, program_id, accounts, sys_calls,
-    //                 )
-    //             }
-    //             DISC1 => {
-    //                 let data = <Ix2 as star_frame::instruction::Instruction>::data_from_bytes(
-    //                     &mut ix_bytes,
-    //                 )?;
-    //                 <Ix2 as star_frame::instruction::Instruction>::run_ix_from_raw(
-    //                     &data, program_id, accounts, sys_calls,
-    //                 )
-    //             }
-    //             x => Err(star_frame::anyhow::anyhow!(
-    //                 "Invalid ix discriminant: {}",
-    //                 x
-    //             )),
-    //         }
-    //     }
 }
