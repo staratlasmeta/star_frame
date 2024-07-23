@@ -1,24 +1,24 @@
 #![allow(clippy::let_and_return)]
 
+use proc_macro2::TokenStream;
 #[cfg(feature = "idl")]
 mod account;
 mod account_set;
-mod framework_instruction;
 mod instruction_set;
 #[cfg(feature = "idl")]
 mod instruction_set_to_idl;
 mod program;
 mod solana_pubkey;
+mod star_frame_instruction;
 #[cfg(feature = "idl")]
 mod ty;
 mod unit_enum_from_repr;
-mod unsized_type;
+mod unsize;
 mod util;
 
 #[cfg(feature = "idl")]
 use crate::account::derive_account_to_idl_impl;
 use crate::unit_enum_from_repr::unit_enum_from_repr_impl;
-use proc_macro2::TokenStream;
 use proc_macro_crate::{crate_name, FoundCrate};
 use proc_macro_error::{abort, proc_macro_error};
 use quote::{format_ident, quote, ToTokens};
@@ -26,7 +26,7 @@ use syn::parse::{Parse, ParseStream};
 use syn::token::Token;
 use syn::{
     parenthesized, parse_macro_input, parse_quote, token, Data, DataStruct, DataUnion, DeriveInput,
-    Fields, Ident, Item, ItemEnum, ItemStruct, LitInt, Token,
+    Fields, Ident, Item, ItemEnum, LitInt, Token,
 };
 
 fn get_crate_name() -> TokenStream {
@@ -42,8 +42,8 @@ fn get_crate_name() -> TokenStream {
 
 #[proc_macro_error]
 #[proc_macro_derive(InstructionToIdl)]
-pub fn derive_framework_instruction(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let out = framework_instruction::derive_framework_instruction_impl(parse_macro_input!(
+pub fn derive_star_frame_instruction(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let out = star_frame_instruction::derive_star_frame_instruction_impl(parse_macro_input!(
         input as DeriveInput
     ));
     out.into()
@@ -53,6 +53,72 @@ pub fn derive_framework_instruction(input: proc_macro::TokenStream) -> proc_macr
 #[proc_macro_derive(AccountSet, attributes(account_set, decode, validate, cleanup, idl))]
 pub fn derive_account_set(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let out = account_set::derive_account_set_impl(parse_macro_input!(input as DeriveInput));
+    out.into()
+}
+
+/// # Derive proc macro for `GetSeeds` trait
+///
+/// ## Attributes
+///
+/// ### 1. `#[seed_const = <expr>]` (item level attribute)
+///
+/// ##### syntax
+///
+/// Attribute takes an `Expr` which resolves to a `&[u8]` seed for the account.
+///
+/// ##### usage
+///
+/// Attribute is optional. If the attribute is present, the seed for the account will be the concatenation
+/// of the seed provided in the attribute and the seeds of the fields of the account.
+///
+/// ```
+/// # use star_frame::prelude::*;
+/// // `seed_const` is not present
+/// // Resulting `account.seeds()` is `vec![account.key.seed(), account.number.seed()];`
+///
+/// #[derive(Debug, GetSeeds)]
+/// pub struct TestAccount {
+///     key: Pubkey,
+///     number: u64,
+/// }
+///
+/// let account = TestAccount {
+///     key: Pubkey::new_unique(),
+///     number: 42,
+/// };
+/// ```
+///
+/// ```
+/// # use star_frame::prelude::*;
+/// // `seed_const` here resolves to the `DISC` constant of the `Cool` struct
+/// // Resulting `account.seeds()` is `vec![b"TEST_CONST".as_ref()];`
+/// pub struct Cool {}
+///
+/// impl Cool {
+///     const DISC: &'static [u8] = b"TEST_CONST";
+/// }
+///
+/// #[derive(Debug, GetSeeds)]
+/// #[seed_const(Cool::DISC)]
+/// pub struct TestAccount {}
+/// ```
+///
+/// ```
+/// # use star_frame::prelude::*;
+/// // `seed_const` here resolves to the byte string `b"TEST_CONST"`
+/// // Resulting `account.seeds()` is `vec![b"TEST_CONST".as_ref(), account.key.seed()];`
+/// #[derive(Debug, GetSeeds)]
+/// #[seed_const(b"TEST_CONST")]
+/// pub struct TestAccount {
+///     key: Pubkey,
+/// }
+/// ```
+#[proc_macro_error]
+#[proc_macro_derive(GetSeeds, attributes(seed_const))]
+pub fn derive_get_seeds(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let out = account_set::seeded_account::derive_get_seeds_impl(parse_macro_input!(
+        input as DeriveInput
+    ));
     out.into()
 }
 
@@ -204,16 +270,28 @@ fn derive_align1_for_struct(
     .into()
 }
 
-/// Derives `InstructionSet` for a valid type.
+/// # Attribute proc macro for `InstructionSet`
+///
+/// Implements the `InstructionSet` trait for an enum of instructions and marks the enum as `#[repr(u8)]`.
+///
+/// ```ignore
+/// # use star_frame::prelude::*;
+/// #[star_frame_instruction_set]
+/// pub enum CoolInstructionSet {
+///     CoolInstruction(CoolIx),
+/// }
+///
+/// // An example instruction
+/// pub struct CoolIx {}
+/// ```
 #[proc_macro_error]
 #[proc_macro_attribute]
-pub fn instruction_set2(
+pub fn star_frame_instruction_set(
     args: proc_macro::TokenStream,
     item: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
     let out =
         instruction_set::instruction_set_impl(parse_macro_input!(item as ItemEnum), args.into());
-    // println!("{}", out);
     out.into()
 }
 
@@ -265,13 +343,48 @@ pub fn derive_account_to_idl(input: proc_macro::TokenStream) -> proc_macro::Toke
     out.into()
 }
 
+/// Derives `StarFrameProgram` and sets up the entrypoint for a program.
+///
+/// While it is possible to implement this manually, the derive macro has helpful defaults and
+/// additionally creates useful top level items for the crate.
+///
+/// ## Additional code generated:
+/// - `StarFrameDeclaredProgram` - This is a type alias around the struct that is used in other `star_frame` macros. This
+/// derive should be placed at the root of the crate, or be re-exported there.
+/// - Solana entrypoint - This will call the `star_frame_entrypoint` macro with the program struct.
+/// - `declare_id!` - It also generates the `crate::ID` and `id()` constants like how Solana's `declare_id` macro works.
+///
+/// # Example
+/// ```
+/// use star_frame::prelude::*;
+///
+/// #[derive(StarFrameProgram)]
+/// #[program(
+///     // This will be whatever instruction set you make for your program
+///     instruction_set = (),
+///     id = Pubkey::new_from_array([0; 32]),
+///     // Defaults to [u8; 8]
+///     account_discriminant = [u8; 8],
+///     // Defaults to [u8::MAX; 8]
+///     closed_account_discriminant = [u8::MAX; 8],
+///     // If present, the macro will not generate an entrypoint for the program. If not present, entrypoint is still gated with `no_entrypoint` feature
+///     no_entrypoint
+/// )]
+/// struct MyProgram;
+/// ```
+///
+/// # Arguments
+/// `#[program(instruction_set = <type>, id = <expr>, account_discriminant = <type>, closed_account_discriminant = <expr>, no_entrypoint)]`
+/// - `instruction_set` - The enum that implements `InstructionSet` for the program
+/// - `id` - The program id for the program. This can be either a literal string in base58 ("AABBCC42") or an expression that resolves to a `Pubkey`
+/// - `account_discriminant` - The `AccountDiscriminant` type used for the program. Defaults to `[u8; 8]` (similarly to Anchor)
+/// - `closed_account_discriminant` - The `AccountDiscriminant` value used for closed accounts. Defaults to `[u8::MAX; 8]`
+/// - `no_entrypoint` - If present, the macro will not generate an entrypoint for the program. While the generated entrypoint is already feature gated, this may be useful in some cases where features aren't
+/// convenient.
 #[proc_macro_error]
-#[proc_macro_attribute]
-pub fn program(
-    args: proc_macro::TokenStream,
-    item: proc_macro::TokenStream,
-) -> proc_macro::TokenStream {
-    let out = program::program_impl(parse_macro_input!(item as ItemStruct), args.into());
+#[proc_macro_derive(StarFrameProgram, attributes(program, program_id))]
+pub fn program(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let out = program::program_impl(parse_macro_input!(input as DeriveInput));
     out.into()
 }
 
@@ -287,7 +400,6 @@ pub fn unsized_type(
     args: proc_macro::TokenStream,
     item: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
-    let out = unsized_type::unsized_type_impl(parse_macro_input!(item as Item), args.into());
-    // println!("{}", out);
+    let out = unsize::unsized_type_impl(parse_macro_input!(item as Item), args.into());
     out.into()
 }

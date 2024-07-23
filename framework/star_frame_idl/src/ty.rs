@@ -41,6 +41,7 @@ pub enum IdlTypeDef {
     },
     Defined(IdlDefinedType),
     PubkeyFor {
+        // TODO - What does this correspond to? Is this an account in the `accounts` map?
         id: AccountId,
         optional: bool,
     },

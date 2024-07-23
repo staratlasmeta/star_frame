@@ -3,8 +3,6 @@ use crate::instruction::InstructionSet;
 #[cfg(any(target_os = "solana", feature = "fake_solana_os"))]
 use crate::program::StarFrameProgram;
 #[cfg(any(target_os = "solana", feature = "fake_solana_os"))]
-use crate::util::Network;
-#[cfg(any(target_os = "solana", feature = "fake_solana_os"))]
 use crate::Result;
 #[cfg(any(target_os = "solana", feature = "fake_solana_os"))]
 use solana_program::account_info::AccountInfo;
@@ -16,36 +14,28 @@ pub fn try_star_frame_entrypoint<T: StarFrameProgram>(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
     instruction_data: &[u8],
-    network: Network,
 ) -> Result<()> {
-    let mut syscalls = crate::prelude::SolanaRuntime::new(program_id, network);
+    let mut syscalls = crate::prelude::SolanaRuntime::new(program_id);
     T::InstructionSet::handle_ix(instruction_data, program_id, accounts, &mut syscalls)
 }
 
-#[cfg(test)]
-mod tests {
-    use crate::program::{ProgramIds, StarFrameProgram};
-    use star_frame::util::Network;
-    use star_frame_proc::{program, pubkey};
-
-    // struct Stuff;
-    impl StarFrameProgram for Stuff {
-        type InstructionSet<'a> = ();
-        type InstructionDiscriminant = ();
-        type AccountDiscriminant = ();
-        const CLOSED_ACCOUNT_DISCRIMINANT: Self::AccountDiscriminant = ();
-        const PROGRAM_IDS: ProgramIds = ProgramIds::Mapped(&[
-            (
-                Network::Mainnet,
-                &pubkey!("FACTNmq2FhA2QNTnGM2aWJH3i7zT3cND5CgvjYTjyVYe"),
-            ),
-            (
-                Network::Custom("atlasnet"),
-                &pubkey!("FLisTRH6dJnCK8AzTfenGJgHBPMHoat9XRc65Qpk7Yuc"),
-            ),
-        ]);
-    }
-
-    #[program(Network::Mainnet, no_entrypoint)]
-    pub struct Stuff;
-}
+/// Macro to define the entrypoint for a `star_frame` program. This wraps the default solana entrypoint macro
+/// and only needs to take in the [`StarFrameProgram`] type.
+#[macro_export(local_inner_macros)]
+macro_rules! star_frame_entrypoint (
+    ($program:ident) => {
+        #[cfg(all(not(feature = "no-entrypoint"), any(target_os = "solana", feature = "fake_solana_os")))]
+        mod __entrypoint {
+            use super::$program;
+            fn process_instruction(
+                program_id: &$crate::prelude::Pubkey,
+                accounts: &[$crate::prelude::AccountInfo],
+                instruction_data: &[u8],
+            ) -> $crate::solana_program::entrypoint::ProgramResult {
+                $crate::entrypoint::try_star_frame_entrypoint::<$program>(program_id, accounts, instruction_data)
+                    .map_err($crate::errors::handle_error)
+            }
+            $crate::solana_program::entrypoint!(process_instruction);
+        }
+    };
+);

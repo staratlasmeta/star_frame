@@ -1,5 +1,6 @@
 use crate::account_set::SignedAccount;
 use crate::prelude::*;
+use crate::serialize::unsize::init::Zeroed;
 use advance::Advance;
 use anyhow::{bail, Context};
 use bytemuck::bytes_of;
@@ -7,7 +8,6 @@ use derivative::Derivative;
 use derive_more::{Deref, DerefMut};
 use solana_program::program_memory::sol_memset;
 use solana_program::system_instruction;
-use star_frame::account_set::WritableAccount;
 use star_frame_proc::AccountSet;
 use std::fmt::Debug;
 use std::mem::size_of;
@@ -16,13 +16,13 @@ use std::mem::size_of;
 #[account_set(skip_default_validate)]
 #[validate(
     id = "create",
-    generics = [<A> where A: InitCreateArg<'info>, T: UnsizedInit<A::FrameworkInitArg>],
+    generics = [<A> where A: InitCreateArg<'info>, T: UnsizedInit<A::StarFrameInitArg>],
     arg = Create<A>,
     extra_validation = self.init_validate_create(arg.0, sys_calls),
 )]
 #[validate(
     id = "create_if_needed",
-    generics = [<A> where A: InitCreateArg<'info>, T: UnsizedInit<A::FrameworkInitArg>],
+    generics = [<A> where A: InitCreateArg<'info>, T: UnsizedInit<A::StarFrameInitArg>],
     arg = CreateIfNeeded<A>,
     extra_validation = self.init_if_needed(arg.0, sys_calls),
 )]
@@ -53,7 +53,7 @@ impl<'info, T> WritableAccount<'info> for InitAccount<'info, T> where
 }
 
 pub trait InitCreateArg<'info> {
-    type FrameworkInitArg;
+    type StarFrameInitArg;
     type AccountSeeds: GetSeeds;
     type FunderAccount: SignedAccount<'info> + WritableAccount<'info>;
 
@@ -61,7 +61,7 @@ pub trait InitCreateArg<'info> {
 
     fn split<'a>(
         &'a mut self,
-    ) -> CreateSplit<'a, 'info, Self::FrameworkInitArg, Self::AccountSeeds, Self::FunderAccount>;
+    ) -> CreateSplit<'a, 'info, Self::StarFrameInitArg, Self::AccountSeeds, Self::FunderAccount>;
 }
 #[derive(Derivative)]
 #[derivative(
@@ -87,51 +87,24 @@ pub struct Create<T>(pub T);
 pub struct CreateIfNeeded<T>(pub T);
 
 #[derive(Derivative)]
-#[derivative(
-    Debug(bound = "Program<'info, SystemProgram>: Debug, WT: Debug"),
-    Copy(bound = ""),
-    Clone(bound = "")
-)]
-pub struct CreateAccount<'a, 'info, WT> {
-    pub system_program: &'a Program<'info, SystemProgram>,
-    pub funder: &'a WT,
-}
-impl<'a, 'info, WT: SignedAccount<'info> + WritableAccount<'info>> InitCreateArg<'info>
-    for CreateAccount<'a, 'info, WT>
-{
-    type FrameworkInitArg = ();
-    type AccountSeeds = ();
-    type FunderAccount = WT;
-
-    fn system_program(&self) -> &Program<'info, SystemProgram> {
-        self.system_program
-    }
-
-    fn split<'b>(
-        &'b mut self,
-    ) -> CreateSplit<'b, 'info, Self::FrameworkInitArg, Self::AccountSeeds, Self::FunderAccount>
-    {
-        CreateSplit {
-            arg: (),
-            account_seeds: None,
-            system_program: self.system_program,
-            funder: self.funder,
-        }
-    }
-}
-
-#[derive(Derivative)]
 #[derivative(Debug(bound = "A: Debug, Program<'info, SystemProgram>: Debug, WT: Debug"))]
-pub struct CreateAccountWithArg<'a, 'info, A, WT> {
+pub struct CreateAccount<'a, 'info, A, WT> {
     arg: Option<A>,
     system_program: &'a Program<'info, SystemProgram>,
     funder: &'a WT,
 }
-impl<'a, 'info, A, WT> CreateAccountWithArg<'a, 'info, A, WT> {
-    pub fn new(
+
+impl<'a, 'info, WT> CreateAccount<'a, 'info, Zeroed, WT> {
+    pub fn new(system_program: &'a Program<'info, SystemProgram>, funder: &'a WT) -> Self {
+        Self::new_with_arg(Zeroed, system_program, funder)
+    }
+}
+
+impl<'a, 'info, A, WT> CreateAccount<'a, 'info, A, WT> {
+    pub fn new_with_arg(
         arg: A,
         system_program: &'a Program<'info, SystemProgram>,
-        funder: &'a Writable<WT>,
+        funder: &'a WT,
     ) -> Self {
         Self {
             arg: Some(arg),
@@ -141,9 +114,9 @@ impl<'a, 'info, A, WT> CreateAccountWithArg<'a, 'info, A, WT> {
     }
 }
 impl<'a, 'info, A, WT: SignedAccount<'info> + WritableAccount<'info>> InitCreateArg<'info>
-    for CreateAccountWithArg<'a, 'info, A, WT>
+    for CreateAccount<'a, 'info, A, WT>
 {
-    type FrameworkInitArg = A;
+    type StarFrameInitArg = A;
     type AccountSeeds = ();
     type FunderAccount = WT;
 
@@ -153,7 +126,7 @@ impl<'a, 'info, A, WT: SignedAccount<'info> + WritableAccount<'info>> InitCreate
 
     fn split<'b>(
         &'b mut self,
-    ) -> CreateSplit<'b, 'info, Self::FrameworkInitArg, Self::AccountSeeds, Self::FunderAccount>
+    ) -> CreateSplit<'b, 'info, Self::StarFrameInitArg, Self::AccountSeeds, Self::FunderAccount>
     {
         CreateSplit {
             arg: self.arg.take().unwrap(),
@@ -171,7 +144,7 @@ where
     fn init_if_needed<A>(&mut self, arg: A, sys_calls: &mut impl SysCallInvoke) -> Result<()>
     where
         A: InitCreateArg<'info>,
-        T: UnsizedInit<A::FrameworkInitArg>,
+        T: UnsizedInit<A::StarFrameInitArg>,
     {
         if self.owner() == arg.system_program().key()
             || self.account_info().data.borrow_mut()
@@ -193,7 +166,7 @@ where
     ) -> Result<()>
     where
         A: InitCreateArg<'info>,
-        T: UnsizedInit<A::FrameworkInitArg>,
+        T: UnsizedInit<A::StarFrameInitArg>,
     {
         self.inner
             .check_writable()
@@ -215,7 +188,7 @@ where
             self.key(),
             rent.minimum_balance(size),
             size as u64,
-            &T::OwnerProgram::program_id(sys_calls)?,
+            &T::OwnerProgram::PROGRAM_ID,
         );
         let accounts: &[AccountInfo<'info>] = &[
             self.account_info_cloned(),
@@ -242,7 +215,7 @@ where
         }
 
         let mut data_bytes = self.info_data_bytes_mut()?;
-        let data_bytes = &mut *data_bytes;
+        let mut data_bytes = &mut **data_bytes;
 
         data_bytes
             .try_advance(size_of::<

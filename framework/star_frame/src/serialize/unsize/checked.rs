@@ -2,7 +2,7 @@ use crate::align1::Align1;
 use crate::serialize::ref_wrapper::{
     AsBytes, AsMutBytes, RefDeref, RefDerefMut, RefWrapper, RefWrapperMutExt, RefWrapperTypes,
 };
-use crate::serialize::unsize::init::UnsizedInit;
+use crate::serialize::unsize::init::{UnsizedInit, Zeroed};
 use crate::serialize::unsize::FromBytesReturn;
 use crate::serialize::unsize::UnsizedType;
 use crate::Result;
@@ -23,7 +23,7 @@ where
     type Owned = T;
     type IsUnsized = False;
 
-    unsafe fn from_bytes<S: AsBytes>(
+    fn from_bytes<S: AsBytes>(
         bytes: S,
     ) -> Result<FromBytesReturn<S, Self::RefData, Self::RefMeta>> {
         try_from_bytes::<Self>(bytes.as_bytes()?.try_advance(size_of::<T>())?)?;
@@ -39,6 +39,7 @@ where
     }
 }
 
+/// A ref to a [`CheckedBitPatternValue`]. Used in a [`RefWrapper`].
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""), Clone(bound = ""), Copy(bound = ""))]
 pub struct CheckRef<T>(PhantomData<fn() -> T>);
@@ -99,8 +100,7 @@ where
         ))
     }
 }
-#[derive(Debug, Copy, Clone)]
-pub struct Zeroed;
+
 impl<T> UnsizedInit<Zeroed> for T
 where
     T: Align1 + CheckedBitPattern + NoUninit + Zeroable,

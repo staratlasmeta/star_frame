@@ -26,11 +26,11 @@ pub trait ProgramAccount {
     }
 }
 
-fn validate_data_account<T>(account: &DataAccount<T>, sys_calls: &impl SysCallCore) -> Result<()>
+fn validate_data_account<T>(account: &DataAccount<T>, _sys_calls: &impl SysCallCore) -> Result<()>
 where
     T: ProgramAccount + UnsizedType + ?Sized,
 {
-    if account.info.owner != &T::OwnerProgram::program_id(sys_calls)? {
+    if account.info.owner != &T::OwnerProgram::PROGRAM_ID {
         bail!(ProgramError::IllegalOwner);
     }
 
@@ -112,10 +112,11 @@ where
             let bytes = &mut &**bytes;
             bytes.try_advance(size_of::<
                 <T::OwnerProgram as StarFrameProgram>::AccountDiscriminant,
-            >())
+            >())?;
+            Result::<_>::Ok(*bytes)
         })?;
         let account_info_ref = AccountInfoRef { r };
-        unsafe { T::from_bytes(account_info_ref).map(|ret| ret.ref_wrapper) }
+        T::from_bytes(account_info_ref).map(|ret| ret.ref_wrapper)
     }
 
     pub fn data_mut<'a>(
@@ -128,7 +129,7 @@ where
             r,
             phantom: PhantomData,
         };
-        unsafe { T::from_bytes(account_info_ref_mut).map(|ret| ret.ref_wrapper) }
+        T::from_bytes(account_info_ref_mut).map(|ret| ret.ref_wrapper)
     }
 
     /// Closes the account
@@ -167,7 +168,12 @@ where
         arg: NormalizeRent<'_, 'info, impl WritableAccount<'info> + SignedAccount<'info>>,
         sys_calls: &mut impl SysCallInvoke,
     ) -> Result<()> {
-        normalize_rent(self, arg.funder, arg.system_program, sys_calls)
+        normalize_rent(
+            self.account_info(),
+            arg.funder,
+            arg.system_program,
+            sys_calls,
+        )
     }
 
     pub fn refund_rent(
@@ -175,7 +181,7 @@ where
         arg: &RefundRent<impl WritableAccount<'info>>,
         sys_calls: &mut impl SysCallInvoke,
     ) -> Result<()> {
-        refund_rent(self, arg.recipient, sys_calls)
+        refund_rent(self.account_info(), arg.recipient, sys_calls)
     }
 
     pub fn check_cleanup(&self, sys_calls: &mut impl SysCallCore) -> Result<()> {
@@ -264,8 +270,13 @@ unsafe impl<'a, 'info, P: StarFrameProgram, M> Resize<M> for AccountInfoRefMut<'
     unsafe fn resize(&mut self, new_byte_len: usize, _new_meta: M) -> Result<()> {
         let original_data_len = unsafe { self.account_info.original_data_len() };
         unsafe {
-            account_info_realloc(new_byte_len, true, &mut self.r, original_data_len)
-                .map_err(Into::into)
+            account_info_realloc(
+                new_byte_len + size_of::<P::AccountDiscriminant>(),
+                true,
+                &mut self.r,
+                original_data_len,
+            )
+            .map_err(Into::into)
         }
     }
 

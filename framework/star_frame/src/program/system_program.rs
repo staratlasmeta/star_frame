@@ -1,32 +1,24 @@
-use crate::program::{ProgramIds, StarFrameProgram};
-use crate::serialize::{FrameworkFromBytes, FrameworkSerialize};
-use crate::sys_calls::SysCalls;
-use crate::Result;
-use solana_program::account_info::AccountInfo;
-use solana_program::pubkey::Pubkey;
+use crate::prelude::*;
 use solana_program::system_instruction::SystemInstruction;
 use solana_program::system_program;
-use star_frame::instruction::InstructionSet;
-use star_frame_proc::Align1;
 
+/// Solana's system program.
 #[derive(Debug, Copy, Clone, Align1)]
 pub struct SystemProgram;
 impl StarFrameProgram for SystemProgram {
     type InstructionSet<'a> = SystemInstruction;
-    type InstructionDiscriminant = ();
     type AccountDiscriminant = ();
     const CLOSED_ACCOUNT_DISCRIMINANT: Self::AccountDiscriminant = ();
-
-    const PROGRAM_IDS: ProgramIds = ProgramIds::AllNetworks(&system_program::ID);
+    const PROGRAM_ID: Pubkey = system_program::ID;
 }
 
-unsafe impl<'a> FrameworkFromBytes<'a> for SystemInstruction {
+unsafe impl<'a> StarFrameFromBytes<'a> for SystemInstruction {
     fn from_bytes(_bytes: &mut &'a [u8]) -> Result<Self> {
         todo!()
     }
 }
 
-impl FrameworkSerialize for SystemInstruction {
+impl StarFrameSerialize for SystemInstruction {
     fn to_bytes(&self, _output: &mut &mut [u8]) -> Result<()> {
         todo!()
     }
@@ -47,10 +39,8 @@ impl InstructionSet for SystemInstruction {
 #[cfg(feature = "idl")]
 mod idl_impl {
     use super::*;
-    use crate::account_set::mutable::Writable;
-    use crate::account_set::signer::Signer;
     use crate::account_set::AccountSet;
-    use crate::idl::ty::TypeToIdl;
+    use crate::idl::TypeToIdl;
     use crate::idl::{AccountSetToIdl, InstructionSetToIdl, ProgramToIdl};
     use solana_program::instruction::AccountMeta;
     use star_frame_idl::account_set::{
@@ -58,10 +48,7 @@ mod idl_impl {
     };
     use star_frame_idl::instruction::{IdlInstruction, IdlInstructionDef};
     use star_frame_idl::ty::{IdlField, IdlType, IdlTypeDef, TypeId};
-    use star_frame_idl::{
-        DiscriminantId, IdlDefinition, IdlDefinitionReference, NetworkKey, ProgramIds, SemVer,
-        Version,
-    };
+    use star_frame_idl::{DiscriminantId, IdlDefinition, IdlDefinitionReference, SemVer, Version};
 
     pub struct CreateAccountSet<'info> {
         pub funder: Writable<Signer<AccountInfo<'info>>>,
@@ -258,10 +245,7 @@ mod idl_impl {
                 description: "The Solana System Program".to_string(),
                 required_plugins: Default::default(),
                 required_idl_definitions: Default::default(),
-                program_ids: ProgramIds::AllNetworks(NetworkKey {
-                    key: system_program::id(),
-                    extension_fields: Default::default(),
-                }),
+                program_id: system_program::ID,
                 account_discriminant: DiscriminantId::None,
                 instruction_discriminant: DiscriminantId::U32,
                 accounts: Default::default(),

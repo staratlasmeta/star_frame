@@ -5,10 +5,11 @@ edition.workspace = true
 publish.workspace = true
 
 [features]
-default = ["idl", "cleanup_rent_warning"]
+default = ["idl", "cleanup_rent_warning", "fake_solana_os"]
 fake_solana_os = []
 cleanup_rent_warning = []
 idl = ["star_frame_idl", "serde_json", "star_frame_proc/idl"]
+test_helpers = []
 
 [dependencies]
 advance = { workspace = true }
@@ -25,7 +26,6 @@ itertools = { workspace = true }
 num-traits = { workspace = true }
 paste = { workspace = true }
 solana-program = { workspace = true }
-solana-sdk = { workspace = true }
 star_frame_proc = { workspace = true }
 static_assertions = { workspace = true }
 typenum = { workspace = true }
@@ -39,6 +39,7 @@ star_frame_idl = { workspace = true, optional = true }
 bumpalo = { workspace = true }
 
 [dev-dependencies]
+pretty_assertions = { workspace = true }
 lazy_static = { workspace = true }
 strum = { workspace = true, features = ["derive"] }
 

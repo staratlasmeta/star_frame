@@ -1,4 +1,4 @@
-use crate::idl::ty::TypeToIdl;
+use crate::idl::TypeToIdl;
 use crate::program::system_program::SystemProgram;
 use fixed::*;
 use star_frame_idl::ty::{IdlDefinedType, IdlTypeDef};

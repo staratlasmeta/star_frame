@@ -2,6 +2,7 @@ use crate::prelude::*;
 use crate::serialize::ref_wrapper::{
     AsBytes, AsMutBytes, RefBytesMut, RefResize, RefWrapper, RefWrapperTypes,
 };
+use crate::serialize::unsize::init::Zeroed;
 use crate::serialize::unsize::resize::Resize;
 use crate::serialize::unsize::{FromBytesReturn, LengthAccess};
 use crate::util::OffsetRef;
@@ -33,14 +34,14 @@ where
     type IsUnsized = Or<T::IsUnsized, U::IsUnsized>;
     type Owned = (T::Owned, U::Owned);
 
-    unsafe fn from_bytes<S: AsBytes>(
+    fn from_bytes<S: AsBytes>(
         bytes: S,
     ) -> Result<FromBytesReturn<S, Self::RefData, Self::RefMeta>> {
         let FromBytesReturn {
             bytes_used: t_len,
             meta: t_meta,
             ..
-        } = unsafe { T::from_bytes(&bytes)? };
+        } = T::from_bytes(&bytes)?;
         let FromBytesReturn {
             bytes_used: u_len,
             meta: u_meta,
@@ -103,10 +104,10 @@ where
         ))
     }
 }
-impl<T, U> UnsizedInit<()> for CombinedUnsized<T, U>
+impl<T, U> UnsizedInit<Zeroed> for CombinedUnsized<T, U>
 where
-    T: ?Sized + UnsizedInit<()>,
-    U: ?Sized + UnsizedInit<()>,
+    T: ?Sized + UnsizedInit<Zeroed>,
+    U: ?Sized + UnsizedInit<Zeroed>,
     T::IsUnsized: BitOr<U::IsUnsized>,
     <T::IsUnsized as BitOr<U::IsUnsized>>::Output: Bit + LengthAccess<Self>,
 {
@@ -114,9 +115,9 @@ where
 
     unsafe fn init<S: AsMutBytes>(
         super_ref: S,
-        _arg: (),
+        _arg: Zeroed,
     ) -> Result<(RefWrapper<S, Self::RefData>, Self::RefMeta)> {
-        unsafe { Self::init(super_ref, ((), ())) }
+        unsafe { Self::init(super_ref, (Zeroed, Zeroed)) }
     }
 }
 
@@ -130,6 +131,19 @@ pub struct CombinedRef<T, U>(CombinedUnsizedRefMeta<T, U>)
 where
     T: ?Sized + UnsizedType,
     U: ?Sized + UnsizedType;
+impl<T, U> CombinedRef<T, U>
+where
+    T: ?Sized + UnsizedType,
+    U: ?Sized + UnsizedType,
+{
+    /// Creates a new [`CombinedRef`] from a [`CombinedUnsizedRefMeta`].
+    ///
+    /// # Safety
+    /// This should only be called where the meta results in a valid ref and usage.
+    pub unsafe fn new(meta: CombinedUnsizedRefMeta<T, U>) -> Self {
+        Self(meta)
+    }
+}
 
 #[derive(Derivative)]
 #[derivative(
@@ -142,10 +156,10 @@ where
     T: ?Sized + UnsizedType,
     U: ?Sized + UnsizedType,
 {
-    t_meta: T::RefMeta,
-    u_meta: U::RefMeta,
-    t_len: <T::IsUnsized as LengthAccess<T>>::LengthData,
-    u_len: <U::IsUnsized as LengthAccess<U>>::LengthData,
+    pub(crate) t_meta: T::RefMeta,
+    pub(crate) u_meta: U::RefMeta,
+    pub(crate) t_len: <T::IsUnsized as LengthAccess<T>>::LengthData,
+    pub(crate) u_len: <U::IsUnsized as LengthAccess<U>>::LengthData,
 }
 
 #[derive(Derivative)]
@@ -219,14 +233,17 @@ where
         let old_t_len = T::IsUnsized::len(r.t_len);
         r.t_meta = new_meta;
         r.t_len = T::IsUnsized::from_len(new_byte_len);
-        let bytes = sup.as_mut_bytes()?;
-        let start_ptr = addr_of_mut!(bytes[old_t_len]);
-        let end_ptr = addr_of_mut!(bytes[new_byte_len]);
         let byte_len = U::IsUnsized::len(r.u_len);
         if new_byte_len > old_t_len {
             unsafe { sup.resize(new_byte_len + byte_len, r.0)? }
+            let bytes = sup.as_mut_bytes()?;
+            let start_ptr = addr_of_mut!(bytes[old_t_len]);
+            let end_ptr = addr_of_mut!(bytes[new_byte_len]);
             unsafe { sol_memmove(end_ptr, start_ptr, byte_len) }
         } else {
+            let bytes = sup.as_mut_bytes()?;
+            let start_ptr = addr_of_mut!(bytes[old_t_len]);
+            let end_ptr = addr_of_mut!(bytes[new_byte_len]);
             unsafe { sol_memmove(start_ptr, end_ptr, byte_len) }
             unsafe { sup.resize(new_byte_len + byte_len, r.0)? }
         }
@@ -295,27 +312,18 @@ where
     }
 }
 
+pub type RefWrapperT<S, T, U> =
+    RefWrapper<RefWrapper<S, CombinedTRef<T, U>>, <T as UnsizedType>::RefData>;
+pub type RefWrapperU<S, T, U> =
+    RefWrapper<RefWrapper<S, CombinedURef<T, U>>, <U as UnsizedType>::RefData>;
+
 #[allow(clippy::type_complexity)]
 pub trait CombinedExt: Sized {
     type T: ?Sized + UnsizedType;
     type U: ?Sized + UnsizedType;
 
-    fn t(
-        self,
-    ) -> Result<
-        RefWrapper<
-            RefWrapper<Self, CombinedTRef<Self::T, Self::U>>,
-            <Self::T as UnsizedType>::RefData,
-        >,
-    >;
-    fn u(
-        self,
-    ) -> Result<
-        RefWrapper<
-            RefWrapper<Self, CombinedURef<Self::T, Self::U>>,
-            <Self::U as UnsizedType>::RefData,
-        >,
-    >;
+    fn t(self) -> Result<RefWrapperT<Self, Self::T, Self::U>>;
+    fn u(self) -> Result<RefWrapperU<Self, Self::T, Self::U>>;
 }
 impl<S, T, U> CombinedExt for S
 where
@@ -327,29 +335,62 @@ where
     type T = T;
     type U = U;
 
-    fn t(
-        self,
-    ) -> Result<
-        RefWrapper<
-            RefWrapper<Self, CombinedTRef<Self::T, Self::U>>,
-            <Self::T as UnsizedType>::RefData,
-        >,
-    > {
+    fn t(self) -> Result<RefWrapperT<Self, Self::T, Self::U>> {
         let t_meta = self.r().t_meta;
         unsafe { T::from_bytes_and_meta(RefWrapper::new(self, CombinedTRef::default()), t_meta) }
             .map(|r| r.ref_wrapper)
     }
 
-    fn u(
-        self,
-    ) -> Result<
-        RefWrapper<
-            RefWrapper<Self, CombinedURef<Self::T, Self::U>>,
-            <Self::U as UnsizedType>::RefData,
-        >,
-    > {
+    fn u(self) -> Result<RefWrapperU<Self, Self::T, Self::U>> {
         let u_meta = self.r().u_meta;
         unsafe { U::from_bytes_and_meta(RefWrapper::new(self, CombinedURef::default()), u_meta) }
             .map(|r| r.ref_wrapper)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::serialize::test_helpers::TestByteSet;
+
+    #[test]
+    fn test_all_sized() -> Result<()> {
+        type Thingy = CombinedUnsized<CombinedUnsized<u8, u8>, u8>;
+        let bytes = TestByteSet::<Thingy>::new(Zeroed)?;
+        let r = bytes.immut()?;
+        assert_eq!(*r.t()?.t()?, 0);
+        assert_eq!(*r.t()?.u()?, 0);
+        assert_eq!(*r.u()?, 0);
+        Ok(())
+    }
+
+    #[test]
+    fn test_all_unsized() -> Result<()> {
+        type Thingy = CombinedUnsized<CombinedUnsized<List<u8>, List<u8>>, List<u8>>;
+        let bytes = TestByteSet::<Thingy>::new(Zeroed)?;
+        let r = bytes.immut()?;
+        assert_eq!(r.t()?.t()?.len(), 0);
+        assert_eq!(r.t()?.u()?.len(), 0);
+        assert_eq!(r.u()?.len(), 0);
+        Ok(())
+    }
+
+    #[test]
+    fn test_combined_size() -> Result<()> {
+        type Thingy1 = CombinedUnsized<CombinedUnsized<List<u8>, u8>, List<u8>>;
+        type Thingy2 = CombinedUnsized<CombinedUnsized<List<u8>, u8>, u8>;
+
+        let bytes = TestByteSet::<Thingy1>::new(Zeroed)?;
+        let r = bytes.immut()?;
+        assert_eq!(r.t()?.t()?.len(), 0);
+        assert_eq!(*r.t()?.u()?, 0);
+        assert_eq!(r.u()?.len(), 0);
+
+        let bytes = TestByteSet::<Thingy2>::new(Zeroed)?;
+        let r = bytes.immut()?;
+        assert_eq!(r.t()?.t()?.len(), 0);
+        assert_eq!(*r.t()?.u()?, 0);
+        assert_eq!(*r.u()?, 0);
+        Ok(())
     }
 }

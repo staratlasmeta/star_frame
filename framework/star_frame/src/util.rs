@@ -8,38 +8,8 @@ use anyhow::anyhow;
 use solana_program::system_instruction::transfer;
 use std::cell::{Ref, RefMut};
 use std::cmp::Ordering;
-use std::fmt::{Debug, Display};
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Network {
-    Mainnet,
-    Devnet,
-    Testnet,
-    Custom(&'static str),
-}
-
-impl Display for Network {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Network::Mainnet => write!(f, "Mainnet"),
-            Network::Devnet => write!(f, "Devnet"),
-            Network::Testnet => write!(f, "Testnet"),
-            Network::Custom(c) => write!(f, "Custom: {c}"),
-        }
-    }
-}
-
-#[cfg(feature = "idl")]
-impl From<Network> for star_frame_idl::Network {
-    fn from(value: Network) -> Self {
-        match value {
-            Network::Mainnet => Self::Mainnet,
-            Network::Devnet => Self::Devnet,
-            Network::Testnet => Self::Testnet,
-            Network::Custom(c) => Self::Custom(c.to_string()),
-        }
-    }
-}
+use std::fmt::Debug;
+use std::mem::size_of;
 
 /// Similar to [`Ref::map`], but the closure can return an error.
 pub fn try_map_ref<'a, I: 'a + ?Sized, O: 'a + ?Sized, E>(
@@ -67,6 +37,7 @@ pub fn try_map_ref_mut<'a, I: 'a + ?Sized, O: 'a + ?Sized, E>(
     }
 }
 
+/// Constant string comparison. Replaced when const traits enabled.
 #[must_use]
 pub const fn compare_strings(a: &str, b: &str) -> bool {
     if a.len() != b.len() {
@@ -88,12 +59,8 @@ pub const fn compare_strings(a: &str, b: &str) -> bool {
 
 /// Normalizes the rent of an account if data size is changed.
 /// Assumes `info` is owned by this program.
-pub fn normalize_rent<
-    'info,
-    T: ?Sized + UnsizedType + ProgramAccount,
-    F: WritableAccount<'info> + SignedAccount<'info>,
->(
-    info: &DataAccount<'info, T>,
+pub fn normalize_rent<'info, F: WritableAccount<'info> + SignedAccount<'info>>(
+    info: &AccountInfo<'info>,
     funder: &F,
     system_program: &Program<'info, SystemProgram>,
     sys_calls: &mut impl SysCallInvoke,
@@ -136,8 +103,8 @@ pub fn normalize_rent<
 
 /// Refunds rent to the funder so long as the account has more than the minimum rent.
 /// Assumes `info` is owned by this program.
-pub fn refund_rent<'info, T: ?Sized + UnsizedType + ProgramAccount, F: WritableAccount<'info>>(
-    info: &DataAccount<'info, T>,
+pub fn refund_rent<'info, F: WritableAccount<'info>>(
+    info: &AccountInfo<'info>,
     funder: &F,
     sys_calls: &mut impl SysCallInvoke,
 ) -> Result<()> {
@@ -157,6 +124,7 @@ pub fn refund_rent<'info, T: ?Sized + UnsizedType + ProgramAccount, F: WritableA
     }
 }
 
+/// A ref that offsets bytes by a given amount.
 #[derive(Debug, Copy, Clone)]
 pub struct OffsetRef(pub usize);
 unsafe impl<S> RefBytes<S> for OffsetRef
@@ -178,5 +146,25 @@ where
         let mut bytes = sup.as_mut_bytes()?;
         bytes.try_advance(r.0)?;
         Ok(bytes)
+    }
+}
+
+/// Returns a slice of bytes from an array of [`NoUninit`] types.
+pub fn uninit_array_bytes<T: NoUninit, const N: usize>(array: &[T; N]) -> &[u8] {
+    // Safety: `T` is `NoUninit`, so all underlying reads are valid since there's no padding
+    // between array elements. The pointer is valid. The entire memory is valid.
+    // The size is correct. Everything is fine.
+    unsafe { core::slice::from_raw_parts(array.as_ptr().cast::<u8>(), size_of::<T>() * N) }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn test_compare_strings() {
+        assert!(compare_strings("hello", "hello"));
+        assert!(!compare_strings("hello", "world"));
+        assert!(!compare_strings("hello", "hell"));
+        assert!(!compare_strings("hello", "hellp"));
     }
 }

@@ -3,6 +3,7 @@
 use solana_program::pubkey::Pubkey;
 pub use star_frame_proc::Align1;
 use std::marker::PhantomData;
+use std::num::{NonZeroI8, NonZeroU8};
 
 /// # Safety
 /// This trait should only be implemented for types that are guaranteed to be aligned to 1 byte.
@@ -19,7 +20,7 @@ macro_rules! impl_align1 {
     };
 }
 
-impl_align1!((), u8, i8, Pubkey);
+impl_align1!((), u8, i8, bool, Pubkey, NonZeroU8, NonZeroI8);
 
 // Safety: Allowed because `PhantomData` is a ZST.
 unsafe impl<T: ?Sized> Align1 for PhantomData<T> {}

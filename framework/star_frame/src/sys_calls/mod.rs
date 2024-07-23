@@ -1,7 +1,6 @@
 #[cfg(any(target_os = "solana", feature = "fake_solana_os"))]
 pub mod solana_runtime;
 
-use crate::util::Network;
 use crate::SolanaInstruction;
 use solana_program::account_info::AccountInfo;
 use solana_program::clock::Clock;
@@ -60,9 +59,6 @@ pub trait SysCallInvoke: SysCallCore {
 pub trait SysCallCore {
     /// Get the current program id.
     fn current_program_id(&self) -> &Pubkey;
-    /// Gets the current network.
-    /// Not determined by solana runtime but by build config.
-    fn current_network(&self) -> &Network;
     /// Get the rent sysvar.
     fn get_rent(&mut self) -> Result<Rent, ProgramError>;
     /// Get the clock.

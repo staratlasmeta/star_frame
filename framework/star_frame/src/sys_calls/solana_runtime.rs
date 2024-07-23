@@ -1,15 +1,12 @@
-use crate::sys_calls::{SysCallCore, SysCallInvoke, SysCallReturn};
-use crate::util::Network;
+//! The runtime while running on Solana.
+
+use crate::prelude::*;
 use crate::SolanaInstruction;
-use solana_program::account_info::AccountInfo;
 use solana_program::clock::Clock;
 use solana_program::entrypoint::ProgramResult;
 use solana_program::program::{
-    get_return_data, invoke, invoke_signed, invoke_signed_unchecked, invoke_unchecked,
-    set_return_data,
+    get_return_data, invoke, invoke_signed_unchecked, invoke_unchecked, set_return_data,
 };
-use solana_program::program_error::ProgramError;
-use solana_program::pubkey::Pubkey;
 use solana_program::rent::Rent;
 use solana_program::sysvar::Sysvar;
 
@@ -18,17 +15,15 @@ use solana_program::sysvar::Sysvar;
 pub struct SolanaRuntime<'a> {
     /// The program id of the currently executing program.
     pub program_id: &'a Pubkey,
-    pub network: Network,
     rent_cache: Option<Rent>,
     clock_cache: Option<Clock>,
 }
 impl<'a> SolanaRuntime<'a> {
     /// Create a new solana runtime.
     #[must_use]
-    pub fn new(program_id: &'a Pubkey, network: Network) -> Self {
+    pub fn new(program_id: &'a Pubkey) -> Self {
         Self {
             program_id,
-            network,
             rent_cache: None,
             clock_cache: None,
         }
@@ -66,7 +61,37 @@ impl<'b> SysCallInvoke for SolanaRuntime<'b> {
         accounts: &[AccountInfo],
         signers_seeds: &[&[&[u8]]],
     ) -> ProgramResult {
-        invoke_signed(instruction, accounts, signers_seeds)
+        // Check that the account RefCells are consistent with the request
+        for account_meta in &instruction.accounts {
+            for account_info in accounts {
+                if account_meta.pubkey == *account_info.key {
+                    if account_meta.is_writable {
+                        let _ = account_info.try_borrow_mut_lamports().map_err(|e| {
+                            msg!("lamports borrow_mut failed for {}", account_info.key);
+                            e
+                        })?;
+                        let _ = account_info.try_borrow_mut_data().map_err(|e| {
+                            msg!("data borrow_mut failed for {}", account_info.key);
+                            e
+                        })?;
+                    } else {
+                        let _ = account_info.try_borrow_lamports().map_err(|e| {
+                            msg!("lamports borrow failed for {}", account_info.key);
+                            e
+                        })?;
+                        let _ = account_info.try_borrow_data().map_err(|e| {
+                            msg!("data borrow failed for {}", account_info.key);
+                            e
+                        })?;
+                    }
+                    break;
+                }
+            }
+        }
+
+        // Safety: check logic for solana's invoke_signed is duplicated, with the only difference
+        // being the problematic pubkeys are now logged out on error.
+        invoke_signed_unchecked(instruction, accounts, signers_seeds)
     }
 
     unsafe fn invoke_signed_unchecked(
@@ -81,10 +106,6 @@ impl<'b> SysCallInvoke for SolanaRuntime<'b> {
 impl<'a> SysCallCore for SolanaRuntime<'a> {
     fn current_program_id(&self) -> &Pubkey {
         self.program_id
-    }
-
-    fn current_network(&self) -> &Network {
-        &self.network
     }
 
     fn get_rent(&mut self) -> Result<Rent, ProgramError> {

@@ -13,10 +13,15 @@ prod = []
 no-entrypoint = []
 no-idl = []
 cpi = ["no-entrypoint"]
-default = ["serde_json"]
+default = ["serde_json", "no-idl"]
 
 [dependencies]
 bytemuck = "1.14.0"
-star_frame = { path = "../../star_frame", features = ["fake_solana_os"] }
-star_frame_idl = { path = "../../star_frame_idl" }
+star_frame = { path = "../../star_frame" }
 serde_json = { version = "1.0.108", optional = true }
+
+[dev-dependencies]
+solana-sdk = { version = "1.18" }
+solana-transaction-status = "1.18"
+solana-client = "1.18"
+tokio = "1.37.0"

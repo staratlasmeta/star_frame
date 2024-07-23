@@ -140,6 +140,20 @@ where
     }
 }
 
+macro_rules! packed_eq {
+    ($($ident:ident),* $(,)?) => {
+        $(
+            impl<T: Copy + PartialEq> PartialEq<T> for $ident<T> {
+                fn eq(&self, other: &T) -> bool {
+                    { self.0 }.eq(other)
+                }
+            }
+        )*
+    };
+}
+packed_eq!(PackedValue, PackedValueChecked);
+
+/// Equivalent to [`PackedValue`] but [`CheckedBitPattern`] instead of [`Pod`].
 #[derive(Align1, Derivative)]
 #[derivative(
     Debug(bound = "T: Debug + Copy"),
@@ -164,11 +178,12 @@ where
     }
 }
 unsafe impl<T> NoUninit for PackedValueChecked<T> where T: NoUninit {}
+unsafe impl<T> Zeroable for PackedValueChecked<T> where T: Zeroable {}
 
 #[cfg(feature = "idl")]
 mod idl_impl {
     use super::*;
-    use crate::idl::ty::TypeToIdl;
+    use crate::idl::TypeToIdl;
     use crate::Result;
     use star_frame_idl::ty::IdlTypeDef;
     use star_frame_idl::IdlDefinition;

@@ -54,14 +54,14 @@ pub enum AdvanceError {
     NotEnoughData { needed: usize, remaining: usize },
 }
 #[cfg(feature = "solana")]
-impl From<AdvanceError> for solana_sdk::program_error::ProgramError {
+impl From<AdvanceError> for solana_program::program_error::ProgramError {
     fn from(value: AdvanceError) -> Self {
-        solana_sdk::msg!("AdvanceError: {:?}", value);
-        solana_sdk::program_error::ProgramError::Custom(10000)
+        solana_program::msg!("AdvanceError: {:?}", value);
+        solana_program::program_error::ProgramError::Custom(10000)
     }
 }
 
-// TODO: impl this const when bpf toolchain updated
+// TODO: impl this const when const traits stabilized.
 /// Advances a given slice while maintaining lifetimes
 pub trait Advance<'a>: Length {
     /// The element of the array
@@ -100,7 +100,7 @@ pub trait Advance<'a>: Length {
     unsafe fn advance_unchecked(&'a mut self, amount: usize) -> Self::AdvanceOut;
 }
 
-// TODO: impl this const when bpf toolchain updated
+// TODO: impl this const when const traits stabilized.
 /// Advances a given slice giving back an array
 pub trait AdvanceArray<'a, const N: usize>: Length {
     /// The element of the array

@@ -1,6 +1,7 @@
+mod no_op;
 pub mod un_callable;
 
-pub use star_frame_proc::instruction_set2;
+pub use star_frame_proc::star_frame_instruction_set;
 pub use star_frame_proc::InstructionToIdl;
 
 use crate::account_set::{AccountSetCleanup, AccountSetDecode, AccountSetValidate};
@@ -10,7 +11,7 @@ use bytemuck::Pod;
 use solana_program::account_info::AccountInfo;
 use solana_program::program::MAX_RETURN_DATA;
 use solana_program::pubkey::Pubkey;
-use star_frame::serialize::FrameworkSerialize;
+use star_frame::serialize::StarFrameSerialize;
 
 /// A set of instructions that can be used as input to a program.
 pub trait InstructionSet {
@@ -40,7 +41,7 @@ pub trait Instruction {
     ) -> Result<()>;
 }
 
-/// A framework defined instruction using [`AccountSet`] and other traits.
+/// A `star_frame` defined instruction using [`AccountSet`] and other traits.
 ///
 /// The steps are as follows:
 /// 1. Split self into decode, validate, and run args using [`Instruction::split_to_args`].
@@ -49,7 +50,7 @@ pub trait Instruction {
 /// 4. Validate the accounts using [`Instruction::Accounts::validate_accounts`](AccountSetValidate::validate_accounts).
 /// 5. Run the instruction using [`Instruction::run_instruction`].
 /// 6. Set the solana return data using [`Instruction::ReturnType::to_bytes`].
-pub trait FrameworkInstruction {
+pub trait StarFrameInstruction {
     type SelfData<'a>;
 
     /// The instruction data type used to decode accounts.
@@ -62,7 +63,7 @@ pub trait FrameworkInstruction {
     type CleanupArg<'a>;
 
     /// The return type of this instruction.
-    type ReturnType: FrameworkSerialize;
+    type ReturnType: StarFrameSerialize;
 
     /// The [`AccountSet`] used by this instruction.
     type Accounts<'b, 'c, 'info>: AccountSetDecode<'b, 'info, Self::DecodeArg<'c>>
@@ -104,12 +105,12 @@ pub trait FrameworkInstruction {
 
 impl<T> Instruction for T
 where
-    T: ?Sized + FrameworkInstruction,
+    T: ?Sized + StarFrameInstruction,
 {
-    type SelfData<'a> = <Self as FrameworkInstruction>::SelfData<'a>;
+    type SelfData<'a> = <Self as StarFrameInstruction>::SelfData<'a>;
 
     fn data_from_bytes<'a>(bytes: &mut &'a [u8]) -> Result<Self::SelfData<'a>> {
-        <T as FrameworkInstruction>::data_from_bytes(bytes)
+        <T as StarFrameInstruction>::data_from_bytes(bytes)
     }
 
     fn run_ix_from_raw(
@@ -119,7 +120,7 @@ where
         sys_calls: &mut impl SysCalls,
     ) -> Result<()> {
         let (decode, validate, mut run, cleanup) = Self::split_to_args(data);
-        let mut account_set = <Self as FrameworkInstruction>::Accounts::decode_accounts(
+        let mut account_set = <Self as StarFrameInstruction>::Accounts::decode_accounts(
             &mut accounts,
             decode,
             sys_calls,
@@ -128,11 +129,14 @@ where
         Self::extra_validations(&mut account_set, &mut run, sys_calls)?;
         let ret = Self::run_instruction(run, program_id, &mut account_set, sys_calls)?;
         account_set.cleanup_accounts(cleanup, sys_calls)?;
+        // todo: handle return data better
         let mut return_data = vec![0u8; MAX_RETURN_DATA];
         let mut return_data_ref = &mut return_data[..];
         ret.to_bytes(&mut return_data_ref)?;
-        let return_data_len = return_data_ref.len();
-        sys_calls.set_return_data(&return_data[..return_data_len]);
+        if return_data_ref.len() != MAX_RETURN_DATA {
+            let return_data_len = MAX_RETURN_DATA - return_data_ref.len();
+            sys_calls.set_return_data(&return_data[..return_data_len]);
+        }
         Ok(())
     }
 }
@@ -143,7 +147,7 @@ mod test {
     use crate::prelude::SysCalls;
     use solana_program::account_info::AccountInfo;
     use solana_program::pubkey::Pubkey;
-    use star_frame_proc::instruction_set2;
+    use star_frame_proc::star_frame_instruction_set;
 
     #[allow(dead_code)]
     struct Ix1 {
@@ -186,7 +190,7 @@ mod test {
         }
     }
 
-    #[instruction_set2]
+    #[star_frame_instruction_set]
     enum TestInstructionSet1 {
         Ix1(Ix1),
         Ix2(Ix2),

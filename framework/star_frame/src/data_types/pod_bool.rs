@@ -8,7 +8,9 @@ use star_frame_proc::Align1;
 pub struct PodBool(u8);
 
 impl PodBool {
+    /// The [`false`] value for [`PodBool`].
     pub const FALSE: PodBool = PodBool(0);
+    /// A [`true`] value for [`PodBool`]. There are other valid values (anything > `0`).
     pub const TRUE: PodBool = PodBool(1);
 
     /// Constructor function
