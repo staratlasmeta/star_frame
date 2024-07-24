@@ -31,8 +31,8 @@ where
 {
     type RefMeta = CombinedUnsizedRefMeta<T, U>;
     type RefData = CombinedRef<T, U>;
-    type IsUnsized = Or<T::IsUnsized, U::IsUnsized>;
     type Owned = (T::Owned, U::Owned);
+    type IsUnsized = Or<T::IsUnsized, U::IsUnsized>;
 
     fn from_bytes<S: AsBytes>(
         bytes: S,
