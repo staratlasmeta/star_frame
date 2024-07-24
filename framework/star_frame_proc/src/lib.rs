@@ -488,7 +488,7 @@ pub fn unsized_type(
 ///
 /// const NAMESPACE_HASH: [u8; 8] = [0x76, 0x03, 0x6f, 0xcc, 0x93, 0xdd, 0x73, 0x10];
 /// assert_eq!(sighash!("global", "other_stuff"), NAMESPACE_HASH);
-///```
+/// ```
 #[proc_macro]
 pub fn sighash(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     hash::sighash_impl(parse_macro_input!(input with Punctuated::<LitStr, Comma>::parse_terminated))
