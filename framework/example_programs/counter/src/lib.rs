@@ -2,7 +2,8 @@ use solana_program::pubkey::Pubkey;
 use star_frame::borsh::{BorshDeserialize, BorshSerialize};
 use star_frame::prelude::*;
 
-#[derive(Copy, Clone, Align1, Debug, Pod, Zeroable)]
+#[derive(Align1, Copy, Clone, Debug, Eq,
+    PartialEq, Pod, Zeroable)]
 #[repr(C, packed)]
 pub struct CounterAccount {
     pub version: u8,
@@ -15,7 +16,7 @@ pub struct CounterAccount {
 impl ProgramAccount for CounterAccount {
     type OwnerProgram = CounterProgram;
     const DISCRIMINANT: <Self::OwnerProgram as StarFrameProgram>::AccountDiscriminant =
-        [47, 44, 255, 15, 103, 77, 139, 247];
+        [0; 8];
 }
 
 impl SeededAccountData for CounterAccount {
@@ -48,7 +49,7 @@ pub struct CreateCounterAccounts<'info> {
             init_create: CreateAccount::new(&self.system_program, &self.funder),
         })
     )]
-    pub profile: SeededInitAccount<'info, CounterAccount>,
+    pub counter: SeededInitAccount<'info, CounterAccount>,
     pub system_program: Program<'info, SystemProgram>,
 }
 
@@ -81,13 +82,28 @@ impl StarFrameInstruction for CreateCounterIx {
     fn run_instruction<'b, 'info>(
         start_at: Self::RunArg<'_>,
         _program_id: &Pubkey,
-        _account_set: &mut Self::Accounts<'b, '_, 'info>,
+        account_set: &mut Self::Accounts<'b, '_, 'info>,
         _sys_calls: &mut impl SysCallInvoke,
     ) -> Result<Self::ReturnType>
     where
         'info: 'b,
     {
-        msg!("start_at >> {:?}", start_at);
+
+        *account_set.counter.data_mut()? = CounterAccount {
+            version: 0,
+            signer: *account_set.owner.key(),
+            owner: *account_set.owner.key(),
+            bump: account_set.counter.access_seeds().bump,
+            count: start_at.unwrap_or(0),
+        };
+
+        // let mut counter = account_set.counter.data_mut()?;
+        // counter.version = 0;
+        // counter.signer = *account_set.owner.key();
+        // counter.owner = new_role.signer;
+        // counter.bump = account_set.counter.access_seeds().bump;
+        // counter.count = start_at.unwrap_or(0);
+
         Ok(())
     }
 }
@@ -115,9 +131,12 @@ pub struct CountAccounts<'info> {
 }
 
 #[star_frame_instruction_set]
+#[derive(BorshSerialize, BorshDeserialize, Debug)]
+#[borsh(crate = "borsh", use_discriminant=true)]
 pub enum CounterInstructionSet {
     CreateCounter(CreateCounterIx),
 }
+
 
 #[derive(StarFrameProgram)]
 #[program(
@@ -141,6 +160,7 @@ fn process_instruction(
 
 #[cfg(test)]
 mod tests {
+    use bytemuck::checked::try_from_bytes;
     use super::*;
     use solana_program_test::*;
     use solana_sdk::instruction::Instruction as SolanaInstruction;
@@ -171,10 +191,10 @@ mod tests {
         };
         let (counter_account, _bump) =
             Pubkey::find_program_address(&seeds.seeds(), &StarFrameDeclaredProgram::PROGRAM_ID);
-        let _ix_data = CreateCounterIx { start_at };
+        let ix_data = CounterInstructionSet::CreateCounter(CreateCounterIx { start_at });
         let instruction = SolanaInstruction::new_with_borsh(
             CounterProgram::PROGRAM_ID,
-            &[0, 1],
+            &ix_data,
             vec![
                 AccountMeta::new(payer.pubkey(), true),
                 AccountMeta::new_readonly(account_key, false),
@@ -189,7 +209,16 @@ mod tests {
 
         // Process the transaction
         banks_client.process_transaction(transaction).await.unwrap();
-        // let xxx = banks_client.process_transaction(transaction).await;
-        // msg!("xxx >> {:?}", xxx);
+
+        let expected = CounterAccount { version: 0, owner: account_key, signer: account_key, count: 2, bump: 254 };
+
+        let acc = banks_client.get_account(counter_account).await.unwrap().unwrap();
+        // println!("counter_data {:?}", counter_data);
+        // let processed_market: &CounterAccount = try_from_bytes(&acc.data[8..]).unwrap();
+        // let processed_market = CounterAccount::try_from(acc.data.).unwrap();
+        //
+        assert_eq!(expected, *try_from_bytes(&acc.data[8..]).unwrap());
+
+        assert_eq!(start_at, Some(2));
     }
 }
