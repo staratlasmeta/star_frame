@@ -1,14 +1,23 @@
+use itertools::Itertools;
 use proc_macro2::TokenStream;
+use proc_macro_error::abort;
 use sha2::{Digest, Sha256};
 use std::str::FromStr;
+use syn::punctuated::Punctuated;
+use syn::token::Comma;
+use syn::LitStr;
 
 pub const SIGHASH_GLOBAL_NAMESPACE: &str = "global";
 
 // Anchor's sighash function
 pub fn sighash(namespace: &str, name: &str) -> [u8; 8] {
     let preimage = format!("{}:{}", namespace, name);
+    hash_str(&preimage)
+}
+
+pub fn hash_str(s: &str) -> [u8; 8] {
     let mut hasher = Sha256::default();
-    hasher.update(preimage.as_bytes());
+    hasher.update(s.as_bytes());
 
     hasher.finalize().as_slice()[0..8]
         .try_into()
@@ -18,4 +27,12 @@ pub fn sighash(namespace: &str, name: &str) -> [u8; 8] {
 pub fn hash_tts(hash: &[u8; 8]) -> TokenStream {
     let hash_tts = format!("{:?}", hash);
     TokenStream::from_str(&hash_tts).expect("Hash should be valid tts")
+}
+
+pub fn sighash_impl(args: Punctuated<LitStr, Comma>) -> TokenStream {
+    if args.is_empty() {
+        abort!(args, "sighash! requires at least one argument");
+    }
+    let strings = args.iter().map(|s| s.value()).join(":");
+    hash_tts(&hash_str(&strings))
 }
