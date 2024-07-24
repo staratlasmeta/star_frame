@@ -50,6 +50,13 @@ impl<'info, T> WritableAccount<'info> for InitAccount<'info, T> where
 {
 }
 
+impl<'info, T> HasProgramAccount<'info> for InitAccount<'info, T>
+where
+    T: ProgramAccount + UnsizedType + ?Sized,
+{
+    type ProgramAccount = T;
+}
+
 pub trait InitCreateArg<'info> {
     type StarFrameInitArg;
     type AccountSeeds: GetSeeds;

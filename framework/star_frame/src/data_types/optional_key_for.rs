@@ -5,10 +5,16 @@ use derivative::Derivative;
 use std::fmt::{Display, Formatter};
 use std::marker::PhantomData;
 
-/// Allows setting an [`OptionalKeyFor`] from other types.
+/// Allows setting an [`OptionalKeyFor`] using other types.
 pub trait SetOptionalKeyFor<T: ?Sized, I> {
     /// Sets the contained pubkey.
     fn set_pubkey(&mut self, pubkey: Option<I>);
+}
+
+/// Allows getting an [`OptionalKeyFor`] from other types.
+pub trait GetOptionalKeyFor<T: ?Sized> {
+    /// Gets the contained `OptionalKeyFor`.
+    fn optional_key_for(&self) -> OptionalKeyFor<T>;
 }
 
 /// A key for an account type
@@ -27,6 +33,12 @@ pub trait SetOptionalKeyFor<T: ?Sized, I> {
 pub struct OptionalKeyFor<T: ?Sized> {
     pubkey: Pubkey,
     phantom: PhantomData<fn() -> T>,
+}
+
+impl<T: ?Sized> Default for OptionalKeyFor<T> {
+    fn default() -> Self {
+        Self::NONE
+    }
 }
 
 /// An optionally set [`Pubkey`].
@@ -78,11 +90,17 @@ impl<T: ?Sized> OptionalKeyFor<T> {
     }
 }
 
-impl<'a, 'info, T: ProgramAccount + UnsizedType + ?Sized>
-    SetOptionalKeyFor<T, &'a DataAccount<'info, T>> for OptionalKeyFor<T>
+impl<'info, T: HasProgramAccount<'info>> SetOptionalKeyFor<T::ProgramAccount, &T>
+    for OptionalKeyFor<T::ProgramAccount>
 {
-    fn set_pubkey(&mut self, pubkey: Option<&'a DataAccount<'info, T>>) {
+    fn set_pubkey(&mut self, pubkey: Option<&T>) {
         self.pubkey = pubkey.map_or_else(solana_program::system_program::id, |d| *(d.key()));
+    }
+}
+
+impl<'info, T: HasProgramAccount<'info>> GetOptionalKeyFor<T::ProgramAccount> for T {
+    fn optional_key_for(&self) -> OptionalKeyFor<T::ProgramAccount> {
+        (*self.key()).into()
     }
 }
 
@@ -98,10 +116,8 @@ impl<T: ?Sized> PartialEq<OptionalKeyFor<T>> for KeyFor<T> {
     }
 }
 
-impl<'info, T: ProgramAccount + UnsizedType + ?Sized> PartialEq<DataAccount<'info, T>>
-    for OptionalKeyFor<T>
-{
-    fn eq(&self, other: &DataAccount<'info, T>) -> bool {
+impl<'info, T: HasProgramAccount<'info, ProgramAccount = T>> PartialEq<T> for OptionalKeyFor<T> {
+    fn eq(&self, other: &T) -> bool {
         self.pubkey == *(other.key())
     }
 }

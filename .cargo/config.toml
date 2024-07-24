@@ -1,6 +1,3 @@
-[unstable]
-registry-auth = true
-
 [registries.star-atlas]
 index = "ssh://git@ssh.shipyard.rs/star-atlas/crate-index.git"
 

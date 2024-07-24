@@ -42,3 +42,10 @@ where
         self.0.signer_seeds()
     }
 }
+
+impl<'info, T, P: SeedProgram> HasProgramAccount<'info> for SeededDataAccount<'info, T, P>
+where
+    T: ProgramAccount + SeededAccountData + UnsizedType + SingleAccountSet<'info> + ?Sized,
+{
+    type ProgramAccount = T;
+}

@@ -143,6 +143,13 @@ pub struct SeededAccount<T, S: GetSeeds, P: SeedProgram = CurrentProgram> {
     phantom_p: PhantomData<P>,
 }
 
+impl<'info, T, S: GetSeeds, P: SeedProgram> HasProgramAccount<'info> for SeededAccount<T, S, P>
+where
+    T: ProgramAccount + SingleAccountSet<'info>,
+{
+    type ProgramAccount = T;
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct CurrentProgram;
 pub trait SeedProgram {
