@@ -145,19 +145,6 @@ pub enum CounterInstructionSet {
 )]
 pub struct CounterProgram {}
 
-fn process_instruction(
-    program_id: &Pubkey,
-    accounts: &[AccountInfo],
-    instruction_data: &[u8],
-) -> solana_program::entrypoint::ProgramResult {
-    star_frame::entrypoint::try_star_frame_entrypoint::<CounterProgram>(
-        program_id,
-        accounts,
-        instruction_data,
-    )
-    .map_err(star_frame::errors::handle_error)
-}
-
 #[cfg(test)]
 mod tests {
     use bytemuck::checked::try_from_bytes;
@@ -175,7 +162,7 @@ mod tests {
         let program_test = ProgramTest::new(
             "counter",
             CounterProgram::PROGRAM_ID,
-            processor!(process_instruction),
+            processor!(CounterProgram::processor),
         );
 
         // Add accounts to the context
