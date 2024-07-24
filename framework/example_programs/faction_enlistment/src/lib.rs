@@ -26,49 +26,39 @@ pub enum FactionEnlistmentInstructionSet {
     ProcessEnlistPlayer(ProcessEnlistPlayerIx),
 }
 
-#[derive(
-    Copy,
-    Clone,
-    Zeroable,
-    Align1,
-    CheckedBitPattern,
-    NoUninit,
-    BorshDeserialize,
-    BorshSerialize,
-    Default,
-)]
+#[derive(Clone, BorshDeserialize, BorshSerialize, Default)]
 #[borsh(crate = "borsh")]
-#[repr(C, packed)]
+#[repr(C)]
 pub struct ProcessEnlistPlayerIx {
     bump: u8,
     faction_id: FactionId,
+    // buncha_data: Vec<u8>,
 }
 
 impl StarFrameInstruction for ProcessEnlistPlayerIx {
-    type SelfData<'a> = Self;
-
     type DecodeArg<'a> = ();
     type ValidateArg<'a> = u8;
-    type RunArg<'a> = FactionId;
     type CleanupArg<'a> = ();
     type ReturnType = ();
+    // type RunArg<'a> = (FactionId, &'a Vec<u8>);
+    type RunArg<'a> = FactionId;
     type Accounts<'b, 'c, 'info> = ProcessEnlistPlayer<'info>
-    where 'info: 'b;
+        where 'info: 'b;
+    // type ReturnType = usize;
 
-    fn data_from_bytes<'a>(bytes: &mut &'a [u8]) -> Result<Self::SelfData<'a>> {
-        Self::deserialize(bytes).map_err(Into::into)
-    }
-
-    fn split_to_args<'a>(r: &'a Self::SelfData<'_>) -> SplitToArgsReturn<'a, Self> {
+    fn split_to_args<'a>(r: &Self) -> SplitToArgsReturn<Self> {
         SplitToArgsReturn {
             validate: r.bump,
             run: r.faction_id,
-            ..Default::default()
+            // run: (r.faction_id, &r.buncha_data),
+            cleanup: (),
+            decode: (),
         }
     }
 
     fn run_instruction<'b, 'info>(
         faction_id: Self::RunArg<'_>,
+        // (faction_id, buncha_data): Self::RunArg<'_>,
         _program_id: &Pubkey,
         account_set: &mut Self::Accounts<'b, '_, 'info>,
         sys_calls: &mut impl SysCallInvoke,
@@ -87,6 +77,7 @@ impl StarFrameInstruction for ProcessEnlistPlayerIx {
             _padding: [0; 5],
         };
         Ok(())
+        // Ok(buncha_data.len())
     }
 }
 
@@ -184,7 +175,7 @@ mod tests {
     use star_frame::itertools::Itertools;
     use star_frame::solana_program::instruction::AccountMeta;
 
-    // #[tokio::test]
+    #[tokio::test]
     async fn _banks_test() -> Result<()> {
         let program_test = ProgramTest::new(
             "faction_enlistment",
@@ -203,7 +194,16 @@ mod tests {
             Pubkey::find_program_address(&seeds.seeds(), &StarFrameDeclaredProgram::PROGRAM_ID);
         let faction_id = FactionId::MUD;
 
-        let enlist_ix = ProcessEnlistPlayerIx { bump, faction_id };
+        // let mut random_bytes = [0u8; 1];
+        // let mut rng = rand::thread_rng();
+        // rand::rngs::ThreadRng::try_fill(&mut rng, &mut random_bytes[..]).unwrap();
+        // let bunch_bytes = random_bytes.to_vec();
+
+        let enlist_ix = ProcessEnlistPlayerIx {
+            bump,
+            faction_id,
+            // buncha_data,
+        };
         let ix_data = [
             ProcessEnlistPlayerIx::DISCRIMINANT.to_vec(),
             to_vec(&enlist_ix)?,
@@ -230,9 +230,11 @@ mod tests {
             banks_client.get_latest_blockhash().await?,
         );
 
-        let _txn = banks_client
+        let txn = banks_client
             .process_transaction_with_metadata(tx.clone())
             .await?;
+
+        println!("{:?}", txn);
 
         let clock = banks_client.get_sysvar::<Clock>().await?;
         let expected_faction_account = PlayerFactionData {

@@ -19,18 +19,18 @@ use solana_program::program_memory::sol_memmove;
 use typenum::True;
 
 use advance::{Advance, Length};
-use star_frame::serialize::ref_wrapper::RefDeref;
+use star_frame::unsize::ref_wrapper::RefDeref;
 
 use crate::align1::Align1;
 use crate::data_types::PackedValue;
-use crate::serialize::ref_wrapper::{
+use crate::unsize::init::UnsizedInit;
+use crate::unsize::init::Zeroed;
+use crate::unsize::ref_wrapper::{
     AsBytes, AsMutBytes, RefDerefMut, RefWrapper, RefWrapperMutExt, RefWrapperTypes,
 };
-use crate::serialize::unsize::init::UnsizedInit;
-use crate::serialize::unsize::init::Zeroed;
-use crate::serialize::unsize::resize::Resize;
-use crate::serialize::unsize::FromBytesReturn;
-use crate::serialize::unsize::UnsizedType;
+use crate::unsize::resize::Resize;
+use crate::unsize::FromBytesReturn;
+use crate::unsize::UnsizedType;
 use crate::util::uninit_array_bytes;
 use crate::Result;
 
@@ -410,14 +410,10 @@ where
 
 #[cfg(test)]
 mod tests {
+    use crate::prelude::*;
     use bytemuck::{Pod, Zeroable};
     use pretty_assertions::assert_eq;
     use star_frame_proc::Align1;
-
-    use crate::prelude::List;
-    use crate::serialize::list::ListExt;
-    use crate::serialize::test_helpers::TestByteSet;
-    use crate::serialize::unsize::init::Zeroed;
 
     #[derive(Debug, PartialEq, Eq, Copy, Clone, Pod, Align1, Zeroable)]
     #[repr(C, packed)]

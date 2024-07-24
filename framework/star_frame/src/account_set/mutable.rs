@@ -2,6 +2,7 @@ use crate::account_set::{
     AccountSet, AccountSetDecode, AccountSetValidate, SignedAccount, SingleAccountSet,
     WritableAccount,
 };
+use crate::prelude::ProgramAccount;
 use crate::Result;
 use derive_more::{Deref, DerefMut};
 use solana_program::account_info::AccountInfo;

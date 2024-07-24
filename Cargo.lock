@@ -1552,6 +1552,7 @@ name = "faction_enlistment"
 version = "0.1.0"
 dependencies = [
  "bytemuck",
+ "rand 0.8.5",
  "serde_json",
  "solana-client",
  "solana-program-test",
@@ -5121,6 +5122,7 @@ dependencies = [
  "num-traits",
  "paste",
  "pretty_assertions",
+ "rand 0.8.5",
  "rustc_version",
  "serde",
  "serde_json",

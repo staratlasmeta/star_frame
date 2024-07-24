@@ -1,4 +1,4 @@
-use crate::serialize::ref_wrapper::AsMutBytes;
+use crate::unsize::ref_wrapper::AsMutBytes;
 use crate::Result;
 
 /// # Safety
