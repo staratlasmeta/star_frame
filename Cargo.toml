@@ -43,6 +43,7 @@ rustc_version = "0.4.0"
 serde = { version = "1.0.192", features = ["derive"] }
 serde_json = "1.0.108"
 solana-program = "~1.18"
+solana-program-test = "~1.18"
 solana-sdk = "~1.18"
 static_assertions = "1.1.0"
 strum = { version = "0.26.2", features = ["derive"] }

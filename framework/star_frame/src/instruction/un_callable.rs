@@ -20,9 +20,9 @@ impl InstructionSet for UnCallable {
     type Discriminant = ();
 
     fn handle_ix(
-        _ix_bytes: &[u8],
         _program_id: &Pubkey,
         _accounts: &[AccountInfo],
+        _ix_bytes: &[u8],
         _sys_calls: &mut impl SysCalls,
     ) -> Result<()> {
         panic!("Cannot call handle_ix on Uncallable")

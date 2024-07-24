@@ -1,7 +1,6 @@
 pub use crate::account_set::*;
 pub use crate::data_types::*;
 
-#[cfg(any(target_os = "solana", feature = "fake_solana_os"))]
 pub use crate::sys_calls::solana_runtime::SolanaRuntime;
 pub use crate::sys_calls::{SysCallCore, SysCallInvoke, SysCallReturn, SysCalls};
 

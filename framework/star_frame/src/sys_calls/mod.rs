@@ -1,6 +1,4 @@
-#[cfg(any(target_os = "solana", feature = "fake_solana_os"))]
 pub mod solana_runtime;
-
 use crate::SolanaInstruction;
 use solana_program::account_info::AccountInfo;
 use solana_program::clock::Clock;
