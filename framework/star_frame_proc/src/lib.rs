@@ -409,6 +409,7 @@ pub fn derive_account_to_idl(input: proc_macro::TokenStream) -> proc_macro::Toke
 ///
 /// # Example
 /// ```
+/// # fn main() {}
 /// use star_frame::prelude::*;
 ///
 /// type MyInstructionSet<'a> = ();
@@ -425,7 +426,9 @@ pub fn derive_account_to_idl(input: proc_macro::TokenStream) -> proc_macro::Toke
 /// ```
 /// The arguments can be split up into multiple attributes for conditional compilation:
 /// ```
-/// # use star_frame::prelude::*;
+/// # fn main() {}
+/// use star_frame::prelude::*;
+///
 /// #[derive(StarFrameProgram)]
 /// #[program(instruction_set = ())]
 /// #[cfg_attr(feature = "prod", program(id = "11111111111111111111111111111111"))]
