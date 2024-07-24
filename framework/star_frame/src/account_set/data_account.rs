@@ -17,12 +17,6 @@ pub trait ProgramAccount {
     const DISCRIMINANT: <Self::OwnerProgram as StarFrameProgram>::AccountDiscriminant;
 }
 
-    fn account_data_size(&self) -> usize {
-        size_of::<<Self::OwnerProgram as StarFrameProgram>::AccountDiscriminant>()
-            + size_of_val(self)
-    }
-}
-
 fn validate_data_account<T>(account: &DataAccount<T>, _sys_calls: &impl SysCallCore) -> Result<()>
 where
     T: ProgramAccount + UnsizedType + ?Sized,
