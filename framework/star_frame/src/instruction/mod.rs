@@ -1,4 +1,5 @@
 use bytemuck::Pod;
+use derivative::Derivative;
 use solana_program::account_info::AccountInfo;
 use solana_program::program::MAX_RETURN_DATA;
 use solana_program::pubkey::Pubkey;
@@ -54,12 +55,23 @@ pub trait Instruction {
 }
 
 /// Helper type for the return of [`StarFrameInstruction::split_to_args`].
-pub type SplitToArgsReturn<'a, T> = (
-    <T as StarFrameInstruction>::DecodeArg<'a>,
-    <T as StarFrameInstruction>::ValidateArg<'a>,
-    <T as StarFrameInstruction>::RunArg<'a>,
-    <T as StarFrameInstruction>::CleanupArg<'a>,
-);
+#[derive(Derivative)]
+#[derivative(
+    Debug(bound = "<T as StarFrameInstruction>::DecodeArg<'a>: Debug,
+            <T as StarFrameInstruction>::ValidateArg<'a>: Debug,
+            <T as StarFrameInstruction>::RunArg<'a>: Debug,
+            <T as StarFrameInstruction>::CleanupArg<'a>: Debug"),
+    Default(bound = "<T as StarFrameInstruction>::DecodeArg<'a>: Default,
+            <T as StarFrameInstruction>::ValidateArg<'a>: Default,
+            <T as StarFrameInstruction>::RunArg<'a>: Default,
+            <T as StarFrameInstruction>::CleanupArg<'a>: Default")
+)]
+pub struct SplitToArgsReturn<'a, T: StarFrameInstruction + ?Sized> {
+    pub decode: <T as StarFrameInstruction>::DecodeArg<'a>,
+    pub validate: <T as StarFrameInstruction>::ValidateArg<'a>,
+    pub run: <T as StarFrameInstruction>::RunArg<'a>,
+    pub cleanup: <T as StarFrameInstruction>::CleanupArg<'a>,
+}
 
 /// A `star_frame` defined instruction using [`AccountSet`] and other traits.
 ///
@@ -134,7 +146,12 @@ where
         mut accounts: &[AccountInfo],
         sys_calls: &mut impl SysCalls,
     ) -> Result<()> {
-        let (decode, validate, mut run, cleanup) = Self::split_to_args(data);
+        let SplitToArgsReturn {
+            decode,
+            validate,
+            mut run,
+            cleanup,
+        } = Self::split_to_args(data);
         let mut account_set = <Self as StarFrameInstruction>::Accounts::decode_accounts(
             &mut accounts,
             decode,

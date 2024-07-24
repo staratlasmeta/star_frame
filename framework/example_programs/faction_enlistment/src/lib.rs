@@ -1,6 +1,6 @@
 // #![allow(clippy::result_large_err)]
 
-use bytemuck::{try_from_bytes, Zeroable};
+use bytemuck::Zeroable;
 use star_frame::borsh;
 use star_frame::borsh::{BorshDeserialize, BorshSerialize};
 use star_frame::prelude::*;
@@ -41,7 +41,15 @@ impl InstructionDiscriminant for ProcessEnlistPlayerIx {
 }
 
 #[derive(
-    Copy, Clone, Zeroable, Align1, CheckedBitPattern, NoUninit, BorshDeserialize, BorshSerialize,
+    Copy,
+    Clone,
+    Zeroable,
+    Align1,
+    CheckedBitPattern,
+    NoUninit,
+    BorshDeserialize,
+    BorshSerialize,
+    Default,
 )]
 #[borsh(crate = "borsh")]
 #[repr(C, packed)]
@@ -66,7 +74,11 @@ impl StarFrameInstruction for ProcessEnlistPlayerIx {
     }
 
     fn split_to_args<'a>(r: &'a Self::SelfData<'_>) -> SplitToArgsReturn<'a, Self> {
-        ((), r.bump, r.faction_id, ())
+        SplitToArgsReturn {
+            validate: r.bump,
+            run: r.faction_id,
+            ..Default::default()
+        }
     }
 
     fn run_instruction<'b, 'info>(
@@ -136,11 +148,21 @@ pub struct PlayerFactionData {
 }
 
 #[derive(
-    Debug, Copy, Clone, CheckedBitPattern, NoUninit, BorshDeserialize, BorshSerialize, Eq, PartialEq,
+    Debug,
+    Copy,
+    Clone,
+    CheckedBitPattern,
+    NoUninit,
+    BorshDeserialize,
+    BorshSerialize,
+    Eq,
+    PartialEq,
+    Default,
 )]
 #[borsh(crate = "borsh")]
 #[repr(u8)]
 pub enum FactionId {
+    #[default]
     MUD,
     ONI,
     Ustur,
