@@ -234,13 +234,17 @@ macro_rules! create_unit_system {
         #[derivative(
             Default(bound = ""),
             Debug(bound = ""),
-            Copy(bound = ""),
-            Clone(bound = ""),
             PartialEq(bound = ""),
             Eq(bound = ""),
         )]
         #[repr(transparent)]
         $vis struct $ident<$($unit,)*>(::std::marker::PhantomData<($($unit,)*)>);
+        impl<$($unit,)*> Copy for $ident<$($unit,)*> {}
+        impl<$($unit,)*> Clone for $ident<$($unit,)*> {
+            fn clone(&self) -> Self {
+                *self
+            }
+        }
 
         $crate::paste::paste!{
             unsafe impl<$($unit,)*> $crate::bytemuck::Zeroable for $ident<$($unit,)*>
