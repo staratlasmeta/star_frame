@@ -1,9 +1,9 @@
 use solana_program::pubkey::Pubkey;
+use star_frame::anyhow::bail;
 use star_frame::borsh::{BorshDeserialize, BorshSerialize};
 use star_frame::prelude::*;
 
-#[derive(Align1, Copy, Clone, Debug, Eq,
-    PartialEq, Pod, Zeroable)]
+#[derive(Align1, Copy, Clone, Debug, Eq, PartialEq, Pod, Zeroable)]
 #[repr(C, packed)]
 pub struct CounterAccount {
     pub version: u8,
@@ -15,8 +15,7 @@ pub struct CounterAccount {
 
 impl ProgramAccount for CounterAccount {
     type OwnerProgram = CounterProgram;
-    const DISCRIMINANT: <Self::OwnerProgram as StarFrameProgram>::AccountDiscriminant =
-        [0; 8];
+    const DISCRIMINANT: <Self::OwnerProgram as StarFrameProgram>::AccountDiscriminant = [0; 8];
 }
 
 impl SeededAccountData for CounterAccount {
@@ -36,7 +35,6 @@ pub struct CreateCounterIx {
 }
 
 #[derive(AccountSet)]
-// #[decode(arg = usize)]
 pub struct CreateCounterAccounts<'info> {
     pub funder: Signer<Writable<AccountInfo<'info>>>,
     pub owner: AccountInfo<'info>,
@@ -88,7 +86,6 @@ impl StarFrameInstruction for CreateCounterIx {
     where
         'info: 'b,
     {
-
         *account_set.counter.data_mut()? = CounterAccount {
             version: 0,
             signer: *account_set.owner.key(),
@@ -97,46 +94,220 @@ impl StarFrameInstruction for CreateCounterIx {
             count: start_at.unwrap_or(0),
         };
 
-        // let mut counter = account_set.counter.data_mut()?;
-        // counter.version = 0;
-        // counter.signer = *account_set.owner.key();
-        // counter.owner = new_role.signer;
-        // counter.bump = account_set.counter.access_seeds().bump;
-        // counter.count = start_at.unwrap_or(0);
+        Ok(())
+    }
+}
+
+#[derive(BorshSerialize, BorshDeserialize, Debug)]
+#[borsh(crate = "borsh")]
+pub struct UpdateCounterSignerIx {}
+
+#[derive(AccountSet, Debug)]
+#[validate(extra_validation = self.validate())]
+pub struct UpdateCounterSignerAccounts<'info> {
+    pub signer: Signer<AccountInfo<'info>>,
+    pub new_signer: AccountInfo<'info>,
+    pub counter: Writable<DataAccount<'info, CounterAccount>>,
+}
+
+impl<'info> UpdateCounterSignerAccounts<'info> {
+    fn validate(&self) -> Result<()> {
+        if *self.signer.key() != self.counter.data()?.signer {
+            bail!("Incorrect signer");
+        }
+        Ok(())
+    }
+}
+
+impl StarFrameInstruction for UpdateCounterSignerIx {
+    type SelfData<'a> = Self;
+    type DecodeArg<'a> = ();
+    type ValidateArg<'a> = ();
+    type RunArg<'a> = ();
+    type CleanupArg<'a> = ();
+    type ReturnType = ();
+    type Accounts<'b, 'c, 'info> = UpdateCounterSignerAccounts<'info>
+    where
+        'info: 'b;
+
+    fn data_from_bytes<'a>(bytes: &mut &'a [u8]) -> Result<Self::SelfData<'a>> {
+        Self::deserialize(bytes).map_err(Into::into)
+    }
+
+    fn split_to_args(
+        _r: &Self,
+    ) -> (
+        Self::DecodeArg<'_>,
+        Self::ValidateArg<'_>,
+        Self::RunArg<'_>,
+        Self::CleanupArg<'_>,
+    ) {
+        ((), (), (), ())
+    }
+
+    fn run_instruction<'b, 'info>(
+        _run_args: Self::RunArg<'_>,
+        _program_id: &Pubkey,
+        account_set: &mut Self::Accounts<'b, '_, 'info>,
+        _sys_calls: &mut impl SysCallInvoke,
+    ) -> Result<Self::ReturnType>
+    where
+        'info: 'b,
+    {
+        let mut counter = account_set.counter.data_mut()?;
+        counter.signer = *account_set.new_signer.key();
 
         Ok(())
     }
 }
 
-#[derive(Debug)]
-pub struct UpdateCounterIx {}
-
-#[derive(AccountSet, Debug)]
-pub struct UpdateCounterAccounts<'info> {
-    pub old_owner: Signer<Writable<AccountInfo<'info>>>,
-    pub new_owner: AccountInfo<'info>,
-    pub profile: Writable<DataAccount<'info, CounterAccount>>,
-}
-
-#[derive(Debug)]
+#[derive(BorshSerialize, BorshDeserialize, Debug)]
+#[borsh(crate = "borsh")]
 pub struct CountIx {
-    pub amount: Option<u64>,
+    pub amount: u64,
     pub subtract: bool,
 }
 
 #[derive(AccountSet, Debug)]
+#[validate(extra_validation = self.validate())]
 pub struct CountAccounts<'info> {
-    pub owner: Signer<Writable<AccountInfo<'info>>>,
-    pub profile: Writable<DataAccount<'info, CounterAccount>>,
+    pub owner: Signer<AccountInfo<'info>>,
+    pub counter: Writable<DataAccount<'info, CounterAccount>>,
+}
+
+impl<'info> CountAccounts<'info> {
+    fn validate(&self) -> Result<()> {
+        if *self.owner.key() != self.counter.data()?.owner {
+            bail!("Incorrect owner");
+        }
+        Ok(())
+    }
+}
+
+impl StarFrameInstruction for CountIx {
+    type SelfData<'a> = Self;
+    type DecodeArg<'a> = ();
+    type ValidateArg<'a> = ();
+    type RunArg<'a> = (u64, bool);
+    type CleanupArg<'a> = ();
+    type ReturnType = ();
+    type Accounts<'b, 'c, 'info> = CountAccounts<'info>
+    where
+        'info: 'b;
+
+    fn data_from_bytes<'a>(bytes: &mut &'a [u8]) -> Result<Self::SelfData<'a>> {
+        Self::deserialize(bytes).map_err(Into::into)
+    }
+
+    fn split_to_args(
+        r: &Self,
+    ) -> (
+        Self::DecodeArg<'_>,
+        Self::ValidateArg<'_>,
+        Self::RunArg<'_>,
+        Self::CleanupArg<'_>,
+    ) {
+        ((), (), (r.amount, r.subtract), ())
+    }
+
+    fn run_instruction<'b, 'info>(
+        (amount, subtract): Self::RunArg<'_>,
+        _program_id: &Pubkey,
+        account_set: &mut Self::Accounts<'b, '_, 'info>,
+        _sys_calls: &mut impl SysCallInvoke,
+    ) -> Result<Self::ReturnType>
+    where
+        'info: 'b,
+    {
+        let mut counter = account_set.counter.data_mut()?;
+        let new_count: u64 = if subtract {
+            counter.count - amount
+        } else {
+            counter.count + amount
+        };
+        counter.count = new_count;
+
+        Ok(())
+    }
+}
+
+#[derive(BorshSerialize, BorshDeserialize, Debug)]
+#[borsh(crate = "borsh")]
+pub struct CloseCounterIx {}
+
+#[derive(AccountSet, Debug)]
+#[validate(extra_validation = self.validate())]
+pub struct CloseCounterAccounts<'info> {
+    pub signer: Signer<AccountInfo<'info>>,
+    pub funds_to: Writable<AccountInfo<'info>>,
+    #[cleanup( arg = CloseAccount {
+        recipient: &self.funds_to,
+    })]
+    pub counter: Writable<DataAccount<'info, CounterAccount>>,
+}
+
+impl<'info> CloseCounterAccounts<'info> {
+    fn validate(&self) -> Result<()> {
+        if *self.signer.key() != self.counter.data()?.signer {
+            println!(
+                "e > {:?} | r > {:?}",
+                *self.signer.key(),
+                self.counter.data()?.signer
+            );
+            bail!("Incorrect signer");
+        }
+        Ok(())
+    }
+}
+
+impl StarFrameInstruction for CloseCounterIx {
+    type SelfData<'a> = Self;
+    type DecodeArg<'a> = ();
+    type ValidateArg<'a> = ();
+    type RunArg<'a> = ();
+    type CleanupArg<'a> = ();
+    type ReturnType = ();
+    type Accounts<'b, 'c, 'info> = CloseCounterAccounts<'info>
+    where
+        'info: 'b;
+
+    fn data_from_bytes<'a>(bytes: &mut &'a [u8]) -> Result<Self::SelfData<'a>> {
+        Self::deserialize(bytes).map_err(Into::into)
+    }
+
+    fn split_to_args(
+        _r: &Self,
+    ) -> (
+        Self::DecodeArg<'_>,
+        Self::ValidateArg<'_>,
+        Self::RunArg<'_>,
+        Self::CleanupArg<'_>,
+    ) {
+        ((), (), (), ())
+    }
+
+    fn run_instruction<'b, 'info>(
+        _run_args: Self::RunArg<'_>,
+        _program_id: &Pubkey,
+        _account_set: &mut Self::Accounts<'b, '_, 'info>,
+        _sys_calls: &mut impl SysCallInvoke,
+    ) -> Result<Self::ReturnType>
+    where
+        'info: 'b,
+    {
+        Ok(())
+    }
 }
 
 #[star_frame_instruction_set]
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
-#[borsh(crate = "borsh", use_discriminant=true)]
+#[borsh(crate = "borsh", use_discriminant = true)]
 pub enum CounterInstructionSet {
     CreateCounter(CreateCounterIx),
+    UpdateSigner(UpdateCounterSignerIx),
+    Count(CountIx),
+    CloseCount(CloseCounterIx),
 }
-
 
 #[derive(StarFrameProgram)]
 #[program(
@@ -147,36 +318,32 @@ pub struct CounterProgram {}
 
 #[cfg(test)]
 mod tests {
-    use bytemuck::checked::try_from_bytes;
     use super::*;
+    use bytemuck::checked::try_from_bytes;
     use solana_program_test::*;
     use solana_sdk::instruction::Instruction as SolanaInstruction;
-    use solana_sdk::signature::Signer;
+    use solana_sdk::signature::{Keypair, Signer};
     use solana_sdk::system_program;
     use solana_sdk::transaction::Transaction;
     use star_frame::solana_program::instruction::AccountMeta;
 
     #[tokio::test]
-    async fn test_validate() {
-        // Initialize the program test environment
+    async fn test_that_it_works() {
         let program_test = ProgramTest::new(
             "counter",
             CounterProgram::PROGRAM_ID,
             processor!(CounterProgram::processor),
         );
-
-        // Add accounts to the context
         let (mut banks_client, payer, recent_blockhash) = program_test.start().await;
 
-        // Prepare the instruction data
-        let account_key = Pubkey::new_unique();
-        let _account_key2 = Pubkey::new_unique();
+        // Init a new counter
+        let account_key = Keypair::new();
+        let account_key2 = Keypair::new();
         let start_at = Some(2u64);
-        // Create the instruction
         let seeds = CounterAccountSeeds {
-            owner: account_key,
+            owner: account_key.pubkey(),
         };
-        let (counter_account, _bump) =
+        let (counter_account, bump) =
             Pubkey::find_program_address(&seeds.seeds(), &StarFrameDeclaredProgram::PROGRAM_ID);
         let ix_data = CounterInstructionSet::CreateCounter(CreateCounterIx { start_at });
         let instruction = SolanaInstruction::new_with_borsh(
@@ -184,28 +351,122 @@ mod tests {
             &ix_data,
             vec![
                 AccountMeta::new(payer.pubkey(), true),
-                AccountMeta::new_readonly(account_key, false),
+                AccountMeta::new_readonly(account_key.pubkey(), false),
                 AccountMeta::new(counter_account, false),
                 AccountMeta::new_readonly(system_program::ID, false),
             ],
         );
-
-        // Create and send the transaction
         let mut transaction = Transaction::new_with_payer(&[instruction], Some(&payer.pubkey()));
         transaction.sign(&[&payer], recent_blockhash);
-
-        // Process the transaction
         banks_client.process_transaction(transaction).await.unwrap();
-
-        let expected = CounterAccount { version: 0, owner: account_key, signer: account_key, count: 2, bump: 254 };
-
-        let acc = banks_client.get_account(counter_account).await.unwrap().unwrap();
-        // println!("counter_data {:?}", counter_data);
-        // let processed_market: &CounterAccount = try_from_bytes(&acc.data[8..]).unwrap();
-        // let processed_market = CounterAccount::try_from(acc.data.).unwrap();
-        //
+        let expected = CounterAccount {
+            version: 0,
+            owner: account_key.pubkey(),
+            signer: account_key.pubkey(),
+            count: 2,
+            bump,
+        };
+        let acc = banks_client
+            .get_account(counter_account)
+            .await
+            .unwrap()
+            .unwrap();
         assert_eq!(expected, *try_from_bytes(&acc.data[8..]).unwrap());
 
-        assert_eq!(start_at, Some(2));
+        // Update a counter signer
+        let ix_data2 = CounterInstructionSet::UpdateSigner(UpdateCounterSignerIx {});
+        let instruction2 = SolanaInstruction::new_with_borsh(
+            CounterProgram::PROGRAM_ID,
+            &ix_data2,
+            vec![
+                AccountMeta::new_readonly(account_key.pubkey(), true),
+                AccountMeta::new_readonly(account_key2.pubkey(), false),
+                AccountMeta::new(counter_account, false),
+            ],
+        );
+        let mut transaction2 = Transaction::new_with_payer(&[instruction2], Some(&payer.pubkey()));
+        transaction2.sign(&[&payer, &account_key], recent_blockhash);
+        banks_client
+            .process_transaction(transaction2)
+            .await
+            .unwrap();
+        let acc2 = banks_client
+            .get_account(counter_account)
+            .await
+            .unwrap()
+            .unwrap();
+        let acc2_data: CounterAccount = *try_from_bytes(&acc2.data[8..]).unwrap();
+        assert_eq!(acc2_data.signer, account_key2.pubkey());
+
+        // Update count
+        let count_accounts: Vec<AccountMeta> = vec![
+            AccountMeta::new_readonly(account_key.pubkey(), true),
+            AccountMeta::new(counter_account, false),
+        ];
+        let ix_data3 = CounterInstructionSet::Count(CountIx {
+            amount: 7,
+            subtract: false,
+        });
+        let ix_data4 = CounterInstructionSet::Count(CountIx {
+            amount: 4,
+            subtract: true,
+        });
+        let instruction3 = SolanaInstruction::new_with_borsh(
+            CounterProgram::PROGRAM_ID,
+            &ix_data3,
+            count_accounts.clone(),
+        );
+        let instruction4 = SolanaInstruction::new_with_borsh(
+            CounterProgram::PROGRAM_ID,
+            &ix_data4,
+            count_accounts.clone(),
+        );
+        let mut transaction3 =
+            Transaction::new_with_payer(&[instruction3, instruction4], Some(&payer.pubkey()));
+        transaction3.sign(&[&payer, &account_key], recent_blockhash);
+        banks_client
+            .process_transaction(transaction3)
+            .await
+            .unwrap();
+        let acc3 = banks_client
+            .get_account(counter_account)
+            .await
+            .unwrap()
+            .unwrap();
+        let acc3_data: CounterAccount = *try_from_bytes(&acc3.data[8..]).unwrap();
+        let old_count = acc2_data.count;
+        let new_count = acc3_data.count;
+        assert_eq!(new_count, old_count + 7 - 4);
+
+        // Close counter
+        let refund_acc = banks_client
+            .get_account(account_key.pubkey())
+            .await
+            .unwrap();
+        assert!(refund_acc.is_none());
+        let ix_data5 = CounterInstructionSet::CloseCount(CloseCounterIx {});
+        let instruction5 = SolanaInstruction::new_with_borsh(
+            CounterProgram::PROGRAM_ID,
+            &ix_data5,
+            vec![
+                AccountMeta::new_readonly(account_key2.pubkey(), true),
+                AccountMeta::new(account_key.pubkey(), false),
+                AccountMeta::new(counter_account, false),
+            ],
+        );
+        let mut transaction5 = Transaction::new_with_payer(&[instruction5], Some(&payer.pubkey()));
+        transaction5.sign(&[&payer, &account_key2], recent_blockhash);
+        banks_client
+            .process_transaction(transaction5)
+            .await
+            .unwrap();
+        let acc5 = banks_client.get_account(counter_account).await.unwrap();
+        assert!(acc5.is_none());
+        let refund_acc2 = banks_client
+            .get_account(account_key.pubkey())
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(refund_acc2.lamports, acc3.lamports);
     }
 }
