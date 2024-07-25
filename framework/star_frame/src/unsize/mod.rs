@@ -1,19 +1,24 @@
-pub mod checked;
-pub mod init;
-pub mod resize;
-
+mod impls;
+mod init;
+mod ref_wrapper;
+mod resize;
+#[cfg(feature = "test_helpers")]
+mod test_helpers;
+#[cfg(test)]
+mod tests;
 mod unsized_enum;
 
-#[cfg(test)]
-mod enum_stuff;
-#[cfg(test)]
-mod test;
-
+// todo: all glob imports? :/
+pub use impls::*;
+pub use init::*;
+pub use ref_wrapper::*;
+pub use resize::*;
 pub use star_frame_proc::unsized_type;
+#[cfg(feature = "test_helpers")]
+pub use test_helpers::*;
+pub use unsized_enum::*;
 
 use crate::align1::Align1;
-use crate::prelude::CombinedUnsized;
-use crate::serialize::ref_wrapper::{AsBytes, RefWrapper};
 use anyhow::Result;
 use bytemuck::{CheckedBitPattern, NoUninit, Zeroable};
 use std::fmt::Debug;
@@ -30,7 +35,6 @@ use typenum::{Bit, False, True};
 ///
 /// # Macro Example
 /// ```
-/// # use star_frame::serialize::test_helpers::TestByteSet;
 /// use star_frame::prelude::*;
 ///
 /// # fn main() -> Result<()> {

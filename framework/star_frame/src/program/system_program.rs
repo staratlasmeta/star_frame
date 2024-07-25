@@ -12,18 +12,6 @@ impl StarFrameProgram for SystemProgram {
     const PROGRAM_ID: Pubkey = system_program::ID;
 }
 
-unsafe impl<'a> StarFrameFromBytes<'a> for SystemInstruction {
-    fn from_bytes(_bytes: &mut &'a [u8]) -> Result<Self> {
-        todo!()
-    }
-}
-
-impl StarFrameSerialize for SystemInstruction {
-    fn to_bytes(&self, _output: &mut &mut [u8]) -> Result<()> {
-        todo!()
-    }
-}
-
 impl InstructionSet for SystemInstruction {
     type Discriminant = ();
 

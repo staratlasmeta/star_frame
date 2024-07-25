@@ -1,5 +1,4 @@
 use crate::prelude::*;
-use crate::serialize::test_helpers::TestByteSet;
 use pretty_assertions::assert_eq;
 
 #[derive(Debug, Copy, Clone, Pod, Zeroable, Align1, PartialEq, Eq)]

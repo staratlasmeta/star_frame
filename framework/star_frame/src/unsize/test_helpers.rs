@@ -1,7 +1,6 @@
 use crate::prelude::*;
-use crate::serialize::ref_wrapper::RefWrapper;
+use crate::unsize::ref_wrapper::RefWrapper;
 use solana_program::program_memory::sol_memset;
-use star_frame::prelude::UnsizedInit;
 use std::marker::PhantomData;
 
 /// A way to test [`UnsizedType`] types. Uses a [`Vec<u8>`] internally.

@@ -1,3 +1,4 @@
+use borsh::{BorshDeserialize, BorshSerialize};
 use bytemuck::Pod;
 use derivative::Derivative;
 use solana_program::account_info::AccountInfo;
@@ -82,21 +83,18 @@ pub struct SplitToArgsReturn<'a, T: StarFrameInstruction + ?Sized> {
 /// 4. Validate the accounts using [`Self::Accounts::validate_accounts`](AccountSetValidate::validate_accounts).
 /// 5. Run the instruction using [`Self::run_instruction`].
 /// 6. Set the solana return data using [`StarFrameSerialize::to_bytes`].
-pub trait StarFrameInstruction {
-    type SelfData<'a>;
-
+pub trait StarFrameInstruction: BorshDeserialize {
     /// The instruction data type used to decode accounts.
     type DecodeArg<'a>;
     /// The instruction data type used to validate accounts.
     type ValidateArg<'a>;
-
     /// The instruction data type used to run the instruction.
     type RunArg<'a>;
     /// The instruction data type used to cleanup accounts.
     type CleanupArg<'a>;
 
     /// The return type of this instruction.
-    type ReturnType: StarFrameSerialize;
+    type ReturnType: BorshSerialize;
 
     /// The [`AccountSet`] used by this instruction.
     type Accounts<'b, 'c, 'info>: AccountSetDecode<'b, 'info, Self::DecodeArg<'c>>
@@ -105,10 +103,8 @@ pub trait StarFrameInstruction {
     where
         'info: 'b;
 
-    fn data_from_bytes<'a>(bytes: &mut &'a [u8]) -> Result<Self::SelfData<'a>>;
-
     /// Splits self into decode, validate, and run args.
-    fn split_to_args<'a>(r: &'a Self::SelfData<'_>) -> SplitToArgsReturn<'a, Self>;
+    fn split_to_args(r: &Self) -> SplitToArgsReturn<Self>;
 
     /// Runs any extra validations on the accounts.
     #[allow(unused_variables)]
@@ -134,10 +130,10 @@ impl<T> Instruction for T
 where
     T: ?Sized + StarFrameInstruction,
 {
-    type SelfData<'a> = <Self as StarFrameInstruction>::SelfData<'a>;
+    type SelfData<'a> = T;
 
     fn data_from_bytes<'a>(bytes: &mut &'a [u8]) -> Result<Self::SelfData<'a>> {
-        <T as StarFrameInstruction>::data_from_bytes(bytes)
+        <Self::SelfData<'a> as BorshDeserialize>::deserialize(bytes).map_err(Into::into)
     }
 
     fn run_ix_from_raw(
@@ -164,7 +160,7 @@ where
         // todo: handle return data better
         let mut return_data = vec![0u8; MAX_RETURN_DATA];
         let mut return_data_ref = &mut return_data[..];
-        ret.to_bytes(&mut return_data_ref)?;
+        ret.serialize(&mut return_data_ref)?;
         if return_data_ref.len() != MAX_RETURN_DATA {
             let return_data_len = MAX_RETURN_DATA - return_data_ref.len();
             sys_calls.set_return_data(&return_data[..return_data_len]);
