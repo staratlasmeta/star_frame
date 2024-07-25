@@ -397,19 +397,19 @@ pub fn derive_account_to_idl(input: proc_macro::TokenStream) -> proc_macro::Toke
     out.into()
 }
 
-/// Derives `StarFrameProgram` and sets up the entrypoint for a program.
-///
-/// While it is possible to implement this manually, the derive macro has helpful defaults and
-/// additionally creates useful top level items for the crate.
+/// Derives `StarFrameProgram` and sets up the entrypoint and useful items for a program. This should be placed at the root of the crate.
 ///
 /// ## Additional code generated:
+/// - Solana entrypoint - This will call the `star_frame_entrypoint` macro with the program struct.
 /// - `StarFrameDeclaredProgram` - This is a type alias around the struct that is used in other `star_frame` macros. This
 /// derive should be placed at the root of the crate, or be re-exported there.
-/// - Solana entrypoint - This will call the `star_frame_entrypoint` macro with the program struct.
-/// - `declare_id!` - It also generates the `crate::ID` and `id()` constants like how Solana's `declare_id` macro works.
+/// - `declare_id!` - It also generates the `crate::ID` and `id()` constants like how the `solana_program::declare_id` macro works.
+///
+/// Both the `ID`s and `StarFrameDeclaredProgram` items are generated with the `star_frame::program_setup` macro.
 ///
 /// # Example
 /// ```
+/// # fn main() {}
 /// use star_frame::prelude::*;
 ///
 /// type MyInstructionSet<'a> = ();
@@ -426,7 +426,9 @@ pub fn derive_account_to_idl(input: proc_macro::TokenStream) -> proc_macro::Toke
 /// ```
 /// The arguments can be split up into multiple attributes for conditional compilation:
 /// ```
-/// # use star_frame::prelude::*;
+/// # fn main() {}
+/// use star_frame::prelude::*;
+///
 /// #[derive(StarFrameProgram)]
 /// #[program(instruction_set = ())]
 /// #[cfg_attr(feature = "prod", program(id = "11111111111111111111111111111111"))]

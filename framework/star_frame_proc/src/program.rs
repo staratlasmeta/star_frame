@@ -155,20 +155,7 @@ pub(crate) fn program_impl(input: DeriveInput) -> TokenStream {
             const CLOSED_ACCOUNT_DISCRIMINANT: Self::AccountDiscriminant = #closed_account_discriminant;
             const PROGRAM_ID: #pubkey = #program_id;
         }
-        pub type StarFrameDeclaredProgram = #ident;
-
-        #[doc = r" The const program ID."]
-        pub const ID: #pubkey = <#ident as #star_frame_program>::PROGRAM_ID;
-
-        #[doc = r" Returns `true` if given pubkey is the program ID."]
-        pub fn check_id(id: &#pubkey) -> bool { id == &ID }
-
-        #[doc = r" Returns the program ID."]
-        pub const fn id() -> #pubkey { ID }
-
-        #[test]
-        fn test_id() { assert!(check_id(&id())); }
-
+        #crate_name::program_setup!(#ident);
         #entrypoint
     }
 }

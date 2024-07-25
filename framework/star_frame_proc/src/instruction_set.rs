@@ -149,9 +149,9 @@ pub fn instruction_set_impl(item: ItemEnum, args: TokenStream) -> TokenStream {
             type Discriminant = #discriminant_type;
 
             fn handle_ix(
-                mut ix_bytes: &[u8],
                 program_id: &#pubkey,
                 accounts: &[#account_info],
+                mut ix_bytes: &[u8],
                 sys_calls: &mut impl #sys_calls,
             ) -> #result<()> {
                 #get_discriminant
@@ -160,7 +160,7 @@ pub fn instruction_set_impl(item: ItemEnum, args: TokenStream) -> TokenStream {
                     #(
                         <#variant_tys as #prelude::InstructionDiscriminant<#ident<#a_lifetime>>>::DISCRIMINANT => {
                             let data = <#variant_tys as #instruction>::data_from_bytes(&mut ix_bytes)?;
-                            <#variant_tys as #instruction>::run_ix_from_raw(&data, program_id, accounts, sys_calls)
+                            <#variant_tys as #instruction>::run_ix_from_raw(program_id, accounts, &data, sys_calls)
                         }
                     )*
                     x => Err(#anyhow_macro!("Invalid ix discriminant: {:?}", x)),

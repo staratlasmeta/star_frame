@@ -20,11 +20,11 @@ pub trait InstructionSet {
     type Discriminant: Pod;
 
     /// Handles the input from the program entrypoint (along with the `sys_calls`).
-    /// This is called directly in [`try_star_frame_entrypoint`](crate::entrypoint::try_star_frame_entrypoint).
+    /// This is called directly in [`StarFrameProgram::processor`].
     fn handle_ix(
-        ix_bytes: &[u8],
         program_id: &Pubkey,
         accounts: &[AccountInfo],
+        ix_bytes: &[u8],
         sys_calls: &mut impl SysCalls,
     ) -> Result<()>;
 }
@@ -47,9 +47,9 @@ pub trait Instruction {
     fn data_from_bytes<'a>(bytes: &mut &'a [u8]) -> Result<Self::SelfData<'a>>;
     /// Runs the instruction from a raw solana input.
     fn run_ix_from_raw(
-        data: &Self::SelfData<'_>,
         program_id: &Pubkey,
         accounts: &[AccountInfo],
+        data: &Self::SelfData<'_>,
         sys_calls: &mut impl SysCalls,
     ) -> Result<()>;
 }
@@ -141,9 +141,9 @@ where
     }
 
     fn run_ix_from_raw(
-        data: &Self::SelfData<'_>,
         program_id: &Pubkey,
         mut accounts: &[AccountInfo],
+        data: &Self::SelfData<'_>,
         sys_calls: &mut impl SysCalls,
     ) -> Result<()> {
         let SplitToArgsReturn {
@@ -187,9 +187,9 @@ mod test_helpers {
                     }
 
                     fn run_ix_from_raw(
-                        _data: &Self::SelfData<'_>,
                         _program_id: &Pubkey,
                         _accounts: &[AccountInfo],
+                        _data: &Self::SelfData<'_>,
                         _sys_calls: &mut impl SysCalls,
                     ) -> anyhow::Result<()> {
                         todo!()
