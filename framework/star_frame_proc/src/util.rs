@@ -449,20 +449,33 @@ impl EnumerableAttributes for syn::ItemEnum {
     }
 }
 
-/// Strips the first matching attribute from each attribute group (e.g., struct fields, enum variants) and returns them with
-/// their group index. If there are multiple attributes with the same name in a group, only the first one is stripped.
+impl EnumerableAttributes for Vec<Attribute> {
+    fn enumerate_attributes(&mut self) -> impl Iterator<Item = (usize, &mut Vec<Attribute>)> {
+        std::iter::once((0, self))
+    }
+}
+
+/// Strips all matching attributes from each attribute group (e.g., struct fields, enum variants) and returns them in order with
+/// their group index.
 pub fn strip_inner_attributes<'a>(
     item: &'a mut impl EnumerableAttributes,
     attribute_name: &'a str,
 ) -> impl Iterator<Item = StrippedAttribute> + 'a {
-    item.enumerate_attributes().filter_map(|(index, attrs)| {
-        attrs
-            .iter()
-            .position(|attr| attr.path().is_ident(attribute_name))
-            .map(|to_strip| StrippedAttribute {
-                index,
-                attribute: attrs.remove(to_strip),
-            })
+    item.enumerate_attributes().flat_map(|(index, attrs)| {
+        let mut removed = vec![];
+        attrs.retain(|attr| {
+            attr.path()
+                .is_ident(attribute_name)
+                .then(|| {
+                    removed.push(StrippedAttribute {
+                        index,
+                        attribute: attr.clone(),
+                    });
+                    false
+                })
+                .unwrap_or(true)
+        });
+        removed
     })
 }
 
@@ -590,6 +603,7 @@ pub fn type_generic_idents<G: GetGenerics>(generics: &G) -> Vec<Ident> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pretty_assertions::assert_eq;
 
     #[test]
     fn test_strip_attributes_struct() {
@@ -614,6 +628,10 @@ mod tests {
                 index: 2,
                 attribute: syn::parse_quote! { #[my_attr(hello)] },
             },
+            StrippedAttribute {
+                index: 2,
+                attribute: syn::parse_quote! { #[my_attr] },
+            },
         ];
         assert_eq!(stripped_attributes, expected_stripped_attributes);
         assert_eq!(
@@ -622,7 +640,6 @@ mod tests {
                 struct MyStruct {
                     field1: u8,
                     field2: u8,
-                    #[my_attr]
                     field3: u8,
                 }
             }
@@ -652,6 +669,10 @@ mod tests {
                 index: 2,
                 attribute: syn::parse_quote! { #[my_attr(hello)] },
             },
+            StrippedAttribute {
+                index: 2,
+                attribute: syn::parse_quote! { #[my_attr(hello2)] },
+            },
         ];
         assert_eq!(stripped_attributes, expected_stripped_attributes);
         assert_eq!(
@@ -660,7 +681,6 @@ mod tests {
                 enum MyEnum {
                     Variant1,
                     Variant2,
-                    #[my_attr(hello2)]
                     Variant3,
                 }
             }

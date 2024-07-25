@@ -1,30 +1,43 @@
-mod no_op;
-pub mod un_callable;
-
-pub use star_frame_proc::star_frame_instruction_set;
-pub use star_frame_proc::InstructionToIdl;
-
-use crate::account_set::{AccountSetCleanup, AccountSetDecode, AccountSetValidate};
-use crate::sys_calls::{SysCallInvoke, SysCalls};
-use crate::Result;
 use bytemuck::Pod;
+use derivative::Derivative;
 use solana_program::account_info::AccountInfo;
 use solana_program::program::MAX_RETURN_DATA;
 use solana_program::pubkey::Pubkey;
-use star_frame::serialize::StarFrameSerialize;
 
-/// A set of instructions that can be used as input to a program.
+use crate::prelude::*;
+use crate::sys_calls::{SysCallInvoke, SysCalls};
+pub use star_frame_proc::star_frame_instruction_set;
+pub use star_frame_proc::InstructionToIdl;
+
+mod no_op;
+pub mod un_callable;
+
+/// A set of instructions that can be used as input to a program. This can be derived using the
+/// [`star_frame_instruction_set`] macro on an enum. If implemented manually, [`Self::handle_ix`] should
+/// probably match on each of its instructions discriminants and call the appropriate instruction on a match.
 pub trait InstructionSet {
-    /// The discriminant type used by this program's accounts.
+    /// The discriminant type used by this program's instructions.
     type Discriminant: Pod;
 
-    /// Handles the instruction obtained from [`InstructionSet::from_bytes`].
+    /// Handles the input from the program entrypoint (along with the `sys_calls`).
+    /// This is called directly in [`try_star_frame_entrypoint`](crate::entrypoint::try_star_frame_entrypoint).
     fn handle_ix(
         ix_bytes: &[u8],
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         sys_calls: &mut impl SysCalls,
     ) -> Result<()>;
+}
+
+/// A helper trait for the value of the instruction discriminant on an instruction. Since a single
+/// instruction can be in multiple [`InstructionSet`]s, this trait is generic over it (with `IxSet`).
+pub trait InstructionDiscriminant<IxSet>
+where
+    IxSet: InstructionSet,
+{
+    /// The actual value of the discriminant. For a single [`InstructionSet`], each member should
+    /// have a unique discriminant.
+    const DISCRIMINANT: <IxSet as InstructionSet>::Discriminant;
 }
 
 /// A callable instruction that can be used as input to a program.
@@ -41,15 +54,34 @@ pub trait Instruction {
     ) -> Result<()>;
 }
 
+/// Helper type for the return of [`StarFrameInstruction::split_to_args`].
+#[derive(Derivative)]
+#[derivative(
+    Debug(bound = "<T as StarFrameInstruction>::DecodeArg<'a>: Debug,
+            <T as StarFrameInstruction>::ValidateArg<'a>: Debug,
+            <T as StarFrameInstruction>::RunArg<'a>: Debug,
+            <T as StarFrameInstruction>::CleanupArg<'a>: Debug"),
+    Default(bound = "<T as StarFrameInstruction>::DecodeArg<'a>: Default,
+            <T as StarFrameInstruction>::ValidateArg<'a>: Default,
+            <T as StarFrameInstruction>::RunArg<'a>: Default,
+            <T as StarFrameInstruction>::CleanupArg<'a>: Default")
+)]
+pub struct SplitToArgsReturn<'a, T: StarFrameInstruction + ?Sized> {
+    pub decode: <T as StarFrameInstruction>::DecodeArg<'a>,
+    pub validate: <T as StarFrameInstruction>::ValidateArg<'a>,
+    pub run: <T as StarFrameInstruction>::RunArg<'a>,
+    pub cleanup: <T as StarFrameInstruction>::CleanupArg<'a>,
+}
+
 /// A `star_frame` defined instruction using [`AccountSet`] and other traits.
 ///
 /// The steps are as follows:
-/// 1. Split self into decode, validate, and run args using [`Instruction::split_to_args`].
-/// 2. Decode the accounts using [`Instruction::Accounts::decode_accounts`](AccountSetDecode::decode_accounts).
-/// 3. Run any extra instruction validations using [`Instruction::extra_validations`].
-/// 4. Validate the accounts using [`Instruction::Accounts::validate_accounts`](AccountSetValidate::validate_accounts).
-/// 5. Run the instruction using [`Instruction::run_instruction`].
-/// 6. Set the solana return data using [`Instruction::ReturnType::to_bytes`].
+/// 1. Split self into decode, validate, and run args using [`Self::split_to_args`].
+/// 2. Decode the accounts using [`Self::Accounts::decode_accounts`](AccountSetDecode::decode_accounts).
+/// 3. Run any extra instruction validations using [`Self::extra_validations`].
+/// 4. Validate the accounts using [`Self::Accounts::validate_accounts`](AccountSetValidate::validate_accounts).
+/// 5. Run the instruction using [`Self::run_instruction`].
+/// 6. Set the solana return data using [`StarFrameSerialize::to_bytes`].
 pub trait StarFrameInstruction {
     type SelfData<'a>;
 
@@ -57,6 +89,7 @@ pub trait StarFrameInstruction {
     type DecodeArg<'a>;
     /// The instruction data type used to validate accounts.
     type ValidateArg<'a>;
+
     /// The instruction data type used to run the instruction.
     type RunArg<'a>;
     /// The instruction data type used to cleanup accounts.
@@ -75,14 +108,8 @@ pub trait StarFrameInstruction {
     fn data_from_bytes<'a>(bytes: &mut &'a [u8]) -> Result<Self::SelfData<'a>>;
 
     /// Splits self into decode, validate, and run args.
-    fn split_to_args<'a>(
-        r: &'a Self::SelfData<'_>,
-    ) -> (
-        Self::DecodeArg<'a>,
-        Self::ValidateArg<'a>,
-        Self::RunArg<'a>,
-        Self::CleanupArg<'a>,
-    );
+    fn split_to_args<'a>(r: &'a Self::SelfData<'_>) -> SplitToArgsReturn<'a, Self>;
+
     /// Runs any extra validations on the accounts.
     #[allow(unused_variables)]
     fn extra_validations(
@@ -119,7 +146,12 @@ where
         mut accounts: &[AccountInfo],
         sys_calls: &mut impl SysCalls,
     ) -> Result<()> {
-        let (decode, validate, mut run, cleanup) = Self::split_to_args(data);
+        let SplitToArgsReturn {
+            decode,
+            validate,
+            mut run,
+            cleanup,
+        } = Self::split_to_args(data);
         let mut account_set = <Self as StarFrameInstruction>::Accounts::decode_accounts(
             &mut accounts,
             decode,
@@ -141,57 +173,57 @@ where
     }
 }
 
+#[cfg(feature = "test_helpers")]
+mod test_helpers {
+    /// A helper macro for implementing blank instructions for testing.
+    #[macro_export]
+    macro_rules! impl_blank_ix {
+        ($($ix:ident),*) => {
+            $(
+                impl Instruction for $ix {
+                    type SelfData<'a> = ();
+                    fn data_from_bytes<'a>(_bytes: &mut &'a [u8]) -> anyhow::Result<Self::SelfData<'a>> {
+                        todo!()
+                    }
+
+                    fn run_ix_from_raw(
+                        _data: &Self::SelfData<'_>,
+                        _program_id: &Pubkey,
+                        _accounts: &[AccountInfo],
+                        _sys_calls: &mut impl SysCalls,
+                    ) -> anyhow::Result<()> {
+                        todo!()
+                    }
+                }
+            )*
+        };
+    }
+}
+
 #[cfg(test)]
 mod test {
-    use crate::instruction::Instruction;
-    use crate::prelude::SysCalls;
     use solana_program::account_info::AccountInfo;
     use solana_program::pubkey::Pubkey;
+
+    use crate::impl_blank_ix;
+    use crate::instruction::Instruction;
+    use crate::prelude::SysCalls;
     use star_frame_proc::star_frame_instruction_set;
+    // todo: better testing here
 
     #[allow(dead_code)]
     struct Ix1 {
         val: u8,
     }
-    impl Instruction for Ix1 {
-        type SelfData<'a> = ();
-
-        fn data_from_bytes<'a>(_bytes: &mut &'a [u8]) -> anyhow::Result<Self::SelfData<'a>> {
-            todo!()
-        }
-
-        fn run_ix_from_raw(
-            _data: &Self::SelfData<'_>,
-            _program_id: &Pubkey,
-            _accounts: &[AccountInfo],
-            _sys_calls: &mut impl SysCalls,
-        ) -> anyhow::Result<()> {
-            todo!()
-        }
-    }
     #[allow(dead_code)]
     struct Ix2 {
         val: u64,
     }
-    impl Instruction for Ix2 {
-        type SelfData<'a> = ();
 
-        fn data_from_bytes<'a>(_bytes: &mut &'a [u8]) -> anyhow::Result<Self::SelfData<'a>> {
-            todo!()
-        }
+    impl_blank_ix!(Ix1, Ix2);
 
-        fn run_ix_from_raw(
-            _data: &Self::SelfData<'_>,
-            _program_id: &Pubkey,
-            _accounts: &[AccountInfo],
-            _sys_calls: &mut impl SysCalls,
-        ) -> anyhow::Result<()> {
-            todo!()
-        }
-    }
-
-    #[star_frame_instruction_set]
-    enum TestInstructionSet1 {
+    #[star_frame_instruction_set(u8)]
+    enum TestInstructionSet3 {
         Ix1(Ix1),
         Ix2(Ix2),
     }

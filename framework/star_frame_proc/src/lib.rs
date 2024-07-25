@@ -4,6 +4,7 @@ use proc_macro2::TokenStream;
 #[cfg(feature = "idl")]
 mod account;
 mod account_set;
+mod hash;
 mod instruction_set;
 #[cfg(feature = "idl")]
 mod instruction_set_to_idl;
@@ -56,17 +57,17 @@ pub fn derive_account_set(input: proc_macro::TokenStream) -> proc_macro::TokenSt
     out.into()
 }
 
-/// # Derive proc macro for `GetSeeds` trait
+/// Derives the `GetSeeds` trait for a struct.
 ///
-/// ## Attributes
+/// # Attributes
 ///
-/// ### 1. `#[seed_const = <expr>]` (item level attribute)
+/// ## 1. `#[seed_const = <expr>]` (item level attribute)
 ///
-/// ##### syntax
+/// ### syntax
 ///
 /// Attribute takes an `Expr` which resolves to a `&[u8]` seed for the account.
 ///
-/// ##### usage
+/// ### usage
 ///
 /// Attribute is optional. If the attribute is present, the seed for the account will be the concatenation
 /// of the seed provided in the attribute and the seeds of the fields of the account.
@@ -270,19 +271,72 @@ fn derive_align1_for_struct(
     .into()
 }
 
-/// # Attribute proc macro for `InstructionSet`
+/// Implements the `InstructionSet` trait for an enum of instructions.
 ///
-/// Implements the `InstructionSet` trait for an enum of instructions and marks the enum as `#[repr(u8)]`.
+/// By default, it uses a discriminant type of `[u8; 8]`, and derives each item discriminant by taking
+/// the first 8 bytes of the sha256 hash in a compatible way with Anchor.
 ///
-/// ```ignore
-/// # use star_frame::prelude::*;
+/// This can be overridden by passing in a `#[star_frame_instruction_set(<type>)]`
+/// attribute to the enum, in which case it will use the enum reprs as the discriminants. The type must
+/// be a valid enum repr type.
+///
+/// # Examples
+///
+/// Default 8 byte hash discriminants:
+/// ```
+/// use star_frame::impl_blank_ix;
+/// use star_frame::prelude::*;
+///
 /// #[star_frame_instruction_set]
-/// pub enum CoolInstructionSet {
-///     CoolInstruction(CoolIx),
+/// pub enum CoolIxSet {
+///     //
+///     CoolInstruction(CoolIx) = 123,
 /// }
 ///
-/// // An example instruction
+/// // hash from anchor
+/// const IX_DISCRIMINANT: [u8; 8] = [197, 46, 153, 154, 189, 74, 154, 10];
+///
+/// assert_eq!(CoolIx::DISCRIMINANT, IX_DISCRIMINANT);
+///
+///
+/// // An example instruction (which implements `StarFrameInstruction`)
 /// pub struct CoolIx {}
+/// # impl_blank_ix!(CoolIx);
+/// ```
+///
+/// Using enum reprs as discriminants:
+/// ```
+/// use star_frame::impl_blank_ix;
+/// use star_frame::prelude::*;
+///
+/// // Example Instructions (which implement `StarFrameInstruction`)
+/// pub struct CoolIx1 {}
+/// pub struct CoolIx3 {}
+/// pub struct CoolIx2 {}
+///
+/// #[star_frame_instruction_set(u8)]
+/// pub enum CoolIxSetU8 {
+///     CoolInstruction1(CoolIx1),
+///     CoolInstruction2(CoolIx2),
+///     CoolInstruction3(CoolIx3) = 100,
+/// }
+/// assert_eq!(<CoolIx1 as InstructionDiscriminant<CoolIxSetU8>>::DISCRIMINANT, 0u8);
+/// assert_eq!(<CoolIx2 as InstructionDiscriminant<CoolIxSetU8>>::DISCRIMINANT, 1u8);
+/// assert_eq!(<CoolIx3 as InstructionDiscriminant<CoolIxSetU8>>::DISCRIMINANT, 100u8);
+///
+/// // The same instructions can be used in multiple instruction sets, since the
+/// // `InstructionDiscriminant` trait is generic over the instruction set.
+/// #[star_frame_instruction_set(i32)]
+/// pub enum CoolIxSetU32 {
+///     CoolInstruction1(CoolIx1) = -999,
+///     CoolInstruction2(CoolIx2),
+///     CoolInstruction3(CoolIx3) = 9999,
+/// }
+/// assert_eq!(<CoolIx1 as InstructionDiscriminant<CoolIxSetU32>>::DISCRIMINANT, -999i32);
+/// assert_eq!(<CoolIx2 as InstructionDiscriminant<CoolIxSetU32>>::DISCRIMINANT, -998i32);
+/// assert_eq!(<CoolIx3 as InstructionDiscriminant<CoolIxSetU32>>::DISCRIMINANT, 9999i32);
+///
+/// # impl_blank_ix!(CoolIx1, CoolIx2, CoolIx3);
 /// ```
 #[proc_macro_error]
 #[proc_macro_attribute]
@@ -358,31 +412,49 @@ pub fn derive_account_to_idl(input: proc_macro::TokenStream) -> proc_macro::Toke
 /// ```
 /// use star_frame::prelude::*;
 ///
+/// type MyInstructionSet<'a> = ();
+///
 /// #[derive(StarFrameProgram)]
 /// #[program(
-///     // This will be whatever instruction set you make for your program
-///     instruction_set = (),
+///     instruction_set = MyInstructionSet<'static>,
 ///     id = Pubkey::new_from_array([0; 32]),
-///     // Defaults to [u8; 8]
 ///     account_discriminant = [u8; 8],
-///     // Defaults to [u8::MAX; 8]
 ///     closed_account_discriminant = [u8::MAX; 8],
-///     // If present, the macro will not generate an entrypoint for the program. If not present, entrypoint is still gated with `no_entrypoint` feature
 ///     no_entrypoint
 /// )]
 /// struct MyProgram;
 /// ```
+/// The arguments can be split up into multiple attributes for conditional compilation:
+/// ```
+/// # use star_frame::prelude::*;
+/// #[derive(StarFrameProgram)]
+/// #[program(instruction_set = ())]
+/// #[cfg_attr(feature = "prod", program(id = "11111111111111111111111111111111"))]
+/// #[cfg_attr(not(feature = "prod"), program(id = SystemProgram::PROGRAM_ID))]
+/// struct MyOtherProgram;
+/// ```
 ///
 /// # Arguments
-/// `#[program(instruction_set = <type>, id = <expr>, account_discriminant = <type>, closed_account_discriminant = <expr>, no_entrypoint)]`
-/// - `instruction_set` - The enum that implements `InstructionSet` for the program
-/// - `id` - The program id for the program. This can be either a literal string in base58 ("AABBCC42") or an expression that resolves to a `Pubkey`
+/// ```ignore
+/// #[program(
+///     instruction_set = <ty>,
+///     id = <expr>,
+///     account_discriminant = <ty>,
+///     closed_account_discriminant = <expr>,
+///     no_entrypoint
+/// )]
+/// ```
+/// - `instruction_set` - The enum that implements `InstructionSet` for the program. If the instruction set has a
+/// lifetime (which it will if implemented with the [`macro@star_frame_instruction_set`] macro), it should be
+/// passed in as `'static`.
+/// - `id` - The program id for the program. This can be either a literal string in base58 ("AABBCC42")
+/// or an expression that resolves to a `Pubkey`
 /// - `account_discriminant` - The `AccountDiscriminant` type used for the program. Defaults to `[u8; 8]` (similarly to Anchor)
 /// - `closed_account_discriminant` - The `AccountDiscriminant` value used for closed accounts. Defaults to `[u8::MAX; 8]`
-/// - `no_entrypoint` - If present, the macro will not generate an entrypoint for the program. While the generated entrypoint is already feature gated, this may be useful in some cases where features aren't
-/// convenient.
+/// - `no_entrypoint` - If present, the macro will not generate an entrypoint for the program.
+/// While the generated entrypoint is already feature gated, this may be useful in some cases where features aren't convenient.
 #[proc_macro_error]
-#[proc_macro_derive(StarFrameProgram, attributes(program, program_id))]
+#[proc_macro_derive(StarFrameProgram, attributes(program))]
 pub fn program(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let out = program::program_impl(parse_macro_input!(input as DeriveInput));
     out.into()

@@ -30,14 +30,7 @@ impl FrameworkInstruction for TestInstruction2 {
         <Self as BorshDeserialize>::deserialize(bytes).map_err(Into::into)
     }
 
-    fn split_to_args<'a>(
-        r: &'a Self::SelfData<'_>,
-    ) -> (
-        Self::DecodeArg<'a>,
-        Self::ValidateArg<'a>,
-        Self::RunArg<'a>,
-        Self::CleanupArg<'a>,
-    ) {
+    fn split_to_args<'a>(r: &'a Self::SelfData<'_>) -> SplitToArgsReturn<'a, Self> {
         ((), (), *r, ())
     }
 
