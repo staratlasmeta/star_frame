@@ -412,31 +412,49 @@ pub fn derive_account_to_idl(input: proc_macro::TokenStream) -> proc_macro::Toke
 /// ```
 /// use star_frame::prelude::*;
 ///
+/// type MyInstructionSet<'a> = ();
+///
 /// #[derive(StarFrameProgram)]
 /// #[program(
-///     // This will be whatever instruction set you make for your program
-///     instruction_set = (),
+///     instruction_set = MyInstructionSet<'static>,
 ///     id = Pubkey::new_from_array([0; 32]),
-///     // Defaults to [u8; 8]
 ///     account_discriminant = [u8; 8],
-///     // Defaults to [u8::MAX; 8]
 ///     closed_account_discriminant = [u8::MAX; 8],
-///     // If present, the macro will not generate an entrypoint for the program. If not present, entrypoint is still gated with `no_entrypoint` feature
 ///     no_entrypoint
 /// )]
 /// struct MyProgram;
 /// ```
+/// The arguments can be split up into multiple attributes for conditional compilation:
+/// ```
+/// # use star_frame::prelude::*;
+/// #[derive(StarFrameProgram)]
+/// #[program(instruction_set = ())]
+/// #[cfg_attr(feature = "prod", program(id = "11111111111111111111111111111111"))]
+/// #[cfg_attr(not(feature = "prod"), program(id = SystemProgram::PROGRAM_ID))]
+/// struct MyOtherProgram;
+/// ```
 ///
 /// # Arguments
-/// `#[program(instruction_set = <type>, id = <expr>, account_discriminant = <type>, closed_account_discriminant = <expr>, no_entrypoint)]`
-/// - `instruction_set` - The enum that implements `InstructionSet` for the program
-/// - `id` - The program id for the program. This can be either a literal string in base58 ("AABBCC42") or an expression that resolves to a `Pubkey`
+/// ```ignore
+/// #[program(
+///     instruction_set = <ty>,
+///     id = <expr>,
+///     account_discriminant = <ty>,
+///     closed_account_discriminant = <expr>,
+///     no_entrypoint
+/// )]
+/// ```
+/// - `instruction_set` - The enum that implements `InstructionSet` for the program. If the instruction set has a
+/// lifetime (which it will if implemented with the [`macro@star_frame_instruction_set`] macro), it should be
+/// passed in as `'static`.
+/// - `id` - The program id for the program. This can be either a literal string in base58 ("AABBCC42")
+/// or an expression that resolves to a `Pubkey`
 /// - `account_discriminant` - The `AccountDiscriminant` type used for the program. Defaults to `[u8; 8]` (similarly to Anchor)
 /// - `closed_account_discriminant` - The `AccountDiscriminant` value used for closed accounts. Defaults to `[u8::MAX; 8]`
-/// - `no_entrypoint` - If present, the macro will not generate an entrypoint for the program. While the generated entrypoint is already feature gated, this may be useful in some cases where features aren't
-/// convenient.
+/// - `no_entrypoint` - If present, the macro will not generate an entrypoint for the program.
+/// While the generated entrypoint is already feature gated, this may be useful in some cases where features aren't convenient.
 #[proc_macro_error]
-#[proc_macro_derive(StarFrameProgram, attributes(program, program_id))]
+#[proc_macro_derive(StarFrameProgram, attributes(program))]
 pub fn program(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let out = program::program_impl(parse_macro_input!(input as DeriveInput));
     out.into()

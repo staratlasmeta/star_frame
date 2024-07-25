@@ -6,7 +6,7 @@ use solana_program::system_program;
 #[derive(Debug, Copy, Clone, Align1)]
 pub struct SystemProgram;
 impl StarFrameProgram for SystemProgram {
-    type InstructionSet<'a> = SystemInstruction;
+    type InstructionSet = SystemInstruction;
     type AccountDiscriminant = ();
     const CLOSED_ACCOUNT_DISCRIMINANT: Self::AccountDiscriminant = ();
     const PROGRAM_ID: Pubkey = system_program::ID;

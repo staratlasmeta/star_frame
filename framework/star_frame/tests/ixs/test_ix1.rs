@@ -36,14 +36,7 @@ impl FrameworkInstruction for TestInstruction1 {
         <Self as UnsizedType>::Ref::from_bytes(bytes)
     }
 
-    fn split_to_args<'a>(
-        r: &'a Self::SelfData<'_>,
-    ) -> (
-        Self::DecodeArg<'a>,
-        Self::ValidateArg<'a>,
-        Self::RunArg<'a>,
-        Self::CleanupArg<'a>,
-    ) {
+    fn split_to_args<'a>(r: &'a Self::SelfData<'_>) -> SplitToArgsReturn<'a, Self> {
         (r.val3, r.val2, r.val3, (r.val, r.val2))
     }
 
