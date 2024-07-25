@@ -69,6 +69,18 @@ where
     }
 }
 
+impl<'info, T, P: SeedProgram> WritableAccount<'info> for SeededInitAccount<'info, T, P> where
+    T: SeededAccountData + UnsizedType + ?Sized
+{
+}
+
+impl<'info, T, P: SeedProgram> HasProgramAccount<'info> for SeededInitAccount<'info, T, P>
+where
+    T: ProgramAccount + SeededAccountData + UnsizedType + ?Sized,
+{
+    type ProgramAccount = T;
+}
+
 #[derive(Debug, Copy, Clone)]
 pub struct SeededInit<S, IC> {
     pub seeds: S,

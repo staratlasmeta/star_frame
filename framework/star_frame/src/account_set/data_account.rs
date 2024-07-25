@@ -219,6 +219,12 @@ where
     }
 }
 
+impl<'info, T: ProgramAccount + UnsizedType + ?Sized> HasProgramAccount<'info>
+    for DataAccount<'info, T>
+{
+    type ProgramAccount = T;
+}
+
 #[derive(Debug)]
 pub struct AccountInfoRef<'a> {
     pub(crate) r: Ref<'a, [u8]>,

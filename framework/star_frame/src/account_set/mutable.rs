@@ -1,7 +1,8 @@
 use crate::account_set::{
-    AccountSet, AccountSetDecode, AccountSetValidate, SignedAccount, SingleAccountSet,
-    WritableAccount,
+    AccountSet, AccountSetDecode, AccountSetValidate, HasProgramAccount, SignedAccount,
+    SingleAccountSet, WritableAccount,
 };
+use crate::prelude::ProgramAccount;
 use crate::Result;
 use derive_more::{Deref, DerefMut};
 use solana_program::account_info::AccountInfo;
@@ -54,6 +55,13 @@ where
     }
 }
 impl<'info, T> WritableAccount<'info> for Writable<T> where T: SingleAccountSet<'info> {}
+
+impl<'info, T> HasProgramAccount<'info> for Writable<T>
+where
+    T: ProgramAccount + SingleAccountSet<'info>,
+{
+    type ProgramAccount = T;
+}
 
 #[cfg(feature = "idl")]
 mod idl_impl {
