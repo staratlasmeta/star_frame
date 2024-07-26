@@ -12,7 +12,7 @@ use std::marker::PhantomData;
 #[validate(generics = [<A> where T: AccountSetValidate<'info, A>, A: Clone], arg = A)]
 #[cleanup(generics = [<A> where T: AccountSetCleanup<'info, A>, A: Clone], arg = A)]
 #[cfg_attr(feature = "idl", idl(generics = [<A> where T: AccountSetToIdl<'info, A>, A: Clone], arg = A))]
-pub struct Rest<T>(
+pub struct Rest<'info, T>(
     #[validate(arg = (arg,))]
     #[cleanup(arg = (arg,))]
     #[idl(arg = (VecSize{ min: 0, max: None }, arg))]
