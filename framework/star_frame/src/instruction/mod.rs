@@ -74,6 +74,25 @@ pub struct SplitToArgsReturn<'a, T: StarFrameInstruction + ?Sized> {
     pub cleanup: <T as StarFrameInstruction>::CleanupArg<'a>,
 }
 
+impl<'a, T: StarFrameInstruction + ?Sized, R> SplitToArgsReturn<'a, T>
+where
+    T: StarFrameInstruction<
+        DecodeArg<'a> = (),
+        ValidateArg<'a> = (),
+        CleanupArg<'a> = (),
+        RunArg<'a> = R,
+    >,
+{
+    pub fn run(run: R) -> Self {
+        Self {
+            decode: (),
+            validate: (),
+            run,
+            cleanup: (),
+        }
+    }
+}
+
 /// A `star_frame` defined instruction using [`AccountSet`] and other traits.
 ///
 /// The steps are as follows:
