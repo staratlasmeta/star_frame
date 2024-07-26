@@ -71,6 +71,26 @@ pub trait AccountSet<'info> {
     }
 }
 
+pub trait TryFromAccounts<'a, 'info, D, V>:
+    AccountSetDecode<'a, 'info, D> + AccountSetValidate<'info, V>
+{
+    fn try_from_accounts(
+        accounts: &mut &'a [AccountInfo<'info>],
+        syscalls: &mut impl SyscallInvoke,
+        decode: D,
+        validate: V,
+    ) -> Result<Self> {
+        let mut set = Self::decode_accounts(accounts, decode, syscalls)?;
+        set.validate_accounts(validate, syscalls)?;
+        Ok(set)
+    }
+}
+
+impl<'a, 'info, T, D, V> TryFromAccounts<'a, 'info, D, V> for T where
+    T: AccountSet<'info> + AccountSetDecode<'a, 'info, D> + AccountSetValidate<'info, V>
+{
+}
+
 /// An [`AccountSet`] that contains exactly 1 account.
 pub trait SingleAccountSet<'info>: AccountSet<'info> {
     /// Gets the contained account.

@@ -54,6 +54,22 @@ where
         self.len.to_usize().expect("Invalid length")
     }
 
+    pub fn get(&self, index: usize) -> Option<&T> {
+        if index < self.len() {
+            Some(&self[index])
+        } else {
+            None
+        }
+    }
+
+    pub fn get_mut(&mut self, index: usize) -> Option<&mut T> {
+        if index < self.len() {
+            Some(&mut self[index])
+        } else {
+            None
+        }
+    }
+
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
