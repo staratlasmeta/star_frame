@@ -264,8 +264,6 @@ impl StarFrameInstruction for CloseCounterIx {
 }
 
 #[star_frame_instruction_set]
-// #[derive(BorshSerialize, BorshDeserialize, Debug)]
-// #[borsh(crate = "borsh", use_discriminant = false)]
 pub enum CounterInstructionSet {
     CreateCounter(CreateCounterIx),
     UpdateSigner(UpdateCounterSignerIx),
