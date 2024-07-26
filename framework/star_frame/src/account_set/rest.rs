@@ -4,9 +4,10 @@ use crate::account_set::{AccountSet, AccountSetCleanup, AccountSetDecode, Accoun
 #[cfg(feature = "idl")]
 use crate::idl::AccountSetToIdl;
 use crate::syscalls::SyscallInvoke;
+use derive_more::{Deref, DerefMut};
 use solana_program::account_info::AccountInfo;
 
-#[derive(AccountSet, Debug)]
+#[derive(AccountSet, Debug, Deref, DerefMut)]
 #[account_set(skip_default_decode, generics = [where T: AccountSet<'info>])]
 #[validate(generics = [<A> where T: AccountSetValidate<'info, A>, A: Clone], arg = A)]
 #[cleanup(generics = [<A> where T: AccountSetCleanup<'info, A>, A: Clone], arg = A)]

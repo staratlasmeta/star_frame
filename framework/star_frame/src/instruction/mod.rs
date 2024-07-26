@@ -172,7 +172,7 @@ where
     Debug, Clone, PartialEq, Eq, Deref, DerefMut, Default, Hash, Ord, PartialOrd, From, Into,
 )]
 #[repr(transparent)]
-pub struct RemainingData(pub Vec<u8>);
+pub struct RemainingData(Vec<u8>);
 
 impl BorshDeserialize for RemainingData {
     fn deserialize_reader<R: Read>(reader: &mut R) -> std::io::Result<Self> {
