@@ -24,7 +24,6 @@ pub use star_frame_proc::AccountSet;
 pub use star_frame_proc::AccountToIdl;
 pub use system_account::*;
 
-
 use crate::syscalls::SyscallInvoke;
 use crate::Result;
 use solana_program::account_info::AccountInfo;
