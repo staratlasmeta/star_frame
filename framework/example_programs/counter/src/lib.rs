@@ -66,15 +66,13 @@ impl StarFrameInstruction for CreateCounterIx {
         Self::deserialize(bytes).map_err(Into::into)
     }
 
-    fn split_to_args(
-        r: &Self,
-    ) -> (
-        Self::DecodeArg<'_>,
-        Self::ValidateArg<'_>,
-        Self::RunArg<'_>,
-        Self::CleanupArg<'_>,
-    ) {
-        ((), (), &r.start_at, ())
+    fn split_to_args<'a>(r: &'a Self::SelfData<'_>) -> SplitToArgsReturn<'a, Self> {
+        SplitToArgsReturn {
+            decode: (),
+            cleanup: (),
+            run: &r.start_at,
+            validate: (),
+        }
     }
 
     fn run_instruction<'b, 'info>(
@@ -133,16 +131,10 @@ impl StarFrameInstruction for UpdateCounterSignerIx {
     fn data_from_bytes<'a>(bytes: &mut &'a [u8]) -> Result<Self::SelfData<'a>> {
         Self::deserialize(bytes).map_err(Into::into)
     }
-
-    fn split_to_args(
-        _r: &Self,
-    ) -> (
-        Self::DecodeArg<'_>,
-        Self::ValidateArg<'_>,
-        Self::RunArg<'_>,
-        Self::CleanupArg<'_>,
-    ) {
-        ((), (), (), ())
+    fn split_to_args<'a>(_r: &'a Self::SelfData<'_>) -> SplitToArgsReturn<'a, Self> {
+        SplitToArgsReturn {
+            ..Default::default()
+        }
     }
 
     fn run_instruction<'b, 'info>(
@@ -199,15 +191,11 @@ impl StarFrameInstruction for CountIx {
         Self::deserialize(bytes).map_err(Into::into)
     }
 
-    fn split_to_args(
-        r: &Self,
-    ) -> (
-        Self::DecodeArg<'_>,
-        Self::ValidateArg<'_>,
-        Self::RunArg<'_>,
-        Self::CleanupArg<'_>,
-    ) {
-        ((), (), (r.amount, r.subtract), ())
+    fn split_to_args<'a>(r: &'a Self::SelfData<'_>) -> SplitToArgsReturn<'a, Self> {
+        SplitToArgsReturn {
+            run: (r.amount, r.subtract),
+            ..Default::default()
+        }
     }
 
     fn run_instruction<'b, 'info>(
@@ -275,15 +263,10 @@ impl StarFrameInstruction for CloseCounterIx {
         Self::deserialize(bytes).map_err(Into::into)
     }
 
-    fn split_to_args(
-        _r: &Self,
-    ) -> (
-        Self::DecodeArg<'_>,
-        Self::ValidateArg<'_>,
-        Self::RunArg<'_>,
-        Self::CleanupArg<'_>,
-    ) {
-        ((), (), (), ())
+    fn split_to_args<'a>(_r: &'a Self::SelfData<'_>) -> SplitToArgsReturn<'a, Self> {
+        SplitToArgsReturn {
+            ..Default::default()
+        }
     }
 
     fn run_instruction<'b, 'info>(
@@ -306,12 +289,12 @@ pub enum CounterInstructionSet {
     CreateCounter(CreateCounterIx),
     UpdateSigner(UpdateCounterSignerIx),
     Count(CountIx),
-    CloseCount(CloseCounterIx),
+    CloseCounter(CloseCounterIx),
 }
 
 #[derive(StarFrameProgram)]
 #[program(
-    instruction_set = CounterInstructionSet,
+    instruction_set = CounterInstructionSet<'static>,
     id =  "Coux9zxTFKZpRdFpE4F7Fs5RZ6FdaURdckwS61BUTMG",
 )]
 pub struct CounterProgram {}
@@ -444,7 +427,7 @@ mod tests {
             .await
             .unwrap();
         assert!(refund_acc.is_none());
-        let ix_data5 = CounterInstructionSet::CloseCount(CloseCounterIx {});
+        let ix_data5 = CounterInstructionSet::CloseCounter(CloseCounterIx {});
         let instruction5 = SolanaInstruction::new_with_borsh(
             CounterProgram::PROGRAM_ID,
             &ix_data5,
