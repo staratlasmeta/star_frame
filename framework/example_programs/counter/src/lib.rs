@@ -52,7 +52,6 @@ pub struct CreateCounterAccounts<'info> {
 }
 
 impl StarFrameInstruction for CreateCounterIx {
-    type SelfData<'a> = Self;
     type DecodeArg<'a> = ();
     type ValidateArg<'a> = ();
     type RunArg<'a> = &'a Option<u64>;
@@ -62,11 +61,7 @@ impl StarFrameInstruction for CreateCounterIx {
     where
         'info: 'b;
 
-    fn data_from_bytes<'a>(bytes: &mut &'a [u8]) -> Result<Self::SelfData<'a>> {
-        Self::deserialize(bytes).map_err(Into::into)
-    }
-
-    fn split_to_args<'a>(r: &'a Self::SelfData<'_>) -> SplitToArgsReturn<'a, Self> {
+    fn split_to_args<'a>(r: &Self) -> SplitToArgsReturn<Self> {
         SplitToArgsReturn {
             decode: (),
             cleanup: (),
@@ -118,7 +113,6 @@ impl<'info> UpdateCounterSignerAccounts<'info> {
 }
 
 impl StarFrameInstruction for UpdateCounterSignerIx {
-    type SelfData<'a> = Self;
     type DecodeArg<'a> = ();
     type ValidateArg<'a> = ();
     type RunArg<'a> = ();
@@ -128,10 +122,7 @@ impl StarFrameInstruction for UpdateCounterSignerIx {
     where
         'info: 'b;
 
-    fn data_from_bytes<'a>(bytes: &mut &'a [u8]) -> Result<Self::SelfData<'a>> {
-        Self::deserialize(bytes).map_err(Into::into)
-    }
-    fn split_to_args<'a>(_r: &'a Self::SelfData<'_>) -> SplitToArgsReturn<'a, Self> {
+    fn split_to_args<'a>(_r: &Self) -> SplitToArgsReturn<Self> {
         SplitToArgsReturn {
             ..Default::default()
         }
@@ -177,7 +168,6 @@ impl<'info> CountAccounts<'info> {
 }
 
 impl StarFrameInstruction for CountIx {
-    type SelfData<'a> = Self;
     type DecodeArg<'a> = ();
     type ValidateArg<'a> = ();
     type RunArg<'a> = (u64, bool);
@@ -187,11 +177,7 @@ impl StarFrameInstruction for CountIx {
     where
         'info: 'b;
 
-    fn data_from_bytes<'a>(bytes: &mut &'a [u8]) -> Result<Self::SelfData<'a>> {
-        Self::deserialize(bytes).map_err(Into::into)
-    }
-
-    fn split_to_args<'a>(r: &'a Self::SelfData<'_>) -> SplitToArgsReturn<'a, Self> {
+    fn split_to_args<'a>(r: &Self) -> SplitToArgsReturn<Self> {
         SplitToArgsReturn {
             run: (r.amount, r.subtract),
             ..Default::default()
@@ -249,7 +235,6 @@ impl<'info> CloseCounterAccounts<'info> {
 }
 
 impl StarFrameInstruction for CloseCounterIx {
-    type SelfData<'a> = Self;
     type DecodeArg<'a> = ();
     type ValidateArg<'a> = ();
     type RunArg<'a> = ();
@@ -259,11 +244,7 @@ impl StarFrameInstruction for CloseCounterIx {
     where
         'info: 'b;
 
-    fn data_from_bytes<'a>(bytes: &mut &'a [u8]) -> Result<Self::SelfData<'a>> {
-        Self::deserialize(bytes).map_err(Into::into)
-    }
-
-    fn split_to_args<'a>(_r: &'a Self::SelfData<'_>) -> SplitToArgsReturn<'a, Self> {
+    fn split_to_args<'a>(_r: &Self) -> SplitToArgsReturn<Self> {
         SplitToArgsReturn {
             ..Default::default()
         }
@@ -283,8 +264,8 @@ impl StarFrameInstruction for CloseCounterIx {
 }
 
 #[star_frame_instruction_set]
-#[derive(BorshSerialize, BorshDeserialize, Debug)]
-#[borsh(crate = "borsh", use_discriminant = true)]
+// #[derive(BorshSerialize, BorshDeserialize, Debug)]
+// #[borsh(crate = "borsh", use_discriminant = false)]
 pub enum CounterInstructionSet {
     CreateCounter(CreateCounterIx),
     UpdateSigner(UpdateCounterSignerIx),
@@ -302,12 +283,14 @@ pub struct CounterProgram {}
 #[cfg(test)]
 mod tests {
     use super::*;
+    use borsh::to_vec;
     use bytemuck::checked::try_from_bytes;
     use solana_program_test::*;
     use solana_sdk::instruction::Instruction as SolanaInstruction;
     use solana_sdk::signature::{Keypair, Signer};
     use solana_sdk::system_program;
     use solana_sdk::transaction::Transaction;
+    use star_frame::itertools::Itertools;
     use star_frame::solana_program::instruction::AccountMeta;
 
     #[tokio::test]
@@ -328,8 +311,14 @@ mod tests {
         };
         let (counter_account, bump) =
             Pubkey::find_program_address(&seeds.seeds(), &StarFrameDeclaredProgram::PROGRAM_ID);
-        let ix_data = CounterInstructionSet::CreateCounter(CreateCounterIx { start_at });
-        let instruction = SolanaInstruction::new_with_borsh(
+        let ix_data = [
+            CreateCounterIx::DISCRIMINANT.to_vec(),
+            to_vec(&CreateCounterIx { start_at }).unwrap(),
+        ]
+        .into_iter()
+        .flatten()
+        .collect_vec();
+        let instruction = SolanaInstruction::new_with_bytes(
             CounterProgram::PROGRAM_ID,
             &ix_data,
             vec![
@@ -357,8 +346,14 @@ mod tests {
         assert_eq!(expected, *try_from_bytes(&acc.data[8..]).unwrap());
 
         // Update a counter signer
-        let ix_data2 = CounterInstructionSet::UpdateSigner(UpdateCounterSignerIx {});
-        let instruction2 = SolanaInstruction::new_with_borsh(
+        let ix_data2 = [
+            UpdateCounterSignerIx::DISCRIMINANT.to_vec(),
+            to_vec(&UpdateCounterSignerIx {}).unwrap(),
+        ]
+        .into_iter()
+        .flatten()
+        .collect_vec();
+        let instruction2 = SolanaInstruction::new_with_bytes(
             CounterProgram::PROGRAM_ID,
             &ix_data2,
             vec![
@@ -386,20 +381,34 @@ mod tests {
             AccountMeta::new_readonly(account_key.pubkey(), true),
             AccountMeta::new(counter_account, false),
         ];
-        let ix_data3 = CounterInstructionSet::Count(CountIx {
-            amount: 7,
-            subtract: false,
-        });
-        let ix_data4 = CounterInstructionSet::Count(CountIx {
-            amount: 4,
-            subtract: true,
-        });
-        let instruction3 = SolanaInstruction::new_with_borsh(
+        let ix_data3 = [
+            CountIx::DISCRIMINANT.to_vec(),
+            to_vec(&CountIx {
+                amount: 7,
+                subtract: false,
+            })
+            .unwrap(),
+        ]
+        .into_iter()
+        .flatten()
+        .collect_vec();
+        let ix_data4 = [
+            CountIx::DISCRIMINANT.to_vec(),
+            to_vec(&CountIx {
+                amount: 4,
+                subtract: true,
+            })
+            .unwrap(),
+        ]
+        .into_iter()
+        .flatten()
+        .collect_vec();
+        let instruction3 = SolanaInstruction::new_with_bytes(
             CounterProgram::PROGRAM_ID,
             &ix_data3,
             count_accounts.clone(),
         );
-        let instruction4 = SolanaInstruction::new_with_borsh(
+        let instruction4 = SolanaInstruction::new_with_bytes(
             CounterProgram::PROGRAM_ID,
             &ix_data4,
             count_accounts.clone(),
@@ -427,8 +436,14 @@ mod tests {
             .await
             .unwrap();
         assert!(refund_acc.is_none());
-        let ix_data5 = CounterInstructionSet::CloseCounter(CloseCounterIx {});
-        let instruction5 = SolanaInstruction::new_with_borsh(
+        let ix_data5 = [
+            CloseCounterIx::DISCRIMINANT.to_vec(),
+            to_vec(&CloseCounterIx {}).unwrap(),
+        ]
+        .into_iter()
+        .flatten()
+        .collect_vec();
+        let instruction5 = SolanaInstruction::new_with_bytes(
             CounterProgram::PROGRAM_ID,
             &ix_data5,
             vec![
