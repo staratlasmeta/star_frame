@@ -3,10 +3,12 @@ use crate::syscalls::{SyscallInvoke, Syscalls};
 use borsh::{to_vec, BorshDeserialize, BorshSerialize};
 use bytemuck::Pod;
 use derivative::Derivative;
+use derive_more::{Deref, DerefMut, From, Into};
 use solana_program::account_info::AccountInfo;
 use solana_program::pubkey::Pubkey;
 pub use star_frame_proc::star_frame_instruction_set;
 pub use star_frame_proc::InstructionToIdl;
+use std::io::{Read, Write};
 
 mod no_op;
 pub mod un_callable;
@@ -70,6 +72,25 @@ pub struct SplitToArgsReturn<'a, T: StarFrameInstruction + ?Sized> {
     pub validate: <T as StarFrameInstruction>::ValidateArg<'a>,
     pub run: <T as StarFrameInstruction>::RunArg<'a>,
     pub cleanup: <T as StarFrameInstruction>::CleanupArg<'a>,
+}
+
+impl<'a, T: StarFrameInstruction + ?Sized, R> SplitToArgsReturn<'a, T>
+where
+    T: StarFrameInstruction<
+        DecodeArg<'a> = (),
+        ValidateArg<'a> = (),
+        CleanupArg<'a> = (),
+        RunArg<'a> = R,
+    >,
+{
+    pub fn run(run: R) -> Self {
+        Self {
+            decode: (),
+            validate: (),
+            run,
+            cleanup: (),
+        }
+    }
 }
 
 /// A `star_frame` defined instruction using [`AccountSet`] and other traits.
@@ -161,6 +182,28 @@ where
             syscalls.set_return_data(&return_data);
         }
         Ok(())
+    }
+}
+
+/// A helper struct for Borsh that consumes the remaining bytes in a buffer. This is most useful for replicating remaining
+/// data in an instruction without the 4 byte length overhead for [`borsh`]'s serialize and deserialize on `Vec`.
+#[derive(
+    Debug, Clone, PartialEq, Eq, Deref, DerefMut, Default, Hash, Ord, PartialOrd, From, Into,
+)]
+#[repr(transparent)]
+pub struct RemainingData(Vec<u8>);
+
+impl BorshDeserialize for RemainingData {
+    fn deserialize_reader<R: Read>(reader: &mut R) -> std::io::Result<Self> {
+        let mut data = vec![];
+        reader.read_to_end(&mut data)?;
+        Ok(Self(data))
+    }
+}
+
+impl BorshSerialize for RemainingData {
+    fn serialize<W: Write>(&self, writer: &mut W) -> std::io::Result<()> {
+        writer.write_all(&self.0)
     }
 }
 

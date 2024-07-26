@@ -4,24 +4,22 @@ use crate::account_set::{AccountSet, AccountSetCleanup, AccountSetDecode, Accoun
 #[cfg(feature = "idl")]
 use crate::idl::AccountSetToIdl;
 use crate::syscalls::SyscallInvoke;
+use derive_more::{Deref, DerefMut};
 use solana_program::account_info::AccountInfo;
-use std::marker::PhantomData;
 
-#[derive(AccountSet, Debug)]
-#[account_set(skip_default_decode)]
+#[derive(AccountSet, Debug, Deref, DerefMut)]
+#[account_set(skip_default_decode, generics = [where T: AccountSet<'info>])]
 #[validate(generics = [<A> where T: AccountSetValidate<'info, A>, A: Clone], arg = A)]
 #[cleanup(generics = [<A> where T: AccountSetCleanup<'info, A>, A: Clone], arg = A)]
 #[cfg_attr(feature = "idl", idl(generics = [<A> where T: AccountSetToIdl<'info, A>, A: Clone], arg = A))]
-pub struct Rest<'info, T>(
+pub struct Rest<T>(
     #[validate(arg = (arg,))]
     #[cleanup(arg = (arg,))]
     #[idl(arg = (VecSize{ min: 0, max: None }, arg))]
     Vec<T>,
-    PhantomData<&'info ()>,
-)
-where
-    T: AccountSet<'info>;
-impl<'a, 'info, A, T> AccountSetDecode<'a, 'info, A> for Rest<'info, T>
+);
+
+impl<'a, 'info, A, T> AccountSetDecode<'a, 'info, A> for Rest<T>
 where
     T: AccountSetDecode<'a, 'info, A>,
     A: Clone,
@@ -39,6 +37,6 @@ where
                 syscalls,
             )?);
         }
-        Ok(Self(out, PhantomData))
+        Ok(Self(out))
     }
 }
