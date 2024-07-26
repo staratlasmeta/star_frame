@@ -1,6 +1,4 @@
-use crate::account_set::SignedAccount;
 use crate::prelude::*;
-use crate::serialize::unsize::init::Zeroed;
 use advance::Advance;
 use anyhow::{bail, Context};
 use bytemuck::bytes_of;
@@ -50,6 +48,13 @@ where
 impl<'info, T> WritableAccount<'info> for InitAccount<'info, T> where
     T: ProgramAccount + UnsizedType + ?Sized
 {
+}
+
+impl<'info, T> HasProgramAccount<'info> for InitAccount<'info, T>
+where
+    T: ProgramAccount + UnsizedType + ?Sized,
+{
+    type ProgramAccount = T;
 }
 
 pub trait InitCreateArg<'info> {

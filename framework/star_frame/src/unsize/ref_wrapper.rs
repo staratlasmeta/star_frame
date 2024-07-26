@@ -1,4 +1,4 @@
-use crate::serialize::unsize::resize::Resize;
+use crate::unsize::Resize;
 use crate::Result;
 use std::ops::{Deref, DerefMut};
 

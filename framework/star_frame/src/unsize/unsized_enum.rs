@@ -1,5 +1,5 @@
 use crate::prelude::UnsizedType;
-use crate::serialize::ref_wrapper::{AsBytes, RefWrapperTypes};
+use crate::unsize::ref_wrapper::{AsBytes, RefWrapperTypes};
 use bytemuck::{CheckedBitPattern, NoUninit};
 
 pub trait UnsizedEnum: UnsizedType {

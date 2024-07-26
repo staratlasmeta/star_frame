@@ -122,11 +122,20 @@ pub trait SingleAccountSet<'info>: AccountSet<'info> {
         self.account_info().info_data_bytes_mut()
     }
 }
+
+/// Indicates the underlying account is a signer.
 pub trait SignedAccount<'info>: SingleAccountSet<'info> {
     /// Gets the seeds of the account if it is seeded.
     fn signer_seeds(&self) -> Option<Vec<&[u8]>>;
 }
+
+/// A marker trait that indicates the underlying account is writable.
 pub trait WritableAccount<'info>: SingleAccountSet<'info> {}
+
+/// A marker trait that indicates the underlying type has a [`ProgramAccount`] in it.
+pub trait HasProgramAccount<'info>: SingleAccountSet<'info> {
+    type ProgramAccount: ProgramAccount + ?Sized;
+}
 
 /// An [`AccountSet`] that can be decoded from a list of [`AccountInfo`]s using arg `A`.
 pub trait AccountSetDecode<'a, 'info, A>: AccountSet<'info> + Sized {

@@ -24,10 +24,11 @@ use proc_macro_crate::{crate_name, FoundCrate};
 use proc_macro_error::{abort, proc_macro_error};
 use quote::{format_ident, quote, ToTokens};
 use syn::parse::{Parse, ParseStream};
-use syn::token::Token;
+use syn::punctuated::Punctuated;
+use syn::token::{Comma, Token};
 use syn::{
     parenthesized, parse_macro_input, parse_quote, token, Data, DataStruct, DataUnion, DeriveInput,
-    Fields, Ident, Item, ItemEnum, LitInt, Token,
+    Fields, Ident, Item, ItemEnum, LitInt, LitStr, Token,
 };
 
 fn get_crate_name() -> TokenStream {
@@ -397,19 +398,19 @@ pub fn derive_account_to_idl(input: proc_macro::TokenStream) -> proc_macro::Toke
     out.into()
 }
 
-/// Derives `StarFrameProgram` and sets up the entrypoint for a program.
-///
-/// While it is possible to implement this manually, the derive macro has helpful defaults and
-/// additionally creates useful top level items for the crate.
+/// Derives `StarFrameProgram` and sets up the entrypoint and useful items for a program. This should be placed at the root of the crate.
 ///
 /// ## Additional code generated:
+/// - Solana entrypoint - This will call the `star_frame_entrypoint` macro with the program struct.
 /// - `StarFrameDeclaredProgram` - This is a type alias around the struct that is used in other `star_frame` macros. This
 /// derive should be placed at the root of the crate, or be re-exported there.
-/// - Solana entrypoint - This will call the `star_frame_entrypoint` macro with the program struct.
-/// - `declare_id!` - It also generates the `crate::ID` and `id()` constants like how Solana's `declare_id` macro works.
+/// - `declare_id!` - It also generates the `crate::ID` and `id()` constants like how the `solana_program::declare_id` macro works.
+///
+/// Both the `ID`s and `StarFrameDeclaredProgram` items are generated with the `star_frame::program_setup` macro.
 ///
 /// # Example
 /// ```
+/// # fn main() {}
 /// use star_frame::prelude::*;
 ///
 /// type MyInstructionSet<'a> = ();
@@ -426,7 +427,9 @@ pub fn derive_account_to_idl(input: proc_macro::TokenStream) -> proc_macro::Toke
 /// ```
 /// The arguments can be split up into multiple attributes for conditional compilation:
 /// ```
-/// # use star_frame::prelude::*;
+/// # fn main() {}
+/// use star_frame::prelude::*;
+///
 /// #[derive(StarFrameProgram)]
 /// #[program(instruction_set = ())]
 /// #[cfg_attr(feature = "prod", program(id = "11111111111111111111111111111111"))]
@@ -474,4 +477,23 @@ pub fn unsized_type(
 ) -> proc_macro::TokenStream {
     let out = unsize::unsized_type_impl(parse_macro_input!(item as Item), args.into());
     out.into()
+}
+
+/// Takes in multiple string literals and returns the first 8 bytes of its sha256 hash.
+/// The strings will be concatenated with a `:` separator prior to hashing if multiple are passed in.
+///
+/// # Example
+/// ```
+/// use star_frame_proc::sighash;
+/// // hash of "Hello World!"
+/// const HELLO_WORLD: [u8; 8] = [0x7f, 0x83, 0xb1, 0x65, 0x7f, 0xf1, 0xfc, 0x53];
+/// assert_eq!(sighash!("Hello World!"), HELLO_WORLD);
+///
+/// const NAMESPACE_HASH: [u8; 8] = [0x76, 0x03, 0x6f, 0xcc, 0x93, 0xdd, 0x73, 0x10];
+/// assert_eq!(sighash!("global", "other_stuff"), NAMESPACE_HASH);
+/// ```
+#[proc_macro]
+pub fn sighash(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    hash::sighash_impl(parse_macro_input!(input with Punctuated::<LitStr, Comma>::parse_terminated))
+        .into()
 }

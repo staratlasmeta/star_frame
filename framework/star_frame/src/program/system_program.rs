@@ -12,25 +12,13 @@ impl StarFrameProgram for SystemProgram {
     const PROGRAM_ID: Pubkey = system_program::ID;
 }
 
-unsafe impl<'a> StarFrameFromBytes<'a> for SystemInstruction {
-    fn from_bytes(_bytes: &mut &'a [u8]) -> Result<Self> {
-        todo!()
-    }
-}
-
-impl StarFrameSerialize for SystemInstruction {
-    fn to_bytes(&self, _output: &mut &mut [u8]) -> Result<()> {
-        todo!()
-    }
-}
-
 impl InstructionSet for SystemInstruction {
     type Discriminant = ();
 
     fn handle_ix(
-        _ix_bytes: &[u8],
         _program_id: &Pubkey,
         _accounts: &[AccountInfo],
+        _ix_bytes: &[u8],
         _sys_calls: &mut impl SysCalls,
     ) -> Result<()> {
         panic!("System instruction should not be handled");

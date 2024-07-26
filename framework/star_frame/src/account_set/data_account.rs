@@ -1,7 +1,4 @@
-use crate::account_set::{SignedAccount, WritableAccount};
 use crate::prelude::*;
-use crate::serialize::ref_wrapper::{AsBytes, AsMutBytes};
-use crate::serialize::unsize::resize::Resize;
 use crate::util::*;
 use advance::Advance;
 use anyhow::bail;
@@ -10,20 +7,14 @@ use derivative::Derivative;
 use solana_program::entrypoint::MAX_PERMITTED_DATA_INCREASE;
 use solana_program::program_memory::sol_memset;
 use solana_program::system_program;
-use star_frame::serialize::ref_wrapper::RefWrapper;
 use std::cell::{Ref, RefMut};
 use std::marker::PhantomData;
-use std::mem::{size_of, size_of_val};
+use std::mem::size_of;
 use std::slice::from_raw_parts_mut;
 
 pub trait ProgramAccount {
     type OwnerProgram: StarFrameProgram;
     const DISCRIMINANT: <Self::OwnerProgram as StarFrameProgram>::AccountDiscriminant;
-
-    fn account_data_size(&self) -> usize {
-        size_of::<<Self::OwnerProgram as StarFrameProgram>::AccountDiscriminant>()
-            + size_of_val(self)
-    }
 }
 
 fn validate_data_account<T>(account: &DataAccount<T>, _sys_calls: &impl SysCallCore) -> Result<()>
@@ -226,6 +217,12 @@ where
     fn account_info(&self) -> &AccountInfo<'info> {
         &self.info
     }
+}
+
+impl<'info, T: ProgramAccount + UnsizedType + ?Sized> HasProgramAccount<'info>
+    for DataAccount<'info, T>
+{
+    type ProgramAccount = T;
 }
 
 #[derive(Debug)]

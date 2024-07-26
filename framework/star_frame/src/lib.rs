@@ -53,9 +53,9 @@ pub mod idl;
 pub mod instruction;
 pub mod prelude;
 pub mod program;
-pub mod serialize;
 pub mod sys_calls;
 pub mod unit_enum_from_repr;
+pub mod unsize;
 pub mod util;
 
 /// Internal paths mainly for use in macros. DO NOT USE MANUALLY. NOT PART OF THE PUBLIC API.

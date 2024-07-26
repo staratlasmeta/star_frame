@@ -1,6 +1,6 @@
 use crate::account_set::{
-    AccountSet, AccountSetDecode, AccountSetValidate, SignedAccount, SingleAccountSet,
-    WritableAccount,
+    AccountSet, AccountSetDecode, AccountSetValidate, HasProgramAccount, SignedAccount,
+    SingleAccountSet, WritableAccount,
 };
 use crate::Result;
 use anyhow::bail;
@@ -70,6 +70,13 @@ where
     }
 }
 impl<'info, T> WritableAccount<'info> for Signer<T> where T: WritableAccount<'info> {}
+
+impl<'info, T> HasProgramAccount<'info> for Signer<T>
+where
+    T: HasProgramAccount<'info>,
+{
+    type ProgramAccount = T::ProgramAccount;
+}
 
 #[cfg(feature = "idl")]
 mod idl_impl {

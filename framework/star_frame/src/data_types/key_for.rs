@@ -4,10 +4,16 @@ use derivative::Derivative;
 use std::fmt::{Display, Formatter};
 use std::marker::PhantomData;
 
-/// Allows setting a [`KeyFor`] from a [`DataAccount`].
+/// Allows setting a [`KeyFor`] using other types.
 pub trait SetKeyFor<T: ?Sized, I> {
     /// Sets the contained pubkey.
     fn set_pubkey(&mut self, pubkey: I);
+}
+
+/// Allows getting a [`KeyFor`] from other types.
+pub trait GetKeyFor<T: ?Sized> {
+    /// Gets the contained `KeyFor`.
+    fn key_for(&self) -> KeyFor<T>;
 }
 
 /// A key for an account type
@@ -46,18 +52,22 @@ impl<T: ?Sized> KeyFor<T> {
     }
 }
 
-impl<'a, 'info, T: ProgramAccount + UnsizedType + ?Sized> SetKeyFor<T, &'a DataAccount<'info, T>>
-    for KeyFor<T>
+impl<'info, T: HasProgramAccount<'info>> SetKeyFor<T::ProgramAccount, &T>
+    for KeyFor<T::ProgramAccount>
 {
-    fn set_pubkey(&mut self, pubkey: &'a DataAccount<'info, T>) {
-        self.pubkey = *(pubkey.key());
+    fn set_pubkey(&mut self, pubkey: &T) {
+        self.pubkey = *pubkey.key();
     }
 }
 
-impl<'info, T: ProgramAccount + UnsizedType + ?Sized> PartialEq<DataAccount<'info, T>>
-    for KeyFor<T>
-{
-    fn eq(&self, other: &DataAccount<'info, T>) -> bool {
+impl<'info, T: HasProgramAccount<'info>> GetKeyFor<T::ProgramAccount> for T {
+    fn key_for(&self) -> KeyFor<T::ProgramAccount> {
+        (*self.key()).into()
+    }
+}
+
+impl<'info, T: HasProgramAccount<'info, ProgramAccount = T>> PartialEq<T> for KeyFor<T> {
+    fn eq(&self, other: &T) -> bool {
         self.pubkey == *(other.key())
     }
 }

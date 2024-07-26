@@ -21,68 +21,44 @@ pub struct FactionEnlistment;
 
 // use star_frame::idl::InstructionSetToIdl;
 
-// todo: better instruction set w/ anchor hash stuff
 #[star_frame_instruction_set]
 pub enum FactionEnlistmentInstructionSet {
     ProcessEnlistPlayer(ProcessEnlistPlayerIx),
 }
 
-pub trait InstructionDiscriminant {
-    type Program: StarFrameProgram;
-    // type Discriminant: Pod;
-    const DISCRIMINANT: <Self::Program as StarFrameProgram>::InstructionDiscriminant;
-}
-
-impl InstructionDiscriminant for ProcessEnlistPlayerIx {
-    type Program = FactionEnlistment;
-    const DISCRIMINANT:
-        <FactionEnlistment as star_frame::prelude::StarFrameProgram>::InstructionDiscriminant =
-        [0; 8];
-}
-
-#[derive(
-    Copy,
-    Clone,
-    Zeroable,
-    Align1,
-    CheckedBitPattern,
-    NoUninit,
-    BorshDeserialize,
-    BorshSerialize,
-    Default,
-)]
+#[derive(Clone, BorshDeserialize, BorshSerialize, Default)]
 #[borsh(crate = "borsh")]
-#[repr(C, packed)]
+#[repr(C)]
 pub struct ProcessEnlistPlayerIx {
     bump: u8,
     faction_id: FactionId,
+    // buncha_data: Vec<u8>,
 }
 
 impl StarFrameInstruction for ProcessEnlistPlayerIx {
-    type SelfData<'a> = Self;
-
     type DecodeArg<'a> = ();
     type ValidateArg<'a> = u8;
-    type RunArg<'a> = FactionId;
     type CleanupArg<'a> = ();
     type ReturnType = ();
+    // type RunArg<'a> = (FactionId, &'a Vec<u8>);
+    type RunArg<'a> = FactionId;
     type Accounts<'b, 'c, 'info> = ProcessEnlistPlayer<'info>
-    where 'info: 'b;
+        where 'info: 'b;
+    // type ReturnType = usize;
 
-    fn data_from_bytes<'a>(bytes: &mut &'a [u8]) -> Result<Self::SelfData<'a>> {
-        Self::deserialize(bytes).map_err(Into::into)
-    }
-
-    fn split_to_args<'a>(r: &'a Self::SelfData<'_>) -> SplitToArgsReturn<'a, Self> {
+    fn split_to_args<'a>(r: &Self) -> SplitToArgsReturn<Self> {
         SplitToArgsReturn {
             validate: r.bump,
             run: r.faction_id,
-            ..Default::default()
+            // run: (r.faction_id, &r.buncha_data),
+            cleanup: (),
+            decode: (),
         }
     }
 
     fn run_instruction<'b, 'info>(
         faction_id: Self::RunArg<'_>,
+        // (faction_id, buncha_data): Self::RunArg<'_>,
         _program_id: &Pubkey,
         account_set: &mut Self::Accounts<'b, '_, 'info>,
         sys_calls: &mut impl SysCallInvoke,
@@ -101,6 +77,7 @@ impl StarFrameInstruction for ProcessEnlistPlayerIx {
             _padding: [0; 5],
         };
         Ok(())
+        // Ok(buncha_data.len())
     }
 }
 
@@ -191,25 +168,24 @@ pub struct PlayerFactionAccountSeeds {
 mod tests {
     use super::*;
     use bytemuck::checked::try_from_bytes;
-    use solana_client::rpc_config::RpcTransactionConfig;
-    use solana_sdk::commitment_config::CommitmentConfig;
-    use solana_sdk::native_token::LAMPORTS_PER_SOL;
-    use solana_sdk::signature::{Keypair, Signer};
+    use solana_program_test::{processor, ProgramTest};
+    use solana_sdk::clock::Clock;
+    use solana_sdk::signature::Signer;
+    use star_frame::borsh::to_vec;
+    use star_frame::itertools::Itertools;
     use star_frame::solana_program::instruction::AccountMeta;
 
-    // #[tokio::test]
-    async fn _init_stuff() -> Result<()> {
-        let client = solana_client::nonblocking::rpc_client::RpcClient::new_with_commitment(
-            "http://localhost:8899".to_string(),
-            CommitmentConfig::confirmed(),
+    #[tokio::test]
+    async fn _banks_test() -> Result<()> {
+        let program_test = ProgramTest::new(
+            "faction_enlistment",
+            StarFrameDeclaredProgram::PROGRAM_ID,
+            processor!(FactionEnlistment::processor),
         );
+        let test_context = program_test.start_with_context().await;
+        let mut banks_client = test_context.banks_client;
 
-        let player_account = Keypair::new();
-        let res = client
-            .request_airdrop(&player_account.pubkey(), LAMPORTS_PER_SOL)
-            .await
-            .unwrap();
-        client.poll_for_signature(&res).await.unwrap();
+        let player_account = test_context.payer;
 
         let seeds = PlayerFactionAccountSeeds {
             player_account: player_account.pubkey(),
@@ -218,15 +194,30 @@ mod tests {
             Pubkey::find_program_address(&seeds.seeds(), &StarFrameDeclaredProgram::PROGRAM_ID);
         let faction_id = FactionId::MUD;
 
-        // 1 for ix disc, 1 for
-        let ix_data = [0, bump, faction_id as u8];
+        // let mut random_bytes = [0u8; 1];
+        // let mut rng = rand::thread_rng();
+        // rand::rngs::ThreadRng::try_fill(&mut rng, &mut random_bytes[..]).unwrap();
+        // let bunch_bytes = random_bytes.to_vec();
+
+        let enlist_ix = ProcessEnlistPlayerIx {
+            bump,
+            faction_id,
+            // buncha_data,
+        };
+        let ix_data = [
+            ProcessEnlistPlayerIx::DISCRIMINANT.to_vec(),
+            to_vec(&enlist_ix)?,
+        ]
+        .into_iter()
+        .flatten()
+        .collect_vec();
         let accounts = vec![
             AccountMeta::new(faction_account, false),
             AccountMeta::new(player_account.pubkey(), true),
             AccountMeta::new_readonly(solana_sdk::system_program::id(), false),
         ];
         let ix = solana_sdk::instruction::Instruction::new_with_bytes(
-            crate::StarFrameDeclaredProgram::PROGRAM_ID,
+            FactionEnlistment::PROGRAM_ID,
             &ix_data,
             accounts,
         );
@@ -234,34 +225,30 @@ mod tests {
             &[ix],
             Some(&player_account.pubkey()),
         );
-        let rbh = client.get_latest_blockhash().await.unwrap();
-        tx.sign(&[&player_account], rbh);
-        let res = client.send_and_confirm_transaction(&tx).await?;
-        let tx = client
-            .get_transaction_with_config(
-                &res,
-                RpcTransactionConfig {
-                    commitment: Some(CommitmentConfig::confirmed()),
-                    ..Default::default()
-                },
-            )
-            .await?;
-        println!("Enlist txn: {res:?}");
-        let clock = client.get_block_time(tx.slot).await?;
+        tx.sign(
+            &[&player_account],
+            banks_client.get_latest_blockhash().await?,
+        );
 
+        let txn = banks_client
+            .process_transaction_with_metadata(tx.clone())
+            .await?;
+
+        println!("{:?}", txn);
+
+        let clock = banks_client.get_sysvar::<Clock>().await?;
         let expected_faction_account = PlayerFactionData {
             owner: player_account.pubkey(),
-            enlisted_at_timestamp: clock,
+            enlisted_at_timestamp: clock.unix_timestamp,
             faction_id,
             bump,
             _padding: [0; 5],
         };
 
-        let faction_info = client.get_account(&faction_account).await?;
+        let faction_info = banks_client.get_account(faction_account).await?.unwrap();
         assert_eq!(faction_info.data[0..8], PlayerFactionData::DISCRIMINANT);
         let new_faction: &PlayerFactionData = try_from_bytes(&faction_info.data[8..])?;
         assert_eq!(expected_faction_account, *new_faction);
-
         Ok(())
     }
 }

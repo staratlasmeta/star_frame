@@ -1,5 +1,5 @@
 use crate::prelude::*;
-use crate::serialize::ref_wrapper::{AsMutBytes, RefWrapper};
+use crate::unsize::ref_wrapper::{AsMutBytes, RefWrapper};
 
 /// The return type of [`UnsizedInit::init`].
 /// Index `0` is the ref wrapper for the new type, index `1` is the meta.
