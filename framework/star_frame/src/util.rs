@@ -63,9 +63,9 @@ pub fn normalize_rent<'info, F: WritableAccount<'info> + SignedAccount<'info>>(
     info: &AccountInfo<'info>,
     funder: &F,
     system_program: &Program<'info, SystemProgram>,
-    sys_calls: &mut impl SysCallInvoke,
+    syscalls: &mut impl SyscallInvoke,
 ) -> Result<()> {
-    let rent = sys_calls.get_rent()?;
+    let rent = syscalls.get_rent()?;
     let lamports = info.account_info().lamports();
     let data_len = info.account_info().data_len();
     let rent_lamports = rent.minimum_balance(data_len);
@@ -77,10 +77,10 @@ pub fn normalize_rent<'info, F: WritableAccount<'info> + SignedAccount<'info>>(
                 let transfer_ix = transfer(funder.key(), info.key(), transfer_amount);
                 let transfer_accounts = &[info.account_info_cloned(), funder.account_info_cloned()];
                 match funder.signer_seeds() {
-                    None => sys_calls
+                    None => syscalls
                         .invoke(&transfer_ix, transfer_accounts)
                         .map_err(Into::into),
-                    Some(seeds) => sys_calls
+                    Some(seeds) => syscalls
                         .invoke_signed(&transfer_ix, transfer_accounts, &[&seeds])
                         .map_err(Into::into),
                 }
@@ -106,9 +106,9 @@ pub fn normalize_rent<'info, F: WritableAccount<'info> + SignedAccount<'info>>(
 pub fn refund_rent<'info, F: WritableAccount<'info>>(
     info: &AccountInfo<'info>,
     funder: &F,
-    sys_calls: &mut impl SysCallInvoke,
+    syscalls: &mut impl SyscallInvoke,
 ) -> Result<()> {
-    let rent = sys_calls.get_rent()?;
+    let rent = syscalls.get_rent()?;
     let lamports = info.account_info().lamports();
     let data_len = info.account_info().data_len();
     let rent_lamports = rent.minimum_balance(data_len);
