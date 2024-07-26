@@ -9,7 +9,7 @@ use star_frame::instruction::FrameworkInstruction;
 use star_frame::instruction::InstructionToIdl;
 use star_frame::prelude::SystemAccount;
 use star_frame::serialize::FrameworkFromBytes;
-use star_frame::sys_calls::SysCallInvoke;
+use star_frame::syscalls::SysCallInvoke;
 use star_frame::Result;
 
 #[derive(Copy, Clone, Zeroable, Align1, Pod, InstructionToIdl)]
@@ -44,7 +44,7 @@ impl FrameworkInstruction for TestInstruction1 {
         _run_arg: Self::RunArg<'_>,
         _program_id: &Pubkey,
         _account_set: &mut Self::Accounts<'b, '_, 'info>,
-        _sys_calls: &mut impl SysCallInvoke,
+        _syscalls: &mut impl SysCallInvoke,
     ) -> Result<Self::ReturnType>
     where
         'info: 'b,

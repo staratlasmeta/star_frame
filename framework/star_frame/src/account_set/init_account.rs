@@ -16,13 +16,13 @@ use std::mem::size_of;
     id = "create",
     generics = [<A> where A: InitCreateArg<'info>, T: UnsizedInit<A::StarFrameInitArg>],
     arg = Create<A>,
-    extra_validation = self.init_validate_create(arg.0, sys_calls),
+    extra_validation = self.init_validate_create(arg.0, syscalls),
 )]
 #[validate(
     id = "create_if_needed",
     generics = [<A> where A: InitCreateArg<'info>, T: UnsizedInit<A::StarFrameInitArg>],
     arg = CreateIfNeeded<A>,
-    extra_validation = self.init_if_needed(arg.0, sys_calls),
+    extra_validation = self.init_if_needed(arg.0, syscalls),
 )]
 #[cleanup(
     generics = [<A> where DataAccount<'info, T>: AccountSetCleanup<'info, A>],
@@ -146,7 +146,7 @@ impl<'info, T> InitAccount<'info, T>
 where
     T: ProgramAccount + UnsizedType + ?Sized,
 {
-    fn init_if_needed<A>(&mut self, arg: A, sys_calls: &mut impl SysCallInvoke) -> Result<()>
+    fn init_if_needed<A>(&mut self, arg: A, syscalls: &mut impl SyscallInvoke) -> Result<()>
     where
         A: InitCreateArg<'info>,
         T: UnsizedInit<A::StarFrameInitArg>,
@@ -157,17 +157,17 @@ where
                 .iter()
                 .all(|x| *x == 0)
         {
-            self.init_validate_create(arg, sys_calls)
+            self.init_validate_create(arg, syscalls)
         } else {
             // skip writable check on init_if_needed when not needed
-            self.inner.0.validate_accounts((), sys_calls)
+            self.inner.0.validate_accounts((), syscalls)
         }
     }
 
     fn init_validate_create<A>(
         &mut self,
         mut arg: A,
-        sys_calls: &mut impl SysCallInvoke,
+        syscalls: &mut impl SyscallInvoke,
     ) -> Result<()>
     where
         A: InitCreateArg<'info>,
@@ -185,7 +185,7 @@ where
         if self.owner() != system_program.key() || funder.owner() != system_program.key() {
             bail!(ProgramError::IllegalOwner);
         }
-        let rent = sys_calls.get_rent()?;
+        let rent = syscalls.get_rent()?;
         let size =
             T::INIT_BYTES + size_of::<<T::OwnerProgram as StarFrameProgram>::AccountDiscriminant>();
         let ix = system_instruction::create_account(
@@ -202,16 +202,16 @@ where
         ];
         match (funder.signer_seeds(), account_seeds) {
             (None, None) => {
-                sys_calls.invoke(&ix, accounts)?;
+                syscalls.invoke(&ix, accounts)?;
             }
             (Some(funder), None) => {
-                sys_calls.invoke_signed(&ix, accounts, &[&funder])?;
+                syscalls.invoke_signed(&ix, accounts, &[&funder])?;
             }
             (None, Some(account_seeds)) => {
-                sys_calls.invoke_signed(&ix, accounts, &[&account_seeds.seeds_with_bump()])?;
+                syscalls.invoke_signed(&ix, accounts, &[&account_seeds.seeds_with_bump()])?;
             }
             (Some(funder), Some(account_seeds)) => {
-                sys_calls.invoke_signed(
+                syscalls.invoke_signed(
                     &ix,
                     accounts,
                     &[&account_seeds.seeds_with_bump(), &funder],

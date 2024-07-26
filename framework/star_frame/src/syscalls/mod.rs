@@ -7,19 +7,19 @@ use solana_program::program_error::ProgramError;
 use solana_program::pubkey::Pubkey;
 use solana_program::rent::Rent;
 
-/// Trait for sys-calls provided by the solana runtime.
-pub trait SysCalls: SysCallReturn + SysCallInvoke {}
-impl<T> SysCalls for T where T: SysCallReturn + SysCallInvoke {}
+/// Trait for syscalls provided by the solana runtime.
+pub trait Syscalls: SyscallReturn + SyscallInvoke {}
+impl<T> Syscalls for T where T: SyscallReturn + SyscallInvoke {}
 
-/// Return sys-calls for a solana program. Allows for simulation.
-pub trait SysCallReturn {
+/// Return syscalls for a solana program. Allows for simulation.
+pub trait SyscallReturn {
     /// Synonym for [`solana_program::program::set_return_data`].
     fn set_return_data(&mut self, data: &[u8]);
     /// Synonym for [`solana_program::program::get_return_data`].
     fn get_return_data(&self) -> Option<(Pubkey, Vec<u8>)>;
 }
-/// Invoke sys-calls for a solana program. Allows for simulation.
-pub trait SysCallInvoke: SysCallCore {
+/// Invoke syscalls for a solana program. Allows for simulation.
+pub trait SyscallInvoke: SyscallCore {
     /// Synonym for [`solana_program::program::invoke`].
     fn invoke(
         &mut self,
@@ -53,8 +53,8 @@ pub trait SysCallInvoke: SysCallCore {
         signers_seeds: &[&[&[u8]]],
     ) -> ProgramResult;
 }
-/// System calls that all sys-call implementations must provide.
-pub trait SysCallCore {
+/// System calls that all syscall implementations must provide.
+pub trait SyscallCore {
     /// Get the current program id.
     fn current_program_id(&self) -> &Pubkey;
     /// Get the rent sysvar.

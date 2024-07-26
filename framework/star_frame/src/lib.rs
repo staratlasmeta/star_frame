@@ -53,7 +53,7 @@ pub mod idl;
 pub mod instruction;
 pub mod prelude;
 pub mod program;
-pub mod sys_calls;
+pub mod syscalls;
 pub mod unit_enum_from_repr;
 pub mod unsize;
 pub mod util;

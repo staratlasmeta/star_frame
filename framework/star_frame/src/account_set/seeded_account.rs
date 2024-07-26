@@ -88,43 +88,43 @@ pub struct Seeds<T>(pub T);
 #[validate(
     generics = [<A> where T: AccountSetValidate<'info, A> + SingleAccountSet<'info>],
     arg = (S, A),
-    before_validation = Self::validate_seeds(self, arg.0, sys_calls)
+    before_validation = Self::validate_seeds(self, arg.0, syscalls)
 )]
 #[validate(
     id = "seeds",
     generics = [where T: AccountSetValidate<'info, ()> + SingleAccountSet<'info>],
     arg = Seeds<S>,
-    before_validation = Self::validate_seeds(self, arg.0, sys_calls)
+    before_validation = Self::validate_seeds(self, arg.0, syscalls)
 )]
 #[validate(
     id = "seeds_generic",
     generics = [<A> where T: AccountSetValidate<'info, A> + SingleAccountSet<'info>],
     arg = (Seeds<S>, A),
-    before_validation = Self::validate_seeds(self, arg.0.0, sys_calls)
+    before_validation = Self::validate_seeds(self, arg.0.0, syscalls)
 )]
 #[validate(
     id = "seeds_skip",
     generics = [<> where T: SingleAccountSet<'info>],
     arg = (Skip, Seeds<S>),
-    before_validation = Self::validate_seeds(self, arg.1.0, sys_calls)
+    before_validation = Self::validate_seeds(self, arg.1.0, syscalls)
 )]
 #[validate(
     id = "seeds_with_bump",
     generics = [where T: AccountSetValidate<'info, ()> + SingleAccountSet<'info>],
     arg = SeedsWithBump<S>,
-    before_validation = Self::validate_seeds_with_bump(self, arg, sys_calls)
+    before_validation = Self::validate_seeds_with_bump(self, arg, syscalls)
 )]
 #[validate(
     id = "seeds_with_bump_generic",
     generics = [<A> where T: AccountSetValidate<'info, A> + SingleAccountSet<'info>],
     arg = (SeedsWithBump<S>, A),
-    before_validation = Self::validate_seeds_with_bump(self, arg.0, sys_calls)
+    before_validation = Self::validate_seeds_with_bump(self, arg.0, syscalls)
 )]
 #[validate(
     id = "seeds_with_bump_skip",
     generics = [<> where T: SingleAccountSet<'info>],
     arg = (Skip, SeedsWithBump<S>),
-    before_validation = Self::validate_seeds_with_bump(self, arg.1, sys_calls)
+    before_validation = Self::validate_seeds_with_bump(self, arg.1, syscalls)
 )]
 #[cleanup(generics = [<A> where T: AccountSetCleanup <'info, A>], arg = A)]
 pub struct SeededAccount<T, S: GetSeeds, P: SeedProgram = CurrentProgram> {
@@ -153,10 +153,10 @@ where
 #[derive(Debug, Clone, Copy)]
 pub struct CurrentProgram;
 pub trait SeedProgram {
-    fn id(sys_calls: &mut impl SysCallInvoke) -> Result<Pubkey>;
+    fn id(sys_calls: &mut impl SyscallInvoke) -> Result<Pubkey>;
 }
 impl SeedProgram for CurrentProgram {
-    fn id(sys_calls: &mut impl SysCallInvoke) -> Result<Pubkey> {
+    fn id(sys_calls: &mut impl SyscallInvoke) -> Result<Pubkey> {
         Ok(*sys_calls.current_program_id())
     }
 }
@@ -164,7 +164,7 @@ impl<P> SeedProgram for P
 where
     P: StarFrameProgram,
 {
-    fn id(_sys_calls: &mut impl SysCallInvoke) -> Result<Pubkey> {
+    fn id(_syscalls: &mut impl SyscallInvoke) -> Result<Pubkey> {
         Ok(P::PROGRAM_ID)
     }
 }
@@ -173,7 +173,7 @@ where
 pub struct Skip;
 
 impl<'info, T: SingleAccountSet<'info>, S: GetSeeds, P: SeedProgram> SeededAccount<T, S, P> {
-    fn validate_seeds(&mut self, seeds: S, sys_calls: &mut impl SysCallInvoke) -> Result<()> {
+    fn validate_seeds(&mut self, seeds: S, sys_calls: &mut impl SyscallInvoke) -> Result<()> {
         let (address, bump) = Pubkey::find_program_address(&seeds.seeds(), &P::id(sys_calls)?);
         if self.account.account_info().key != &address {
             bail!(
@@ -191,7 +191,7 @@ impl<'info, T: SingleAccountSet<'info>, S: GetSeeds, P: SeedProgram> SeededAccou
     fn validate_seeds_with_bump(
         &mut self,
         seeds: SeedsWithBump<S>,
-        sys_calls: &mut impl SysCallInvoke,
+        sys_calls: &mut impl SyscallInvoke,
     ) -> Result<()> {
         let arg_seeds = seeds.seeds_with_bump();
         let address = Pubkey::create_program_address(&arg_seeds, &P::id(sys_calls)?)?;

@@ -3,7 +3,7 @@ use crate::account_set::impls::vec::idl_impl::VecSize;
 use crate::account_set::{AccountSet, AccountSetCleanup, AccountSetDecode, AccountSetValidate};
 #[cfg(feature = "idl")]
 use crate::idl::AccountSetToIdl;
-use crate::sys_calls::SysCallInvoke;
+use crate::syscalls::SyscallInvoke;
 use solana_program::account_info::AccountInfo;
 use std::marker::PhantomData;
 
@@ -29,14 +29,14 @@ where
     fn decode_accounts(
         accounts: &mut &'a [AccountInfo<'info>],
         decode_input: A,
-        sys_calls: &mut impl SysCallInvoke,
+        syscalls: &mut impl SyscallInvoke,
     ) -> crate::Result<Self> {
         let mut out = vec![];
         while !accounts.is_empty() {
             out.push(T::decode_accounts(
                 accounts,
                 decode_input.clone(),
-                sys_calls,
+                syscalls,
             )?);
         }
         Ok(Self(out, PhantomData))
