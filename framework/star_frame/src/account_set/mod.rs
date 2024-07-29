@@ -72,6 +72,10 @@ pub trait AccountSet<'info> {
     }
 }
 
+/// Convenience methods for decoding and validating a list of [`AccountInfo`]s to an [`AccountSet`]. Performs
+/// [`AccountSetDecode::decode_accounts`] and [`AccountSetValidate::validate_accounts`] on the accounts.
+///
+/// See [`TryFromAccounts`] for a version of this trait that uses `()` for the decode and validate args.
 pub trait TryFromAccountsWithArgs<'a, 'info, D, V>:
     AccountSetDecode<'a, 'info, D> + AccountSetValidate<'info, V>
 {
@@ -102,6 +106,7 @@ pub trait TryFromAccountsWithArgs<'a, 'info, D, V>:
     }
 }
 
+/// Additional convenience methods around [`TryFromAccountsWithArgs`] for when the [`AccountSetDecode`] and [`AccountSetValidate`] args are `()`.
 pub trait TryFromAccounts<'a, 'info>: TryFromAccountsWithArgs<'a, 'info, (), ()> {
     fn try_from_accounts(
         accounts: &mut &'a [AccountInfo<'info>],
