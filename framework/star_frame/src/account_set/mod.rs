@@ -31,6 +31,7 @@ use solana_program::instruction::AccountMeta;
 use solana_program::pubkey::Pubkey;
 use std::cell::{Ref, RefMut};
 use std::convert::Infallible;
+use std::slice;
 
 /// A set of accounts that can be used as input to an instruction.
 pub trait AccountSet<'info> {
@@ -71,10 +72,10 @@ pub trait AccountSet<'info> {
     }
 }
 
-pub trait TryFromAccounts<'a, 'info, D, V>:
+pub trait TryFromAccountsWithArgs<'a, 'info, D, V>:
     AccountSetDecode<'a, 'info, D> + AccountSetValidate<'info, V>
 {
-    fn try_from_accounts(
+    fn try_from_accounts_with_args(
         accounts: &mut &'a [AccountInfo<'info>],
         syscalls: &mut impl SyscallInvoke,
         decode: D,
@@ -84,10 +85,49 @@ pub trait TryFromAccounts<'a, 'info, D, V>:
         set.validate_accounts(validate, syscalls)?;
         Ok(set)
     }
+
+    fn try_from_account_with_args(
+        account: &'a AccountInfo<'info>,
+        syscalls: &mut impl SyscallInvoke,
+        decode: D,
+        validate: V,
+    ) -> Result<Self>
+    where
+        Self: SingleAccountSet<'info>,
+    {
+        let accounts = &mut slice::from_ref(account);
+        let mut set = Self::decode_accounts(accounts, decode, syscalls)?;
+        set.validate_accounts(validate, syscalls)?;
+        Ok(set)
+    }
 }
 
-impl<'a, 'info, T, D, V> TryFromAccounts<'a, 'info, D, V> for T where
-    T: AccountSet<'info> + AccountSetDecode<'a, 'info, D> + AccountSetValidate<'info, V>
+pub trait TryFromAccounts<'a, 'info>: TryFromAccountsWithArgs<'a, 'info, (), ()> {
+    fn try_from_accounts(
+        accounts: &mut &'a [AccountInfo<'info>],
+        syscalls: &mut impl SyscallInvoke,
+    ) -> Result<Self> {
+        Self::try_from_accounts_with_args(accounts, syscalls, (), ())
+    }
+
+    fn try_from_account(
+        account: &'a AccountInfo<'info>,
+        syscalls: &mut impl SyscallInvoke,
+    ) -> Result<Self>
+    where
+        Self: SingleAccountSet<'info>,
+    {
+        Self::try_from_account_with_args(account, syscalls, (), ())
+    }
+}
+
+impl<'a, 'info, T, D, V> TryFromAccountsWithArgs<'a, 'info, D, V> for T where
+    T: AccountSetDecode<'a, 'info, D> + AccountSetValidate<'info, V>
+{
+}
+
+impl<'a, 'info, T> TryFromAccounts<'a, 'info> for T where
+    T: TryFromAccountsWithArgs<'a, 'info, (), ()>
 {
 }
 
