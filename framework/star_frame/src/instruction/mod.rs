@@ -48,7 +48,6 @@ pub trait Instruction {
     fn data_from_bytes<'a>(bytes: &mut &'a [u8]) -> Result<Self::SelfData<'a>>;
     /// Runs the instruction from a raw solana input.
     fn run_ix_from_raw(
-        program_id: &Pubkey,
         accounts: &[AccountInfo],
         data: &Self::SelfData<'_>,
         syscalls: &mut impl Syscalls,
@@ -129,16 +128,15 @@ pub trait StarFrameInstruction: BorshDeserialize {
     #[allow(unused_variables)]
     fn extra_validations(
         account_set: &mut Self::Accounts<'_, '_, '_>,
-        validate: &mut Self::RunArg<'_>,
+        run_arg: &mut Self::RunArg<'_>,
         syscalls: &mut impl SyscallInvoke,
     ) -> Result<()> {
         Ok(())
     }
     /// Runs the instruction.
     fn run_instruction<'b, 'info>(
-        run_arg: Self::RunArg<'_>,
-        program_id: &Pubkey,
         account_set: &mut Self::Accounts<'b, '_, 'info>,
+        run_arg: Self::RunArg<'_>,
         syscalls: &mut impl SyscallInvoke,
     ) -> Result<Self::ReturnType>
     where
@@ -156,7 +154,6 @@ where
     }
 
     fn run_ix_from_raw(
-        program_id: &Pubkey,
         mut accounts: &[AccountInfo],
         data: &Self::SelfData<'_>,
         syscalls: &mut impl Syscalls,
@@ -174,7 +171,7 @@ where
         )?;
         account_set.validate_accounts(validate, syscalls)?;
         Self::extra_validations(&mut account_set, &mut run, syscalls)?;
-        let ret = Self::run_instruction(run, program_id, &mut account_set, syscalls)?;
+        let ret = Self::run_instruction(&mut account_set, run, syscalls)?;
         account_set.cleanup_accounts(cleanup, syscalls)?;
         // todo: handle return data better
         let return_data = to_vec(&ret)?;
