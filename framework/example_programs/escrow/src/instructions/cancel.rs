@@ -1,4 +1,6 @@
 use crate::state::EscrowAccount;
+use crate::utils::validate_token_account;
+use star_frame::anyhow::bail;
 use star_frame::borsh::{BorshDeserialize, BorshSerialize};
 use star_frame::prelude::*;
 use star_frame::solana_program::program_pack::Pack;
@@ -9,6 +11,7 @@ use star_frame::solana_program::pubkey::Pubkey;
 pub struct CancelIx {}
 
 #[derive(AccountSet)]
+#[validate(extra_validation = self.validate())]
 pub struct CancelAccounts<'info> {
     pub maker: Signer<Writable<AccountInfo<'info>>>,
     pub maker_deposit_token_account: Writable<AccountInfo<'info>>,
@@ -17,8 +20,28 @@ pub struct CancelAccounts<'info> {
     })]
     pub escrow: Writable<DataAccount<'info, EscrowAccount>>,
     pub escrow_token_account: Writable<AccountInfo<'info>>,
-    pub token_mint: AccountInfo<'info>,
     pub token_program: AccountInfo<'info>,
+}
+
+impl<'info> CancelAccounts<'info> {
+    fn validate(&self) -> Result<()> {
+        let escrow_data = self.escrow.data()?;
+        let token_program_id = spl_token::ID;
+        if self.maker.key() != &escrow_data.maker {
+            bail!("Incorrect maker");
+        }
+        if self.token_program.key() != &token_program_id {
+            bail!("Incorrect token program");
+        }
+        validate_token_account(
+            &self.maker_deposit_token_account,
+            &token_program_id,
+            Some(self.maker.key()),
+            None,
+            None,
+        )?;
+        Ok(())
+    }
 }
 
 impl StarFrameInstruction for CancelIx {

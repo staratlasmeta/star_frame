@@ -17,6 +17,7 @@ use star_frame::prelude::*;
 
 mod instructions;
 mod state;
+mod utils;
 
 #[derive(StarFrameProgram)]
 #[program(
@@ -303,7 +304,6 @@ mod tests {
                 AccountMeta::new(taker_token1, false),
                 AccountMeta::new(escrow_key, false),
                 AccountMeta::new(escrow_token1, false),
-                AccountMeta::new_readonly(mint_result2.0.pubkey(), false),
                 AccountMeta::new_readonly(spl_token::ID, false),
             ],
         );
@@ -368,7 +368,6 @@ mod tests {
                 AccountMeta::new(maker_token1, false),
                 AccountMeta::new(escrow_key, false),
                 AccountMeta::new(escrow_token1, false),
-                AccountMeta::new_readonly(mint_result2.0.pubkey(), false),
                 AccountMeta::new_readonly(spl_token::ID, false),
             ],
         );
