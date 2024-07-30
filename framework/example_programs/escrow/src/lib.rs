@@ -31,7 +31,7 @@ mod tests {
     use crate::state::EscrowAccount;
     use borsh::to_vec;
     use bytemuck::checked::try_from_bytes;
-    use instructions::{ExchangeIx, InitEscrowIx};
+    use instructions::{CancelIx, ExchangeIx, InitEscrowIx};
     use solana_program_test::*;
     use solana_sdk::{
         instruction::{AccountMeta, Instruction as SolanaInstruction},
@@ -335,5 +335,64 @@ mod tests {
             taker_token2_data1.amount - taker_token2_data2.amount,
             taker_amount
         );
+
+        // init escrow then cancel
+        let maker_token1_data3 = _load_token(&maker_token1, &mut banks_client).await.unwrap();
+        let instruction0 = SolanaInstruction::new_with_bytes(
+            EscrowProgram::PROGRAM_ID,
+            &ix_data,
+            vec![
+                AccountMeta::new(payer.pubkey(), true),
+                AccountMeta::new_readonly(maker.pubkey(), true),
+                AccountMeta::new(maker_token1, false),
+                AccountMeta::new_readonly(maker_token2, false),
+                AccountMeta::new(escrow_token1, false),
+                AccountMeta::new_readonly(mint_result2.0.pubkey(), false),
+                AccountMeta::new(escrow_key, false),
+                AccountMeta::new_readonly(spl_token::ID, false),
+                AccountMeta::new_readonly(system_program::ID, false),
+            ],
+        );
+        let ix_data3 = [
+            CancelIx::DISCRIMINANT.to_vec(),
+            to_vec(&CancelIx {}).unwrap(),
+        ]
+        .into_iter()
+        .flatten()
+        .collect_vec();
+        let instruction3 = SolanaInstruction::new_with_bytes(
+            EscrowProgram::PROGRAM_ID,
+            &ix_data3,
+            vec![
+                AccountMeta::new(maker.pubkey(), true),
+                AccountMeta::new(maker_token1, false),
+                AccountMeta::new(escrow_key, false),
+                AccountMeta::new(escrow_token1, false),
+                AccountMeta::new_readonly(mint_result2.0.pubkey(), false),
+                AccountMeta::new_readonly(spl_token::ID, false),
+            ],
+        );
+        let transaction = Transaction::new_signed_with_payer(
+            &[
+                create_associated_token_account_idempotent(
+                    &payer.pubkey(), // funder
+                    &escrow_key,     // owner
+                    &mint_result1.0.pubkey(),
+                    &spl_token::ID,
+                ),
+                instruction0,
+                instruction3,
+            ],
+            Some(&payer.pubkey()),
+            &[&payer, &maker],
+            recent_blockhash,
+        );
+        banks_client.process_transaction(transaction).await.unwrap();
+        let maker_token1_data4 = _load_token(&maker_token1, &mut banks_client).await.unwrap();
+        assert_eq!(maker_token1_data4.amount, maker_token1_data3.amount);
+        let escrow_info2 = banks_client.get_account(escrow_key).await.unwrap();
+        assert!(escrow_info2.is_none());
+        let escrow_token_info = banks_client.get_account(escrow_token1).await.unwrap();
+        assert!(escrow_token_info.is_none());
     }
 }

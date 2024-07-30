@@ -1,22 +1,116 @@
-use ::solana_program::pubkey::Pubkey;
-use star_frame::anyhow::bail;
+use crate::state::EscrowAccount;
 use star_frame::borsh::{BorshDeserialize, BorshSerialize};
 use star_frame::prelude::*;
+use star_frame::solana_program::program_pack::Pack;
+use star_frame::solana_program::pubkey::Pubkey;
 
-// #[derive(Accounts)]
-// pub struct CancelEscrow<'info> {
-//     /// CHECK:
-//     pub initializer: AccountInfo<'info>,
-//     #[account(mut)]
-//     pub pda_deposit_token_account: InterfaceAccount<'info, TokenAccount>,
-//     /// CHECK:
-//     pub pda_account: AccountInfo<'info>,
-//     #[account(
-//         mut,
-//         constraint = escrow_account.initializer_key == *initializer.key,
-//         constraint = escrow_account.initializer_deposit_token_account == *pda_deposit_token_account.to_account_info().key,
-//         close = initializer
-//     )]
-//     pub escrow_account: Account<'info, EscrowAccount>,
-//     pub token_program: Interface<'info, TokenInterface>,
-// }
+#[derive(BorshSerialize, BorshDeserialize, Debug)]
+#[borsh(crate = "borsh")]
+pub struct CancelIx {}
+
+#[derive(AccountSet)]
+pub struct CancelAccounts<'info> {
+    pub maker: Signer<Writable<AccountInfo<'info>>>,
+    pub maker_deposit_token_account: Writable<AccountInfo<'info>>,
+    #[cleanup( arg = CloseAccount {
+        recipient: &self.maker,
+    })]
+    pub escrow: Writable<DataAccount<'info, EscrowAccount>>,
+    pub escrow_token_account: Writable<AccountInfo<'info>>,
+    pub token_mint: AccountInfo<'info>,
+    pub token_program: AccountInfo<'info>,
+}
+
+impl StarFrameInstruction for CancelIx {
+    type DecodeArg<'a> = ();
+    type ValidateArg<'a> = ();
+    type RunArg<'a> = ();
+    type CleanupArg<'a> = ();
+    type ReturnType = ();
+    type Accounts<'b, 'c, 'info> = CancelAccounts<'info>
+    where
+        'info: 'b;
+
+    fn split_to_args<'a>(_r: &Self) -> SplitToArgsReturn<Self> {
+        SplitToArgsReturn {
+            decode: (),
+            cleanup: (),
+            run: (),
+            validate: (),
+        }
+    }
+
+    fn run_instruction<'b, 'info>(
+        _run_args: Self::RunArg<'_>,
+        _program_id: &Pubkey,
+        account_set: &mut Self::Accounts<'b, '_, 'info>,
+        sys_calls: &mut impl SysCallInvoke,
+    ) -> Result<Self::ReturnType>
+    where
+        'info: 'b,
+    {
+        let escrow_data = account_set.escrow.data()?;
+
+        // let account_seeds = EscrowAccountSeeds {
+        //     maker: escrow_data.maker,
+        //     maker_deposit_token_account: escrow_data.maker_deposit_token_account,
+        //     exchange_mint: escrow_data.exchange_mint,
+        // }; ?????
+
+        let signer_seeds = [
+            b"ESCROW",
+            escrow_data.maker.as_ref(),
+            escrow_data.maker_deposit_token_account.as_ref(),
+            escrow_data.exchange_mint.as_ref(),
+            &[escrow_data.bump],
+        ];
+
+        // transfer to taker
+        let token_data = spl_token::state::Account::unpack(
+            &account_set.escrow_token_account.try_borrow_data()?,
+        )?;
+        assert!(
+            token_data.amount >= escrow_data.maker_amount,
+            "Insufficient maker amount"
+        );
+        sys_calls.invoke_signed(
+            &spl_token::instruction::transfer(
+                &spl_token::ID,
+                account_set.escrow_token_account.key(),
+                account_set.maker_deposit_token_account.key(),
+                account_set.escrow.key(),
+                &[],
+                token_data.amount,
+            )?,
+            &[
+                account_set.escrow_token_account.account_info_cloned(),
+                account_set
+                    .maker_deposit_token_account
+                    .account_info_cloned(),
+                account_set.escrow.account_info_cloned(),
+                account_set.token_program.account_info_cloned(),
+            ],
+            &[&signer_seeds],
+        )?;
+
+        // close escrow token
+        sys_calls.invoke_signed(
+            &spl_token::instruction::close_account(
+                &spl_token::ID,
+                account_set.escrow_token_account.key(),
+                account_set.maker.key(),
+                account_set.escrow.key(),
+                &[],
+            )?,
+            &[
+                account_set.escrow_token_account.account_info_cloned(),
+                account_set.maker.account_info_cloned(),
+                account_set.escrow.account_info_cloned(),
+                account_set.token_program.account_info_cloned(),
+            ],
+            &[&signer_seeds],
+        )?;
+
+        Ok(())
+    }
+}
