@@ -3,6 +3,7 @@ use crate::utils::validate_token_account;
 use star_frame::anyhow::bail;
 use star_frame::borsh::{BorshDeserialize, BorshSerialize};
 use star_frame::prelude::*;
+use star_frame::solana_program::program::invoke_signed;
 use star_frame::solana_program::program_pack::Pack;
 use star_frame::solana_program::pubkey::Pubkey;
 
@@ -67,7 +68,7 @@ impl StarFrameInstruction for CancelIx {
         _run_args: Self::RunArg<'_>,
         _program_id: &Pubkey,
         account_set: &mut Self::Accounts<'b, '_, 'info>,
-        sys_calls: &mut impl SysCallInvoke,
+        _sys_calls: &mut impl SysCallInvoke,
     ) -> Result<Self::ReturnType>
     where
         'info: 'b,
@@ -96,7 +97,7 @@ impl StarFrameInstruction for CancelIx {
             token_data.amount >= escrow_data.maker_amount,
             "Insufficient maker amount"
         );
-        sys_calls.invoke_signed(
+        invoke_signed(
             &spl_token::instruction::transfer(
                 &spl_token::ID,
                 account_set.escrow_token_account.key(),
@@ -117,7 +118,7 @@ impl StarFrameInstruction for CancelIx {
         )?;
 
         // close escrow token
-        sys_calls.invoke_signed(
+        invoke_signed(
             &spl_token::instruction::close_account(
                 &spl_token::ID,
                 account_set.escrow_token_account.key(),

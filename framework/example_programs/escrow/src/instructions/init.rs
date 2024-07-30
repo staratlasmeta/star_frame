@@ -3,6 +3,7 @@ use crate::utils::{validate_token_account, validate_token_mint};
 use star_frame::anyhow::bail;
 use star_frame::borsh::{BorshDeserialize, BorshSerialize};
 use star_frame::prelude::*;
+use star_frame::solana_program::program::invoke;
 use star_frame::solana_program::pubkey::Pubkey;
 
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
@@ -92,7 +93,7 @@ impl StarFrameInstruction for InitEscrowIx {
         (maker_amount, taker_amount): Self::RunArg<'_>,
         _program_id: &Pubkey,
         account_set: &mut Self::Accounts<'b, '_, 'info>,
-        sys_calls: &mut impl SysCallInvoke,
+        _sys_calls: &mut impl SysCallInvoke,
     ) -> Result<Self::ReturnType>
     where
         'info: 'b,
@@ -109,7 +110,7 @@ impl StarFrameInstruction for InitEscrowIx {
             bump: account_set.escrow.access_seeds().bump,
         };
 
-        sys_calls.invoke(
+        invoke(
             &spl_token::instruction::transfer(
                 &spl_token::ID,
                 account_set.maker_deposit_token_account.key(),
