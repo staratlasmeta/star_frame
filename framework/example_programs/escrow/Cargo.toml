@@ -1,0 +1,30 @@
+[package]
+name = "escrow"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "escrow"
+
+[dependencies]
+advance = { workspace = true }
+borsh = { workspace = true }
+bytemuck = { workspace = true }
+star_frame = { workspace = true }
+solana-program = { workspace = true }
+spl-token = { version = "4", features = ["no-entrypoint"] }
+spl-associated-token-account = { version = "3", features = ["no-entrypoint"] }
+
+#[patch.crates-io]
+#subtle = "~2.4"
+##spl-token-group-interface = "~0.2"
+
+[dev-dependencies]
+#solana-client = "~2"
+solana-program-test = { workspace = true }
+solana-sdk = { workspace = true }
+#solana-transaction-status = "~2"
+tokio = "1.39.1"
+

@@ -1,0 +1,175 @@
+use crate::state::{EscrowAccount, EscrowAccountSeeds};
+use star_frame::anyhow::bail;
+use star_frame::borsh::{BorshDeserialize, BorshSerialize};
+use star_frame::prelude::*;
+use star_frame::solana_program::program_pack::Pack;
+use star_frame::solana_program::pubkey::Pubkey;
+
+#[derive(BorshSerialize, BorshDeserialize, Debug)]
+#[borsh(crate = "borsh")]
+pub struct InitEscrowIx {
+    pub maker_amount: u64,
+    pub taker_amount: u64,
+}
+
+#[derive(AccountSet)]
+#[validate(arg = u64, extra_validation = self.validate(arg))]
+pub struct InitEscrowAccounts<'info> {
+    pub funder: Signer<Writable<AccountInfo<'info>>>,
+    pub maker: Signer<AccountInfo<'info>>,
+    pub maker_deposit_token_account: Writable<AccountInfo<'info>>,
+    pub maker_receive_token_account: AccountInfo<'info>,
+    pub escrow_deposit_token_account: Writable<AccountInfo<'info>>,
+    pub exchange_token_mint: AccountInfo<'info>,
+    #[validate(
+        arg = Create(
+            SeededInit {
+                seeds: EscrowAccountSeeds {
+                    maker: *self.maker.key(),
+                    maker_deposit_token_account: *self.maker_deposit_token_account.key(),
+                    exchange_mint: *self.exchange_token_mint.key(),
+                },
+            init_create: CreateAccount::new(&self.system_program, &self.funder),
+        })
+    )]
+    pub escrow: SeededInitAccount<'info, EscrowAccount>,
+    pub token_program: AccountInfo<'info>,
+    pub system_program: Program<'info, SystemProgram>,
+}
+
+fn validate_token_mint(account_info: &AccountInfo, token_program_id: &Pubkey) -> Result<()> {
+    if account_info.owner != token_program_id {
+        bail!("Account not owned by token program");
+    }
+    spl_token::state::Mint::unpack(&account_info.try_borrow_data()?)?;
+    Ok(())
+}
+
+fn validate_token_account(
+    account_info: &AccountInfo,
+    token_program_id: &Pubkey,
+    expected_owner: Option<&Pubkey>,
+    minimum_balance: Option<u64>,
+    expected_mint: Option<&Pubkey>,
+) -> Result<()> {
+    if account_info.owner != token_program_id {
+        bail!("Account not owned by token program");
+    }
+    let account = spl_token::state::Account::unpack(&account_info.try_borrow_data()?)?;
+    if let Some(token_account_owner) = expected_owner {
+        if token_account_owner != &account.owner {
+            bail!("Unexpected token account owner");
+        }
+    }
+    if let Some(token_account_mint) = expected_mint {
+        if token_account_mint != &account.mint {
+            bail!("Unexpected token account mint");
+        }
+    }
+    if let Some(min_balance) = minimum_balance {
+        if min_balance > account.amount {
+            bail!("Insufficient token balance");
+        }
+    }
+    if account.delegate.is_some() {
+        bail!("Token delegate not allowed");
+    }
+    Ok(())
+}
+
+impl<'info> InitEscrowAccounts<'info> {
+    fn validate(&self, maker_amount: u64) -> Result<()> {
+        let token_program_id = spl_token::ID;
+        if self.token_program.key() != &token_program_id {
+            bail!("Incorrect token program");
+        }
+        validate_token_account(
+            &self.maker_deposit_token_account,
+            &token_program_id,
+            Some(self.maker.key()),
+            Some(maker_amount),
+            None,
+        )?;
+        validate_token_account(
+            &self.maker_receive_token_account,
+            &token_program_id,
+            Some(self.maker.key()),
+            None,
+            Some(self.exchange_token_mint.key()),
+        )?;
+        validate_token_account(
+            &self.escrow_deposit_token_account,
+            &token_program_id,
+            Some(self.escrow.key()),
+            None,
+            None,
+        )?;
+        validate_token_mint(&self.exchange_token_mint, &token_program_id)?;
+        Ok(())
+    }
+}
+
+impl StarFrameInstruction for InitEscrowIx {
+    type DecodeArg<'a> = ();
+    type ValidateArg<'a> = u64;
+    type RunArg<'a> = (u64, u64);
+    type CleanupArg<'a> = ();
+    type ReturnType = ();
+    type Accounts<'b, 'c, 'info> = InitEscrowAccounts<'info>
+    where
+        'info: 'b;
+
+    fn split_to_args<'a>(r: &Self) -> SplitToArgsReturn<Self> {
+        SplitToArgsReturn {
+            decode: (),
+            cleanup: (),
+            run: (r.maker_amount, r.taker_amount),
+            validate: r.maker_amount,
+        }
+    }
+
+    fn run_instruction<'b, 'info>(
+        (maker_amount, taker_amount): Self::RunArg<'_>,
+        _program_id: &Pubkey,
+        account_set: &mut Self::Accounts<'b, '_, 'info>,
+        sys_calls: &mut impl SysCallInvoke,
+    ) -> Result<Self::ReturnType>
+    where
+        'info: 'b,
+    {
+        *account_set.escrow.data_mut()? = EscrowAccount {
+            version: 0,
+            maker: *account_set.maker.key(),
+            maker_deposit_token_account: *account_set.maker_deposit_token_account.key(),
+            maker_receive_token_account: *account_set.maker_receive_token_account.key(),
+            escrow_token_account: *account_set.escrow_deposit_token_account.key(),
+            exchange_mint: *account_set.exchange_token_mint.key(),
+            maker_amount,
+            taker_amount,
+            bump: account_set.escrow.access_seeds().bump,
+        };
+
+        sys_calls.invoke(
+            &spl_token::instruction::transfer(
+                &spl_token::ID,
+                account_set.maker_deposit_token_account.key(),
+                account_set.escrow_deposit_token_account.key(),
+                account_set.maker.key(),
+                &[],
+                maker_amount,
+            )?,
+            &[
+                account_set
+                    .maker_deposit_token_account
+                    .account_info_cloned(),
+                account_set
+                    .escrow_deposit_token_account
+                    .account_info_cloned(),
+                account_set.maker.account_info_cloned(),
+                account_set.token_program.account_info_cloned(),
+            ],
+        )?;
+
+        Ok(())
+    }
+}
