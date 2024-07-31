@@ -25,7 +25,7 @@ use star_frame_proc::AccountSet;
             T: UnsizedInit<IC::StarFrameInitArg>,
     ],
     arg = Create<SeededInit<T::Seeds, IC>>,
-    extra_validation = seed_init_validate(self, arg.0, sys_calls)
+    extra_validation = seed_init_validate(self, arg.0, syscalls)
 )]
 #[validate(
     id = "create_if_needed",
@@ -36,7 +36,7 @@ use star_frame_proc::AccountSet;
             T: UnsizedInit<IC::StarFrameInitArg>,
     ],
     arg = CreateIfNeeded<SeededInit<T::Seeds, IC>>,
-    extra_validation = seed_init_validate_if_needed(self, arg.0, sys_calls)
+    extra_validation = seed_init_validate_if_needed(self, arg.0, syscalls)
 )]
 #[cleanup(
     generics = [<A> where SeededAccount<InitAccount<'info, T>, T::Seeds, P>: AccountSetCleanup<'info, A>],
@@ -124,20 +124,20 @@ where
 fn seed_init_validate<'info, T, IC, P: SeedProgram>(
     account: &mut SeededInitAccount<'info, T, P>,
     arg: SeededInit<T::Seeds, IC>,
-    sys_calls: &mut impl SysCallInvoke,
+    syscalls: &mut impl SyscallInvoke,
 ) -> Result<()>
 where
     T: SeededAccountData + UnsizedType + UnsizedInit<IC::StarFrameInitArg> + ?Sized,
     IC: InitCreateArg<'info>,
 {
-    SeededAccount::validate_accounts(&mut account.0, (Skip, Seeds(arg.seeds)), sys_calls)?;
+    SeededAccount::validate_accounts(&mut account.0, (Skip, Seeds(arg.seeds)), syscalls)?;
     InitAccount::validate_accounts(
         &mut account.0.account,
         Create(SeededInitArg {
             seeds: account.0.seeds.as_ref().unwrap(),
             init_arg: arg.init_create,
         }),
-        sys_calls,
+        syscalls,
     )?;
 
     Ok(())
@@ -146,20 +146,20 @@ where
 fn seed_init_validate_if_needed<'info, T, IC, P: SeedProgram>(
     account: &mut SeededInitAccount<'info, T, P>,
     arg: SeededInit<T::Seeds, IC>,
-    sys_calls: &mut impl SysCallInvoke,
+    syscalls: &mut impl SyscallInvoke,
 ) -> Result<()>
 where
     T: SeededAccountData + UnsizedType + UnsizedInit<IC::StarFrameInitArg> + ?Sized,
     IC: InitCreateArg<'info>,
 {
-    SeededAccount::validate_accounts(&mut account.0, (Skip, Seeds(arg.seeds)), sys_calls)?;
+    SeededAccount::validate_accounts(&mut account.0, (Skip, Seeds(arg.seeds)), syscalls)?;
     InitAccount::validate_accounts(
         &mut account.0.account,
         CreateIfNeeded(SeededInitArg {
             seeds: account.0.seeds.as_ref().unwrap(),
             init_arg: arg.init_create,
         }),
-        sys_calls,
+        syscalls,
     )?;
 
     Ok(())

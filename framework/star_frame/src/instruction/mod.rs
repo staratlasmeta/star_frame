@@ -1,14 +1,14 @@
-use borsh::{BorshDeserialize, BorshSerialize};
+use crate::prelude::*;
+use crate::syscalls::{SyscallInvoke, Syscalls};
+use borsh::{to_vec, BorshDeserialize, BorshSerialize};
 use bytemuck::Pod;
 use derivative::Derivative;
+use derive_more::{Deref, DerefMut, From, Into};
 use solana_program::account_info::AccountInfo;
-use solana_program::program::MAX_RETURN_DATA;
 use solana_program::pubkey::Pubkey;
-
-use crate::prelude::*;
-use crate::sys_calls::{SysCallInvoke, SysCalls};
 pub use star_frame_proc::star_frame_instruction_set;
 pub use star_frame_proc::InstructionToIdl;
+use std::io::{Read, Write};
 
 mod no_op;
 pub mod un_callable;
@@ -20,13 +20,13 @@ pub trait InstructionSet {
     /// The discriminant type used by this program's instructions.
     type Discriminant: Pod;
 
-    /// Handles the input from the program entrypoint (along with the `sys_calls`).
+    /// Handles the input from the program entrypoint (along with the `syscalls`).
     /// This is called directly in [`StarFrameProgram::processor`].
     fn handle_ix(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         ix_bytes: &[u8],
-        sys_calls: &mut impl SysCalls,
+        syscalls: &mut impl Syscalls,
     ) -> Result<()>;
 }
 
@@ -51,7 +51,7 @@ pub trait Instruction {
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         data: &Self::SelfData<'_>,
-        sys_calls: &mut impl SysCalls,
+        syscalls: &mut impl Syscalls,
     ) -> Result<()>;
 }
 
@@ -72,6 +72,25 @@ pub struct SplitToArgsReturn<'a, T: StarFrameInstruction + ?Sized> {
     pub validate: <T as StarFrameInstruction>::ValidateArg<'a>,
     pub run: <T as StarFrameInstruction>::RunArg<'a>,
     pub cleanup: <T as StarFrameInstruction>::CleanupArg<'a>,
+}
+
+impl<'a, T: StarFrameInstruction + ?Sized, R> SplitToArgsReturn<'a, T>
+where
+    T: StarFrameInstruction<
+        DecodeArg<'a> = (),
+        ValidateArg<'a> = (),
+        CleanupArg<'a> = (),
+        RunArg<'a> = R,
+    >,
+{
+    pub fn run(run: R) -> Self {
+        Self {
+            decode: (),
+            validate: (),
+            run,
+            cleanup: (),
+        }
+    }
 }
 
 /// A `star_frame` defined instruction using [`AccountSet`] and other traits.
@@ -111,7 +130,7 @@ pub trait StarFrameInstruction: BorshDeserialize {
     fn extra_validations(
         account_set: &mut Self::Accounts<'_, '_, '_>,
         validate: &mut Self::RunArg<'_>,
-        sys_calls: &mut impl SysCallInvoke,
+        syscalls: &mut impl SyscallInvoke,
     ) -> Result<()> {
         Ok(())
     }
@@ -120,7 +139,7 @@ pub trait StarFrameInstruction: BorshDeserialize {
         run_arg: Self::RunArg<'_>,
         program_id: &Pubkey,
         account_set: &mut Self::Accounts<'b, '_, 'info>,
-        sys_calls: &mut impl SysCallInvoke,
+        syscalls: &mut impl SyscallInvoke,
     ) -> Result<Self::ReturnType>
     where
         'info: 'b;
@@ -133,14 +152,14 @@ where
     type SelfData<'a> = T;
 
     fn data_from_bytes<'a>(bytes: &mut &'a [u8]) -> Result<Self::SelfData<'a>> {
-        <Self::SelfData<'a> as BorshDeserialize>::deserialize(bytes).map_err(Into::into)
+        <T as BorshDeserialize>::deserialize(bytes).map_err(Into::into)
     }
 
     fn run_ix_from_raw(
         program_id: &Pubkey,
         mut accounts: &[AccountInfo],
         data: &Self::SelfData<'_>,
-        sys_calls: &mut impl SysCalls,
+        syscalls: &mut impl Syscalls,
     ) -> Result<()> {
         let SplitToArgsReturn {
             decode,
@@ -151,21 +170,40 @@ where
         let mut account_set = <Self as StarFrameInstruction>::Accounts::decode_accounts(
             &mut accounts,
             decode,
-            sys_calls,
+            syscalls,
         )?;
-        account_set.validate_accounts(validate, sys_calls)?;
-        Self::extra_validations(&mut account_set, &mut run, sys_calls)?;
-        let ret = Self::run_instruction(run, program_id, &mut account_set, sys_calls)?;
-        account_set.cleanup_accounts(cleanup, sys_calls)?;
+        account_set.validate_accounts(validate, syscalls)?;
+        Self::extra_validations(&mut account_set, &mut run, syscalls)?;
+        let ret = Self::run_instruction(run, program_id, &mut account_set, syscalls)?;
+        account_set.cleanup_accounts(cleanup, syscalls)?;
         // todo: handle return data better
-        let mut return_data = vec![0u8; MAX_RETURN_DATA];
-        let mut return_data_ref = &mut return_data[..];
-        ret.serialize(&mut return_data_ref)?;
-        if return_data_ref.len() != MAX_RETURN_DATA {
-            let return_data_len = MAX_RETURN_DATA - return_data_ref.len();
-            sys_calls.set_return_data(&return_data[..return_data_len]);
+        let return_data = to_vec(&ret)?;
+        if !return_data.is_empty() {
+            syscalls.set_return_data(&return_data);
         }
         Ok(())
+    }
+}
+
+/// A helper struct for Borsh that consumes the remaining bytes in a buffer. This is most useful for replicating remaining
+/// data in an instruction without the 4 byte length overhead for [`borsh`]'s serialize and deserialize on `Vec`.
+#[derive(
+    Debug, Clone, PartialEq, Eq, Deref, DerefMut, Default, Hash, Ord, PartialOrd, From, Into,
+)]
+#[repr(transparent)]
+pub struct RemainingData(Vec<u8>);
+
+impl BorshDeserialize for RemainingData {
+    fn deserialize_reader<R: Read>(reader: &mut R) -> std::io::Result<Self> {
+        let mut data = vec![];
+        reader.read_to_end(&mut data)?;
+        Ok(Self(data))
+    }
+}
+
+impl BorshSerialize for RemainingData {
+    fn serialize<W: Write>(&self, writer: &mut W) -> std::io::Result<()> {
+        writer.write_all(&self.0)
     }
 }
 
@@ -176,18 +214,18 @@ mod test_helpers {
     macro_rules! impl_blank_ix {
         ($($ix:ident),*) => {
             $(
-                impl Instruction for $ix {
+                impl $crate::prelude::Instruction for $ix {
                     type SelfData<'a> = ();
-                    fn data_from_bytes<'a>(_bytes: &mut &'a [u8]) -> anyhow::Result<Self::SelfData<'a>> {
+                    fn data_from_bytes<'a>(_bytes: &mut &'a [u8]) -> $crate::Result<Self::SelfData<'a>> {
                         todo!()
                     }
 
                     fn run_ix_from_raw(
-                        _program_id: &Pubkey,
-                        _accounts: &[AccountInfo],
+                        _program_id: &$crate::prelude::Pubkey,
+                        _accounts: &[$crate::prelude::AccountInfo],
                         _data: &Self::SelfData<'_>,
-                        _sys_calls: &mut impl SysCalls,
-                    ) -> anyhow::Result<()> {
+                        _syscalls: &mut impl $crate::prelude::Syscalls,
+                    ) -> $crate::Result<()> {
                         todo!()
                     }
                 }
@@ -198,12 +236,7 @@ mod test_helpers {
 
 #[cfg(test)]
 mod test {
-    use solana_program::account_info::AccountInfo;
-    use solana_program::pubkey::Pubkey;
-
     use crate::impl_blank_ix;
-    use crate::instruction::Instruction;
-    use crate::prelude::SysCalls;
     use star_frame_proc::star_frame_instruction_set;
     // todo: better testing here
 

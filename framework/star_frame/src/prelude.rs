@@ -1,8 +1,8 @@
 pub use crate::account_set::*;
 pub use crate::data_types::*;
 
-pub use crate::sys_calls::solana_runtime::SolanaRuntime;
-pub use crate::sys_calls::{SysCallCore, SysCallInvoke, SysCallReturn, SysCalls};
+pub use crate::syscalls::solana_runtime::SolanaRuntime;
+pub use crate::syscalls::{SyscallCore, SyscallInvoke, SyscallReturn, Syscalls};
 
 pub use crate::instruction::*;
 

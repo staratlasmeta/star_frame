@@ -50,8 +50,8 @@ pub struct Paths {
     pub get_seeds: TokenStream,
     pub program_account: TokenStream,
     // syscalls
-    pub sys_calls: TokenStream,
-    pub sys_call_invoke: TokenStream,
+    pub syscalls: TokenStream,
+    pub syscall_invoke: TokenStream,
 
     pub solana_runtime: TokenStream,
 
@@ -173,9 +173,9 @@ impl Default for Paths {
             program_account: quote! { #crate_name::account_set::ProgramAccount },
 
             // syscalls
-            sys_calls: quote! { #crate_name::sys_calls::SysCalls },
-            sys_call_invoke: quote! { #crate_name::sys_calls::SysCallInvoke },
-            solana_runtime: quote! { #crate_name::sys_calls::solana_runtime::SolanaRuntime },
+            syscalls: quote! { #crate_name::syscalls::Syscalls },
+            syscall_invoke: quote! { #crate_name::syscalls::SyscallInvoke },
+            solana_runtime: quote! { #crate_name::syscalls::solana_runtime::SolanaRuntime },
 
             result: quote! { #crate_name::Result },
 

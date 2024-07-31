@@ -19,7 +19,7 @@ impl InstructionSet for SystemInstruction {
         _program_id: &Pubkey,
         _accounts: &[AccountInfo],
         _ix_bytes: &[u8],
-        _sys_calls: &mut impl SysCalls,
+        _syscalls: &mut impl Syscalls,
     ) -> Result<()> {
         panic!("System instruction should not be handled");
     }

@@ -1,5 +1,5 @@
 use crate::account_set::{AccountSet, AccountSetCleanup, AccountSetDecode, AccountSetValidate};
-use crate::sys_calls::SysCallInvoke;
+use crate::syscalls::SyscallInvoke;
 use crate::Result;
 use solana_program::account_info::AccountInfo;
 use solana_program::instruction::AccountMeta;
@@ -28,7 +28,7 @@ where
     fn decode_accounts(
         _accounts: &mut &'a [AccountInfo<'info>],
         _decode_input: (),
-        _sys_calls: &mut impl SysCallInvoke,
+        _syscalls: &mut impl SyscallInvoke,
     ) -> Result<Self> {
         Ok(Self)
     }
@@ -40,7 +40,7 @@ where
     fn validate_accounts(
         &mut self,
         _validate_input: (),
-        _sys_calls: &mut impl SysCallInvoke,
+        _syscalls: &mut impl SyscallInvoke,
     ) -> Result<()> {
         Ok(())
     }
@@ -52,7 +52,7 @@ where
     fn cleanup_accounts(
         &mut self,
         _cleanup_input: (),
-        _sys_calls: &mut impl SysCallInvoke,
+        _syscalls: &mut impl SyscallInvoke,
     ) -> Result<()> {
         Ok(())
     }

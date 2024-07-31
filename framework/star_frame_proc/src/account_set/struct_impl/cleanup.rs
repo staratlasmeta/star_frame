@@ -41,7 +41,7 @@ pub(super) fn cleanups(
     } = account_set_generics;
     let Paths {
         result,
-        sys_call_invoke,
+        syscall_invoke,
         cleanup_ident,
         account_set_cleanup,
         ..
@@ -129,9 +129,9 @@ pub(super) fn cleanups(
                 fn cleanup_accounts(
                     &mut self,
                     arg: #cleanup_type,
-                    sys_calls: &mut impl #sys_call_invoke,
+                    syscalls: &mut impl #syscall_invoke,
                 ) -> #result<()> {
-                    #(<#field_type as #account_set_cleanup<#info_lifetime, _>>::cleanup_accounts(&mut self.#field_name, #cleanup_args, sys_calls)?;)*
+                    #(<#field_type as #account_set_cleanup<#info_lifetime, _>>::cleanup_accounts(&mut self.#field_name, #cleanup_args, syscalls)?;)*
                     #extra_cleanup
                     Ok(())
                 }

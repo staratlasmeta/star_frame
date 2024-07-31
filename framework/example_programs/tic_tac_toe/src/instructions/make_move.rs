@@ -77,7 +77,7 @@ impl<'a> FrameworkInstruction<'a> for MakeMove {
         run_arg: Self::RunArg,
         _program_id: &Pubkey,
         account_set: &Self::Accounts<'_, '_>,
-        _sys_calls: &mut impl SysCallInvoke,
+        _syscalls: &mut impl SysCallInvoke,
     ) -> Result<Self::ReturnType, ProgramError> {
         let mut game_account = account_set.game_account.data_mut()?;
         let mut duel_account = account_set.duel_account.data_mut()?;

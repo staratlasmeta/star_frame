@@ -6,7 +6,7 @@ use star_frame::account_set::signer::Signer;
 use star_frame::account_set::AccountSet;
 use star_frame::idl::AccountSetToIdl;
 use star_frame::instruction::FrameworkInstruction;
-use star_frame::sys_calls::SysCallInvoke;
+use star_frame::syscalls::SysCallInvoke;
 use star_frame::Result;
 use star_frame_proc::InstructionToIdl;
 
@@ -38,7 +38,7 @@ impl FrameworkInstruction for TestInstruction2 {
         _run_arg: Self::RunArg<'_>,
         _program_id: &Pubkey,
         _account_set: &mut Self::Accounts<'b, '_, 'info>,
-        _sys_calls: &mut impl SysCallInvoke,
+        _syscalls: &mut impl SysCallInvoke,
     ) -> Result<Self::ReturnType>
     where
         'info: 'b,

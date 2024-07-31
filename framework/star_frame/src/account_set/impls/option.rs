@@ -1,5 +1,5 @@
 use crate::account_set::{AccountSet, AccountSetCleanup, AccountSetDecode, AccountSetValidate};
-use crate::sys_calls::SysCallInvoke;
+use crate::syscalls::SyscallInvoke;
 use crate::Result;
 use anyhow::bail;
 use solana_program::account_info::AccountInfo;
@@ -39,11 +39,11 @@ where
     fn decode_accounts(
         accounts: &mut &'a [AccountInfo<'info>],
         decode_input: Option<DArg>,
-        sys_calls: &mut impl SysCallInvoke,
+        syscalls: &mut impl SyscallInvoke,
     ) -> Result<Self> {
         match decode_input {
             None => Ok(None),
-            Some(arg) => Ok(Some(A::decode_accounts(accounts, arg, sys_calls)?)),
+            Some(arg) => Ok(Some(A::decode_accounts(accounts, arg, syscalls)?)),
         }
     }
 }
@@ -54,12 +54,12 @@ where
     fn decode_accounts(
         accounts: &mut &'a [AccountInfo<'info>],
         decode_input: bool,
-        sys_calls: &mut impl SysCallInvoke,
+        syscalls: &mut impl SyscallInvoke,
     ) -> Result<Self> {
         Self::decode_accounts(
             accounts,
             if decode_input { Some(()) } else { None },
-            sys_calls,
+            syscalls,
         )
     }
 }
@@ -72,7 +72,7 @@ where
     fn decode_accounts(
         accounts: &mut &'a [AccountInfo<'info>],
         decode_input: Remaining<Arg>,
-        sys_calls: &mut impl SysCallInvoke,
+        syscalls: &mut impl SyscallInvoke,
     ) -> Result<Self> {
         if accounts.is_empty() {
             Ok(None)
@@ -80,7 +80,7 @@ where
             Ok(Some(A::decode_accounts(
                 accounts,
                 decode_input.0,
-                sys_calls,
+                syscalls,
             )?))
         }
     }
@@ -94,17 +94,17 @@ where
     fn decode_accounts(
         accounts: &mut &'a [AccountInfo<'info>],
         decode_input: ProgramIdOption<Arg>,
-        sys_calls: &mut impl SysCallInvoke,
+        syscalls: &mut impl SyscallInvoke,
     ) -> Result<Self> {
         if accounts.is_empty() {
             bail!(ProgramError::NotEnoughAccountKeys)
-        } else if accounts[0].key == sys_calls.current_program_id() {
+        } else if accounts[0].key == syscalls.current_program_id() {
             Ok(None)
         } else {
             Ok(Some(A::decode_accounts(
                 accounts,
                 decode_input.0,
-                sys_calls,
+                syscalls,
             )?))
         }
     }
@@ -116,7 +116,7 @@ where
     fn validate_accounts(
         &mut self,
         validate_input: Option<VArg>,
-        sys_calls: &mut impl SysCallInvoke,
+        sys_calls: &mut impl SyscallInvoke,
     ) -> Result<()> {
         match (self, validate_input) {
             (Some(s), Some(i)) => s.validate_accounts(i, sys_calls),
@@ -135,7 +135,7 @@ where
     fn validate_accounts(
         &mut self,
         validate_input: (VArg,),
-        sys_calls: &mut impl SysCallInvoke,
+        sys_calls: &mut impl SyscallInvoke,
     ) -> Result<()> {
         self.validate_accounts(Some(validate_input.0), sys_calls)
     }
@@ -147,7 +147,7 @@ where
     fn validate_accounts(
         &mut self,
         validate_input: (),
-        sys_calls: &mut impl SysCallInvoke,
+        sys_calls: &mut impl SyscallInvoke,
     ) -> Result<()> {
         self.validate_accounts(Some(validate_input), sys_calls)
     }
@@ -160,7 +160,7 @@ where
     fn cleanup_accounts(
         &mut self,
         cleanup_input: Option<CArg>,
-        sys_calls: &mut impl SysCallInvoke,
+        sys_calls: &mut impl SyscallInvoke,
     ) -> Result<()> {
         match (self, cleanup_input) {
             (Some(s), Some(i)) => s.cleanup_accounts(i, sys_calls),
@@ -179,7 +179,7 @@ where
     fn cleanup_accounts(
         &mut self,
         cleanup_input: (VArg,),
-        sys_calls: &mut impl SysCallInvoke,
+        sys_calls: &mut impl SyscallInvoke,
     ) -> Result<()> {
         self.cleanup_accounts(Some(cleanup_input.0), sys_calls)
     }
@@ -191,7 +191,7 @@ where
     fn cleanup_accounts(
         &mut self,
         cleanup_input: (),
-        sys_calls: &mut impl SysCallInvoke,
+        sys_calls: &mut impl SyscallInvoke,
     ) -> Result<()> {
         self.cleanup_accounts(Some(cleanup_input), sys_calls)
     }

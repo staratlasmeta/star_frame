@@ -24,7 +24,7 @@ pub use star_frame_proc::AccountSet;
 pub use star_frame_proc::AccountToIdl;
 pub use system_account::*;
 
-use crate::sys_calls::SysCallInvoke;
+use crate::syscalls::SyscallInvoke;
 use crate::Result;
 use solana_program::account_info::AccountInfo;
 use solana_program::instruction::AccountMeta;
@@ -69,6 +69,26 @@ pub trait AccountSet<'info> {
         self.to_account_metas(|acc| out.push(acc));
         out
     }
+}
+
+pub trait TryFromAccounts<'a, 'info, D, V>:
+    AccountSetDecode<'a, 'info, D> + AccountSetValidate<'info, V>
+{
+    fn try_from_accounts(
+        accounts: &mut &'a [AccountInfo<'info>],
+        syscalls: &mut impl SyscallInvoke,
+        decode: D,
+        validate: V,
+    ) -> Result<Self> {
+        let mut set = Self::decode_accounts(accounts, decode, syscalls)?;
+        set.validate_accounts(validate, syscalls)?;
+        Ok(set)
+    }
+}
+
+impl<'a, 'info, T, D, V> TryFromAccounts<'a, 'info, D, V> for T where
+    T: AccountSet<'info> + AccountSetDecode<'a, 'info, D> + AccountSetValidate<'info, V>
+{
 }
 
 /// An [`AccountSet`] that contains exactly 1 account.
@@ -143,7 +163,7 @@ pub trait AccountSetDecode<'a, 'info, A>: AccountSet<'info> + Sized {
     fn decode_accounts(
         accounts: &mut &'a [AccountInfo<'info>],
         decode_input: A,
-        sys_calls: &mut impl SysCallInvoke,
+        syscalls: &mut impl SyscallInvoke,
     ) -> Result<Self>;
 }
 
@@ -154,7 +174,7 @@ pub trait AccountSetValidate<'info, A>: AccountSet<'info> + Sized {
     fn validate_accounts(
         &mut self,
         validate_input: A,
-        sys_calls: &mut impl SysCallInvoke,
+        syscalls: &mut impl SyscallInvoke,
     ) -> Result<()>;
 }
 
@@ -164,14 +184,14 @@ pub trait AccountSetCleanup<'info, A>: AccountSet<'info> + Sized {
     fn cleanup_accounts(
         &mut self,
         cleanup_input: A,
-        sys_calls: &mut impl SysCallInvoke,
+        syscalls: &mut impl SyscallInvoke,
     ) -> Result<()>;
 }
 
 #[cfg(test)]
 mod test {
     use crate::account_set::AccountSetValidate;
-    use crate::sys_calls::{SysCallCore, SysCallInvoke};
+    use crate::syscalls::{SyscallCore, SyscallInvoke};
     use crate::SolanaInstruction;
     use solana_program::account_info::AccountInfo;
     use solana_program::clock::Clock;
@@ -230,7 +250,7 @@ mod test {
     }
 
     struct DummyRuntime;
-    impl SysCallCore for DummyRuntime {
+    impl SyscallCore for DummyRuntime {
         fn current_program_id(&self) -> &Pubkey {
             unimplemented!()
         }
@@ -243,7 +263,7 @@ mod test {
             unimplemented!()
         }
     }
-    impl SysCallInvoke for DummyRuntime {
+    impl SyscallInvoke for DummyRuntime {
         fn invoke(
             &mut self,
             _instruction: &SolanaInstruction,
