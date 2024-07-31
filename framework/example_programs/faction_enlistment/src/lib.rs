@@ -61,12 +61,12 @@ impl StarFrameInstruction for ProcessEnlistPlayerIx {
         // (faction_id, buncha_data): Self::RunArg<'_>,
         _program_id: &Pubkey,
         account_set: &mut Self::Accounts<'b, '_, 'info>,
-        sys_calls: &mut impl SysCallInvoke,
+        syscalls: &mut impl SyscallInvoke,
     ) -> Result<Self::ReturnType>
     where
         'info: 'b,
     {
-        let clock = sys_calls.get_clock()?;
+        let clock = syscalls.get_clock()?;
 
         let bump = account_set.player_faction_account.access_seeds().bump;
         *account_set.player_faction_account.data_mut()? = PlayerFactionData {

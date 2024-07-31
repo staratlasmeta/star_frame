@@ -10,8 +10,8 @@ use solana_program::program::{
 use solana_program::rent::Rent;
 use solana_program::sysvar::Sysvar;
 
-/// Sys-Calls provided by the solana runtime.
-#[derive(Debug)]
+/// Syscalls provided by the solana runtime.
+#[derive(Debug, Clone)]
 pub struct SolanaRuntime<'a> {
     /// The program id of the currently executing program.
     pub program_id: &'a Pubkey,
@@ -29,7 +29,7 @@ impl<'a> SolanaRuntime<'a> {
         }
     }
 }
-impl<'a> SysCallReturn for SolanaRuntime<'a> {
+impl<'a> SyscallReturn for SolanaRuntime<'a> {
     fn set_return_data(&mut self, data: &[u8]) {
         set_return_data(data);
     }
@@ -38,7 +38,7 @@ impl<'a> SysCallReturn for SolanaRuntime<'a> {
         get_return_data()
     }
 }
-impl<'b> SysCallInvoke for SolanaRuntime<'b> {
+impl<'b> SyscallInvoke for SolanaRuntime<'b> {
     fn invoke(
         &mut self,
         instruction: &SolanaInstruction,
@@ -103,7 +103,7 @@ impl<'b> SysCallInvoke for SolanaRuntime<'b> {
         invoke_signed_unchecked(instruction, accounts, signers_seeds)
     }
 }
-impl<'a> SysCallCore for SolanaRuntime<'a> {
+impl<'a> SyscallCore for SolanaRuntime<'a> {
     fn current_program_id(&self) -> &Pubkey {
         self.program_id
     }

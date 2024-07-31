@@ -17,7 +17,7 @@ pub trait ProgramAccount {
     const DISCRIMINANT: <Self::OwnerProgram as StarFrameProgram>::AccountDiscriminant;
 }
 
-fn validate_data_account<T>(account: &DataAccount<T>, _sys_calls: &impl SysCallCore) -> Result<()>
+fn validate_data_account<T>(account: &DataAccount<T>, _syscalls: &impl SyscallCore) -> Result<()>
 where
     T: ProgramAccount + UnsizedType + ?Sized,
 {
@@ -56,19 +56,19 @@ pub struct CloseAccount<'a, F> {
 }
 
 #[derive(AccountSet, Debug)]
-#[validate(extra_validation = validate_data_account(self, sys_calls))]
-#[cleanup(extra_cleanup = self.check_cleanup(sys_calls))]
+#[validate(extra_validation = validate_data_account(self, syscalls))]
+#[cleanup(extra_cleanup = self.check_cleanup(syscalls))]
 #[cleanup(
     id = "normalize_rent",
     generics = [<'a, F> where F: WritableAccount<'info> + SignedAccount<'info>],
     arg = NormalizeRent<'a, 'info, F>,
-    extra_cleanup = self.normalize_rent(arg, sys_calls)
+    extra_cleanup = self.normalize_rent(arg, syscalls)
 )]
 #[cleanup(
     id = "refund_rent",
     generics = [<'a, F> where F: WritableAccount<'info>],
     arg = RefundRent<'a, F>,
-    extra_cleanup = self.refund_rent(&arg, sys_calls)
+    extra_cleanup = self.refund_rent(&arg, syscalls)
 )]
 #[cleanup(
     id = "close_account",
@@ -157,25 +157,25 @@ where
     pub fn normalize_rent(
         &mut self,
         arg: NormalizeRent<'_, 'info, impl WritableAccount<'info> + SignedAccount<'info>>,
-        sys_calls: &mut impl SysCallInvoke,
+        syscalls: &mut impl SyscallInvoke,
     ) -> Result<()> {
         normalize_rent(
             self.account_info(),
             arg.funder,
             arg.system_program,
-            sys_calls,
+            syscalls,
         )
     }
 
     pub fn refund_rent(
         &mut self,
         arg: &RefundRent<impl WritableAccount<'info>>,
-        sys_calls: &mut impl SysCallInvoke,
+        sys_calls: &mut impl SyscallInvoke,
     ) -> Result<()> {
         refund_rent(self.account_info(), arg.recipient, sys_calls)
     }
 
-    pub fn check_cleanup(&self, sys_calls: &mut impl SysCallCore) -> Result<()> {
+    pub fn check_cleanup(&self, sys_calls: &mut impl SyscallCore) -> Result<()> {
         #[cfg(feature = "cleanup_rent_warning")]
         {
             use anyhow::Context;

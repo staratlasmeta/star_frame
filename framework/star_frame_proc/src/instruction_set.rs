@@ -41,7 +41,7 @@ pub fn instruction_set_impl(item: ItemEnum, args: TokenStream) -> TokenStream {
         instruction_set,
         pubkey,
         result,
-        sys_calls,
+        syscalls,
         macro_prelude: prelude,
         ..
     } = Paths::default();
@@ -152,7 +152,7 @@ pub fn instruction_set_impl(item: ItemEnum, args: TokenStream) -> TokenStream {
                 program_id: &#pubkey,
                 accounts: &[#account_info],
                 mut ix_bytes: &[u8],
-                sys_calls: &mut impl #sys_calls,
+                syscalls: &mut impl #syscalls,
             ) -> #result<()> {
                 #get_discriminant
                 #[deny(unreachable_patterns)]
@@ -160,7 +160,7 @@ pub fn instruction_set_impl(item: ItemEnum, args: TokenStream) -> TokenStream {
                     #(
                         <#variant_tys as #prelude::InstructionDiscriminant<#ident<#a_lifetime>>>::DISCRIMINANT => {
                             let data = <#variant_tys as #instruction>::data_from_bytes(&mut ix_bytes)?;
-                            <#variant_tys as #instruction>::run_ix_from_raw(program_id, accounts, &data, sys_calls)
+                            <#variant_tys as #instruction>::run_ix_from_raw(program_id, accounts, &data, syscalls)
                         }
                     )*
                     x => Err(#anyhow_macro!("Invalid ix discriminant: {:?}", x)),

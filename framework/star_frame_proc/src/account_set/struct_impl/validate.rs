@@ -59,7 +59,7 @@ pub(super) fn validates(
     } = account_set_generics;
     let Paths {
         result,
-        sys_call_invoke,
+        syscall_invoke,
         validate_ident,
         account_set_validate,
         ..
@@ -173,7 +173,7 @@ pub(super) fn validates(
                 quote! {}
             } else {
                 quote! {
-                    <#field_type as #account_set_validate<#info_lifetime, #validate_ty>>::validate_accounts(&mut self.#field_name, #validate_arg, sys_calls)?;
+                    <#field_type as #account_set_validate<#info_lifetime, #validate_ty>>::validate_accounts(&mut self.#field_name, #validate_arg, syscalls)?;
                 }
             })
             .collect::<Vec<_>>();
@@ -225,7 +225,7 @@ pub(super) fn validates(
                 fn validate_accounts(
                     &mut self,
                     arg: #validate_type,
-                    sys_calls: &mut impl #sys_call_invoke,
+                    syscalls: &mut impl #syscall_invoke,
                 ) -> #result<()> {
                     #before_validation
                     #(#validates)*

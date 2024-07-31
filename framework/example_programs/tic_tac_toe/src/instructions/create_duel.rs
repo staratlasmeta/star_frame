@@ -8,7 +8,7 @@ use star_frame::account_set::system_account::SystemAccount;
 use star_frame::account_set::AccountSet;
 use star_frame::instruction::{FrameworkInstruction, ToBytes};
 use star_frame::program::system_program::SystemProgram;
-use star_frame::sys_calls::SysCallInvoke;
+use star_frame::syscalls::SysCallInvoke;
 
 // #[instruction]
 // mod instruction_module {
@@ -23,7 +23,7 @@ use star_frame::sys_calls::SysCallInvoke;
 //         run_arg: RunArgType,
 //         program_id: &Pubkey,
 //         account_set: AccountsType<'info>,
-//         sys_calls: &mut impl SysCallInvoke,
+//         syscalls: &mut impl SyscallInvoke,
 //     ) -> Result<InstructionReturnType, ProgramError> {
 //     }
 // }
@@ -98,7 +98,7 @@ impl<'a> FrameworkInstruction<'a> for CreateDuel {
         _run_arg: Self::RunArg,
         _program_id: &Pubkey,
         _account_set: &Self::Accounts<'_, '_>,
-        _sys_calls: &mut impl SysCallInvoke,
+        _syscalls: &mut impl SysCallInvoke,
     ) -> Result<Self::ReturnType, ProgramError> {
         Ok(())
     }

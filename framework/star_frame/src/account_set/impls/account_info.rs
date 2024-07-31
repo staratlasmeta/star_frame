@@ -1,5 +1,5 @@
 use crate::account_set::{AccountSetDecode, SingleAccountSet};
-use crate::sys_calls::SysCallInvoke;
+use crate::syscalls::SyscallInvoke;
 use crate::Result;
 use advance::AdvanceArray;
 use solana_program::account_info::AccountInfo;
@@ -132,7 +132,7 @@ impl<'a, 'info> AccountSetDecode<'a, 'info, ()> for AccountInfo<'info> {
     fn decode_accounts(
         accounts: &mut &'a [AccountInfo<'info>],
         _decode_input: (),
-        _sys_calls: &mut impl SysCallInvoke,
+        _syscalls: &mut impl SyscallInvoke,
     ) -> Result<Self> {
         let account: &[_; 1] = accounts.try_advance_array()?;
         Ok(account[0].clone())
@@ -142,7 +142,7 @@ impl<'a, 'info> AccountSetDecode<'a, 'info, ()> for &'a AccountInfo<'info> {
     fn decode_accounts(
         accounts: &mut &'a [AccountInfo<'info>],
         _decode_input: (),
-        _sys_calls: &mut impl SysCallInvoke,
+        _syscalls: &mut impl SyscallInvoke,
     ) -> Result<Self> {
         let account: &[_; 1] = accounts.try_advance_array()?;
         Ok(&account[0])
@@ -152,7 +152,7 @@ impl<'info> AccountSetValidate<'info, ()> for AccountInfo<'info> {
     fn validate_accounts(
         &mut self,
         validate_input: (),
-        _sys_calls: &mut impl SysCallInvoke,
+        _syscalls: &mut impl SyscallInvoke,
     ) -> Result<()> {
         Ok(validate_input)
     }
@@ -161,7 +161,7 @@ impl<'a, 'info> AccountSetValidate<'info, ()> for &'a AccountInfo<'info> {
     fn validate_accounts(
         &mut self,
         validate_input: (),
-        _sys_calls: &mut impl SysCallInvoke,
+        _syscalls: &mut impl SyscallInvoke,
     ) -> Result<()> {
         Ok(validate_input)
     }
@@ -170,7 +170,7 @@ impl<'info> AccountSetCleanup<'info, ()> for AccountInfo<'info> {
     fn cleanup_accounts(
         &mut self,
         cleanup_input: (),
-        _sys_calls: &mut impl SysCallInvoke,
+        _syscalls: &mut impl SyscallInvoke,
     ) -> Result<()> {
         Ok(cleanup_input)
     }
@@ -179,7 +179,7 @@ impl<'a, 'info> AccountSetCleanup<'info, ()> for &'a AccountInfo<'info> {
     fn cleanup_accounts(
         &mut self,
         cleanup_input: (),
-        _sys_calls: &mut impl SysCallInvoke,
+        _syscalls: &mut impl SyscallInvoke,
     ) -> Result<()> {
         Ok(cleanup_input)
     }
