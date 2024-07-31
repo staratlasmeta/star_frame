@@ -2,7 +2,6 @@ use star_frame::anyhow::bail;
 use star_frame::borsh::{BorshDeserialize, BorshSerialize};
 use star_frame::prelude::*;
 use star_frame::solana_program::pubkey::Pubkey;
-use star_frame::syscalls::{SyscallInvoke, Syscalls};
 
 #[derive(Align1, Copy, Clone, Debug, Eq, PartialEq, Pod, Zeroable)]
 #[repr(C, packed)]
@@ -75,7 +74,7 @@ impl StarFrameInstruction for CreateCounterIx {
         start_at: Self::RunArg<'_>,
         _program_id: &Pubkey,
         account_set: &mut Self::Accounts<'b, '_, 'info>,
-        _sys_calls: &mut impl SysCallInvoke,
+        _syscalls: &mut impl SyscallInvoke,
     ) -> Result<Self::ReturnType>
     where
         'info: 'b,
@@ -133,7 +132,7 @@ impl StarFrameInstruction for UpdateCounterSignerIx {
         _run_args: Self::RunArg<'_>,
         _program_id: &Pubkey,
         account_set: &mut Self::Accounts<'b, '_, 'info>,
-        _sys_calls: &mut impl SysCallInvoke,
+        _syscalls: &mut impl SyscallInvoke,
     ) -> Result<Self::ReturnType>
     where
         'info: 'b,
@@ -189,7 +188,7 @@ impl StarFrameInstruction for CountIx {
         (amount, subtract): Self::RunArg<'_>,
         _program_id: &Pubkey,
         account_set: &mut Self::Accounts<'b, '_, 'info>,
-        _sys_calls: &mut impl SysCallInvoke,
+        _syscalls: &mut impl SyscallInvoke,
     ) -> Result<Self::ReturnType>
     where
         'info: 'b,
@@ -255,7 +254,7 @@ impl StarFrameInstruction for CloseCounterIx {
         _run_args: Self::RunArg<'_>,
         _program_id: &Pubkey,
         _account_set: &mut Self::Accounts<'b, '_, 'info>,
-        _sys_calls: &mut impl SysCallInvoke,
+        _syscalls: &mut impl SyscallInvoke,
     ) -> Result<Self::ReturnType>
     where
         'info: 'b,
