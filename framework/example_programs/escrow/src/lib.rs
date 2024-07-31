@@ -62,7 +62,7 @@ mod tests {
         let initialize_mint_instruction = spl_token::instruction::initialize_mint(
             &spl_token::ID,
             &mint_keypair.pubkey(),
-            &mint_authority,
+            mint_authority,
             None,
             9,
         )
