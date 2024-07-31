@@ -74,12 +74,6 @@ impl StarFrameInstruction for CancelIx {
     {
         let escrow_data = account_set.escrow.data()?;
 
-        // let account_seeds = EscrowAccountSeeds {
-        //     maker: escrow_data.maker,
-        //     maker_deposit_token_account: escrow_data.maker_deposit_token_account,
-        //     exchange_mint: escrow_data.exchange_mint,
-        // }; ?????
-
         let signer_seeds = [
             b"ESCROW",
             escrow_data.maker.as_ref(),
@@ -88,7 +82,7 @@ impl StarFrameInstruction for CancelIx {
             &[escrow_data.bump],
         ];
 
-        // transfer to taker
+        // transfer to maker
         let token_data = spl_token::state::Account::unpack(
             &account_set.escrow_token_account.try_borrow_data()?,
         )?;

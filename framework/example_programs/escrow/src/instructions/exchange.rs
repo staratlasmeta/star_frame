@@ -106,12 +106,6 @@ impl StarFrameInstruction for ExchangeIx {
             ],
         )?;
 
-        // let account_seeds = EscrowAccountSeeds {
-        //     maker: escrow_data.maker,
-        //     maker_deposit_token_account: escrow_data.maker_deposit_token_account,
-        //     exchange_mint: escrow_data.exchange_mint,
-        // }; ?????
-
         let signer_seeds = [
             b"ESCROW",
             escrow_data.maker.as_ref(),
