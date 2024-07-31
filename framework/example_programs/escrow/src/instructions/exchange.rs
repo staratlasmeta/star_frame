@@ -3,7 +3,6 @@ use crate::utils::validate_token_account;
 use star_frame::anyhow::bail;
 use star_frame::borsh::{BorshDeserialize, BorshSerialize};
 use star_frame::prelude::*;
-use star_frame::solana_program::program::{invoke, invoke_signed};
 use star_frame::solana_program::program_pack::Pack;
 use star_frame::solana_program::pubkey::Pubkey;
 
@@ -78,7 +77,7 @@ impl StarFrameInstruction for ExchangeIx {
         _run_args: Self::RunArg<'_>,
         _program_id: &Pubkey,
         account_set: &mut Self::Accounts<'b, '_, 'info>,
-        _sys_calls: &mut impl SysCallInvoke,
+        syscalls: &mut impl SyscallInvoke,
     ) -> Result<Self::ReturnType>
     where
         'info: 'b,
@@ -86,7 +85,7 @@ impl StarFrameInstruction for ExchangeIx {
         let escrow_data = account_set.escrow.data()?;
 
         // transfer to maker
-        invoke(
+        syscalls.invoke(
             &spl_token::instruction::transfer(
                 &spl_token::ID,
                 account_set.taker_deposit_token_account.key(),
@@ -129,7 +128,7 @@ impl StarFrameInstruction for ExchangeIx {
             token_data.amount >= escrow_data.maker_amount,
             "Insufficient maker amount"
         );
-        invoke_signed(
+        syscalls.invoke_signed(
             &spl_token::instruction::transfer(
                 &spl_token::ID,
                 account_set.escrow_token_account.key(),
@@ -150,7 +149,7 @@ impl StarFrameInstruction for ExchangeIx {
         )?;
 
         // close escrow token
-        invoke_signed(
+        syscalls.invoke_signed(
             &spl_token::instruction::close_account(
                 &spl_token::ID,
                 account_set.escrow_token_account.key(),
