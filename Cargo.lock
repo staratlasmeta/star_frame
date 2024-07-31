@@ -1051,11 +1051,9 @@ dependencies = [
  "advance",
  "borsh 1.5.0",
  "bytemuck",
- "solana-client",
  "solana-program",
  "solana-program-test",
  "solana-sdk",
- "solana-transaction-status",
  "star_frame",
  "tokio",
 ]

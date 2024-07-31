@@ -12,12 +12,12 @@ name = "counter"
 advance = { workspace = true }
 borsh = { workspace = true }
 bytemuck = { workspace = true }
-solana-program = "~1.18"
+solana-program = { workspace = true }
 star_frame = { workspace = true }
 
 [dev-dependencies]
-solana-client = "~1.18"
-solana-program-test = "~1.18"
-solana-sdk = { version = "~1.18" }
-solana-transaction-status = "~1.18"
+#solana-client = "~1.18"
+solana-program-test = { workspace = true }
+solana-sdk = { workspace = true }
+#solana-transaction-status = "~1.18"
 tokio = "1.39.1"

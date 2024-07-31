@@ -1,7 +1,8 @@
-use solana_program::pubkey::Pubkey;
 use star_frame::anyhow::bail;
 use star_frame::borsh::{BorshDeserialize, BorshSerialize};
 use star_frame::prelude::*;
+use star_frame::solana_program::pubkey::Pubkey;
+use star_frame::syscalls::{SyscallInvoke, Syscalls};
 
 #[derive(Align1, Copy, Clone, Debug, Eq, PartialEq, Pod, Zeroable)]
 #[repr(C, packed)]
