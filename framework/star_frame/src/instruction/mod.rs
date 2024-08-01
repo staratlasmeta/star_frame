@@ -218,7 +218,6 @@ mod test_helpers {
                     }
 
                     fn run_ix_from_raw(
-                        _program_id: &$crate::prelude::Pubkey,
                         _accounts: &[$crate::prelude::AccountInfo],
                         _data: &Self::SelfData<'_>,
                         _syscalls: &mut impl $crate::prelude::Syscalls,
