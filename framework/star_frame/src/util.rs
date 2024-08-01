@@ -59,6 +59,8 @@ pub const fn compare_strings(a: &str, b: &str) -> bool {
 
 /// Normalizes the rent of an account if data size is changed.
 /// Assumes `info` is owned by this program.
+///
+/// If the account has 0 lamports (i.e., it is set to be closed), this will do nothing.
 pub fn normalize_rent<'info, F: WritableAccount<'info> + SignedAccount<'info>>(
     info: &AccountInfo<'info>,
     funder: &F,
@@ -72,6 +74,9 @@ pub fn normalize_rent<'info, F: WritableAccount<'info> + SignedAccount<'info>>(
     match rent_lamports.cmp(&lamports) {
         Ordering::Equal => Ok(()),
         Ordering::Greater => {
+            if lamports == 0 {
+                return Ok(());
+            }
             let transfer_amount = rent_lamports - lamports;
             if funder.owner() == system_program.key() {
                 let transfer_ix = transfer(funder.key(), info.key(), transfer_amount);
@@ -103,6 +108,8 @@ pub fn normalize_rent<'info, F: WritableAccount<'info> + SignedAccount<'info>>(
 
 /// Refunds rent to the funder so long as the account has more than the minimum rent.
 /// Assumes `info` is owned by this program.
+///
+/// If the account has 0 lamports (i.e., it is set to be closed), this will do nothing.
 pub fn refund_rent<'info, F: WritableAccount<'info>>(
     info: &AccountInfo<'info>,
     funder: &F,
@@ -114,7 +121,16 @@ pub fn refund_rent<'info, F: WritableAccount<'info>>(
     let rent_lamports = rent.minimum_balance(data_len);
     match rent_lamports.cmp(&lamports) {
         Ordering::Equal => Ok(()),
-        Ordering::Greater => Err(anyhow!("Funder must be Signer to increase rent")),
+        Ordering::Greater => {
+            if lamports > 0 {
+                Err(anyhow!(
+                    "Funder must be Signer to increase rent on {}",
+                    info.key()
+                ))
+            } else {
+                Ok(())
+            }
+        }
         Ordering::Less => {
             let transfer_amount = lamports - rent_lamports;
             **info.account_info().lamports.borrow_mut() -= transfer_amount;

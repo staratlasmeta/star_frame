@@ -100,7 +100,7 @@ where
 /// 3. Run any extra instruction validations using [`Self::extra_validations`].
 /// 4. Validate the accounts using [`Self::Accounts::validate_accounts`](AccountSetValidate::validate_accounts).
 /// 5. Run the instruction using [`Self::run_instruction`].
-/// 6. Set the solana return data using [`StarFrameSerialize::to_bytes`].
+/// 6. Set the solana return data using [`BorshSerialize`].
 pub trait StarFrameInstruction: BorshDeserialize {
     /// The instruction data type used to decode accounts.
     type DecodeArg<'a>;

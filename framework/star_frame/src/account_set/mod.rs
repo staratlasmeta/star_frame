@@ -100,9 +100,7 @@ pub trait TryFromAccountsWithArgs<'a, 'info, D, V>:
         Self: SingleAccountSet<'info>,
     {
         let accounts = &mut slice::from_ref(account);
-        let mut set = Self::decode_accounts(accounts, decode, syscalls)?;
-        set.validate_accounts(validate, syscalls)?;
-        Ok(set)
+        Self::try_from_accounts_with_args(accounts, syscalls, decode, validate)
     }
 }
 
