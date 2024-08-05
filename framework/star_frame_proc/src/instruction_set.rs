@@ -160,7 +160,7 @@ pub fn instruction_set_impl(item: ItemEnum, args: TokenStream) -> TokenStream {
                     #(
                         <#variant_tys as #prelude::InstructionDiscriminant<#ident<#a_lifetime>>>::DISCRIMINANT => {
                             let data = <#variant_tys as #instruction>::data_from_bytes(&mut ix_bytes)?;
-                            <#variant_tys as #instruction>::run_ix_from_raw(program_id, accounts, &data, syscalls)
+                            <#variant_tys as #instruction>::run_ix_from_raw(accounts, &data, syscalls)
                         }
                     )*
                     x => Err(#anyhow_macro!("Invalid ix discriminant: {:?}", x)),
