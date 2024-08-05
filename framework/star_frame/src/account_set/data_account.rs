@@ -62,19 +62,19 @@ pub struct CloseAccount<'a, F> {
     id = "normalize_rent",
     generics = [<'a, F> where F: WritableAccount<'info> + SignedAccount<'info>],
     arg = NormalizeRent<'a, 'info, F>,
-    extra_cleanup = self.normalize_rent(arg, syscalls)
+    extra_cleanup = self.normalize_rent(arg.funder, arg.system_program, syscalls)
 )]
 #[cleanup(
     id = "refund_rent",
     generics = [<'a, F> where F: WritableAccount<'info>],
     arg = RefundRent<'a, F>,
-    extra_cleanup = self.refund_rent(&arg, syscalls)
+    extra_cleanup = self.refund_rent(arg.recipient, syscalls)
 )]
 #[cleanup(
     id = "close_account",
     generics = [<'a, F> where F: WritableAccount<'info>],
     arg = CloseAccount<'a, F>,
-    extra_cleanup = self.close(&arg)
+    extra_cleanup = self.close(arg.recipient)
 )]
 pub struct DataAccount<'info, T: ProgramAccount + UnsizedType + ?Sized> {
     info: AccountInfo<'info>,
@@ -124,7 +124,7 @@ where
     }
 
     /// Closes the account
-    pub fn close(&mut self, arg: &CloseAccount<impl WritableAccount<'info>>) -> Result<()> {
+    pub fn close(&mut self, recipient: &impl WritableAccount<'info>) -> Result<()> {
         self.info.realloc(
             size_of::<<T::OwnerProgram as StarFrameProgram>::AccountDiscriminant>(),
             false,
@@ -132,14 +132,14 @@ where
         self.info.try_borrow_mut_data()?.copy_from_slice(bytes_of(
             &<T::OwnerProgram as StarFrameProgram>::CLOSED_ACCOUNT_DISCRIMINANT,
         ));
-        **arg.recipient.account_info().try_borrow_mut_lamports()? += self.info.lamports();
+        **recipient.account_info().try_borrow_mut_lamports()? += self.info.lamports();
         **self.info.try_borrow_mut_lamports()? = 0;
         Ok(())
     }
 
     /// Closes the account by reallocing and transfering. This is the same as calling `close` but
     /// not abusable and harder for indexer detection.
-    pub fn close_full(&mut self, arg: &CloseAccount<impl WritableAccount<'info>>) -> Result<()> {
+    pub fn close_full(&mut self, recipient: &impl WritableAccount<'info>) -> Result<()> {
         self.info.realloc(
             size_of::<<T::OwnerProgram as StarFrameProgram>::AccountDiscriminant>(),
             false,
@@ -147,7 +147,7 @@ where
         self.info.try_borrow_mut_data()?.copy_from_slice(bytes_of(
             &<T::OwnerProgram as StarFrameProgram>::CLOSED_ACCOUNT_DISCRIMINANT,
         ));
-        **arg.recipient.account_info().try_borrow_mut_lamports()? += self.info.lamports();
+        **recipient.account_info().try_borrow_mut_lamports()? += self.info.lamports();
         **self.info.try_borrow_mut_lamports()? = 0;
         self.info.realloc(0, false)?;
         self.info.assign(&system_program::ID);
@@ -156,23 +156,19 @@ where
 
     pub fn normalize_rent(
         &mut self,
-        arg: NormalizeRent<'_, 'info, impl WritableAccount<'info> + SignedAccount<'info>>,
+        funder: &(impl WritableAccount<'info> + SignedAccount<'info>),
+        system_program: &Program<'info, SystemProgram>,
         syscalls: &mut impl SyscallInvoke,
     ) -> Result<()> {
-        normalize_rent(
-            self.account_info(),
-            arg.funder,
-            arg.system_program,
-            syscalls,
-        )
+        normalize_rent(self.account_info(), funder, system_program, syscalls)
     }
 
     pub fn refund_rent(
         &mut self,
-        arg: &RefundRent<impl WritableAccount<'info>>,
+        recipient: &impl WritableAccount<'info>,
         sys_calls: &mut impl SyscallInvoke,
     ) -> Result<()> {
-        refund_rent(self.account_info(), arg.recipient, sys_calls)
+        refund_rent(self.account_info(), recipient, sys_calls)
     }
 
     pub fn check_cleanup(&self, sys_calls: &mut impl SyscallCore) -> Result<()> {

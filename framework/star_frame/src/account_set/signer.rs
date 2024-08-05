@@ -3,7 +3,6 @@ use crate::account_set::{
     SingleAccountSet, WritableAccount,
 };
 use crate::Result;
-use anyhow::bail;
 use derive_more::{Deref, DerefMut};
 use solana_program::account_info::AccountInfo;
 use solana_program::program_error::ProgramError;
@@ -24,21 +23,8 @@ pub struct Signer<T>(
     #[cleanup(arg = arg)]
     T,
 );
-impl<T> Signer<T> {
-    pub fn new(info: T) -> Self {
-        Self(info)
-    }
 
-    pub fn try_from<'info>(info: &T) -> Result<Self>
-    where
-        T: SingleAccountSet<'info> + Clone,
-    {
-        if !info.is_signer() {
-            bail!(ProgramError::MissingRequiredSignature);
-        }
-        Ok(Signer::new(info.clone()))
-    }
-}
+pub type SignerInfo<'info> = Signer<AccountInfo<'info>>;
 
 impl<'info, T> Signer<T>
 where
