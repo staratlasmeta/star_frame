@@ -1,3 +1,4 @@
+mod bytes;
 mod checked;
 mod combined_unsized;
 mod list;
