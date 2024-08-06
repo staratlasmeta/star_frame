@@ -71,9 +71,8 @@ impl StarFrameInstruction for CreateCounterIx {
     }
 
     fn run_instruction<'b, 'info>(
-        start_at: Self::RunArg<'_>,
-        _program_id: &Pubkey,
         account_set: &mut Self::Accounts<'b, '_, 'info>,
+        start_at: Self::RunArg<'_>,
         _syscalls: &mut impl SyscallInvoke,
     ) -> Result<Self::ReturnType>
     where
@@ -129,9 +128,8 @@ impl StarFrameInstruction for UpdateCounterSignerIx {
     }
 
     fn run_instruction<'b, 'info>(
-        _run_args: Self::RunArg<'_>,
-        _program_id: &Pubkey,
         account_set: &mut Self::Accounts<'b, '_, 'info>,
+        _run_args: Self::RunArg<'_>,
         _syscalls: &mut impl SyscallInvoke,
     ) -> Result<Self::ReturnType>
     where
@@ -185,9 +183,8 @@ impl StarFrameInstruction for CountIx {
     }
 
     fn run_instruction<'b, 'info>(
-        (amount, subtract): Self::RunArg<'_>,
-        _program_id: &Pubkey,
         account_set: &mut Self::Accounts<'b, '_, 'info>,
+        (amount, subtract): Self::RunArg<'_>,
         _syscalls: &mut impl SyscallInvoke,
     ) -> Result<Self::ReturnType>
     where
@@ -251,9 +248,8 @@ impl StarFrameInstruction for CloseCounterIx {
     }
 
     fn run_instruction<'b, 'info>(
-        _run_args: Self::RunArg<'_>,
-        _program_id: &Pubkey,
         _account_set: &mut Self::Accounts<'b, '_, 'info>,
+        _run_args: Self::RunArg<'_>,
         _syscalls: &mut impl SyscallInvoke,
     ) -> Result<Self::ReturnType>
     where
