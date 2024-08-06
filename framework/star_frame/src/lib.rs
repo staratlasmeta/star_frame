@@ -66,6 +66,7 @@ pub mod data_types;
 pub use anyhow::Result;
 pub use solana_program::instruction::Instruction as SolanaInstruction;
 pub use star_frame_proc::pubkey;
+pub use star_frame_proc::sighash;
 
 #[allow(unused_imports)]
 #[cfg(test)]

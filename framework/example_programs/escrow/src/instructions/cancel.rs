@@ -4,7 +4,6 @@ use star_frame::anyhow::bail;
 use star_frame::borsh::{BorshDeserialize, BorshSerialize};
 use star_frame::prelude::*;
 use star_frame::solana_program::program_pack::Pack;
-use star_frame::solana_program::pubkey::Pubkey;
 
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 #[borsh(crate = "borsh")]
@@ -64,9 +63,8 @@ impl StarFrameInstruction for CancelIx {
     }
 
     fn run_instruction<'b, 'info>(
-        _run_args: Self::RunArg<'_>,
-        _program_id: &Pubkey,
         account_set: &mut Self::Accounts<'b, '_, 'info>,
+        _run_args: Self::RunArg<'_>,
         syscalls: &mut impl SyscallInvoke,
     ) -> Result<Self::ReturnType>
     where

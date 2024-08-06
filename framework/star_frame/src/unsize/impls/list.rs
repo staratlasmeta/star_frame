@@ -34,12 +34,16 @@ use crate::unsize::UnsizedType;
 use crate::util::uninit_array_bytes;
 use crate::Result;
 
+/// A marker trait for types that can be used as the length of a [`List<T>`].
+pub trait ListLength: Pod + ToPrimitive + FromPrimitive {}
+impl<T> ListLength for T where T: Pod + ToPrimitive + FromPrimitive {}
+
 #[derive(Align1, Debug, PartialEq, Eq)]
 #[repr(C)]
 pub struct List<T, L = u32>
 where
     T: CheckedBitPattern + NoUninit + Align1,
-    L: Pod + ToPrimitive + FromPrimitive,
+    L: ListLength,
 {
     len: PackedValue<L>,
     phantom_t: PhantomData<T>,
@@ -48,7 +52,7 @@ where
 impl<T, L> List<T, L>
 where
     T: CheckedBitPattern + NoUninit + Align1,
-    L: Pod + ToPrimitive + FromPrimitive,
+    L: ListLength,
 {
     pub fn len(&self) -> usize {
         self.len.to_usize().expect("Invalid length")
@@ -99,7 +103,7 @@ where
 impl<T, L> Deref for List<T, L>
 where
     T: Pod + Align1,
-    L: Pod + ToPrimitive + FromPrimitive,
+    L: ListLength,
 {
     type Target = [T];
 
@@ -110,7 +114,7 @@ where
 impl<T, L> DerefMut for List<T, L>
 where
     T: Pod + Align1,
-    L: Pod + ToPrimitive + FromPrimitive,
+    L: ListLength,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.as_mut_slice()
@@ -119,7 +123,7 @@ where
 impl<T, L> Index<usize> for List<T, L>
 where
     T: CheckedBitPattern + NoUninit + Align1,
-    L: Pod + ToPrimitive + FromPrimitive,
+    L: ListLength,
 {
     type Output = T;
 
@@ -131,7 +135,7 @@ where
 impl<T, L> IndexMut<usize> for List<T, L>
 where
     T: CheckedBitPattern + NoUninit + Align1,
-    L: Pod + ToPrimitive + FromPrimitive,
+    L: ListLength,
 {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         try_from_bytes_mut(&mut self.bytes[index * size_of::<T>()..][..size_of::<T>()])
@@ -141,7 +145,7 @@ where
 impl<T, L, R> Index<(R,)> for List<T, L>
 where
     T: Pod + Align1,
-    L: Pod + ToPrimitive + FromPrimitive,
+    L: ListLength,
     R: RangeBounds<usize>,
 {
     type Output = [T];
@@ -165,7 +169,7 @@ where
 impl<T, L, R> IndexMut<(R,)> for List<T, L>
 where
     T: Pod + Align1,
-    L: Pod + ToPrimitive + FromPrimitive,
+    L: ListLength,
     R: RangeBounds<usize>,
 {
     fn index_mut(&mut self, index: (R,)) -> &mut Self::Output {
@@ -187,7 +191,7 @@ where
 unsafe impl<T, L> UnsizedType for List<T, L>
 where
     T: CheckedBitPattern + NoUninit + Align1,
-    L: Pod + ToPrimitive + FromPrimitive,
+    L: ListLength,
 {
     type RefMeta = ();
     type RefData = ListRef<T, L>;
@@ -223,7 +227,7 @@ where
 impl<T, L> UnsizedInit<Zeroed> for List<T, L>
 where
     T: CheckedBitPattern + NoUninit + Align1,
-    L: Pod + ToPrimitive + FromPrimitive + Zero,
+    L: ListLength + Zero,
 {
     const INIT_BYTES: usize = size_of::<L>();
 
@@ -243,7 +247,7 @@ where
 impl<const N: usize, T, L> UnsizedInit<[T; N]> for List<T, L>
 where
     T: CheckedBitPattern + NoUninit + Align1,
-    L: Pod + ToPrimitive + FromPrimitive + Zero,
+    L: ListLength + Zero,
 {
     const INIT_BYTES: usize = size_of::<L>() + size_of::<T>() * N;
 
@@ -274,7 +278,7 @@ impl<S, T, L> RefDeref<S> for ListRef<T, L>
 where
     S: AsBytes,
     T: CheckedBitPattern + NoUninit + Align1,
-    L: Pod + ToPrimitive + FromPrimitive,
+    L: ListLength,
 {
     type Target = List<T, L>;
 
@@ -287,7 +291,7 @@ impl<S, T, L> RefDerefMut<S> for ListRef<T, L>
 where
     S: AsMutBytes,
     T: CheckedBitPattern + NoUninit + Align1,
-    L: Pod + ToPrimitive + FromPrimitive,
+    L: ListLength,
 {
     fn deref_mut(wrapper: &mut RefWrapper<S, Self>) -> &mut Self::Target {
         let bytes = unsafe { wrapper.sup_mut().as_mut_bytes().expect("Invalid bytes") };
@@ -299,7 +303,7 @@ where
 
 pub trait ListExt: DerefMut<Target = List<Self::Item, Self::Len>> {
     type Item: CheckedBitPattern + NoUninit + Align1;
-    type Len: Pod + ToPrimitive + FromPrimitive;
+    type Len: ListLength;
 
     fn push(&mut self, item: Self::Item) -> Result<()> {
         self.push_all(once(item))
@@ -340,7 +344,7 @@ where
     R: DerefMut<Target = List<T, L>> + RefWrapperMutExt<Ref = ListRef<T, L>>,
     R::Super: Resize<()>,
     T: CheckedBitPattern + NoUninit + Align1,
-    L: Pod + ToPrimitive + FromPrimitive,
+    L: ListLength,
 {
     type Item = T;
     type Len = L;

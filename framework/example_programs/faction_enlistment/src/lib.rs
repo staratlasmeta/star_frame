@@ -57,10 +57,8 @@ impl StarFrameInstruction for ProcessEnlistPlayerIx {
     }
 
     fn run_instruction<'b, 'info>(
-        faction_id: Self::RunArg<'_>,
-        // (faction_id, buncha_data): Self::RunArg<'_>,
-        _program_id: &Pubkey,
         account_set: &mut Self::Accounts<'b, '_, 'info>,
+        faction_id: Self::RunArg<'_>,
         syscalls: &mut impl SyscallInvoke,
     ) -> Result<Self::ReturnType>
     where
