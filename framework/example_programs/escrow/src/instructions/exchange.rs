@@ -6,15 +6,14 @@ use star_frame::prelude::*;
 use star_frame::solana_program::program_pack::Pack;
 
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
-#[borsh(crate = "borsh")]
 pub struct ExchangeIx {}
 
 #[derive(AccountSet)]
 #[validate(extra_validation = self.validate())]
 pub struct ExchangeAccounts<'info> {
-    pub maker: Writable<AccountInfo<'info>>,
+    pub maker: Writable<SystemAccount<'info>>,
     pub maker_receive_token_account: Writable<AccountInfo<'info>>,
-    pub taker: Signer<AccountInfo<'info>>,
+    pub taker: Signer<SystemAccount<'info>>,
     pub taker_deposit_token_account: Writable<AccountInfo<'info>>,
     pub taker_receive_token_account: Writable<AccountInfo<'info>>,
     #[cleanup( arg = CloseAccount {

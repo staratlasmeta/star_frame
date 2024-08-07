@@ -6,13 +6,12 @@ use star_frame::prelude::*;
 use star_frame::solana_program::program_pack::Pack;
 
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
-#[borsh(crate = "borsh")]
 pub struct CancelIx {}
 
 #[derive(AccountSet)]
 #[validate(extra_validation = self.validate())]
 pub struct CancelAccounts<'info> {
-    pub maker: Signer<Writable<AccountInfo<'info>>>,
+    pub maker: Signer<Writable<SystemAccount<'info>>>,
     pub maker_deposit_token_account: Writable<AccountInfo<'info>>,
     #[cleanup( arg = CloseAccount {
         recipient: &self.maker,

@@ -5,7 +5,6 @@ use star_frame::borsh::{BorshDeserialize, BorshSerialize};
 use star_frame::prelude::*;
 
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
-#[borsh(crate = "borsh")]
 pub struct InitEscrowIx {
     pub maker_amount: u64,
     pub taker_amount: u64,
@@ -14,8 +13,8 @@ pub struct InitEscrowIx {
 #[derive(AccountSet)]
 #[validate(arg = u64, extra_validation = self.validate(arg))]
 pub struct InitEscrowAccounts<'info> {
-    pub funder: Signer<Writable<AccountInfo<'info>>>,
-    pub maker: Signer<AccountInfo<'info>>,
+    pub funder: Signer<Writable<SystemAccount<'info>>>,
+    pub maker: Signer<SystemAccount<'info>>,
     pub maker_deposit_token_account: Writable<AccountInfo<'info>>,
     pub maker_receive_token_account: AccountInfo<'info>,
     pub escrow_deposit_token_account: Writable<AccountInfo<'info>>,
