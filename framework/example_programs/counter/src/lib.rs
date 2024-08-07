@@ -29,15 +29,14 @@ pub struct CounterAccountSeeds {
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
-#[borsh(crate = "borsh")]
 pub struct CreateCounterIx {
     pub start_at: Option<u64>,
 }
 
 #[derive(AccountSet)]
 pub struct CreateCounterAccounts<'info> {
-    pub funder: Signer<Writable<AccountInfo<'info>>>,
-    pub owner: AccountInfo<'info>,
+    pub funder: Signer<Writable<SystemAccount<'info>>>,
+    pub owner: SystemAccount<'info>,
     #[validate(
         arg = Create(
             SeededInit {
@@ -91,14 +90,13 @@ impl StarFrameInstruction for CreateCounterIx {
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
-#[borsh(crate = "borsh")]
 pub struct UpdateCounterSignerIx {}
 
 #[derive(AccountSet, Debug)]
 #[validate(extra_validation = self.validate())]
 pub struct UpdateCounterSignerAccounts<'info> {
-    pub signer: Signer<AccountInfo<'info>>,
-    pub new_signer: AccountInfo<'info>,
+    pub signer: Signer<SystemAccount<'info>>,
+    pub new_signer: SystemAccount<'info>,
     pub counter: Writable<DataAccount<'info, CounterAccount>>,
 }
 
@@ -143,7 +141,6 @@ impl StarFrameInstruction for UpdateCounterSignerIx {
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
-#[borsh(crate = "borsh")]
 pub struct CountIx {
     pub amount: u64,
     pub subtract: bool,
@@ -152,7 +149,7 @@ pub struct CountIx {
 #[derive(AccountSet, Debug)]
 #[validate(extra_validation = self.validate())]
 pub struct CountAccounts<'info> {
-    pub owner: Signer<AccountInfo<'info>>,
+    pub owner: Signer<SystemAccount<'info>>,
     pub counter: Writable<DataAccount<'info, CounterAccount>>,
 }
 
@@ -203,14 +200,13 @@ impl StarFrameInstruction for CountIx {
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
-#[borsh(crate = "borsh")]
 pub struct CloseCounterIx {}
 
 #[derive(AccountSet, Debug)]
 #[validate(extra_validation = self.validate())]
 pub struct CloseCounterAccounts<'info> {
-    pub signer: Signer<AccountInfo<'info>>,
-    pub funds_to: Writable<AccountInfo<'info>>,
+    pub signer: Signer<SystemAccount<'info>>,
+    pub funds_to: Writable<SystemAccount<'info>>,
     #[cleanup( arg = CloseAccount {
         recipient: &self.funds_to,
     })]
@@ -220,11 +216,6 @@ pub struct CloseCounterAccounts<'info> {
 impl<'info> CloseCounterAccounts<'info> {
     fn validate(&self) -> Result<()> {
         if *self.signer.key() != self.counter.data()?.signer {
-            println!(
-                "e > {:?} | r > {:?}",
-                *self.signer.key(),
-                self.counter.data()?.signer
-            );
             bail!("Incorrect signer");
         }
         Ok(())
