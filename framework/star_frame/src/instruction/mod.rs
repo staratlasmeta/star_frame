@@ -64,28 +64,79 @@ pub trait Instruction {
             <T as StarFrameInstruction>::RunArg<'a>: Default,
             <T as StarFrameInstruction>::CleanupArg<'a>: Default")
 )]
-pub struct SplitToArgsReturn<'a, T: StarFrameInstruction + ?Sized> {
+pub struct IxArgs<'a, T: StarFrameInstruction + ?Sized> {
     pub decode: <T as StarFrameInstruction>::DecodeArg<'a>,
     pub validate: <T as StarFrameInstruction>::ValidateArg<'a>,
     pub run: <T as StarFrameInstruction>::RunArg<'a>,
     pub cleanup: <T as StarFrameInstruction>::CleanupArg<'a>,
 }
 
-impl<'a, T: StarFrameInstruction + ?Sized, R> SplitToArgsReturn<'a, T>
-where
-    T: StarFrameInstruction<
-        DecodeArg<'a> = (),
-        ValidateArg<'a> = (),
-        CleanupArg<'a> = (),
-        RunArg<'a> = R,
-    >,
-{
-    pub fn run(run: R) -> Self {
+impl<'a, T: StarFrameInstruction + ?Sized> IxArgs<'a, T> {
+    pub fn decode<D>(decode: D) -> Self
+    where
+        T: StarFrameInstruction<
+            DecodeArg<'a> = D,
+            ValidateArg<'a> = (),
+            CleanupArg<'a> = (),
+            RunArg<'a> = (),
+        >,
+    {
+        Self {
+            decode,
+            validate: (),
+            run: (),
+            cleanup: (),
+        }
+    }
+
+    pub fn validate<V>(validate: V) -> Self
+    where
+        T: StarFrameInstruction<
+            DecodeArg<'a> = (),
+            ValidateArg<'a> = V,
+            CleanupArg<'a> = (),
+            RunArg<'a> = (),
+        >,
+    {
+        Self {
+            decode: (),
+            validate,
+            run: (),
+            cleanup: (),
+        }
+    }
+
+    pub fn run<R>(run: R) -> Self
+    where
+        T: StarFrameInstruction<
+            DecodeArg<'a> = (),
+            ValidateArg<'a> = (),
+            CleanupArg<'a> = (),
+            RunArg<'a> = R,
+        >,
+    {
         Self {
             decode: (),
             validate: (),
             run,
             cleanup: (),
+        }
+    }
+
+    pub fn cleanup<C>(cleanup: C) -> Self
+    where
+        T: StarFrameInstruction<
+            DecodeArg<'a> = (),
+            ValidateArg<'a> = (),
+            CleanupArg<'a> = C,
+            RunArg<'a> = (),
+        >,
+    {
+        Self {
+            decode: (),
+            validate: (),
+            run: (),
+            cleanup,
         }
     }
 }
@@ -120,7 +171,7 @@ pub trait StarFrameInstruction: BorshDeserialize {
         'info: 'b;
 
     /// Splits self into decode, validate, and run args.
-    fn split_to_args(r: &Self) -> SplitToArgsReturn<Self>;
+    fn split_to_args(r: &Self) -> IxArgs<Self>;
 
     /// Runs any extra validations on the accounts.
     #[allow(unused_variables)]
@@ -132,13 +183,11 @@ pub trait StarFrameInstruction: BorshDeserialize {
         Ok(())
     }
     /// Runs the instruction.
-    fn run_instruction<'b, 'info>(
-        account_set: &mut Self::Accounts<'b, '_, 'info>,
+    fn run_instruction(
+        account_set: &mut Self::Accounts<'_, '_, '_>,
         run_arg: Self::RunArg<'_>,
         syscalls: &mut impl SyscallInvoke,
-    ) -> Result<Self::ReturnType>
-    where
-        'info: 'b;
+    ) -> Result<Self::ReturnType>;
 }
 
 impl<T> Instruction for T
@@ -156,7 +205,7 @@ where
         data: &Self::SelfData<'_>,
         syscalls: &mut impl Syscalls,
     ) -> Result<()> {
-        let SplitToArgsReturn {
+        let IxArgs {
             decode,
             validate,
             mut run,
@@ -171,7 +220,6 @@ where
         Self::extra_validations(&mut account_set, &mut run, syscalls)?;
         let ret = Self::run_instruction(&mut account_set, run, syscalls)?;
         account_set.cleanup_accounts(cleanup, syscalls)?;
-        // todo: handle return data better
         let return_data = to_vec(&ret)?;
         if !return_data.is_empty() {
             syscalls.set_return_data(&return_data);

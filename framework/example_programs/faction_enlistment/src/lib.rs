@@ -4,6 +4,7 @@ use bytemuck::Zeroable;
 use star_frame::borsh;
 use star_frame::borsh::{BorshDeserialize, BorshSerialize};
 use star_frame::prelude::*;
+use std::ops::Deref;
 
 #[derive(StarFrameProgram)]
 #[program(
@@ -18,8 +19,6 @@ use star_frame::prelude::*;
     program(id = "FLisTRH6dJnCK8AzTfenGJgHBPMHoat9XRc65Qpk7Yuc")
 )]
 pub struct FactionEnlistment;
-
-// use star_frame::idl::InstructionSetToIdl;
 
 #[star_frame_instruction_set]
 pub enum FactionEnlistmentInstructionSet {
@@ -37,22 +36,18 @@ pub struct ProcessEnlistPlayerIx {
 
 impl StarFrameInstruction for ProcessEnlistPlayerIx {
     type DecodeArg<'a> = ();
-    type ValidateArg<'a> = u8;
+    type ValidateArg<'a> = ();
     type CleanupArg<'a> = ();
     type ReturnType = ();
     // type RunArg<'a> = (FactionId, &'a Vec<u8>);
     type RunArg<'a> = FactionId;
-    type Accounts<'b, 'c, 'info> = ProcessEnlistPlayer<'info>
-        where 'info: 'b;
+    type Accounts<'b, 'c, 'info> = ProcessEnlistPlayer<'info>;
     // type ReturnType = usize;
 
-    fn split_to_args<'a>(r: &Self) -> SplitToArgsReturn<Self> {
-        SplitToArgsReturn {
-            validate: r.bump,
+    fn split_to_args<'a>(r: &Self) -> IxArgs<Self> {
+        IxArgs {
             run: r.faction_id,
-            // run: (r.faction_id, &r.buncha_data),
-            cleanup: (),
-            decode: (),
+            ..Default::default()
         }
     }
 
@@ -60,10 +55,7 @@ impl StarFrameInstruction for ProcessEnlistPlayerIx {
         account_set: &mut Self::Accounts<'b, '_, 'info>,
         faction_id: Self::RunArg<'_>,
         syscalls: &mut impl SyscallInvoke,
-    ) -> Result<Self::ReturnType>
-    where
-        'info: 'b,
-    {
+    ) -> Result<Self::ReturnType> {
         let clock = syscalls.get_clock()?;
 
         let bump = account_set.player_faction_account.access_seeds().bump;
@@ -74,13 +66,14 @@ impl StarFrameInstruction for ProcessEnlistPlayerIx {
             bump,
             _padding: [0; 5],
         };
+
         Ok(())
         // Ok(buncha_data.len())
     }
 }
 
 #[derive(AccountSet)]
-#[validate(arg = u8)]
+// #[validate(arg = u8)]
 #[account_set(skip_default_idl)]
 pub struct ProcessEnlistPlayer<'info> {
     /// The player faction account
@@ -97,9 +90,11 @@ pub struct ProcessEnlistPlayer<'info> {
     )]
     pub player_faction_account: SeededInitAccount<'info, PlayerFactionData>,
     /// The player account
-    pub player_account: Writable<Signer<SystemAccount<'info>>>,
+    pub player_account: Writable<SignerInfo<'info>>,
     /// Solana System program
     pub system_program: Program<'info, SystemProgram>,
+    // /// the clock lol
+    // pub _clock: AccountInfo<'info>,
 }
 #[derive(
     Debug,
@@ -168,40 +163,75 @@ mod tests {
     use bytemuck::checked::try_from_bytes;
     use solana_program_test::{processor, ProgramTest};
     use solana_sdk::clock::Clock;
-    use solana_sdk::signature::Signer;
+    use solana_sdk::native_token::LAMPORTS_PER_SOL;
+    use solana_sdk::signature::{Keypair, Signer};
+    use solana_sdk::system_instruction::transfer;
+    use solana_sdk::transaction::Transaction;
     use star_frame::borsh::to_vec;
     use star_frame::itertools::Itertools;
     use star_frame::solana_program::instruction::AccountMeta;
 
+    #[test]
+    fn find_bump() {
+        let mut lowest_bump = 255u8;
+        for i in 0..1_000_000 {
+            let key = Keypair::new();
+            let seeds = PlayerFactionAccountSeeds {
+                player_account: key.pubkey(),
+            };
+            let (_, bump) =
+                Pubkey::find_program_address(&seeds.seeds(), &StarFrameDeclaredProgram::PROGRAM_ID);
+            if bump < lowest_bump {
+                lowest_bump = bump;
+                println!(
+                    "Found new lowest bump {bump} after {i} iterations on key: {}",
+                    key.to_base58_string()
+                );
+            }
+        }
+    }
+
     #[tokio::test]
-    async fn _banks_test() -> Result<()> {
+    async fn banks_test() -> Result<()> {
+        // env::set_var(
+        //     "BPF_OUT_DIR",
+        //     "/home/sammy/star-atlas/star-atlas-programs/sol-programs/target/deploy",
+        // "/home/sammy/star-atlas/star_frame_working/star_frame/target/deploy",
+        // );
         let program_test = ProgramTest::new(
             "faction_enlistment",
             StarFrameDeclaredProgram::PROGRAM_ID,
             processor!(FactionEnlistment::processor),
+            // None,
         );
         let test_context = program_test.start_with_context().await;
         let mut banks_client = test_context.banks_client;
 
-        let player_account = test_context.payer;
-
+        // let player_account = Keypair::from_base58_string("2t89wheFCeNBcXU3buYhUgcZKzugQ6a4WxRJ9hrZi6e2zgWY32qCXzaNYwi6mQLNBw5FFBD8c4TPYBjSu3wDYrim");
+        let player_account = Keypair::from_base58_string("3HUGYtVYv35DAgwLW6ANaz7EjbW3Ug45H7AZ2QDWoN5RGyEvkEeaDAr1BBUuoaK8Pq2DX4L9MKxHkXdD2Xv5ysEg"); // 255
+        let transfer = transfer(
+            &test_context.payer.pubkey(),
+            &player_account.pubkey(),
+            LAMPORTS_PER_SOL,
+        );
+        let transaction = Transaction::new_signed_with_payer(
+            &[transfer],
+            Some(&test_context.payer.pubkey()),
+            &[&test_context.payer],
+            test_context.last_blockhash,
+        );
+        banks_client.process_transaction(transaction).await?;
+        // test_context.
+        //
         let seeds = PlayerFactionAccountSeeds {
             player_account: player_account.pubkey(),
         };
         let (faction_account, bump) =
             Pubkey::find_program_address(&seeds.seeds(), &StarFrameDeclaredProgram::PROGRAM_ID);
         let faction_id = FactionId::MUD;
+        println!("Bump: {}", bump);
 
-        // let mut random_bytes = [0u8; 1];
-        // let mut rng = rand::thread_rng();
-        // rand::rngs::ThreadRng::try_fill(&mut rng, &mut random_bytes[..]).unwrap();
-        // let bunch_bytes = random_bytes.to_vec();
-
-        let enlist_ix = ProcessEnlistPlayerIx {
-            bump,
-            faction_id,
-            // buncha_data,
-        };
+        let enlist_ix = ProcessEnlistPlayerIx { bump, faction_id };
         let ix_data = [
             ProcessEnlistPlayerIx::DISCRIMINANT.to_vec(),
             to_vec(&enlist_ix)?,
@@ -213,6 +243,7 @@ mod tests {
             AccountMeta::new(faction_account, false),
             AccountMeta::new(player_account.pubkey(), true),
             AccountMeta::new_readonly(solana_sdk::system_program::id(), false),
+            // AccountMeta::new_readonly(solana_sdk::sysvar::clock::id(), false),
         ];
         let ix = solana_sdk::instruction::Instruction::new_with_bytes(
             FactionEnlistment::PROGRAM_ID,
