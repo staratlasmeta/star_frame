@@ -1,15 +1,17 @@
-use crate::prelude::{AsBytes, FromBytesReturn, RefWrapper, RefWrapperMutExt, RefWrapperTypes};
+use crate::prelude::{
+    AsBytes, FromBytesReturn, RefWrapper, RefWrapperMutExt, RefWrapperTypes, RemainingData,
+};
 use crate::unsize::{AsMutBytes, RefDeref, RefDerefMut, UnsizedType};
 use star_frame_proc::Align1;
 use typenum::True;
 
 #[derive(Align1, Debug)]
 #[repr(transparent)]
-pub struct Bytes([u8]);
-unsafe impl UnsizedType for Bytes {
+pub struct RemainingBytes([u8]);
+unsafe impl UnsizedType for RemainingBytes {
     type RefMeta = ();
-    type RefData = BytesRef;
-    type Owned = Vec<u8>;
+    type RefData = RemainingBytesRef;
+    type Owned = RemainingData;
     type IsUnsized = True;
 
     fn from_bytes<S: AsBytes>(
@@ -19,19 +21,19 @@ unsafe impl UnsizedType for Bytes {
         Ok(FromBytesReturn {
             meta: (),
             bytes_used: bytes.len(),
-            ref_wrapper: unsafe { RefWrapper::new(super_ref, BytesRef) },
+            ref_wrapper: unsafe { RefWrapper::new(super_ref, RemainingBytesRef) },
         })
     }
 
     fn owned<S: AsBytes>(r: RefWrapper<S, Self::RefData>) -> anyhow::Result<Self::Owned> {
-        Ok(r.to_vec())
+        Ok(r.to_vec().into())
     }
 }
 
 #[derive(Copy, Clone, Debug)]
-pub struct BytesRef;
+pub struct RemainingBytesRef;
 
-impl<S> RefDeref<S> for BytesRef
+impl<S> RefDeref<S> for RemainingBytesRef
 where
     S: AsBytes,
 {
@@ -44,7 +46,7 @@ where
     }
 }
 
-impl<S> RefDerefMut<S> for BytesRef
+impl<S> RefDerefMut<S> for RemainingBytesRef
 where
     S: AsMutBytes,
 {
