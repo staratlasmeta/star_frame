@@ -75,10 +75,10 @@ impl<'a, T: StarFrameInstruction + ?Sized> IxArgs<'a, T> {
     pub fn decode<D>(decode: D) -> Self
     where
         T: StarFrameInstruction<
-            DecodeArg<'a>=D,
-            ValidateArg<'a>=(),
-            CleanupArg<'a>=(),
-            RunArg<'a>=(),
+            DecodeArg<'a> = D,
+            ValidateArg<'a> = (),
+            CleanupArg<'a> = (),
+            RunArg<'a> = (),
         >,
     {
         Self {
@@ -92,10 +92,10 @@ impl<'a, T: StarFrameInstruction + ?Sized> IxArgs<'a, T> {
     pub fn validate<V>(validate: V) -> Self
     where
         T: StarFrameInstruction<
-            DecodeArg<'a>=(),
-            ValidateArg<'a>=V,
-            CleanupArg<'a>=(),
-            RunArg<'a>=(),
+            DecodeArg<'a> = (),
+            ValidateArg<'a> = V,
+            CleanupArg<'a> = (),
+            RunArg<'a> = (),
         >,
     {
         Self {
@@ -109,10 +109,10 @@ impl<'a, T: StarFrameInstruction + ?Sized> IxArgs<'a, T> {
     pub fn run<R>(run: R) -> Self
     where
         T: StarFrameInstruction<
-            DecodeArg<'a>=(),
-            ValidateArg<'a>=(),
-            CleanupArg<'a>=(),
-            RunArg<'a>=R,
+            DecodeArg<'a> = (),
+            ValidateArg<'a> = (),
+            CleanupArg<'a> = (),
+            RunArg<'a> = R,
         >,
     {
         Self {
@@ -126,10 +126,10 @@ impl<'a, T: StarFrameInstruction + ?Sized> IxArgs<'a, T> {
     pub fn cleanup<C>(cleanup: C) -> Self
     where
         T: StarFrameInstruction<
-            DecodeArg<'a>=(),
-            ValidateArg<'a>=(),
-            CleanupArg<'a>=C,
-            RunArg<'a>=(),
+            DecodeArg<'a> = (),
+            ValidateArg<'a> = (),
+            CleanupArg<'a> = C,
+            RunArg<'a> = (),
         >,
     {
         Self {
@@ -165,8 +165,8 @@ pub trait StarFrameInstruction: BorshDeserialize {
 
     /// The [`AccountSet`] used by this instruction.
     type Accounts<'b, 'c, 'info>: AccountSetDecode<'b, 'info, Self::DecodeArg<'c>>
-    + AccountSetValidate<'info, Self::ValidateArg<'c>>
-    + AccountSetCleanup<'info, Self::CleanupArg<'c>>;
+        + AccountSetValidate<'info, Self::ValidateArg<'c>>
+        + AccountSetCleanup<'info, Self::CleanupArg<'c>>;
 
     /// Splits self into decode, validate, and run args.
     fn split_to_args(r: &Self) -> IxArgs<Self>;
