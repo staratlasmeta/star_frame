@@ -4,7 +4,7 @@ use bytemuck::Zeroable;
 use star_frame::borsh;
 use star_frame::borsh::{BorshDeserialize, BorshSerialize};
 use star_frame::prelude::*;
-use std::ops::Deref;
+
 
 #[derive(StarFrameProgram)]
 #[program(
@@ -51,8 +51,8 @@ impl StarFrameInstruction for ProcessEnlistPlayerIx {
         }
     }
 
-    fn run_instruction<'b, 'info>(
-        account_set: &mut Self::Accounts<'b, '_, 'info>,
+    fn run_instruction(
+        account_set: &mut Self::Accounts<'_, '_, '_>,
         faction_id: Self::RunArg<'_>,
         syscalls: &mut impl SyscallInvoke,
     ) -> Result<Self::ReturnType> {
