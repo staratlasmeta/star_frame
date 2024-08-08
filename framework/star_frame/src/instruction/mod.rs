@@ -256,7 +256,7 @@ mod test_helpers {
 mod test {
     use crate::impl_blank_ix;
     use star_frame_proc::star_frame_instruction_set;
-    // todo: better testing here
+    // todo: better testing here!
 
     #[allow(dead_code)]
     struct Ix1 {
