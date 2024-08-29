@@ -421,7 +421,8 @@ pub fn derive_account_to_idl(input: proc_macro::TokenStream) -> proc_macro::Toke
 ///     id = Pubkey::new_from_array([0; 32]),
 ///     account_discriminant = [u8; 8],
 ///     closed_account_discriminant = [u8::MAX; 8],
-///     no_entrypoint
+///     no_entrypoint,
+///     no_setup,
 /// )]
 /// struct MyProgram;
 /// ```
@@ -444,7 +445,8 @@ pub fn derive_account_to_idl(input: proc_macro::TokenStream) -> proc_macro::Toke
 ///     id = <expr>,
 ///     account_discriminant = <ty>,
 ///     closed_account_discriminant = <expr>,
-///     no_entrypoint
+///     no_entrypoint,
+///     no_setup
 /// )]
 /// ```
 /// - `instruction_set` - The enum that implements `InstructionSet` for the program. If the instruction set has a
@@ -456,6 +458,7 @@ pub fn derive_account_to_idl(input: proc_macro::TokenStream) -> proc_macro::Toke
 /// - `closed_account_discriminant` - The `AccountDiscriminant` value used for closed accounts. Defaults to `[u8::MAX; 8]`
 /// - `no_entrypoint` - If present, the macro will not generate an entrypoint for the program.
 /// While the generated entrypoint is already feature gated, this may be useful in some cases where features aren't convenient.
+/// - `no_setup` - If present, the macro will not call the `program_setup!` macro. This is useful in libraries that may contain multiple programs.
 #[proc_macro_error]
 #[proc_macro_derive(StarFrameProgram, attributes(program))]
 pub fn program(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
