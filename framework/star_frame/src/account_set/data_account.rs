@@ -17,27 +17,6 @@ pub trait ProgramAccount {
     const DISCRIMINANT: <Self::OwnerProgram as StarFrameProgram>::AccountDiscriminant;
 }
 
-fn validate_data_account<T>(account: &DataAccount<T>, _syscalls: &impl SyscallCore) -> Result<()>
-where
-    T: ProgramAccount + UnsizedType + ?Sized,
-{
-    if account.info.owner != &T::OwnerProgram::PROGRAM_ID {
-        bail!(ProgramError::IllegalOwner);
-    }
-
-    let data = account.info.try_borrow_data()?;
-    if data.len() < size_of::<<T::OwnerProgram as StarFrameProgram>::AccountDiscriminant>() {
-        bail!(ProgramError::InvalidAccountData);
-    }
-    let discriminant: &<T::OwnerProgram as StarFrameProgram>::AccountDiscriminant = from_bytes(
-        &data[0..size_of::<<T::OwnerProgram as StarFrameProgram>::AccountDiscriminant>()],
-    );
-    if discriminant != &T::DISCRIMINANT {
-        bail!(ProgramError::InvalidAccountData);
-    }
-    Ok(())
-}
-
 #[derive(Debug, Derivative)]
 #[derivative(Copy(bound = ""), Clone(bound = ""))]
 pub struct NormalizeRent<'a, 'info, F> {
@@ -56,7 +35,15 @@ pub struct CloseAccount<'a, F> {
 }
 
 #[derive(AccountSet, Debug)]
-#[validate(extra_validation = validate_data_account(self, syscalls))]
+#[validate(extra_validation = self.validate())]
+#[validate(
+    id = "address", 
+    arg = &Pubkey,
+    extra_validation = {
+        anyhow::ensure!(self.key() == arg);
+        self.validate()
+    }
+)]
 #[cleanup(extra_cleanup = self.check_cleanup(syscalls))]
 #[cleanup(
     id = "normalize_rent",
@@ -85,6 +72,17 @@ impl<'info, T> DataAccount<'info, T>
 where
     T: ProgramAccount + UnsizedType + ?Sized,
 {
+    /// Validates the owner and the discriminant of the account.
+    fn validate(&self) -> Result<()> {
+        if self.info.owner != &T::OwnerProgram::PROGRAM_ID {
+            bail!(ProgramError::IllegalOwner);
+        }
+        let data = self.info.try_borrow_data()?;
+
+        Self::check_discriminant(&data)?;
+        Ok(())
+    }
+
     fn check_discriminant(bytes: &[u8]) -> Result<()> {
         if bytes.len() < size_of::<<T::OwnerProgram as StarFrameProgram>::AccountDiscriminant>()
             || from_bytes::<PackedValue<<T::OwnerProgram as StarFrameProgram>::AccountDiscriminant>>(
@@ -123,7 +121,8 @@ where
         T::from_bytes(account_info_ref_mut).map(|ret| ret.ref_wrapper)
     }
 
-    /// Closes the account
+    /// Closes the account by zeroing the lamports and leaving the data as the
+    /// [`StarFrameProgram::CLOSED_ACCOUNT_DISCRIMINANT`], reallocating down to size.
     pub fn close(&mut self, recipient: &impl WritableAccount<'info>) -> Result<()> {
         self.info.realloc(
             size_of::<<T::OwnerProgram as StarFrameProgram>::AccountDiscriminant>(),
@@ -137,8 +136,8 @@ where
         Ok(())
     }
 
-    /// Closes the account by reallocing and transfering. This is the same as calling `close` but
-    /// not abusable and harder for indexer detection.
+    /// Closes the account by reallocating to zero and assigning to the System program.
+    /// This is the same as calling `close` but not abusable and harder for indexer detection.
     pub fn close_full(&mut self, recipient: &impl WritableAccount<'info>) -> Result<()> {
         self.info.realloc(
             size_of::<<T::OwnerProgram as StarFrameProgram>::AccountDiscriminant>(),
@@ -154,6 +153,7 @@ where
         Ok(())
     }
 
+    /// See [`normalize_rent`]
     pub fn normalize_rent(
         &mut self,
         funder: &(impl WritableAccount<'info> + SignedAccount<'info>),
@@ -163,6 +163,7 @@ where
         normalize_rent(self.account_info(), funder, system_program, syscalls)
     }
 
+    /// See [`refund_rent`]
     pub fn refund_rent(
         &mut self,
         recipient: &impl WritableAccount<'info>,
@@ -171,34 +172,21 @@ where
         refund_rent(self.account_info(), recipient, sys_calls)
     }
 
+    /// Emits a warning message if the account has more lamports than required by rent.
     pub fn check_cleanup(&self, sys_calls: &mut impl SyscallCore) -> Result<()> {
         #[cfg(feature = "cleanup_rent_warning")]
         {
-            use anyhow::Context;
             use std::cmp::Ordering;
             if self.is_writable() {
                 let rent = sys_calls.get_rent()?;
                 let lamports = self.account_info().lamports();
                 let data_len = self.account_info().data_len();
                 let rent_lamports = rent.minimum_balance(data_len);
-                match rent_lamports.cmp(&lamports) {
-                    Ordering::Greater => {
-                        // is this more descriptive than just letting the runtime error out?
-                        return Err(anyhow::anyhow!(ProgramError::AccountNotRentExempt))
-                            .with_context(|| {
-                                format!(
-                                    "{} was left with less lamports than required by rent",
-                                    self.key()
-                                )
-                            });
-                    }
-                    Ordering::Less => {
-                        msg!(
-                            "{} was left with more lamports than required by rent",
-                            self.key()
-                        );
-                    }
-                    Ordering::Equal => {}
+                if rent_lamports.cmp(&lamports) == Ordering::Less {
+                    msg!(
+                        "{} was left with more lamports than required by rent",
+                        self.key()
+                    );
                 }
             }
         }

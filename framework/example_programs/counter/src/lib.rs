@@ -56,12 +56,10 @@ impl StarFrameInstruction for CreateCounterIx {
     type RunArg<'a> = &'a Option<u64>;
     type CleanupArg<'a> = ();
     type ReturnType = ();
-    type Accounts<'b, 'c, 'info> = CreateCounterAccounts<'info>
-    where
-        'info: 'b;
+    type Accounts<'b, 'c, 'info> = CreateCounterAccounts<'info>;
 
-    fn split_to_args<'a>(r: &Self) -> SplitToArgsReturn<Self> {
-        SplitToArgsReturn {
+    fn split_to_args<'a>(r: &Self) -> IxArgs<Self> {
+        IxArgs {
             decode: (),
             cleanup: (),
             run: &r.start_at,
@@ -69,14 +67,11 @@ impl StarFrameInstruction for CreateCounterIx {
         }
     }
 
-    fn run_instruction<'b, 'info>(
-        account_set: &mut Self::Accounts<'b, '_, 'info>,
+    fn run_instruction(
+        account_set: &mut Self::Accounts<'_, '_, '_>,
         start_at: Self::RunArg<'_>,
         _syscalls: &mut impl SyscallInvoke,
-    ) -> Result<Self::ReturnType>
-    where
-        'info: 'b,
-    {
+    ) -> Result<Self::ReturnType> {
         *account_set.counter.data_mut()? = CounterAccount {
             version: 0,
             signer: *account_set.owner.key(),
@@ -115,24 +110,19 @@ impl StarFrameInstruction for UpdateCounterSignerIx {
     type RunArg<'a> = ();
     type CleanupArg<'a> = ();
     type ReturnType = ();
-    type Accounts<'b, 'c, 'info> = UpdateCounterSignerAccounts<'info>
-    where
-        'info: 'b;
+    type Accounts<'b, 'c, 'info> = UpdateCounterSignerAccounts<'info>;
 
-    fn split_to_args<'a>(_r: &Self) -> SplitToArgsReturn<Self> {
-        SplitToArgsReturn {
+    fn split_to_args<'a>(_r: &Self) -> IxArgs<Self> {
+        IxArgs {
             ..Default::default()
         }
     }
 
-    fn run_instruction<'b, 'info>(
-        account_set: &mut Self::Accounts<'b, '_, 'info>,
+    fn run_instruction(
+        account_set: &mut Self::Accounts<'_, '_, '_>,
         _run_args: Self::RunArg<'_>,
         _syscalls: &mut impl SyscallInvoke,
-    ) -> Result<Self::ReturnType>
-    where
-        'info: 'b,
-    {
+    ) -> Result<Self::ReturnType> {
         let mut counter = account_set.counter.data_mut()?;
         counter.signer = *account_set.new_signer.key();
 
@@ -168,25 +158,20 @@ impl StarFrameInstruction for CountIx {
     type RunArg<'a> = (u64, bool);
     type CleanupArg<'a> = ();
     type ReturnType = ();
-    type Accounts<'b, 'c, 'info> = CountAccounts<'info>
-    where
-        'info: 'b;
+    type Accounts<'b, 'c, 'info> = CountAccounts<'info>;
 
-    fn split_to_args<'a>(r: &Self) -> SplitToArgsReturn<Self> {
-        SplitToArgsReturn {
+    fn split_to_args<'a>(r: &Self) -> IxArgs<Self> {
+        IxArgs {
             run: (r.amount, r.subtract),
             ..Default::default()
         }
     }
 
-    fn run_instruction<'b, 'info>(
-        account_set: &mut Self::Accounts<'b, '_, 'info>,
+    fn run_instruction(
+        account_set: &mut Self::Accounts<'_, '_, '_>,
         (amount, subtract): Self::RunArg<'_>,
         _syscalls: &mut impl SyscallInvoke,
-    ) -> Result<Self::ReturnType>
-    where
-        'info: 'b,
-    {
+    ) -> Result<Self::ReturnType> {
         let mut counter = account_set.counter.data_mut()?;
         let new_count: u64 = if subtract {
             counter.count - amount
@@ -228,24 +213,17 @@ impl StarFrameInstruction for CloseCounterIx {
     type RunArg<'a> = ();
     type CleanupArg<'a> = ();
     type ReturnType = ();
-    type Accounts<'b, 'c, 'info> = CloseCounterAccounts<'info>
-    where
-        'info: 'b;
+    type Accounts<'b, 'c, 'info> = CloseCounterAccounts<'info>;
 
-    fn split_to_args<'a>(_r: &Self) -> SplitToArgsReturn<Self> {
-        SplitToArgsReturn {
-            ..Default::default()
-        }
+    fn split_to_args<'a>(_r: &Self) -> IxArgs<Self> {
+        Default::default()
     }
 
-    fn run_instruction<'b, 'info>(
-        _account_set: &mut Self::Accounts<'b, '_, 'info>,
+    fn run_instruction(
+        _account_set: &mut Self::Accounts<'_, '_, '_>,
         _run_args: Self::RunArg<'_>,
         _syscalls: &mut impl SyscallInvoke,
-    ) -> Result<Self::ReturnType>
-    where
-        'info: 'b,
-    {
+    ) -> Result<Self::ReturnType> {
         Ok(())
     }
 }

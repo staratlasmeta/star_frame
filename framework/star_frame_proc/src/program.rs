@@ -14,6 +14,8 @@ pub struct StarFrameProgramDerive {
     id: Option<Expr>,
     #[argument(presence)]
     no_entrypoint: bool,
+    #[argument(presence)]
+    no_setup: bool,
 }
 
 pub(crate) fn program_impl(input: DeriveInput) -> TokenStream {
@@ -49,6 +51,7 @@ pub(crate) fn program_impl(input: DeriveInput) -> TokenStream {
             closed_account_discriminant,
             id: program_id,
             no_entrypoint,
+            no_setup,
         } = StarFrameProgramDerive::parse_arguments(program_derive);
 
         if let Some(account_discriminant) = account_discriminant {
@@ -97,6 +100,13 @@ pub(crate) fn program_impl(input: DeriveInput) -> TokenStream {
             }
             derive_input.no_entrypoint = true;
         }
+
+        if no_setup {
+            if derive_input.no_setup {
+                abort!(no_setup, "Duplicate `no_setup` argument");
+            }
+            derive_input.no_setup = true;
+        }
     }
 
     let Some(program_id) = derive_input.id else {
@@ -123,6 +133,7 @@ pub(crate) fn program_impl(input: DeriveInput) -> TokenStream {
         mut account_discriminant,
         mut closed_account_discriminant,
         no_entrypoint,
+        no_setup,
         ..
     } = derive_input;
 
@@ -147,6 +158,12 @@ pub(crate) fn program_impl(input: DeriveInput) -> TokenStream {
         quote! { #crate_name::star_frame_entrypoint!(#ident); }
     };
 
+    let program_setup = if no_setup {
+        quote! {}
+    } else {
+        quote! { #crate_name::program_setup!(#ident); }
+    };
+
     quote! {
         impl #star_frame_program for #ident {
             type InstructionSet = #instruction_set_type;
@@ -155,7 +172,7 @@ pub(crate) fn program_impl(input: DeriveInput) -> TokenStream {
             const CLOSED_ACCOUNT_DISCRIMINANT: Self::AccountDiscriminant = #closed_account_discriminant;
             const PROGRAM_ID: #pubkey = #program_id;
         }
-        #crate_name::program_setup!(#ident);
+        #program_setup
         #entrypoint
     }
 }

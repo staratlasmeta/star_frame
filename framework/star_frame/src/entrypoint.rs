@@ -1,5 +1,5 @@
 /// Macro to define the entrypoint for a `star_frame` program. This wraps the default [`solana_program::entrypoint!`] macro
-/// and only needs to take in the [`StarFrameProgram`] type. This will be automatically called by the
+/// and only needs to take in the [`StarFrameProgram`](crate::prelude::StarFrameProgram) type. This will be automatically called by the
 /// [`StarFrameProgram`](star_frame_proc::StarFrameProgram) derive macro if the `no_entrypoint` argument
 /// is not present.
 ///

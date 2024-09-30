@@ -100,7 +100,7 @@ pub unsafe trait UnsizedType: 'static {
 
     fn owned<S: AsBytes>(r: RefWrapper<S, Self::RefData>) -> Result<Self::Owned>;
 }
-/// This is a helper trait for the [`UnsizedType`] trait. The required supertraits meet the [`checked`] blanket implementation for [`UnsizedType`].
+/// This is a helper trait for the [`UnsizedType`] trait. The required supertraits meet the [`CheckedBitPattern`] blanket implementation for [`UnsizedType`].
 pub trait UnsizedGenerics: CheckedBitPattern + Align1 + NoUninit + Zeroable {}
 impl<T> UnsizedGenerics for T where T: CheckedBitPattern + Align1 + NoUninit + Zeroable {}
 

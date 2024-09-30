@@ -400,6 +400,9 @@ where
             std::ops::Bound::Excluded(&end) => end,
             std::ops::Bound::Unbounded => old_len,
         };
+        if start_index == end_index {
+            return Ok(());
+        }
         ensure!(start_index <= end_index, "Invalid range");
         ensure!(end_index <= old_len, "Index out of bounds");
 
@@ -447,6 +450,12 @@ mod tests {
         let mut watcher = Vec::new();
         let mut test_set = TestByteSet::<List<TestStruct>>::new(Zeroed)?;
 
+        // test no-ops
+        {
+            let mut mutable = test_set.mutable()?;
+            mutable.remove_range(..)?;
+            mutable.remove_range(10..10)?;
+        }
         assert_eq!(**test_set.immut()?, watcher);
         {
             let mut mutable = test_set.mutable()?;

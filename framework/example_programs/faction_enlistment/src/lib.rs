@@ -42,12 +42,11 @@ impl StarFrameInstruction for ProcessEnlistPlayerIx {
     type ReturnType = ();
     // type RunArg<'a> = (FactionId, &'a Vec<u8>);
     type RunArg<'a> = FactionId;
-    type Accounts<'b, 'c, 'info> = ProcessEnlistPlayer<'info>
-        where 'info: 'b;
+    type Accounts<'b, 'c, 'info> = ProcessEnlistPlayer<'info>;
     // type ReturnType = usize;
 
-    fn split_to_args<'a>(r: &Self) -> SplitToArgsReturn<Self> {
-        SplitToArgsReturn {
+    fn split_to_args<'a>(r: &Self) -> IxArgs<Self> {
+        IxArgs {
             validate: r.bump,
             run: r.faction_id,
             // run: (r.faction_id, &r.buncha_data),
@@ -56,14 +55,11 @@ impl StarFrameInstruction for ProcessEnlistPlayerIx {
         }
     }
 
-    fn run_instruction<'b, 'info>(
-        account_set: &mut Self::Accounts<'b, '_, 'info>,
+    fn run_instruction(
+        account_set: &mut Self::Accounts<'_, '_, '_>,
         faction_id: Self::RunArg<'_>,
         syscalls: &mut impl SyscallInvoke,
-    ) -> Result<Self::ReturnType>
-    where
-        'info: 'b,
-    {
+    ) -> Result<Self::ReturnType> {
         let clock = syscalls.get_clock()?;
 
         let bump = account_set.player_faction_account.access_seeds().bump;
