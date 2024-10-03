@@ -11,6 +11,8 @@ pub use mutable::*;
 pub use seeded::*;
 pub use signer::*;
 
+// TODO: Add macros to make propagating the marker traits easier.
+
 /// A marker trait that indicates the underlying account is a signer
 pub trait SignedAccount<'info>: SingleAccountSet<'info> {
     /// Gets the seeds of the account if it is seeded.
