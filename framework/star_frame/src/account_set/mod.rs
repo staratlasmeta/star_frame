@@ -1,25 +1,15 @@
 mod data_account;
 mod impls;
-mod init_account;
-mod mutable;
+mod modifiers;
 mod program;
 mod rest;
-mod seeded_account;
-mod seeded_data_account;
-mod seeded_init_account;
-mod signer;
 mod system_account;
 
 pub use data_account::*;
 pub use impls::*;
-pub use init_account::*;
-pub use mutable::*;
+pub use modifiers::*;
 pub use program::*;
 pub use rest::*;
-pub use seeded_account::*;
-pub use seeded_data_account::*;
-pub use seeded_init_account::*;
-pub use signer::*;
 pub use star_frame_proc::AccountSet;
 pub use star_frame_proc::AccountToIdl;
 pub use system_account::*;
@@ -28,6 +18,7 @@ use crate::syscalls::SyscallInvoke;
 use crate::Result;
 use solana_program::account_info::AccountInfo;
 use solana_program::instruction::AccountMeta;
+use solana_program::program_error::ProgramError;
 use solana_program::pubkey::Pubkey;
 use std::cell::{Ref, RefMut};
 use std::convert::Infallible;
@@ -136,6 +127,7 @@ impl<'a, 'info, T> TryFromAccounts<'a, 'info> for T where
 
 /// An [`AccountSet`] that contains exactly 1 account.
 pub trait SingleAccountSet<'info>: AccountSet<'info> {
+    const METADATA: SingleAccountSetMetadata;
     /// Gets the contained account.
     fn account_info(&self) -> &AccountInfo<'info>;
     /// Gets the contained account cloned.
@@ -156,9 +148,28 @@ pub trait SingleAccountSet<'info>: AccountSet<'info> {
     fn is_signer(&self) -> bool {
         self.account_info().is_signer()
     }
+
+    /// Checks if this account is signed.
+    fn check_signer(&self) -> Result<()> {
+        if self.is_signer() {
+            Ok(())
+        } else {
+            Err(ProgramError::MissingRequiredSignature.into())
+        }
+    }
+
     /// Gets whether this account is writable.
     fn is_writable(&self) -> bool {
         self.account_info().is_writable()
+    }
+
+    /// Checks if this account is writable.
+    fn check_writable(&self) -> Result<()> {
+        if self.is_writable() {
+            Ok(())
+        } else {
+            Err(ProgramError::AccountBorrowFailed.into())
+        }
     }
 
     /// Gets the key of the contained account.
@@ -186,18 +197,22 @@ pub trait SingleAccountSet<'info>: AccountSet<'info> {
     }
 }
 
-/// Indicates the underlying account is a signer.
-pub trait SignedAccount<'info>: SingleAccountSet<'info> {
-    /// Gets the seeds of the account if it is seeded.
-    fn signer_seeds(&self) -> Option<Vec<&[u8]>>;
+#[allow(clippy::struct_excessive_bools)]
+#[derive(Copy, Clone, Debug, Default)]
+pub struct SingleAccountSetMetadata {
+    pub should_sign: bool,
+    pub should_mut: bool,
+    pub is_init: bool,
+    pub is_seeded: bool,
 }
 
-/// A marker trait that indicates the underlying account is writable.
-pub trait WritableAccount<'info>: SingleAccountSet<'info> {}
-
-/// A marker trait that indicates the underlying type has a [`ProgramAccount`] in it.
-pub trait HasProgramAccount<'info>: SingleAccountSet<'info> {
-    type ProgramAccount: ProgramAccount + ?Sized;
+impl SingleAccountSetMetadata {
+    pub const DEFAULT: Self = Self {
+        should_sign: false,
+        should_mut: false,
+        is_init: false,
+        is_seeded: false,
+    };
 }
 
 /// An [`AccountSet`] that can be decoded from a list of [`AccountInfo`]s using arg `A`.

@@ -9,6 +9,7 @@ use std::marker::PhantomData;
 pub struct Program<'info, T>(AccountInfo<'info>, PhantomData<T>);
 
 impl<'info, T> SingleAccountSet<'info> for Program<'info, T> {
+    const METADATA: SingleAccountSetMetadata = SingleAccountSetMetadata::DEFAULT;
     fn account_info(&self) -> &AccountInfo<'info> {
         &self.0
     }

@@ -1,12 +1,12 @@
 use crate::prelude::*;
 use crate::util::*;
 use advance::Advance;
-use anyhow::bail;
+use anyhow::{bail, Context};
 use bytemuck::{bytes_of, from_bytes};
 use derivative::Derivative;
 use solana_program::entrypoint::MAX_PERMITTED_DATA_INCREASE;
 use solana_program::program_memory::sol_memset;
-use solana_program::system_program;
+use solana_program::{system_instruction, system_program};
 use std::cell::{Ref, RefMut};
 use std::marker::PhantomData;
 use std::mem::size_of;
@@ -73,7 +73,7 @@ where
     T: ProgramAccount + UnsizedType + ?Sized,
 {
     /// Validates the owner and the discriminant of the account.
-    fn validate(&self) -> Result<()> {
+    pub fn validate(&self) -> Result<()> {
         if self.info.owner != &T::OwnerProgram::PROGRAM_ID {
             bail!(ProgramError::IllegalOwner);
         }
@@ -198,15 +198,117 @@ impl<'info, T> SingleAccountSet<'info> for DataAccount<'info, T>
 where
     T: ProgramAccount + UnsizedType + ?Sized,
 {
+    const METADATA: SingleAccountSetMetadata = SingleAccountSetMetadata::DEFAULT;
     fn account_info(&self) -> &AccountInfo<'info> {
         &self.info
     }
 }
 
-impl<'info, T: ProgramAccount + UnsizedType + ?Sized> HasProgramAccount<'info>
-    for DataAccount<'info, T>
-{
+impl<'info, T: ProgramAccount + UnsizedType + ?Sized> HasProgramAccount for DataAccount<'info, T> {
     type ProgramAccount = T;
+}
+
+impl<'info, T: ProgramAccount + UnsizedType + ?Sized> HasSeeds for DataAccount<'info, T>
+where
+    T: HasSeeds,
+{
+    type Seeds = T::Seeds;
+}
+
+impl<'info, T: ProgramAccount + UnsizedType + ?Sized, A> CanInitAccount<'info, Create<A>>
+    for DataAccount<'info, T>
+where
+    A: InitCreateArg<'info>,
+    T: UnsizedInit<A::StarFrameInitArg>,
+{
+    fn init(
+        &mut self,
+        mut arg: Create<A>,
+        syscalls: &mut impl SyscallInvoke,
+        account_seeds: Option<Vec<&[u8]>>,
+    ) -> Result<()> {
+        self.check_writable()
+            .context("InitAccount must be writable")?;
+        let CreateSplit {
+            arg,
+            system_program,
+            funder,
+        } = arg.0.split();
+        if self.owner() != system_program.key() || funder.owner() != system_program.key() {
+            bail!(ProgramError::IllegalOwner);
+        }
+        let rent = syscalls.get_rent()?;
+        let size =
+            T::INIT_BYTES + size_of::<<T::OwnerProgram as StarFrameProgram>::AccountDiscriminant>();
+        let ix = system_instruction::create_account(
+            funder.key(),
+            self.key(),
+            rent.minimum_balance(size),
+            size as u64,
+            &T::OwnerProgram::PROGRAM_ID,
+        );
+        let accounts: &[AccountInfo<'info>] = &[
+            self.account_info_cloned(),
+            system_program.account_info_cloned(),
+            funder.account_info_cloned(),
+        ];
+        match (funder.signer_seeds(), account_seeds) {
+            (None, None) => {
+                syscalls.invoke(&ix, accounts)?;
+            }
+            (Some(funder), None) => {
+                syscalls.invoke_signed(&ix, accounts, &[&funder])?;
+            }
+            (None, Some(account_seeds)) => {
+                syscalls.invoke_signed(&ix, accounts, &[&account_seeds])?;
+            }
+            (Some(funder), Some(account_seeds)) => {
+                syscalls.invoke_signed(&ix, accounts, &[&account_seeds, &funder])?;
+            }
+        }
+        {
+            let mut data_bytes = self.info_data_bytes_mut()?;
+            let mut data_bytes = &mut **data_bytes;
+
+            data_bytes
+                .try_advance(size_of::<
+                    <T::OwnerProgram as StarFrameProgram>::AccountDiscriminant,
+                >())?
+                .copy_from_slice(bytes_of(&T::DISCRIMINANT));
+            let data_bytes = data_bytes.try_advance(T::INIT_BYTES)?;
+            sol_memset(data_bytes, 0, data_bytes.len());
+            unsafe {
+                T::init(data_bytes, arg)?;
+            }
+        }
+
+        Ok(())
+    }
+}
+
+impl<'info, T: ProgramAccount + UnsizedType + ?Sized, A> CanInitAccount<'info, CreateIfNeeded<A>>
+    for DataAccount<'info, T>
+where
+    A: InitCreateArg<'info>,
+    T: UnsizedInit<A::StarFrameInitArg>,
+{
+    fn init(
+        &mut self,
+        arg: CreateIfNeeded<A>,
+        syscalls: &mut impl SyscallInvoke,
+        account_seeds: Option<Vec<&[u8]>>,
+    ) -> Result<()> {
+        let init_create = arg.0;
+        if self.owner() == init_create.system_program().key()
+            || self.account_info().data.borrow_mut()
+                [..size_of::<<T::OwnerProgram as StarFrameProgram>::AccountDiscriminant>()]
+                .iter()
+                .all(|x| *x == 0)
+        {
+            self.init(Create(init_create), syscalls, account_seeds)?;
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug)]

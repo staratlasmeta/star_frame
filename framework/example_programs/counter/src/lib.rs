@@ -18,11 +18,11 @@ impl ProgramAccount for CounterAccount {
     const DISCRIMINANT: <Self::OwnerProgram as StarFrameProgram>::AccountDiscriminant = [0; 8];
 }
 
-impl SeededAccountData for CounterAccount {
+impl HasSeeds for CounterAccount {
     type Seeds = CounterAccountSeeds;
 }
 
-#[derive(Debug, GetSeeds)]
+#[derive(Debug, GetSeeds, Clone)]
 #[seed_const(b"COUNTER")]
 pub struct CounterAccountSeeds {
     pub owner: Pubkey,
@@ -34,19 +34,15 @@ pub struct CreateCounterIx {
 }
 
 #[derive(AccountSet)]
+#[account_set(skip_default_idl)]
 pub struct CreateCounterAccounts<'info> {
     pub funder: Signer<Writable<SystemAccount<'info>>>,
     pub owner: SystemAccount<'info>,
-    #[validate(
-        arg = Create(
-            SeededInit {
-                seeds: CounterAccountSeeds {
-                owner: *self.owner.key(),
-            },
-            init_create: CreateAccount::new(&self.system_program, &self.funder),
-        })
-    )]
-    pub counter: SeededInitAccount<'info, CounterAccount>,
+    #[validate(arg = (
+        CreateIfNeeded(CreateAccount::new(&self.system_program, &self.funder)),
+        Seeds(CounterAccountSeeds { owner: *self.owner.key(), }),
+    ))]
+    pub counter: Init<Seeded<DataAccount<'info, CounterAccount>>>,
     pub system_program: Program<'info, SystemProgram>,
 }
 
