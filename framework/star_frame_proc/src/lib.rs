@@ -78,7 +78,7 @@ pub fn derive_account_set(input: proc_macro::TokenStream) -> proc_macro::TokenSt
 /// // `seed_const` is not present
 /// // Resulting `account.seeds()` is `vec![account.key.seed(), account.number.seed()];`
 ///
-/// #[derive(Debug, GetSeeds)]
+/// #[derive(Debug, GetSeeds, Clone)]
 /// pub struct TestAccount {
 ///     key: Pubkey,
 ///     number: u64,
@@ -100,7 +100,7 @@ pub fn derive_account_set(input: proc_macro::TokenStream) -> proc_macro::TokenSt
 ///     const DISC: &'static [u8] = b"TEST_CONST";
 /// }
 ///
-/// #[derive(Debug, GetSeeds)]
+/// #[derive(Debug, GetSeeds, Clone)]
 /// #[seed_const(Cool::DISC)]
 /// pub struct TestAccount {}
 /// ```
@@ -109,7 +109,7 @@ pub fn derive_account_set(input: proc_macro::TokenStream) -> proc_macro::TokenSt
 /// # use star_frame::prelude::*;
 /// // `seed_const` here resolves to the byte string `b"TEST_CONST"`
 /// // Resulting `account.seeds()` is `vec![b"TEST_CONST".as_ref(), account.key.seed()];`
-/// #[derive(Debug, GetSeeds)]
+/// #[derive(Debug, GetSeeds, Clone)]
 /// #[seed_const(b"TEST_CONST")]
 /// pub struct TestAccount {
 ///     key: Pubkey,
