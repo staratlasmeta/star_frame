@@ -65,7 +65,7 @@ pub fn normalize_rent<'info, F: WritableAccount<'info> + SignedAccount<'info>>(
     info: &AccountInfo<'info>,
     funder: &F,
     system_program: &Program<'info, SystemProgram>,
-    syscalls: &mut impl SyscallInvoke,
+    syscalls: &mut impl SyscallInvoke<'info>,
 ) -> Result<()> {
     let rent = syscalls.get_rent()?;
     let lamports = info.account_info().lamports();
@@ -113,7 +113,7 @@ pub fn normalize_rent<'info, F: WritableAccount<'info> + SignedAccount<'info>>(
 pub fn refund_rent<'info, F: WritableAccount<'info>>(
     info: &AccountInfo<'info>,
     funder: &F,
-    syscalls: &mut impl SyscallInvoke,
+    syscalls: &mut impl SyscallInvoke<'info>,
 ) -> Result<()> {
     let rent = syscalls.get_rent()?;
     let lamports = info.account_info().lamports();

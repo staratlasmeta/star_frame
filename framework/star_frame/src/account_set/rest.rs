@@ -27,7 +27,7 @@ where
     fn decode_accounts(
         accounts: &mut &'a [AccountInfo<'info>],
         decode_input: A,
-        syscalls: &mut impl SyscallInvoke,
+        syscalls: &mut impl SyscallInvoke<'info>,
     ) -> crate::Result<Self> {
         let mut out = vec![];
         while !accounts.is_empty() {

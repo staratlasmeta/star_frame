@@ -1,4 +1,5 @@
 mod data_account;
+mod funder;
 mod impls;
 mod modifiers;
 mod program;
@@ -6,6 +7,7 @@ mod rest;
 mod system_account;
 
 pub use data_account::*;
+pub use funder::*;
 pub use impls::*;
 pub use modifiers::*;
 pub use program::*;
@@ -14,7 +16,7 @@ pub use star_frame_proc::AccountSet;
 pub use star_frame_proc::AccountToIdl;
 pub use system_account::*;
 
-use crate::syscalls::SyscallInvoke;
+use crate::syscalls::{SyscallAccountCache, SyscallInvoke};
 use crate::Result;
 use solana_program::account_info::AccountInfo;
 use solana_program::instruction::AccountMeta;
@@ -26,6 +28,9 @@ use std::slice;
 
 /// A set of accounts that can be used as input to an instruction.
 pub trait AccountSet<'info> {
+    /// Sets account cache
+    fn set_account_cache(&mut self, _syscalls: &mut impl SyscallAccountCache<'info>) {}
+
     fn try_to_accounts<'a, E>(
         &'a self,
         add_account: impl FnMut(&'a AccountInfo<'info>) -> Result<(), E>,
@@ -72,7 +77,7 @@ pub trait TryFromAccountsWithArgs<'a, 'info, D, V>:
 {
     fn try_from_accounts_with_args(
         accounts: &mut &'a [AccountInfo<'info>],
-        syscalls: &mut impl SyscallInvoke,
+        syscalls: &mut impl SyscallInvoke<'info>,
         decode: D,
         validate: V,
     ) -> Result<Self> {
@@ -83,7 +88,7 @@ pub trait TryFromAccountsWithArgs<'a, 'info, D, V>:
 
     fn try_from_account_with_args(
         account: &'a AccountInfo<'info>,
-        syscalls: &mut impl SyscallInvoke,
+        syscalls: &mut impl SyscallInvoke<'info>,
         decode: D,
         validate: V,
     ) -> Result<Self>
@@ -99,14 +104,14 @@ pub trait TryFromAccountsWithArgs<'a, 'info, D, V>:
 pub trait TryFromAccounts<'a, 'info>: TryFromAccountsWithArgs<'a, 'info, (), ()> {
     fn try_from_accounts(
         accounts: &mut &'a [AccountInfo<'info>],
-        syscalls: &mut impl SyscallInvoke,
+        syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<Self> {
         Self::try_from_accounts_with_args(accounts, syscalls, (), ())
     }
 
     fn try_from_account(
         account: &'a AccountInfo<'info>,
-        syscalls: &mut impl SyscallInvoke,
+        syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<Self>
     where
         Self: SingleAccountSet<'info>,
@@ -221,7 +226,7 @@ pub trait AccountSetDecode<'a, 'info, A>: AccountSet<'info> + Sized {
     fn decode_accounts(
         accounts: &mut &'a [AccountInfo<'info>],
         decode_input: A,
-        syscalls: &mut impl SyscallInvoke,
+        syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<Self>;
 }
 
@@ -232,7 +237,7 @@ pub trait AccountSetValidate<'info, A>: AccountSet<'info> + Sized {
     fn validate_accounts(
         &mut self,
         validate_input: A,
-        syscalls: &mut impl SyscallInvoke,
+        syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<()>;
 }
 
@@ -242,7 +247,7 @@ pub trait AccountSetCleanup<'info, A>: AccountSet<'info> + Sized {
     fn cleanup_accounts(
         &mut self,
         cleanup_input: A,
-        syscalls: &mut impl SyscallInvoke,
+        syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<()>;
 }
 
@@ -257,6 +262,7 @@ mod test {
     use solana_program::program_error::ProgramError;
     use solana_program::pubkey::Pubkey;
     use solana_program::rent::Rent;
+    use star_frame::syscalls::SyscallAccountCache;
     use star_frame_proc::AccountSet;
 
     #[derive(AccountSet)]
@@ -321,7 +327,9 @@ mod test {
             unimplemented!()
         }
     }
-    impl SyscallInvoke for DummyRuntime {
+
+    impl SyscallAccountCache<'_> for DummyRuntime {}
+    impl<'info> SyscallInvoke<'info> for DummyRuntime {
         fn invoke(
             &mut self,
             _instruction: &SolanaInstruction,

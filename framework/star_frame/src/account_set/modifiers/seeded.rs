@@ -81,10 +81,10 @@ pub struct Seeds<T>(pub T);
 #[derive(Debug, Clone, Copy)]
 pub struct CurrentProgram;
 pub trait SeedProgram {
-    fn id(sys_calls: &mut impl SyscallInvoke) -> Result<Pubkey>;
+    fn id(sys_calls: &mut impl SyscallCore) -> Result<Pubkey>;
 }
 impl SeedProgram for CurrentProgram {
-    fn id(sys_calls: &mut impl SyscallInvoke) -> Result<Pubkey> {
+    fn id(sys_calls: &mut impl SyscallCore) -> Result<Pubkey> {
         Ok(*sys_calls.current_program_id())
     }
 }
@@ -92,7 +92,7 @@ impl<P> SeedProgram for P
 where
     P: StarFrameProgram,
 {
-    fn id(_syscalls: &mut impl SyscallInvoke) -> Result<Pubkey> {
+    fn id(_syscalls: &mut impl SyscallCore) -> Result<Pubkey> {
         Ok(P::PROGRAM_ID)
     }
 }
@@ -143,16 +143,20 @@ pub struct AnySeeded<T, S: GetSeeds + Clone, P: SeedProgram = CurrentProgram> {
     phantom_p: PhantomData<P>,
 }
 
-pub type Seeded<T> = AnySeeded<
+pub type Seeded<
     T,
-    <T as HasSeeds>::Seeds,
-    <<T as HasProgramAccount>::ProgramAccount as ProgramAccount>::OwnerProgram,
->;
+    S = <T as HasSeeds>::Seeds,
+    P = <<T as HasProgramAccount>::ProgramAccount as ProgramAccount>::OwnerProgram,
+> = AnySeeded<T, S, P>;
 
 impl<'info, T: SingleAccountSet<'info>, S: GetSeeds + Clone, P: SeedProgram, A>
     CanSetSeeds<'info, (Seeds<S>, A)> for AnySeeded<T, S, P>
 {
-    fn set_seeds(&mut self, arg: &(Seeds<S>, A), syscalls: &mut impl SyscallInvoke) -> Result<()> {
+    fn set_seeds(
+        &mut self,
+        arg: &(Seeds<S>, A),
+        syscalls: &mut impl SyscallInvoke<'info>,
+    ) -> Result<()> {
         self.validate_and_set_seeds(arg.0 .0.clone(), syscalls)
     }
 }
@@ -160,7 +164,11 @@ impl<'info, T: SingleAccountSet<'info>, S: GetSeeds + Clone, P: SeedProgram, A>
 impl<'info, T: SingleAccountSet<'info>, S: GetSeeds + Clone, P: SeedProgram>
     CanSetSeeds<'info, Seeds<S>> for AnySeeded<T, S, P>
 {
-    fn set_seeds(&mut self, arg: &Seeds<S>, syscalls: &mut impl SyscallInvoke) -> Result<()> {
+    fn set_seeds(
+        &mut self,
+        arg: &Seeds<S>,
+        syscalls: &mut impl SyscallInvoke<'info>,
+    ) -> Result<()> {
         self.validate_and_set_seeds(arg.0.clone(), syscalls)
     }
 }
@@ -171,7 +179,7 @@ impl<'info, T: SingleAccountSet<'info>, S: GetSeeds + Clone, P: SeedProgram, A>
     fn set_seeds(
         &mut self,
         arg: &(SeedsWithBump<S>, A),
-        syscalls: &mut impl SyscallInvoke,
+        syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<()> {
         self.validate_and_set_seeds_with_bump(arg.0.clone(), syscalls)
     }
@@ -183,7 +191,7 @@ impl<'info, T: SingleAccountSet<'info>, S: GetSeeds + Clone, P: SeedProgram>
     fn set_seeds(
         &mut self,
         arg: &SeedsWithBump<S>,
-        syscalls: &mut impl SyscallInvoke,
+        syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<()> {
         self.validate_and_set_seeds_with_bump(arg.clone(), syscalls)
     }
@@ -193,7 +201,7 @@ impl<'info, T: SingleAccountSet<'info>, S: GetSeeds, P: SeedProgram> AnySeeded<T
     fn validate_and_set_seeds(
         &mut self,
         seeds: S,
-        sys_calls: &mut impl SyscallInvoke,
+        sys_calls: &mut impl SyscallInvoke<'info>,
     ) -> Result<()> {
         if self.seeds.is_some() {
             return Ok(());
@@ -215,7 +223,7 @@ impl<'info, T: SingleAccountSet<'info>, S: GetSeeds, P: SeedProgram> AnySeeded<T
     fn validate_and_set_seeds_with_bump(
         &mut self,
         seeds: SeedsWithBump<S>,
-        sys_calls: &mut impl SyscallInvoke,
+        sys_calls: &mut impl SyscallInvoke<'info>,
     ) -> Result<()> {
         if self.seeds.is_some() {
             return Ok(());
@@ -287,7 +295,7 @@ where
     fn init(
         &mut self,
         arg: A,
-        syscalls: &mut impl SyscallInvoke,
+        syscalls: &mut impl SyscallInvoke<'info>,
         account_seeds: Option<Vec<&[u8]>>,
     ) -> Result<()> {
         // override seeds. Init should be called after seeds are set

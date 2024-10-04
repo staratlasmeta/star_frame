@@ -27,9 +27,9 @@ macro_rules! star_frame_entrypoint (
         #[doc(hidden)]
         pub mod _entrypoint {
             use super::*;
-            pub fn process_instruction(
-                program_id: &$crate::prelude::Pubkey,
-                accounts: &[$crate::prelude::AccountInfo],
+            pub fn process_instruction<'info>(
+                program_id: &'info $crate::prelude::Pubkey,
+                accounts: &[$crate::prelude::AccountInfo<'info>],
                 instruction_data: &[u8],
             ) -> $crate::solana_program::entrypoint::ProgramResult {
                 <$program as $crate::program::StarFrameProgram>::processor(program_id, accounts, instruction_data)

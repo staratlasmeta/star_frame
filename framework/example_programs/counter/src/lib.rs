@@ -63,10 +63,10 @@ impl StarFrameInstruction for CreateCounterIx {
         }
     }
 
-    fn run_instruction(
-        account_set: &mut Self::Accounts<'_, '_, '_>,
+    fn run_instruction<'info>(
+        account_set: &mut Self::Accounts<'_, '_, 'info>,
         start_at: Self::RunArg<'_>,
-        _syscalls: &mut impl SyscallInvoke,
+        _syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<Self::ReturnType> {
         *account_set.counter.data_mut()? = CounterAccount {
             version: 0,
@@ -114,10 +114,10 @@ impl StarFrameInstruction for UpdateCounterSignerIx {
         }
     }
 
-    fn run_instruction(
-        account_set: &mut Self::Accounts<'_, '_, '_>,
+    fn run_instruction<'info>(
+        account_set: &mut Self::Accounts<'_, '_, 'info>,
         _run_args: Self::RunArg<'_>,
-        _syscalls: &mut impl SyscallInvoke,
+        _syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<Self::ReturnType> {
         let mut counter = account_set.counter.data_mut()?;
         counter.signer = *account_set.new_signer.key();
@@ -157,16 +157,13 @@ impl StarFrameInstruction for CountIx {
     type Accounts<'b, 'c, 'info> = CountAccounts<'info>;
 
     fn split_to_args<'a>(r: &Self) -> IxArgs<Self> {
-        IxArgs {
-            run: (r.amount, r.subtract),
-            ..Default::default()
-        }
+        IxArgs::run((r.amount, r.subtract))
     }
 
-    fn run_instruction(
-        account_set: &mut Self::Accounts<'_, '_, '_>,
+    fn run_instruction<'info>(
+        account_set: &mut Self::Accounts<'_, '_, 'info>,
         (amount, subtract): Self::RunArg<'_>,
-        _syscalls: &mut impl SyscallInvoke,
+        _syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<Self::ReturnType> {
         let mut counter = account_set.counter.data_mut()?;
         let new_count: u64 = if subtract {
@@ -215,10 +212,10 @@ impl StarFrameInstruction for CloseCounterIx {
         Default::default()
     }
 
-    fn run_instruction(
-        _account_set: &mut Self::Accounts<'_, '_, '_>,
+    fn run_instruction<'info>(
+        _account_set: &mut Self::Accounts<'_, '_, 'info>,
         _run_args: Self::RunArg<'_>,
-        _syscalls: &mut impl SyscallInvoke,
+        _syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<Self::ReturnType> {
         Ok(())
     }

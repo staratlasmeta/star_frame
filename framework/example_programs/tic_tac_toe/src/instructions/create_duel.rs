@@ -23,7 +23,7 @@ use star_frame::syscalls::SysCallInvoke;
 //         run_arg: RunArgType,
 //         program_id: &Pubkey,
 //         account_set: AccountsType<'info>,
-//         syscalls: &mut impl SyscallInvoke,
+//         syscalls: &mut impl SyscallInvoke<'_>,
 //     ) -> Result<InstructionReturnType, ProgramError> {
 //     }
 // }
@@ -98,7 +98,7 @@ impl<'a> FrameworkInstruction<'a> for CreateDuel {
         _run_arg: Self::RunArg,
         _program_id: &Pubkey,
         _account_set: &Self::Accounts<'_, '_>,
-        _syscalls: &mut impl SysCallInvoke,
+        _syscalls: &mut impl SyscallInvoke<'_>,
     ) -> Result<Self::ReturnType, ProgramError> {
         Ok(())
     }

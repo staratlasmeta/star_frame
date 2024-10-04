@@ -20,11 +20,11 @@ pub trait InstructionSet {
 
     /// Handles the input from the program entrypoint (along with the `syscalls`).
     /// This is called directly in [`StarFrameProgram::processor`].
-    fn handle_ix(
+    fn handle_ix<'info>(
         program_id: &Pubkey,
-        accounts: &[AccountInfo],
+        accounts: &[AccountInfo<'info>],
         ix_bytes: &[u8],
-        syscalls: &mut impl Syscalls,
+        syscalls: &mut impl Syscalls<'info>,
     ) -> Result<()>;
 }
 
@@ -45,10 +45,10 @@ pub trait Instruction {
 
     fn data_from_bytes<'a>(bytes: &mut &'a [u8]) -> Result<Self::SelfData<'a>>;
     /// Runs the instruction from a raw solana input.
-    fn run_ix_from_raw(
-        accounts: &[AccountInfo],
+    fn run_ix_from_raw<'info>(
+        accounts: &[AccountInfo<'info>],
         data: &Self::SelfData<'_>,
-        syscalls: &mut impl Syscalls,
+        syscalls: &mut impl Syscalls<'info>,
     ) -> Result<()>;
 }
 
@@ -173,18 +173,18 @@ pub trait StarFrameInstruction: BorshDeserialize {
 
     /// Runs any extra validations on the accounts.
     #[allow(unused_variables)]
-    fn extra_validations(
-        account_set: &mut Self::Accounts<'_, '_, '_>,
+    fn extra_validations<'info>(
+        account_set: &mut Self::Accounts<'_, '_, 'info>,
         run_arg: &mut Self::RunArg<'_>,
-        syscalls: &mut impl SyscallInvoke,
+        syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<()> {
         Ok(())
     }
     /// Runs the instruction.
-    fn run_instruction(
-        account_set: &mut Self::Accounts<'_, '_, '_>,
+    fn run_instruction<'info>(
+        account_set: &mut Self::Accounts<'_, '_, 'info>,
         run_arg: Self::RunArg<'_>,
-        syscalls: &mut impl SyscallInvoke,
+        syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<Self::ReturnType>;
 }
 
@@ -198,10 +198,10 @@ where
         <T as BorshDeserialize>::deserialize(bytes).map_err(Into::into)
     }
 
-    fn run_ix_from_raw(
-        mut accounts: &[AccountInfo],
+    fn run_ix_from_raw<'info>(
+        mut accounts: &[AccountInfo<'info>],
         data: &Self::SelfData<'_>,
-        syscalls: &mut impl Syscalls,
+        syscalls: &mut impl Syscalls<'info>,
     ) -> Result<()> {
         let IxArgs {
             decode,
@@ -214,6 +214,7 @@ where
             decode,
             syscalls,
         )?;
+        account_set.set_account_cache(syscalls);
         account_set.validate_accounts(validate, syscalls)?;
         Self::extra_validations(&mut account_set, &mut run, syscalls)?;
         let ret = Self::run_instruction(&mut account_set, run, syscalls)?;
@@ -239,10 +240,10 @@ mod test_helpers {
                         todo!()
                     }
 
-                    fn run_ix_from_raw(
-                        _accounts: &[$crate::prelude::AccountInfo],
+                    fn run_ix_from_raw<'info>(
+                        _accounts: &[$crate::prelude::AccountInfo<'info>],
                         _data: &Self::SelfData<'_>,
-                        _syscalls: &mut impl $crate::prelude::Syscalls,
+                        _syscalls: &mut impl $crate::prelude::Syscalls<'info>,
                     ) -> $crate::Result<()> {
                         todo!()
                     }

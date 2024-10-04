@@ -15,11 +15,11 @@ impl StarFrameProgram for SystemProgram {
 impl InstructionSet for SystemInstruction {
     type Discriminant = ();
 
-    fn handle_ix(
+    fn handle_ix<'info>(
         _program_id: &Pubkey,
-        _accounts: &[AccountInfo],
+        _accounts: &[AccountInfo<'info>],
         _ix_bytes: &[u8],
-        _syscalls: &mut impl Syscalls,
+        _syscalls: &mut impl Syscalls<'info>,
     ) -> Result<()> {
         panic!("System instruction should not be handled");
     }

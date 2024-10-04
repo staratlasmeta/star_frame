@@ -22,7 +22,7 @@ pub struct Signer<T>(
     #[decode(arg = arg)]
     #[validate(arg = arg)]
     #[cleanup(arg = arg)]
-    T,
+    pub(crate) T,
 );
 
 pub type SignerInfo<'info> = Signer<AccountInfo<'info>>;
@@ -70,7 +70,7 @@ impl<'info, A, T> CanSetSeeds<'info, A> for Signer<T>
 where
     T: SingleAccountSet<'info>,
 {
-    fn set_seeds(&mut self, _arg: &A, _syscalls: &mut impl SyscallInvoke) -> Result<()> {
+    fn set_seeds(&mut self, _arg: &A, _syscalls: &mut impl SyscallInvoke<'info>) -> Result<()> {
         Ok(())
     }
 }
@@ -82,7 +82,7 @@ where
     fn init(
         &mut self,
         arg: A,
-        syscalls: &mut impl SyscallInvoke,
+        syscalls: &mut impl SyscallInvoke<'info>,
         account_seeds: Option<Vec<&[u8]>>,
     ) -> Result<()> {
         self.0.init(arg, syscalls, account_seeds)

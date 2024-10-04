@@ -28,7 +28,7 @@ where
     fn decode_accounts(
         _accounts: &mut &'a [AccountInfo<'info>],
         _decode_input: (),
-        _syscalls: &mut impl SyscallInvoke,
+        _syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<Self> {
         Ok(Self)
     }
@@ -40,7 +40,7 @@ where
     fn validate_accounts(
         &mut self,
         _validate_input: (),
-        _syscalls: &mut impl SyscallInvoke,
+        _syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<()> {
         Ok(())
     }
@@ -52,7 +52,7 @@ where
     fn cleanup_accounts(
         &mut self,
         _cleanup_input: (),
-        _syscalls: &mut impl SyscallInvoke,
+        _syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<()> {
         Ok(())
     }

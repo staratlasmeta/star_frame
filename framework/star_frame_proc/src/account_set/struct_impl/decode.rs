@@ -157,7 +157,7 @@ pub(super) fn decodes(
                 fn decode_accounts(
                     accounts: &mut &#decode_lifetime [#account_info<#info_lifetime>],
                     arg: #decode_type,
-                    syscalls: &mut impl #syscall_invoke,
+                    syscalls: &mut impl #syscall_invoke<#info_lifetime>,
                 ) -> #result<Self> {
                     Ok(#decode_inner)
                 }

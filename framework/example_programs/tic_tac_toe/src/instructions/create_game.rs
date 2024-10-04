@@ -99,7 +99,7 @@ impl<'a> FrameworkInstruction<'a> for CreateGame {
         _run_arg: Self::RunArg,
         _program_id: &Pubkey,
         account_set: &Self::Accounts<'_, '_>,
-        _syscalls: &mut impl SysCallInvoke,
+        _syscalls: &mut impl SyscallInvoke<'_>,
     ) -> Result<Self::ReturnType, ProgramError> {
         // Increment game count in duel account
         let mut duel_account_data = account_set.duel_account.data_mut()?;

@@ -1,4 +1,5 @@
 pub mod solana_runtime;
+use crate::account_set::{Funder, Program, SignedAccount, WritableAccount, WritableInfo};
 use crate::SolanaInstruction;
 use solana_program::account_info::AccountInfo;
 use solana_program::clock::Clock;
@@ -6,10 +7,14 @@ use solana_program::entrypoint_deprecated::ProgramResult;
 use solana_program::program_error::ProgramError;
 use solana_program::pubkey::Pubkey;
 use solana_program::rent::Rent;
+use star_frame::prelude::SystemProgram;
 
 /// Trait for syscalls provided by the solana runtime.
-pub trait Syscalls: SyscallReturn + SyscallInvoke {}
-impl<T> Syscalls for T where T: SyscallReturn + SyscallInvoke {}
+pub trait Syscalls<'info>:
+    SyscallReturn + SyscallInvoke<'info> + SyscallAccountCache<'info>
+{
+}
+impl<'info, T> Syscalls<'info> for T where T: SyscallReturn + SyscallInvoke<'info> {}
 
 /// Return syscalls for a solana program. Allows for simulation.
 pub trait SyscallReturn {
@@ -19,7 +24,7 @@ pub trait SyscallReturn {
     fn get_return_data(&self) -> Option<(Pubkey, Vec<u8>)>;
 }
 /// Invoke syscalls for a solana program. Allows for simulation.
-pub trait SyscallInvoke: SyscallCore {
+pub trait SyscallInvoke<'info>: SyscallCore + SyscallAccountCache<'info> {
     /// Synonym for [`solana_program::program::invoke`].
     fn invoke(
         &mut self,
@@ -53,6 +58,29 @@ pub trait SyscallInvoke: SyscallCore {
         signers_seeds: &[&[&[u8]]],
     ) -> ProgramResult;
 }
+
+/// A trait for caching commonly used accounts in the Syscall. This is useful for allowing
+pub trait SyscallAccountCache<'info> {
+    /// Gets a cached version of the `SystemProgram` if exists and Self has a `SystemProgram` cache.
+    fn get_system_program(&self) -> Option<&Program<'info, SystemProgram>> {
+        None
+    }
+    /// Sets the `SystemProgram` cache if Self has one. No-op if it doesn't.
+    fn set_system_program(&mut self, _program: Program<'info, SystemProgram>) {}
+    /// Gets a cached version of the funder if exists and Self has a funder cache
+    fn get_funder(&self) -> Option<&Funder<'info>> {
+        None
+    }
+    /// Sets the funder cache if Self has one. No-op if it doesn't.
+    fn set_funder(&mut self, _funder: &(impl SignedAccount<'info> + WritableAccount<'info>)) {}
+    /// Gets a cached version of the funder if exists and Self has a funder cache
+    fn get_recipient(&self) -> Option<&WritableInfo<'info>> {
+        None
+    }
+    /// Sets the recipient cache if Self has one. No-op if it doesn't.
+    fn set_recipient(&mut self, _recipient: &impl WritableAccount<'info>) {}
+}
+
 /// System calls that all syscall implementations must provide.
 pub trait SyscallCore {
     /// Get the current program id.

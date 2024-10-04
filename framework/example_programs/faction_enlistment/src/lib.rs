@@ -55,10 +55,10 @@ impl StarFrameInstruction for ProcessEnlistPlayerIx {
         }
     }
 
-    fn run_instruction(
-        account_set: &mut Self::Accounts<'_, '_, '_>,
+    fn run_instruction<'info>(
+        account_set: &mut Self::Accounts<'_, '_, 'info>,
         faction_id: Self::RunArg<'_>,
-        syscalls: &mut impl SyscallInvoke,
+        syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<Self::ReturnType> {
         let clock = syscalls.get_clock()?;
         let bump = account_set.player_faction_account.access_seeds().bump;

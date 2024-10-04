@@ -172,7 +172,7 @@ impl<'info> AccountSetCleanup<'info, ()> for AccountInfo<'info> {
     fn cleanup_accounts(
         &mut self,
         cleanup_input: (),
-        _syscalls: &mut impl SyscallInvoke,
+        _syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<()> {
         Ok(cleanup_input)
     }
@@ -181,7 +181,7 @@ impl<'a, 'info> AccountSetCleanup<'info, ()> for &'a AccountInfo<'info> {
     fn cleanup_accounts(
         &mut self,
         cleanup_input: (),
-        _syscalls: &mut impl SyscallInvoke,
+        _syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<()> {
         Ok(cleanup_input)
     }

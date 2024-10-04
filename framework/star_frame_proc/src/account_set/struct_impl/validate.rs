@@ -225,7 +225,7 @@ pub(super) fn validates(
                 fn validate_accounts(
                     &mut self,
                     arg: #validate_type,
-                    syscalls: &mut impl #syscall_invoke,
+                    syscalls: &mut impl #syscall_invoke<#info_lifetime>,
                 ) -> #result<()> {
                     #before_validation
                     #(#validates)*

@@ -16,6 +16,7 @@ pub fn instruction_set_impl(item: ItemEnum, args: TokenStream) -> TokenStream {
     let ident = &item.ident;
     let attrs = &item.attrs;
     let a_lifetime: Lifetime = parse_quote! { '__a };
+    let info_lifetime: Lifetime = parse_quote! { '__info };
 
     let valid_reprs: Punctuated<Type, Comma> =
         parse_quote! { u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize };
@@ -148,11 +149,11 @@ pub fn instruction_set_impl(item: ItemEnum, args: TokenStream) -> TokenStream {
         impl<#a_lifetime> #instruction_set for #ident<#a_lifetime> {
             type Discriminant = #discriminant_type;
 
-            fn handle_ix(
+            fn handle_ix<#info_lifetime>(
                 program_id: &#pubkey,
-                accounts: &[#account_info],
+                accounts: &[#account_info<#info_lifetime>],
                 mut ix_bytes: &[u8],
-                syscalls: &mut impl #syscalls,
+                syscalls: &mut impl #syscalls<#info_lifetime>,
             ) -> #result<()> {
                 #get_discriminant
                 #[deny(unreachable_patterns)]

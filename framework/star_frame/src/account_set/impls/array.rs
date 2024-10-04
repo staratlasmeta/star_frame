@@ -36,7 +36,7 @@ where
     fn decode_accounts(
         accounts: &mut &'a [AccountInfo<'info>],
         decode_input: [DArg; N],
-        syscalls: &mut impl SyscallInvoke,
+        syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<Self> {
         let mut decode_input = decode_input.into_iter();
         try_array_init(|_| A::decode_accounts(accounts, decode_input.next().unwrap(), syscalls))
@@ -50,7 +50,7 @@ where
     fn decode_accounts(
         accounts: &mut &'a [AccountInfo<'info>],
         decode_input: (DArg,),
-        syscalls: &mut impl SyscallInvoke,
+        syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<Self> {
         try_array_init(|_| A::decode_accounts(accounts, decode_input.0.clone(), syscalls))
     }
@@ -62,7 +62,7 @@ where
     fn decode_accounts(
         accounts: &mut &'a [AccountInfo<'info>],
         decode_input: (),
-        syscalls: &mut impl SyscallInvoke,
+        syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<Self> {
         Self::decode_accounts(accounts, (decode_input,), syscalls)
     }
@@ -75,7 +75,7 @@ where
     fn validate_accounts(
         &mut self,
         validate_input: [VArg; N],
-        syscalls: &mut impl SyscallInvoke,
+        syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<()> {
         for (a, v) in self.iter_mut().zip(validate_input) {
             a.validate_accounts(v, syscalls)?;
@@ -91,7 +91,7 @@ where
     fn validate_accounts(
         &mut self,
         validate_input: (VArg,),
-        syscalls: &mut impl SyscallInvoke,
+        syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<()> {
         for a in self {
             a.validate_accounts(validate_input.0.clone(), syscalls)?;
@@ -106,7 +106,7 @@ where
     fn validate_accounts(
         &mut self,
         validate_input: (),
-        syscalls: &mut impl SyscallInvoke,
+        syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<()> {
         for a in self {
             a.validate_accounts(validate_input, syscalls)?;
@@ -122,7 +122,7 @@ where
     fn cleanup_accounts(
         &mut self,
         cleanup_input: [VArg; N],
-        syscalls: &mut impl SyscallInvoke,
+        syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<()> {
         for (a, v) in self.iter_mut().zip(cleanup_input) {
             a.cleanup_accounts(v, syscalls)?;
@@ -138,7 +138,7 @@ where
     fn cleanup_accounts(
         &mut self,
         cleanup_input: (VArg,),
-        syscalls: &mut impl SyscallInvoke,
+        syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<()> {
         for a in self {
             a.cleanup_accounts(cleanup_input.0.clone(), syscalls)?;
@@ -153,7 +153,7 @@ where
     fn cleanup_accounts(
         &mut self,
         cleanup_input: (),
-        syscalls: &mut impl SyscallInvoke,
+        syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<()> {
         for a in self {
             a.cleanup_accounts(cleanup_input, syscalls)?;
