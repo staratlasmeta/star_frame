@@ -6,6 +6,7 @@ use crate::account_set::{AccountSetStructArgs, StrippedDeriveInput};
 use crate::util::Paths;
 use easy_proc::{find_attr, ArgumentList};
 use proc_macro2::TokenStream;
+use proc_macro_error::abort;
 use quote::{quote, ToTokens};
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
@@ -36,6 +37,12 @@ impl Parse for Requires {
 #[derive(ArgumentList, Debug, Clone)]
 struct AccountSetFieldAttrs {
     skip: Option<TokenStream>,
+    #[argument(presence)]
+    system_program: bool,
+    #[argument(presence)]
+    funder: bool,
+    #[argument(presence)]
+    recipient: bool,
 }
 
 pub(super) fn derive_account_set_impl_struct(
@@ -58,6 +65,7 @@ pub(super) fn derive_account_set_impl_struct(
         account_info,
         account_set,
         crate_name,
+        macro_prelude,
         result,
         ..
     } = &paths;
@@ -99,6 +107,62 @@ pub(super) fn derive_account_set_impl_struct(
         .enumerate()
         .map(resolve_field_name)
         .collect::<Vec<_>>();
+
+    let find_field_name =
+        |name: &str, is_active: fn(AccountSetFieldAttrs) -> bool| -> Option<TokenStream> {
+            let mut fields = data_struct
+                .fields
+                .iter()
+                .enumerate()
+                .filter(|field| {
+                    find_attr(&field.1.attrs, &paths.account_set_ident)
+                        .map(AccountSetFieldAttrs::parse_arguments)
+                        .map(is_active)
+                        .unwrap_or_default()
+                })
+                .collect::<Vec<_>>();
+            if fields.len() > 1 {
+                abort!(
+                    fields[1].1,
+                    format!("Only one field can be marked as ${name}")
+                );
+            }
+            fields.pop().map(|(index, _)| field_name[index].clone())
+        };
+
+    let system_program = find_field_name("system_program", |args| args.system_program);
+    let funder = find_field_name("funder", |args| args.funder);
+    let recipient = find_field_name("recipient", |args| args.recipient);
+
+    let set_account_cache = if system_program.is_some() || funder.is_some() {
+        let set_system = system_program.map(|field_name| {
+            quote! {
+                syscalls.set_system_program(self.#field_name.clone());
+            }
+        });
+        let set_funder = funder.map(|field_name| {
+            quote! {
+                syscalls.set_funder(&self.#field_name);
+            }
+        });
+        let set_recipient = recipient.map(|field_name| {
+            quote! {
+                syscalls.set_recipient(&self.#field_name);
+            }
+        });
+        quote! {
+            fn set_account_cache(
+                &mut self,
+                syscalls: &mut impl #macro_prelude::SyscallAccountCache<#info_lifetime>,
+            ) {
+                #set_system
+                #set_funder
+                #set_recipient
+            }
+        }
+    } else {
+        quote! {}
+    };
 
     let decode_types = data_struct
         .fields
@@ -180,6 +244,8 @@ pub(super) fn derive_account_set_impl_struct(
     quote! {
         #[automatically_derived]
         impl #other_impl_generics #account_set<#info_lifetime> for #ident #ty_generics #other_where_clause {
+            #set_account_cache
+
             fn try_to_accounts<#function_lifetime, #function_generic_type>(
                 &#function_lifetime self,
                 mut add_account: impl FnMut(&#function_lifetime #account_info<#info_lifetime>) -> #result<(), #function_generic_type>,

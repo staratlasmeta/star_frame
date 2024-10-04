@@ -34,7 +34,6 @@ pub struct CreateCounterIx {
 }
 
 #[derive(AccountSet)]
-#[account_set(skip_default_idl)]
 pub struct CreateCounterAccounts<'info> {
     pub funder: Signer<Writable<SystemAccount<'info>>>,
     pub owner: SystemAccount<'info>,
@@ -181,23 +180,13 @@ impl StarFrameInstruction for CountIx {
 pub struct CloseCounterIx {}
 
 #[derive(AccountSet, Debug)]
-#[validate(extra_validation = self.validate())]
 pub struct CloseCounterAccounts<'info> {
+    #[validate(arg = &self.counter.data()?.signer)]
     pub signer: Signer<SystemAccount<'info>>,
+    #[account_set(recipient)]
     pub funds_to: Writable<SystemAccount<'info>>,
-    #[cleanup( arg = CloseAccount {
-        recipient: &self.funds_to,
-    })]
+    #[cleanup(arg = NormalizeRentAuto)]
     pub counter: Writable<DataAccount<'info, CounterAccount>>,
-}
-
-impl<'info> CloseCounterAccounts<'info> {
-    fn validate(&self) -> Result<()> {
-        if *self.signer.key() != self.counter.data()?.signer {
-            bail!("Incorrect signer");
-        }
-        Ok(())
-    }
 }
 
 impl StarFrameInstruction for CloseCounterIx {

@@ -78,21 +78,16 @@ impl StarFrameInstruction for ProcessEnlistPlayerIx {
 #[account_set(skip_default_idl)]
 pub struct ProcessEnlistPlayer<'info> {
     /// The player faction account
-    #[validate(
-        arg = (
-            Create(CreateAccount::new(
-                &self.system_program,
-                &self.player_account,
-            )),
-            Seeds(PlayerFactionAccountSeeds {
-                player_account: *self.player_account.key()
-            }
-        ))
-    )]
+    #[validate(arg = (Create(()),
+    Seeds(PlayerFactionAccountSeeds {
+        player_account: *self.player_account.key()
+    })))]
     pub player_faction_account: Init<Seeded<DataAccount<'info, PlayerFactionData>>>,
     /// The player account
+    #[account_set(funder)]
     pub player_account: Writable<Signer<SystemAccount<'info>>>,
     /// Solana System program
+    #[account_set(system_program)]
     pub system_program: Program<'info, SystemProgram>,
 }
 #[derive(
