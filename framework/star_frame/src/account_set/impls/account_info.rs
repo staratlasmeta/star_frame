@@ -134,7 +134,7 @@ impl<'a, 'info> AccountSetDecode<'a, 'info, ()> for AccountInfo<'info> {
     fn decode_accounts(
         accounts: &mut &'a [AccountInfo<'info>],
         _decode_input: (),
-        _syscalls: &mut impl SyscallInvoke,
+        _syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<Self> {
         let account: &[_; 1] = accounts.try_advance_array()?;
         Ok(account[0].clone())
@@ -144,7 +144,7 @@ impl<'a, 'info> AccountSetDecode<'a, 'info, ()> for &'a AccountInfo<'info> {
     fn decode_accounts(
         accounts: &mut &'a [AccountInfo<'info>],
         _decode_input: (),
-        _syscalls: &mut impl SyscallInvoke,
+        _syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<Self> {
         let account: &[_; 1] = accounts.try_advance_array()?;
         Ok(&account[0])
@@ -153,21 +153,45 @@ impl<'a, 'info> AccountSetDecode<'a, 'info, ()> for &'a AccountInfo<'info> {
 impl<'info> AccountSetValidate<'info, ()> for AccountInfo<'info> {
     fn validate_accounts(
         &mut self,
-        validate_input: (),
-        _syscalls: &mut impl SyscallInvoke,
+        _validate_input: (),
+        _syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<()> {
-        Ok(validate_input)
+        Ok(())
     }
 }
+
+impl<'info> AccountSetValidate<'info, &Pubkey> for AccountInfo<'info> {
+    fn validate_accounts(
+        &mut self,
+        validate_input: &Pubkey,
+        _syscalls: &mut impl SyscallInvoke<'info>,
+    ) -> Result<()> {
+        anyhow::ensure!(self.key == validate_input);
+        Ok(())
+    }
+}
+
 impl<'a, 'info> AccountSetValidate<'info, ()> for &'a AccountInfo<'info> {
     fn validate_accounts(
         &mut self,
         validate_input: (),
-        _syscalls: &mut impl SyscallInvoke,
+        _syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<()> {
         Ok(validate_input)
     }
 }
+
+impl<'a, 'info> AccountSetValidate<'info, &Pubkey> for &'a AccountInfo<'info> {
+    fn validate_accounts(
+        &mut self,
+        validate_input: &Pubkey,
+        _syscalls: &mut impl SyscallInvoke<'info>,
+    ) -> Result<()> {
+        anyhow::ensure!(self.key == validate_input);
+        Ok(())
+    }
+}
+
 impl<'info> AccountSetCleanup<'info, ()> for AccountInfo<'info> {
     fn cleanup_accounts(
         &mut self,

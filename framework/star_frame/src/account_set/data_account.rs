@@ -35,14 +35,9 @@ pub struct CloseAccount<'a, F> {
 }
 
 #[derive(AccountSet, Debug)]
-#[validate(extra_validation = self.validate())]
 #[validate(
-    id = "address", 
-    arg = &Pubkey,
-    extra_validation = {
-        anyhow::ensure!(self.key() == arg);
-        self.validate()
-    }
+    generics = [<A> where AccountInfo<'info>: AccountSetValidate<'info, A>], arg = A,
+    extra_validation = self.validate()
 )]
 #[cleanup(extra_cleanup = self.check_cleanup(syscalls))]
 #[cleanup(
@@ -64,6 +59,7 @@ pub struct CloseAccount<'a, F> {
     extra_cleanup = self.close(arg.recipient)
 )]
 pub struct DataAccount<'info, T: ProgramAccount + UnsizedType + ?Sized> {
+    #[validate(arg = arg)]
     info: AccountInfo<'info>,
     phantom_t: PhantomData<T>,
 }
