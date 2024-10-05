@@ -52,7 +52,10 @@ pub fn derive_star_frame_instruction(input: proc_macro::TokenStream) -> proc_mac
 }
 
 #[proc_macro_error]
-#[proc_macro_derive(AccountSet, attributes(account_set, decode, validate, cleanup, idl))]
+#[proc_macro_derive(
+    AccountSet,
+    attributes(account_set, decode, validate, cleanup, idl, single_account_set)
+)]
 pub fn derive_account_set(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let out = account_set::derive_account_set_impl(parse_macro_input!(input as DeriveInput));
     out.into()

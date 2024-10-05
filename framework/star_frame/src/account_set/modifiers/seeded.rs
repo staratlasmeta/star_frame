@@ -1,4 +1,4 @@
-use crate::account_set::{SignedAccount, WritableAccount};
+use crate::account_set::SignedAccount;
 use crate::prelude::*;
 use anyhow::bail;
 use bytemuck::bytes_of;
@@ -129,13 +129,27 @@ where
     before_validation = self.set_seeds(&arg, syscalls)
 )]
 #[cleanup(generics = [<A> where T: AccountSetCleanup <'info, A>], arg = A)]
-pub struct AnySeeded<T, S: GetSeeds + Clone, P: SeedProgram = CurrentProgram> {
+pub struct Seeded<
+    T,
+    S: GetSeeds + Clone = <T as HasSeeds>::Seeds,
+    P: SeedProgram = <T as HasOwnerProgram>::OwnerProgram,
+> {
     #[decode(arg = arg)]
     #[validate(id = "seeds_generic", arg = arg.1)]
     #[validate(id = "seeds_with_bump_generic", arg = arg.1)]
     #[cleanup(arg = arg)]
     #[deref]
     #[deref_mut]
+    #[single_account_set(
+        metadata = SingleAccountSetMetadata {
+            is_seeded: true,
+            ..T::METADATA
+        },
+        skip_can_set_seeds,
+        skip_signed_account,
+        skip_has_seeds,
+        skip_can_init_account
+    )]
     pub(crate) account: T,
     /// Seeds of the account. Starts as `None`, and are set to `Some` after validation, during `AccountSetValidate`.
     #[account_set(skip = None)]
@@ -143,14 +157,8 @@ pub struct AnySeeded<T, S: GetSeeds + Clone, P: SeedProgram = CurrentProgram> {
     phantom_p: PhantomData<P>,
 }
 
-pub type Seeded<
-    T,
-    S = <T as HasSeeds>::Seeds,
-    P = <<T as HasProgramAccount>::ProgramAccount as ProgramAccount>::OwnerProgram,
-> = AnySeeded<T, S, P>;
-
 impl<'info, T: SingleAccountSet<'info>, S: GetSeeds + Clone, P: SeedProgram, A>
-    CanSetSeeds<'info, (Seeds<S>, A)> for AnySeeded<T, S, P>
+    CanSetSeeds<'info, (Seeds<S>, A)> for Seeded<T, S, P>
 {
     fn set_seeds(
         &mut self,
@@ -162,7 +170,7 @@ impl<'info, T: SingleAccountSet<'info>, S: GetSeeds + Clone, P: SeedProgram, A>
 }
 
 impl<'info, T: SingleAccountSet<'info>, S: GetSeeds + Clone, P: SeedProgram>
-    CanSetSeeds<'info, Seeds<S>> for AnySeeded<T, S, P>
+    CanSetSeeds<'info, Seeds<S>> for Seeded<T, S, P>
 {
     fn set_seeds(
         &mut self,
@@ -174,7 +182,7 @@ impl<'info, T: SingleAccountSet<'info>, S: GetSeeds + Clone, P: SeedProgram>
 }
 
 impl<'info, T: SingleAccountSet<'info>, S: GetSeeds + Clone, P: SeedProgram, A>
-    CanSetSeeds<'info, (SeedsWithBump<S>, A)> for AnySeeded<T, S, P>
+    CanSetSeeds<'info, (SeedsWithBump<S>, A)> for Seeded<T, S, P>
 {
     fn set_seeds(
         &mut self,
@@ -186,7 +194,7 @@ impl<'info, T: SingleAccountSet<'info>, S: GetSeeds + Clone, P: SeedProgram, A>
 }
 
 impl<'info, T: SingleAccountSet<'info>, S: GetSeeds + Clone, P: SeedProgram>
-    CanSetSeeds<'info, SeedsWithBump<S>> for AnySeeded<T, S, P>
+    CanSetSeeds<'info, SeedsWithBump<S>> for Seeded<T, S, P>
 {
     fn set_seeds(
         &mut self,
@@ -197,7 +205,7 @@ impl<'info, T: SingleAccountSet<'info>, S: GetSeeds + Clone, P: SeedProgram>
     }
 }
 
-impl<'info, T: SingleAccountSet<'info>, S: GetSeeds, P: SeedProgram> AnySeeded<T, S, P> {
+impl<'info, T: SingleAccountSet<'info>, S: GetSeeds, P: SeedProgram> Seeded<T, S, P> {
     fn validate_and_set_seeds(
         &mut self,
         seeds: S,
@@ -243,25 +251,13 @@ impl<'info, T: SingleAccountSet<'info>, S: GetSeeds, P: SeedProgram> AnySeeded<T
     }
 }
 
-impl<T, S: GetSeeds, P: SeedProgram> AnySeeded<T, S, P> {
+impl<T, S: GetSeeds, P: SeedProgram> Seeded<T, S, P> {
     pub fn access_seeds(&self) -> &SeedsWithBump<S> {
         self.seeds.as_ref().unwrap()
     }
 }
 
-impl<'info, T, S: GetSeeds, P: SeedProgram> SingleAccountSet<'info> for AnySeeded<T, S, P>
-where
-    T: SingleAccountSet<'info>,
-{
-    const METADATA: SingleAccountSetMetadata = SingleAccountSetMetadata {
-        is_seeded: true,
-        ..T::METADATA
-    };
-    fn account_info(&self) -> &AccountInfo<'info> {
-        self.account.account_info()
-    }
-}
-impl<'info, T, S: GetSeeds, P: SeedProgram> SignedAccount<'info> for AnySeeded<T, S, P>
+impl<'info, T, S: GetSeeds, P: SeedProgram> SignedAccount<'info> for Seeded<T, S, P>
 where
     T: SingleAccountSet<'info>,
 {
@@ -269,26 +265,15 @@ where
         Some(self.access_seeds().seeds_with_bump())
     }
 }
-impl<'info, T, S: GetSeeds, P: SeedProgram> WritableAccount<'info> for AnySeeded<T, S, P> where
-    T: WritableAccount<'info>
-{
-}
 
-impl<T, S: GetSeeds, P: SeedProgram> HasProgramAccount for AnySeeded<T, S, P>
-where
-    T: HasProgramAccount,
-{
-    type ProgramAccount = T::ProgramAccount;
-}
-
-impl<'info, T, S: GetSeeds, P: SeedProgram> HasSeeds for AnySeeded<T, S, P>
+impl<'info, T, S: GetSeeds, P: SeedProgram> HasSeeds for Seeded<T, S, P>
 where
     T: SingleAccountSet<'info>,
 {
     type Seeds = S;
 }
 
-impl<'info, T, S: GetSeeds, P: SeedProgram, A> CanInitAccount<'info, A> for AnySeeded<T, S, P>
+impl<'info, T, S: GetSeeds, P: SeedProgram, A> CanInitAccount<'info, A> for Seeded<T, S, P>
 where
     T: SingleAccountSet<'info> + CanInitAccount<'info, A>,
 {
@@ -313,7 +298,7 @@ mod idl_impl {
     use star_frame_idl::account_set::IdlAccountSetDef;
     use star_frame_idl::IdlDefinition;
 
-    impl<'info, T, A, S, P: SeedProgram> AccountSetToIdl<'info, A> for AnySeeded<T, S, P>
+    impl<'info, T, A, S, P: SeedProgram> AccountSetToIdl<'info, A> for Seeded<T, S, P>
     where
         T: AccountSetToIdl<'info, A> + SingleAccountSet<'info>,
         S: GetSeeds,

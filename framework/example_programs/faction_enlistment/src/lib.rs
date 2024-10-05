@@ -37,7 +37,7 @@ pub struct ProcessEnlistPlayerIx {
 
 impl StarFrameInstruction for ProcessEnlistPlayerIx {
     type DecodeArg<'a> = ();
-    type ValidateArg<'a> = u8;
+    type ValidateArg<'a> = ();
     type CleanupArg<'a> = ();
     type ReturnType = ();
     // type RunArg<'a> = (FactionId, &'a Vec<u8>);
@@ -46,13 +46,7 @@ impl StarFrameInstruction for ProcessEnlistPlayerIx {
     // type ReturnType = usize;
 
     fn split_to_args<'a>(r: &Self) -> IxArgs<Self> {
-        IxArgs {
-            validate: r.bump,
-            run: r.faction_id,
-            // run: (r.faction_id, &r.buncha_data),
-            cleanup: (),
-            decode: (),
-        }
+        IxArgs::run(r.faction_id)
     }
 
     fn run_instruction<'info>(
@@ -60,6 +54,7 @@ impl StarFrameInstruction for ProcessEnlistPlayerIx {
         faction_id: Self::RunArg<'_>,
         syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<Self::ReturnType> {
+        // let cloned_account = account_set.player_account.clone();
         let clock = syscalls.get_clock()?;
         let bump = account_set.player_faction_account.access_seeds().bump;
         *account_set.player_faction_account.data_mut()? = PlayerFactionData {
@@ -74,15 +69,18 @@ impl StarFrameInstruction for ProcessEnlistPlayerIx {
 }
 
 #[derive(AccountSet)]
-#[validate(arg = u8)]
-#[account_set(skip_default_idl)]
 pub struct ProcessEnlistPlayer<'info> {
     /// The player faction account
-    #[validate(arg = (Create(()),
+    #[validate(arg = (Create(CreateAccount::new(&self.system_program, &self.player_account)),
     Seeds(PlayerFactionAccountSeeds {
         player_account: *self.player_account.key()
     })))]
     pub player_faction_account: Init<Seeded<DataAccount<'info, PlayerFactionData>>>,
+    #[validate(arg  =Seeds(PlayerFactionAccountSeeds {
+        player_account: *self.player_account.key()
+    }))]
+    pub player_faction_account2:
+        Seeded<DataAccount<'info, PlayerFactionData>, PlayerFactionAccountSeeds, CurrentProgram>,
     /// The player account
     #[account_set(funder)]
     pub player_account: Writable<Signer<SystemAccount<'info>>>,
@@ -136,9 +134,12 @@ unsafe impl Zeroable for FactionId {}
 
 // TODO - Macro should derive this and with the idl feature enabled would also derive `AccountToIdl` and `TypeToIdl`
 impl ProgramAccount for PlayerFactionData {
-    type OwnerProgram = StarFrameDeclaredProgram;
     const DISCRIMINANT: <Self::OwnerProgram as StarFrameProgram>::AccountDiscriminant =
         [47, 44, 255, 15, 103, 77, 139, 247];
+}
+
+impl HasOwnerProgram for PlayerFactionData {
+    type OwnerProgram = FactionEnlistment;
 }
 
 impl HasSeeds for PlayerFactionData {
@@ -156,15 +157,17 @@ mod tests {
     use super::*;
     use bytemuck::checked::try_from_bytes;
     use solana_program_test::{processor, ProgramTest};
+    use solana_sdk::account::Account;
     use solana_sdk::clock::Clock;
-    use solana_sdk::signature::Signer;
+    use solana_sdk::signature::{Keypair, Signer};
     use star_frame::borsh::to_vec;
     use star_frame::itertools::Itertools;
     use star_frame::solana_program::instruction::AccountMeta;
+    use star_frame::solana_program::native_token::LAMPORTS_PER_SOL;
 
     #[tokio::test]
     async fn banks_test() -> Result<()> {
-        const SBF_FILE: bool = false;
+        const SBF_FILE: bool = true;
         let program_test = if SBF_FILE {
             let target_dir = std::env::current_dir()?
                 .join("../../../target/deploy")
@@ -186,23 +189,26 @@ mod tests {
             )
         };
 
-        let test_context = program_test.start_with_context().await;
+        let mut test_context = program_test.start_with_context().await;
+        let (player_account, (faction_account, bump)) = loop {
+            let key = Keypair::new();
+            let seeds = PlayerFactionAccountSeeds {
+                player_account: key.pubkey(),
+            };
+            let player_faction =
+                Pubkey::find_program_address(&seeds.seeds(), &StarFrameDeclaredProgram::PROGRAM_ID);
+            if player_faction.1 == 255 {
+                let data = Account {
+                    lamports: LAMPORTS_PER_SOL * 100,
+                    ..Default::default()
+                };
+                test_context.set_account(&key.pubkey(), &data.into());
+                break (key, player_faction);
+            }
+        };
         let mut banks_client = test_context.banks_client;
 
-        let player_account = test_context.payer;
-
-        let seeds = PlayerFactionAccountSeeds {
-            player_account: player_account.pubkey(),
-        };
-        let (faction_account, bump) =
-            Pubkey::find_program_address(&seeds.seeds(), &StarFrameDeclaredProgram::PROGRAM_ID);
-        println!("Bump: {}", bump);
         let faction_id = FactionId::MUD;
-
-        // let mut random_bytes = [0u8; 1];
-        // let mut rng = rand::thread_rng();
-        // rand::rngs::ThreadRng::try_fill(&mut rng, &mut random_bytes[..]).unwrap();
-        // let bunch_bytes = random_bytes.to_vec();
 
         let enlist_ix = ProcessEnlistPlayerIx {
             bump,

@@ -12,8 +12,7 @@ use std::marker::PhantomData;
 use std::mem::size_of;
 use std::slice::from_raw_parts_mut;
 
-pub trait ProgramAccount {
-    type OwnerProgram: StarFrameProgram;
+pub trait ProgramAccount: HasOwnerProgram {
     const DISCRIMINANT: <Self::OwnerProgram as StarFrameProgram>::AccountDiscriminant;
 }
 
@@ -93,6 +92,12 @@ pub struct CloseAccountAuto;
     }
 )]
 pub struct DataAccount<'info, T: ProgramAccount + UnsizedType + ?Sized> {
+    #[single_account_set(
+        skip_has_program_account,
+        skip_can_init_account,
+        skip_has_seeds,
+        skip_has_owner_program
+    )]
     #[validate(arg = arg)]
     info: AccountInfo<'info>,
     phantom_t: PhantomData<T>,
@@ -224,18 +229,12 @@ where
     }
 }
 
-impl<'info, T> SingleAccountSet<'info> for DataAccount<'info, T>
-where
-    T: ProgramAccount + UnsizedType + ?Sized,
-{
-    const METADATA: SingleAccountSetMetadata = SingleAccountSetMetadata::DEFAULT;
-    fn account_info(&self) -> &AccountInfo<'info> {
-        &self.info
-    }
-}
-
 impl<'info, T: ProgramAccount + UnsizedType + ?Sized> HasProgramAccount for DataAccount<'info, T> {
     type ProgramAccount = T;
+}
+
+impl<'info, T: ProgramAccount + UnsizedType + ?Sized> HasOwnerProgram for DataAccount<'info, T> {
+    type OwnerProgram = T::OwnerProgram;
 }
 
 impl<'info, T: ProgramAccount + UnsizedType + ?Sized> HasSeeds for DataAccount<'info, T>

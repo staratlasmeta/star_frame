@@ -8,15 +8,11 @@ use star_frame::prelude::*;
     extra_validation = self.check_id(),
 )]
 #[repr(transparent)]
-pub struct SystemAccount<'info>(#[validate(arg = arg)] AccountInfo<'info>);
-
-impl<'info> SingleAccountSet<'info> for SystemAccount<'info> {
-    const METADATA: SingleAccountSetMetadata = SingleAccountSetMetadata::DEFAULT;
-
-    fn account_info(&self) -> &AccountInfo<'info> {
-        &self.0
-    }
-}
+pub struct SystemAccount<'info>(
+    #[single_account_set(skip_has_owner_program)]
+    #[validate(arg = arg)]
+    AccountInfo<'info>,
+);
 
 impl SystemAccount<'_> {
     pub fn check_id(&self) -> Result<()> {
@@ -26,4 +22,8 @@ impl SystemAccount<'_> {
             Err(ProgramError::IllegalOwner.into())
         }
     }
+}
+
+impl HasOwnerProgram for SystemAccount<'_> {
+    type OwnerProgram = SystemProgram;
 }

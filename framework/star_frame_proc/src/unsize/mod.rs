@@ -389,7 +389,7 @@ fn unsized_type_struct_impl(item_struct: ItemStruct, _args: TokenStream) -> Toke
     )
     .expect("Shouldn't fail to parse better generics for ext type");
 
-    let ext_generics = combined_generics.combine(ext_generics.into_inner());
+    let ext_generics = combined_generics.combine(&ext_generics);
 
     let (ext_impl_generics, _, ext_where) = ext_generics.split_for_impl();
 
@@ -428,7 +428,7 @@ fn unsized_type_struct_impl(item_struct: ItemStruct, _args: TokenStream) -> Toke
         ..Default::default()
     };
 
-    let init_zeroed_generics = combined_generics.combine(init_zeroed_generics);
+    let init_zeroed_generics = combined_generics.combine(&init_zeroed_generics);
     let (_, _, init_zeroed_where) = init_zeroed_generics.split_for_impl();
 
     let init_generic_idents: Vec<_> = unsized_field_idents
@@ -466,7 +466,7 @@ fn unsized_type_struct_impl(item_struct: ItemStruct, _args: TokenStream) -> Toke
         ..Default::default()
     };
 
-    let combined_unsized_init_generics = combined_generics.combine(unsized_init_generics.clone());
+    let combined_unsized_init_generics = combined_generics.combine(&unsized_init_generics);
     let (unsized_init_impl_generics, unsized_init_struct_type_generics, init_where_clause) =
         combined_unsized_init_generics.split_for_impl();
 

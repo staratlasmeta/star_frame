@@ -30,6 +30,7 @@ pub extern crate anyhow;
 pub extern crate borsh;
 pub extern crate bytemuck;
 pub extern crate derivative;
+pub extern crate derive_more;
 pub extern crate fixed;
 pub extern crate itertools;
 pub extern crate num_traits;

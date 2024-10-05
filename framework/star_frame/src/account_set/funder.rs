@@ -11,6 +11,11 @@ use star_frame::prelude::*;
     skip_default_idl
 )]
 pub struct Funder<'info> {
+    #[single_account_set(metadata = SingleAccountSetMetadata {
+        should_sign: true,
+        should_mut: true,
+        ..SingleAccountSetMetadata::DEFAULT
+    }, skip_signed_account)]
     inner: Writable<SignerInfo<'info>>,
     #[account_set(skip = None)]
     seeds: Option<Vec<Vec<u8>>>,
@@ -26,18 +31,6 @@ impl<'info> Funder<'info> {
     }
 }
 
-impl<'info> SingleAccountSet<'info> for Funder<'info> {
-    const METADATA: SingleAccountSetMetadata = SingleAccountSetMetadata {
-        should_sign: true,
-        should_mut: true,
-        ..SingleAccountSetMetadata::DEFAULT
-    };
-
-    fn account_info(&self) -> &AccountInfo<'info> {
-        self.inner.account_info()
-    }
-}
-
 impl<'info> SignedAccount<'info> for Funder<'info> {
     fn signer_seeds(&self) -> Option<Vec<&[u8]>> {
         self.seeds
@@ -45,5 +38,3 @@ impl<'info> SignedAccount<'info> for Funder<'info> {
             .map(|seeds| seeds.iter().map(Vec::as_slice).collect())
     }
 }
-
-impl<'info> WritableAccount<'info> for Funder<'info> {}

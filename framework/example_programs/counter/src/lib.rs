@@ -1,5 +1,6 @@
 use star_frame::anyhow::bail;
 use star_frame::borsh::{BorshDeserialize, BorshSerialize};
+use star_frame::derive_more::{Deref, DerefMut};
 use star_frame::prelude::*;
 use star_frame::solana_program::pubkey::Pubkey;
 
@@ -14,8 +15,21 @@ pub struct CounterAccount {
 }
 
 impl ProgramAccount for CounterAccount {
-    type OwnerProgram = CounterProgram;
     const DISCRIMINANT: <Self::OwnerProgram as StarFrameProgram>::AccountDiscriminant = [0; 8];
+}
+
+#[derive(AccountSet, Deref, DerefMut, Debug)]
+#[cleanup(generics = [<A> where DataAccount<'info, CounterAccount>: AccountSetCleanup<'info, A>], arg = A)]
+#[validate(generics = [<A> where DataAccount<'info, CounterAccount>: AccountSetValidate<'info, A>], arg = A)]
+pub struct WrappedCounter<'info>(
+    #[cleanup(arg = arg)]
+    #[validate(arg = arg)]
+    #[single_account_set]
+    DataAccount<'info, CounterAccount>,
+);
+
+impl HasOwnerProgram for CounterAccount {
+    type OwnerProgram = CounterProgram;
 }
 
 impl HasSeeds for CounterAccount {
@@ -42,7 +56,7 @@ pub struct CreateCounterAccounts<'info> {
         CreateIfNeeded(()),
         Seeds(CounterAccountSeeds { owner: *self.owner.key(), }),
     ))]
-    pub counter: Init<Seeded<DataAccount<'info, CounterAccount>>>,
+    pub counter: Init<Seeded<WrappedCounter<'info>>>,
     #[account_set(system_program)]
     pub system_program: Program<'info, SystemProgram>,
 }
@@ -188,7 +202,7 @@ pub struct CloseCounterAccounts<'info> {
     #[account_set(recipient)]
     pub funds_to: Writable<SystemAccount<'info>>,
     #[cleanup(arg = CloseAccountAuto)]
-    pub counter: Writable<DataAccount<'info, CounterAccount>>,
+    pub counter: Writable<WrappedCounter<'info>>,
 }
 
 impl StarFrameInstruction for CloseCounterIx {

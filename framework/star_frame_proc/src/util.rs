@@ -1,7 +1,7 @@
 use crate::get_crate_name;
 use derive_more::{Deref, DerefMut};
 use itertools::Itertools;
-use proc_macro2::TokenStream;
+use proc_macro2::{Span, TokenStream};
 use proc_macro_error::{abort, abort_call_site};
 use quote::{format_ident, quote, quote_spanned, ToTokens};
 use std::fmt::Debug;
@@ -327,11 +327,12 @@ impl Parse for BetterGenerics {
 }
 
 pub trait CombineGenerics {
-    fn combine(&self, other: Self) -> Self;
+    fn combine<G: GetGenerics>(&self, other: &G) -> Self;
 }
 
 impl CombineGenerics for Generics {
-    fn combine(&self, other: Self) -> Self {
+    fn combine<G: GetGenerics>(&self, other: &G) -> Self {
+        let other = other.get_generics().clone();
         let generics_a = self.clone();
 
         let params = generics_a.params.into_iter().chain(other.params).collect();
@@ -550,7 +551,7 @@ macro_rules! get_generics {
     };
 }
 
-get_generics!(DeriveInput, ItemStruct, ItemEnum);
+get_generics!(DeriveInput, ItemStruct, ItemEnum, BetterGenerics);
 
 pub trait FieldIter {
     fn field_iter(&self) -> impl Iterator<Item = &Field>;
@@ -598,6 +599,41 @@ pub fn type_generic_idents<G: GetGenerics>(generics: &G) -> Vec<Ident> {
         .type_params()
         .map(|p| p.ident.clone())
         .collect()
+}
+
+pub fn new_lifetime<G: GetGenerics>(generics: &G) -> Lifetime {
+    let mut new_lifetime = "'__a".to_string();
+    while generics
+        .get_generics()
+        .lifetimes()
+        .map(|l| l.lifetime.ident.to_string())
+        .any(|l| l == new_lifetime)
+    {
+        new_lifetime.push('_');
+    }
+    Lifetime::new(&new_lifetime, Span::call_site())
+}
+
+pub fn new_generic<G: GetGenerics>(generics: &G) -> Ident {
+    let generics = generics.get_generics();
+    let type_idents = generics
+        .type_params()
+        .map(|t| t.ident.clone())
+        .collect::<Vec<_>>();
+    let const_idents = generics
+        .const_params()
+        .map(|c| c.ident.clone())
+        .collect::<Vec<_>>();
+    let mut new_generic = "__A".to_string();
+    while type_idents
+        .iter()
+        .chain(const_idents.iter())
+        .map(ToString::to_string)
+        .any(|g| g == new_generic)
+    {
+        new_generic.push('_');
+    }
+    format_ident!("{new_generic}")
 }
 
 #[cfg(test)]

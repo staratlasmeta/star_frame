@@ -67,47 +67,17 @@ pub struct Init<T>(
     #[validate(id = "create_generic", arg = arg.1)]
     #[validate(id = "create_if_needed_generic", arg = arg.1)]
     #[cleanup(arg = arg)]
+    #[single_account_set(
+        metadata = SingleAccountSetMetadata {
+            is_init: true,
+            should_mut: true,
+            ..T::METADATA
+        },
+        skip_can_set_seeds,
+        skip_can_init_account
+    )]
     T,
 );
-
-impl<'info, T> SingleAccountSet<'info> for Init<T>
-where
-    T: SingleAccountSet<'info>,
-{
-    const METADATA: SingleAccountSetMetadata = SingleAccountSetMetadata {
-        is_init: true,
-        should_mut: true,
-        ..T::METADATA
-    };
-    fn account_info(&self) -> &AccountInfo<'info> {
-        self.0.account_info()
-    }
-}
-
-impl<'info, T> SignedAccount<'info> for Init<T>
-where
-    T: SignedAccount<'info>,
-{
-    fn signer_seeds(&self) -> Option<Vec<&[u8]>> {
-        self.0.signer_seeds()
-    }
-}
-
-impl<'info, T> WritableAccount<'info> for Init<T> where T: SingleAccountSet<'info> {}
-
-impl<T> HasProgramAccount for Init<T>
-where
-    T: HasProgramAccount,
-{
-    type ProgramAccount = T::ProgramAccount;
-}
-
-impl<T> HasSeeds for Init<T>
-where
-    T: HasSeeds,
-{
-    type Seeds = T::Seeds;
-}
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
 #[repr(transparent)]

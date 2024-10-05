@@ -6,14 +6,10 @@ use std::marker::PhantomData;
     generics = [where T: StarFrameProgram],
     extra_validation = self.check_id(),
 )]
-pub struct Program<'info, T>(pub(crate) AccountInfo<'info>, pub(crate) PhantomData<T>);
-
-impl<'info, T> SingleAccountSet<'info> for Program<'info, T> {
-    const METADATA: SingleAccountSetMetadata = SingleAccountSetMetadata::DEFAULT;
-    fn account_info(&self) -> &AccountInfo<'info> {
-        &self.0
-    }
-}
+pub struct Program<'info, T>(
+    #[single_account_set] pub(crate) AccountInfo<'info>,
+    pub(crate) PhantomData<T>,
+);
 
 impl<T: StarFrameProgram> Program<'_, T> {
     pub fn check_id(&self) -> Result<()> {
