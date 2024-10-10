@@ -82,6 +82,7 @@ pub trait TryFromAccountsWithArgs<'a, 'info, D, V>:
         validate: V,
     ) -> Result<Self> {
         let mut set = Self::decode_accounts(accounts, decode, syscalls)?;
+        set.set_account_cache(syscalls);
         set.validate_accounts(validate, syscalls)?;
         Ok(set)
     }
