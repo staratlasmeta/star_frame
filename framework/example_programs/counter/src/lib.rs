@@ -35,13 +35,15 @@ pub struct CreateCounterIx {
 
 #[derive(AccountSet)]
 pub struct CreateCounterAccounts<'info> {
+    #[account_set(funder)]
     pub funder: Signer<Writable<SystemAccount<'info>>>,
     pub owner: SystemAccount<'info>,
     #[validate(arg = (
-        CreateIfNeeded(CreateAccount::new(&self.system_program, &self.funder)),
+        CreateIfNeeded(()),
         Seeds(CounterAccountSeeds { owner: *self.owner.key(), }),
     ))]
     pub counter: Init<Seeded<DataAccount<'info, CounterAccount>>>,
+    #[account_set(system_program)]
     pub system_program: Program<'info, SystemProgram>,
 }
 
