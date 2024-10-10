@@ -11,11 +11,7 @@ use star_frame::prelude::*;
     skip_default_idl
 )]
 pub struct Funder<'info> {
-    #[single_account_set(metadata = SingleAccountSetMetadata {
-        should_sign: true,
-        should_mut: true,
-        ..SingleAccountSetMetadata::DEFAULT
-    }, skip_signed_account)]
+    #[single_account_set(skip_signed_account)]
     inner: Writable<SignerInfo<'info>>,
     #[account_set(skip = None)]
     seeds: Option<Vec<Vec<u8>>>,
