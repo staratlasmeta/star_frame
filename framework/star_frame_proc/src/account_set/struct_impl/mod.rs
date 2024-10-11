@@ -158,7 +158,7 @@ pub(super) fn derive_account_set_impl_struct(
         .iter()
         .enumerate()
         .filter_map(|field| {
-            find_attr(&field.1.attrs, &format_ident!("single_account_set")).map(|a| {
+            find_attr(&field.1.attrs, &paths.single_account_set_ident).map(|a| {
                 let parsed = if a.meta.require_path_only().is_ok() {
                     Default::default()
                 } else {
@@ -171,7 +171,8 @@ pub(super) fn derive_account_set_impl_struct(
     if single_account_sets.len() > 1 {
         abort!(
             single_account_sets[1].0,
-            "Only one field can be marked as `single_account_set`"
+            "Only one field can be marked as `{}`",
+            &paths.single_account_set_ident
         );
     }
 
