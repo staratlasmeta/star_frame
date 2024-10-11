@@ -187,7 +187,7 @@ pub struct CloseCounterAccounts<'info> {
     pub signer: Signer<SystemAccount<'info>>,
     #[account_set(recipient)]
     pub funds_to: Writable<SystemAccount<'info>>,
-    #[cleanup(arg = NormalizeRentAuto)]
+    #[cleanup(arg = CloseAccountAuto)]
     pub counter: Writable<DataAccount<'info, CounterAccount>>,
 }
 
