@@ -90,7 +90,7 @@ impl<T: ?Sized> OptionalKeyFor<T> {
     }
 }
 
-impl<'info, T: HasProgramAccount<'info>> SetOptionalKeyFor<T::ProgramAccount, &T>
+impl<'info, T: HasProgramAccount + SingleAccountSet<'info>> SetOptionalKeyFor<T::ProgramAccount, &T>
     for OptionalKeyFor<T::ProgramAccount>
 {
     fn set_pubkey(&mut self, pubkey: Option<&T>) {
@@ -98,7 +98,9 @@ impl<'info, T: HasProgramAccount<'info>> SetOptionalKeyFor<T::ProgramAccount, &T
     }
 }
 
-impl<'info, T: HasProgramAccount<'info>> GetOptionalKeyFor<T::ProgramAccount> for T {
+impl<'info, T: HasProgramAccount + SingleAccountSet<'info>> GetOptionalKeyFor<T::ProgramAccount>
+    for T
+{
     fn optional_key_for(&self) -> OptionalKeyFor<T::ProgramAccount> {
         (*self.key()).into()
     }
@@ -116,7 +118,7 @@ impl<T: ?Sized> PartialEq<OptionalKeyFor<T>> for KeyFor<T> {
     }
 }
 
-impl<'info, T: HasProgramAccount<'info, ProgramAccount = T>> PartialEq<T> for OptionalKeyFor<T> {
+impl<'info, T: HasProgramAccount + SingleAccountSet<'info>> PartialEq<T> for OptionalKeyFor<T> {
     fn eq(&self, other: &T) -> bool {
         self.pubkey == *(other.key())
     }

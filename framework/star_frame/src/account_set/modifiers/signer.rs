@@ -1,12 +1,13 @@
 use crate::account_set::{
-    AccountSet, AccountSetDecode, AccountSetValidate, HasProgramAccount, SignedAccount,
-    SingleAccountSet, WritableAccount,
+    AccountSet, AccountSetDecode, AccountSetValidate, CanSetSeeds, HasProgramAccount, HasSeeds,
+    SignedAccount, SingleAccountSet, SingleAccountSetMetadata, WritableAccount,
 };
+use crate::prelude::{CanInitAccount, SyscallInvoke};
 use crate::Result;
 use derive_more::{Deref, DerefMut};
 use solana_program::account_info::AccountInfo;
-use solana_program::program_error::ProgramError;
 use star_frame::account_set::AccountSetCleanup;
+use std::fmt::Debug;
 
 #[derive(AccountSet, Copy, Clone, Debug, Deref, DerefMut)]
 #[repr(transparent)]
@@ -26,27 +27,19 @@ pub struct Signer<T>(
 
 pub type SignerInfo<'info> = Signer<AccountInfo<'info>>;
 
-impl<'info, T> Signer<T>
-where
-    T: SingleAccountSet<'info>,
-{
-    pub fn check_signer(&self) -> Result<()> {
-        if self.0.is_signer() {
-            Ok(())
-        } else {
-            Err(ProgramError::MissingRequiredSignature.into())
-        }
-    }
-}
-
 impl<'info, T> SingleAccountSet<'info> for Signer<T>
 where
     T: SingleAccountSet<'info>,
 {
+    const METADATA: SingleAccountSetMetadata = SingleAccountSetMetadata {
+        should_sign: true,
+        ..T::METADATA
+    };
     fn account_info(&self) -> &AccountInfo<'info> {
         self.0.account_info()
     }
 }
+
 impl<'info, T> SignedAccount<'info> for Signer<T>
 where
     T: SingleAccountSet<'info>,
@@ -55,13 +48,45 @@ where
         None
     }
 }
+
 impl<'info, T> WritableAccount<'info> for Signer<T> where T: WritableAccount<'info> {}
 
-impl<'info, T> HasProgramAccount<'info> for Signer<T>
+impl<T> HasProgramAccount for Signer<T>
 where
-    T: HasProgramAccount<'info>,
+    T: HasProgramAccount,
 {
     type ProgramAccount = T::ProgramAccount;
+}
+
+impl<T> HasSeeds for Signer<T>
+where
+    T: HasSeeds,
+{
+    type Seeds = T::Seeds;
+}
+
+// Signer short-circuits the set_seeds call, as it does not have seeds.
+impl<'info, A, T> CanSetSeeds<'info, A> for Signer<T>
+where
+    T: SingleAccountSet<'info>,
+{
+    fn set_seeds(&mut self, _arg: &A, _syscalls: &mut impl SyscallInvoke) -> Result<()> {
+        Ok(())
+    }
+}
+
+impl<'info, A, T> CanInitAccount<'info, A> for Signer<T>
+where
+    T: SingleAccountSet<'info> + CanInitAccount<'info, A>,
+{
+    fn init(
+        &mut self,
+        arg: A,
+        syscalls: &mut impl SyscallInvoke,
+        account_seeds: Option<Vec<&[u8]>>,
+    ) -> Result<()> {
+        self.0.init(arg, syscalls, account_seeds)
+    }
 }
 
 #[cfg(feature = "idl")]

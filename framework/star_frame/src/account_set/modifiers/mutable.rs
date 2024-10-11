@@ -1,12 +1,12 @@
 use crate::account_set::{
-    AccountSet, AccountSetDecode, AccountSetValidate, HasProgramAccount, SignedAccount,
-    SingleAccountSet, WritableAccount,
+    AccountSet, AccountSetDecode, AccountSetValidate, CanInitAccount, CanSetSeeds,
+    HasProgramAccount, HasSeeds, SignedAccount, SingleAccountSet, SingleAccountSetMetadata,
+    WritableAccount,
 };
-use crate::prelude::ProgramAccount;
+use crate::prelude::SyscallInvoke;
 use crate::Result;
 use derive_more::{Deref, DerefMut};
 use solana_program::account_info::AccountInfo;
-use solana_program::program_error::ProgramError;
 use star_frame::account_set::AccountSetCleanup;
 
 #[derive(AccountSet, Copy, Clone, Debug, Deref, DerefMut)]
@@ -25,23 +25,15 @@ pub struct Writable<T>(
     pub(crate) T,
 );
 
-impl<'info, T> Writable<T>
-where
-    T: SingleAccountSet<'info>,
-{
-    pub fn check_writable(&self) -> Result<()> {
-        if self.0.is_writable() {
-            Ok(())
-        } else {
-            Err(ProgramError::AccountBorrowFailed.into())
-        }
-    }
-}
-
 impl<'info, T> SingleAccountSet<'info> for Writable<T>
 where
     T: SingleAccountSet<'info>,
 {
+    const METADATA: SingleAccountSetMetadata = SingleAccountSetMetadata {
+        should_mut: true,
+        ..T::METADATA
+    };
+
     fn account_info(&self) -> &AccountInfo<'info> {
         self.0.account_info()
     }
@@ -54,13 +46,44 @@ where
         self.0.signer_seeds()
     }
 }
+
 impl<'info, T> WritableAccount<'info> for Writable<T> where T: SingleAccountSet<'info> {}
 
-impl<'info, T> HasProgramAccount<'info> for Writable<T>
+impl<T> HasProgramAccount for Writable<T>
 where
-    T: ProgramAccount + SingleAccountSet<'info>,
+    T: HasProgramAccount,
 {
-    type ProgramAccount = T;
+    type ProgramAccount = T::ProgramAccount;
+}
+
+impl<T> HasSeeds for Writable<T>
+where
+    T: HasSeeds,
+{
+    type Seeds = T::Seeds;
+}
+
+impl<'info, A, T> CanSetSeeds<'info, A> for Writable<T>
+where
+    T: CanSetSeeds<'info, A>,
+{
+    fn set_seeds(&mut self, arg: &A, syscalls: &mut impl SyscallInvoke) -> Result<()> {
+        T::set_seeds(&mut self.0, arg, syscalls)
+    }
+}
+
+impl<'info, A, T> CanInitAccount<'info, A> for Writable<T>
+where
+    T: SingleAccountSet<'info> + CanInitAccount<'info, A>,
+{
+    fn init(
+        &mut self,
+        arg: A,
+        syscalls: &mut impl SyscallInvoke,
+        account_seeds: Option<Vec<&[u8]>>,
+    ) -> Result<()> {
+        self.0.init(arg, syscalls, account_seeds)
+    }
 }
 
 #[cfg(feature = "idl")]

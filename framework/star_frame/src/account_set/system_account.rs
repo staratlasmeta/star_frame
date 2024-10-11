@@ -10,6 +10,8 @@ use star_frame::prelude::*;
 pub struct SystemAccount<'info>(AccountInfo<'info>);
 
 impl<'info> SingleAccountSet<'info> for SystemAccount<'info> {
+    const METADATA: SingleAccountSetMetadata = SingleAccountSetMetadata::DEFAULT;
+
     fn account_info(&self) -> &AccountInfo<'info> {
         &self.0
     }

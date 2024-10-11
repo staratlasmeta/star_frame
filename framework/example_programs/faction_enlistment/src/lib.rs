@@ -61,7 +61,6 @@ impl StarFrameInstruction for ProcessEnlistPlayerIx {
         syscalls: &mut impl SyscallInvoke,
     ) -> Result<Self::ReturnType> {
         let clock = syscalls.get_clock()?;
-
         let bump = account_set.player_faction_account.access_seeds().bump;
         *account_set.player_faction_account.data_mut()? = PlayerFactionData {
             owner: *account_set.player_account.key,
@@ -71,7 +70,6 @@ impl StarFrameInstruction for ProcessEnlistPlayerIx {
             _padding: [0; 5],
         };
         Ok(())
-        // Ok(buncha_data.len())
     }
 }
 
@@ -81,17 +79,17 @@ impl StarFrameInstruction for ProcessEnlistPlayerIx {
 pub struct ProcessEnlistPlayer<'info> {
     /// The player faction account
     #[validate(
-        arg = Create(SeededInit {
-        seeds: PlayerFactionAccountSeeds {
-        player_account: *self.player_account.key()
-        },
-        init_create: CreateAccount::new(
-            &self.system_program,
-            &self.player_account,
-        )
-        })
+        arg = (
+            Create(CreateAccount::new(
+                &self.system_program,
+                &self.player_account,
+            )),
+            Seeds(PlayerFactionAccountSeeds {
+                player_account: *self.player_account.key()
+            }
+        ))
     )]
-    pub player_faction_account: SeededInitAccount<'info, PlayerFactionData>,
+    pub player_faction_account: Init<Seeded<DataAccount<'info, PlayerFactionData>>>,
     /// The player account
     pub player_account: Writable<Signer<SystemAccount<'info>>>,
     /// Solana System program
@@ -148,11 +146,11 @@ impl ProgramAccount for PlayerFactionData {
         [47, 44, 255, 15, 103, 77, 139, 247];
 }
 
-impl SeededAccountData for PlayerFactionData {
+impl HasSeeds for PlayerFactionData {
     type Seeds = PlayerFactionAccountSeeds;
 }
 
-#[derive(Debug, GetSeeds)]
+#[derive(Debug, GetSeeds, Clone)]
 #[seed_const(b"FACTION_ENLISTMENT")]
 pub struct PlayerFactionAccountSeeds {
     player_account: Pubkey,
@@ -170,12 +168,29 @@ mod tests {
     use star_frame::solana_program::instruction::AccountMeta;
 
     #[tokio::test]
-    async fn _banks_test() -> Result<()> {
-        let program_test = ProgramTest::new(
-            "faction_enlistment",
-            StarFrameDeclaredProgram::PROGRAM_ID,
-            processor!(FactionEnlistment::processor),
-        );
+    async fn banks_test() -> Result<()> {
+        const SBF_FILE: bool = false;
+        let program_test = if SBF_FILE {
+            let target_dir = std::env::current_dir()?
+                .join("../../../target/deploy")
+                .canonicalize()?;
+            std::env::set_var(
+                "BPF_OUT_DIR",
+                target_dir.to_str().expect("Failed to convert path to str"),
+            );
+            ProgramTest::new(
+                "faction_enlistment",
+                StarFrameDeclaredProgram::PROGRAM_ID,
+                None,
+            )
+        } else {
+            ProgramTest::new(
+                "faction_enlistment",
+                StarFrameDeclaredProgram::PROGRAM_ID,
+                processor!(FactionEnlistment::processor),
+            )
+        };
+
         let test_context = program_test.start_with_context().await;
         let mut banks_client = test_context.banks_client;
 
@@ -186,6 +201,7 @@ mod tests {
         };
         let (faction_account, bump) =
             Pubkey::find_program_address(&seeds.seeds(), &StarFrameDeclaredProgram::PROGRAM_ID);
+        println!("Bump: {}", bump);
         let faction_id = FactionId::MUD;
 
         // let mut random_bytes = [0u8; 1];
