@@ -76,11 +76,6 @@ pub struct ProcessEnlistPlayer<'info> {
         player_account: *self.player_account.key()
     })))]
     pub player_faction_account: Init<Seeded<DataAccount<'info, PlayerFactionData>>>,
-    #[validate(arg  =Seeds(PlayerFactionAccountSeeds {
-        player_account: *self.player_account.key()
-    }))]
-    pub player_faction_account2:
-        Seeded<DataAccount<'info, PlayerFactionData>, PlayerFactionAccountSeeds, CurrentProgram>,
     /// The player account
     #[account_set(funder)]
     pub player_account: Writable<Signer<SystemAccount<'info>>>,
@@ -167,7 +162,7 @@ mod tests {
 
     #[tokio::test]
     async fn banks_test() -> Result<()> {
-        const SBF_FILE: bool = true;
+        const SBF_FILE: bool = false;
         let program_test = if SBF_FILE {
             let target_dir = std::env::current_dir()?
                 .join("../../../target/deploy")

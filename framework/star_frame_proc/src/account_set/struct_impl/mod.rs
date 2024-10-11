@@ -7,7 +7,7 @@ use crate::util::{new_generic, Paths};
 use easy_proc::{find_attr, ArgumentList};
 use proc_macro2::TokenStream;
 use proc_macro_error::abort;
-use quote::{format_ident, quote, ToTokens};
+use quote::{quote, ToTokens};
 use std::ops::Not;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
