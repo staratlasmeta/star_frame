@@ -219,6 +219,7 @@ pub(super) fn derive_account_set_impl_struct(
         });
 
         let single = quote! {
+            #[automatically_derived]
             impl #info_sg_impl #macro_prelude::SingleAccountSet<#info_lifetime> for #ident #ty_generics #single_where {
                 const METADATA: #macro_prelude::SingleAccountSetMetadata = #metadata;
                 fn account_info(&self) -> &#account_info<#info_lifetime> {
@@ -235,6 +236,7 @@ pub(super) fn derive_account_set_impl_struct(
             });
             signed_where.predicates.push(self_single_bound.clone());
             quote! {
+                #[automatically_derived]
                 impl #info_sg_impl #macro_prelude::SignedAccount<#info_lifetime> for #ident #ty_generics #signed_where {
                     fn signer_seeds(&self) -> Option<Vec<&[u8]>> {
                         <#field_ty as #macro_prelude::SignedAccount<#info_lifetime>>::signer_seeds(&self.#field_name)
@@ -251,6 +253,7 @@ pub(super) fn derive_account_set_impl_struct(
             });
             writable_where.predicates.push(self_single_bound.clone());
             quote! {
+                #[automatically_derived]
                 impl #info_sg_impl #macro_prelude::WritableAccount<#info_lifetime> for #ident #ty_generics #writable_where {}
             }
         });
@@ -262,6 +265,7 @@ pub(super) fn derive_account_set_impl_struct(
                 #field_ty: #macro_prelude::HasProgramAccount
             });
             quote! {
+                #[automatically_derived]
                 impl #sg_impl #macro_prelude::HasProgramAccount for #ident #ty_generics #program_where {
                     type ProgramAccount = <#field_ty as #macro_prelude::HasProgramAccount>::ProgramAccount;
                 }
@@ -275,6 +279,7 @@ pub(super) fn derive_account_set_impl_struct(
                 #field_ty: #macro_prelude::HasOwnerProgram
             });
             quote! {
+                #[automatically_derived]
                 impl #sg_impl #macro_prelude::HasOwnerProgram for #ident #ty_generics #owner_where {
                     type OwnerProgram = <#field_ty as #macro_prelude::HasOwnerProgram>::OwnerProgram;
                 }
@@ -288,6 +293,7 @@ pub(super) fn derive_account_set_impl_struct(
                 #field_ty: #macro_prelude::HasSeeds
             });
             quote! {
+                #[automatically_derived]
                 impl #sg_impl #macro_prelude::HasSeeds for #ident #ty_generics #seeds_where {
                     type Seeds = <#field_ty as #macro_prelude::HasSeeds>::Seeds;
                 }
@@ -302,6 +308,7 @@ pub(super) fn derive_account_set_impl_struct(
             });
             set_seeds_where.predicates.push(self_single_bound.clone());
             quote! {
+                #[automatically_derived]
                 impl #info_gen_sg_impl #macro_prelude::CanSetSeeds<#info_lifetime, #new_generic> for #ident #ty_generics #set_seeds_where {
                     fn set_seeds(&mut self, arg: &#new_generic, syscalls: &mut impl #macro_prelude::SyscallInvoke<#info_lifetime>) -> #result<()> {
                         <#field_ty as #macro_prelude::CanSetSeeds<#info_lifetime, #new_generic>>::set_seeds(&mut self.#field_name, arg, syscalls)
@@ -317,6 +324,7 @@ pub(super) fn derive_account_set_impl_struct(
                 #field_ty: #macro_prelude::CanInitAccount<#info_lifetime, #new_generic>
             });
             quote! {
+                #[automatically_derived]
                 impl #info_gen_sg_impl #macro_prelude::CanInitAccount<#info_lifetime, #new_generic> for #ident #ty_generics #init_where {
                     fn init(
                         &mut self,
