@@ -386,6 +386,7 @@ pub fn get_docs<'a>(attrs: impl IntoIterator<Item = &'a Attribute>) -> String {
         .join("\n")
 }
 
+#[allow(dead_code)]
 pub fn verify_repr(
     attrs: &[Attribute],
     repr_required: impl IntoIterator<Item = Ident>,

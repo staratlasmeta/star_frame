@@ -226,7 +226,7 @@ impl StarFrameInstruction for CloseCounterIx {
     }
 }
 
-#[star_frame_instruction_set]
+#[derive(InstructionSet)]
 pub enum CounterInstructionSet {
     CreateCounter(CreateCounterIx),
     UpdateSigner(UpdateCounterSignerIx),
@@ -236,10 +236,10 @@ pub enum CounterInstructionSet {
 
 #[derive(StarFrameProgram)]
 #[program(
-    instruction_set = CounterInstructionSet<'static>,
-    id =  "Coux9zxTFKZpRdFpE4F7Fs5RZ6FdaURdckwS61BUTMG",
+    instruction_set = CounterInstructionSet,
+    id = "Coux9zxTFKZpRdFpE4F7Fs5RZ6FdaURdckwS61BUTMG",
 )]
-pub struct CounterProgram {}
+pub struct CounterProgram;
 
 #[cfg(test)]
 mod tests {

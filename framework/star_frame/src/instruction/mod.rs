@@ -5,8 +5,7 @@ use bytemuck::Pod;
 use derivative::Derivative;
 use solana_program::account_info::AccountInfo;
 use solana_program::pubkey::Pubkey;
-pub use star_frame_proc::star_frame_instruction_set;
-pub use star_frame_proc::InstructionToIdl;
+pub use star_frame_proc::{InstructionSet, InstructionToIdl};
 
 mod no_op;
 pub mod un_callable;
@@ -256,7 +255,7 @@ mod test_helpers {
 #[cfg(test)]
 mod test {
     use crate::impl_blank_ix;
-    use star_frame_proc::star_frame_instruction_set;
+    use star_frame_proc::InstructionSet;
     // todo: better testing here!
 
     #[allow(dead_code)]
@@ -270,7 +269,8 @@ mod test {
 
     impl_blank_ix!(Ix1, Ix2);
 
-    #[star_frame_instruction_set(u8)]
+    #[allow(dead_code)]
+    #[derive(InstructionSet)]
     enum TestInstructionSet3 {
         Ix1(Ix1),
         Ix2(Ix2),

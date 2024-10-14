@@ -7,7 +7,7 @@ use star_frame::prelude::*;
 
 #[derive(StarFrameProgram)]
 #[program(
-    instruction_set = FactionEnlistmentInstructionSet<'static>
+    instruction_set = FactionEnlistmentInstructionSet
 )]
 #[cfg_attr(
     feature = "prod",
@@ -21,7 +21,7 @@ pub struct FactionEnlistment;
 
 // use star_frame::idl::InstructionSetToIdl;
 
-#[star_frame_instruction_set]
+#[derive(InstructionSet)]
 pub enum FactionEnlistmentInstructionSet {
     ProcessEnlistPlayer(ProcessEnlistPlayerIx),
 }

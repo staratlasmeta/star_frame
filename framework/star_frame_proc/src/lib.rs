@@ -275,26 +275,20 @@ fn derive_align1_for_struct(
     .into()
 }
 
-/// Implements the `InstructionSet` trait for an enum of instructions.
+/// Derives the `InstructionSet` trait for an enum of instructions.
 ///
-/// By default, it uses a discriminant type of `[u8; 8]`, and derives each item discriminant by taking
+/// It uses a discriminant type of `[u8; 8]`, and derives each item discriminant by taking
 /// the first 8 bytes of the sha256 hash in a compatible way with Anchor.
 ///
-/// This can be overridden by passing in a `#[star_frame_instruction_set(<type>)]`
-/// attribute to the enum, in which case it will use the enum reprs as the discriminants. The type must
-/// be a valid enum repr type.
+/// # Example
 ///
-/// # Examples
-///
-/// Default 8 byte hash discriminants:
 /// ```
 /// use star_frame::impl_blank_ix;
 /// use star_frame::prelude::*;
 ///
-/// #[star_frame_instruction_set]
+/// #[derive(InstructionSet)]
 /// pub enum CoolIxSet {
-///     //
-///     CoolInstruction(CoolIx) = 123,
+///     CoolInstruction(CoolIx),
 /// }
 ///
 /// // hash from anchor
@@ -304,52 +298,48 @@ fn derive_align1_for_struct(
 ///
 ///
 /// // An example instruction (which implements `StarFrameInstruction`)
-/// pub struct CoolIx {}
+/// pub struct CoolIx;
 /// # impl_blank_ix!(CoolIx);
 /// ```
-///
-/// Using enum reprs as discriminants:
-/// ```
-/// use star_frame::impl_blank_ix;
-/// use star_frame::prelude::*;
-///
-/// // Example Instructions (which implement `StarFrameInstruction`)
-/// pub struct CoolIx1 {}
-/// pub struct CoolIx3 {}
-/// pub struct CoolIx2 {}
-///
-/// #[star_frame_instruction_set(u8)]
-/// pub enum CoolIxSetU8 {
-///     CoolInstruction1(CoolIx1),
-///     CoolInstruction2(CoolIx2),
-///     CoolInstruction3(CoolIx3) = 100,
-/// }
-/// assert_eq!(<CoolIx1 as InstructionDiscriminant<CoolIxSetU8>>::DISCRIMINANT, 0u8);
-/// assert_eq!(<CoolIx2 as InstructionDiscriminant<CoolIxSetU8>>::DISCRIMINANT, 1u8);
-/// assert_eq!(<CoolIx3 as InstructionDiscriminant<CoolIxSetU8>>::DISCRIMINANT, 100u8);
-///
-/// // The same instructions can be used in multiple instruction sets, since the
-/// // `InstructionDiscriminant` trait is generic over the instruction set.
-/// #[star_frame_instruction_set(i32)]
-/// pub enum CoolIxSetU32 {
-///     CoolInstruction1(CoolIx1) = -999,
-///     CoolInstruction2(CoolIx2),
-///     CoolInstruction3(CoolIx3) = 9999,
-/// }
-/// assert_eq!(<CoolIx1 as InstructionDiscriminant<CoolIxSetU32>>::DISCRIMINANT, -999i32);
-/// assert_eq!(<CoolIx2 as InstructionDiscriminant<CoolIxSetU32>>::DISCRIMINANT, -998i32);
-/// assert_eq!(<CoolIx3 as InstructionDiscriminant<CoolIxSetU32>>::DISCRIMINANT, 9999i32);
-///
-/// # impl_blank_ix!(CoolIx1, CoolIx2, CoolIx3);
-/// ```
+// todo: add this back once custom reprs are supported
+// Using enum reprs as discriminants:
+// ```
+// use star_frame::impl_blank_ix;
+// use star_frame::prelude::*;
+//
+// // Example Instructions (which implement `StarFrameInstruction`)
+// pub struct CoolIx1 {}
+// pub struct CoolIx3 {}
+// pub struct CoolIx2 {}
+//
+// #[star_frame_instruction_set(u8)]
+// pub enum CoolIxSetU8 {
+//     CoolInstruction1(CoolIx1),
+//     CoolInstruction2(CoolIx2),
+//     CoolInstruction3(CoolIx3) = 100,
+// }
+// assert_eq!(<CoolIx1 as InstructionDiscriminant<CoolIxSetU8>>::DISCRIMINANT, 0u8);
+// assert_eq!(<CoolIx2 as InstructionDiscriminant<CoolIxSetU8>>::DISCRIMINANT, 1u8);
+// assert_eq!(<CoolIx3 as InstructionDiscriminant<CoolIxSetU8>>::DISCRIMINANT, 100u8);
+//
+// // The same instructions can be used in multiple instruction sets, since the
+// // `InstructionDiscriminant` trait is generic over the instruction set.
+// #[star_frame_instruction_set(i32)]
+// pub enum CoolIxSetU32 {
+//     CoolInstruction1(CoolIx1) = -999,
+//     CoolInstruction2(CoolIx2),
+//     CoolInstruction3(CoolIx3) = 9999,
+// }
+// assert_eq!(<CoolIx1 as InstructionDiscriminant<CoolIxSetU32>>::DISCRIMINANT, -999i32);
+// assert_eq!(<CoolIx2 as InstructionDiscriminant<CoolIxSetU32>>::DISCRIMINANT, -998i32);
+// assert_eq!(<CoolIx3 as InstructionDiscriminant<CoolIxSetU32>>::DISCRIMINANT, 9999i32);
+//
+// # impl_blank_ix!(CoolIx1, CoolIx2, CoolIx3);
+// ```
 #[proc_macro_error]
-#[proc_macro_attribute]
-pub fn star_frame_instruction_set(
-    args: proc_macro::TokenStream,
-    item: proc_macro::TokenStream,
-) -> proc_macro::TokenStream {
-    let out =
-        instruction_set::instruction_set_impl(parse_macro_input!(item as ItemEnum), args.into());
+#[proc_macro_derive(InstructionSet)]
+pub fn star_frame_instruction_set(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let out = instruction_set::instruction_set_impl(parse_macro_input!(item as ItemEnum));
     out.into()
 }
 
