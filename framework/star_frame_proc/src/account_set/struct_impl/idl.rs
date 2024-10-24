@@ -139,32 +139,28 @@ pub(super) fn idls(
                         idl_definition: &mut #idl_definition,
                         arg: #idl_type,
                     ) -> #result<#idl_account_set_def> {
-                        #(let #field_name = <#field_type as #account_set_to_idl<#info_lifetime, _>>::account_set_to_idl(idl_definition, #idl_args)?;)*
-                        idl_definition.account_sets.insert(
-                            #ident_str.to_string(),
-                            #idl_account_set {
-                                name: #ident_str.to_string(),
-                                description: #struct_docs.to_string(),
-                                type_generics: vec![],
-                                account_generics: vec![],
-                                def: #idl_account_set_def::Struct(vec![#(
-                                    #idl_account_set_struct_field {
-                                        name: #field_str.to_string(),
-                                        description: #field_docs.to_string(),
-                                        path: #field_str.to_string(),
-                                        account_set: #field_name,
-                                        extension_fields: Default::default(),
-                                    },
-                                )*]),
-                                extension_fields: Default::default(),
-                            },
-                        );
-                        Ok(#idl_account_set_def::AccountSet(#account_set_id {
-                            namespace: None,
-                            account_set_id: #ident_str.to_string(),
+                        // #(let #field_name = <#field_type as #account_set_to_idl<#info_lifetime, _>>::account_set_to_idl(idl_definition, #idl_args)?;)*
+                        // idl_definition.account_sets.insert(
+                        //     #ident_str.to_string(),
+                        //     #idl_account_set {
+                        //         name: #ident_str.to_string(),
+                        //         description: #struct_docs.to_string(),
+                        //         type_generics: vec![],
+                        //         account_generics: vec![],
+                        //         def: #idl_account_set_def::Struct(vec![#(
+                        //             #idl_account_set_struct_field {
+                        //                 name: #field_str.to_string(),
+                        //                 description: #field_docs.to_string(),
+                        //                 path: #field_str.to_string(),
+                        //                 account_set: #field_name,
+                        //             },
+                        //         )*]),
+                        //     },
+                        // );
+                        Ok(#idl_account_set_def::Defined(#account_set_id {
+                            source: #ident_str.to_string(),
                             provided_type_generics: vec![],
                             provided_account_generics: vec![],
-                            extension_fields: Default::default(),
                         }))
                     }
                 }

@@ -1,26 +1,21 @@
 use crate::seeds::IdlSeeds;
-// use crate::serde_impls::serde_as_option;
 use crate::ty::IdlTypeDef;
-use crate::ExtensionClass;
+use crate::IdlDiscriminant;
+use crate::{serde_base58_pubkey_option, ItemSource};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
-use std::collections::HashMap;
+use solana_program::pubkey::Pubkey;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct IdlAccount {
-    pub name: String,
-    pub description: String,
-    pub discriminant: Value,
-    pub ty: IdlTypeDef,
-    pub seeds: IdlSeeds,
-    #[serde(skip_serializing_if = "HashMap::is_empty")]
-    pub extension_fields: HashMap<ExtensionClass, Value>,
+    pub discriminant: IdlDiscriminant,
+    // info should be contained in IdlTypeDef
+    pub type_def: IdlTypeDef,
+    pub seeds: Option<IdlSeeds>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct AccountId {
-    pub namespace: Option<String>,
-    pub account_id: String,
-    #[serde(skip_serializing_if = "HashMap::is_empty")]
-    pub extension_fields: HashMap<ExtensionClass, Value>,
+    #[serde(with = "serde_base58_pubkey_option")]
+    pub namespace: Option<Pubkey>,
+    pub source: ItemSource,
 }

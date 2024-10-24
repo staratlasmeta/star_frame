@@ -14,6 +14,10 @@ use std::slice::from_raw_parts_mut;
 
 pub trait ProgramAccount: HasOwnerProgram {
     const DISCRIMINANT: <Self::OwnerProgram as StarFrameProgram>::AccountDiscriminant;
+    #[must_use]
+    fn discriminant_bytes() -> Vec<u8> {
+        bytes_of(&Self::DISCRIMINANT).into()
+    }
 }
 
 #[derive(Debug, Derivative, Copy, Clone)]
@@ -43,6 +47,7 @@ pub struct CloseAccount<'a, F> {
 pub struct CloseAccountAuto;
 
 #[derive(AccountSet, Debug)]
+#[account_set(skip_default_idl)]
 #[validate(
     generics = [<A> where AccountInfo<'info>: AccountSetValidate<'info, A>], arg = A,
     extra_validation = self.validate()
@@ -101,6 +106,34 @@ pub struct DataAccount<'info, T: ProgramAccount + UnsizedType + ?Sized> {
     #[validate(arg = arg)]
     info: AccountInfo<'info>,
     phantom_t: PhantomData<T>,
+}
+
+#[cfg(feature = "idl")]
+mod idl_impl {
+    use super::*;
+    use star_frame::idl::AccountSetToIdl;
+    use star_frame_idl::account_set::IdlAccountSetDef;
+    use star_frame_idl::IdlDefinition;
+
+    impl<'info, T: ProgramAccount + UnsizedType + ?Sized, A> AccountSetToIdl<'info, A>
+        for DataAccount<'info, T>
+    where
+        AccountInfo<'info>: AccountSetToIdl<'info, A>,
+        T: AccountToIdl,
+    {
+        fn account_set_to_idl(
+            idl_definition: &mut IdlDefinition,
+            arg: A,
+        ) -> Result<IdlAccountSetDef> {
+            Ok(IdlAccountSetDef::ProgramAccount {
+                account_set: Box::new(<AccountInfo<'info>>::account_set_to_idl(
+                    idl_definition,
+                    arg,
+                )?),
+                account_id: T::account_to_idl(idl_definition)?,
+            })
+        }
+    }
 }
 
 impl<'info, T> DataAccount<'info, T>

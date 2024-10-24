@@ -21,6 +21,34 @@ pub mod serde_base58_pubkey {
     }
 }
 
+pub mod serde_base58_pubkey_option {
+    use serde::Deserialize;
+    use solana_program::pubkey::Pubkey;
+    use std::str::FromStr;
+
+    pub fn serialize<S>(val: &Option<Pubkey>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match *val {
+            Some(ref value) => {
+                let string = value.to_string();
+                serializer.serialize_some(&string)
+            }
+            None => serializer.serialize_none(),
+        }
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<Pubkey>, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = Option::<String>::deserialize(deserializer)?;
+        s.map(|s| Pubkey::from_str(&s).map_err(serde::de::Error::custom))
+            .transpose()
+    }
+}
+
 pub trait Len {
     fn len(&self) -> usize;
     #[inline]

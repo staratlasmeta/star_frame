@@ -4,6 +4,14 @@ use bytemuck::Zeroable;
 use star_frame::borsh;
 use star_frame::borsh::{BorshDeserialize, BorshSerialize};
 use star_frame::prelude::*;
+use star_frame::star_frame_idl::account::{AccountId, IdlAccount};
+use star_frame::star_frame_idl::account_set::{
+    AccountSetId, IdlAccountSet, IdlAccountSetDef, IdlAccountSetStructField,
+};
+use star_frame::star_frame_idl::instruction::IdlInstructionDef;
+use star_frame::star_frame_idl::seeds::{IdlSeed, IdlSeeds, IdlVariableSeed};
+use star_frame::star_frame_idl::ty::{IdlEnumVariant, IdlStructField, IdlType, IdlTypeDef, TypeId};
+use star_frame::star_frame_idl::{item_source, IdlDefinition, ItemInfo, Version};
 
 #[derive(StarFrameProgram)]
 #[program(
@@ -19,11 +27,35 @@ use star_frame::prelude::*;
 )]
 pub struct FactionEnlistment;
 
-// use star_frame::idl::InstructionSetToIdl;
+impl ProgramToIdl for FactionEnlistment {
+    fn version() -> Version {
+        Version::new(0, 0, 1)
+    }
+}
 
 #[derive(InstructionSet)]
 pub enum FactionEnlistmentInstructionSet {
     ProcessEnlistPlayer(ProcessEnlistPlayerIx),
+}
+
+#[automatically_derived]
+impl InstructionSetToIdl for FactionEnlistmentInstructionSet {
+    #[allow(clippy::let_unit_value)]
+    fn instruction_set_to_idl(idl_definition: &mut IdlDefinition) -> Result<()> {
+        {
+            type ArgTy = ();
+            let arg: ArgTy = ();
+            let definition =
+                <ProcessEnlistPlayerIx as InstructionToIdl<ArgTy>>::instruction_to_idl(
+                    idl_definition,
+                    arg,
+                )?;
+            let discriminant =
+                <ProcessEnlistPlayerIx as InstructionDiscriminant<Self>>::discriminant_bytes();
+            idl_definition.add_instruction(definition, discriminant)?;
+        }
+        Ok(())
+    }
 }
 
 #[derive(Clone, BorshDeserialize, BorshSerialize, Default)]
@@ -33,6 +65,54 @@ pub struct ProcessEnlistPlayerIx {
     bump: u8,
     faction_id: FactionId,
     // buncha_data: Vec<u8>,
+}
+
+impl TypeToIdl for ProcessEnlistPlayerIx {
+    type AssociatedProgram = crate::StarFrameDeclaredProgram;
+    fn type_to_idl(idl_definition: &mut IdlDefinition) -> Result<IdlTypeDef> {
+        let source = item_source::<Self>();
+        let type_def = IdlTypeDef::Struct(vec![
+            IdlStructField {
+                path: Some("bump".to_string()),
+                description: vec![],
+                type_def: <u8>::type_to_idl(idl_definition)?,
+            },
+            IdlStructField {
+                path: Some("faction_id".to_string()),
+                description: vec![],
+                type_def: <FactionId>::type_to_idl(idl_definition)?,
+            },
+        ]);
+        let idl_type = IdlType {
+            info: ItemInfo {
+                name: "ProcessEnlistPlayerIx".to_string(),
+                source: source.clone(),
+                description: vec![],
+            },
+            type_def,
+            generics: vec![],
+        };
+        let namespace = idl_definition.add_type(idl_type, Self::AssociatedProgram::PROGRAM_ID);
+        Ok(IdlTypeDef::Defined(TypeId {
+            namespace,
+            source,
+            provided_generics: vec![],
+        }))
+    }
+}
+
+impl<'b, 'c, 'info, A> InstructionToIdl<A> for ProcessEnlistPlayerIx
+where
+    <Self as StarFrameInstruction>::Accounts<'b, 'c, 'info>: AccountSetToIdl<'info, A>,
+{
+    fn instruction_to_idl(idl_definition: &mut IdlDefinition, arg: A) -> Result<IdlInstructionDef> {
+        let account_set = <<ProcessEnlistPlayerIx as StarFrameInstruction>::Accounts<'b, 'c, 'info> as AccountSetToIdl<'info, A>>::account_set_to_idl(idl_definition, arg)?;
+        let data = ProcessEnlistPlayerIx::type_to_idl(idl_definition)?;
+        Ok(IdlInstructionDef {
+            account_set,
+            definition: data,
+        })
+    }
 }
 
 impl StarFrameInstruction for ProcessEnlistPlayerIx {
@@ -69,6 +149,7 @@ impl StarFrameInstruction for ProcessEnlistPlayerIx {
 }
 
 #[derive(AccountSet)]
+#[account_set(skip_default_idl)]
 pub struct ProcessEnlistPlayer<'info> {
     /// The player faction account
     #[validate(arg = (Create(CreateAccount::new(&self.system_program, &self.player_account)),
@@ -83,6 +164,54 @@ pub struct ProcessEnlistPlayer<'info> {
     #[account_set(system_program)]
     pub system_program: Program<'info, SystemProgram>,
 }
+
+#[automatically_derived]
+impl<'info> AccountSetToIdl<'info, ()> for ProcessEnlistPlayer<'info> {
+    fn account_set_to_idl(idl_definition: &mut IdlDefinition, arg: ()) -> Result<IdlAccountSetDef> {
+        let source = item_source::<Self>();
+        let account_set_def = IdlAccountSetDef::Struct(vec![
+            IdlAccountSetStructField {
+                path: "player_faction_account".to_string(),
+                description: vec![],
+                account_set_def:
+                    <Init<Seeded<DataAccount<'info, PlayerFactionData>>>>::account_set_to_idl(
+                        idl_definition,
+                        (),
+                    )?,
+            },
+            IdlAccountSetStructField {
+                path: "player_account".to_string(),
+                description: vec![],
+                account_set_def: <Writable<Signer<SystemAccount<'info>>>>::account_set_to_idl(
+                    idl_definition,
+                    (),
+                )?,
+            },
+            IdlAccountSetStructField {
+                path: "system_program".to_string(),
+                description: vec![],
+                account_set_def: <Program<'info, SystemProgram>>::account_set_to_idl(
+                    idl_definition,
+                    (),
+                )?,
+            },
+        ]);
+        let account_set = IdlAccountSet {
+            info: ItemInfo::new::<Self>("ProcessEnlistPlayer", vec![]),
+            account_set_def,
+            type_generics: vec![],
+            account_generics: vec![],
+        };
+
+        idl_definition.add_account_set(account_set);
+        Ok(IdlAccountSetDef::Defined(AccountSetId {
+            source,
+            provided_type_generics: vec![],
+            provided_account_generics: vec![],
+        }))
+    }
+}
+
 #[derive(
     Debug,
     Align1,
@@ -102,6 +231,55 @@ pub struct PlayerFactionData {
     pub faction_id: FactionId,
     pub bump: u8,
     pub _padding: [u64; 5],
+}
+
+impl TypeToIdl for PlayerFactionData {
+    type AssociatedProgram = crate::StarFrameDeclaredProgram;
+    fn type_to_idl(idl_definition: &mut IdlDefinition) -> Result<IdlTypeDef> {
+        let source = item_source::<Self>();
+        let type_def = IdlTypeDef::Struct(vec![
+            IdlStructField {
+                path: Some("owner".to_string()),
+                description: vec![],
+                type_def: <Pubkey>::type_to_idl(idl_definition)?,
+            },
+            IdlStructField {
+                path: Some("enlisted_at_timestamp".to_string()),
+                description: vec![],
+                type_def: <i64>::type_to_idl(idl_definition)?,
+            },
+            IdlStructField {
+                path: Some("faction_id".to_string()),
+                description: vec![],
+                type_def: <FactionId>::type_to_idl(idl_definition)?,
+            },
+            IdlStructField {
+                path: Some("bump".to_string()),
+                description: vec![],
+                type_def: <u8>::type_to_idl(idl_definition)?,
+            },
+            IdlStructField {
+                path: Some("_padding".to_string()),
+                description: vec![],
+                type_def: <[u64; 5]>::type_to_idl(idl_definition)?,
+            },
+        ]);
+        let idl_type = IdlType {
+            info: ItemInfo {
+                name: "PlayerFactionData".to_string(),
+                description: vec![],
+                source: source.clone(),
+            },
+            type_def,
+            generics: vec![],
+        };
+        let namespace = idl_definition.add_type(idl_type, Self::AssociatedProgram::PROGRAM_ID);
+        Ok(IdlTypeDef::Defined(TypeId {
+            namespace,
+            source,
+            provided_generics: vec![],
+        }))
+    }
 }
 
 #[derive(
@@ -125,6 +303,45 @@ pub enum FactionId {
     Ustur,
 }
 
+impl TypeToIdl for FactionId {
+    type AssociatedProgram = crate::StarFrameDeclaredProgram;
+    fn type_to_idl(idl_definition: &mut IdlDefinition) -> Result<IdlTypeDef> {
+        let source = item_source::<Self>();
+        let type_def = IdlTypeDef::Enum(vec![
+            IdlEnumVariant {
+                name: "MUD".to_string(),
+                discriminant: vec![0],
+                type_def: None,
+            },
+            IdlEnumVariant {
+                name: "ONI".to_string(),
+                discriminant: vec![1],
+                type_def: None,
+            },
+            IdlEnumVariant {
+                name: "USTUR".to_string(),
+                discriminant: vec![2],
+                type_def: None,
+            },
+        ]);
+        let idl_type = IdlType {
+            info: ItemInfo {
+                name: "FactionId".to_string(),
+                description: vec![],
+                source: source.clone(),
+            },
+            type_def,
+            generics: vec![],
+        };
+        let namespace = idl_definition.add_type(idl_type, Self::AssociatedProgram::PROGRAM_ID);
+        Ok(IdlTypeDef::Defined(TypeId {
+            namespace,
+            source,
+            provided_generics: vec![],
+        }))
+    }
+}
+
 unsafe impl Zeroable for FactionId {}
 
 // TODO - Macro should derive this and with the idl feature enabled would also derive `AccountToIdl` and `TypeToIdl`
@@ -139,6 +356,27 @@ impl HasOwnerProgram for PlayerFactionData {
 
 impl HasSeeds for PlayerFactionData {
     type Seeds = PlayerFactionAccountSeeds;
+}
+
+impl AccountToIdl for PlayerFactionData {
+    fn account_to_idl(idl_definition: &mut IdlDefinition) -> Result<AccountId> {
+        let source = item_source::<Self>();
+        let idl_account = IdlAccount {
+            discriminant: Self::discriminant_bytes(),
+            seeds: Some(IdlSeeds(vec![
+                IdlSeed::Const(b"FACTION_ENLISTMENT".into()),
+                IdlSeed::Variable(IdlVariableSeed {
+                    name: "player_account".to_string(),
+                    description: vec![],
+                    ty: <Pubkey>::type_to_idl(idl_definition)?,
+                }),
+            ])),
+            type_def: <PlayerFactionData>::type_to_idl(idl_definition)?,
+        };
+        let namespace =
+            idl_definition.add_account(idl_account, Self::AssociatedProgram::PROGRAM_ID)?;
+        Ok(AccountId { namespace, source })
+    }
 }
 
 #[derive(Debug, GetSeeds, Clone)]
@@ -159,6 +397,12 @@ mod tests {
     use star_frame::itertools::Itertools;
     use star_frame::solana_program::instruction::AccountMeta;
     use star_frame::solana_program::native_token::LAMPORTS_PER_SOL;
+
+    #[test]
+    fn idl() {
+        let idl = FactionEnlistment::program_to_idl().unwrap();
+        println!("{}", serde_json::to_string_pretty(&idl).unwrap());
+    }
 
     #[tokio::test]
     async fn banks_test() -> Result<()> {

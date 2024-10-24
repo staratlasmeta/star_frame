@@ -40,7 +40,7 @@ mod idl_impl {
 
     impl<'info, T, A> AccountSetToIdl<'info, A> for Writable<T>
     where
-        T: AccountSetToIdl<'info, A>,
+        T: AccountSetToIdl<'info, A> + SingleAccountSet<'info>,
     {
         fn account_set_to_idl(
             idl_definition: &mut IdlDefinition,

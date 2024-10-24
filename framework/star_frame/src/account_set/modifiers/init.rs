@@ -142,12 +142,15 @@ mod idl_impl {
     use star_frame_idl::account_set::IdlAccountSetDef;
     use star_frame_idl::IdlDefinition;
 
-    impl<'info, A, T: AccountSetToIdl<'info, A>> AccountSetToIdl<'info, A> for Init<T> {
+    impl<'info, A, T> AccountSetToIdl<'info, A> for Init<T>
+    where
+        T: AccountSetToIdl<'info, A> + SingleAccountSet<'info>,
+    {
         fn account_set_to_idl(
             idl_definition: &mut IdlDefinition,
             arg: A,
         ) -> Result<IdlAccountSetDef> {
-            // manually mark as writable. Nothing else is needed for the IDL
+            // manually mark as writable. Nothing else is needed for the IDL. T Will be marked as signer automatically
             <Writable<T> as AccountSetToIdl<'info, A>>::account_set_to_idl(idl_definition, arg)
         }
     }

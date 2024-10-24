@@ -17,6 +17,7 @@ derive_more = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 solana-program = { workspace = true }
+semver = { workspace = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }

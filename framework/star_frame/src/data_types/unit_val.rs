@@ -161,16 +161,12 @@ mod idl {
     use super::*;
     use crate::idl::TypeToIdl;
     use star_frame_idl::ty::IdlTypeDef;
-    use star_frame_idl::{IdlDefinition, SemVer};
+    use star_frame_idl::IdlDefinition;
     impl<T: TypeToIdl, Unit> TypeToIdl for UnitVal<T, Unit> {
         type AssociatedProgram = T::AssociatedProgram;
 
         fn type_to_idl(idl_definition: &mut IdlDefinition) -> anyhow::Result<IdlTypeDef> {
             T::type_to_idl(idl_definition)
-        }
-
-        fn type_program_versions() -> SemVer {
-            T::type_program_versions()
         }
     }
 }

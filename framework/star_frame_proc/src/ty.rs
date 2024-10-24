@@ -50,7 +50,6 @@ pub fn derive_type_to_idl(input: &DeriveInput) -> TokenStream {
                         description: #type_docs.to_string(),
                         type_def,
                         generics: vec![],
-                        extension_fields: Default::default(),
                     });
                     None
                 } else {
@@ -67,13 +66,11 @@ pub fn derive_type_to_idl(input: &DeriveInput) -> TokenStream {
                     namespace,
                     type_id: #ident_str.to_string(),
                     provided_generics: vec![],
-                    extension_fields: Default::default(),
                 }))
             }
         }
     }
 }
-
 fn idl_struct_type_def(s: &syn::DataStruct) -> TokenStream {
     let Paths {
         type_to_idl,
@@ -112,7 +109,6 @@ fn idl_struct_type_def(s: &syn::DataStruct) -> TokenStream {
                     description: #description.to_string(),
                     path_id: #path_id.to_string(),
                     type_def: #type_def,
-                    extension_fields: Default::default(),
                 }
             }
         })

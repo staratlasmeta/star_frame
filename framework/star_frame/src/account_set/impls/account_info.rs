@@ -214,7 +214,7 @@ impl<'a, 'info> AccountSetCleanup<'info, ()> for &'a AccountInfo<'info> {
 pub mod idl_impl {
     use super::*;
     use crate::idl::AccountSetToIdl;
-    use star_frame_idl::account_set::{IdlAccountSetDef, IdlRawInputAccount};
+    use star_frame_idl::account_set::{IdlAccountSetDef, IdlSingleAccountSet};
     use star_frame_idl::IdlDefinition;
 
     impl<'info> AccountSetToIdl<'info, ()> for AccountInfo<'info> {
@@ -222,13 +222,13 @@ pub mod idl_impl {
             _idl_definition: &mut IdlDefinition,
             _arg: (),
         ) -> Result<IdlAccountSetDef> {
-            Ok(IdlAccountSetDef::RawAccount(IdlRawInputAccount {
-                possible_account_types: vec![],
-                allow_zeroed: true,
-                allow_uninitialized: true,
-                signer: false,
+            Ok(IdlAccountSetDef::SingleAccount(IdlSingleAccountSet {
+                program_accounts: vec![],
+                seeds: None,
+                address: None,
                 writable: false,
-                extension_fields: Default::default(),
+                signer: false,
+                optional: false,
             }))
         }
     }

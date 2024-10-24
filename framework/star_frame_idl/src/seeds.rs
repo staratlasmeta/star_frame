@@ -1,42 +1,49 @@
-use crate::account::AccountId;
-use crate::ty::IdlDefinedType;
+use crate::ty::IdlTypeDef;
+use crate::ItemDescription;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub enum IdlSeeds {
-    StoredAtHead(IdlSeedsDef),
-    NotRequired { possible: Vec<IdlSeedsDef> },
-    Plugin { plugin_id: String, seeds: String },
+/// The only seeds we can reliably derive are ones that only rely on constants and account keys in
+/// an instruction.
+///
+/// Using data from accounts would require fetching and parsing the account data, which
+/// we leave to the user to implement if they desire. Instruction data isn't super useful either, since finding
+/// seeds is done at the `AccountSet` level, which may not have access to the top level instruction data.
+/*
+todo:
+ figure out how to integrate this into the AccountSet macro idl step. Potentially derive a new struct
+ ex:
+    #[derive(Debug, GetSeeds, Clone)]
+    #[seed_const(b"TEST_CONST")]
+    pub struct TestAccount {
+        key: Pubkey,
+    }
+    That could create a TestAccountIdlFindSeeds struct that takes in Strings for all the paths and impls a trait that converts that into a
+    vec of IdlFindSeeds. This could be converted to Anchor's `IdlPda` struct, and should be able to achieve similar functionality.
+*/
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+pub enum IdlFindSeeds {
+    /// A constant seed
+    Const(Vec<u8>),
+    /// A seed that is derived from an account. This is relative to the same AccountSet that the seeded account is in
+    AccountPath(String),
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct IdlSeedsDef {
-    pub discriminator: String,
-    /// Marker for seeded accounts that are required to be found (largest possible bump)
-    pub require_find: bool,
-    pub seeds: Vec<IdlSeed>,
+/*
+todo:
+  GetSeeds should derive
+ */
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+pub struct IdlSeeds(pub Vec<IdlSeed>);
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+pub enum IdlSeed {
+    Const(Vec<u8>),
+    Variable(IdlVariableSeed),
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct IdlSeed {
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+pub struct IdlVariableSeed {
     pub name: String,
-    pub description: String,
-    pub ty: IdlSeedDef,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub enum IdlSeedDef {
-    /// UTF-8 encoded.
-    Literal(String),
-    Bytes(Vec<u8>),
-    Account {
-        valid_types: Vec<AccountId>,
-    },
-    Arg {
-        ty: IdlDefinedType,
-    },
-    Plugin {
-        plugin_id: String,
-        seed: String,
-    },
+    pub description: ItemDescription,
+    pub ty: IdlTypeDef,
 }

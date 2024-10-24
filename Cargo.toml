@@ -52,6 +52,7 @@ syn = { version = "2.0.40", features = ["extra-traits"] }
 typenum = "1.17.0"
 sha2 = "0.10.8"
 pretty_assertions = "1.4.0"
+semver = { version = "1.0.23", features = ["serde"] }
 
 # version locks
 bumpalo = "~3.14.0"
