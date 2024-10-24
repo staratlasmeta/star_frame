@@ -77,8 +77,8 @@ pub struct Paths {
     pub star_frame_program_ident: Ident,
     pub program_id_ident: Ident,
     pub single_account_set_ident: Ident,
+    pub type_to_idl_args_ident: Ident,
 
-    pub idl_ty_program_ident: Ident,
     pub align1: TokenStream,
     pub packed_value_checked: TokenStream,
     pub advance: TokenStream,
@@ -166,7 +166,7 @@ impl Default for Paths {
             validate_ident: format_ident!("validate"),
             cleanup_ident: format_ident!("cleanup"),
             idl_ident: format_ident!("idl"),
-            idl_ty_program_ident: format_ident!("program"),
+            type_to_idl_args_ident: format_ident!("type_to_idl"),
             star_frame_program_ident: format_ident!("program"),
             program_id_ident: format_ident!("program_id"),
             single_account_set_ident: format_ident!("single_account_set"),

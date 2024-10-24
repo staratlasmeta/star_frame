@@ -9,23 +9,22 @@ use syn::{DeriveInput, LitStr, Type};
 pub fn derive_account_to_idl_impl(input: &DeriveInput) -> TokenStream {
     let Paths {
         macro_prelude: prelude,
-        idl_ty_program_ident,
         declared_program_type,
         result,
         ..
     } = &Paths::default();
-
-    let associated_program = if let Some(attr) = find_attr(&input.attrs, idl_ty_program_ident) {
-        attr.parse_args::<Type>()
-            .unwrap_or_else(|e| abort_call_site!("Could not parse program type: {}", e))
-    } else {
-        declared_program_type.clone()
-    };
-
-    let crate_name = &get_crate_name();
-    let ident = &input.ident;
-    let ident_str = ident.to_string();
-    let type_docs = &util::get_docs(&input.attrs);
+    //
+    // let associated_program = if let Some(attr) = find_attr(&input.attrs, idl_ty_program_ident) {
+    //     attr.parse_args::<Type>()
+    //         .unwrap_or_else(|e| abort_call_site!("Could not parse program type: {}", e))
+    // } else {
+    //     declared_program_type.clone()
+    // };
+    //
+    // let crate_name = &get_crate_name();
+    // let ident = &input.ident;
+    // let ident_str = ident.to_string();
+    // let type_docs = &util::get_docs(&input.attrs);
     // TODO - Update 'seeds' once we have a better way to handle seeds
     quote! {
         // #[automatically_derived]

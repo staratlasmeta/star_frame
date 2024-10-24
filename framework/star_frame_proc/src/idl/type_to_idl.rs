@@ -1,26 +1,38 @@
 use crate::util;
 use crate::util::Paths;
-use easy_proc::find_attr;
+use easy_proc::{find_attr, ArgumentList};
 use proc_macro2::{Span, TokenStream};
-use proc_macro_error::{abort, abort_call_site, OptionExt};
-use quote::{quote, ToTokens};
+use proc_macro_error::{abort, OptionExt};
+use quote::quote;
 use syn::{parse_quote, DeriveInput, Expr, Fields, LitStr, Type};
+
+#[derive(Debug, ArgumentList, Default)]
+pub struct TypeToIdlArgs {
+    pub program: Option<Type>,
+}
 
 pub fn derive_type_to_idl(input: &DeriveInput) -> TokenStream {
     let Paths {
+        type_to_idl_args_ident,
+        ..
+    } = &Paths::default();
+
+    let args = find_attr(&input.attrs, type_to_idl_args_ident)
+        .map(TypeToIdlArgs::parse_arguments)
+        .unwrap_or_default();
+
+    derive_type_to_idl_inner(input, args)
+}
+
+pub fn derive_type_to_idl_inner(input: &DeriveInput, args: TypeToIdlArgs) -> TokenStream {
+    let Paths {
         macro_prelude: prelude,
         declared_program_type,
-        idl_ty_program_ident,
         result,
         ..
     } = &Paths::default();
 
-    let associated_program = if let Some(attr) = find_attr(&input.attrs, idl_ty_program_ident) {
-        attr.parse_args::<Type>()
-            .unwrap_or_else(|e| abort_call_site!("Could not parse program type: {}", e))
-    } else {
-        declared_program_type.clone()
-    };
+    let associated_program = args.program.unwrap_or(declared_program_type.clone());
 
     let ident = &input.ident;
     let type_docs = &util::get_docs(&input.attrs);
@@ -65,6 +77,7 @@ pub fn derive_type_to_idl(input: &DeriveInput) -> TokenStream {
         }
     }
 }
+
 fn idl_struct_type_def(s: &syn::DataStruct) -> TokenStream {
     let Paths {
         macro_prelude: prelude,

@@ -437,7 +437,7 @@ pub fn sighash(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 /// Derives `TypeToIdl` for a valid type.
 #[cfg(feature = "idl")]
 #[proc_macro_error]
-#[proc_macro_derive(TypeToIdl, attributes(program))]
+#[proc_macro_derive(TypeToIdl, attributes(type_to_idl))]
 pub fn derive_type_to_idl(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
     #[cfg(feature = "idl")]
     let out = idl::derive_type_to_idl(&parse_macro_input!(item as DeriveInput));
