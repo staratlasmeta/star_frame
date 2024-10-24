@@ -30,7 +30,6 @@ pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
         bytemuck,
         anyhow_macro,
         instruction,
-        instruction_set,
         pubkey,
         result,
         syscalls,
@@ -104,7 +103,7 @@ pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
     // todo: better error messages for getting the discriminant and invalid discriminants
     quote! {
         #[automatically_derived]
-        impl #impl_generics #instruction_set for #ident #ty_generics #where_clause {
+        impl #impl_generics #prelude::InstructionSet for #ident #ty_generics #where_clause {
             type Discriminant = #discriminant_type;
 
             fn handle_ix<#info_lifetime>(

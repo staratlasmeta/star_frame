@@ -59,12 +59,10 @@ pub struct Paths {
 
     // instruction
     pub star_frame_instruction: TokenStream,
-    pub instruction_set: TokenStream,
 
     pub instruction: TokenStream,
     // program
     pub system_program: TokenStream,
-    pub star_frame_program: TokenStream,
 
     pub declared_program_type: Type,
     // idents
@@ -153,12 +151,10 @@ impl Default for Paths {
 
             // instruction
             star_frame_instruction: quote! { #crate_name::instruction::StarFrameInstruction },
-            instruction_set: quote! { #crate_name::instruction::InstructionSet },
             instruction: quote! { #crate_name::instruction::Instruction },
 
             // program
             system_program: quote! { #crate_name::program::system_program::SystemProgram },
-            star_frame_program: quote! { #crate_name::program::StarFrameProgram },
             declared_program_type: parse_quote! { crate::StarFrameDeclaredProgram },
 
             // idents
@@ -477,10 +473,10 @@ pub fn generate_fields_are_trait<T: GetGenerics + FieldIter + Spanned>(
     }
 }
 
-pub fn ensure_data_struct(item: &DeriveInput) -> &DataStruct {
+pub fn ensure_data_struct<'a, 'b>(item: &'a DeriveInput, error: Option<&'b str>) -> &'a DataStruct {
     match &item.data {
         Data::Struct(s) => s,
-        _ => abort!(item, "Expected a struct"),
+        _ => abort!(item, error.unwrap_or("Expected a struct")),
     }
 }
 

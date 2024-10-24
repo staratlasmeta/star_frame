@@ -10,7 +10,7 @@ use star_frame::star_frame_idl::account_set::{
 };
 use star_frame::star_frame_idl::seeds::{IdlSeed, IdlSeeds, IdlVariableSeed};
 use star_frame::star_frame_idl::ty::{IdlEnumVariant, IdlType, IdlTypeDef, IdlTypeId};
-use star_frame::star_frame_idl::{item_source, IdlDefinition, ItemInfo, Version};
+use star_frame::star_frame_idl::{item_source, IdlDefinition, ItemInfo};
 
 #[derive(StarFrameProgram)]
 #[program(
@@ -25,12 +25,6 @@ use star_frame::star_frame_idl::{item_source, IdlDefinition, ItemInfo, Version};
     program(id = "FLisTRH6dJnCK8AzTfenGJgHBPMHoat9XRc65Qpk7Yuc")
 )]
 pub struct FactionEnlistment;
-
-impl ProgramToIdl for FactionEnlistment {
-    fn version() -> Version {
-        Version::new(0, 0, 1)
-    }
-}
 
 #[derive(InstructionSet)]
 pub enum FactionEnlistmentInstructionSet {

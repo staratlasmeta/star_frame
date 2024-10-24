@@ -36,7 +36,7 @@ pub fn derive_type_to_idl_inner(input: &DeriveInput, args: TypeToIdlArgs) -> Tok
 
     // todo: support generics maybe?
     reject_generics(input, Some("Generics are not supported yet for TypeToIdl"));
-    let data_struct = util::ensure_data_struct(input);
+    let data_struct = util::ensure_data_struct(input, None);
     let ident = &input.ident;
     let ident_str = LitStr::new(&ident.to_string(), Span::call_site());
     let type_docs = &util::get_docs(&input.attrs);

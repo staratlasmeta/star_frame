@@ -23,7 +23,7 @@ pub fn derive_instruction_to_idl(input: DeriveInput) -> TokenStream {
         Some("Generics are not supported yet for InstructionToIdl"),
     );
 
-    ensure_data_struct(&input);
+    ensure_data_struct(&input, None);
     let ident = &input.ident;
 
     let args = find_attr(&input.attrs, instruction_to_idl_args_ident)
