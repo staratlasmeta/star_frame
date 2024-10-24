@@ -15,5 +15,5 @@ pub struct IdlInstructionDef {
     pub account_set: IdlAccountSetDef,
     /// The data the instruction expects. This should be an IdlTypeDef::Defined. The
     /// information about the instruction should be in the IdlTypeDef::Defined documentation.
-    pub definition: IdlTypeDef,
+    pub data: IdlTypeDef,
 }

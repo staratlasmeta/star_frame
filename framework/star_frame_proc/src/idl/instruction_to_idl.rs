@@ -43,7 +43,7 @@ pub fn derive_instruction_to_idl(input: DeriveInput) -> TokenStream {
                 let data = <#ident as #prelude::TypeToIdl>::type_to_idl(idl_definition)?;
                 Ok(#prelude::IdlInstructionDef {
                     account_set,
-                    definition: data,
+                    data: data,
                 })
             }
         }

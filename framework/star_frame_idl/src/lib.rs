@@ -94,7 +94,7 @@ pub struct IdlDefinition {
     #[serde(with = "serde_base58_pubkey")]
     pub address: Pubkey,
     pub metadata: IdlMetadata,
-    pub instructions: Vec<IdlInstruction>,
+    pub instructions: HashMap<ItemSource, IdlInstruction>,
     pub account_sets: HashMap<ItemSource, IdlAccountSet>,
     pub accounts: HashMap<ItemSource, IdlAccount>,
     pub types: HashMap<ItemSource, IdlType>,
@@ -107,12 +107,12 @@ impl IdlDefinition {
         definition: IdlInstructionDef,
         discriminant: IdlDiscriminant,
     ) -> anyhow::Result<()> {
-        definition.definition.assert_defined()?;
+        let source = definition.data.assert_defined()?.source.clone();
         let idl_instruction = IdlInstruction {
             definition,
             discriminant,
         };
-        self.instructions.push(idl_instruction);
+        self.instructions.entry(source).or_insert(idl_instruction);
         Ok(())
     }
 
@@ -136,12 +136,12 @@ impl IdlDefinition {
     }
 
     pub fn add_type(&mut self, ty: IdlType, namespace: IdlNamespace) -> Option<IdlNamespace> {
-        let item_source = ty.info.source.clone();
+        let source = ty.info.source.clone();
         if namespace == self.address {
-            self.types.entry(item_source).or_insert(ty);
+            self.types.entry(source).or_insert(ty);
             None
         } else {
-            self.external_types.entry(item_source).or_insert(ty);
+            self.external_types.entry(source).or_insert(ty);
             Some(namespace)
         }
     }

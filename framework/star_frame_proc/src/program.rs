@@ -165,6 +165,7 @@ pub(crate) fn program_impl(input: DeriveInput) -> TokenStream {
 
     let idl_impl = (!skip_idl && cfg!(feature = "idl")).then(|| {
         quote! {
+            #[automatically_derived]
             impl #prelude::ProgramToIdl for #ident {
                 fn version() -> #prelude::Version {
                     #prelude::Version::parse(env!("CARGO_PKG_VERSION"))
@@ -175,6 +176,7 @@ pub(crate) fn program_impl(input: DeriveInput) -> TokenStream {
     });
 
     quote! {
+        #[automatically_derived]
         impl #prelude::StarFrameProgram for #ident {
             type InstructionSet = #instruction_set_type;
             type InstructionDiscriminant = <Self::InstructionSet as #prelude::InstructionSet>::Discriminant;

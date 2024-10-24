@@ -1,5 +1,6 @@
 use crate::account::IdlAccountId;
 use crate::seeds::IdlFindSeeds;
+use crate::serde_base58_pubkey_option;
 use crate::ty::IdlTypeDef;
 use crate::{IdlGeneric, ItemInfo};
 use crate::{ItemDescription, ItemSource};
@@ -55,6 +56,7 @@ pub struct IdlAccountSetStructField {
 pub struct IdlSingleAccountSet {
     pub program_accounts: Vec<IdlAccountId>,
     pub seeds: Option<IdlFindSeeds>,
+    #[serde(with = "serde_base58_pubkey_option")]
     pub address: Option<Pubkey>,
     pub writable: bool,
     pub signer: bool,
