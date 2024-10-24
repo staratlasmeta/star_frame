@@ -5,7 +5,7 @@ use quote::quote;
 use syn::parse::{Parse, ParseStream};
 use syn::{parse_quote, Data, DataStruct, DataUnion, DeriveInput, Fields, LitInt, Token};
 
-pub fn derive_align1_impl(derive_input: DeriveInput) -> proc_macro::TokenStream {
+pub fn derive_align1_impl(derive_input: DeriveInput) -> TokenStream {
     let crate_name = get_crate_name();
     match derive_input.data.clone() {
         Data::Struct(DataStruct { fields, .. }) => {
@@ -31,7 +31,7 @@ fn derive_align1_for_struct(
     fields: Fields,
     derive_input: DeriveInput,
     crate_name: &TokenStream,
-) -> proc_macro::TokenStream {
+) -> TokenStream {
     let packed = derive_input.attrs.into_iter().any(|attr| {
         attr.path().is_ident("repr") && {
             let Ok(args) = attr.parse_args_with(|p: ParseStream| {
@@ -78,8 +78,7 @@ fn derive_align1_for_struct(
     }
     let (impl_gen, type_gen, where_clause) = gen.split_for_impl();
 
-    (quote! {
+    quote! {
         unsafe impl #impl_gen #crate_name::align1::Align1 for #ident #type_gen #where_clause {}
-    })
-    .into()
+    }
 }
