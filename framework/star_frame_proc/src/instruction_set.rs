@@ -1,3 +1,4 @@
+use easy_proc::{find_attr, ArgumentList};
 use heck::ToSnakeCase;
 use itertools::Itertools;
 use proc_macro2::TokenStream;
@@ -8,6 +9,12 @@ use syn::{parse_quote, Fields, FieldsUnnamed, ItemEnum, Lifetime, Type};
 
 use crate::hash::{hash_tts, sighash, SIGHASH_GLOBAL_NAMESPACE};
 use crate::util::Paths;
+
+#[derive(Debug, ArgumentList, Clone, Default)]
+pub struct InstructionSetStructArgs {
+    #[argument(presence)]
+    pub skip_idl: bool,
+}
 
 pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
     let (impl_generics, ty_generics, where_clause) = &item.generics.split_for_impl();
@@ -28,8 +35,13 @@ pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
         result,
         syscalls,
         macro_prelude: prelude,
+        instruction_set_args_ident,
         ..
     } = Paths::default();
+
+    let args = find_attr(&item.attrs, &instruction_set_args_ident)
+        .map(InstructionSetStructArgs::parse_arguments)
+        .unwrap_or_default();
 
     let variant_tys = item
         .variants
@@ -56,6 +68,38 @@ pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
                 .expect("Hash should be valid expression")
         })
         .collect_vec();
+
+    let idl_impl = (!args.skip_idl && cfg!(feature = "idl")).then(|| {
+        let mut generics = item.generics.clone();
+        let where_clause = generics.make_where_clause();
+        variant_tys.iter().for_each(|ty| {
+            where_clause.predicates.push(parse_quote! {
+                // todo: support passing args to instruction_to_idl per variant
+                #ty: #prelude::InstructionToIdl<()>
+            });
+        });
+
+        quote! {
+            #[automatically_derived]
+            impl #impl_generics #prelude::InstructionSetToIdl for #ident #ty_generics #where_clause {
+                #[allow(clippy::let_unit_value)]
+                fn instruction_set_to_idl(
+                    idl_definition: &mut #prelude::IdlDefinition,
+                ) -> #result<()> {
+                    #({
+                        // todo: support passing args to instruction_to_idl per variant
+                        type __ArgTy = ();
+                        let arg: __ArgTy = ();
+                        let definition = <#variant_tys as #prelude::InstructionToIdl<_>>::instruction_to_idl(idl_definition, arg)?;
+                        let discriminant =
+                            <#variant_tys as #prelude::InstructionDiscriminant<Self #ty_generics>>::discriminant_bytes();
+                        idl_definition.add_instruction(definition, discriminant)?;
+                    })*
+                    Ok(())
+                }
+            }
+        }
+    });
 
     // todo: better error messages for getting the discriminant and invalid discriminants
     quote! {
@@ -91,5 +135,7 @@ pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
                 const DISCRIMINANT: #discriminant_type = #ix_disc_values;
             }
         )*
+
+        #idl_impl
     }
 }

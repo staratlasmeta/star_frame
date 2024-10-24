@@ -37,25 +37,6 @@ pub enum FactionEnlistmentInstructionSet {
     ProcessEnlistPlayer(ProcessEnlistPlayerIx),
 }
 
-#[automatically_derived]
-impl InstructionSetToIdl for FactionEnlistmentInstructionSet {
-    #[allow(clippy::let_unit_value)]
-    fn instruction_set_to_idl(idl_definition: &mut IdlDefinition) -> Result<()> {
-        {
-            // type ArgTy = ();
-            // let arg: ArgTy = ();
-            let definition = <ProcessEnlistPlayerIx as InstructionToIdl<_>>::instruction_to_idl(
-                idl_definition,
-                (),
-            )?;
-            let discriminant =
-                <ProcessEnlistPlayerIx as InstructionDiscriminant<Self>>::discriminant_bytes();
-            idl_definition.add_instruction(definition, discriminant)?;
-        }
-        Ok(())
-    }
-}
-
 /// ProcessEnlistPlayerIx
 #[derive(Clone, BorshDeserialize, BorshSerialize, Default, InstructionToIdl)]
 #[borsh(crate = "borsh")]

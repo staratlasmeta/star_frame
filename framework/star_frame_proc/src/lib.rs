@@ -325,7 +325,7 @@ fn derive_align1_for_struct(
 // # impl_blank_ix!(CoolIx1, CoolIx2, CoolIx3);
 // ```
 #[proc_macro_error]
-#[proc_macro_derive(InstructionSet)]
+#[proc_macro_derive(InstructionSet, attributes(ix_set))]
 pub fn star_frame_instruction_set(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let out = instruction_set::instruction_set_impl(parse_macro_input!(item as ItemEnum));
     out.into()

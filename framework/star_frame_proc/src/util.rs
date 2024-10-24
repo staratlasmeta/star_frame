@@ -77,6 +77,7 @@ pub struct Paths {
     pub star_frame_program_ident: Ident,
     pub program_id_ident: Ident,
     pub single_account_set_ident: Ident,
+    pub instruction_set_args_ident: Ident,
     pub type_to_idl_args_ident: Ident,
     pub instruction_to_idl_args_ident: Ident,
 
@@ -172,6 +173,7 @@ impl Default for Paths {
             star_frame_program_ident: format_ident!("program"),
             program_id_ident: format_ident!("program_id"),
             single_account_set_ident: format_ident!("single_account_set"),
+            instruction_set_args_ident: format_ident!("ix_set"),
 
             align1: quote! { #crate_name::align1::Align1 },
             packed_value_checked: quote! { #crate_name::data_types::PackedValueChecked },
