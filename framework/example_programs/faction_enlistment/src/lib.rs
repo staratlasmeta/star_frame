@@ -8,11 +8,8 @@ use star_frame::star_frame_idl::account::{IdlAccount, IdlAccountId};
 use star_frame::star_frame_idl::account_set::{
     IdlAccountSet, IdlAccountSetDef, IdlAccountSetId, IdlAccountSetStructField,
 };
-use star_frame::star_frame_idl::instruction::IdlInstructionDef;
 use star_frame::star_frame_idl::seeds::{IdlSeed, IdlSeeds, IdlVariableSeed};
-use star_frame::star_frame_idl::ty::{
-    IdlEnumVariant, IdlStructField, IdlType, IdlTypeDef, IdlTypeId,
-};
+use star_frame::star_frame_idl::ty::{IdlEnumVariant, IdlType, IdlTypeDef, IdlTypeId};
 use star_frame::star_frame_idl::{item_source, IdlDefinition, ItemInfo, Version};
 
 #[derive(StarFrameProgram)]
@@ -60,10 +57,10 @@ impl InstructionSetToIdl for FactionEnlistmentInstructionSet {
 }
 
 /// ProcessEnlistPlayerIx
-#[derive(Clone, BorshDeserialize, BorshSerialize, Default, TypeToIdl)]
+#[derive(Clone, BorshDeserialize, BorshSerialize, Default, InstructionToIdl)]
 #[borsh(crate = "borsh")]
 #[repr(C)]
-#[type_to_idl(program = FactionEnlistment)]
+#[instruction_to_idl(program = FactionEnlistment)]
 pub struct ProcessEnlistPlayerIx {
     /// The bump for PDA seeds
     bump: u8,
@@ -71,20 +68,6 @@ pub struct ProcessEnlistPlayerIx {
     /// Some more docs
     faction_id: FactionId,
     // buncha_data: Vec<u8>,
-}
-
-impl<'b, 'c, 'info, A> InstructionToIdl<A> for ProcessEnlistPlayerIx
-where
-    <Self as StarFrameInstruction>::Accounts<'b, 'c, 'info>: AccountSetToIdl<'info, A>,
-{
-    fn instruction_to_idl(idl_definition: &mut IdlDefinition, arg: A) -> Result<IdlInstructionDef> {
-        let account_set = <<ProcessEnlistPlayerIx as StarFrameInstruction>::Accounts<'b, 'c, 'info> as AccountSetToIdl<'info, A>>::account_set_to_idl(idl_definition, arg)?;
-        let data = ProcessEnlistPlayerIx::type_to_idl(idl_definition)?;
-        Ok(IdlInstructionDef {
-            account_set,
-            definition: data,
-        })
-    }
 }
 
 impl StarFrameInstruction for ProcessEnlistPlayerIx {

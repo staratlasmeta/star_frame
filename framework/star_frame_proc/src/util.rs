@@ -78,6 +78,7 @@ pub struct Paths {
     pub program_id_ident: Ident,
     pub single_account_set_ident: Ident,
     pub type_to_idl_args_ident: Ident,
+    pub instruction_to_idl_args_ident: Ident,
 
     pub align1: TokenStream,
     pub packed_value_checked: TokenStream,
@@ -167,6 +168,7 @@ impl Default for Paths {
             cleanup_ident: format_ident!("cleanup"),
             idl_ident: format_ident!("idl"),
             type_to_idl_args_ident: format_ident!("type_to_idl"),
+            instruction_to_idl_args_ident: format_ident!("instruction_to_idl"),
             star_frame_program_ident: format_ident!("program"),
             program_id_ident: format_ident!("program_id"),
             single_account_set_ident: format_ident!("single_account_set"),
@@ -473,6 +475,20 @@ pub fn generate_fields_are_trait<T: GetGenerics + FieldIter + Spanned>(
     }
 }
 
+pub fn ensure_data_struct(item: &DeriveInput) -> &DataStruct {
+    match &item.data {
+        Data::Struct(s) => s,
+        _ => abort!(item, "Expected a struct"),
+    }
+}
+
+pub fn reject_generics(item: &impl GetGenerics, error: Option<&str>) {
+    let generics = item.get_generics();
+    if !generics.params.is_empty() {
+        abort!(generics, error.unwrap_or("Generics are not supported"));
+    }
+}
+
 pub trait GetGenerics {
     fn get_generics(&self) -> &Generics;
 }
@@ -546,16 +562,16 @@ pub fn type_generic_idents<G: GetGenerics>(generics: &G) -> Vec<Ident> {
 }
 
 pub fn new_lifetime<G: GetGenerics>(generics: &G) -> Lifetime {
-    let mut new_lifetime = "'__a".to_string();
+    let mut lifetime = "l".to_string();
     while generics
         .get_generics()
         .lifetimes()
         .map(|l| l.lifetime.ident.to_string())
-        .any(|l| l == new_lifetime)
+        .any(|l| l == lifetime)
     {
-        new_lifetime.push('_');
+        lifetime.push('_');
     }
-    Lifetime::new(&new_lifetime, Span::call_site())
+    Lifetime::new(&format!("'{lifetime}"), Span::call_site())
 }
 
 pub fn new_generic<G: GetGenerics>(generics: &G) -> Ident {
@@ -568,7 +584,7 @@ pub fn new_generic<G: GetGenerics>(generics: &G) -> Ident {
         .const_params()
         .map(|c| c.ident.clone())
         .collect::<Vec<_>>();
-    let mut new_generic = "__A".to_string();
+    let mut new_generic = "A".to_string();
     while type_idents
         .iter()
         .chain(const_idents.iter())

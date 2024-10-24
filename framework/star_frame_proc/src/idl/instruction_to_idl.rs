@@ -1,9 +1,9 @@
-use crate::util;
-use crate::util::Paths;
-use proc_macro2::{Ident, Span, TokenStream};
-use proc_macro_error::abort;
-use quote::{quote, ToTokens};
-use syn::{Attribute, Data, DeriveInput, LitStr, Visibility};
+use crate::idl::{derive_type_to_idl_inner, TypeToIdlArgs};
+use crate::util::{ensure_data_struct, reject_generics, Paths};
+use easy_proc::{find_attr, ArgumentList};
+use proc_macro2::{Ident, TokenStream};
+use quote::{format_ident, quote};
+use syn::{parse_quote, Attribute, DeriveInput, Visibility};
 
 #[allow(dead_code)]
 struct StrippedDeriveInput {
@@ -12,112 +12,47 @@ struct StrippedDeriveInput {
     ident: Ident,
 }
 
-pub fn derive_star_frame_instruction_impl(input: DeriveInput) -> TokenStream {
-    let out = match input.data {
-        Data::Struct(s) => derive_star_frame_instruction_impl_struct(
-            Paths::default(),
-            s,
-            StrippedDeriveInput {
-                attrs: input.attrs,
-                vis: input.vis,
-                ident: input.ident,
-            },
-        ),
-        Data::Enum(e) => abort!(
-            e.enum_token,
-            "StarFrameInstruction cannot be derived for enums"
-        ),
-        Data::Union(u) => abort!(
-            u.union_token,
-            "StarFrameInstruction cannot be derived for unions"
-        ),
-    };
-    out
-}
-
-fn derive_star_frame_instruction_impl_struct(
-    paths: Paths,
-    data_struct: syn::DataStruct,
-    input: StrippedDeriveInput,
-) -> TokenStream {
+pub fn derive_instruction_to_idl(input: DeriveInput) -> TokenStream {
     let Paths {
-        result,
-        star_frame_instruction,
+        instruction_to_idl_args_ident,
+        macro_prelude: prelude,
         ..
-    } = paths;
+    } = &Paths::default();
+    reject_generics(
+        &input,
+        Some("Generics are not supported yet for InstructionToIdl"),
+    );
 
-    let filter_variable_sized_arrays = |ty: &syn::Type| -> bool {
-        if matches!(ty, syn::Type::Slice(_type_slice)) {
-            return false;
-        }
-        true
-    };
-
-    let filtered_fields = data_struct
-        .fields
-        .iter()
-        .filter(|field| filter_variable_sized_arrays(&field.ty))
-        .collect::<Vec<_>>();
-
+    ensure_data_struct(&input);
     let ident = &input.ident;
 
-    let field_name = filtered_fields
-        .iter()
-        .enumerate()
-        .map(|(index, field)| {
-            field
-                .ident
-                .as_ref()
-                .map(ToTokens::to_token_stream)
-                .unwrap_or_else(|| syn::Index::from(index).into_token_stream())
-        })
-        .collect::<Vec<_>>();
-    let field_type = filtered_fields
-        .iter()
-        .map(|field| &field.ty)
-        .collect::<Vec<_>>();
+    let args = find_attr(&input.attrs, instruction_to_idl_args_ident)
+        .map(TypeToIdlArgs::parse_arguments)
+        .unwrap_or_default();
 
-    let field_docs: Vec<_> = filtered_fields
-        .iter()
-        .map(|field| util::get_docs(&field.attrs))
-        .collect();
+    let type_to_idl_derivation = derive_type_to_idl_inner(&input, args);
+    let mut generics = input.generics.clone();
+    let where_clause = generics.make_where_clause();
 
-    let field_str = field_name
-        .iter()
-        .map(|field_name| LitStr::new(&field_name.to_string(), Span::call_site()))
-        .collect::<Vec<_>>();
+    let generic_arg: Ident = format_ident!("__A");
 
-    let out = quote! {
-        // #[automatically_derived]
-        // // TODO - Could these lifetimes ever be something else?
-        // impl #instruction_to_idl<()> for #ident {
-        //     fn instruction_to_idl(
-        //         idl_definition: &mut #idl_definition,
-        //         // TODO - Use idl struct args to pass in arg
-        //         arg: (),
-        //     ) -> #result<#idl_instruction_def> {
-        //         #(
-        //             let #field_name = <#field_type as #type_to_idl>::type_to_idl(idl_definition)?;
-        //         )*
-        //         Ok(#idl_instruction_def {
-        //             account_set: <Self as #star_frame_instruction>::Accounts::account_set_to_idl(
-        //                 idl_definition,
-        //                 arg,
-        //             )?,
-        //             data: #idl_type_def::Struct(vec![
-        //                 #(
-        //                     #idl_field {
-        //                         name: #field_str.to_string(),
-        //                         description: #field_docs.to_string(),
-        //                         path_id: #field_str.to_string(),
-        //                         type_def: #field_name,
-        //                         extension_fields: Default::default(),
-        //                     },
-        //                 )*
-        //             ]),
-        //         })
-        //     }
-        // }
-    };
-    out
+    where_clause.predicates.push(
+        parse_quote!(<Self as #prelude::StarFrameInstruction>::Accounts<'b, 'c, 'info>: #prelude::AccountSetToIdl<'info, #generic_arg>),
+    );
+
+    quote! {
+        #type_to_idl_derivation
+
+        #[automatically_derived]
+        impl<'b, 'c, 'info, #generic_arg> #prelude::InstructionToIdl<#generic_arg> for #ident #where_clause {
+            fn instruction_to_idl(idl_definition: &mut #prelude::IdlDefinition, arg: #generic_arg) -> Result<#prelude::IdlInstructionDef> {
+                let account_set = <<#ident as #prelude::StarFrameInstruction>::Accounts<'b, 'c, 'info> as #prelude::AccountSetToIdl<'info, #generic_arg>>::account_set_to_idl(idl_definition, arg)?;
+                let data = <#ident as #prelude::TypeToIdl>::type_to_idl(idl_definition)?;
+                Ok(#prelude::IdlInstructionDef {
+                    account_set,
+                    definition: data,
+                })
+            }
+        }
+    }
 }

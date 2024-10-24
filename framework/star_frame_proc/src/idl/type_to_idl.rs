@@ -1,5 +1,5 @@
 use crate::util;
-use crate::util::Paths;
+use crate::util::{reject_generics, Paths};
 use easy_proc::{find_attr, ArgumentList};
 use proc_macro2::{Span, TokenStream};
 use proc_macro_error::{abort, OptionExt};
@@ -11,7 +11,7 @@ pub struct TypeToIdlArgs {
     pub program: Option<Type>,
 }
 
-pub fn derive_type_to_idl(input: &DeriveInput) -> TokenStream {
+pub fn derive_type_to_idl(input: DeriveInput) -> TokenStream {
     let Paths {
         type_to_idl_args_ident,
         ..
@@ -21,7 +21,7 @@ pub fn derive_type_to_idl(input: &DeriveInput) -> TokenStream {
         .map(TypeToIdlArgs::parse_arguments)
         .unwrap_or_default();
 
-    derive_type_to_idl_inner(input, args)
+    derive_type_to_idl_inner(&input, args)
 }
 
 pub fn derive_type_to_idl_inner(input: &DeriveInput, args: TypeToIdlArgs) -> TokenStream {
@@ -34,20 +34,13 @@ pub fn derive_type_to_idl_inner(input: &DeriveInput, args: TypeToIdlArgs) -> Tok
 
     let associated_program = args.program.unwrap_or(declared_program_type.clone());
 
+    // todo: support generics maybe?
+    reject_generics(input, Some("Generics are not supported yet for TypeToIdl"));
+    let data_struct = util::ensure_data_struct(input);
     let ident = &input.ident;
-    let type_docs = &util::get_docs(&input.attrs);
-    let type_def = match input.data {
-        syn::Data::Struct(ref s) => idl_struct_type_def(s),
-        syn::Data::Enum(ref e) => abort!(e.enum_token, "Enums are not supported"),
-        syn::Data::Union(ref u) => abort!(u.union_token, "Unions are not supported"),
-    };
     let ident_str = LitStr::new(&ident.to_string(), Span::call_site());
-
-    if input.generics.type_params().next().is_some()
-        || input.generics.const_params().next().is_some()
-    {
-        abort!(input.generics, "Generics are not supported");
-    }
+    let type_docs = &util::get_docs(&input.attrs);
+    let type_def = idl_struct_type_def(data_struct);
 
     let (impl_gen, ty_gen, where_clause) = input.generics.split_for_impl();
 

@@ -440,7 +440,17 @@ pub fn sighash(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 #[proc_macro_derive(TypeToIdl, attributes(type_to_idl))]
 pub fn derive_type_to_idl(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
     #[cfg(feature = "idl")]
-    let out = idl::derive_type_to_idl(&parse_macro_input!(item as DeriveInput));
+    let out = idl::derive_type_to_idl(parse_macro_input!(item as DeriveInput));
+    #[cfg(not(feature = "idl"))]
+    let out = TokenStream::default();
+    out.into()
+}
+
+#[proc_macro_error]
+#[proc_macro_derive(InstructionToIdl, attributes(instruction_to_idl))]
+pub fn derive_instruction_to_idl(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    #[cfg(feature = "idl")]
+    let out = idl::derive_instruction_to_idl(parse_macro_input!(input as DeriveInput));
     #[cfg(not(feature = "idl"))]
     let out = TokenStream::default();
     out.into()
@@ -461,16 +471,6 @@ pub fn derive_instruction_set_to_idl(item: proc_macro::TokenStream) -> proc_macr
 pub fn derive_account_to_idl(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     #[cfg(feature = "idl")]
     let out = derive_account_to_idl_impl(&parse_macro_input!(input as DeriveInput));
-    #[cfg(not(feature = "idl"))]
-    let out = TokenStream::default();
-    out.into()
-}
-
-#[proc_macro_error]
-#[proc_macro_derive(InstructionToIdl)]
-pub fn derive_instruction_to_idl(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    #[cfg(feature = "idl")]
-    let out = idl::derive_star_frame_instruction_impl(parse_macro_input!(input as DeriveInput));
     #[cfg(not(feature = "idl"))]
     let out = TokenStream::default();
     out.into()

@@ -3,7 +3,7 @@ pub mod macro_prelude {
         AccountSet, CanInitAccount, CanSetSeeds, HasOwnerProgram, HasProgramAccount, HasSeeds,
         SignedAccount, SingleAccountSet, SingleAccountSetMetadata, WritableAccount,
     };
-    pub use crate::instruction::{Instruction, InstructionDiscriminant};
+    pub use crate::instruction::{Instruction, InstructionDiscriminant, StarFrameInstruction};
     pub use crate::syscalls::{SyscallAccountCache, SyscallInvoke};
     pub use crate::unsize::{
         AsBytes, AsMutBytes, FromBytesReturn, RefBytes, RefBytesMut, RefDeref, RefDerefMut,
@@ -21,6 +21,7 @@ pub mod macro_prelude {
     pub use star_frame_idl::{
         account::{IdlAccount, IdlAccountId},
         account_set::{IdlAccountSet, IdlAccountSetDef, IdlAccountSetId, IdlAccountSetStructField},
+        instruction::{IdlInstruction, IdlInstructionDef},
         item_source,
         ty::{IdlEnumVariant, IdlStructField, IdlType, IdlTypeDef, IdlTypeId},
         IdlDefinition, IdlDefinitionReference, ItemInfo,
