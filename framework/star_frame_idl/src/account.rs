@@ -14,7 +14,7 @@ pub struct IdlAccount {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
-pub struct AccountId {
+pub struct IdlAccountId {
     #[serde(with = "serde_base58_pubkey_option")]
     pub namespace: Option<Pubkey>,
     pub source: ItemSource,

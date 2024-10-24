@@ -10,4 +10,19 @@ pub mod macro_prelude {
         RefResize, RefWrapper, RefWrapperMutExt, RefWrapperTypes, Resize, UnsizedInit, UnsizedType,
         Zeroed, {CombinedExt, CombinedRef, CombinedUnsized, RefWrapperT, RefWrapperU},
     };
+
+    #[cfg(feature = "idl")]
+    pub use crate::idl::{
+        AccountSetToIdl, AccountToIdl, InstructionSetToIdl, InstructionToIdl, ProgramToIdl,
+        TypeToIdl,
+    };
+
+    #[cfg(feature = "idl")]
+    pub use star_frame_idl::{
+        account::{IdlAccount, IdlAccountId},
+        account_set::{IdlAccountSet, IdlAccountSetDef, IdlAccountSetId, IdlAccountSetStructField},
+        item_source,
+        ty::{IdlEnumVariant, IdlStructField, IdlType, IdlTypeDef, IdlTypeId},
+        IdlDefinition, IdlDefinitionReference, ItemInfo,
+    };
 }

@@ -5,14 +5,11 @@ use proc_macro2::TokenStream;
 mod account;
 mod account_set;
 mod hash;
-mod instruction_set;
 #[cfg(feature = "idl")]
-mod instruction_set_to_idl;
+mod idl;
+mod instruction_set;
 mod program;
 mod solana_pubkey;
-mod star_frame_instruction;
-#[cfg(feature = "idl")]
-mod ty;
 mod unit_enum_from_repr;
 mod unsize;
 mod util;
@@ -40,15 +37,6 @@ fn get_crate_name() -> TokenStream {
             quote! { ::#ident }
         }
     }
-}
-
-#[proc_macro_error]
-#[proc_macro_derive(InstructionToIdl)]
-pub fn derive_star_frame_instruction(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let out = star_frame_instruction::derive_star_frame_instruction_impl(parse_macro_input!(
-        input as DeriveInput
-    ));
-    out.into()
 }
 
 #[proc_macro_error]
@@ -126,7 +114,6 @@ pub fn derive_get_seeds(input: proc_macro::TokenStream) -> proc_macro::TokenStre
     ));
     out.into()
 }
-
 /// Similar to strum's `FromRepr` derive but includes a trait for generic implementations and does not support non-unit enums.
 #[proc_macro_error]
 #[proc_macro_derive(UnitEnumFromRepr)]
@@ -134,11 +121,11 @@ pub fn derive_unit_enum_from_repr(input: proc_macro::TokenStream) -> proc_macro:
     let out = unit_enum_from_repr_impl(parse_macro_input!(input as DeriveInput));
     out.into()
 }
-
 struct IdentWithArgs<A> {
     ident: Ident,
     args: Option<IdentArg<A>>,
 }
+
 impl<A> Parse for IdentWithArgs<A>
 where
     A: Parse + Token,
@@ -163,11 +150,11 @@ where
         self.args.to_tokens(tokens);
     }
 }
-
 struct IdentArg<A> {
     paren: token::Paren,
     arg: Option<A>,
 }
+
 impl<A> Parse for IdentArg<A>
 where
     A: Parse + Token,
@@ -181,6 +168,7 @@ where
         })
     }
 }
+
 impl<A> ToTokens for IdentArg<A>
 where
     A: ToTokens,
@@ -343,54 +331,6 @@ pub fn star_frame_instruction_set(item: proc_macro::TokenStream) -> proc_macro::
     out.into()
 }
 
-#[proc_macro_error]
-#[proc_macro_derive(InstructionSetToIdl)]
-#[cfg_attr(not(feature = "idl"), allow(unused_variables))]
-pub fn derive_instruction_set_to_idl(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    #[cfg(feature = "idl")]
-    let out = instruction_set_to_idl::derive_instruction_set_to_idl_impl(parse_macro_input!(
-        item as DeriveInput
-    ));
-    #[cfg(not(feature = "idl"))]
-    let out = TokenStream::default();
-    // println!("{}", out);
-    out.into()
-}
-
-/// Derives `TypeToIdl` for a valid type.
-#[cfg(feature = "idl")]
-#[proc_macro_error]
-#[proc_macro_derive(TypeToIdl, attributes(program))]
-pub fn derive_type_to_idl(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let out = {
-        #[cfg(feature = "idl")]
-        {
-            ty::derive_type_to_idl(&parse_macro_input!(item as DeriveInput))
-        }
-        #[cfg(not(feature = "idl"))]
-        {
-            TokenStream::default()
-        }
-    };
-    // #[cfg(feature = "debug_type_to_idl")]
-    // {
-    //     println!("HELLO FROM THE MACRO");
-    //     println!("{out}");
-    // }
-    out.into()
-}
-
-#[proc_macro_error]
-#[proc_macro_derive(AccountToIdl, attributes(program))]
-#[cfg_attr(not(feature = "idl"), allow(unused_variables))]
-pub fn derive_account_to_idl(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    #[cfg(feature = "idl")]
-    let out = derive_account_to_idl_impl(&parse_macro_input!(input as DeriveInput));
-    #[cfg(not(feature = "idl"))]
-    let out = TokenStream::default();
-    out.into()
-}
-
 /// Derives `StarFrameProgram` and sets up the entrypoint and useful items for a program. This should be placed at the root of the crate.
 ///
 /// ## Additional code generated:
@@ -492,4 +432,46 @@ pub fn unsized_type(
 pub fn sighash(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     hash::sighash_impl(parse_macro_input!(input with Punctuated::<LitStr, Comma>::parse_terminated))
         .into()
+}
+
+/// Derives `TypeToIdl` for a valid type.
+#[cfg(feature = "idl")]
+#[proc_macro_error]
+#[proc_macro_derive(TypeToIdl, attributes(program))]
+pub fn derive_type_to_idl(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    #[cfg(feature = "idl")]
+    let out = idl::derive_type_to_idl(&parse_macro_input!(item as DeriveInput));
+    #[cfg(not(feature = "idl"))]
+    let out = TokenStream::default();
+    out.into()
+}
+
+#[proc_macro_error]
+#[proc_macro_derive(InstructionSetToIdl)]
+pub fn derive_instruction_set_to_idl(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    #[cfg(feature = "idl")]
+    let out = idl::derive_instruction_set_to_idl_impl(parse_macro_input!(item as DeriveInput));
+    #[cfg(not(feature = "idl"))]
+    let out = TokenStream::default();
+    out.into()
+}
+
+#[proc_macro_error]
+#[proc_macro_derive(AccountToIdl, attributes(program))]
+pub fn derive_account_to_idl(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    #[cfg(feature = "idl")]
+    let out = derive_account_to_idl_impl(&parse_macro_input!(input as DeriveInput));
+    #[cfg(not(feature = "idl"))]
+    let out = TokenStream::default();
+    out.into()
+}
+
+#[proc_macro_error]
+#[proc_macro_derive(InstructionToIdl)]
+pub fn derive_instruction_to_idl(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    #[cfg(feature = "idl")]
+    let out = idl::derive_star_frame_instruction_impl(parse_macro_input!(input as DeriveInput));
+    #[cfg(not(feature = "idl"))]
+    let out = TokenStream::default();
+    out.into()
 }

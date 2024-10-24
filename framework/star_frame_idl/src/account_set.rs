@@ -1,4 +1,4 @@
-use crate::account::AccountId;
+use crate::account::IdlAccountId;
 use crate::seeds::IdlFindSeeds;
 use crate::ty::IdlTypeDef;
 use crate::{IdlGeneric, ItemInfo};
@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use solana_program::pubkey::Pubkey;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
-pub struct AccountSetId {
+pub struct IdlAccountSetId {
     pub source: ItemSource,
     pub provided_type_generics: Vec<IdlTypeDef>,
     pub provided_account_generics: Vec<IdlAccountSetDef>,
@@ -24,7 +24,7 @@ pub struct IdlAccountSet {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub enum IdlAccountSetDef {
-    Defined(AccountSetId),
+    Defined(IdlAccountSetId),
     SingleAccount(IdlSingleAccountSet),
     Signer(Box<IdlAccountSetDef>),
     Writable(Box<IdlAccountSetDef>),
@@ -32,7 +32,7 @@ pub enum IdlAccountSetDef {
     SeededAccount(Box<IdlAccountSetDef>),
     ProgramAccount {
         account_set: Box<IdlAccountSetDef>,
-        account_id: AccountId,
+        account_id: IdlAccountId,
     },
     Struct(Vec<IdlAccountSetStructField>),
     Many {
@@ -53,7 +53,7 @@ pub struct IdlAccountSetStructField {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub struct IdlSingleAccountSet {
-    pub program_accounts: Vec<AccountId>,
+    pub program_accounts: Vec<IdlAccountId>,
     pub seeds: Option<IdlFindSeeds>,
     pub address: Option<Pubkey>,
     pub writable: bool,

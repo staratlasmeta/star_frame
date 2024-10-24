@@ -130,16 +130,7 @@ fn derive_instruction_set_to_idl_impl_enum(
     data: DataEnum,
     input: StrippedDeriveInput,
 ) -> TokenStream {
-    let Paths {
-        idl_definition,
-        idl_instruction,
-        #[cfg(feature = "idl")]
-        instruction_set_to_idl,
-        #[cfg(feature = "idl")]
-        instruction_to_idl,
-        result,
-        ..
-    } = paths;
+    let Paths { result, .. } = paths;
 
     let ident = &input.ident;
 
@@ -170,34 +161,34 @@ fn derive_instruction_set_to_idl_impl_enum(
         .map(|name| LitStr::new(&name.to_string().to_title_case(), Span::call_site()))
         .collect::<Vec<LitStr>>();
 
-    let variant_docs: Vec<LitStr> = data
+    let variant_docs: Vec<_> = data
         .variants
         .iter()
-        .map(|field| LitStr::new(&util::get_docs(&field.attrs), Span::call_site()))
+        .map(|field| util::get_docs(&field.attrs))
         .collect();
 
     let (impl_gen, ty_gen, where_clause) = input.generics.split_for_impl();
 
     let out = quote! {
-        impl #impl_gen #instruction_set_to_idl for #ident #ty_gen #where_clause {
-            fn instruction_set_to_idl(idl_definition: &mut #idl_definition) -> #result<()> {
-                #(
-                    let #variant_snake_names = <#variant_names as #instruction_to_idl<_>>::instruction_to_idl(idl_definition, ())?;
-                    idl_definition.instructions.insert(
-                        #variant_snake_str.to_string(),
-                        #idl_instruction {
-                            name: #variant_title_names.to_string(),
-                            description: #variant_docs.to_string(),
-                            discriminant: serde_json::to_value(#variant_discriminants::#variant_names.into_repr())
-                                .expect("Cannot serialize u32? Banana"),
-                            definition: #variant_snake_names,
-                            extension_fields: Default::default(),
-                        }
-                    );
-                )*
-                Ok(())
-            }
-        }
+        // impl #impl_gen #instruction_set_to_idl for #ident #ty_gen #where_clause {
+        //     fn instruction_set_to_idl(idl_definition: &mut #idl_definition) -> #result<()> {
+        //         #(
+        //             let #variant_snake_names = <#variant_names as #instruction_to_idl<_>>::instruction_to_idl(idl_definition, ())?;
+        //             idl_definition.instructions.insert(
+        //                 #variant_snake_str.to_string(),
+        //                 #idl_instruction {
+        //                     name: #variant_title_names.to_string(),
+        //                     description: #variant_docs.to_string(),
+        //                     discriminant: serde_json::to_value(#variant_discriminants::#variant_names.into_repr())
+        //                         .expect("Cannot serialize u32? Banana"),
+        //                     definition: #variant_snake_names,
+        //                     extension_fields: Default::default(),
+        //                 }
+        //             );
+        //         )*
+        //         Ok(())
+        //     }
+        // }
     };
     out
 }

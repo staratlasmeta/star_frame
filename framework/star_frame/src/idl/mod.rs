@@ -1,5 +1,5 @@
 use crate::prelude::*;
-use star_frame_idl::account::AccountId;
+use star_frame_idl::account::IdlAccountId;
 use star_frame_idl::account_set::IdlAccountSetDef;
 use star_frame_idl::instruction::IdlInstructionDef;
 use star_frame_idl::{IdlDefinition, IdlMetadata, Version};
@@ -22,7 +22,7 @@ pub trait AccountSetToIdl<'info, A>: AccountSet<'info> {
 }
 pub trait AccountToIdl: TypeToIdl {
     /// Returns the idl of this account.
-    fn account_to_idl(idl_definition: &mut IdlDefinition) -> Result<AccountId>;
+    fn account_to_idl(idl_definition: &mut IdlDefinition) -> Result<IdlAccountId>;
 }
 
 pub trait ProgramToIdl: StarFrameProgram {

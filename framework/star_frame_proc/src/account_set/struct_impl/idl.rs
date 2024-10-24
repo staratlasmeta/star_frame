@@ -6,6 +6,7 @@ use easy_proc::{find_attrs, ArgumentList};
 use proc_macro2::{Span, TokenStream};
 use proc_macro_error::abort;
 use quote::{format_ident, quote};
+use sha2::digest::typenum::Exp;
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
 use syn::{Expr, Field, LitStr, Type};
@@ -42,12 +43,7 @@ pub(super) fn idls(
     let Paths {
         result,
         idl_ident,
-        account_set_to_idl,
-        idl_definition,
-        idl_account_set_def,
-        idl_account_set,
-        idl_account_set_struct_field,
-        account_set_id,
+        macro_prelude: prelude,
         ..
     } = paths;
 
@@ -102,68 +98,80 @@ pub(super) fn idls(
         }
     }
 
-    let struct_docs = LitStr::new(&util::get_docs(&input.attrs), Span::call_site());
+    let struct_docs = &util::get_docs(&input.attrs);
     let ident_str = LitStr::new(&ident.to_string(), Span::call_site());
-    let field_docs: Vec<LitStr> = fields
+    let field_docs: Vec<Expr> = fields
         .iter()
-        .map(|field| LitStr::new(&util::get_docs(&field.attrs), Span::call_site()))
+        .map(|field| util::get_docs(&field.attrs))
         .collect();
     let field_str = field_name
         .iter()
         .map(|field_name| LitStr::new(&field_name.to_string(), Span::call_site()))
         .collect::<Vec<_>>();
 
-    idl_ids.into_iter().map(|(id, idl_struct_args)|{
-        let idl_type: Type = idl_struct_args.arg.unwrap_or_else(|| syn::parse_quote!(()));
-        let idl_args: Vec<Expr> = field_idls.iter().map(|f| {
-            f.iter().find(|f| f.id.as_ref().map(LitStr::value) == id).map(|f| f.arg.clone()).unwrap_or_else(|| syn::parse_quote!(()))
-        }).collect();
+    idl_ids
+        .into_iter()
+        .map(|(id, idl_struct_args)| {
+            let idl_type: Type = idl_struct_args.arg.unwrap_or_else(|| syn::parse_quote!(()));
+            let idl_args: Vec<Expr> = field_idls
+                .iter()
+                .map(|f| {
+                    f.iter()
+                        .find(|f| f.id.as_ref().map(LitStr::value) == id)
+                        .map(|f| f.arg.clone())
+                        .unwrap_or_else(|| syn::parse_quote!(()))
+                })
+                .collect();
 
-        let (_, ty_generics, _) = main_generics.split_for_impl();
-        let mut generics = other_generics.clone();
-        if let Some(extra_generics) = idl_struct_args.generics.map(|g| g.into_inner()) {
-            generics.params.extend(extra_generics.params);
-            if let Some(extra_where_clause) = extra_generics.where_clause {
-                generics
-                    .make_where_clause()
-                    .predicates
-                    .extend(extra_where_clause.predicates);
-            }
-        }
-        let (impl_generics, _, where_clause) = generics.split_for_impl();
-        let field_name = field_name.iter().map(|field_name| format_ident!("__{}", field_name.to_string())).collect::<Vec<_>>();
-        quote! {
-                #[automatically_derived]
-                impl #impl_generics #account_set_to_idl<#info_lifetime, #idl_type> for #ident #ty_generics #where_clause {
-                    fn account_set_to_idl(
-                        idl_definition: &mut #idl_definition,
-                        arg: #idl_type,
-                    ) -> #result<#idl_account_set_def> {
-                        // #(let #field_name = <#field_type as #account_set_to_idl<#info_lifetime, _>>::account_set_to_idl(idl_definition, #idl_args)?;)*
-                        // idl_definition.account_sets.insert(
-                        //     #ident_str.to_string(),
-                        //     #idl_account_set {
-                        //         name: #ident_str.to_string(),
-                        //         description: #struct_docs.to_string(),
-                        //         type_generics: vec![],
-                        //         account_generics: vec![],
-                        //         def: #idl_account_set_def::Struct(vec![#(
-                        //             #idl_account_set_struct_field {
-                        //                 name: #field_str.to_string(),
-                        //                 description: #field_docs.to_string(),
-                        //                 path: #field_str.to_string(),
-                        //                 account_set: #field_name,
-                        //             },
-                        //         )*]),
-                        //     },
-                        // );
-                        Ok(#idl_account_set_def::Defined(#account_set_id {
-                            source: #ident_str.to_string(),
-                            provided_type_generics: vec![],
-                            provided_account_generics: vec![],
-                        }))
-                    }
+            let (_, ty_generics, _) = main_generics.split_for_impl();
+            let mut generics = other_generics.clone();
+            if let Some(extra_generics) = idl_struct_args.generics.map(|g| g.into_inner()) {
+                generics.params.extend(extra_generics.params);
+                if let Some(extra_where_clause) = extra_generics.where_clause {
+                    generics
+                        .make_where_clause()
+                        .predicates
+                        .extend(extra_where_clause.predicates);
                 }
             }
-    }).collect()
+            let (impl_generics, _, where_clause) = generics.split_for_impl();
+            let field_name = field_name
+                .iter()
+                .map(|field_name| format_ident!("__{}", field_name.to_string()))
+                .collect::<Vec<_>>();
+            quote! {
+                // #[automatically_derived]
+                // impl #impl_generics #account_set_to_idl<#info_lifetime, #idl_type> for #ident #ty_generics #where_clause {
+                //     fn account_set_to_idl(
+                //         idl_definition: &mut #idl_definition,
+                //         arg: #idl_type,
+                //     ) -> #result<#idl_account_set_def> {
+                //         // #(let #field_name = <#field_type as #account_set_to_idl<#info_lifetime, _>>::account_set_to_idl(idl_definition, #idl_args)?;)*
+                //         // idl_definition.account_sets.insert(
+                //         //     #ident_str.to_string(),
+                //         //     #idl_account_set {
+                //         //         name: #ident_str.to_string(),
+                //         //         description: #struct_docs.to_string(),
+                //         //         type_generics: vec![],
+                //         //         account_generics: vec![],
+                //         //         def: #idl_account_set_def::Struct(vec![#(
+                //         //             #idl_account_set_struct_field {
+                //         //                 name: #field_str.to_string(),
+                //         //                 description: #field_docs.to_string(),
+                //         //                 path: #field_str.to_string(),
+                //         //                 account_set: #field_name,
+                //         //             },
+                //         //         )*]),
+                //         //     },
+                //         // );
+                //         Ok(#idl_account_set_def::Defined(#account_set_id {
+                //             source: #ident_str.to_string(),
+                //             provided_type_generics: vec![],
+                //             provided_account_generics: vec![],
+                //         }))
+                //     }
+                // }
+            }
+        })
+        .collect()
 }

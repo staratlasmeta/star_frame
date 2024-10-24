@@ -56,38 +56,7 @@ pub struct Paths {
     pub solana_runtime: TokenStream,
 
     pub result: TokenStream,
-    // idl
-    #[cfg(feature = "idl")]
-    pub account_to_idl: TokenStream,
-    #[cfg(feature = "idl")]
-    pub account_set_to_idl: TokenStream,
-    #[cfg(feature = "idl")]
-    pub instruction_to_idl: TokenStream,
-    #[cfg(feature = "idl")]
-    pub instruction_set_to_idl: TokenStream,
-    #[cfg(feature = "idl")]
-    pub type_to_idl: TokenStream,
 
-    #[cfg(feature = "idl")]
-    pub program_to_idl: TokenStream,
-    // star frame idl
-    pub semver: TokenStream,
-    pub idl_definition: TokenStream,
-    pub idl_definition_ref: TokenStream,
-    pub idl_type: TokenStream,
-    pub idl_type_def: TokenStream,
-    pub idl_type_id: TokenStream,
-    pub idl_field: TokenStream,
-    pub idl_account: TokenStream,
-    pub idl_account_set_def: TokenStream,
-    pub idl_account_set: TokenStream,
-    pub idl_account_set_struct_field: TokenStream,
-    pub idl_instruction_def: TokenStream,
-    pub idl_instruction: TokenStream,
-    pub idl_seeds: TokenStream,
-    pub account_id: TokenStream,
-
-    pub account_set_id: TokenStream,
     // instruction
     pub star_frame_instruction: TokenStream,
     pub instruction_set: TokenStream,
@@ -179,38 +148,6 @@ impl Default for Paths {
             solana_runtime: quote! { #crate_name::syscalls::solana_runtime::SolanaRuntime },
 
             result: quote! { #crate_name::Result },
-
-            // idl
-            #[cfg(feature = "idl")]
-            account_to_idl: quote! { #crate_name::idl::AccountToIdl },
-            #[cfg(feature = "idl")]
-            account_set_to_idl: quote! { #crate_name::idl::AccountSetToIdl },
-            #[cfg(feature = "idl")]
-            instruction_to_idl: quote! { #crate_name::idl::InstructionToIdl },
-            #[cfg(feature = "idl")]
-            instruction_set_to_idl: quote! { #crate_name::idl::InstructionSetToIdl },
-            #[cfg(feature = "idl")]
-            type_to_idl: quote! { #crate_name::idl::TypeToIdl },
-            #[cfg(feature = "idl")]
-            program_to_idl: quote! { #crate_name::idl::ProgramToIdl },
-
-            // star frame idl
-            semver: quote! { #crate_name::star_frame_idl::SemVer },
-            idl_definition: quote! { #crate_name::star_frame_idl::IdlDefinition },
-            idl_definition_ref: quote! { #crate_name::star_frame_idl::IdlDefinitionReference },
-            idl_type: quote! { #crate_name::star_frame_idl::ty::IdlType },
-            idl_type_def: quote! { #crate_name::star_frame_idl::ty::IdlTypeDef },
-            idl_type_id: quote! { #crate_name::star_frame_idl::ty::TypeId },
-            idl_field: quote! { #crate_name::star_frame_idl::ty::IdlField },
-            idl_account: quote! { #crate_name::star_frame_idl::account::IdlAccount },
-            idl_account_set_def: quote! { #crate_name::star_frame_idl::account_set::IdlAccountSetDef },
-            idl_account_set: quote! { #crate_name::star_frame_idl::account_set::IdlAccountSet },
-            idl_account_set_struct_field: quote! { #crate_name::star_frame_idl::account_set::IdlAccountSetStructField },
-            idl_instruction_def: quote! { #crate_name::star_frame_idl::instruction::IdlInstructionDef },
-            idl_instruction: quote! { #crate_name::star_frame_idl::instruction::IdlInstruction },
-            idl_seeds: quote! { #crate_name::star_frame_idl::seeds::IdlSeeds },
-            account_id: quote! { #crate_name::star_frame_idl::account::AccountId },
-            account_set_id: quote! { #crate_name::star_frame_idl::account_set::AccountSetId },
 
             // instruction
             star_frame_instruction: quote! { #crate_name::instruction::StarFrameInstruction },
@@ -364,8 +301,8 @@ impl CombineGenerics for Generics {
 }
 
 #[allow(dead_code)]
-pub fn get_docs<'a>(attrs: impl IntoIterator<Item = &'a Attribute>) -> String {
-    attrs
+pub fn get_docs<'a>(attrs: impl IntoIterator<Item = &'a Attribute>) -> Expr {
+    let doc_strings = attrs
         .into_iter()
         .filter(|a| a.path().is_ident("doc"))
         .map(|a: &'a Attribute| {
@@ -377,13 +314,17 @@ pub fn get_docs<'a>(attrs: impl IntoIterator<Item = &'a Attribute>) -> String {
                 ..
             }) = &a.meta
             {
-                str.value()
+                str
             } else {
                 abort!(a, "Expected doc attribute to be a name value pair")
             }
         })
-        .collect::<Vec<_>>()
-        .join("\n")
+        .map(|s| {
+            let string = s.value();
+            string.trim().to_string()
+        })
+        .collect::<Vec<_>>();
+    parse_quote! { vec![#(#doc_strings.into()),*] }
 }
 
 #[allow(dead_code)]

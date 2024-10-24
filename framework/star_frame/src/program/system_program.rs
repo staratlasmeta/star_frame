@@ -33,10 +33,10 @@ mod idl_impl {
     use crate::idl::{AccountSetToIdl, InstructionSetToIdl, ProgramToIdl};
     use solana_program::instruction::AccountMeta;
     use star_frame_idl::account_set::{
-        AccountSetId, IdlAccountSet, IdlAccountSetDef, IdlAccountSetStructField,
+        IdlAccountSet, IdlAccountSetDef, IdlAccountSetId, IdlAccountSetStructField,
     };
     use star_frame_idl::instruction::IdlInstructionDef;
-    use star_frame_idl::ty::{IdlStructField, IdlType, IdlTypeDef, TypeId};
+    use star_frame_idl::ty::{IdlStructField, IdlType, IdlTypeDef, IdlTypeId};
     use star_frame_idl::{item_source, IdlDefinition, ItemInfo, Version};
 
     // todo: macroify all this.
@@ -95,7 +95,7 @@ mod idl_impl {
                 ]),
             };
             idl_definition.add_account_set(account_set);
-            Ok(IdlAccountSetDef::Defined(AccountSetId {
+            Ok(IdlAccountSetDef::Defined(IdlAccountSetId {
                 source,
                 provided_type_generics: vec![],
                 provided_account_generics: vec![],
@@ -147,7 +147,7 @@ mod idl_impl {
                 ]),
             };
             let namespace = idl_definition.add_type(idl_type, SystemProgram::PROGRAM_ID);
-            Ok(IdlTypeDef::Defined(TypeId {
+            Ok(IdlTypeDef::Defined(IdlTypeId {
                 namespace,
                 source,
                 provided_generics: vec![],

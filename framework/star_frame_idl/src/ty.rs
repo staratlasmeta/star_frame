@@ -1,4 +1,4 @@
-use crate::account::AccountId;
+use crate::account::IdlAccountId;
 use crate::{serde_base58_pubkey_option, IdlDiscriminant, ItemDescription, ItemSource};
 use crate::{IdlGeneric, ItemInfo};
 use anyhow::bail;
@@ -14,7 +14,7 @@ pub struct IdlType {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
-pub struct TypeId {
+pub struct IdlTypeId {
     pub source: ItemSource,
     #[serde(with = "serde_base58_pubkey_option")]
     pub namespace: Option<Pubkey>,
@@ -37,7 +37,7 @@ pub struct IdlStructField {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub enum IdlTypeDef {
-    Defined(TypeId),
+    Defined(IdlTypeId),
     Generic(String),
     Bool,
     U8,
@@ -56,7 +56,7 @@ pub enum IdlTypeDef {
     Pubkey,
     OptionalPubkey,
     PubkeyFor {
-        id: AccountId,
+        id: IdlAccountId,
         optional: bool,
     },
     FixedPoint {
@@ -74,7 +74,7 @@ pub enum IdlTypeDef {
 }
 
 impl IdlTypeDef {
-    pub fn assert_defined(&self) -> anyhow::Result<&TypeId> {
+    pub fn assert_defined(&self) -> anyhow::Result<&IdlTypeId> {
         match self {
             IdlTypeDef::Defined(ref type_id) => Ok(type_id),
             _ => bail!("Expected defined type"),
