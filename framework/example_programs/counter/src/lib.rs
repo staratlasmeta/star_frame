@@ -4,7 +4,7 @@ use star_frame::derive_more::{Deref, DerefMut};
 use star_frame::prelude::*;
 use star_frame::solana_program::pubkey::Pubkey;
 
-#[derive(Align1, Copy, Clone, Debug, Eq, PartialEq, Pod, Zeroable)]
+#[derive(Align1, Pod, Zeroable, TypeToIdl, Copy, Clone, Debug, Eq, PartialEq)]
 #[repr(C, packed)]
 pub struct CounterAccount {
     pub version: u8,
@@ -12,6 +12,14 @@ pub struct CounterAccount {
     pub signer: Pubkey,
     pub count: u64,
     pub bump: u8,
+}
+
+impl HasOwnerProgram for CounterAccount {
+    type OwnerProgram = CounterProgram;
+}
+
+impl HasSeeds for CounterAccount {
+    type Seeds = CounterAccountSeeds;
 }
 
 impl ProgramAccount for CounterAccount {
@@ -28,21 +36,13 @@ pub struct WrappedCounter<'info>(
     DataAccount<'info, CounterAccount>,
 );
 
-impl HasOwnerProgram for CounterAccount {
-    type OwnerProgram = CounterProgram;
-}
-
-impl HasSeeds for CounterAccount {
-    type Seeds = CounterAccountSeeds;
-}
-
 #[derive(Debug, GetSeeds, Clone)]
 #[seed_const(b"COUNTER")]
 pub struct CounterAccountSeeds {
     pub owner: Pubkey,
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Debug)]
+#[derive(BorshSerialize, BorshDeserialize, Debug, InstructionToIdl)]
 pub struct CreateCounterIx {
     pub start_at: Option<u64>,
 }
@@ -95,8 +95,8 @@ impl StarFrameInstruction for CreateCounterIx {
     }
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Debug)]
-pub struct UpdateCounterSignerIx {}
+#[derive(BorshSerialize, BorshDeserialize, Debug, InstructionToIdl)]
+pub struct UpdateCounterSignerIx;
 
 #[derive(AccountSet, Debug)]
 #[validate(extra_validation = self.validate())]
@@ -141,7 +141,7 @@ impl StarFrameInstruction for UpdateCounterSignerIx {
     }
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Debug)]
+#[derive(BorshSerialize, BorshDeserialize, Debug, InstructionToIdl)]
 pub struct CountIx {
     pub amount: u64,
     pub subtract: bool,
@@ -192,8 +192,8 @@ impl StarFrameInstruction for CountIx {
     }
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Debug)]
-pub struct CloseCounterIx {}
+#[derive(BorshSerialize, BorshDeserialize, Debug, InstructionToIdl)]
+pub struct CloseCounterIx;
 
 #[derive(AccountSet, Debug)]
 pub struct CloseCounterAccounts<'info> {
@@ -227,6 +227,7 @@ impl StarFrameInstruction for CloseCounterIx {
 }
 
 #[derive(InstructionSet)]
+#[ix_set(skip_idl)]
 pub enum CounterInstructionSet {
     CreateCounter(CreateCounterIx),
     UpdateSigner(UpdateCounterSignerIx),
@@ -253,6 +254,11 @@ mod tests {
     use solana_sdk::transaction::Transaction;
     use star_frame::itertools::Itertools;
     use star_frame::solana_program::instruction::AccountMeta;
+
+    // #[test]
+    // fn idl_test() {
+    //     let idl = CounterProgram::program_to_idl()?;
+    // }
 
     #[tokio::test]
     async fn test_that_it_works() {

@@ -1,9 +1,7 @@
 #![allow(clippy::let_and_return)]
-
 use proc_macro2::TokenStream;
-#[cfg(feature = "idl")]
-mod account;
 mod account_set;
+mod align1;
 mod hash;
 #[cfg(feature = "idl")]
 mod idl;
@@ -14,19 +12,15 @@ mod unit_enum_from_repr;
 mod unsize;
 mod util;
 
-#[cfg(feature = "idl")]
-use crate::account::derive_account_to_idl_impl;
+use crate::align1::derive_align1_impl;
 use crate::unit_enum_from_repr::unit_enum_from_repr_impl;
 use proc_macro_crate::{crate_name, FoundCrate};
-use proc_macro_error::{abort, proc_macro_error};
+use proc_macro_error::proc_macro_error;
 use quote::{format_ident, quote, ToTokens};
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::token::{Comma, Token};
-use syn::{
-    parenthesized, parse_macro_input, parse_quote, token, Data, DataStruct, DataUnion, DeriveInput,
-    Fields, Ident, Item, ItemEnum, LitInt, LitStr, Token,
-};
+use syn::{parenthesized, parse_macro_input, token, DeriveInput, Ident, Item, ItemEnum, LitStr};
 
 fn get_crate_name() -> TokenStream {
     let generator_crate = crate_name("star_frame").expect("Could not find `star_frame`");
@@ -184,83 +178,7 @@ where
 #[proc_macro_error]
 #[proc_macro_derive(Align1)]
 pub fn derive_align1(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let crate_name = get_crate_name();
-    let derive_input = parse_macro_input!(item as DeriveInput);
-    match derive_input.data.clone() {
-        Data::Struct(DataStruct { fields, .. }) => {
-            derive_align1_for_struct(fields, derive_input, &crate_name)
-        }
-        Data::Union(DataUnion { fields, .. }) => {
-            derive_align1_for_struct(Fields::Named(fields), derive_input, &crate_name)
-        }
-        Data::Enum(e) => {
-            // TODO: Derive for repr u8 and unit enums
-            for variant in e.variants {
-                if variant.fields != Fields::Unit {
-                    abort!(variant.fields, "Align1 only supports unit enums");
-                }
-            }
-
-            abort!(e.enum_token, "Align1 cannot be derived for enums");
-        }
-    }
-}
-
-fn derive_align1_for_struct(
-    fields: Fields,
-    derive_input: DeriveInput,
-    crate_name: &TokenStream,
-) -> proc_macro::TokenStream {
-    let packed = derive_input.attrs.into_iter().any(|attr| {
-        attr.path().is_ident("repr") && {
-            let Ok(args) = attr.parse_args_with(|p: ParseStream| {
-                p.parse_terminated(IdentWithArgs::<LitInt>::parse, Token![,])
-            }) else {
-                abort!(attr, "Repr invalid args")
-            };
-            // args.iter().any(|arg|arg.ident.to_string() == "packed" && {
-            //     if let Some(num) = arg.args {
-            //
-            //     }
-            // });
-            for arg in args {
-                let ident = arg.ident.to_string();
-                let arg = arg.args.as_ref().and_then(|a| a.arg.as_ref());
-                if &ident == "align" && arg.map_or(false, |align| &align.to_string() != "1") {
-                    abort!(arg, "`align` argument must be 1 to implement `Align1`");
-                }
-                if &ident == "packed" {
-                    if arg.map_or(false, |align| &align.to_string() != "1") {
-                        abort!(
-                            arg,
-                            "`packed` argument must be 1 or not present to implement `Align1`"
-                        );
-                    } else {
-                        return true;
-                    }
-                }
-            }
-            false
-        }
-    });
-
-    let ident = derive_input.ident;
-
-    let mut gen = derive_input.generics;
-    let wc = gen.make_where_clause();
-    if !packed {
-        for field in fields {
-            let ty = field.ty;
-            wc.predicates
-                .push(parse_quote!(#ty: #crate_name::align1::Align1));
-        }
-    }
-    let (impl_gen, type_gen, where_clause) = gen.split_for_impl();
-
-    (quote! {
-        unsafe impl #impl_gen #crate_name::align1::Align1 for #ident #type_gen #where_clause {}
-    })
-    .into()
+    derive_align1_impl(parse_macro_input!(item as DeriveInput)).into()
 }
 
 /// Derives the `InstructionSet` trait for an enum of instructions.
@@ -454,27 +372,6 @@ pub fn derive_type_to_idl(item: proc_macro::TokenStream) -> proc_macro::TokenStr
 pub fn derive_instruction_to_idl(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     #[cfg(feature = "idl")]
     let out = idl::derive_instruction_to_idl(parse_macro_input!(input as DeriveInput));
-    #[cfg(not(feature = "idl"))]
-    let out = TokenStream::default();
-    out.into()
-}
-
-//todo: docs
-#[proc_macro_error]
-#[proc_macro_derive(InstructionSetToIdl)]
-pub fn derive_instruction_set_to_idl(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    #[cfg(feature = "idl")]
-    let out = idl::derive_instruction_set_to_idl_impl(parse_macro_input!(item as DeriveInput));
-    #[cfg(not(feature = "idl"))]
-    let out = TokenStream::default();
-    out.into()
-}
-
-#[proc_macro_error]
-#[proc_macro_derive(AccountToIdl, attributes(program))]
-pub fn derive_account_to_idl(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    #[cfg(feature = "idl")]
-    let out = derive_account_to_idl_impl(&parse_macro_input!(input as DeriveInput));
     #[cfg(not(feature = "idl"))]
     let out = TokenStream::default();
     out.into()

@@ -3,14 +3,7 @@ use crate::util::{ensure_data_struct, reject_generics, Paths};
 use easy_proc::{find_attr, ArgumentList};
 use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote};
-use syn::{parse_quote, Attribute, DeriveInput, Visibility};
-
-#[allow(dead_code)]
-struct StrippedDeriveInput {
-    attrs: Vec<Attribute>,
-    vis: Visibility,
-    ident: Ident,
-}
+use syn::{parse_quote, DeriveInput};
 
 pub fn derive_instruction_to_idl(input: DeriveInput) -> TokenStream {
     let Paths {

@@ -13,7 +13,6 @@ pub use modifiers::*;
 pub use program::*;
 pub use rest::*;
 pub use star_frame_proc::AccountSet;
-pub use star_frame_proc::AccountToIdl;
 pub use system_account::*;
 
 use crate::syscalls::{SyscallAccountCache, SyscallInvoke};

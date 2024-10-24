@@ -2,7 +2,7 @@ use crate::util;
 use crate::util::{reject_generics, Paths};
 use easy_proc::{find_attr, ArgumentList};
 use proc_macro2::{Span, TokenStream};
-use proc_macro_error::{abort, OptionExt};
+use proc_macro_error::OptionExt;
 use quote::quote;
 use syn::{parse_quote, DeriveInput, Expr, Fields, LitStr, Type};
 

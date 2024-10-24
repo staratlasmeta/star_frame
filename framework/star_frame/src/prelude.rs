@@ -29,6 +29,6 @@ pub use bytemuck::{CheckedBitPattern, NoUninit, Pod, Zeroable};
 #[cfg(feature = "idl")]
 pub use crate::idl::*;
 // idl macros
-pub use star_frame_proc::{sighash, AccountToIdl, InstructionToIdl, TypeToIdl};
+pub use star_frame_proc::{sighash, InstructionToIdl, TypeToIdl};
 
 pub use std::fmt::Debug;

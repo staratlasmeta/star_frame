@@ -3,7 +3,7 @@ use star_frame_idl::account::IdlAccountId;
 use star_frame_idl::account_set::IdlAccountSetDef;
 use star_frame_idl::instruction::IdlInstructionDef;
 use star_frame_idl::{IdlDefinition, IdlMetadata, Version};
-pub use star_frame_proc::{AccountToIdl, InstructionSetToIdl, InstructionToIdl};
+pub use star_frame_proc::InstructionToIdl;
 
 mod ty;
 pub use ty::*;

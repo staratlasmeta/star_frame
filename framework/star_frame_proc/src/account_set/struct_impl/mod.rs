@@ -176,6 +176,8 @@ pub(super) fn derive_account_set_impl_struct(
         );
     }
 
+    // todo: potentially refactor single account set modifier to change default behavior for both idl and arg.
+    //  could also be a top level struct field and require only 1 unskipped field remaining for it to work.
     let single_account_set_impls = single_account_sets.pop().map(|(field, field_name, args)| {
         let sg_impl = single_generics.clone();
         let (sg_impl, _, _) = sg_impl.split_for_impl();
