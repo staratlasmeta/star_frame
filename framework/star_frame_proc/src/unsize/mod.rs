@@ -14,8 +14,8 @@ use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::token::Bracket;
 use syn::{
-    bracketed, parse2, parse_quote, Attribute, Field, GenericParam, Generics, ImplGenerics, Item,
-    ItemStruct, Meta, Token, Type, TypeParam, WhereClause, WherePredicate,
+    bracketed, parse2, parse_quote, Attribute, Expr, Field, GenericParam, Generics, ImplGenerics,
+    Item, ItemStruct, Meta, Token, Type, TypeParam, WhereClause, WherePredicate,
 };
 
 use crate::util::{
@@ -52,6 +52,7 @@ pub struct UnsizedTypeArgs {
     pub skip_idl: bool,
     pub program: Option<Type>,
     pub seeds: Option<Type>,
+    pub discriminant: Option<Expr>,
 }
 
 pub fn unsized_type_impl(item: Item, args: TokenStream) -> TokenStream {

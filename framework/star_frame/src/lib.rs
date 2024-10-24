@@ -83,7 +83,6 @@ mod tests {
     use crate::idl::ProgramToIdl;
     use crate::program::StarFrameProgram;
     use solana_program::pubkey::Pubkey;
-    use star_frame_idl::Version;
 
     #[derive(StarFrameProgram)]
     #[program(

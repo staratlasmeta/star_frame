@@ -4,9 +4,7 @@ use bytemuck::Zeroable;
 use star_frame::borsh;
 use star_frame::borsh::{BorshDeserialize, BorshSerialize};
 use star_frame::prelude::*;
-use star_frame::star_frame_idl::account_set::{
-    IdlAccountSet, IdlAccountSetDef, IdlAccountSetId, IdlAccountSetStructField,
-};
+
 use star_frame::star_frame_idl::ty::{IdlEnumVariant, IdlType, IdlTypeDef, IdlTypeId};
 use star_frame::star_frame_idl::{item_source, IdlDefinition, ItemInfo};
 
@@ -77,7 +75,6 @@ impl StarFrameInstruction for ProcessEnlistPlayerIx {
 }
 
 #[derive(AccountSet)]
-#[account_set(skip_default_idl)]
 pub struct ProcessEnlistPlayer<'info> {
     /// The player faction account
     #[validate(arg = (Create(CreateAccount::new(&self.system_program, &self.player_account)),
@@ -91,53 +88,6 @@ pub struct ProcessEnlistPlayer<'info> {
     /// Solana System program
     #[account_set(system_program)]
     pub system_program: Program<'info, SystemProgram>,
-}
-
-#[automatically_derived]
-impl<'info> AccountSetToIdl<'info, ()> for ProcessEnlistPlayer<'info> {
-    fn account_set_to_idl(idl_definition: &mut IdlDefinition, arg: ()) -> Result<IdlAccountSetDef> {
-        let source = item_source::<Self>();
-        let account_set_def = IdlAccountSetDef::Struct(vec![
-            IdlAccountSetStructField {
-                path: "player_faction_account".to_string(),
-                description: vec![],
-                account_set_def:
-                    <Init<Seeded<DataAccount<'info, PlayerFactionData>>>>::account_set_to_idl(
-                        idl_definition,
-                        (),
-                    )?,
-            },
-            IdlAccountSetStructField {
-                path: "player_account".to_string(),
-                description: vec![],
-                account_set_def: <Writable<Signer<SystemAccount<'info>>>>::account_set_to_idl(
-                    idl_definition,
-                    (),
-                )?,
-            },
-            IdlAccountSetStructField {
-                path: "system_program".to_string(),
-                description: vec![],
-                account_set_def: <Program<'info, SystemProgram>>::account_set_to_idl(
-                    idl_definition,
-                    (),
-                )?,
-            },
-        ]);
-        let account_set = IdlAccountSet {
-            info: ItemInfo::new::<Self>("ProcessEnlistPlayer", vec![]),
-            account_set_def,
-            type_generics: vec![],
-            account_generics: vec![],
-        };
-
-        idl_definition.add_account_set(account_set);
-        Ok(IdlAccountSetDef::Defined(IdlAccountSetId {
-            source,
-            provided_type_generics: vec![],
-            provided_account_generics: vec![],
-        }))
-    }
 }
 
 #[derive(

@@ -5,11 +5,11 @@ use crate::util::{BetterGenerics, Paths};
 use easy_proc::{find_attrs, ArgumentList};
 use proc_macro2::{Span, TokenStream};
 use proc_macro_error::abort;
-use quote::{format_ident, quote};
-use sha2::digest::typenum::Exp;
+use quote::quote;
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
-use syn::{Expr, Field, LitStr, Type};
+use syn::spanned::Spanned;
+use syn::{parse_quote, Expr, Field, LitStr, Type};
 
 #[derive(ArgumentList)]
 struct IdlStructArgs {
@@ -104,9 +104,17 @@ pub(super) fn idls(
         .iter()
         .map(|field| util::get_docs(&field.attrs))
         .collect();
-    let field_str = field_name
+    let is_tuple_struct = fields.first().map_or(false, |f| f.ident.is_none());
+    let field_path: Vec<Expr> = field_name
         .iter()
-        .map(|field_name| LitStr::new(&field_name.to_string(), Span::call_site()))
+        .map(|field_name| {
+            if is_tuple_struct {
+                parse_quote!(None)
+            } else {
+                let name = LitStr::new(&field_name.to_string(), field_name.span());
+                parse_quote!(Some(#name.to_string()))
+            }
+        })
         .collect::<Vec<_>>();
 
     idl_ids
@@ -135,42 +143,41 @@ pub(super) fn idls(
                 }
             }
             let (impl_generics, _, where_clause) = generics.split_for_impl();
-            let field_name = field_name
-                .iter()
-                .map(|field_name| format_ident!("__{}", field_name.to_string()))
-                .collect::<Vec<_>>();
             quote! {
-                // #[automatically_derived]
-                // impl #impl_generics #account_set_to_idl<#info_lifetime, #idl_type> for #ident #ty_generics #where_clause {
-                //     fn account_set_to_idl(
-                //         idl_definition: &mut #idl_definition,
-                //         arg: #idl_type,
-                //     ) -> #result<#idl_account_set_def> {
-                //         // #(let #field_name = <#field_type as #account_set_to_idl<#info_lifetime, _>>::account_set_to_idl(idl_definition, #idl_args)?;)*
-                //         // idl_definition.account_sets.insert(
-                //         //     #ident_str.to_string(),
-                //         //     #idl_account_set {
-                //         //         name: #ident_str.to_string(),
-                //         //         description: #struct_docs.to_string(),
-                //         //         type_generics: vec![],
-                //         //         account_generics: vec![],
-                //         //         def: #idl_account_set_def::Struct(vec![#(
-                //         //             #idl_account_set_struct_field {
-                //         //                 name: #field_str.to_string(),
-                //         //                 description: #field_docs.to_string(),
-                //         //                 path: #field_str.to_string(),
-                //         //                 account_set: #field_name,
-                //         //             },
-                //         //         )*]),
-                //         //     },
-                //         // );
-                //         Ok(#idl_account_set_def::Defined(#account_set_id {
-                //             source: #ident_str.to_string(),
-                //             provided_type_generics: vec![],
-                //             provided_account_generics: vec![],
-                //         }))
-                //     }
-                // }
+                #[automatically_derived]
+                impl #impl_generics #prelude::AccountSetToIdl<#info_lifetime, #idl_type> for #ident #ty_generics #where_clause {
+                    fn account_set_to_idl(
+                        idl_definition: &mut #prelude::IdlDefinition,
+                        arg: #idl_type,
+                    ) -> #result<#prelude::IdlAccountSetDef> {
+                        let source = #prelude::item_source::<Self>();
+                        let account_set_def = #prelude::IdlAccountSetDef::Struct(vec![
+                        #(
+                            #prelude::IdlAccountSetStructField {
+                                path: #field_path,
+                                description: #field_docs,
+                                account_set_def: <#field_type as #prelude::AccountSetToIdl<#info_lifetime, _>>::account_set_to_idl(idl_definition, #idl_args)?,
+                            }
+                        ),*
+                        ]);
+                        let account_set = #prelude::IdlAccountSet {
+                            info: #prelude::ItemInfo {
+                                name: #ident_str.to_string(),
+                                description: #struct_docs,
+                                source: source.clone(),
+                            },
+                            account_set_def,
+                            type_generics: vec![],
+                            account_generics: vec![],
+                        };
+                        idl_definition.add_account_set(account_set);
+                        Ok(#prelude::IdlAccountSetDef::Defined(#prelude::IdlAccountSetId {
+                            source,
+                            provided_type_generics: vec![],
+                            provided_account_generics: vec![],
+                        }))
+                    }
+                }
             }
         })
         .collect()

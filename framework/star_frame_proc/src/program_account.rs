@@ -13,6 +13,7 @@ pub struct ProgramAccountArgs {
     pub skip_idl: bool,
     pub program: Option<Type>,
     pub seeds: Option<Type>,
+    pub discriminant: Option<Expr>,
 }
 
 pub fn program_account_impl(input: DeriveInput) -> TokenStream {
@@ -48,10 +49,13 @@ pub fn program_account_impl_inner(input: DeriveInput, args: ProgramAccountArgs) 
     };
 
     let account_ident_str = ident.to_string();
+    let discriminant = args.discriminant.unwrap_or_else(
+        || parse_quote!(#prelude::sighash!(#SIGHASH_ACCOUNT_NAMESPACE, #account_ident_str)),
+    );
     let program_account_impl = quote! {
         #[automatically_derived]
         impl #impl_gen #prelude::ProgramAccount for #ident #ty_gen #where_clause {
-            const DISCRIMINANT: <Self::OwnerProgram as #prelude::StarFrameProgram>::AccountDiscriminant = #prelude::sighash!(#SIGHASH_ACCOUNT_NAMESPACE, #account_ident_str);
+            const DISCRIMINANT: <Self::OwnerProgram as #prelude::StarFrameProgram>::AccountDiscriminant = #discriminant;
         }
     };
 

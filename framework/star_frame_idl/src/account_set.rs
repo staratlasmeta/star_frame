@@ -46,7 +46,7 @@ pub enum IdlAccountSetDef {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub struct IdlAccountSetStructField {
-    pub path: String,
+    pub path: Option<String>,
     pub description: ItemDescription,
     pub account_set_def: IdlAccountSetDef,
 }

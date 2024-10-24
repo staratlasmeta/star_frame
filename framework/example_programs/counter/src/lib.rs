@@ -4,7 +4,8 @@ use star_frame::derive_more::{Deref, DerefMut};
 use star_frame::prelude::*;
 use star_frame::solana_program::pubkey::Pubkey;
 
-#[derive(Align1, Pod, Zeroable, TypeToIdl, Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Align1, Pod, Zeroable, Copy, Clone, Debug, Eq, PartialEq, ProgramAccount)]
+#[program_account(seeds = CounterAccountSeeds)]
 #[repr(C, packed)]
 pub struct CounterAccount {
     pub version: u8,
@@ -12,18 +13,6 @@ pub struct CounterAccount {
     pub signer: Pubkey,
     pub count: u64,
     pub bump: u8,
-}
-
-impl HasOwnerProgram for CounterAccount {
-    type OwnerProgram = CounterProgram;
-}
-
-impl HasSeeds for CounterAccount {
-    type Seeds = CounterAccountSeeds;
-}
-
-impl ProgramAccount for CounterAccount {
-    const DISCRIMINANT: <Self::OwnerProgram as StarFrameProgram>::AccountDiscriminant = [0; 8];
 }
 
 #[derive(AccountSet, Deref, DerefMut, Debug)]
@@ -227,7 +216,6 @@ impl StarFrameInstruction for CloseCounterIx {
 }
 
 #[derive(InstructionSet)]
-#[ix_set(skip_idl)]
 pub enum CounterInstructionSet {
     CreateCounter(CreateCounterIx),
     UpdateSigner(UpdateCounterSignerIx),
@@ -253,12 +241,14 @@ mod tests {
     use solana_sdk::system_program;
     use solana_sdk::transaction::Transaction;
     use star_frame::itertools::Itertools;
+    use star_frame::serde_json;
     use star_frame::solana_program::instruction::AccountMeta;
 
-    // #[test]
-    // fn idl_test() {
-    //     let idl = CounterProgram::program_to_idl()?;
-    // }
+    #[test]
+    fn idl_test() {
+        let idl = CounterProgram::program_to_idl().unwrap();
+        println!("{}", serde_json::to_string_pretty(&idl).unwrap());
+    }
 
     #[tokio::test]
     async fn test_that_it_works() {

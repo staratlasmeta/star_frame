@@ -84,12 +84,12 @@ mod idl_impl {
                 account_set_def: IdlAccountSetDef::Struct(vec![
                     IdlAccountSetStructField {
                         description: vec!["Funder of the new account".to_string()],
-                        path: "funder".to_string(),
+                        path: Some("funder".to_string()),
                         account_set_def: funder,
                     },
                     IdlAccountSetStructField {
                         description: vec!["New account to create".to_string()],
-                        path: "new_account".to_string(),
+                        path: Some("new_account".to_string()),
                         account_set_def: new_account,
                     },
                 ]),

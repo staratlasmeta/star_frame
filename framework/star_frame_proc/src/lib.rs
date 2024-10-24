@@ -194,6 +194,7 @@ pub fn derive_align1(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
 /// use star_frame::prelude::*;
 ///
 /// #[derive(InstructionSet)]
+/// #[ix_set(skip_idl)]
 /// pub enum CoolIxSet {
 ///     CoolInstruction(CoolIx),
 /// }

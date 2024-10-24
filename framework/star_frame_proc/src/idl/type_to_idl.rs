@@ -4,6 +4,7 @@ use easy_proc::{find_attr, ArgumentList};
 use proc_macro2::{Span, TokenStream};
 use proc_macro_error::OptionExt;
 use quote::quote;
+use syn::spanned::Spanned;
 use syn::{parse_quote, DeriveInput, Expr, Fields, LitStr, Type};
 
 #[derive(Debug, ArgumentList, Default)]
@@ -89,7 +90,7 @@ fn idl_struct_type_def(s: &syn::DataStruct) -> TokenStream {
                     .as_ref()
                     .expect_or_abort("No ident on named field?")
                     .to_string();
-                let field_name = field_name.trim();
+                let field_name = LitStr::new(field_name.trim(), f.ident.span());
 
                 parse_quote!(Some(#field_name.to_string()))
             };

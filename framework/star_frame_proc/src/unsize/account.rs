@@ -13,6 +13,7 @@ pub fn account_impl(input: &ItemStruct, args: &UnsizedTypeArgs) -> TokenStream {
             ProgramAccountArgs {
                 skip_idl: args.skip_idl,
                 program: args.program.clone(),
+                discriminant: args.discriminant.clone(),
                 seeds: args.seeds.clone(),
             },
         )

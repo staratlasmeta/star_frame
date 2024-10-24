@@ -38,7 +38,7 @@ use typenum::{Bit, False, True};
 /// use star_frame::prelude::*;
 ///
 /// # fn main() -> Result<()> {
-/// #[unsized_type]
+/// #[unsized_type(skip_idl)]
 /// pub struct UnsizedTest<T0, T1>
 /// where T0: UnsizedGenerics, T1: UnsizedGenerics
 /// {
