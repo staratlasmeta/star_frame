@@ -1,3 +1,5 @@
+mod account;
+
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
@@ -13,7 +15,7 @@ use syn::punctuated::Punctuated;
 use syn::token::Bracket;
 use syn::{
     bracketed, parse2, parse_quote, Attribute, Field, GenericParam, Generics, ImplGenerics, Item,
-    ItemStruct, Meta, Token, TypeParam, WhereClause, WherePredicate,
+    ItemStruct, Meta, Token, Type, TypeParam, WhereClause, WherePredicate,
 };
 
 use crate::util::{
@@ -44,6 +46,12 @@ impl Parse for UnsizedAttributeMetas {
 pub struct UnsizedTypeArgs {
     #[argument(default)]
     pub owned_attributes: UnsizedAttributeMetas,
+    #[argument(presence)]
+    pub program_account: bool,
+    #[argument(presence)]
+    pub skip_idl: bool,
+    pub program: Option<Type>,
+    pub seeds: Option<Type>,
 }
 
 pub fn unsized_type_impl(item: Item, args: TokenStream) -> TokenStream {
@@ -599,6 +607,8 @@ fn unsized_type_struct_impl(item_struct: ItemStruct, _args: TokenStream) -> Toke
     };
     add_derivative_attributes(&mut owned_struct, parse_quote!(Debug));
 
+    let account_impl = account::account_impl(&item_struct, &unsized_args);
+
     quote! {
         #[allow(type_alias_bounds)]
         pub type #inner_ident #combined_impl_generics = #combined_inner;
@@ -710,6 +720,8 @@ fn unsized_type_struct_impl(item_struct: ItemStruct, _args: TokenStream) -> Toke
         }
 
         #extension_trait
+
+        #account_impl
     }
 }
 

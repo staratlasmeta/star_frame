@@ -1,7 +1,7 @@
 use crate::prelude::*;
 use pretty_assertions::assert_eq;
 
-#[derive(Debug, Copy, Clone, Pod, Zeroable, Align1, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, Pod, Zeroable, Align1, PartialEq, Eq, TypeToIdl)]
 #[repr(C, packed)]
 pub struct TestStruct {
     pub val1: u32,
@@ -136,7 +136,7 @@ fn test_sized_and_unsized() -> Result<()> {
     Ok(())
 }
 
-#[unsized_type(owned_attributes = [derive(PartialEq, Eq, Clone)])]
+#[unsized_type(owned_attributes = [derive(PartialEq, Eq, Clone)], skip_idl)]
 pub struct WithSizedGenerics<A: UnsizedGenerics, B>
 where
     B: UnsizedGenerics,
@@ -172,7 +172,7 @@ fn test_with_sized_generics() -> Result<()> {
     Ok(())
 }
 
-#[unsized_type(owned_attributes = [derive(PartialEq, Eq, Clone)])]
+#[unsized_type(owned_attributes = [derive(PartialEq, Eq, Clone)], skip_idl)]
 pub struct WithUnsizedGenerics<A: UnsizedGenerics, B>
 where
     B: UnsizedGenerics,
@@ -213,7 +213,7 @@ fn test_with_unsized_generics() -> Result<()> {
     Ok(())
 }
 
-#[unsized_type(owned_attributes = [derive(PartialEq, Eq, Clone)])]
+#[unsized_type(owned_attributes = [derive(PartialEq, Eq, Clone)], skip_idl)]
 pub struct WithSizedAndUnsizedGenerics<A: UnsizedGenerics, B, C>
 where
     B: UnsizedGenerics,

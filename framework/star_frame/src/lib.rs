@@ -93,12 +93,6 @@ mod tests {
     )]
     pub struct MyProgram;
 
-    impl ProgramToIdl for MyProgram {
-        fn version() -> Version {
-            Version::parse("0.1.0").unwrap()
-        }
-    }
-
     #[test]
     fn test_idl() {
         let idl = MyProgram::program_to_idl().unwrap();

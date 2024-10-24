@@ -475,7 +475,7 @@ pub fn generate_fields_are_trait<T: GetGenerics + FieldIter + Spanned>(
     }
 }
 
-pub fn ensure_data_struct<'a, 'b>(item: &'a DeriveInput, error: Option<&'b str>) -> &'a DataStruct {
+pub fn ensure_data_struct<'a>(item: &'a DeriveInput, error: Option<&str>) -> &'a DataStruct {
     match &item.data {
         Data::Struct(s) => s,
         _ => abort!(item, error.unwrap_or("Expected a struct")),
