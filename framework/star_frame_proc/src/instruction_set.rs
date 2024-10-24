@@ -91,7 +91,7 @@ pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
                         let arg: __ArgTy = ();
                         let definition = <#variant_tys as #prelude::InstructionToIdl<_>>::instruction_to_idl(idl_definition, arg)?;
                         let discriminant =
-                            <#variant_tys as #prelude::InstructionDiscriminant<Self #ty_generics>>::discriminant_bytes();
+                            <#variant_tys as #prelude::InstructionDiscriminant<Self>>::discriminant_bytes();
                         idl_definition.add_instruction(definition, discriminant)?;
                     })*
                     Ok(())

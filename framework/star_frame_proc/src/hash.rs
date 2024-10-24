@@ -8,6 +8,7 @@ use syn::token::Comma;
 use syn::LitStr;
 
 pub const SIGHASH_GLOBAL_NAMESPACE: &str = "global";
+pub const SIGHASH_ACCOUNT_NAMESPACE: &str = "account";
 
 // Anchor's sighash function
 pub fn sighash(namespace: &str, name: &str) -> [u8; 8] {

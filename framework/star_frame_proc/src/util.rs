@@ -77,6 +77,7 @@ pub struct Paths {
     pub single_account_set_ident: Ident,
     pub instruction_set_args_ident: Ident,
     pub type_to_idl_args_ident: Ident,
+    pub program_account_args_ident: Ident,
     pub instruction_to_idl_args_ident: Ident,
 
     pub align1: TokenStream,
@@ -165,6 +166,7 @@ impl Default for Paths {
             cleanup_ident: format_ident!("cleanup"),
             idl_ident: format_ident!("idl"),
             type_to_idl_args_ident: format_ident!("type_to_idl"),
+            program_account_args_ident: format_ident!("program_account"),
             instruction_to_idl_args_ident: format_ident!("instruction_to_idl"),
             star_frame_program_ident: format_ident!("program"),
             program_id_ident: format_ident!("program_id"),

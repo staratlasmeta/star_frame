@@ -98,6 +98,13 @@ pub(crate) fn program_impl(input: DeriveInput) -> TokenStream {
             }
             derive_input.no_setup = true;
         }
+
+        if skip_idl {
+            if derive_input.skip_idl {
+                abort!(skip_idl, "Duplicate `skip_idl` argument");
+            }
+            derive_input.skip_idl = true;
+        }
     }
 
     let Some(program_id) = derive_input.id else {

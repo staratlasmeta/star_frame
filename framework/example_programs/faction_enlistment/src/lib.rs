@@ -4,11 +4,9 @@ use bytemuck::Zeroable;
 use star_frame::borsh;
 use star_frame::borsh::{BorshDeserialize, BorshSerialize};
 use star_frame::prelude::*;
-use star_frame::star_frame_idl::account::{IdlAccount, IdlAccountId};
 use star_frame::star_frame_idl::account_set::{
     IdlAccountSet, IdlAccountSetDef, IdlAccountSetId, IdlAccountSetStructField,
 };
-use star_frame::star_frame_idl::seeds::{IdlSeed, IdlSeeds, IdlVariableSeed};
 use star_frame::star_frame_idl::ty::{IdlEnumVariant, IdlType, IdlTypeDef, IdlTypeId};
 use star_frame::star_frame_idl::{item_source, IdlDefinition, ItemInfo};
 
@@ -143,10 +141,10 @@ impl<'info> AccountSetToIdl<'info, ()> for ProcessEnlistPlayer<'info> {
 }
 
 #[derive(
-    Debug, Align1, Copy, Clone, CheckedBitPattern, NoUninit, Eq, PartialEq, Zeroable, TypeToIdl,
+    ProgramAccount, Debug, Align1, Copy, Clone, CheckedBitPattern, NoUninit, Eq, PartialEq, Zeroable,
 )]
 #[repr(C, packed)]
-// #[account(seeds = PlayerFactionAccountSeeds)]
+#[program_account(seeds = PlayerFactionAccountSeeds)]
 pub struct PlayerFactionData {
     pub owner: Pubkey,
     pub enlisted_at_timestamp: i64,
@@ -217,40 +215,26 @@ impl TypeToIdl for FactionId {
 
 unsafe impl Zeroable for FactionId {}
 
-// TODO - Macro should derive this and with the idl feature enabled would also derive `AccountToIdl` and `TypeToIdl`
-impl ProgramAccount for PlayerFactionData {
-    const DISCRIMINANT: <Self::OwnerProgram as StarFrameProgram>::AccountDiscriminant =
-        [47, 44, 255, 15, 103, 77, 139, 247];
-}
-
-impl HasOwnerProgram for PlayerFactionData {
-    type OwnerProgram = FactionEnlistment;
-}
-
-impl HasSeeds for PlayerFactionData {
-    type Seeds = PlayerFactionAccountSeeds;
-}
-
-impl AccountToIdl for PlayerFactionData {
-    fn account_to_idl(idl_definition: &mut IdlDefinition) -> Result<IdlAccountId> {
-        let source = item_source::<Self>();
-        let idl_account = IdlAccount {
-            discriminant: Self::discriminant_bytes(),
-            seeds: Some(IdlSeeds(vec![
-                IdlSeed::Const(b"FACTION_ENLISTMENT".into()),
-                IdlSeed::Variable(IdlVariableSeed {
-                    name: "player_account".to_string(),
-                    description: vec![],
-                    ty: <Pubkey>::type_to_idl(idl_definition)?,
-                }),
-            ])),
-            type_def: <PlayerFactionData>::type_to_idl(idl_definition)?,
-        };
-        let namespace =
-            idl_definition.add_account(idl_account, Self::AssociatedProgram::PROGRAM_ID)?;
-        Ok(IdlAccountId { namespace, source })
-    }
-}
+// impl AccountToIdl for PlayerFactionData {
+//     fn account_to_idl(idl_definition: &mut IdlDefinition) -> Result<IdlAccountId> {
+//         let source = item_source::<Self>();
+//         let idl_account = IdlAccount {
+//             discriminant: Self::discriminant_bytes(),
+//             seeds: Some(IdlSeeds(vec![
+//                 IdlSeed::Const(b"FACTION_ENLISTMENT".into()),
+//                 IdlSeed::Variable(IdlVariableSeed {
+//                     name: "player_account".to_string(),
+//                     description: vec![],
+//                     ty: <Pubkey>::type_to_idl(idl_definition)?,
+//                 }),
+//             ])),
+//             type_def: <PlayerFactionData>::type_to_idl(idl_definition)?,
+//         };
+//         let namespace =
+//             idl_definition.add_account(idl_account, Self::AssociatedProgram::PROGRAM_ID)?;
+//         Ok(IdlAccountId { namespace, source })
+//     }
+// }
 
 #[derive(Debug, GetSeeds, Clone)]
 #[seed_const(b"FACTION_ENLISTMENT")]

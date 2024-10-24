@@ -7,6 +7,7 @@ use derivative::Derivative;
 use solana_program::entrypoint::MAX_PERMITTED_DATA_INCREASE;
 use solana_program::program_memory::sol_memset;
 use solana_program::{system_instruction, system_program};
+pub use star_frame_proc::ProgramAccount;
 use std::cell::{Ref, RefMut};
 use std::marker::PhantomData;
 use std::mem::size_of;

@@ -7,6 +7,7 @@ mod hash;
 mod idl;
 mod instruction_set;
 mod program;
+mod program_account;
 mod solana_pubkey;
 mod unit_enum_from_repr;
 mod unsize;
@@ -247,6 +248,14 @@ pub fn derive_align1(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
 #[proc_macro_derive(InstructionSet, attributes(ix_set))]
 pub fn star_frame_instruction_set(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let out = instruction_set::instruction_set_impl(parse_macro_input!(item as ItemEnum));
+    out.into()
+}
+
+// todo: docs
+#[proc_macro_error]
+#[proc_macro_derive(ProgramAccount, attributes(program_account))]
+pub fn program_account(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let out = program_account::program_account_impl(parse_macro_input!(input as DeriveInput));
     out.into()
 }
 
