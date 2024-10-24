@@ -290,6 +290,7 @@ fn derive_align1_for_struct(
 /// # impl_blank_ix!(CoolIx);
 /// ```
 // todo: add this back once custom reprs are supported
+// todo: add docs for idl stuff
 // Using enum reprs as discriminants:
 // ```
 // use star_frame::impl_blank_ix;
@@ -435,6 +436,7 @@ pub fn sighash(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 }
 
 /// Derives `TypeToIdl` for a valid type.
+// todo: docs
 #[cfg(feature = "idl")]
 #[proc_macro_error]
 #[proc_macro_derive(TypeToIdl, attributes(type_to_idl))]
@@ -446,6 +448,7 @@ pub fn derive_type_to_idl(item: proc_macro::TokenStream) -> proc_macro::TokenStr
     out.into()
 }
 
+// todo: docs
 #[proc_macro_error]
 #[proc_macro_derive(InstructionToIdl, attributes(instruction_to_idl))]
 pub fn derive_instruction_to_idl(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
@@ -456,6 +459,7 @@ pub fn derive_instruction_to_idl(input: proc_macro::TokenStream) -> proc_macro::
     out.into()
 }
 
+//todo: docs
 #[proc_macro_error]
 #[proc_macro_derive(InstructionSetToIdl)]
 pub fn derive_instruction_set_to_idl(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
