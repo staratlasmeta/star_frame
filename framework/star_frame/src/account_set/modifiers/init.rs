@@ -143,7 +143,7 @@ mod idl_impl {
             arg: A,
         ) -> Result<IdlAccountSetDef> {
             // manually mark as writable. Nothing else is needed for the IDL. T Will be marked as signer automatically
-            <Writable<T> as AccountSetToIdl<'info, A>>::account_set_to_idl(idl_definition, arg)
+            <Mut<T> as AccountSetToIdl<'info, A>>::account_set_to_idl(idl_definition, arg)
         }
     }
 }

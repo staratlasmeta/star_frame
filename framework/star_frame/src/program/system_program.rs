@@ -33,8 +33,8 @@ mod system_instruction_impl {
     #[derive(Debug, AccountSet)]
     pub struct CreateAccountSet<'info> {
         /// The account that pays the rent for the `new_account`
-        pub funder: Writable<Signer<AccountInfo<'info>>>,
-        pub new_account: Writable<Signer<AccountInfo<'info>>>,
+        pub funder: Mut<Signer<AccountInfo<'info>>>,
+        pub new_account: Mut<Signer<AccountInfo<'info>>>,
     }
 
     /// Creates a new account and assigns ownership to the `owner` program.

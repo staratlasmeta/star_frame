@@ -1,5 +1,5 @@
 pub mod solana_runtime;
-use crate::account_set::{Funder, Program, SignedAccount, WritableAccount, WritableInfo};
+use crate::account_set::{Funder, Mut, Program, SignedAccount, WritableAccount};
 use crate::SolanaInstruction;
 use solana_program::account_info::AccountInfo;
 use solana_program::clock::Clock;
@@ -59,7 +59,8 @@ pub trait SyscallInvoke<'info>: SyscallCore + SyscallAccountCache<'info> {
     ) -> ProgramResult;
 }
 
-/// A trait for caching commonly used accounts in the Syscall. This is useful for allowing
+/// A trait for caching commonly used accounts in the Syscall. This allows [`crate::account_set::AccountSetValidate`]
+/// implementations to pull from this cache instead of requiring the user to explicitly pass in the accounts.
 pub trait SyscallAccountCache<'info> {
     /// Gets a cached version of the `SystemProgram` if exists and Self has a `SystemProgram` cache.
     fn get_system_program(&self) -> Option<&Program<'info, SystemProgram>> {
@@ -74,7 +75,7 @@ pub trait SyscallAccountCache<'info> {
     /// Sets the funder cache if Self has one. No-op if it doesn't.
     fn set_funder(&mut self, _funder: &(impl SignedAccount<'info> + WritableAccount<'info>)) {}
     /// Gets a cached version of the funder if exists and Self has a funder cache
-    fn get_recipient(&self) -> Option<&WritableInfo<'info>> {
+    fn get_recipient(&self) -> Option<&Mut<AccountInfo<'info>>> {
         None
     }
     /// Sets the recipient cache if Self has one. No-op if it doesn't.

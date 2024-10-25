@@ -12,14 +12,14 @@ use star_frame::prelude::*;
 )]
 pub struct Funder<'info> {
     #[single_account_set(skip_signed_account)]
-    inner: Writable<SignerInfo<'info>>,
+    inner: Mut<SignerInfo<'info>>,
     #[account_set(skip = None)]
     seeds: Option<Vec<Vec<u8>>>,
 }
 
 impl<'info> Funder<'info> {
     pub(crate) fn new(account: &(impl WritableAccount<'info> + SignedAccount<'info>)) -> Self {
-        let inner = Writable(Signer(account.account_info_cloned()));
+        let inner = Mut(Signer(account.account_info_cloned()));
         let seeds = account
             .signer_seeds()
             .map(|seeds| seeds.iter().map(|s| s.to_vec()).collect_vec());

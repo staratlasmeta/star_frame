@@ -84,7 +84,7 @@ pub struct ProcessEnlistPlayer<'info> {
     pub player_faction_account: Init<Seeded<DataAccount<'info, PlayerFactionData>>>,
     /// The player account
     #[account_set(funder)]
-    pub player_account: Writable<Signer<SystemAccount<'info>>>,
+    pub player_account: Mut<Signer<SystemAccount<'info>>>,
     /// Solana System program
     #[account_set(system_program)]
     pub system_program: Program<'info, SystemProgram>,
