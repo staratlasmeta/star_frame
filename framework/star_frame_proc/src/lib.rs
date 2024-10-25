@@ -202,6 +202,7 @@ pub fn program_account(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
 ///     closed_account_discriminant = [u8::MAX; 8],
 ///     no_entrypoint,
 ///     no_setup,
+///     no_idl
 /// )]
 /// struct MyProgram;
 /// ```
@@ -229,8 +230,7 @@ pub fn program_account(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
 /// )]
 /// ```
 /// - `instruction_set` - The enum that implements `InstructionSet` for the program. If the instruction set has a
-/// lifetime (which it will if implemented with the [`macro@star_frame_instruction_set`] macro), it should be
-/// passed in as `'static`.
+/// lifetime, it should be passed in as `'static`.
 /// - `id` - The program id for the program. This can be either a literal string in base58 ("AABBCC42")
 /// or an expression that resolves to a `Pubkey`
 /// - `account_discriminant` - The `AccountDiscriminant` type used for the program. Defaults to `[u8; 8]` (similarly to Anchor)

@@ -1,7 +1,7 @@
 use itertools::Itertools;
 use star_frame::prelude::*;
 
-/// A (mostly) internal helper [`AccountSet`] used for the [`SyscallAccountCache`] funder. This intentionally does not
+/// A (mostly) internal helper [`AccountSet`] used for the [`crate::syscalls::SyscallAccountCache`] funder. This intentionally does not
 /// implement any of the `AccountSet` lifecycle traits.
 #[derive(AccountSet, Debug, Clone)]
 #[account_set(

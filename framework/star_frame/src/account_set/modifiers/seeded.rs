@@ -78,6 +78,8 @@ where
 #[repr(transparent)]
 pub struct Seeds<T>(pub T);
 
+/// Allows generic [`crate::account_set`]s to be used in multiple programs by defaulting the [`SeedProgram`] to the current
+/// executing program.
 #[derive(Debug, Clone, Copy)]
 pub struct CurrentProgram;
 pub trait SeedProgram {
