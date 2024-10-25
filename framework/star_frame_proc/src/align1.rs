@@ -1,4 +1,4 @@
-use crate::{get_crate_name, IdentWithArgs};
+use crate::util::{get_crate_name, IdentWithArgs};
 use proc_macro2::TokenStream;
 use proc_macro_error::abort;
 use quote::quote;

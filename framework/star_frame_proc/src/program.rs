@@ -179,7 +179,6 @@ pub(crate) fn program_impl(input: DeriveInput) -> TokenStream {
         #[automatically_derived]
         impl #prelude::StarFrameProgram for #ident {
             type InstructionSet = #instruction_set_type;
-            type InstructionDiscriminant = <Self::InstructionSet as #prelude::InstructionSet>::Discriminant;
             type AccountDiscriminant = #account_discriminant;
             const CLOSED_ACCOUNT_DISCRIMINANT: Self::AccountDiscriminant = #closed_account_discriminant;
             const PROGRAM_ID: #pubkey = #program_id;

@@ -13,7 +13,6 @@ pub use star_frame_proc::StarFrameProgram;
 pub trait StarFrameProgram {
     /// The instruction set used by this program.
     type InstructionSet: InstructionSet;
-    type InstructionDiscriminant = <Self::InstructionSet as InstructionSet>::Discriminant;
 
     type AccountDiscriminant: Pod + Eq;
     const CLOSED_ACCOUNT_DISCRIMINANT: Self::AccountDiscriminant;
