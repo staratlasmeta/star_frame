@@ -141,10 +141,6 @@ pub struct Seeded<
     #[deref]
     #[deref_mut]
     #[single_account_set(
-        metadata = SingleAccountSetMetadata {
-            is_seeded: true,
-            ..T::METADATA
-        },
         skip_can_set_seeds,
         skip_signed_account,
         skip_has_seeds,
@@ -307,12 +303,6 @@ mod idl_impl {
             idl_definition: &mut IdlDefinition,
             arg: A,
         ) -> Result<IdlAccountSetDef> {
-            if T::METADATA.is_init {
-                bail!("Init must wrap seeded if used together, i.e. `Init<Seeded<T>>`");
-            }
-            if T::METADATA.is_seeded {
-                bail!("You can only seed an account once, i.e. wrapping `Seeded<T>` where T is already seeded is not allowed");
-            }
             // TODO: Include program
             T::account_set_to_idl(idl_definition, arg)
                 .map(Box::new)

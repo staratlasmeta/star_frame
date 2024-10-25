@@ -4,8 +4,6 @@ use derivative::Derivative;
 use derive_more::{Deref, DerefMut};
 use star_frame::syscalls::SyscallAccountCache;
 use star_frame_proc::AccountSet;
-use std::fmt::Debug;
-
 #[derive(AccountSet, Clone, Debug, Deref, DerefMut)]
 #[account_set(
     skip_default_idl,
@@ -67,17 +65,11 @@ pub struct Init<T>(
     #[validate(id = "create_generic", arg = arg.1)]
     #[validate(id = "create_if_needed_generic", arg = arg.1)]
     #[cleanup(arg = arg)]
-    #[single_account_set(
-        metadata = SingleAccountSetMetadata {
-            is_init: true,
-            should_mut: true,
-            ..T::METADATA
-        },
-        skip_can_set_seeds,
-        skip_can_init_account
-    )]
+    #[single_account_set(skip_can_set_seeds, skip_can_init_account)]
     T,
 );
+
+use std::fmt::Debug;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
 #[repr(transparent)]

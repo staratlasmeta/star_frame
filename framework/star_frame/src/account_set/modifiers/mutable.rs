@@ -1,4 +1,4 @@
-use crate::account_set::{AccountSet, SingleAccountSet, SingleAccountSetMetadata, WritableAccount};
+use crate::account_set::{AccountSet, SingleAccountSet, WritableAccount};
 use crate::prelude::{AccountSetCleanup, AccountSetDecode, AccountSetValidate};
 use derive_more::{Deref, DerefMut};
 use solana_program::account_info::AccountInfo;
@@ -16,13 +16,7 @@ pub struct Writable<T>(
     #[decode(arg = arg)]
     #[validate(arg = arg)]
     #[cleanup(arg = arg)]
-    #[single_account_set(
-        metadata = SingleAccountSetMetadata {
-            should_mut: true,
-            ..T::METADATA
-        },
-        skip_writable_account
-    )]
+    #[single_account_set(skip_writable_account)]
     pub(crate) T,
 );
 

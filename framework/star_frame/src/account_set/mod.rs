@@ -132,7 +132,6 @@ impl<'a, 'info, T> TryFromAccounts<'a, 'info> for T where
 
 /// An [`AccountSet`] that contains exactly 1 account.
 pub trait SingleAccountSet<'info>: AccountSet<'info> {
-    const METADATA: SingleAccountSetMetadata;
     /// Gets the contained account.
     fn account_info(&self) -> &AccountInfo<'info>;
     /// Gets the contained account cloned.
@@ -200,24 +199,6 @@ pub trait SingleAccountSet<'info>: AccountSet<'info> {
     {
         self.account_info().info_data_bytes_mut()
     }
-}
-
-#[allow(clippy::struct_excessive_bools)]
-#[derive(Copy, Clone, Debug, Default)]
-pub struct SingleAccountSetMetadata {
-    pub should_sign: bool,
-    pub should_mut: bool,
-    pub is_init: bool,
-    pub is_seeded: bool,
-}
-
-impl SingleAccountSetMetadata {
-    pub const DEFAULT: Self = Self {
-        should_sign: false,
-        should_mut: false,
-        is_init: false,
-        is_seeded: false,
-    };
 }
 
 /// An [`AccountSet`] that can be decoded from a list of [`AccountInfo`]s using arg `A`.

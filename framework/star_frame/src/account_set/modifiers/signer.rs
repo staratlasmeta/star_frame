@@ -1,6 +1,5 @@
 use crate::account_set::{
     AccountSet, AccountSetDecode, AccountSetValidate, SignedAccount, SingleAccountSet,
-    SingleAccountSetMetadata,
 };
 
 use crate::Result;
@@ -22,13 +21,7 @@ pub struct Signer<T>(
     #[decode(arg = arg)]
     #[validate(arg = arg)]
     #[cleanup(arg = arg)]
-    #[single_account_set(
-        metadata = SingleAccountSetMetadata {
-            should_sign: true,
-            ..T::METADATA
-        },
-        skip_signed_account
-    )]
+    #[single_account_set(skip_signed_account)]
     pub(crate) T,
 );
 
