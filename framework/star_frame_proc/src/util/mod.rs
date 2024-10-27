@@ -1,23 +1,24 @@
 mod generics;
 mod ident_with_args;
 mod paths;
+mod repr;
 
 pub use generics::*;
 pub use ident_with_args::*;
 pub use paths::*;
+pub use repr::*;
 
 use itertools::Itertools;
 use proc_macro2::TokenStream;
 use proc_macro_crate::{crate_name, FoundCrate};
-use proc_macro_error::{abort, abort_call_site};
+use proc_macro_error::abort;
 use quote::{format_ident, quote, quote_spanned, ToTokens};
 use std::fmt::Debug;
-use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 use syn::{
     parse_quote, Attribute, Data, DataStruct, DataUnion, DeriveInput, Expr, ExprLit, Field, Fields,
-    Ident, ItemStruct, Lit, Meta, MetaNameValue, Path, Token, Type,
+    ItemStruct, Lit, Meta, MetaNameValue, Path, Token, Type,
 };
 
 pub fn get_crate_name() -> TokenStream {
@@ -31,7 +32,6 @@ pub fn get_crate_name() -> TokenStream {
     }
 }
 
-#[allow(dead_code)]
 pub fn get_docs<'a>(attrs: impl IntoIterator<Item = &'a Attribute>) -> Expr {
     let doc_strings = attrs
         .into_iter()
@@ -56,45 +56,6 @@ pub fn get_docs<'a>(attrs: impl IntoIterator<Item = &'a Attribute>) -> Expr {
         })
         .collect::<Vec<_>>();
     parse_quote! { vec![#(#doc_strings.into()),*] }
-}
-
-#[allow(dead_code)]
-pub fn verify_repr(
-    attrs: &[Attribute],
-    repr_required: impl IntoIterator<Item = Ident>,
-    allow_others: bool,
-    require_present: bool,
-) -> Punctuated<Ident, Token![,]> {
-    let repr = attrs.iter().find(|attr| attr.path().is_ident("repr"));
-    if let Some(repr) = repr {
-        let repr_ty = repr
-            .parse_args_with(|p: ParseStream| p.parse_terminated(Ident::parse, Token![,]))
-            .unwrap_or_else(|e| abort!(repr, "Could not parse repr type: {}", e));
-        let mut repr_required = repr_required
-            .into_iter()
-            .map(|r| (r, false))
-            .collect::<Vec<_>>();
-        for repr_ty in repr_ty.iter() {
-            if let Some((_, found)) = repr_required.iter_mut().find(|(r, _)| r == repr_ty) {
-                *found = true;
-            } else if !allow_others {
-                abort!(repr_ty, "Unexpected repr type: {}", quote! { #repr_ty });
-            }
-        }
-        for (r, found) in repr_required {
-            if !found {
-                abort_call_site!("Missing #[repr({:?})] attribute", r);
-            }
-        }
-        repr_ty
-    } else if require_present {
-        abort_call_site!(
-            "Missing #[repr({:?})] attribute",
-            repr_required.into_iter().collect::<Vec<_>>()
-        );
-    } else {
-        Punctuated::new()
-    }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -258,7 +219,7 @@ mod tests {
 
     #[test]
     fn test_strip_attributes_struct() {
-        let mut struct_item: syn::ItemStruct = syn::parse_quote! {
+        let mut struct_item: ItemStruct = parse_quote! {
             struct MyStruct {
                 #[my_attr]
                 field1: u8,
@@ -273,21 +234,21 @@ mod tests {
         let expected_stripped_attributes = vec![
             StrippedAttribute {
                 index: 0,
-                attribute: syn::parse_quote! { #[my_attr] },
+                attribute: parse_quote! { #[my_attr] },
             },
             StrippedAttribute {
                 index: 2,
-                attribute: syn::parse_quote! { #[my_attr(hello)] },
+                attribute: parse_quote! { #[my_attr(hello)] },
             },
             StrippedAttribute {
                 index: 2,
-                attribute: syn::parse_quote! { #[my_attr] },
+                attribute: parse_quote! { #[my_attr] },
             },
         ];
         assert_eq!(stripped_attributes, expected_stripped_attributes);
         assert_eq!(
             struct_item,
-            syn::parse_quote! {
+            parse_quote! {
                 struct MyStruct {
                     field1: u8,
                     field2: u8,
@@ -299,7 +260,7 @@ mod tests {
 
     #[test]
     fn test_strip_attributes_enum() {
-        let mut enum_item: syn::ItemEnum = syn::parse_quote! {
+        let mut enum_item: syn::ItemEnum = parse_quote! {
             enum MyEnum {
                 #[my_attr]
                 Variant1,
@@ -314,21 +275,21 @@ mod tests {
         let expected_stripped_attributes = vec![
             StrippedAttribute {
                 index: 0,
-                attribute: syn::parse_quote! { #[my_attr] },
+                attribute: parse_quote! { #[my_attr] },
             },
             StrippedAttribute {
                 index: 2,
-                attribute: syn::parse_quote! { #[my_attr(hello)] },
+                attribute: parse_quote! { #[my_attr(hello)] },
             },
             StrippedAttribute {
                 index: 2,
-                attribute: syn::parse_quote! { #[my_attr(hello2)] },
+                attribute: parse_quote! { #[my_attr(hello2)] },
             },
         ];
         assert_eq!(stripped_attributes, expected_stripped_attributes);
         assert_eq!(
             enum_item,
-            syn::parse_quote! {
+            parse_quote! {
                 enum MyEnum {
                     Variant1,
                     Variant2,
