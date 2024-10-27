@@ -18,7 +18,7 @@ use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 use syn::{
     parse_quote, Attribute, Data, DataStruct, DataUnion, DeriveInput, Expr, ExprLit, Field, Fields,
-    ItemStruct, Lit, Meta, MetaNameValue, Path, Token, Type,
+    ItemStruct, Lit, Meta, MetaNameValue, Path, Token, Type, Variant,
 };
 
 pub fn get_crate_name() -> TokenStream {
@@ -210,6 +210,26 @@ impl FieldIter for DeriveInput {
             Data::Enum(_) => abort!(self, "cannot get fields on an enum"),
         }
     }
+}
+
+pub fn enum_discriminants<'a>(
+    variants: impl Iterator<Item = &'a Variant> + 'a,
+) -> impl Iterator<Item = Expr> + 'a {
+    let mut next_discriminant: Expr = parse_quote!(0);
+    variants.map(move |variant| {
+        let discriminant = if let Some((_, ref discriminant)) = variant.discriminant {
+            discriminant.clone()
+        } else {
+            next_discriminant.clone()
+        };
+        next_discriminant = parse_quote! { #discriminant + 1 };
+        discriminant
+    })
+}
+
+pub fn discriminant_vec(expr: &Expr, repr: IntegerRepr) -> TokenStream {
+    let bytemuck = Paths::default().bytemuck;
+    quote! { #bytemuck::bytes_of::<#repr>(&(#expr)).to_vec() }
 }
 
 #[cfg(test)]

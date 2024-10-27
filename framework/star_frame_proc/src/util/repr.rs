@@ -104,11 +104,7 @@ pub enum Repr {
 }
 
 impl Repr {
-    fn is_integer(&self) -> bool {
-        matches!(self, Self::Integer(..))
-    }
-
-    fn as_integer(&self) -> Option<IntegerRepr> {
+    pub fn as_integer(&self) -> Option<IntegerRepr> {
         if let Self::Integer(v) = self {
             Some(*v)
         } else {

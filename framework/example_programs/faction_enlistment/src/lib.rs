@@ -5,9 +5,6 @@ use star_frame::borsh;
 use star_frame::borsh::{BorshDeserialize, BorshSerialize};
 use star_frame::prelude::*;
 
-use star_frame::star_frame_idl::ty::{IdlEnumVariant, IdlType, IdlTypeDef, IdlTypeId};
-use star_frame::star_frame_idl::{item_source, IdlDefinition, ItemInfo};
-
 #[derive(StarFrameProgram)]
 #[program(
     instruction_set = FactionEnlistmentInstructionSet
@@ -114,77 +111,18 @@ pub struct PlayerFactionData {
     Eq,
     PartialEq,
     Default,
+    TypeToIdl,
 )]
-#[borsh(crate = "borsh")]
+#[borsh(crate = "borsh", use_discriminant = true)]
 #[repr(u8)]
 pub enum FactionId {
     #[default]
-    MUD,
+    MUD = 100,
     ONI,
     Ustur,
 }
 
-impl TypeToIdl for FactionId {
-    type AssociatedProgram = crate::StarFrameDeclaredProgram;
-    fn type_to_idl(idl_definition: &mut IdlDefinition) -> Result<IdlTypeDef> {
-        let source = item_source::<Self>();
-        let type_def = IdlTypeDef::Enum(vec![
-            IdlEnumVariant {
-                name: "MUD".to_string(),
-                discriminant: vec![0],
-                type_def: None,
-            },
-            IdlEnumVariant {
-                name: "ONI".to_string(),
-                discriminant: vec![1],
-                type_def: None,
-            },
-            IdlEnumVariant {
-                name: "USTUR".to_string(),
-                discriminant: vec![2],
-                type_def: None,
-            },
-        ]);
-        let idl_type = IdlType {
-            info: ItemInfo {
-                name: "FactionId".to_string(),
-                description: vec![],
-                source: source.clone(),
-            },
-            type_def,
-            generics: vec![],
-        };
-        let namespace = idl_definition.add_type(idl_type, Self::AssociatedProgram::PROGRAM_ID);
-        Ok(IdlTypeDef::Defined(IdlTypeId {
-            namespace,
-            source,
-            provided_generics: vec![],
-        }))
-    }
-}
-
 unsafe impl Zeroable for FactionId {}
-
-// impl AccountToIdl for PlayerFactionData {
-//     fn account_to_idl(idl_definition: &mut IdlDefinition) -> Result<IdlAccountId> {
-//         let source = item_source::<Self>();
-//         let idl_account = IdlAccount {
-//             discriminant: Self::discriminant_bytes(),
-//             seeds: Some(IdlSeeds(vec![
-//                 IdlSeed::Const(b"FACTION_ENLISTMENT".into()),
-//                 IdlSeed::Variable(IdlVariableSeed {
-//                     name: "player_account".to_string(),
-//                     description: vec![],
-//                     ty: <Pubkey>::type_to_idl(idl_definition)?,
-//                 }),
-//             ])),
-//             type_def: <PlayerFactionData>::type_to_idl(idl_definition)?,
-//         };
-//         let namespace =
-//             idl_definition.add_account(idl_account, Self::AssociatedProgram::PROGRAM_ID)?;
-//         Ok(IdlAccountId { namespace, source })
-//     }
-// }
 
 #[derive(Debug, GetSeeds, Clone)]
 #[seed_const(b"FACTION_ENLISTMENT")]
