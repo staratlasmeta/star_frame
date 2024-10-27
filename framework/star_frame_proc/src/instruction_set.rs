@@ -7,7 +7,7 @@ use quote::quote;
 use syn::*;
 use syn::{parse_quote, Fields, FieldsUnnamed, ItemEnum, Lifetime, Type};
 
-use crate::hash::{hash_tts, sighash, SIGHASH_GLOBAL_NAMESPACE};
+use crate::hash::SIGHASH_GLOBAL_NAMESPACE;
 use crate::util::Paths;
 
 #[derive(Debug, ArgumentList, Clone, Default)]
@@ -58,15 +58,14 @@ pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
         })
         .collect_vec();
 
-    let ix_disc_values = item
+    let ix_disc_values: Vec<Expr> = item
         .variants
         .iter()
         .map(|v| {
             let method_name = v.ident.to_string().to_snake_case();
-            parse2::<Expr>(hash_tts(&sighash(SIGHASH_GLOBAL_NAMESPACE, &method_name)))
-                .expect("Hash should be valid expression")
+            parse_quote!(#prelude::sighash!(#SIGHASH_GLOBAL_NAMESPACE, #method_name))
         })
-        .collect_vec();
+        .collect();
 
     let idl_impl = (!args.skip_idl && cfg!(feature = "idl")).then(|| {
         let mut generics = item.generics.clone();
