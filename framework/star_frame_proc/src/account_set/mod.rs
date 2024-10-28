@@ -5,7 +5,6 @@ use proc_macro_error::abort;
 use syn::{Attribute, Data, DeriveInput, Ident, Visibility};
 
 mod generics;
-pub mod seeded_account;
 mod struct_impl;
 
 #[allow(dead_code)]

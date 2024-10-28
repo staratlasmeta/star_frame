@@ -1,6 +1,7 @@
 #![allow(clippy::let_and_return)]
 mod account_set;
 mod align1;
+mod get_seeds;
 mod hash;
 #[cfg(feature = "idl")]
 mod idl;
@@ -11,7 +12,6 @@ mod solana_pubkey;
 mod unsize;
 mod util;
 
-use account_set::seeded_account;
 use proc_macro_error::proc_macro_error;
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
@@ -88,7 +88,7 @@ pub fn derive_account_set(input: proc_macro::TokenStream) -> proc_macro::TokenSt
 #[proc_macro_error]
 #[proc_macro_derive(GetSeeds, attributes(get_seeds))]
 pub fn derive_get_seeds(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let out = seeded_account::derive_get_seeds_impl(parse_macro_input!(input as DeriveInput));
+    let out = get_seeds::derive_get_seeds_impl(parse_macro_input!(input as DeriveInput));
     out.into()
 }
 
