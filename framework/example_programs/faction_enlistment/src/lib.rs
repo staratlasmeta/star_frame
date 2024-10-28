@@ -122,7 +122,7 @@ pub struct PlayerFactionData {
 #[repr(u8)]
 pub enum FactionId {
     #[default]
-    MUD = 100,
+    MUD,
     ONI,
     Ustur,
 }
