@@ -400,13 +400,13 @@ mod tests {
             key: Pubkey,
         }
 
-        let _account = TestAccount {
+        let account = TestAccount {
             key: Pubkey::new_unique(),
         };
-        // let intended_seeds = vec![account.key.seed()];
-        // let seeds = account.seeds();
-        // assert_eq!(seeds, intended_seeds);
-        // assert_eq!(seeds.len(), 1);
+        let intended_seeds = vec![account.key.seed()];
+        let seeds = account.seeds();
+        assert_eq!(seeds, intended_seeds);
+        assert_eq!(seeds.len(), 1);
     }
 
     #[test]
