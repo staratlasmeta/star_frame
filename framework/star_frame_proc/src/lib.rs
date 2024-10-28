@@ -202,7 +202,7 @@ pub fn program_account(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
 ///     closed_account_discriminant = [u8::MAX; 8],
 ///     no_entrypoint,
 ///     no_setup,
-///     no_idl
+///     skip_idl
 /// )]
 /// struct MyProgram;
 /// ```
@@ -226,7 +226,8 @@ pub fn program_account(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
 ///     account_discriminant = <ty>,
 ///     closed_account_discriminant = <expr>,
 ///     no_entrypoint,
-///     no_setup
+///     no_setup,
+///     skip_idl
 /// )]
 /// ```
 /// - `instruction_set` - The enum that implements `InstructionSet` for the program. If the instruction set has a
@@ -238,6 +239,7 @@ pub fn program_account(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
 /// - `no_entrypoint` - If present, the macro will not generate an entrypoint for the program.
 /// While the generated entrypoint is already feature gated, this may be useful in some cases where features aren't convenient.
 /// - `no_setup` - If present, the macro will not call the `program_setup!` macro. This is useful in libraries that may contain multiple programs.
+/// - `skip_idl` - If present, the macro will not generate a `ProgramToIdl` implementation for the program.
 #[proc_macro_error]
 #[proc_macro_derive(StarFrameProgram, attributes(program))]
 pub fn program(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
