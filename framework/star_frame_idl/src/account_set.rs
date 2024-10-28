@@ -24,13 +24,34 @@ pub struct IdlAccountSet {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+pub struct IdlAccountSetStructField {
+    pub path: Option<String>,
+    pub description: ItemDescription,
+    pub account_set_def: IdlAccountSetDef,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, Default)]
+pub struct IdlSingleAccountSet {
+    pub program_accounts: Vec<IdlAccountId>,
+    pub seeds: Option<IdlFindSeeds>,
+    #[serde(with = "serde_base58_pubkey_option")]
+    pub address: Option<Pubkey>,
+    pub writable: bool,
+    pub signer: bool,
+    pub optional: bool,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub enum IdlAccountSetDef {
     Defined(IdlAccountSetId),
     SingleAccount(IdlSingleAccountSet),
     Signer(Box<IdlAccountSetDef>),
     Writable(Box<IdlAccountSetDef>),
     // todo: Add IdlFindSeeds to seeded
-    SeededAccount(Box<IdlAccountSetDef>),
+    SeededAccount {
+        account_set: Box<IdlAccountSetDef>,
+        find_seeds: IdlFindSeeds,
+    },
     ProgramAccount {
         account_set: Box<IdlAccountSetDef>,
         account_id: IdlAccountId,
@@ -43,22 +64,4 @@ pub enum IdlAccountSetDef {
     },
     /// One of the set defs in the vec
     Or(Vec<IdlAccountSetDef>),
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
-pub struct IdlAccountSetStructField {
-    pub path: Option<String>,
-    pub description: ItemDescription,
-    pub account_set_def: IdlAccountSetDef,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
-pub struct IdlSingleAccountSet {
-    pub program_accounts: Vec<IdlAccountId>,
-    pub seeds: Option<IdlFindSeeds>,
-    #[serde(with = "serde_base58_pubkey_option")]
-    pub address: Option<Pubkey>,
-    pub writable: bool,
-    pub signer: bool,
-    pub optional: bool,
 }

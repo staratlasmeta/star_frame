@@ -59,7 +59,7 @@ pub fn program_account_impl_inner(input: DeriveInput, args: ProgramAccountArgs) 
         }
     };
 
-    let has_seeds_impl = args.seeds.map(|seeds| {
+    let has_seeds_impl = args.seeds.as_ref().map(|seeds| {
         quote! {
             #[automatically_derived]
             impl #impl_gen #prelude::HasSeeds for #ident #ty_gen #where_clause {
@@ -73,6 +73,12 @@ pub fn program_account_impl_inner(input: DeriveInput, args: ProgramAccountArgs) 
             program: Some(owner_program.clone()),
         };
         let type_to_idl_impl = crate::idl::derive_type_to_idl_inner(&input, type_args);
+
+        let seeds = match &args.seeds {
+            Some(seeds) => quote! { Some(<#seeds as #prelude::SeedsToIdl>::seeds_to_idl(idl_definition)?) },
+            None => quote! { None },
+        };
+
         quote!{
             #type_to_idl_impl
 
@@ -83,8 +89,7 @@ pub fn program_account_impl_inner(input: DeriveInput, args: ProgramAccountArgs) 
                     let idl_account = #prelude::IdlAccount {
                         discriminant: <Self as #prelude::ProgramAccount>::discriminant_bytes(),
                         type_def: <Self as #prelude::TypeToIdl>::type_to_idl(idl_definition)?,
-                        // todo: Handle seeds! Need new trait to convert GetSeeds to IdlSeeds
-                        seeds: None,
+                        seeds: #seeds,
                     };
                     let namespace = idl_definition.add_account(idl_account, Self::AssociatedProgram::PROGRAM_ID)?;
                     Ok(#prelude::IdlAccountId {

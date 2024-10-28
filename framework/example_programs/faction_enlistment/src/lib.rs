@@ -78,6 +78,11 @@ pub struct ProcessEnlistPlayer<'info> {
     Seeds(PlayerFactionAccountSeeds {
         player_account: *self.player_account.key()
     })))]
+    #[idl(
+        arg = Seeds(FindPlayerFactionAccountSeeds {
+            player_account: seed_path("player_account")
+        })
+    )]
     pub player_faction_account: Init<Seeded<DataAccount<'info, PlayerFactionData>>>,
     /// The player account
     #[account_set(funder)]
@@ -125,7 +130,7 @@ pub enum FactionId {
 unsafe impl Zeroable for FactionId {}
 
 #[derive(Debug, GetSeeds, Clone)]
-#[seed_const(b"FACTION_ENLISTMENT")]
+#[get_seeds(seed_const = b"FACTION_ENLISTMENT")]
 pub struct PlayerFactionAccountSeeds {
     player_account: Pubkey,
 }

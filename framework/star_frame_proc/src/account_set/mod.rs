@@ -4,9 +4,8 @@ use proc_macro2::TokenStream;
 use proc_macro_error::abort;
 use syn::{Attribute, Data, DeriveInput, Ident, Visibility};
 
-pub mod seeded_account;
-
 mod generics;
+pub mod seeded_account;
 mod struct_impl;
 
 #[allow(dead_code)]

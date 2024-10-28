@@ -1,17 +1,10 @@
 use crate::data_types::{OptionalPubkey, PodBool};
-use crate::idl::ProgramToIdl;
+use crate::idl::TypeToIdl;
 use crate::program::system_program::SystemProgram;
 use crate::Result;
 use solana_program::pubkey::Pubkey;
 use star_frame_idl::ty::IdlTypeDef;
 use star_frame_idl::IdlDefinition;
-pub use star_frame_proc::TypeToIdl;
-
-pub trait TypeToIdl {
-    type AssociatedProgram: ProgramToIdl;
-    /// Returns the idl of this type.
-    fn type_to_idl(idl_definition: &mut IdlDefinition) -> Result<IdlTypeDef>;
-}
 
 macro_rules! impl_type_to_idl_for_primitive {
     (@impl $ty:ty: $ident:ident) => {

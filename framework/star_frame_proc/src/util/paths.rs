@@ -21,9 +21,6 @@ pub struct Paths {
     pub deref: TokenStream,
     pub deref_mut: TokenStream,
     pub eq: TokenStream,
-    pub non_null: TokenStream,
-    pub panic: TokenStream,
-    pub partial_eq: TokenStream,
     pub phantom_data: TokenStream,
     pub ptr: TokenStream,
 
@@ -36,8 +33,6 @@ pub struct Paths {
     pub account_set_decode: TokenStream,
     pub account_set_validate: TokenStream,
     pub account_set_cleanup: TokenStream,
-    pub get_seeds: TokenStream,
-    pub program_account: TokenStream,
     // syscalls
     pub syscalls: TokenStream,
     pub syscall_invoke: TokenStream,
@@ -68,6 +63,7 @@ pub struct Paths {
     pub type_to_idl_args_ident: Ident,
     pub program_account_args_ident: Ident,
     pub instruction_to_idl_args_ident: Ident,
+    pub get_seeds_ident: Ident,
 
     pub align1: TokenStream,
     pub packed_value_checked: TokenStream,
@@ -114,9 +110,6 @@ impl Default for Paths {
             deref: quote! { ::std::ops::Deref },
             deref_mut: quote! { ::std::ops::DerefMut },
             eq: quote! { ::std::cmp::Eq },
-            non_null: quote! { ::std::ptr::NonNull },
-            panic: quote! { ::std::panic },
-            partial_eq: quote! { ::std::cmp::PartialEq },
             phantom_data: quote! { ::std::marker::PhantomData },
             ptr: quote! { ::std::ptr },
             size_of: quote! { ::std::mem::size_of },
@@ -129,8 +122,6 @@ impl Default for Paths {
             account_set_decode: quote! { #crate_name::account_set::AccountSetDecode },
             account_set_validate: quote! { #crate_name::account_set::AccountSetValidate },
             account_set_cleanup: quote! { #crate_name::account_set::AccountSetCleanup },
-            get_seeds: quote! { #crate_name::account_set::GetSeeds },
-            program_account: quote! { #crate_name::account_set::ProgramAccount },
 
             // syscalls
             syscalls: quote! { #crate_name::syscalls::Syscalls },
@@ -161,6 +152,7 @@ impl Default for Paths {
             program_id_ident: format_ident!("program_id"),
             single_account_set_ident: format_ident!("single_account_set"),
             instruction_set_args_ident: format_ident!("ix_set"),
+            get_seeds_ident: format_ident!("get_seeds"),
 
             align1: quote! { #crate_name::align1::Align1 },
             packed_value_checked: quote! { #crate_name::data_types::PackedValueChecked },

@@ -26,7 +26,7 @@ pub struct WrappedCounter<'info>(
 );
 
 #[derive(Debug, GetSeeds, Clone)]
-#[seed_const(b"COUNTER")]
+#[get_seeds(seed_const = b"COUNTER")]
 pub struct CounterAccountSeeds {
     pub owner: Pubkey,
 }
@@ -45,6 +45,7 @@ pub struct CreateCounterAccounts<'info> {
         CreateIfNeeded(()),
         Seeds(CounterAccountSeeds { owner: *self.owner.key(), }),
     ))]
+    #[idl(arg = Seeds(FindCounterAccountSeeds { owner: seed_path("owner") }))]
     pub counter: Init<Seeded<WrappedCounter<'info>>>,
     #[account_set(system_program)]
     pub system_program: Program<'info, SystemProgram>,

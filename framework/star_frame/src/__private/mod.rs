@@ -1,7 +1,7 @@
 pub mod macro_prelude {
     pub use crate::account_set::{
-        AccountSet, CanInitAccount, CanSetSeeds, HasOwnerProgram, HasProgramAccount, HasSeeds,
-        ProgramAccount, SignedAccount, SingleAccountSet, WritableAccount,
+        AccountSet, CanInitAccount, CanSetSeeds, GetSeeds, HasOwnerProgram, HasProgramAccount,
+        HasSeeds, ProgramAccount, Seed, SignedAccount, SingleAccountSet, WritableAccount,
     };
     pub use crate::instruction::{
         Instruction, InstructionDiscriminant, InstructionSet, StarFrameInstruction,
@@ -18,8 +18,8 @@ pub mod macro_prelude {
 
     #[cfg(feature = "idl")]
     pub use crate::idl::{
-        AccountSetToIdl, AccountToIdl, InstructionSetToIdl, InstructionToIdl, ProgramToIdl,
-        TypeToIdl,
+        seed_const, seed_path, AccountSetToIdl, AccountToIdl, FindIdlSeeds, FindSeed,
+        InstructionSetToIdl, InstructionToIdl, ProgramToIdl, SeedsToIdl, TypeToIdl,
     };
 
     #[cfg(feature = "idl")]
@@ -28,6 +28,7 @@ pub mod macro_prelude {
         account_set::{IdlAccountSet, IdlAccountSetDef, IdlAccountSetId, IdlAccountSetStructField},
         instruction::{IdlInstruction, IdlInstructionDef},
         item_source,
+        seeds::{IdlFindSeed, IdlFindSeeds, IdlSeed, IdlSeeds},
         ty::{IdlEnumVariant, IdlStructField, IdlType, IdlTypeDef, IdlTypeId},
         IdlDefinition, IdlDefinitionReference, ItemInfo, Version,
     };

@@ -11,6 +11,7 @@ mod solana_pubkey;
 mod unsize;
 mod util;
 
+use account_set::seeded_account;
 use proc_macro_error::proc_macro_error;
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
@@ -30,11 +31,12 @@ pub fn derive_account_set(input: proc_macro::TokenStream) -> proc_macro::TokenSt
 ///
 /// # Attributes
 ///
-/// ## 1. `#[seed_const = <expr>]` (item level attribute)
+/// ## 1. `#[get_seeds(seed_const = <expr>, skip_idl)]` (item level attribute)
 ///
 /// ### syntax
 ///
 /// Attribute takes an `Expr` which resolves to a `&[u8]` seed for the account.
+/// If `skip_idl` is present, the `SeedsToIdl` trait and the `IdlFindSeed` struct will not be derived.
 ///
 /// ### usage
 ///
@@ -69,7 +71,7 @@ pub fn derive_account_set(input: proc_macro::TokenStream) -> proc_macro::TokenSt
 /// }
 ///
 /// #[derive(Debug, GetSeeds, Clone)]
-/// #[seed_const(Cool::DISC)]
+/// #[get_seeds(seed_const = Cool::DISC)]
 /// pub struct TestAccount {}
 /// ```
 ///
@@ -78,17 +80,15 @@ pub fn derive_account_set(input: proc_macro::TokenStream) -> proc_macro::TokenSt
 /// // `seed_const` here resolves to the byte string `b"TEST_CONST"`
 /// // Resulting `account.seeds()` is `vec![b"TEST_CONST".as_ref(), account.key.seed()];`
 /// #[derive(Debug, GetSeeds, Clone)]
-/// #[seed_const(b"TEST_CONST")]
+/// #[get_seeds(seed_const = b"TEST_CONST")]
 /// pub struct TestAccount {
 ///     key: Pubkey,
 /// }
 /// ```
 #[proc_macro_error]
-#[proc_macro_derive(GetSeeds, attributes(seed_const))]
+#[proc_macro_derive(GetSeeds, attributes(get_seeds))]
 pub fn derive_get_seeds(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let out = account_set::seeded_account::derive_get_seeds_impl(parse_macro_input!(
-        input as DeriveInput
-    ));
+    let out = seeded_account::derive_get_seeds_impl(parse_macro_input!(input as DeriveInput));
     out.into()
 }
 
