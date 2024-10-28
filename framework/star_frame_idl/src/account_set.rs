@@ -4,6 +4,7 @@ use crate::serde_base58_pubkey_option;
 use crate::ty::IdlTypeDef;
 use crate::{IdlGeneric, ItemInfo};
 use crate::{ItemDescription, ItemSource};
+use anyhow::bail;
 use serde::{Deserialize, Serialize};
 use solana_program::pubkey::Pubkey;
 
@@ -32,30 +33,19 @@ pub struct IdlAccountSetStructField {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, Default)]
 pub struct IdlSingleAccountSet {
+    pub writable: bool,
+    pub signer: bool,
+    pub optional: bool,
     pub program_accounts: Vec<IdlAccountId>,
     pub seeds: Option<IdlFindSeeds>,
     #[serde(with = "serde_base58_pubkey_option")]
     pub address: Option<Pubkey>,
-    pub writable: bool,
-    pub signer: bool,
-    pub optional: bool,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub enum IdlAccountSetDef {
     Defined(IdlAccountSetId),
-    SingleAccount(IdlSingleAccountSet),
-    Signer(Box<IdlAccountSetDef>),
-    Writable(Box<IdlAccountSetDef>),
-    // todo: Add IdlFindSeeds to seeded
-    SeededAccount {
-        account_set: Box<IdlAccountSetDef>,
-        find_seeds: IdlFindSeeds,
-    },
-    ProgramAccount {
-        account_set: Box<IdlAccountSetDef>,
-        account_id: IdlAccountId,
-    },
+    Single(IdlSingleAccountSet),
     Struct(Vec<IdlAccountSetStructField>),
     Many {
         account_set: Box<IdlAccountSetDef>,
@@ -64,4 +54,22 @@ pub enum IdlAccountSetDef {
     },
     /// One of the set defs in the vec
     Or(Vec<IdlAccountSetDef>),
+}
+
+impl IdlAccountSetDef {
+    pub fn empty_struct() -> Self {
+        IdlAccountSetDef::Struct(vec![])
+    }
+
+    pub fn single(&mut self) -> anyhow::Result<&mut IdlSingleAccountSet> {
+        match self {
+            IdlAccountSetDef::Single(s) => Ok(s),
+            set => bail!("Expected single account, found {:?}", set),
+        }
+    }
+
+    pub fn assert_single(mut self) -> anyhow::Result<Self> {
+        self.single()?;
+        Ok(self)
+    }
 }

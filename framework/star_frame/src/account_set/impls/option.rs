@@ -203,6 +203,9 @@ mod idl_impl {
     use star_frame_idl::account_set::IdlAccountSetDef;
     use star_frame_idl::IdlDefinition;
 
+    // todo: figure out our optionals for IDLs. Thinking we should remove our separate decode
+    //  strategies and just use the program id method. This would make using option much simpler on
+    //  arg side and be more in line with how the rest of the ecosystem handles optionals.
     impl<'info, A, Arg> AccountSetToIdl<'info, Arg> for Option<A>
     where
         A: AccountSetToIdl<'info, Arg>,
@@ -211,10 +214,14 @@ mod idl_impl {
             idl_definition: &mut IdlDefinition,
             arg: Arg,
         ) -> Result<IdlAccountSetDef> {
-            let inner = A::account_set_to_idl(idl_definition, arg)?;
+            let mut set = A::account_set_to_idl(idl_definition, arg)?;
+            if let Ok(inner) = set.single() {
+                inner.optional = true;
+                return Ok(set);
+            }
             Ok(IdlAccountSetDef::Or(vec![
-                IdlAccountSetDef::Struct(vec![]),
-                inner,
+                set,
+                IdlAccountSetDef::empty_struct(),
             ]))
         }
     }

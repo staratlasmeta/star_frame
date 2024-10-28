@@ -316,15 +316,18 @@ mod idl_impl {
             idl_definition: &mut IdlDefinition,
             arg: (Seeds<F>, A),
         ) -> Result<IdlAccountSetDef> {
-            let set = T::account_set_to_idl(idl_definition, arg.1)?;
-            let seeds = F::find_seeds(&arg.0 .0)?;
-            Ok(IdlAccountSetDef::SeededAccount {
-                account_set: Box::new(set),
-                find_seeds: IdlFindSeeds {
-                    seeds,
-                    program: P::idl_program(),
-                },
-            })
+            let mut set = T::account_set_to_idl(idl_definition, arg.1)?;
+            let single = set.single()?;
+            if single.seeds.is_some() {
+                bail!("Seeds already set for Seeded account");
+            }
+            let seeds = IdlFindSeeds {
+                seeds: F::find_seeds(&arg.0 .0)?,
+                program: P::idl_program(),
+            };
+            single.seeds = Some(seeds);
+
+            Ok(set)
         }
     }
 
@@ -351,7 +354,7 @@ mod idl_impl {
             idl_definition: &mut IdlDefinition,
             arg: (),
         ) -> Result<IdlAccountSetDef> {
-            T::account_set_to_idl(idl_definition, arg)
+            T::account_set_to_idl(idl_definition, arg)?.assert_single()
         }
     }
 
@@ -364,7 +367,7 @@ mod idl_impl {
             idl_definition: &mut IdlDefinition,
             arg: Pubkey,
         ) -> Result<IdlAccountSetDef> {
-            T::account_set_to_idl(idl_definition, arg)
+            T::account_set_to_idl(idl_definition, arg)?.assert_single()
         }
     }
 }

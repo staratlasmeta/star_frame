@@ -4,7 +4,7 @@ use crate::ItemDescription;
 use serde::{Deserialize, Serialize};
 use solana_program::pubkey::Pubkey;
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, Default)]
 pub struct IdlFindSeeds {
     pub seeds: Vec<IdlFindSeed>,
     /// The program used to find the PDA. If None, the seeds should be for the program this instruction

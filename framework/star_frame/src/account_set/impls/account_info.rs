@@ -220,7 +220,7 @@ pub mod idl_impl {
             _idl_definition: &mut IdlDefinition,
             _arg: (),
         ) -> Result<IdlAccountSetDef> {
-            Ok(IdlAccountSetDef::SingleAccount(IdlSingleAccountSet {
+            Ok(IdlAccountSetDef::Single(IdlSingleAccountSet {
                 program_accounts: vec![],
                 seeds: None,
                 address: None,
