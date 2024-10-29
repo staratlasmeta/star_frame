@@ -20,7 +20,7 @@ pub struct SolanaRuntime<'info> {
     rent_cache: Option<Rent>,
     clock_cache: Option<Clock>,
     system_program: Option<Program<'info, SystemProgram>>,
-    recipient: Option<WritableInfo<'info>>,
+    recipient: Option<Mut<AccountInfo<'info>>>,
     funder: Option<Funder<'info>>,
 }
 impl SolanaRuntime<'_> {
@@ -157,12 +157,11 @@ impl<'info> SyscallAccountCache<'info> for SolanaRuntime<'info> {
         self.funder.replace(Funder::new(funder));
     }
 
-    fn get_recipient(&self) -> Option<&WritableInfo<'info>> {
+    fn get_recipient(&self) -> Option<&Mut<AccountInfo<'info>>> {
         self.recipient.as_ref()
     }
 
     fn set_recipient(&mut self, recipient: &impl WritableAccount<'info>) {
-        self.recipient
-            .replace(Writable(recipient.account_info_cloned()));
+        self.recipient.replace(Mut(recipient.account_info_cloned()));
     }
 }

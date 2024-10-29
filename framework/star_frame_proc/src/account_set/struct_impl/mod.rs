@@ -11,9 +11,7 @@ use quote::{quote, ToTokens};
 use std::ops::Not;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
-use syn::{
-    bracketed, parse_quote, token, DataStruct, Expr, Field, Ident, Index, Token, WherePredicate,
-};
+use syn::{bracketed, parse_quote, token, DataStruct, Field, Ident, Index, Token, WherePredicate};
 
 mod cleanup;
 mod decode;
@@ -64,7 +62,6 @@ struct SingleAccountSetFieldAttrs {
     skip_can_set_seeds: bool,
     #[argument(presence)]
     skip_can_init_account: bool,
-    metadata: Option<Expr>,
 }
 
 pub(super) fn derive_account_set_impl_struct(
@@ -176,6 +173,8 @@ pub(super) fn derive_account_set_impl_struct(
         );
     }
 
+    // todo: potentially refactor single account set modifier to change default behavior for both idl and arg.
+    //  could also be a top level struct field and require only 1 unskipped field remaining for it to work.
     let single_account_set_impls = single_account_sets.pop().map(|(field, field_name, args)| {
         let sg_impl = single_generics.clone();
         let (sg_impl, _, _) = sg_impl.split_for_impl();
@@ -214,14 +213,10 @@ pub(super) fn derive_account_set_impl_struct(
         single_where.predicates.push(parse_quote!{
             Self: #macro_prelude::AccountSet<#info_lifetime>
         });
-        let metadata = args.metadata.unwrap_or_else(|| {
-            parse_quote!(<#field_ty as #macro_prelude::SingleAccountSet<#info_lifetime>>::METADATA)
-        });
 
         let single = quote! {
             #[automatically_derived]
             impl #info_sg_impl #macro_prelude::SingleAccountSet<#info_lifetime> for #ident #ty_generics #single_where {
-                const METADATA: #macro_prelude::SingleAccountSetMetadata = #metadata;
                 fn account_info(&self) -> &#account_info<#info_lifetime> {
                     <#field_ty as #macro_prelude::SingleAccountSet<#info_lifetime>>::account_info(&self.#field_name)
                 }

@@ -3,6 +3,7 @@
 
 #![feature(ptr_metadata)]
 #![feature(associated_type_defaults)]
+#![feature(trivial_bounds)]
 #![cfg_attr(not(rust_1_75), feature(pointer_byte_offsets))]
 #![cfg_attr(not(rust_1_76), feature(type_name_of_val))]
 #![warn(
@@ -55,7 +56,6 @@ pub mod instruction;
 pub mod prelude;
 pub mod program;
 pub mod syscalls;
-pub mod unit_enum_from_repr;
 pub mod unsize;
 pub mod util;
 
@@ -82,7 +82,6 @@ mod tests {
     use crate::idl::ProgramToIdl;
     use crate::program::StarFrameProgram;
     use solana_program::pubkey::Pubkey;
-    use star_frame_idl::{IdlDefinition, Version};
 
     #[derive(StarFrameProgram)]
     #[program(
@@ -92,17 +91,9 @@ mod tests {
     )]
     pub struct MyProgram;
 
-    impl ProgramToIdl for MyProgram {
-        const VERSION: Version = Version {
-            major: 0,
-            minor: 0,
-            patch: 0,
-        };
-        fn program_to_idl() -> Result<IdlDefinition> {
-            unimplemented!()
-        }
-        fn idl_namespace() -> &'static str {
-            "my_program"
-        }
+    #[test]
+    fn test_idl() {
+        let idl = MyProgram::program_to_idl().unwrap();
+        println!("{}", serde_json::to_string_pretty(&idl).unwrap());
     }
 }
