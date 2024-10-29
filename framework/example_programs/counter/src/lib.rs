@@ -39,7 +39,7 @@ pub struct CreateCounterIx {
 #[derive(AccountSet)]
 pub struct CreateCounterAccounts<'info> {
     #[account_set(funder)]
-    pub funder: Signer<Writable<SystemAccount<'info>>>,
+    pub funder: Signer<Mut<SystemAccount<'info>>>,
     pub owner: SystemAccount<'info>,
     #[validate(arg = (
         CreateIfNeeded(()),
@@ -92,7 +92,7 @@ pub struct UpdateCounterSignerIx;
 pub struct UpdateCounterSignerAccounts<'info> {
     pub signer: Signer<SystemAccount<'info>>,
     pub new_signer: SystemAccount<'info>,
-    pub counter: Writable<DataAccount<'info, CounterAccount>>,
+    pub counter: Mut<DataAccount<'info, CounterAccount>>,
 }
 
 impl<'info> UpdateCounterSignerAccounts<'info> {
@@ -140,7 +140,7 @@ pub struct CountIx {
 #[validate(extra_validation = self.validate())]
 pub struct CountAccounts<'info> {
     pub owner: Signer<SystemAccount<'info>>,
-    pub counter: Writable<DataAccount<'info, CounterAccount>>,
+    pub counter: Mut<DataAccount<'info, CounterAccount>>,
 }
 
 impl<'info> CountAccounts<'info> {
@@ -189,9 +189,9 @@ pub struct CloseCounterAccounts<'info> {
     #[validate(arg = &self.counter.data()?.signer)]
     pub signer: Signer<SystemAccount<'info>>,
     #[account_set(recipient)]
-    pub funds_to: Writable<SystemAccount<'info>>,
+    pub funds_to: Mut<SystemAccount<'info>>,
     #[cleanup(arg = CloseAccountAuto)]
-    pub counter: Writable<WrappedCounter<'info>>,
+    pub counter: Mut<WrappedCounter<'info>>,
 }
 
 impl StarFrameInstruction for CloseCounterIx {

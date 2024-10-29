@@ -1,7 +1,7 @@
 pub mod macro_prelude {
     pub use crate::account_set::{
         AccountSet, CanInitAccount, CanSetSeeds, HasOwnerProgram, HasProgramAccount, HasSeeds,
-        ProgramAccount, SignedAccount, SingleAccountSet, SingleAccountSetMetadata, WritableAccount,
+        ProgramAccount, SignedAccount, SingleAccountSet, WritableAccount,
     };
     pub use crate::instruction::{
         Instruction, InstructionDiscriminant, InstructionSet, StarFrameInstruction,

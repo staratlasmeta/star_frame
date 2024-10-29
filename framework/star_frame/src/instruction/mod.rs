@@ -11,7 +11,7 @@ mod no_op;
 pub mod un_callable;
 
 /// A set of instructions that can be used as input to a program. This can be derived using the
-/// [`star_frame_instruction_set`] macro on an enum. If implemented manually, [`Self::handle_ix`] should
+/// [`star_frame_proc::InstructionSet`] macro on an enum. If implemented manually, [`Self::handle_ix`] should
 /// probably match on each of its instructions discriminants and call the appropriate instruction on a match.
 pub trait InstructionSet {
     /// The discriminant type used by this program's instructions.

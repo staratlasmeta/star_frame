@@ -1,5 +1,4 @@
 #![allow(clippy::let_and_return)]
-use proc_macro2::TokenStream;
 mod account_set;
 mod align1;
 mod hash;
@@ -9,30 +8,13 @@ mod instruction_set;
 mod program;
 mod program_account;
 mod solana_pubkey;
-mod unit_enum_from_repr;
 mod unsize;
 mod util;
 
-use crate::align1::derive_align1_impl;
-use crate::unit_enum_from_repr::unit_enum_from_repr_impl;
-use proc_macro_crate::{crate_name, FoundCrate};
 use proc_macro_error::proc_macro_error;
-use quote::{format_ident, quote, ToTokens};
-use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
-use syn::token::{Comma, Token};
-use syn::{parenthesized, parse_macro_input, token, DeriveInput, Ident, Item, ItemEnum, LitStr};
-
-fn get_crate_name() -> TokenStream {
-    let generator_crate = crate_name("star_frame").expect("Could not find `star_frame`");
-    match generator_crate {
-        FoundCrate::Itself => quote! { star_frame },
-        FoundCrate::Name(name) => {
-            let ident = format_ident!("{}", name);
-            quote! { ::#ident }
-        }
-    }
-}
+use syn::token::Comma;
+use syn::{parse_macro_input, DeriveInput, Item, ItemEnum, LitStr};
 
 #[proc_macro_error]
 #[proc_macro_derive(
@@ -109,77 +91,12 @@ pub fn derive_get_seeds(input: proc_macro::TokenStream) -> proc_macro::TokenStre
     ));
     out.into()
 }
-/// Similar to strum's `FromRepr` derive but includes a trait for generic implementations and does not support non-unit enums.
-#[proc_macro_error]
-#[proc_macro_derive(UnitEnumFromRepr)]
-pub fn derive_unit_enum_from_repr(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let out = unit_enum_from_repr_impl(parse_macro_input!(input as DeriveInput));
-    out.into()
-}
-struct IdentWithArgs<A> {
-    ident: Ident,
-    args: Option<IdentArg<A>>,
-}
-
-impl<A> Parse for IdentWithArgs<A>
-where
-    A: Parse + Token,
-{
-    fn parse(input: ParseStream) -> syn::Result<Self> {
-        Ok(Self {
-            ident: input.parse()?,
-            args: if input.peek(token::Paren) {
-                Some(input.parse()?)
-            } else {
-                None
-            },
-        })
-    }
-}
-impl<A> ToTokens for IdentWithArgs<A>
-where
-    A: ToTokens,
-{
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.ident.to_tokens(tokens);
-        self.args.to_tokens(tokens);
-    }
-}
-struct IdentArg<A> {
-    paren: token::Paren,
-    arg: Option<A>,
-}
-
-impl<A> Parse for IdentArg<A>
-where
-    A: Parse + Token,
-{
-    fn parse(input: ParseStream) -> syn::Result<Self> {
-        let content;
-
-        Ok(Self {
-            paren: parenthesized!(content in input),
-            arg: content.parse()?,
-        })
-    }
-}
-
-impl<A> ToTokens for IdentArg<A>
-where
-    A: ToTokens,
-{
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.paren.surround(tokens, |tokens| {
-            self.arg.to_tokens(tokens);
-        });
-    }
-}
 
 /// Derives `Align1` for a valid type.
 #[proc_macro_error]
 #[proc_macro_derive(Align1)]
 pub fn derive_align1(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    derive_align1_impl(parse_macro_input!(item as DeriveInput)).into()
+    align1::derive_align1_impl(parse_macro_input!(item as DeriveInput)).into()
 }
 
 /// Derives the `InstructionSet` trait for an enum of instructions.
@@ -285,6 +202,7 @@ pub fn program_account(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
 ///     closed_account_discriminant = [u8::MAX; 8],
 ///     no_entrypoint,
 ///     no_setup,
+///     skip_idl
 /// )]
 /// struct MyProgram;
 /// ```
@@ -308,12 +226,12 @@ pub fn program_account(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
 ///     account_discriminant = <ty>,
 ///     closed_account_discriminant = <expr>,
 ///     no_entrypoint,
-///     no_setup
+///     no_setup,
+///     skip_idl
 /// )]
 /// ```
 /// - `instruction_set` - The enum that implements `InstructionSet` for the program. If the instruction set has a
-/// lifetime (which it will if implemented with the [`macro@star_frame_instruction_set`] macro), it should be
-/// passed in as `'static`.
+/// lifetime, it should be passed in as `'static`.
 /// - `id` - The program id for the program. This can be either a literal string in base58 ("AABBCC42")
 /// or an expression that resolves to a `Pubkey`
 /// - `account_discriminant` - The `AccountDiscriminant` type used for the program. Defaults to `[u8; 8]` (similarly to Anchor)
@@ -321,17 +239,12 @@ pub fn program_account(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
 /// - `no_entrypoint` - If present, the macro will not generate an entrypoint for the program.
 /// While the generated entrypoint is already feature gated, this may be useful in some cases where features aren't convenient.
 /// - `no_setup` - If present, the macro will not call the `program_setup!` macro. This is useful in libraries that may contain multiple programs.
+/// - `skip_idl` - If present, the macro will not generate a `ProgramToIdl` implementation for the program.
 #[proc_macro_error]
 #[proc_macro_derive(StarFrameProgram, attributes(program))]
 pub fn program(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let out = program::program_impl(parse_macro_input!(input as DeriveInput));
     out.into()
-}
-
-// ---- Copied solana-program macros to use `star_frame::solana_program` path  ----
-#[proc_macro]
-pub fn pubkey(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    solana_pubkey::pubkey_impl(input)
 }
 
 #[proc_macro_error]
@@ -342,25 +255,6 @@ pub fn unsized_type(
 ) -> proc_macro::TokenStream {
     let out = unsize::unsized_type_impl(parse_macro_input!(item as Item), args.into());
     out.into()
-}
-
-/// Takes in multiple string literals and returns the first 8 bytes of its sha256 hash.
-/// The strings will be concatenated with a `:` separator prior to hashing if multiple are passed in.
-///
-/// # Example
-/// ```
-/// use star_frame_proc::sighash;
-/// // hash of "Hello World!"
-/// const HELLO_WORLD: [u8; 8] = [0x7f, 0x83, 0xb1, 0x65, 0x7f, 0xf1, 0xfc, 0x53];
-/// assert_eq!(sighash!("Hello World!"), HELLO_WORLD);
-///
-/// const NAMESPACE_HASH: [u8; 8] = [0x76, 0x03, 0x6f, 0xcc, 0x93, 0xdd, 0x73, 0x10];
-/// assert_eq!(sighash!("global", "other_stuff"), NAMESPACE_HASH);
-/// ```
-#[proc_macro]
-pub fn sighash(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    hash::sighash_impl(parse_macro_input!(input with Punctuated::<LitStr, Comma>::parse_terminated))
-        .into()
 }
 
 /// Derives `TypeToIdl` for a valid type.
@@ -385,4 +279,29 @@ pub fn derive_instruction_to_idl(input: proc_macro::TokenStream) -> proc_macro::
     #[cfg(not(feature = "idl"))]
     let out = TokenStream::default();
     out.into()
+}
+
+/// Takes in multiple string literals and returns the first 8 bytes of its sha256 hash.
+/// The strings will be concatenated with a `:` separator prior to hashing if multiple are passed in.
+///
+/// # Example
+/// ```
+/// use star_frame_proc::sighash;
+/// // hash of "Hello World!"
+/// const HELLO_WORLD: [u8; 8] = [0x7f, 0x83, 0xb1, 0x65, 0x7f, 0xf1, 0xfc, 0x53];
+/// assert_eq!(sighash!("Hello World!"), HELLO_WORLD);
+///
+/// const NAMESPACE_HASH: [u8; 8] = [0x76, 0x03, 0x6f, 0xcc, 0x93, 0xdd, 0x73, 0x10];
+/// assert_eq!(sighash!("global", "other_stuff"), NAMESPACE_HASH);
+/// ```
+#[proc_macro]
+pub fn sighash(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    hash::sighash_impl(parse_macro_input!(input with Punctuated::<LitStr, Comma>::parse_terminated))
+        .into()
+}
+
+// ---- Copied solana-program macros to use `star_frame::solana_program` path  ----
+#[proc_macro]
+pub fn pubkey(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    solana_pubkey::pubkey_impl(input)
 }

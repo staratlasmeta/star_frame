@@ -1,4 +1,4 @@
-use crate::account_set::{AccountSetDecode, SingleAccountSet, SingleAccountSetMetadata};
+use crate::account_set::{AccountSetDecode, SingleAccountSet};
 use crate::syscalls::SyscallInvoke;
 use crate::Result;
 use advance::AdvanceArray;
@@ -39,7 +39,6 @@ impl<'__a, 'info> AccountSet<'info> for &'__a AccountInfo<'info> {
     }
 }
 impl<'info> SingleAccountSet<'info> for AccountInfo<'info> {
-    const METADATA: SingleAccountSetMetadata = SingleAccountSetMetadata::DEFAULT;
     fn account_info(&self) -> &AccountInfo<'info> {
         self
     }
@@ -85,7 +84,6 @@ impl<'info> SingleAccountSet<'info> for AccountInfo<'info> {
     }
 }
 impl<'__a, 'info> SingleAccountSet<'info> for &'__a AccountInfo<'info> {
-    const METADATA: SingleAccountSetMetadata = SingleAccountSetMetadata::DEFAULT;
     fn account_info(&self) -> &AccountInfo<'info> {
         self
     }

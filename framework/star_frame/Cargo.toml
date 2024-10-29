@@ -46,6 +46,3 @@ rand = "0.8.5"
 [build-dependencies]
 rustc_version = { workspace = true }
 
-[[example]]
-name = "cool_example"
-crate-type = ["staticlib"]
