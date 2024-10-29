@@ -1,12 +1,12 @@
 use crate::prelude::*;
 use std::marker::PhantomData;
 
-#[derive(AccountSet, Debug)]
+#[derive(AccountSet, Debug, Clone)]
 #[validate(
     generics = [where T: StarFrameProgram],
     extra_validation = self.check_id(),
 )]
-pub struct Program<'info, T>(AccountInfo<'info>, PhantomData<T>);
+pub struct Program<'info, T>(pub(crate) AccountInfo<'info>, pub(crate) PhantomData<T>);
 
 impl<'info, T> SingleAccountSet<'info> for Program<'info, T> {
     const METADATA: SingleAccountSetMetadata = SingleAccountSetMetadata::DEFAULT;

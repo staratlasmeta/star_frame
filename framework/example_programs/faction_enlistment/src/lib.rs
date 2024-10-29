@@ -55,10 +55,10 @@ impl StarFrameInstruction for ProcessEnlistPlayerIx {
         }
     }
 
-    fn run_instruction(
-        account_set: &mut Self::Accounts<'_, '_, '_>,
+    fn run_instruction<'info>(
+        account_set: &mut Self::Accounts<'_, '_, 'info>,
         faction_id: Self::RunArg<'_>,
-        syscalls: &mut impl SyscallInvoke,
+        syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<Self::ReturnType> {
         let clock = syscalls.get_clock()?;
         let bump = account_set.player_faction_account.access_seeds().bump;
@@ -78,21 +78,16 @@ impl StarFrameInstruction for ProcessEnlistPlayerIx {
 #[account_set(skip_default_idl)]
 pub struct ProcessEnlistPlayer<'info> {
     /// The player faction account
-    #[validate(
-        arg = (
-            Create(CreateAccount::new(
-                &self.system_program,
-                &self.player_account,
-            )),
-            Seeds(PlayerFactionAccountSeeds {
-                player_account: *self.player_account.key()
-            }
-        ))
-    )]
+    #[validate(arg = (Create(()),
+    Seeds(PlayerFactionAccountSeeds {
+        player_account: *self.player_account.key()
+    })))]
     pub player_faction_account: Init<Seeded<DataAccount<'info, PlayerFactionData>>>,
     /// The player account
+    #[account_set(funder)]
     pub player_account: Writable<Signer<SystemAccount<'info>>>,
     /// Solana System program
+    #[account_set(system_program)]
     pub system_program: Program<'info, SystemProgram>,
 }
 #[derive(

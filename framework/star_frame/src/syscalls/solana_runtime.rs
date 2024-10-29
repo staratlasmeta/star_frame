@@ -1,6 +1,7 @@
 //! The runtime while running on Solana.
 
 use crate::prelude::*;
+use crate::syscalls::SyscallAccountCache;
 use crate::SolanaInstruction;
 use solana_program::clock::Clock;
 use solana_program::entrypoint::ProgramResult;
@@ -9,27 +10,34 @@ use solana_program::program::{
 };
 use solana_program::rent::Rent;
 use solana_program::sysvar::Sysvar;
+use std::marker::PhantomData;
 
 /// Syscalls provided by the solana runtime.
 #[derive(Debug, Clone)]
-pub struct SolanaRuntime<'a> {
+pub struct SolanaRuntime<'info> {
     /// The program id of the currently executing program.
-    pub program_id: &'a Pubkey,
+    pub program_id: Pubkey,
     rent_cache: Option<Rent>,
     clock_cache: Option<Clock>,
+    system_program: Option<Program<'info, SystemProgram>>,
+    recipient: Option<WritableInfo<'info>>,
+    funder: Option<Funder<'info>>,
 }
-impl<'a> SolanaRuntime<'a> {
+impl SolanaRuntime<'_> {
     /// Create a new solana runtime.
     #[must_use]
-    pub fn new(program_id: &'a Pubkey) -> Self {
+    pub fn new(program_id: Pubkey) -> Self {
         Self {
             program_id,
             rent_cache: None,
             clock_cache: None,
+            system_program: None,
+            recipient: None,
+            funder: None,
         }
     }
 }
-impl<'a> SyscallReturn for SolanaRuntime<'a> {
+impl SyscallReturn for SolanaRuntime<'_> {
     fn set_return_data(&mut self, data: &[u8]) {
         set_return_data(data);
     }
@@ -38,7 +46,7 @@ impl<'a> SyscallReturn for SolanaRuntime<'a> {
         get_return_data()
     }
 }
-impl<'b> SyscallInvoke for SolanaRuntime<'b> {
+impl<'info> SyscallInvoke<'info> for SolanaRuntime<'info> {
     fn invoke(
         &mut self,
         instruction: &SolanaInstruction,
@@ -103,9 +111,9 @@ impl<'b> SyscallInvoke for SolanaRuntime<'b> {
         invoke_signed_unchecked(instruction, accounts, signers_seeds)
     }
 }
-impl<'a> SyscallCore for SolanaRuntime<'a> {
+impl<'info> SyscallCore for SolanaRuntime<'info> {
     fn current_program_id(&self) -> &Pubkey {
-        self.program_id
+        &self.program_id
     }
 
     fn get_rent(&mut self) -> Result<Rent, ProgramError> {
@@ -128,5 +136,33 @@ impl<'a> SyscallCore for SolanaRuntime<'a> {
             }
             Some(clock) => Ok(clock),
         }
+    }
+}
+
+impl<'info> SyscallAccountCache<'info> for SolanaRuntime<'info> {
+    fn get_system_program(&self) -> Option<&Program<'info, SystemProgram>> {
+        self.system_program.as_ref()
+    }
+
+    fn set_system_program(&mut self, program: Program<'info, SystemProgram>) {
+        let info = program.account_info_cloned();
+        self.system_program.replace(Program(info, PhantomData));
+    }
+
+    fn get_funder(&self) -> Option<&Funder<'info>> {
+        self.funder.as_ref()
+    }
+
+    fn set_funder(&mut self, funder: &(impl SignedAccount<'info> + WritableAccount<'info>)) {
+        self.funder.replace(Funder::new(funder));
+    }
+
+    fn get_recipient(&self) -> Option<&WritableInfo<'info>> {
+        self.recipient.as_ref()
+    }
+
+    fn set_recipient(&mut self, recipient: &impl WritableAccount<'info>) {
+        self.recipient
+            .replace(Writable(recipient.account_info_cloned()));
     }
 }

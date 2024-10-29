@@ -31,7 +31,7 @@ pub trait StarFrameProgram {
             program_id,
             accounts,
             instruction_data,
-            &mut SolanaRuntime::new(program_id),
+            &mut SolanaRuntime::new(*program_id),
         )
         .map_err(crate::errors::handle_error)
     }

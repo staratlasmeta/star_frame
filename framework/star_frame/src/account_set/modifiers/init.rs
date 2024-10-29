@@ -1,6 +1,8 @@
 use crate::prelude::*;
+use anyhow::Context;
 use derivative::Derivative;
 use derive_more::{Deref, DerefMut};
+use star_frame::syscalls::SyscallAccountCache;
 use star_frame_proc::AccountSet;
 use std::fmt::Debug;
 
@@ -107,28 +109,6 @@ where
     type Seeds = T::Seeds;
 }
 
-pub trait InitCreateArg<'info> {
-    type StarFrameInitArg;
-    type FunderAccount: SignedAccount<'info> + WritableAccount<'info>;
-
-    fn system_program(&self) -> &Program<'info, SystemProgram>;
-
-    fn split<'a>(
-        &'a mut self,
-    ) -> CreateSplit<'a, 'info, Self::StarFrameInitArg, Self::FunderAccount>;
-}
-#[derive(Derivative)]
-#[derivative(
-    Debug(bound = "IA: Debug, FA: Debug",),
-    Clone(bound = "IA: Clone"),
-    Copy(bound = "IA: Copy")
-)]
-pub struct CreateSplit<'a, 'info: 'a, IA, FA> {
-    pub arg: IA,
-    pub system_program: &'a Program<'info, SystemProgram>,
-    pub funder: &'a FA,
-}
-
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
 #[repr(transparent)]
 pub struct Create<T>(pub T);
@@ -138,49 +118,50 @@ pub struct CreateIfNeeded<T>(pub T);
 
 #[derive(Derivative)]
 #[derivative(Debug(bound = "A: Debug, Program<'info, SystemProgram>: Debug, WT: Debug"))]
-pub struct CreateAccount<'a, 'info, A, WT> {
-    arg: Option<A>,
-    system_program: &'a Program<'info, SystemProgram>,
-    funder: &'a WT,
+pub struct CreateAccount<'info, A, WT> {
+    pub(crate) arg: A,
+    pub(crate) system_program: Program<'info, SystemProgram>,
+    pub(crate) funder: WT,
 }
 
-impl<'a, 'info, WT> CreateAccount<'a, 'info, Zeroed, WT> {
-    pub fn new(system_program: &'a Program<'info, SystemProgram>, funder: &'a WT) -> Self {
+impl<'info, WT: Clone> CreateAccount<'info, Zeroed, WT> {
+    pub fn new(system_program: &Program<'info, SystemProgram>, funder: &WT) -> Self {
         Self::new_with_arg(Zeroed, system_program, funder)
     }
 }
 
-impl<'a, 'info, A, WT> CreateAccount<'a, 'info, A, WT> {
+impl<'info> CreateAccount<'info, Zeroed, Funder<'info>> {
+    pub fn new_from_syscalls(syscalls: &impl SyscallAccountCache<'info>) -> Result<Self> {
+        Self::new_with_arg_from_syscalls(Zeroed, syscalls)
+    }
+}
+
+impl<'info, A, WT: Clone> CreateAccount<'info, A, WT> {
     pub fn new_with_arg(
         arg: A,
-        system_program: &'a Program<'info, SystemProgram>,
-        funder: &'a WT,
+        system_program: &Program<'info, SystemProgram>,
+        funder: &WT,
     ) -> Self {
         Self {
-            arg: Some(arg),
-            system_program,
-            funder,
+            arg,
+            system_program: system_program.clone(),
+            funder: funder.clone(),
         }
     }
 }
-impl<'a, 'info, A, WT: SignedAccount<'info> + WritableAccount<'info>> InitCreateArg<'info>
-    for CreateAccount<'a, 'info, A, WT>
-{
-    type StarFrameInitArg = A;
-    type FunderAccount = WT;
 
-    fn system_program(&self) -> &'a Program<'info, SystemProgram> {
-        self.system_program
-    }
-
-    fn split<'b>(
-        &'b mut self,
-    ) -> CreateSplit<'b, 'info, Self::StarFrameInitArg, Self::FunderAccount> {
-        CreateSplit {
-            arg: self.arg.take().unwrap(),
-            system_program: self.system_program,
-            funder: self.funder,
-        }
+impl<'info, A> CreateAccount<'info, A, Funder<'info>> {
+    pub fn new_with_arg_from_syscalls(
+        arg: A,
+        syscalls: &impl SyscallAccountCache<'info>,
+    ) -> Result<Self> {
+        let system_program = syscalls
+            .get_system_program()
+            .context("Missing `system_program` for CreateAccount auto")?;
+        let funder = syscalls
+            .get_funder()
+            .context("Missing `funder` for CreateAccount auto")?;
+        Ok(Self::new_with_arg(arg, system_program, funder))
     }
 }
 

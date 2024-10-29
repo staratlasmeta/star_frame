@@ -17,12 +17,15 @@ pub trait ProgramAccount {
     const DISCRIMINANT: <Self::OwnerProgram as StarFrameProgram>::AccountDiscriminant;
 }
 
-#[derive(Debug, Derivative)]
-#[derivative(Copy(bound = ""), Clone(bound = ""))]
+#[derive(Debug, Derivative, Copy, Clone)]
+// #[derivative(Copy(bound = ""), Clone(bound = ""))]
 pub struct NormalizeRent<'a, 'info, F> {
     pub system_program: &'a Program<'info, SystemProgram>,
     pub funder: &'a F,
 }
+
+#[derive(Debug, Copy, Clone)]
+pub struct NormalizeRentAuto;
 
 #[derive(Debug, Copy, Clone)]
 pub struct RefundRent<'a, F> {
@@ -30,19 +33,20 @@ pub struct RefundRent<'a, F> {
 }
 
 #[derive(Debug, Copy, Clone)]
+pub struct RefundRentAuto;
+
+#[derive(Debug, Copy, Clone)]
 pub struct CloseAccount<'a, F> {
     pub recipient: &'a F,
 }
 
+#[derive(Debug, Copy, Clone)]
+pub struct CloseAccountAuto;
+
 #[derive(AccountSet, Debug)]
-#[validate(extra_validation = self.validate())]
 #[validate(
-    id = "address", 
-    arg = &Pubkey,
-    extra_validation = {
-        anyhow::ensure!(self.key() == arg);
-        self.validate()
-    }
+    generics = [<A> where AccountInfo<'info>: AccountSetValidate<'info, A>], arg = A,
+    extra_validation = self.validate()
 )]
 #[cleanup(extra_cleanup = self.check_cleanup(syscalls))]
 #[cleanup(
@@ -52,10 +56,27 @@ pub struct CloseAccount<'a, F> {
     extra_cleanup = self.normalize_rent(arg.funder, arg.system_program, syscalls)
 )]
 #[cleanup(
+    id = "normalize_rent_auto",
+    arg = NormalizeRentAuto,
+    extra_cleanup = {
+        let funder = syscalls.get_funder().context("Missing `funder` for NormalizeRentAuto")?.clone();
+        let system_program = syscalls.get_system_program().context("Missing `system_program` for NormalizeRentAuto")?.clone();
+        self.normalize_rent(&funder, &system_program, syscalls)
+    }
+)]
+#[cleanup(
     id = "refund_rent",
     generics = [<'a, F> where F: WritableAccount<'info>],
     arg = RefundRent<'a, F>,
     extra_cleanup = self.refund_rent(arg.recipient, syscalls)
+)]
+#[cleanup(
+    id = "refund_rent_auto",
+    arg = RefundRentAuto,
+    extra_cleanup = {
+        let recipient = syscalls.get_recipient().context("Missing `recipient` for RefundRentAuto")?.clone();
+        self.refund_rent(&recipient, syscalls)
+    }
 )]
 #[cleanup(
     id = "close_account",
@@ -63,7 +84,16 @@ pub struct CloseAccount<'a, F> {
     arg = CloseAccount<'a, F>,
     extra_cleanup = self.close(arg.recipient)
 )]
+#[cleanup(
+    id = "close_account_auto",
+    arg = CloseAccountAuto,
+    extra_cleanup = {
+        let recipient = syscalls.get_recipient().context("Missing `recipient` for CloseAccountAuto")?;
+        self.close(recipient)
+    }
+)]
 pub struct DataAccount<'info, T: ProgramAccount + UnsizedType + ?Sized> {
+    #[validate(arg = arg)]
     info: AccountInfo<'info>,
     phantom_t: PhantomData<T>,
 }
@@ -158,7 +188,7 @@ where
         &mut self,
         funder: &(impl WritableAccount<'info> + SignedAccount<'info>),
         system_program: &Program<'info, SystemProgram>,
-        syscalls: &mut impl SyscallInvoke,
+        syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<()> {
         normalize_rent(self.account_info(), funder, system_program, syscalls)
     }
@@ -167,7 +197,7 @@ where
     pub fn refund_rent(
         &mut self,
         recipient: &impl WritableAccount<'info>,
-        sys_calls: &mut impl SyscallInvoke,
+        sys_calls: &mut impl SyscallInvoke<'info>,
     ) -> Result<()> {
         refund_rent(self.account_info(), recipient, sys_calls)
     }
@@ -215,25 +245,73 @@ where
     type Seeds = T::Seeds;
 }
 
-impl<'info, T: ProgramAccount + UnsizedType + ?Sized, A> CanInitAccount<'info, Create<A>>
+impl<'info, T: ProgramAccount + UnsizedType + ?Sized> CanInitAccount<'info, Create<()>>
     for DataAccount<'info, T>
 where
-    A: InitCreateArg<'info>,
-    T: UnsizedInit<A::StarFrameInitArg>,
+    T: UnsizedInit<Zeroed>,
 {
     fn init(
         &mut self,
-        mut arg: Create<A>,
-        syscalls: &mut impl SyscallInvoke,
+        _arg: Create<()>,
+        syscalls: &mut impl SyscallInvoke<'info>,
+        account_seeds: Option<Vec<&[u8]>>,
+    ) -> Result<()> {
+        let create = CreateAccount::new_from_syscalls(syscalls)?;
+        self.init(Create(create), syscalls, account_seeds)
+    }
+}
+
+impl<'info, T: ProgramAccount + UnsizedType + ?Sized, A> CanInitAccount<'info, Create<(A,)>>
+    for DataAccount<'info, T>
+where
+    T: UnsizedInit<A>,
+{
+    fn init(
+        &mut self,
+        arg: Create<(A,)>,
+        syscalls: &mut impl SyscallInvoke<'info>,
+        account_seeds: Option<Vec<&[u8]>>,
+    ) -> Result<()> {
+        let create = CreateAccount::new_with_arg_from_syscalls(arg.0 .0, syscalls)?;
+        self.init(Create(create), syscalls, account_seeds)
+    }
+}
+
+impl<'info, T: ProgramAccount + UnsizedType + ?Sized> CanInitAccount<'info, CreateIfNeeded<()>>
+    for DataAccount<'info, T>
+where
+    T: UnsizedInit<Zeroed>,
+{
+    fn init(
+        &mut self,
+        _arg: CreateIfNeeded<()>,
+        syscalls: &mut impl SyscallInvoke<'info>,
+        account_seeds: Option<Vec<&[u8]>>,
+    ) -> Result<()> {
+        let create = CreateAccount::new_from_syscalls(syscalls)?;
+        self.init(CreateIfNeeded(create), syscalls, account_seeds)
+    }
+}
+
+impl<'info, T: ProgramAccount + UnsizedType + ?Sized, A, WT>
+    CanInitAccount<'info, Create<CreateAccount<'info, A, WT>>> for DataAccount<'info, T>
+where
+    T: UnsizedInit<A>,
+    WT: SignedAccount<'info> + WritableAccount<'info>,
+{
+    fn init(
+        &mut self,
+        arg: Create<CreateAccount<'info, A, WT>>,
+        syscalls: &mut impl SyscallInvoke<'info>,
         account_seeds: Option<Vec<&[u8]>>,
     ) -> Result<()> {
         self.check_writable()
             .context("InitAccount must be writable")?;
-        let CreateSplit {
+        let CreateAccount {
             arg,
             system_program,
             funder,
-        } = arg.0.split();
+        } = arg.0;
         if self.owner() != system_program.key() || funder.owner() != system_program.key() {
             bail!(ProgramError::IllegalOwner);
         }
@@ -286,20 +364,36 @@ where
     }
 }
 
-impl<'info, T: ProgramAccount + UnsizedType + ?Sized, A> CanInitAccount<'info, CreateIfNeeded<A>>
+impl<'info, T: ProgramAccount + UnsizedType + ?Sized, A> CanInitAccount<'info, CreateIfNeeded<(A,)>>
     for DataAccount<'info, T>
 where
-    A: InitCreateArg<'info>,
-    T: UnsizedInit<A::StarFrameInitArg>,
+    T: UnsizedInit<A>,
 {
     fn init(
         &mut self,
-        arg: CreateIfNeeded<A>,
-        syscalls: &mut impl SyscallInvoke,
+        arg: CreateIfNeeded<(A,)>,
+        syscalls: &mut impl SyscallInvoke<'info>,
+        account_seeds: Option<Vec<&[u8]>>,
+    ) -> Result<()> {
+        let create = CreateAccount::new_with_arg_from_syscalls(arg.0 .0, syscalls)?;
+        self.init(CreateIfNeeded(create), syscalls, account_seeds)
+    }
+}
+
+impl<'info, T: ProgramAccount + UnsizedType + ?Sized, A, WT>
+    CanInitAccount<'info, CreateIfNeeded<CreateAccount<'info, A, WT>>> for DataAccount<'info, T>
+where
+    T: UnsizedInit<A>,
+    WT: SignedAccount<'info> + WritableAccount<'info>,
+{
+    fn init(
+        &mut self,
+        arg: CreateIfNeeded<CreateAccount<'info, A, WT>>,
+        syscalls: &mut impl SyscallInvoke<'info>,
         account_seeds: Option<Vec<&[u8]>>,
     ) -> Result<()> {
         let init_create = arg.0;
-        if self.owner() == init_create.system_program().key()
+        if self.owner() == init_create.system_program.key()
             || self.account_info().data.borrow_mut()
                 [..size_of::<<T::OwnerProgram as StarFrameProgram>::AccountDiscriminant>()]
                 .iter()

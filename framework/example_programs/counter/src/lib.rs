@@ -34,15 +34,16 @@ pub struct CreateCounterIx {
 }
 
 #[derive(AccountSet)]
-#[account_set(skip_default_idl)]
 pub struct CreateCounterAccounts<'info> {
+    #[account_set(funder)]
     pub funder: Signer<Writable<SystemAccount<'info>>>,
     pub owner: SystemAccount<'info>,
     #[validate(arg = (
-        CreateIfNeeded(CreateAccount::new(&self.system_program, &self.funder)),
+        CreateIfNeeded(()),
         Seeds(CounterAccountSeeds { owner: *self.owner.key(), }),
     ))]
     pub counter: Init<Seeded<DataAccount<'info, CounterAccount>>>,
+    #[account_set(system_program)]
     pub system_program: Program<'info, SystemProgram>,
 }
 
@@ -63,10 +64,10 @@ impl StarFrameInstruction for CreateCounterIx {
         }
     }
 
-    fn run_instruction(
-        account_set: &mut Self::Accounts<'_, '_, '_>,
+    fn run_instruction<'info>(
+        account_set: &mut Self::Accounts<'_, '_, 'info>,
         start_at: Self::RunArg<'_>,
-        _syscalls: &mut impl SyscallInvoke,
+        _syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<Self::ReturnType> {
         *account_set.counter.data_mut()? = CounterAccount {
             version: 0,
@@ -114,10 +115,10 @@ impl StarFrameInstruction for UpdateCounterSignerIx {
         }
     }
 
-    fn run_instruction(
-        account_set: &mut Self::Accounts<'_, '_, '_>,
+    fn run_instruction<'info>(
+        account_set: &mut Self::Accounts<'_, '_, 'info>,
         _run_args: Self::RunArg<'_>,
-        _syscalls: &mut impl SyscallInvoke,
+        _syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<Self::ReturnType> {
         let mut counter = account_set.counter.data_mut()?;
         counter.signer = *account_set.new_signer.key();
@@ -157,16 +158,13 @@ impl StarFrameInstruction for CountIx {
     type Accounts<'b, 'c, 'info> = CountAccounts<'info>;
 
     fn split_to_args<'a>(r: &Self) -> IxArgs<Self> {
-        IxArgs {
-            run: (r.amount, r.subtract),
-            ..Default::default()
-        }
+        IxArgs::run((r.amount, r.subtract))
     }
 
-    fn run_instruction(
-        account_set: &mut Self::Accounts<'_, '_, '_>,
+    fn run_instruction<'info>(
+        account_set: &mut Self::Accounts<'_, '_, 'info>,
         (amount, subtract): Self::RunArg<'_>,
-        _syscalls: &mut impl SyscallInvoke,
+        _syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<Self::ReturnType> {
         let mut counter = account_set.counter.data_mut()?;
         let new_count: u64 = if subtract {
@@ -184,23 +182,13 @@ impl StarFrameInstruction for CountIx {
 pub struct CloseCounterIx {}
 
 #[derive(AccountSet, Debug)]
-#[validate(extra_validation = self.validate())]
 pub struct CloseCounterAccounts<'info> {
+    #[validate(arg = &self.counter.data()?.signer)]
     pub signer: Signer<SystemAccount<'info>>,
+    #[account_set(recipient)]
     pub funds_to: Writable<SystemAccount<'info>>,
-    #[cleanup( arg = CloseAccount {
-        recipient: &self.funds_to,
-    })]
+    #[cleanup(arg = CloseAccountAuto)]
     pub counter: Writable<DataAccount<'info, CounterAccount>>,
-}
-
-impl<'info> CloseCounterAccounts<'info> {
-    fn validate(&self) -> Result<()> {
-        if *self.signer.key() != self.counter.data()?.signer {
-            bail!("Incorrect signer");
-        }
-        Ok(())
-    }
 }
 
 impl StarFrameInstruction for CloseCounterIx {
@@ -215,10 +203,10 @@ impl StarFrameInstruction for CloseCounterIx {
         Default::default()
     }
 
-    fn run_instruction(
-        _account_set: &mut Self::Accounts<'_, '_, '_>,
+    fn run_instruction<'info>(
+        _account_set: &mut Self::Accounts<'_, '_, 'info>,
         _run_args: Self::RunArg<'_>,
-        _syscalls: &mut impl SyscallInvoke,
+        _syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<Self::ReturnType> {
         Ok(())
     }

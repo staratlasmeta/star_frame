@@ -25,6 +25,8 @@ pub struct Writable<T>(
     pub(crate) T,
 );
 
+pub type WritableInfo<'info> = Writable<AccountInfo<'info>>;
+
 impl<'info, T> SingleAccountSet<'info> for Writable<T>
 where
     T: SingleAccountSet<'info>,
@@ -67,7 +69,7 @@ impl<'info, A, T> CanSetSeeds<'info, A> for Writable<T>
 where
     T: CanSetSeeds<'info, A>,
 {
-    fn set_seeds(&mut self, arg: &A, syscalls: &mut impl SyscallInvoke) -> Result<()> {
+    fn set_seeds(&mut self, arg: &A, syscalls: &mut impl SyscallInvoke<'info>) -> Result<()> {
         T::set_seeds(&mut self.0, arg, syscalls)
     }
 }
@@ -79,7 +81,7 @@ where
     fn init(
         &mut self,
         arg: A,
-        syscalls: &mut impl SyscallInvoke,
+        syscalls: &mut impl SyscallInvoke<'info>,
         account_seeds: Option<Vec<&[u8]>>,
     ) -> Result<()> {
         self.0.init(arg, syscalls, account_seeds)

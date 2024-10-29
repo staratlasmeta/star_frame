@@ -6,11 +6,11 @@ use solana_program::pubkey::Pubkey;
 impl InstructionSet for () {
     type Discriminant = ();
 
-    fn handle_ix(
+    fn handle_ix<'info>(
         _program_id: &Pubkey,
-        _accounts: &[AccountInfo],
+        _accounts: &[AccountInfo<'info>],
         _ix_bytes: &[u8],
-        _syscalls: &mut impl Syscalls,
+        _syscalls: &mut impl Syscalls<'info>,
     ) -> anyhow::Result<()> {
         Ok(())
     }
