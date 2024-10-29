@@ -2,25 +2,9 @@ use crate::account_set::{AccountSet, AccountSetCleanup, AccountSetDecode, Accoun
 use crate::syscalls::SyscallInvoke;
 use crate::Result;
 use solana_program::account_info::AccountInfo;
-use solana_program::instruction::AccountMeta;
 use std::marker::PhantomData;
 
-impl<'info, T> AccountSet<'info> for PhantomData<T>
-where
-    T: ?Sized,
-{
-    fn try_to_accounts<'a, E>(
-        &'a self,
-        _add_account: impl FnMut(&'a AccountInfo<'info>) -> crate::Result<(), E>,
-    ) -> Result<(), E>
-    where
-        'info: 'a,
-    {
-        Ok(())
-    }
-
-    fn to_account_metas(&self, _add_account_meta: impl FnMut(AccountMeta)) {}
-}
+impl<'info, T> AccountSet<'info> for PhantomData<T> where T: ?Sized {}
 impl<'a, 'info, T> AccountSetDecode<'a, 'info, ()> for PhantomData<T>
 where
     T: ?Sized,

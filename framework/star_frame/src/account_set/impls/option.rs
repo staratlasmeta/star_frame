@@ -3,34 +3,10 @@ use crate::syscalls::SyscallInvoke;
 use crate::Result;
 use anyhow::bail;
 use solana_program::account_info::AccountInfo;
-use solana_program::instruction::AccountMeta;
 use solana_program::msg;
 use solana_program::program_error::ProgramError;
 
-impl<'info, A> AccountSet<'info> for Option<A>
-where
-    A: AccountSet<'info>,
-{
-    fn try_to_accounts<'a, E>(
-        &'a self,
-        add_account: impl FnMut(&'a AccountInfo<'info>) -> crate::Result<(), E>,
-    ) -> crate::Result<(), E>
-    where
-        'info: 'a,
-    {
-        if let Some(s) = self {
-            s.try_to_accounts(add_account)
-        } else {
-            Ok(())
-        }
-    }
-
-    fn to_account_metas(&self, add_account_meta: impl FnMut(AccountMeta)) {
-        if let Some(s) = self {
-            s.to_account_metas(add_account_meta);
-        }
-    }
-}
+impl<'info, A> AccountSet<'info> for Option<A> where A: AccountSet<'info> {}
 
 impl<'a, 'info, A, DArg> AccountSetDecode<'a, 'info, Option<DArg>> for Option<A>
 where
