@@ -3,6 +3,7 @@ use proc_macro2::{Ident, Span};
 use std::collections::HashMap;
 use syn::{GenericParam, Generics, Lifetime, LifetimeParam};
 
+#[derive(Debug)]
 pub struct AccountSetGenerics {
     pub main_generics: Generics,
     pub other_generics: Generics,

@@ -1,15 +1,15 @@
 use crate::account_set::generics::AccountSetGenerics;
-use crate::account_set::{AccountSetStructArgs, StrippedDeriveInput};
-use crate::util::{BetterGenerics, Paths};
+use crate::account_set::struct_impl::StepInput;
+use crate::util::{new_generic, BetterGenerics, Paths};
 use easy_proc::{find_attrs, ArgumentList};
 use proc_macro2::TokenStream;
 use proc_macro_error::abort;
 use quote::quote;
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
-use syn::{Expr, Field, LitStr, Type};
+use syn::{Expr, LitStr, Type};
 
-#[derive(ArgumentList)]
+#[derive(ArgumentList, Debug, Default)]
 struct CleanupStructArgs {
     id: Option<LitStr>,
     arg: Option<Type>,
@@ -24,13 +24,16 @@ struct CleanupFieldArgs {
 }
 
 pub(super) fn cleanups(
-    paths: &Paths,
-    input: &StrippedDeriveInput,
-    account_set_struct_args: &AccountSetStructArgs,
-    account_set_generics: &AccountSetGenerics,
-    fields: &[&Field],
-    field_name: &[TokenStream],
-    field_type: &[&Type],
+    StepInput {
+        paths,
+        input,
+        account_set_struct_args,
+        account_set_generics,
+        single_set_field,
+        field_name,
+        fields,
+        field_type,
+    }: StepInput,
 ) -> Vec<TokenStream> {
     let ident = &input.ident;
     let AccountSetGenerics {
@@ -43,6 +46,7 @@ pub(super) fn cleanups(
         result,
         syscall_invoke,
         cleanup_ident,
+        macro_prelude,
         account_set_cleanup,
         ..
     } = paths;
@@ -65,14 +69,7 @@ pub(super) fn cleanups(
         }
     }
     if !account_set_struct_args.skip_default_cleanup {
-        cleanup_ids
-            .entry(None)
-            .or_insert_with(|| CleanupStructArgs {
-                id: None,
-                arg: None,
-                generics: None,
-                extra_cleanup: None,
-            });
+        cleanup_ids.entry(None).or_insert_with(Default::default);
     }
 
     let field_cleanups = fields
@@ -104,13 +101,10 @@ pub(super) fn cleanups(
     }
 
     cleanup_ids.into_iter().map(|(id, cleanup_struct_args)|{
-        let cleanup_type: Type = cleanup_struct_args.arg.unwrap_or_else(|| syn::parse_quote!(()));
-        let cleanup_args: Vec<Expr> = field_cleanups.iter().map(|f| {
-            f.iter().find(|f| f.id.as_ref().map(LitStr::value) == id).map(|f| f.arg.clone()).unwrap_or_else(|| syn::parse_quote!(()))
-        }).collect();
-
         let (_, ty_generics, _) = main_generics.split_for_impl();
         let mut generics = other_generics.clone();
+        let mut cleanup_type: Type = syn::parse_quote!(());
+        let mut default_cleanup_arg: Expr = syn::parse_quote!(());
         if let Some(extra_generics) = cleanup_struct_args.generics.map(|g| g.into_inner()) {
             generics.params.extend(extra_generics.params);
             if let Some(extra_where_clause) = extra_generics.where_clause {
@@ -119,7 +113,25 @@ pub(super) fn cleanups(
                     .predicates
                     .extend(extra_where_clause.predicates);
             }
+        } else if let Some(single_set_field) = single_set_field {
+            let generic_arg = new_generic(main_generics);
+            default_cleanup_arg = syn::parse_quote!(arg);
+            cleanup_type = syn::parse_quote!(#generic_arg);
+            generics.params.push(syn::parse_quote!(#generic_arg));
+            let single_ty = &single_set_field.ty;
+            generics.make_where_clause().predicates.push(syn::parse_quote!(#single_ty: #account_set_cleanup<#info_lifetime, #generic_arg> + #macro_prelude::SingleAccountSet<#info_lifetime>));
         }
+        let cleanup_type = cleanup_struct_args.arg.unwrap_or(cleanup_type);
+
+        let cleanup_args: Vec<Expr> = field_cleanups
+            .iter()
+            .map(|f| {
+                f.iter()
+                    .find(|f| f.id.as_ref().map(LitStr::value) == id)
+                    .map(|f| f.arg.clone())
+                    .unwrap_or_else(|| default_cleanup_arg.clone())
+        }).collect();
+
         let (impl_generics, _, where_clause) = generics.split_for_impl();
         let extra_cleanup = cleanup_struct_args.extra_cleanup.map(|extra_validation| quote! {{ #extra_validation }?;});
 

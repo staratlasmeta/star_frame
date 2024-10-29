@@ -109,12 +109,7 @@ where
 }
 
 #[derive(Debug, AccountSet, Deref, DerefMut)]
-#[account_set(
-    skip_default_idl,
-    skip_default_validate,
-    generics = [where T: AccountSet < 'info >]
-)]
-#[decode(generics = [<A> where T: AccountSetDecode<'a, 'info, A>], arg = A)]
+#[account_set(skip_default_idl, skip_default_validate)]
 #[validate(
     id = "seeds",
     generics = [where T: AccountSetValidate<'info, ()> + SingleAccountSet<'info>],
@@ -123,7 +118,6 @@ where
 )]
 #[validate(
     id = "seeds_generic",
-    generics = [<A> where T: AccountSetValidate<'info, A> + SingleAccountSet<'info>],
     arg = (Seeds<S>, A),
     before_validation = self.set_seeds(&arg, syscalls)
 )]
@@ -135,32 +129,29 @@ where
 )]
 #[validate(
     id = "seeds_with_bump_generic",
-    generics = [<A> where T: AccountSetValidate<'info, A> + SingleAccountSet<'info>],
     arg = (SeedsWithBump<S>, A),
     before_validation = self.set_seeds(&arg, syscalls)
 )]
-#[cleanup(generics = [<A> where T: AccountSetCleanup <'info, A>], arg = A)]
 pub struct Seeded<
     T,
     S: GetSeeds + Clone = <T as HasSeeds>::Seeds,
     P: SeedProgram = <T as HasOwnerProgram>::OwnerProgram,
 > {
-    #[decode(arg = arg)]
-    #[validate(id = "seeds_generic", arg = arg.1)]
-    #[validate(id = "seeds_with_bump_generic", arg = arg.1)]
-    #[cleanup(arg = arg)]
-    #[deref]
-    #[deref_mut]
     #[single_account_set(
         skip_can_set_seeds,
         skip_signed_account,
         skip_has_seeds,
         skip_can_init_account
     )]
+    #[validate(id = "seeds_generic", arg = arg.1)]
+    #[validate(id = "seeds_with_bump_generic", arg = arg.1)]
+    #[deref]
+    #[deref_mut]
     pub(crate) account: T,
     /// Seeds of the account. Starts as `None`, and are set to `Some` after validation, during `AccountSetValidate`.
     #[account_set(skip = None)]
     pub(crate) seeds: Option<SeedsWithBump<S>>,
+    #[account_set(skip = PhantomData)]
     phantom_p: PhantomData<P>,
 }
 
@@ -319,7 +310,10 @@ mod idl_impl {
             let mut set = T::account_set_to_idl(idl_definition, arg.1)?;
             let single = set.single()?;
             if single.seeds.is_some() {
-                bail!("Seeds already set for Seeded account");
+                bail!("Seeds already set for `Seeded`. Got: {:?}", single);
+            }
+            if single.is_init {
+                bail!("`Seeded` should not wrap an init account. Wrap `Seeded` with `Init` instead. Got: {:?}", single);
             }
             let seeds = IdlFindSeeds {
                 seeds: F::find_seeds(&arg.0 .0)?,

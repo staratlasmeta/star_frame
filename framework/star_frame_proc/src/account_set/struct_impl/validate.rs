@@ -1,7 +1,6 @@
 use crate::account_set::generics::AccountSetGenerics;
-use crate::account_set::struct_impl::Requires;
-use crate::account_set::{AccountSetStructArgs, StrippedDeriveInput};
-use crate::util::{BetterGenerics, Paths};
+use crate::account_set::struct_impl::{Requires, StepInput};
+use crate::util::{new_generic, BetterGenerics, Paths};
 use daggy::Dag;
 use easy_proc::{find_attrs, ArgumentList};
 use proc_macro2::TokenStream;
@@ -9,7 +8,7 @@ use proc_macro_error::abort;
 use quote::quote;
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
-use syn::{Expr, Field, LitStr, Type};
+use syn::{Expr, LitStr, Type};
 
 #[derive(ArgumentList)]
 struct ValidateStructArgs {
@@ -20,7 +19,7 @@ struct ValidateStructArgs {
     extra_validation: Option<Expr>,
 }
 
-#[derive(ArgumentList, Clone)]
+#[derive(ArgumentList, Clone, Default)]
 struct ValidateFieldArgs {
     id: Option<LitStr>,
     #[argument(presence)]
@@ -29,26 +28,18 @@ struct ValidateFieldArgs {
     arg: Option<Expr>,
     arg_ty: Option<Type>,
 }
-impl Default for ValidateFieldArgs {
-    fn default() -> Self {
-        Self {
-            id: None,
-            skip: false,
-            requires: None,
-            arg: Some(syn::parse_quote!(())),
-            arg_ty: None,
-        }
-    }
-}
 
 pub(super) fn validates(
-    paths: &Paths,
-    input: &StrippedDeriveInput,
-    account_set_struct_args: &AccountSetStructArgs,
-    account_set_generics: &AccountSetGenerics,
-    fields: &[&Field],
-    field_name: &[TokenStream],
-    field_type: &[&Type],
+    StepInput {
+        paths,
+        input,
+        account_set_struct_args,
+        account_set_generics,
+        single_set_field,
+        field_name,
+        fields,
+        field_type,
+    }: StepInput,
 ) -> Vec<TokenStream> {
     let ident = &input.ident;
     let AccountSetGenerics {
@@ -61,6 +52,7 @@ pub(super) fn validates(
         result,
         syscall_invoke,
         validate_ident,
+        macro_prelude,
         account_set_validate,
         ..
     } = paths;
@@ -123,14 +115,11 @@ pub(super) fn validates(
     }
 
     validate_ids.into_iter().map(|(id, validate_struct_args)|{
-        let validate_type: Type = validate_struct_args.arg.unwrap_or_else(|| syn::parse_quote!(()));
         let relevant_field_validates = field_validates.iter().map(|f| f.iter().find(|f| f.id.as_ref().map(LitStr::value) == id).cloned().unwrap_or_default()).collect::<Vec<_>>();
-        let validate_args: Vec<(Expr, Type)> = relevant_field_validates.iter().map(|f| {
-            (f.arg.clone().unwrap_or_else(|| syn::parse_quote!(())), f.arg_ty.clone().unwrap_or_else(|| syn::parse_quote!(_)))
-        }).collect();
-
         let (_, ty_generics, _) = main_generics.split_for_impl();
         let mut generics = other_generics.clone();
+        let mut validate_type: Type = syn::parse_quote!(());
+        let mut default_validate_arg: Expr = syn::parse_quote!(());
         if let Some(extra_generics) = validate_struct_args.generics.map(|g| g.into_inner()) {
             generics.params.extend(extra_generics.params);
             if let Some(extra_where_clause) = extra_generics.where_clause {
@@ -139,7 +128,22 @@ pub(super) fn validates(
                     .predicates
                     .extend(extra_where_clause.predicates);
             }
+        } else if let Some(single_set_field) = single_set_field {
+            let generic_arg = new_generic(main_generics);
+            default_validate_arg = syn::parse_quote!(arg);
+            validate_type = syn::parse_quote!(#generic_arg);
+            generics.params.push(syn::parse_quote!(#generic_arg));
+            let single_ty = &single_set_field.ty;
+            generics.make_where_clause().predicates.push(syn::parse_quote!(#single_ty: #account_set_validate<#info_lifetime, #generic_arg> + #macro_prelude::SingleAccountSet<#info_lifetime>));
         }
+
+        validate_type = validate_struct_args.arg.unwrap_or(validate_type);
+
+        let validate_args: Vec<(Expr, Type)> = relevant_field_validates
+            .iter()
+            .map(|f| {
+                (f.arg.clone().unwrap_or_else(|| default_validate_arg.clone()), f.arg_ty.clone().unwrap_or_else(|| syn::parse_quote!(_)))
+        }).collect();
 
         // Cycle detection
         let mut field_id_map = HashMap::new();
