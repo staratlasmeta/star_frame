@@ -4,6 +4,7 @@ use anyhow::bail;
 use bytemuck::bytes_of;
 use derive_more::{Deref, DerefMut};
 pub use star_frame_proc::GetSeeds;
+use std::fmt::Debug;
 use std::marker::PhantomData;
 
 /// A trait for getting the seed bytes of an account.
@@ -82,12 +83,17 @@ pub struct Seeds<T>(pub T);
 /// executing program.
 #[derive(Debug, Clone, Copy)]
 pub struct CurrentProgram;
+// todo: do we really need this? Consider removing this and CurrentProgram and replacing with StarFrameProgram instead
 pub trait SeedProgram {
     fn id(sys_calls: &mut impl SyscallCore) -> Result<Pubkey>;
+    fn idl_program() -> Option<Pubkey>;
 }
 impl SeedProgram for CurrentProgram {
     fn id(sys_calls: &mut impl SyscallCore) -> Result<Pubkey> {
         Ok(*sys_calls.current_program_id())
+    }
+    fn idl_program() -> Option<Pubkey> {
+        None
     }
 }
 impl<P> SeedProgram for P
@@ -96,6 +102,9 @@ where
 {
     fn id(_syscalls: &mut impl SyscallCore) -> Result<Pubkey> {
         Ok(P::PROGRAM_ID)
+    }
+    fn idl_program() -> Option<Pubkey> {
+        Some(P::PROGRAM_ID)
     }
 }
 
@@ -294,21 +303,71 @@ where
 mod idl_impl {
     use super::*;
     use star_frame_idl::account_set::IdlAccountSetDef;
+    use star_frame_idl::seeds::IdlFindSeeds;
     use star_frame_idl::IdlDefinition;
 
-    impl<'info, T, A, S, P: SeedProgram> AccountSetToIdl<'info, A> for Seeded<T, S, P>
+    impl<'info, T, A, S, F, P: SeedProgram> AccountSetToIdl<'info, (Seeds<F>, A)> for Seeded<T, S, P>
     where
         T: AccountSetToIdl<'info, A> + SingleAccountSet<'info>,
+        S: GetSeeds,
+        F: FindIdlSeeds,
+    {
+        fn account_set_to_idl(
+            idl_definition: &mut IdlDefinition,
+            arg: (Seeds<F>, A),
+        ) -> Result<IdlAccountSetDef> {
+            let mut set = T::account_set_to_idl(idl_definition, arg.1)?;
+            let single = set.single()?;
+            if single.seeds.is_some() {
+                bail!("Seeds already set for Seeded account");
+            }
+            let seeds = IdlFindSeeds {
+                seeds: F::find_seeds(&arg.0 .0)?,
+                program: P::idl_program(),
+            };
+            single.seeds = Some(seeds);
+
+            Ok(set)
+        }
+    }
+
+    impl<'info, T, S, F, P: SeedProgram> AccountSetToIdl<'info, Seeds<F>> for Seeded<T, S, P>
+    where
+        T: AccountSetToIdl<'info, ()> + SingleAccountSet<'info>,
+        S: GetSeeds,
+        F: FindIdlSeeds,
+    {
+        fn account_set_to_idl(
+            idl_definition: &mut IdlDefinition,
+            arg: Seeds<F>,
+        ) -> Result<IdlAccountSetDef> {
+            Self::account_set_to_idl(idl_definition, (arg, ()))
+        }
+    }
+
+    impl<'info, T, S, P: SeedProgram> AccountSetToIdl<'info, ()> for Seeded<T, S, P>
+    where
+        T: AccountSetToIdl<'info, ()> + SingleAccountSet<'info>,
         S: GetSeeds,
     {
         fn account_set_to_idl(
             idl_definition: &mut IdlDefinition,
-            arg: A,
+            arg: (),
         ) -> Result<IdlAccountSetDef> {
-            // TODO: Include program
-            T::account_set_to_idl(idl_definition, arg)
-                .map(Box::new)
-                .map(IdlAccountSetDef::SeededAccount)
+            T::account_set_to_idl(idl_definition, arg)?.assert_single()
+        }
+    }
+
+    impl<'info, T, S, P: SeedProgram> AccountSetToIdl<'info, Pubkey> for Seeded<T, S, P>
+    where
+        T: AccountSetToIdl<'info, Pubkey> + SingleAccountSet<'info>,
+        S: GetSeeds,
+    {
+        fn account_set_to_idl(
+            idl_definition: &mut IdlDefinition,
+            arg: Pubkey,
+        ) -> Result<IdlAccountSetDef> {
+            T::account_set_to_idl(idl_definition, arg)?.assert_single()
         }
     }
 }
@@ -325,13 +384,15 @@ fn _unnamed_seed_structs_fail() {}
 mod tests {
     use crate::prelude::*;
 
+    use solana_program::pubkey::Pubkey;
+
     #[test]
     fn test_unit_struct() {
         #[derive(Debug, GetSeeds, Clone)]
         pub struct TestAccount {}
 
         let account = TestAccount {};
-        let seeds = account.seeds();
+        let seeds = <TestAccount as crate::prelude::GetSeeds>::seeds(&account);
         assert_eq!(seeds.len(), 0);
     }
 
@@ -390,7 +451,7 @@ mod tests {
     #[test]
     fn test_unit_with_const_seed() {
         #[derive(Debug, GetSeeds, Clone)]
-        #[seed_const(b"TEST_CONST")]
+        #[get_seeds(seed_const = b"TEST_CONST")]
         pub struct TestAccount {}
 
         let account = TestAccount {};
@@ -403,7 +464,7 @@ mod tests {
     #[test]
     fn test_one_key_with_const_seed() {
         #[derive(Debug, GetSeeds, Clone)]
-        #[seed_const(b"TEST_CONST")]
+        #[get_seeds(seed_const = b"TEST_CONST")]
         pub struct TestAccount {
             key: Pubkey,
         }
@@ -426,7 +487,7 @@ mod tests {
         }
 
         #[derive(Debug, GetSeeds, Clone)]
-        #[seed_const(Cool::DISC)]
+        #[get_seeds(seed_const = Cool::DISC)]
         pub struct TestAccount {}
 
         let account = TestAccount {};

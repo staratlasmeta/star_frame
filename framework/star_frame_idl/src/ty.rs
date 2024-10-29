@@ -25,6 +25,7 @@ pub struct IdlTypeId {
 pub struct IdlEnumVariant {
     pub name: String,
     pub discriminant: IdlDiscriminant,
+    pub description: ItemDescription,
     pub type_def: Option<IdlTypeDef>,
 }
 

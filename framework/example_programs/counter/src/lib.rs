@@ -1,8 +1,10 @@
+use star_frame::__private::macro_prelude::IdlAccountSetDef;
 use star_frame::anyhow::bail;
 use star_frame::borsh::{BorshDeserialize, BorshSerialize};
 use star_frame::derive_more::{Deref, DerefMut};
 use star_frame::prelude::*;
 use star_frame::solana_program::pubkey::Pubkey;
+use star_frame::star_frame_idl::IdlDefinition;
 
 #[derive(Align1, Pod, Zeroable, Copy, Clone, Debug, Eq, PartialEq, ProgramAccount)]
 #[program_account(seeds = CounterAccountSeeds)]
@@ -16,6 +18,7 @@ pub struct CounterAccount {
 }
 
 #[derive(AccountSet, Deref, DerefMut, Debug)]
+#[account_set(skip_default_idl)]
 #[cleanup(generics = [<A> where DataAccount<'info, CounterAccount>: AccountSetCleanup<'info, A>], arg = A)]
 #[validate(generics = [<A> where DataAccount<'info, CounterAccount>: AccountSetValidate<'info, A>], arg = A)]
 pub struct WrappedCounter<'info>(
@@ -25,8 +28,17 @@ pub struct WrappedCounter<'info>(
     DataAccount<'info, CounterAccount>,
 );
 
+impl<'info, A> AccountSetToIdl<'info, A> for WrappedCounter<'info>
+where
+    DataAccount<'info, CounterAccount>: AccountSetToIdl<'info, A>,
+{
+    fn account_set_to_idl(idl_definition: &mut IdlDefinition, arg: A) -> Result<IdlAccountSetDef> {
+        <DataAccount<'info, CounterAccount>>::account_set_to_idl(idl_definition, arg)
+    }
+}
+
 #[derive(Debug, GetSeeds, Clone)]
-#[seed_const(b"COUNTER")]
+#[get_seeds(seed_const = b"COUNTER")]
 pub struct CounterAccountSeeds {
     pub owner: Pubkey,
 }
@@ -45,6 +57,7 @@ pub struct CreateCounterAccounts<'info> {
         CreateIfNeeded(()),
         Seeds(CounterAccountSeeds { owner: *self.owner.key(), }),
     ))]
+    #[idl(arg = Seeds(FindCounterAccountSeeds { owner: seed_path("owner") }))]
     pub counter: Init<Seeded<WrappedCounter<'info>>>,
     #[account_set(system_program)]
     pub system_program: Program<'info, SystemProgram>,

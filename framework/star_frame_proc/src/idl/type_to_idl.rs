@@ -1,11 +1,13 @@
 use crate::util;
-use crate::util::{reject_generics, Paths};
+use crate::util::{
+    discriminant_vec, enum_discriminants, get_repr, reject_generics, IntegerRepr, Paths,
+};
 use easy_proc::{find_attr, ArgumentList};
 use proc_macro2::{Span, TokenStream};
-use proc_macro_error::OptionExt;
+use proc_macro_error::{abort, OptionExt};
 use quote::quote;
 use syn::spanned::Spanned;
-use syn::{parse_quote, DeriveInput, Expr, Fields, LitStr, Type};
+use syn::{parse_quote, Attribute, DataStruct, DataUnion, DeriveInput, Expr, Fields, LitStr, Type};
 
 #[derive(Debug, ArgumentList, Default)]
 pub struct TypeToIdlArgs {
@@ -37,11 +39,16 @@ pub fn derive_type_to_idl_inner(input: &DeriveInput, args: TypeToIdlArgs) -> Tok
 
     // todo: support generics maybe?
     reject_generics(input, Some("Generics are not supported yet for TypeToIdl"));
-    let data_struct = util::ensure_data_struct(input, None);
     let ident = &input.ident;
     let ident_str = LitStr::new(&ident.to_string(), Span::call_site());
     let type_docs = &util::get_docs(&input.attrs);
-    let type_def = idl_struct_type_def(data_struct);
+    let type_def = match &input.data {
+        syn::Data::Struct(DataStruct { fields, .. }) => idl_struct_type_def(fields),
+        syn::Data::Enum(data_enum) => idl_enum_type_def(data_enum, &input.attrs),
+        syn::Data::Union(DataUnion { union_token, .. }) => {
+            abort!(union_token, "Unions are not supported for TypeToIdl")
+        }
+    };
 
     let (impl_gen, ty_gen, where_clause) = input.generics.split_for_impl();
 
@@ -72,14 +79,13 @@ pub fn derive_type_to_idl_inner(input: &DeriveInput, args: TypeToIdlArgs) -> Tok
     }
 }
 
-fn idl_struct_type_def(s: &syn::DataStruct) -> TokenStream {
+fn idl_struct_type_def(fields: &Fields) -> TokenStream {
     let Paths {
         macro_prelude: prelude,
         ..
     } = &Paths::default();
-    let tuple = matches!(s.fields, Fields::Unnamed(_));
-    let idl_fields: Vec<TokenStream> = s
-        .fields
+    let tuple = matches!(fields, Fields::Unnamed(_));
+    let idl_fields: Vec<TokenStream> = fields
         .iter()
         .map(|f| {
             let path: Expr = if tuple {
@@ -108,9 +114,53 @@ fn idl_struct_type_def(s: &syn::DataStruct) -> TokenStream {
         })
         .collect();
 
-    let type_def = quote! {
+    quote! {
         #prelude::IdlTypeDef::Struct(vec![#(#idl_fields),*])
-    };
+    }
+}
 
-    type_def
+fn idl_enum_type_def(data_enum: &syn::DataEnum, attributes: &[Attribute]) -> TokenStream {
+    let Paths {
+        macro_prelude: prelude,
+        ..
+    } = &Paths::default();
+    let repr = get_repr(attributes);
+
+    if !matches!(repr.repr.as_integer(), Some(IntegerRepr::U8)) {
+        abort!(
+            repr,
+            "Enums must be `#[repr(u8)]` to be used with TypeToIdl"
+        );
+    }
+    let repr = IntegerRepr::U8;
+
+    let discriminants = enum_discriminants(data_enum.variants.iter());
+
+    let idl_variants: Vec<_> = data_enum
+        .variants
+        .iter()
+        .zip(discriminants)
+        .map(|(v, ref d)| {
+            let name = v.ident.to_string();
+            let description = util::get_docs(&v.attrs);
+            let type_def = if matches!(v.fields, Fields::Unit) {
+                quote!(None)
+            } else {
+                let def = idl_struct_type_def(&v.fields);
+                quote!(Some(#def))
+            };
+            let discriminant = discriminant_vec(d, repr);
+            quote! {
+                #prelude::IdlEnumVariant {
+                    name: #name.to_string(),
+                    discriminant: #discriminant,
+                    description: #description,
+                    type_def: #type_def,
+                }
+            }
+        })
+        .collect();
+    quote! {
+        #prelude::IdlTypeDef::Enum(vec![#(#idl_variants),*])
+    }
 }

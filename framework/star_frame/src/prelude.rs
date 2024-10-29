@@ -27,8 +27,13 @@ pub use crate::create_unit_system;
 pub use bytemuck::{CheckedBitPattern, NoUninit, Pod, Zeroable};
 
 #[cfg(feature = "idl")]
-pub use crate::idl::*;
-// idl macros
-pub use star_frame_proc::{sighash, InstructionToIdl, TypeToIdl};
+pub use crate::idl::{
+    seed_const, seed_path, AccountSetToIdl, AccountToIdl, FindIdlSeeds, InstructionSetToIdl,
+    InstructionToIdl, ProgramToIdl, TypeToIdl,
+};
+
+// ensure derive macros are in scope
+#[cfg(not(feature = "idl"))]
+pub use star_frame_proc::{InstructionToIdl, TypeToIdl};
 
 pub use std::fmt::Debug;

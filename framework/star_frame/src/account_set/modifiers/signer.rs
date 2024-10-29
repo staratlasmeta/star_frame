@@ -51,9 +51,9 @@ mod idl_impl {
             idl_definition: &mut IdlDefinition,
             arg: A,
         ) -> Result<IdlAccountSetDef> {
-            T::account_set_to_idl(idl_definition, arg)
-                .map(Box::new)
-                .map(IdlAccountSetDef::Signer)
+            let mut set = T::account_set_to_idl(idl_definition, arg)?;
+            set.single()?.signer = true;
+            Ok(set)
         }
     }
 }

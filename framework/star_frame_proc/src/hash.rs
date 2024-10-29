@@ -10,12 +10,6 @@ use syn::LitStr;
 pub const SIGHASH_GLOBAL_NAMESPACE: &str = "global";
 pub const SIGHASH_ACCOUNT_NAMESPACE: &str = "account";
 
-// Anchor's sighash function
-pub fn sighash(namespace: &str, name: &str) -> [u8; 8] {
-    let preimage = format!("{}:{}", namespace, name);
-    hash_str(&preimage)
-}
-
 pub fn hash_str(s: &str) -> [u8; 8] {
     let mut hasher = Sha256::default();
     hasher.update(s.as_bytes());

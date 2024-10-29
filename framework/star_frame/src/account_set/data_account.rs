@@ -126,13 +126,11 @@ mod idl_impl {
             idl_definition: &mut IdlDefinition,
             arg: A,
         ) -> Result<IdlAccountSetDef> {
-            Ok(IdlAccountSetDef::ProgramAccount {
-                account_set: Box::new(<AccountInfo<'info>>::account_set_to_idl(
-                    idl_definition,
-                    arg,
-                )?),
-                account_id: T::account_to_idl(idl_definition)?,
-            })
+            let mut set = <AccountInfo<'info>>::account_set_to_idl(idl_definition, arg)?;
+            set.single()?
+                .program_accounts
+                .push(T::account_to_idl(idl_definition)?);
+            Ok(set)
         }
     }
 }
