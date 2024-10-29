@@ -1,6 +1,5 @@
 use crate::account_set::{
     AccountSet, AccountSetDecode, AccountSetValidate, SignedAccount, SingleAccountSet,
-    SingleAccountSetMetadata,
 };
 
 use crate::Result;
@@ -22,13 +21,7 @@ pub struct Signer<T>(
     #[decode(arg = arg)]
     #[validate(arg = arg)]
     #[cleanup(arg = arg)]
-    #[single_account_set(
-        metadata = SingleAccountSetMetadata {
-            should_sign: true,
-            ..T::METADATA
-        },
-        skip_signed_account
-    )]
+    #[single_account_set(skip_signed_account)]
     pub(crate) T,
 );
 
@@ -58,9 +51,9 @@ mod idl_impl {
             idl_definition: &mut IdlDefinition,
             arg: A,
         ) -> Result<IdlAccountSetDef> {
-            T::account_set_to_idl(idl_definition, arg)
-                .map(Box::new)
-                .map(IdlAccountSetDef::Signer)
+            let mut set = T::account_set_to_idl(idl_definition, arg)?;
+            set.single()?.signer = true;
+            Ok(set)
         }
     }
 }

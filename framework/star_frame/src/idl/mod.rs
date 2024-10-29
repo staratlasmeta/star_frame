@@ -1,39 +1,61 @@
 use crate::prelude::*;
-use star_frame_idl::account::AccountId;
+use star_frame_idl::account::IdlAccountId;
 use star_frame_idl::account_set::IdlAccountSetDef;
 use star_frame_idl::instruction::IdlInstructionDef;
-use star_frame_idl::{IdlDefinition, SemVer, Version};
+use star_frame_idl::seeds::IdlSeeds;
+use star_frame_idl::ty::IdlTypeDef;
+use star_frame_idl::{IdlDefinition, IdlMetadata, Version};
+pub use star_frame_proc::{InstructionToIdl, TypeToIdl};
 
-pub use star_frame_proc::{AccountToIdl, InstructionSetToIdl};
-
+mod find_seeds;
 mod ty;
-pub use ty::*;
+pub use find_seeds::*;
 
-pub trait AccountSetToIdl<'info, A>: AccountSet<'info> {
-    /// Returns the idl of this account set.
-    fn account_set_to_idl(idl_definition: &mut IdlDefinition, arg: A) -> Result<IdlAccountSetDef>;
-}
-
-pub trait AccountToIdl: ProgramAccount {
-    type AssociatedProgram: ProgramToIdl;
-
-    /// Returns the idl of this account.
-    fn account_to_idl(idl_definition: &mut IdlDefinition) -> Result<AccountId>;
-    #[must_use]
-    fn account_program_versions() -> SemVer {
-        SemVer::from_version(Self::AssociatedProgram::VERSION)
-    }
-}
-pub trait InstructionToIdl<A>: Instruction {
-    /// Returns the idl of this instruction.
-    fn instruction_to_idl(idl_definition: &mut IdlDefinition, arg: A) -> Result<IdlInstructionDef>;
-}
 pub trait InstructionSetToIdl: InstructionSet {
-    /// Returns the idl of this instruction set.
+    /// Adds each instruction in an instruction set to the idl definition.
     fn instruction_set_to_idl(idl_definition: &mut IdlDefinition) -> Result<()>;
 }
+pub trait InstructionToIdl<A>: Instruction {
+    /// Adds an instruction to the idl definition, handling any nested definitions as necessary.
+    fn instruction_to_idl(idl_definition: &mut IdlDefinition, arg: A) -> Result<IdlInstructionDef>;
+}
+pub trait AccountSetToIdl<'info, A>: AccountSet<'info> {
+    /// Adds the [`star_frame_idl::IdlAccountSetDef`] and associated account definitions to the idl definition.
+    fn account_set_to_idl(idl_definition: &mut IdlDefinition, arg: A) -> Result<IdlAccountSetDef>;
+}
+pub trait AccountToIdl: TypeToIdl {
+    /// Adds the [`star_frame_idl::IdlAccount`] and associated type definitions to the idl definition,
+    /// returning the idl account id reference.
+    fn account_to_idl(idl_definition: &mut IdlDefinition) -> Result<IdlAccountId>;
+}
+
+pub trait TypeToIdl {
+    type AssociatedProgram: ProgramToIdl;
+    /// Returns the idl of this type.
+    fn type_to_idl(idl_definition: &mut IdlDefinition) -> Result<IdlTypeDef>;
+}
+
+pub trait SeedsToIdl: GetSeeds {
+    /// Returns the [`IdlSeeds`] for a given [`GetSeeds`], adding any new types to the idl definition.
+    fn seeds_to_idl(idl_definition: &mut IdlDefinition) -> Result<IdlSeeds>;
+}
+
 pub trait ProgramToIdl: StarFrameProgram {
-    const VERSION: Version;
-    fn program_to_idl() -> Result<IdlDefinition>;
-    fn idl_namespace() -> &'static str;
+    fn version() -> Version;
+
+    fn program_to_idl() -> Result<IdlDefinition>
+    where
+        <Self as StarFrameProgram>::InstructionSet: InstructionSetToIdl,
+    {
+        let mut out = IdlDefinition {
+            address: Self::PROGRAM_ID,
+            metadata: IdlMetadata {
+                version: Self::version(),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        <Self as StarFrameProgram>::InstructionSet::instruction_set_to_idl(&mut out)?;
+        Ok(out)
+    }
 }

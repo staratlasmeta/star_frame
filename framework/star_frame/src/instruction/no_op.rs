@@ -15,3 +15,15 @@ impl InstructionSet for () {
         Ok(())
     }
 }
+
+#[cfg(feature = "idl")]
+mod idl_impl {
+    use crate::idl::InstructionSetToIdl;
+    use star_frame_idl::IdlDefinition;
+
+    impl InstructionSetToIdl for () {
+        fn instruction_set_to_idl(_idl_definition: &mut IdlDefinition) -> anyhow::Result<()> {
+            Ok(())
+        }
+    }
+}

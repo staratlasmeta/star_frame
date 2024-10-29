@@ -1,10 +1,13 @@
+use star_frame::__private::macro_prelude::IdlAccountSetDef;
 use star_frame::anyhow::bail;
 use star_frame::borsh::{BorshDeserialize, BorshSerialize};
 use star_frame::derive_more::{Deref, DerefMut};
 use star_frame::prelude::*;
 use star_frame::solana_program::pubkey::Pubkey;
+use star_frame::star_frame_idl::IdlDefinition;
 
-#[derive(Align1, Copy, Clone, Debug, Eq, PartialEq, Pod, Zeroable)]
+#[derive(Align1, Pod, Zeroable, Copy, Clone, Debug, Eq, PartialEq, ProgramAccount)]
+#[program_account(seeds = CounterAccountSeeds)]
 #[repr(C, packed)]
 pub struct CounterAccount {
     pub version: u8,
@@ -14,11 +17,8 @@ pub struct CounterAccount {
     pub bump: u8,
 }
 
-impl ProgramAccount for CounterAccount {
-    const DISCRIMINANT: <Self::OwnerProgram as StarFrameProgram>::AccountDiscriminant = [0; 8];
-}
-
 #[derive(AccountSet, Deref, DerefMut, Debug)]
+#[account_set(skip_default_idl)]
 #[cleanup(generics = [<A> where DataAccount<'info, CounterAccount>: AccountSetCleanup<'info, A>], arg = A)]
 #[validate(generics = [<A> where DataAccount<'info, CounterAccount>: AccountSetValidate<'info, A>], arg = A)]
 pub struct WrappedCounter<'info>(
@@ -28,21 +28,22 @@ pub struct WrappedCounter<'info>(
     DataAccount<'info, CounterAccount>,
 );
 
-impl HasOwnerProgram for CounterAccount {
-    type OwnerProgram = CounterProgram;
-}
-
-impl HasSeeds for CounterAccount {
-    type Seeds = CounterAccountSeeds;
+impl<'info, A> AccountSetToIdl<'info, A> for WrappedCounter<'info>
+where
+    DataAccount<'info, CounterAccount>: AccountSetToIdl<'info, A>,
+{
+    fn account_set_to_idl(idl_definition: &mut IdlDefinition, arg: A) -> Result<IdlAccountSetDef> {
+        <DataAccount<'info, CounterAccount>>::account_set_to_idl(idl_definition, arg)
+    }
 }
 
 #[derive(Debug, GetSeeds, Clone)]
-#[seed_const(b"COUNTER")]
+#[get_seeds(seed_const = b"COUNTER")]
 pub struct CounterAccountSeeds {
     pub owner: Pubkey,
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Debug)]
+#[derive(BorshSerialize, BorshDeserialize, Debug, InstructionToIdl)]
 pub struct CreateCounterIx {
     pub start_at: Option<u64>,
 }
@@ -50,12 +51,13 @@ pub struct CreateCounterIx {
 #[derive(AccountSet)]
 pub struct CreateCounterAccounts<'info> {
     #[account_set(funder)]
-    pub funder: Signer<Writable<SystemAccount<'info>>>,
+    pub funder: Signer<Mut<SystemAccount<'info>>>,
     pub owner: SystemAccount<'info>,
     #[validate(arg = (
         CreateIfNeeded(()),
         Seeds(CounterAccountSeeds { owner: *self.owner.key(), }),
     ))]
+    #[idl(arg = Seeds(FindCounterAccountSeeds { owner: seed_path("owner") }))]
     pub counter: Init<Seeded<WrappedCounter<'info>>>,
     #[account_set(system_program)]
     pub system_program: Program<'info, SystemProgram>,
@@ -95,15 +97,15 @@ impl StarFrameInstruction for CreateCounterIx {
     }
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Debug)]
-pub struct UpdateCounterSignerIx {}
+#[derive(BorshSerialize, BorshDeserialize, Debug, InstructionToIdl)]
+pub struct UpdateCounterSignerIx;
 
 #[derive(AccountSet, Debug)]
 #[validate(extra_validation = self.validate())]
 pub struct UpdateCounterSignerAccounts<'info> {
     pub signer: Signer<SystemAccount<'info>>,
     pub new_signer: SystemAccount<'info>,
-    pub counter: Writable<DataAccount<'info, CounterAccount>>,
+    pub counter: Mut<DataAccount<'info, CounterAccount>>,
 }
 
 impl<'info> UpdateCounterSignerAccounts<'info> {
@@ -141,7 +143,7 @@ impl StarFrameInstruction for UpdateCounterSignerIx {
     }
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Debug)]
+#[derive(BorshSerialize, BorshDeserialize, Debug, InstructionToIdl)]
 pub struct CountIx {
     pub amount: u64,
     pub subtract: bool,
@@ -151,7 +153,7 @@ pub struct CountIx {
 #[validate(extra_validation = self.validate())]
 pub struct CountAccounts<'info> {
     pub owner: Signer<SystemAccount<'info>>,
-    pub counter: Writable<DataAccount<'info, CounterAccount>>,
+    pub counter: Mut<DataAccount<'info, CounterAccount>>,
 }
 
 impl<'info> CountAccounts<'info> {
@@ -192,17 +194,17 @@ impl StarFrameInstruction for CountIx {
     }
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Debug)]
-pub struct CloseCounterIx {}
+#[derive(BorshSerialize, BorshDeserialize, Debug, InstructionToIdl)]
+pub struct CloseCounterIx;
 
 #[derive(AccountSet, Debug)]
 pub struct CloseCounterAccounts<'info> {
     #[validate(arg = &self.counter.data()?.signer)]
     pub signer: Signer<SystemAccount<'info>>,
     #[account_set(recipient)]
-    pub funds_to: Writable<SystemAccount<'info>>,
+    pub funds_to: Mut<SystemAccount<'info>>,
     #[cleanup(arg = CloseAccountAuto)]
-    pub counter: Writable<WrappedCounter<'info>>,
+    pub counter: Mut<WrappedCounter<'info>>,
 }
 
 impl StarFrameInstruction for CloseCounterIx {
@@ -252,7 +254,14 @@ mod tests {
     use solana_sdk::system_program;
     use solana_sdk::transaction::Transaction;
     use star_frame::itertools::Itertools;
+    use star_frame::serde_json;
     use star_frame::solana_program::instruction::AccountMeta;
+
+    #[test]
+    fn idl_test() {
+        let idl = CounterProgram::program_to_idl().unwrap();
+        println!("{}", serde_json::to_string_pretty(&idl).unwrap());
+    }
 
     #[tokio::test]
     async fn test_that_it_works() {

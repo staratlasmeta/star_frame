@@ -19,18 +19,21 @@ use star_frame::prelude::*;
 )]
 pub struct FactionEnlistment;
 
-// use star_frame::idl::InstructionSetToIdl;
-
 #[derive(InstructionSet)]
 pub enum FactionEnlistmentInstructionSet {
     ProcessEnlistPlayer(ProcessEnlistPlayerIx),
 }
 
-#[derive(Clone, BorshDeserialize, BorshSerialize, Default)]
+/// ProcessEnlistPlayerIx
+#[derive(Clone, BorshDeserialize, BorshSerialize, Default, InstructionToIdl)]
 #[borsh(crate = "borsh")]
 #[repr(C)]
+#[instruction_to_idl(program = FactionEnlistment)]
 pub struct ProcessEnlistPlayerIx {
+    /// The bump for PDA seeds
     bump: u8,
+    /// New faction id for the player
+    /// Some more docs
     faction_id: FactionId,
     // buncha_data: Vec<u8>,
 }
@@ -75,27 +78,25 @@ pub struct ProcessEnlistPlayer<'info> {
     Seeds(PlayerFactionAccountSeeds {
         player_account: *self.player_account.key()
     })))]
+    #[idl(
+        arg = Seeds(FindPlayerFactionAccountSeeds {
+            player_account: seed_path("player_account")
+        })
+    )]
     pub player_faction_account: Init<Seeded<DataAccount<'info, PlayerFactionData>>>,
     /// The player account
     #[account_set(funder)]
-    pub player_account: Writable<Signer<SystemAccount<'info>>>,
+    pub player_account: Mut<Signer<SystemAccount<'info>>>,
     /// Solana System program
     #[account_set(system_program)]
     pub system_program: Program<'info, SystemProgram>,
 }
+
 #[derive(
-    Debug,
-    Align1,
-    Copy,
-    Clone,
-    CheckedBitPattern,
-    NoUninit,
-    Eq,
-    PartialEq,
-    Zeroable, /*TypeToIdl, AccountToIdl*/
+    ProgramAccount, Debug, Align1, Copy, Clone, CheckedBitPattern, NoUninit, Eq, PartialEq, Zeroable,
 )]
 #[repr(C, packed)]
-// #[account(seeds = PlayerFactionAccountSeeds)]
+#[program_account(seeds = PlayerFactionAccountSeeds)]
 pub struct PlayerFactionData {
     pub owner: Pubkey,
     pub enlisted_at_timestamp: i64,
@@ -115,8 +116,9 @@ pub struct PlayerFactionData {
     Eq,
     PartialEq,
     Default,
+    TypeToIdl,
 )]
-#[borsh(crate = "borsh")]
+#[borsh(crate = "borsh", use_discriminant = true)]
 #[repr(u8)]
 pub enum FactionId {
     #[default]
@@ -127,22 +129,8 @@ pub enum FactionId {
 
 unsafe impl Zeroable for FactionId {}
 
-// TODO - Macro should derive this and with the idl feature enabled would also derive `AccountToIdl` and `TypeToIdl`
-impl ProgramAccount for PlayerFactionData {
-    const DISCRIMINANT: <Self::OwnerProgram as StarFrameProgram>::AccountDiscriminant =
-        [47, 44, 255, 15, 103, 77, 139, 247];
-}
-
-impl HasOwnerProgram for PlayerFactionData {
-    type OwnerProgram = FactionEnlistment;
-}
-
-impl HasSeeds for PlayerFactionData {
-    type Seeds = PlayerFactionAccountSeeds;
-}
-
 #[derive(Debug, GetSeeds, Clone)]
-#[seed_const(b"FACTION_ENLISTMENT")]
+#[get_seeds(seed_const = b"FACTION_ENLISTMENT")]
 pub struct PlayerFactionAccountSeeds {
     player_account: Pubkey,
 }
@@ -159,6 +147,12 @@ mod tests {
     use star_frame::itertools::Itertools;
     use star_frame::solana_program::instruction::AccountMeta;
     use star_frame::solana_program::native_token::LAMPORTS_PER_SOL;
+
+    #[test]
+    fn idl() {
+        let idl = FactionEnlistment::program_to_idl().unwrap();
+        println!("{}", serde_json::to_string_pretty(&idl).unwrap());
+    }
 
     #[tokio::test]
     async fn banks_test() -> Result<()> {
