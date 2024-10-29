@@ -4,8 +4,6 @@ use derivative::Derivative;
 use derive_more::{Deref, DerefMut};
 use star_frame::syscalls::SyscallAccountCache;
 use star_frame_proc::AccountSet;
-use std::fmt::Debug;
-
 #[derive(AccountSet, Clone, Debug, Deref, DerefMut)]
 #[account_set(
     skip_default_idl,
@@ -67,47 +65,11 @@ pub struct Init<T>(
     #[validate(id = "create_generic", arg = arg.1)]
     #[validate(id = "create_if_needed_generic", arg = arg.1)]
     #[cleanup(arg = arg)]
+    #[single_account_set(skip_can_set_seeds, skip_can_init_account)]
     T,
 );
 
-impl<'info, T> SingleAccountSet<'info> for Init<T>
-where
-    T: SingleAccountSet<'info>,
-{
-    const METADATA: SingleAccountSetMetadata = SingleAccountSetMetadata {
-        is_init: true,
-        should_mut: true,
-        ..T::METADATA
-    };
-    fn account_info(&self) -> &AccountInfo<'info> {
-        self.0.account_info()
-    }
-}
-
-impl<'info, T> SignedAccount<'info> for Init<T>
-where
-    T: SignedAccount<'info>,
-{
-    fn signer_seeds(&self) -> Option<Vec<&[u8]>> {
-        self.0.signer_seeds()
-    }
-}
-
-impl<'info, T> WritableAccount<'info> for Init<T> where T: SingleAccountSet<'info> {}
-
-impl<T> HasProgramAccount for Init<T>
-where
-    T: HasProgramAccount,
-{
-    type ProgramAccount = T::ProgramAccount;
-}
-
-impl<T> HasSeeds for Init<T>
-where
-    T: HasSeeds,
-{
-    type Seeds = T::Seeds;
-}
+use std::fmt::Debug;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
 #[repr(transparent)]
@@ -172,13 +134,16 @@ mod idl_impl {
     use star_frame_idl::account_set::IdlAccountSetDef;
     use star_frame_idl::IdlDefinition;
 
-    impl<'info, A, T: AccountSetToIdl<'info, A>> AccountSetToIdl<'info, A> for Init<T> {
+    impl<'info, A, T> AccountSetToIdl<'info, A> for Init<T>
+    where
+        T: AccountSetToIdl<'info, A> + SingleAccountSet<'info>,
+    {
         fn account_set_to_idl(
             idl_definition: &mut IdlDefinition,
             arg: A,
         ) -> Result<IdlAccountSetDef> {
-            // manually mark as writable. Nothing else is needed for the IDL
-            <Writable<T> as AccountSetToIdl<'info, A>>::account_set_to_idl(idl_definition, arg)
+            // manually mark as writable. Nothing else is needed for the IDL. T Will be marked as signer automatically
+            <Mut<T> as AccountSetToIdl<'info, A>>::account_set_to_idl(idl_definition, arg)
         }
     }
 }

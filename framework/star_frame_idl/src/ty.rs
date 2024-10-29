@@ -1,109 +1,90 @@
-use crate::account::AccountId;
-// use crate::serde_impls::serde_as_option;
-use crate::{ExtensionClass, IdlGeneric};
+use crate::account::IdlAccountId;
+use crate::{serde_base58_pubkey_option, IdlDiscriminant, ItemDescription, ItemSource};
+use crate::{IdlGeneric, ItemInfo};
+use anyhow::bail;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
-use std::collections::HashMap;
-
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
-pub struct TypeId {
-    pub namespace: Option<String>,
-    pub type_id: String,
-    pub provided_generics: Vec<IdlTypeDef>,
-    #[serde(skip_serializing_if = "HashMap::is_empty")]
-    pub extension_fields: HashMap<ExtensionClass, Value>,
-}
+use solana_program::pubkey::Pubkey;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct IdlType {
-    pub name: String,
-    pub description: String,
+    #[serde(flatten)]
+    pub info: ItemInfo,
     pub generics: Vec<IdlGeneric>,
     pub type_def: IdlTypeDef,
-    #[serde(skip_serializing_if = "HashMap::is_empty")]
-    pub extension_fields: HashMap<ExtensionClass, Value>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct IdlTypeId {
+    pub source: ItemSource,
+    #[serde(with = "serde_base58_pubkey_option")]
+    pub namespace: Option<Pubkey>,
+    pub provided_generics: Vec<IdlTypeDef>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, Default)]
 pub struct IdlEnumVariant {
     pub name: String,
-    pub discriminant: Value,
-    pub ty: Option<IdlTypeDef>,
-    #[serde(skip_serializing_if = "HashMap::is_empty")]
-    pub extension_fields: HashMap<ExtensionClass, Value>,
+    pub discriminant: IdlDiscriminant,
+    pub description: ItemDescription,
+    pub type_def: Option<IdlTypeDef>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+pub struct IdlStructField {
+    pub path: Option<String>,
+    pub description: ItemDescription,
+    pub type_def: IdlTypeDef,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub enum IdlTypeDef {
-    IdlType(TypeId),
-    Generic {
-        generic_id: String,
-    },
-    Defined(IdlDefinedType),
+    Defined(IdlTypeId),
+    Generic(String),
+    Bool,
+    U8,
+    I8,
+    U16,
+    I16,
+    U32,
+    I32,
+    F32,
+    U64,
+    I64,
+    F64,
+    U128,
+    I128,
+    String,
+    Pubkey,
+    OptionalPubkey,
     PubkeyFor {
-        // TODO - What does this correspond to? Is this an account in the `accounts` map?
-        id: AccountId,
+        id: IdlAccountId,
         optional: bool,
     },
-    Array {
-        item_ty: Box<IdlTypeDef>,
-        size: usize,
-    },
-    BorshVec {
-        item_ty: Box<IdlTypeDef>,
-        len_ty: Box<IdlTypeDef>,
-    },
-    BorshOption {
-        item_ty: Box<IdlTypeDef>,
-    },
-    Struct(Vec<IdlField>),
-    Enum {
-        discriminant: Box<IdlTypeDef>,
-        variants: Vec<IdlEnumVariant>,
-    },
     FixedPoint {
-        ty: IdlDefinedType,
+        ty: Box<IdlTypeDef>,
         frac: u8,
     },
-    #[serde(untagged)]
-    Plugin {
-        plugin_id: String,
-        ty: String,
-        provided_generics: Vec<IdlTypeDef>,
-        #[serde(skip_serializing_if = "HashMap::is_empty")]
-        extension_fields: HashMap<ExtensionClass, Value>,
+    Option(Box<IdlTypeDef>),
+    List {
+        len_ty: Box<IdlTypeDef>,
+        item_ty: Box<IdlTypeDef>,
     },
+    Array(Box<IdlTypeDef>, usize),
+    Struct(Vec<IdlStructField>),
+    Enum(Vec<IdlEnumVariant>),
 }
+
+impl IdlTypeDef {
+    pub fn assert_defined(&self) -> anyhow::Result<&IdlTypeId> {
+        match self {
+            IdlTypeDef::Defined(ref type_id) => Ok(type_id),
+            _ => bail!("Expected defined type"),
+        }
+    }
+}
+
 impl Default for IdlTypeDef {
     fn default() -> Self {
         Self::Struct(vec![])
     }
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
-pub struct IdlField {
-    pub name: String,
-    pub description: String,
-    pub path_id: String,
-    pub type_def: IdlTypeDef,
-    #[serde(skip_serializing_if = "HashMap::is_empty")]
-    pub extension_fields: HashMap<ExtensionClass, Value>,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
-pub enum IdlDefinedType {
-    I8,
-    I16,
-    I32,
-    I64,
-    I128,
-    U8,
-    U16,
-    U32,
-    U64,
-    U128,
-    PodBool,
-    OptionalPubkey,
-    BorshBool,
-    BorshString,
 }

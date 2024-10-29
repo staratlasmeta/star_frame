@@ -336,7 +336,7 @@ pub mod idl_impl {
         ) -> crate::Result<IdlAccountSetDef> {
             let account = Box::new(T::account_set_to_idl(idl_definition, arg.1)?);
             Ok(IdlAccountSetDef::Many {
-                account,
+                account_set: account,
                 min: arg.0.min,
                 max: arg.0.max,
             })
@@ -353,7 +353,7 @@ pub mod idl_impl {
         ) -> crate::Result<IdlAccountSetDef> {
             let account = Box::new(T::account_set_to_idl(idl_definition, arg)?);
             Ok(IdlAccountSetDef::Many {
-                account,
+                account_set: account,
                 min: 0,
                 max: None,
             })

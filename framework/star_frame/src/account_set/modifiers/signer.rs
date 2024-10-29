@@ -1,8 +1,7 @@
 use crate::account_set::{
-    AccountSet, AccountSetDecode, AccountSetValidate, CanSetSeeds, HasProgramAccount, HasSeeds,
-    SignedAccount, SingleAccountSet, SingleAccountSetMetadata, WritableAccount,
+    AccountSet, AccountSetDecode, AccountSetValidate, SignedAccount, SingleAccountSet,
 };
-use crate::prelude::{CanInitAccount, SyscallInvoke};
+
 use crate::Result;
 use derive_more::{Deref, DerefMut};
 use solana_program::account_info::AccountInfo;
@@ -22,23 +21,11 @@ pub struct Signer<T>(
     #[decode(arg = arg)]
     #[validate(arg = arg)]
     #[cleanup(arg = arg)]
+    #[single_account_set(skip_signed_account)]
     pub(crate) T,
 );
 
 pub type SignerInfo<'info> = Signer<AccountInfo<'info>>;
-
-impl<'info, T> SingleAccountSet<'info> for Signer<T>
-where
-    T: SingleAccountSet<'info>,
-{
-    const METADATA: SingleAccountSetMetadata = SingleAccountSetMetadata {
-        should_sign: true,
-        ..T::METADATA
-    };
-    fn account_info(&self) -> &AccountInfo<'info> {
-        self.0.account_info()
-    }
-}
 
 impl<'info, T> SignedAccount<'info> for Signer<T>
 where
@@ -46,46 +33,6 @@ where
 {
     fn signer_seeds(&self) -> Option<Vec<&[u8]>> {
         None
-    }
-}
-
-impl<'info, T> WritableAccount<'info> for Signer<T> where T: WritableAccount<'info> {}
-
-impl<T> HasProgramAccount for Signer<T>
-where
-    T: HasProgramAccount,
-{
-    type ProgramAccount = T::ProgramAccount;
-}
-
-impl<T> HasSeeds for Signer<T>
-where
-    T: HasSeeds,
-{
-    type Seeds = T::Seeds;
-}
-
-// Signer short-circuits the set_seeds call, as it does not have seeds.
-impl<'info, A, T> CanSetSeeds<'info, A> for Signer<T>
-where
-    T: SingleAccountSet<'info>,
-{
-    fn set_seeds(&mut self, _arg: &A, _syscalls: &mut impl SyscallInvoke<'info>) -> Result<()> {
-        Ok(())
-    }
-}
-
-impl<'info, A, T> CanInitAccount<'info, A> for Signer<T>
-where
-    T: SingleAccountSet<'info> + CanInitAccount<'info, A>,
-{
-    fn init(
-        &mut self,
-        arg: A,
-        syscalls: &mut impl SyscallInvoke<'info>,
-        account_seeds: Option<Vec<&[u8]>>,
-    ) -> Result<()> {
-        self.0.init(arg, syscalls, account_seeds)
     }
 }
 
@@ -104,9 +51,9 @@ mod idl_impl {
             idl_definition: &mut IdlDefinition,
             arg: A,
         ) -> Result<IdlAccountSetDef> {
-            T::account_set_to_idl(idl_definition, arg)
-                .map(Box::new)
-                .map(IdlAccountSetDef::Signer)
+            let mut set = T::account_set_to_idl(idl_definition, arg)?;
+            set.single()?.signer = true;
+            Ok(set)
         }
     }
 }

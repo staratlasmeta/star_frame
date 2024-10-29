@@ -49,6 +49,30 @@ where
     phantom_t: PhantomData<T>,
     bytes: [u8],
 }
+
+#[cfg(feature = "idl")]
+mod idl_impl {
+    use super::*;
+    use crate::idl::TypeToIdl;
+    use star_frame_idl::ty::IdlTypeDef;
+    use star_frame_idl::IdlDefinition;
+
+    impl<T, L> TypeToIdl for List<T, L>
+    where
+        T: CheckedBitPattern + NoUninit + Align1 + TypeToIdl,
+        L: ListLength + TypeToIdl,
+    {
+        type AssociatedProgram = T::AssociatedProgram;
+        fn type_to_idl(idl_definition: &mut IdlDefinition) -> Result<IdlTypeDef> {
+            let inner_type = T::type_to_idl(idl_definition)?;
+            Ok(IdlTypeDef::List {
+                item_ty: Box::new(inner_type),
+                len_ty: Box::new(L::type_to_idl(idl_definition)?),
+            })
+        }
+    }
+}
+
 impl<T, L> List<T, L>
 where
     T: CheckedBitPattern + NoUninit + Align1,

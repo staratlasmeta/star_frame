@@ -1,12 +1,12 @@
 use crate::idl::TypeToIdl;
 use crate::program::system_program::SystemProgram;
 use fixed::*;
-use star_frame_idl::ty::{IdlDefinedType, IdlTypeDef};
+use star_frame_idl::ty::IdlTypeDef;
 use star_frame_idl::IdlDefinition;
 use typenum::Unsigned;
 
 macro_rules! impl_type_to_idl_for_fixed {
-    (@impl $ty:ident, $defined_ident:ident) => {
+    (@impl $ty:ident, $def_ident:ident) => {
         impl<Frac> TypeToIdl for $ty<Frac>
         where
             Frac: Unsigned,
@@ -15,15 +15,15 @@ macro_rules! impl_type_to_idl_for_fixed {
 
             fn type_to_idl(_idl_definition: &mut IdlDefinition) -> crate::Result<IdlTypeDef> {
                 Ok(IdlTypeDef::FixedPoint {
-                    ty: IdlDefinedType::$defined_ident,
+                    ty: Box::new(IdlTypeDef::$def_ident),
                     frac: Frac::U8,
                 })
             }
         }
     };
-    ($([$ty:ident, $defined_ident:ident]),* $(,)?) => {
+    ($([$ty:ident, $def_ident:ident]),* $(,)?) => {
         $(
-            impl_type_to_idl_for_fixed!(@impl $ty, $defined_ident);
+            impl_type_to_idl_for_fixed!(@impl $ty, $def_ident);
         )*
     };
 }

@@ -27,6 +27,11 @@ pub trait HasProgramAccount {
     type ProgramAccount: ProgramAccount + ?Sized;
 }
 
+/// A marker trait that indicates the underlying type is owned by a [`StarFrameProgram`].
+pub trait HasOwnerProgram {
+    type OwnerProgram: StarFrameProgram;
+}
+
 /// A marker trait that indicates the underlying type has seeds in it.
 pub trait HasSeeds {
     type Seeds: GetSeeds;

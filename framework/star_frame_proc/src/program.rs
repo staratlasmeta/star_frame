@@ -4,7 +4,7 @@ use proc_macro_error::{abort, abort_call_site};
 use quote::{quote, ToTokens};
 use syn::{parse_quote, DeriveInput, Expr, ExprLit, Lit, Type};
 
-use crate::util::Paths;
+use crate::util::{ensure_data_struct, reject_generics, Paths};
 
 #[derive(ArgumentList, Default)]
 pub struct StarFrameProgramDerive {
@@ -16,31 +16,21 @@ pub struct StarFrameProgramDerive {
     no_entrypoint: bool,
     #[argument(presence)]
     no_setup: bool,
+    #[argument(presence)]
+    skip_idl: bool,
 }
 
 pub(crate) fn program_impl(input: DeriveInput) -> TokenStream {
     let Paths {
         crate_name,
         pubkey,
-        star_frame_program,
-        instruction_set,
+        macro_prelude: prelude,
         star_frame_program_ident,
         ..
     } = Paths::default();
 
-    if !matches!(input.data, syn::Data::Struct(_)) {
-        abort!(
-            input.ident,
-            "StarFrameProgram can only be derived on structs"
-        );
-    }
-
-    if !input.generics.params.is_empty() || input.generics.where_clause.is_some() {
-        abort!(
-            input.generics,
-            "StarFrameProgram cannot be derived on generic structs"
-        );
-    }
+    ensure_data_struct(&input, None);
+    reject_generics(&input, None);
 
     let mut derive_input = StarFrameProgramDerive::default();
 
@@ -52,6 +42,7 @@ pub(crate) fn program_impl(input: DeriveInput) -> TokenStream {
             id: program_id,
             no_entrypoint,
             no_setup,
+            skip_idl,
         } = StarFrameProgramDerive::parse_arguments(program_derive);
 
         if let Some(account_discriminant) = account_discriminant {
@@ -107,6 +98,13 @@ pub(crate) fn program_impl(input: DeriveInput) -> TokenStream {
             }
             derive_input.no_setup = true;
         }
+
+        if skip_idl {
+            if derive_input.skip_idl {
+                abort!(skip_idl, "Duplicate `skip_idl` argument");
+            }
+            derive_input.skip_idl = true;
+        }
     }
 
     let Some(program_id) = derive_input.id else {
@@ -134,6 +132,7 @@ pub(crate) fn program_impl(input: DeriveInput) -> TokenStream {
         mut closed_account_discriminant,
         no_entrypoint,
         no_setup,
+        skip_idl,
         ..
     } = derive_input;
 
@@ -164,15 +163,29 @@ pub(crate) fn program_impl(input: DeriveInput) -> TokenStream {
         quote! { #crate_name::program_setup!(#ident); }
     };
 
+    let idl_impl = (!skip_idl && cfg!(feature = "idl")).then(|| {
+        quote! {
+            #[automatically_derived]
+            impl #prelude::ProgramToIdl for #ident {
+                fn version() -> #prelude::Version {
+                    #prelude::Version::parse(env!("CARGO_PKG_VERSION"))
+                        .expect("Invalid package version. This should never happen.")
+                }
+            }
+        }
+    });
+
     quote! {
-        impl #star_frame_program for #ident {
+        #[automatically_derived]
+        impl #prelude::StarFrameProgram for #ident {
             type InstructionSet = #instruction_set_type;
-            type InstructionDiscriminant = <Self::InstructionSet as #instruction_set>::Discriminant;
             type AccountDiscriminant = #account_discriminant;
             const CLOSED_ACCOUNT_DISCRIMINANT: Self::AccountDiscriminant = #closed_account_discriminant;
             const PROGRAM_ID: #pubkey = #program_id;
         }
         #program_setup
         #entrypoint
+
+        #idl_impl
     }
 }

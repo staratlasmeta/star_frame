@@ -82,6 +82,7 @@ impl<T: ?Sized> From<Pubkey> for KeyFor<T> {
 }
 
 // Safety: `KeyFor` is a transparent wrapper around a `Pubkey` which is `Zeroable`
+#[allow(trivial_bounds)]
 unsafe impl<T: ?Sized> Zeroable for KeyFor<T>
 where
     Pubkey: Zeroable,
@@ -94,6 +95,7 @@ where
     }
 }
 // Safety: `KeyFor` is a transparent wrapper around a `Pubkey` which is `Pod`
+#[allow(trivial_bounds)]
 unsafe impl<T: 'static + ?Sized> Pod for KeyFor<T> where Pubkey: Pod {}
 
 #[cfg(feature = "idl")]

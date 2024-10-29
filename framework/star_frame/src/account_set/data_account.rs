@@ -7,14 +7,18 @@ use derivative::Derivative;
 use solana_program::entrypoint::MAX_PERMITTED_DATA_INCREASE;
 use solana_program::program_memory::sol_memset;
 use solana_program::{system_instruction, system_program};
+pub use star_frame_proc::ProgramAccount;
 use std::cell::{Ref, RefMut};
 use std::marker::PhantomData;
 use std::mem::size_of;
 use std::slice::from_raw_parts_mut;
 
-pub trait ProgramAccount {
-    type OwnerProgram: StarFrameProgram;
+pub trait ProgramAccount: HasOwnerProgram {
     const DISCRIMINANT: <Self::OwnerProgram as StarFrameProgram>::AccountDiscriminant;
+    #[must_use]
+    fn discriminant_bytes() -> Vec<u8> {
+        bytes_of(&Self::DISCRIMINANT).into()
+    }
 }
 
 #[derive(Debug, Derivative, Copy, Clone)]
@@ -44,6 +48,7 @@ pub struct CloseAccount<'a, F> {
 pub struct CloseAccountAuto;
 
 #[derive(AccountSet, Debug)]
+#[account_set(skip_default_idl)]
 #[validate(
     generics = [<A> where AccountInfo<'info>: AccountSetValidate<'info, A>], arg = A,
     extra_validation = self.validate()
@@ -93,9 +98,41 @@ pub struct CloseAccountAuto;
     }
 )]
 pub struct DataAccount<'info, T: ProgramAccount + UnsizedType + ?Sized> {
+    #[single_account_set(
+        skip_has_program_account,
+        skip_can_init_account,
+        skip_has_seeds,
+        skip_has_owner_program
+    )]
     #[validate(arg = arg)]
     info: AccountInfo<'info>,
     phantom_t: PhantomData<T>,
+}
+
+#[cfg(feature = "idl")]
+mod idl_impl {
+    use super::*;
+    use star_frame::idl::AccountSetToIdl;
+    use star_frame_idl::account_set::IdlAccountSetDef;
+    use star_frame_idl::IdlDefinition;
+
+    impl<'info, T: ProgramAccount + UnsizedType + ?Sized, A> AccountSetToIdl<'info, A>
+        for DataAccount<'info, T>
+    where
+        AccountInfo<'info>: AccountSetToIdl<'info, A>,
+        T: AccountToIdl,
+    {
+        fn account_set_to_idl(
+            idl_definition: &mut IdlDefinition,
+            arg: A,
+        ) -> Result<IdlAccountSetDef> {
+            let mut set = <AccountInfo<'info>>::account_set_to_idl(idl_definition, arg)?;
+            set.single()?
+                .program_accounts
+                .push(T::account_to_idl(idl_definition)?);
+            Ok(set)
+        }
+    }
 }
 
 impl<'info, T> DataAccount<'info, T>
@@ -224,18 +261,12 @@ where
     }
 }
 
-impl<'info, T> SingleAccountSet<'info> for DataAccount<'info, T>
-where
-    T: ProgramAccount + UnsizedType + ?Sized,
-{
-    const METADATA: SingleAccountSetMetadata = SingleAccountSetMetadata::DEFAULT;
-    fn account_info(&self) -> &AccountInfo<'info> {
-        &self.info
-    }
-}
-
 impl<'info, T: ProgramAccount + UnsizedType + ?Sized> HasProgramAccount for DataAccount<'info, T> {
     type ProgramAccount = T;
+}
+
+impl<'info, T: ProgramAccount + UnsizedType + ?Sized> HasOwnerProgram for DataAccount<'info, T> {
+    type OwnerProgram = T::OwnerProgram;
 }
 
 impl<'info, T: ProgramAccount + UnsizedType + ?Sized> HasSeeds for DataAccount<'info, T>

@@ -1,21 +1,15 @@
-#[cfg(feature = "idl")]
-use crate::account_set::impls::vec::idl_impl::VecSize;
 use crate::account_set::{AccountSet, AccountSetCleanup, AccountSetDecode, AccountSetValidate};
-#[cfg(feature = "idl")]
-use crate::idl::AccountSetToIdl;
 use crate::syscalls::SyscallInvoke;
 use derive_more::{Deref, DerefMut};
 use solana_program::account_info::AccountInfo;
 
 #[derive(AccountSet, Debug, Deref, DerefMut)]
-#[account_set(skip_default_decode, generics = [where T: AccountSet<'info>])]
+#[account_set(skip_default_decode, skip_default_idl, generics = [where T: AccountSet<'info>])]
 #[validate(generics = [<A> where T: AccountSetValidate<'info, A>, A: Clone], arg = A)]
 #[cleanup(generics = [<A> where T: AccountSetCleanup<'info, A>, A: Clone], arg = A)]
-#[cfg_attr(feature = "idl", idl(generics = [<A> where T: AccountSetToIdl<'info, A>, A: Clone], arg = A))]
 pub struct Rest<T>(
     #[validate(arg = (arg,))]
     #[cleanup(arg = (arg,))]
-    #[idl(arg = (VecSize{ min: 0, max: None }, arg))]
     Vec<T>,
 );
 
@@ -38,5 +32,28 @@ where
             )?);
         }
         Ok(Self(out))
+    }
+}
+
+#[cfg(feature = "idl")]
+mod idl_impl {
+    use super::*;
+    use crate::account_set::vec::idl_impl::VecSize;
+    use crate::idl::AccountSetToIdl;
+
+    impl<'info, T, A> AccountSetToIdl<'info, A> for Rest<T>
+    where
+        T: AccountSetToIdl<'info, A>,
+        A: Clone,
+    {
+        fn account_set_to_idl(
+            idl_definition: &mut star_frame::__private::macro_prelude::IdlDefinition,
+            arg: A,
+        ) -> star_frame::Result<star_frame::__private::macro_prelude::IdlAccountSetDef> {
+            <Vec<T> as AccountSetToIdl<'info, _>>::account_set_to_idl(
+                idl_definition,
+                (VecSize { min: 0, max: None }, arg),
+            )
+        }
     }
 }
