@@ -1,4 +1,4 @@
-use crate::data_types::{OptionalPubkey, PodBool};
+use crate::data_types::{OptionalPubkey, PodBool, RemainingData};
 use crate::idl::TypeToIdl;
 use crate::program::system_program::SystemProgram;
 use crate::Result;
@@ -39,6 +39,7 @@ impl_type_to_idl_for_primitive!(
     String: String,
     Pubkey: Pubkey,
     OptionalPubkey: OptionalPubkey,
+    RemainingData: RemainingData,
 );
 
 impl<T: TypeToIdl> TypeToIdl for Option<T> {

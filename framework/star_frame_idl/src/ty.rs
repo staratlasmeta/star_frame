@@ -70,6 +70,7 @@ pub enum IdlTypeDef {
         item_ty: Box<IdlTypeDef>,
     },
     Array(Box<IdlTypeDef>, usize),
+    RemainingData,
     Struct(Vec<IdlStructField>),
     Enum(Vec<IdlEnumVariant>),
 }
