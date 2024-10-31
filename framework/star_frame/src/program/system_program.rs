@@ -1,6 +1,7 @@
 use crate::prelude::*;
 use borsh::BorshDeserialize;
 use solana_program::system_program;
+use star_frame_idl::CrateMetadata;
 use system_instruction_impl::SystemInstructionSet;
 
 /// Solana's system program.
@@ -15,8 +16,16 @@ impl StarFrameProgram for SystemProgram {
 
 #[cfg(feature = "idl")]
 impl ProgramToIdl for SystemProgram {
-    fn version() -> star_frame_idl::Version {
-        star_frame_idl::Version::new(1, 18, 10)
+    fn crate_metadata() -> CrateMetadata {
+        CrateMetadata {
+            version: star_frame_idl::Version::new(1, 18, 10),
+            name: "system_program".to_string(),
+            docs: vec![],
+            description: None,
+            homepage: None,
+            license: None,
+            repository: None,
+        }
     }
 }
 

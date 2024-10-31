@@ -5,11 +5,13 @@ edition.workspace = true
 publish.workspace = true
 
 [features]
-default = []
+default = ["anchor"]
 verifier = ["anyhow"]
+anchor = ["anchor-lang-idl-spec"]
 
 [dependencies]
 # verifier
+anchor-lang-idl-spec = { workspace = true, optional = true }
 anyhow = { workspace = true, optional = true }
 bincode = { workspace = true }
 derivative = { workspace = true }

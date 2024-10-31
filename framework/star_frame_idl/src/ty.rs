@@ -1,5 +1,7 @@
 use crate::account::IdlAccountId;
-use crate::{serde_base58_pubkey_option, IdlDiscriminant, ItemDescription, ItemSource};
+use crate::{
+    serde_base58_pubkey_option, IdlDefinition, IdlDiscriminant, ItemDescription, ItemSource,
+};
 use crate::{IdlGeneric, ItemInfo};
 use anyhow::bail;
 use serde::{Deserialize, Serialize};
@@ -70,7 +72,6 @@ pub enum IdlTypeDef {
         item_ty: Box<IdlTypeDef>,
     },
     Array(Box<IdlTypeDef>, usize),
-    RemainingData,
     Struct(Vec<IdlStructField>),
     Enum(Vec<IdlEnumVariant>),
 }
@@ -79,7 +80,21 @@ impl IdlTypeDef {
     pub fn assert_defined(&self) -> anyhow::Result<&IdlTypeId> {
         match self {
             IdlTypeDef::Defined(ref type_id) => Ok(type_id),
-            _ => bail!("Expected defined type"),
+            _ => bail!("Expected defined type, found {:?}", self),
+        }
+    }
+
+    pub fn get_defined<'a>(
+        &self,
+        idl_definition: &'a IdlDefinition,
+    ) -> anyhow::Result<&'a IdlType> {
+        let type_id = self.assert_defined()?;
+        if idl_definition.types.contains_key(&type_id.source) {
+            Ok(&idl_definition.types[&type_id.source])
+        } else if idl_definition.external_types.contains_key(&type_id.source) {
+            Ok(&idl_definition.external_types[&type_id.source])
+        } else {
+            bail!("Type not found in idl definition")
         }
     }
 }

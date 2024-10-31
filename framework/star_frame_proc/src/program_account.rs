@@ -1,6 +1,6 @@
 use crate::hash::SIGHASH_ACCOUNT_NAMESPACE;
 use crate::idl::TypeToIdlArgs;
-use crate::util::Paths;
+use crate::util::{reject_attributes, Paths};
 use easy_proc::{find_attr, ArgumentList};
 use proc_macro2::TokenStream;
 use quote::quote;
@@ -32,9 +32,12 @@ pub fn program_account_impl(input: DeriveInput) -> TokenStream {
 pub fn program_account_impl_inner(input: DeriveInput, args: ProgramAccountArgs) -> TokenStream {
     let Paths {
         macro_prelude: prelude,
+        type_to_idl_args_ident,
         declared_program_type,
         ..
     } = &Paths::default();
+
+    reject_attributes(&input.attrs, type_to_idl_args_ident, None);
 
     let owner_program = args.program.unwrap_or(declared_program_type.clone());
     let ident = &input.ident;

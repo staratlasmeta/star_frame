@@ -8,8 +8,9 @@ pub use ident_with_args::*;
 pub use paths::*;
 pub use repr::*;
 
+use easy_proc::find_attr;
 use itertools::Itertools;
-use proc_macro2::TokenStream;
+use proc_macro2::{Ident, TokenStream};
 use proc_macro_crate::{crate_name, FoundCrate};
 use proc_macro_error::abort;
 use quote::{format_ident, quote, quote_spanned, ToTokens};
@@ -94,10 +95,14 @@ impl EnumerableAttributes for Vec<Attribute> {
 
 /// Strips all matching attributes from each attribute group (e.g., struct fields, enum variants) and returns them in order with
 /// their group index.
-pub fn strip_inner_attributes<'a>(
+pub fn strip_inner_attributes<'a, I>(
     item: &'a mut impl EnumerableAttributes,
-    attribute_name: &'a str,
-) -> impl Iterator<Item = StrippedAttribute> + 'a {
+    attribute_name: &'a I,
+) -> impl Iterator<Item = StrippedAttribute> + 'a
+where
+    I: ?Sized,
+    Ident: PartialEq<I>,
+{
     item.enumerate_attributes().flat_map(|(index, attrs)| {
         let mut removed = vec![];
         attrs.retain(|attr| {
@@ -114,6 +119,15 @@ pub fn strip_inner_attributes<'a>(
         });
         removed
     })
+}
+
+pub fn reject_attributes(attributes: &[Attribute], ident: &Ident, message: Option<&str>) {
+    if find_attr(attributes, ident).is_some() {
+        let message = message
+            .map(ToString::to_string)
+            .unwrap_or_else(|| format!("Cannot use `{}` attribute here", ident));
+        abort!(ident, message);
+    }
 }
 
 pub fn make_derivative_attribute(

@@ -20,8 +20,8 @@ use syn::{
 
 use crate::util::{
     add_derivative_attributes, generate_fields_are_trait, get_field_types,
-    make_derivative_attribute, strip_inner_attributes, type_generic_idents, BetterGenerics,
-    CombineGenerics, Paths,
+    make_derivative_attribute, reject_attributes, strip_inner_attributes, type_generic_idents,
+    BetterGenerics, CombineGenerics, Paths,
 };
 
 #[derive(Debug, Clone, Default)]
@@ -76,6 +76,7 @@ pub fn unsized_type_impl(item: Item, args: TokenStream) -> TokenStream {
 #[derive(Debug, Clone)]
 pub struct UnsizedTypeContext {
     pub item_struct: ItemStruct,
+    pub account_item_struct: ItemStruct,
     pub sized_fields: Vec<Field>,
     pub unsized_fields: Vec<Field>,
     pub args: UnsizedTypeArgs,
@@ -85,6 +86,14 @@ impl UnsizedTypeContext {
     fn parse(mut item_struct: ItemStruct, args: TokenStream) -> Self {
         let unsized_start =
             strip_inner_attributes(&mut item_struct, "unsized_start").collect::<Vec<_>>();
+        reject_attributes(
+            &item_struct.attrs,
+            &Paths::default().type_to_idl_args_ident,
+            None,
+        );
+        let account_item_struct = item_struct.clone();
+        strip_inner_attributes(&mut item_struct, &Paths::default().type_to_idl_args_ident)
+            .for_each(drop);
         if unsized_start.is_empty() {
             abort!(item_struct, "No `unsized_start` attribute found");
         }
@@ -129,6 +138,7 @@ impl UnsizedTypeContext {
 
         Self {
             item_struct,
+            account_item_struct,
             sized_fields: sized_fields.to_vec(),
             unsized_fields: unsized_fields.to_vec(),
             args: unsized_args,
@@ -246,6 +256,7 @@ fn unsized_type_struct_impl(item_struct: ItemStruct, _args: TokenStream) -> Toke
         mut sized_fields,
         unsized_fields,
         item_struct,
+        account_item_struct,
         args: unsized_args,
     } = context;
 
@@ -608,7 +619,7 @@ fn unsized_type_struct_impl(item_struct: ItemStruct, _args: TokenStream) -> Toke
     };
     add_derivative_attributes(&mut owned_struct, parse_quote!(Debug));
 
-    let account_impl = account::account_impl(&item_struct, &unsized_args);
+    let account_impl = account::account_impl(&account_item_struct, &unsized_args);
 
     quote! {
         #[allow(type_alias_bounds)]

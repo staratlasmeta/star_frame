@@ -4,7 +4,7 @@ use star_frame_idl::account_set::IdlAccountSetDef;
 use star_frame_idl::instruction::IdlInstructionDef;
 use star_frame_idl::seeds::IdlSeeds;
 use star_frame_idl::ty::IdlTypeDef;
-use star_frame_idl::{IdlDefinition, IdlMetadata, Version};
+use star_frame_idl::{CrateMetadata, IdlDefinition, IdlMetadata};
 pub use star_frame_proc::{InstructionToIdl, TypeToIdl};
 
 mod find_seeds;
@@ -41,7 +41,7 @@ pub trait SeedsToIdl: GetSeeds {
 }
 
 pub trait ProgramToIdl: StarFrameProgram {
-    fn version() -> Version;
+    fn crate_metadata() -> CrateMetadata;
 
     fn program_to_idl() -> Result<IdlDefinition>
     where
@@ -50,7 +50,7 @@ pub trait ProgramToIdl: StarFrameProgram {
         let mut out = IdlDefinition {
             address: Self::PROGRAM_ID,
             metadata: IdlMetadata {
-                version: Self::version(),
+                crate_metadata: Self::crate_metadata(),
                 ..Default::default()
             },
             ..Default::default()

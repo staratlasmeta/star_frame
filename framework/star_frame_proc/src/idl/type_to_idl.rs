@@ -14,6 +14,12 @@ pub struct TypeToIdlArgs {
     pub program: Option<Type>,
 }
 
+#[derive(Debug, ArgumentList, Default)]
+pub struct TypeToIdlFieldArgs {
+    #[argument(presence)]
+    pub skip: bool,
+}
+
 pub fn derive_type_to_idl(input: DeriveInput) -> TokenStream {
     let Paths {
         type_to_idl_args_ident,
@@ -81,12 +87,19 @@ pub fn derive_type_to_idl_inner(input: &DeriveInput, args: TypeToIdlArgs) -> Tok
 
 fn idl_struct_type_def(fields: &Fields) -> TokenStream {
     let Paths {
+        type_to_idl_args_ident,
         macro_prelude: prelude,
         ..
     } = &Paths::default();
     let tuple = matches!(fields, Fields::Unnamed(_));
     let idl_fields: Vec<TokenStream> = fields
         .iter()
+        .filter(|f| {
+            !find_attr(&f.attrs, type_to_idl_args_ident)
+                .map(TypeToIdlFieldArgs::parse_arguments)
+                .unwrap_or_default()
+                .skip
+        })
         .map(|f| {
             let path: Expr = if tuple {
                 parse_quote!(None)
