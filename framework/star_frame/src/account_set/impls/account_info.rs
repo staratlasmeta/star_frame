@@ -194,15 +194,7 @@ pub mod idl_impl {
             _idl_definition: &mut IdlDefinition,
             _arg: (),
         ) -> Result<IdlAccountSetDef> {
-            Ok(IdlAccountSetDef::Single(IdlSingleAccountSet {
-                program_accounts: vec![],
-                seeds: None,
-                address: None,
-                writable: false,
-                signer: false,
-                optional: false,
-                is_init: false,
-            }))
+            Ok(IdlAccountSetDef::Single(IdlSingleAccountSet::default()))
         }
     }
     impl<'info> AccountSetToIdl<'info, Pubkey> for AccountInfo<'info> {
@@ -211,13 +203,8 @@ pub mod idl_impl {
             arg: Pubkey,
         ) -> Result<IdlAccountSetDef> {
             Ok(IdlAccountSetDef::Single(IdlSingleAccountSet {
-                program_accounts: vec![],
-                seeds: None,
                 address: Some(arg),
-                writable: false,
-                signer: false,
-                optional: false,
-                is_init: false,
+                ..Default::default()
             }))
         }
     }
@@ -230,20 +217,13 @@ pub mod idl_impl {
             _idl_definition: &mut IdlDefinition,
             arg: Seeds<(T, Pubkey)>,
         ) -> Result<IdlAccountSetDef> {
-            let (seeds, address) = arg.0;
-            let seeds = T::find_seeds(&seeds)?;
-            let find_seeds = IdlFindSeeds {
-                seeds,
-                program: Some(address),
-            };
+            let (seeds, program) = arg.0;
             Ok(IdlAccountSetDef::Single(IdlSingleAccountSet {
-                program_accounts: vec![],
-                seeds: Some(find_seeds),
-                address: None,
-                writable: false,
-                signer: false,
-                optional: false,
-                is_init: false,
+                seeds: Some(IdlFindSeeds {
+                    seeds: T::find_seeds(&seeds)?,
+                    program: Some(program),
+                }),
+                ..Default::default()
             }))
         }
     }
@@ -256,19 +236,12 @@ pub mod idl_impl {
             _idl_definition: &mut IdlDefinition,
             arg: Seeds<T>,
         ) -> Result<IdlAccountSetDef> {
-            let seeds = T::find_seeds(&arg.0)?;
-            let find_seeds = IdlFindSeeds {
-                seeds,
-                program: None,
-            };
             Ok(IdlAccountSetDef::Single(IdlSingleAccountSet {
-                program_accounts: vec![],
-                seeds: Some(find_seeds),
-                address: None,
-                writable: false,
-                signer: false,
-                optional: false,
-                is_init: false,
+                seeds: Some(IdlFindSeeds {
+                    seeds: T::find_seeds(&arg.0)?,
+                    program: None,
+                }),
+                ..Default::default()
             }))
         }
     }
