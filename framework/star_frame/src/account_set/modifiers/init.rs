@@ -9,7 +9,7 @@ use derive_more::{Deref, DerefMut};
 #[validate(
     id = "create",
     generics = [
-        <C> where T: AccountSetValidate<'info, ()> + SignedAccount<'info>
+        <C> where T: AccountSetValidate<'info, ()>
         + CanSetSeeds<'info, ()> + CanInitAccount<'info, Create<C>>
     ],
     arg = Create<C>,
@@ -21,7 +21,7 @@ use derive_more::{Deref, DerefMut};
 #[validate(
     id = "create_generic",
     generics = [
-        <C, A> where T: AccountSetValidate<'info, A> + SignedAccount<'info>
+        <C, A> where T: AccountSetValidate<'info, A>
         + CanSetSeeds<'info, A> + CanInitAccount<'info, Create<C>>
     ],
     arg = (Create<C>, A),
@@ -33,7 +33,7 @@ use derive_more::{Deref, DerefMut};
 #[validate(
     id = "create_if_needed",
     generics = [
-        <C> where T: AccountSetValidate<'info, ()> + SignedAccount<'info>
+        <C> where T: AccountSetValidate<'info, ()>
         + CanSetSeeds<'info, ()> + CanInitAccount<'info, CreateIfNeeded<C>>,
     ],
     arg = CreateIfNeeded<C>,
@@ -45,7 +45,7 @@ use derive_more::{Deref, DerefMut};
 #[validate(
     id = "create_if_needed_generic",
     generics = [
-        <C, A> where T: AccountSetValidate<'info, A> + SignedAccount<'info>
+        <C, A> where T: AccountSetValidate<'info, A>
         + CanSetSeeds<'info, A> + CanInitAccount<'info, CreateIfNeeded<C>> +
     ],
     arg = (CreateIfNeeded<C>, A),
@@ -108,7 +108,7 @@ impl<'info, A> CreateAccount<'info, A, Funder<'info>> {
         syscalls: &impl SyscallAccountCache<'info>,
     ) -> Result<Self> {
         let system_program = syscalls
-            .get_system_program()
+            .get_program::<SystemProgram>()
             .context("Missing `system_program` for CreateAccount auto")?;
         let funder = syscalls
             .get_funder()

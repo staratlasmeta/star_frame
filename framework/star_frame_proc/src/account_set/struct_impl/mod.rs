@@ -3,13 +3,17 @@ use crate::account_set::struct_impl::decode::DecodeFieldTy;
 use crate::account_set::{AccountSetStructArgs, SingleAccountSetFieldArgs, StrippedDeriveInput};
 use crate::util::{new_generic, Paths};
 use easy_proc::{find_attr, ArgumentList};
+use itertools::Itertools;
 use proc_macro2::TokenStream;
 use proc_macro_error::abort;
 use quote::{quote, ToTokens};
 use std::ops::Not;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
-use syn::{bracketed, parse_quote, token, DataStruct, Field, Ident, Index, Token, WherePredicate};
+use syn::{
+    bracketed, parse_quote, token, Attribute, DataStruct, Field, Ident, Index, Token,
+    WherePredicate,
+};
 
 mod cleanup;
 mod decode;
@@ -37,7 +41,7 @@ impl Parse for Requires {
 struct AccountSetFieldAttrs {
     skip: Option<TokenStream>,
     #[argument(presence)]
-    system_program: bool,
+    program: bool,
     #[argument(presence)]
     funder: bool,
     #[argument(presence)]
@@ -102,28 +106,6 @@ pub(super) fn derive_account_set_impl_struct(
         .enumerate()
         .map(resolve_field_name)
         .collect::<Vec<_>>();
-
-    let find_field_name =
-        |name: &str, is_active: fn(AccountSetFieldAttrs) -> bool| -> Option<TokenStream> {
-            let mut fields = data_struct
-                .fields
-                .iter()
-                .enumerate()
-                .filter(|field| {
-                    find_attr(&field.1.attrs, &paths.account_set_ident)
-                        .map(AccountSetFieldAttrs::parse_arguments)
-                        .map(is_active)
-                        .unwrap_or_default()
-                })
-                .collect::<Vec<_>>();
-            if fields.len() > 1 {
-                abort!(
-                    fields[1].1,
-                    format!("Only one field can be marked as {name}")
-                );
-            }
-            fields.pop().map(|(index, _)| all_field_name[index].clone())
-        };
 
     let (fields, skipped_fields): (Vec<_>, Vec<_>) =
         data_struct.fields.iter().partition(filter_skip);
@@ -409,46 +391,80 @@ pub(super) fn derive_account_set_impl_struct(
     let idls = Vec::<TokenStream>::new();
 
     let set_account_caches = {
-        let set_system =
-            find_field_name("system_program", |args| args.system_program).map(|field_name| {
+        let find_field_names =
+            |is_active: fn(AccountSetFieldAttrs) -> bool| -> Vec<(TokenStream, Attribute)> {
+                data_struct
+                    .fields
+                    .iter()
+                    .zip(all_field_name.iter())
+                    .filter_map(|(field, name)| {
+                        let attr = find_attr(&field.attrs, &paths.account_set_ident)?;
+                        let args = AccountSetFieldAttrs::parse_arguments(attr);
+                        is_active(args).then_some((name.clone(), attr.clone()))
+                    })
+                    .collect_vec()
+            };
+
+        let single_name = |name: &str, names: &[(TokenStream, Attribute)]| {
+            if names.len() > 1 {
+                abort!(
+                    names[1].1,
+                    format!("Only one field can be marked as {}", name)
+                );
+            }
+            names.first().map(|(name, _)| name.clone())
+        };
+
+        let set_programs = find_field_names(|args| args.program)
+            .iter()
+            .map(|(name, _attr)| {
                 quote! {
-                    if syscalls.get_system_program().is_none() {
-                        syscalls.set_system_program(self.#field_name.clone());
+                    syscalls.insert_program(&self.#name);
+                }
+            })
+            .collect_vec();
+
+        let set_funder =
+            single_name("funder", &find_field_names(|args| args.funder)).map(|field_name| {
+                quote! {
+                    if syscalls.get_funder().is_none() {
+                        syscalls.set_funder(&self.#field_name);
                     }
                 }
             });
-        let set_funder = find_field_name("funder", |args| args.funder).map(|field_name| {
-            quote! {
-                if syscalls.get_funder().is_none() {
-                    syscalls.set_funder(&self.#field_name);
+
+        let set_recipient =
+            single_name("recipient", &find_field_names(|args| args.recipient)).map(|field_name| {
+                quote! {
+                    if syscalls.get_recipient().is_none() {
+                        syscalls.set_recipient(&self.#field_name);
+                    }
                 }
-            }
-        });
-        let set_recipient = find_field_name("recipient", |args| args.recipient).map(|field_name| {
-            quote! {
-                if syscalls.get_recipient().is_none() {
-                    syscalls.set_recipient(&self.#field_name);
-                }
-            }
-        });
+            });
         quote! {
-            #set_system
+            #(#set_programs)*
             #set_funder
             #set_recipient
         }
     };
 
-    quote! {
-        #[automatically_derived]
-        impl #other_impl_generics #account_set<#info_lifetime> for #ident #ty_generics #other_where_clause {
-            fn set_account_cache(
-                &mut self,
-                syscalls: &mut impl #macro_prelude::SyscallAccountCache<#info_lifetime>,
-            ) {
-                #set_account_caches
-                #(<#field_type as #account_set<#info_lifetime>>::set_account_cache(&mut self.#field_name, syscalls);)*
+    let account_set_impl = account_set_struct_args.skip_default_account_set.not().then(|| {
+        quote! {
+            #[automatically_derived]
+            impl #other_impl_generics #account_set<#info_lifetime> for #ident #ty_generics #other_where_clause {
+                fn set_account_cache(
+                    &mut self,
+                    syscalls: &mut impl #macro_prelude::SyscallAccountCache<#info_lifetime>,
+                ) {
+                    #set_account_caches
+                    #(<#field_type as #account_set<#info_lifetime>>::set_account_cache(&mut self.#field_name, syscalls);)*
+                }
             }
         }
+    });
+
+    quote! {
+        #account_set_impl
 
         #(#decodes)*
         #(#validates)*

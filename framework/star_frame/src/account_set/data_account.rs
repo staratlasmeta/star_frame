@@ -66,7 +66,7 @@ pub struct CloseAccountAuto;
     generics = [],
     extra_cleanup = {
         let funder = syscalls.get_funder().context("Missing `funder` for NormalizeRentAuto")?.clone();
-        let system_program = syscalls.get_system_program().context("Missing `system_program` for NormalizeRentAuto")?.clone();
+        let system_program = syscalls.get_program().context("Missing `system_program` for NormalizeRentAuto")?.clone();
         self.normalize_rent(&funder, &system_program, syscalls)
     },
 )]
@@ -138,6 +138,35 @@ mod idl_impl {
     }
 }
 
+pub trait CanCloseAccount<'info>: SingleAccountSet<'info> + HasOwnerProgram {
+    /// Closes the account by zeroing the lamports and leaving the data as the
+    /// [`StarFrameProgram::CLOSED_ACCOUNT_DISCRIMINANT`], reallocating down to size.
+    fn close(&mut self, recipient: &impl WritableAccount<'info>) -> Result<()> {
+        let info = self.account_info();
+        info.realloc(
+            size_of::<<Self::OwnerProgram as StarFrameProgram>::AccountDiscriminant>(),
+            false,
+        )?;
+        info.try_borrow_mut_data()?.fill(u8::MAX);
+        **recipient.account_info().try_borrow_mut_lamports()? += info.lamports();
+        **info.try_borrow_mut_lamports()? = 0;
+        Ok(())
+    }
+
+    /// Closes the account by reallocating to zero and assigning to the System program.
+    /// This is the same as calling `close` but not abusable and harder for indexer detection.
+    fn close_full(&mut self, recipient: &impl WritableAccount<'info>) -> Result<()> {
+        let info = self.account_info();
+        **recipient.account_info().try_borrow_mut_lamports()? += info.lamports();
+        **info.try_borrow_mut_lamports()? = 0;
+        info.realloc(0, false)?;
+        info.assign(&system_program::ID);
+        Ok(())
+    }
+}
+
+impl<'info, T> CanCloseAccount<'info> for T where T: SingleAccountSet<'info> + HasOwnerProgram {}
+
 impl<'info, T> DataAccount<'info, T>
 where
     T: ProgramAccount + UnsizedType + ?Sized,
@@ -191,37 +220,30 @@ where
         T::from_bytes(account_info_ref_mut).map(|ret| ret.ref_wrapper)
     }
 
-    /// Closes the account by zeroing the lamports and leaving the data as the
-    /// [`StarFrameProgram::CLOSED_ACCOUNT_DISCRIMINANT`], reallocating down to size.
-    pub fn close(&mut self, recipient: &impl WritableAccount<'info>) -> Result<()> {
-        self.info.realloc(
-            size_of::<<T::OwnerProgram as StarFrameProgram>::AccountDiscriminant>(),
-            false,
-        )?;
-        self.info.try_borrow_mut_data()?.copy_from_slice(bytes_of(
-            &<T::OwnerProgram as StarFrameProgram>::CLOSED_ACCOUNT_DISCRIMINANT,
-        ));
-        **recipient.account_info().try_borrow_mut_lamports()? += self.info.lamports();
-        **self.info.try_borrow_mut_lamports()? = 0;
-        Ok(())
-    }
-
-    /// Closes the account by reallocating to zero and assigning to the System program.
-    /// This is the same as calling `close` but not abusable and harder for indexer detection.
-    pub fn close_full(&mut self, recipient: &impl WritableAccount<'info>) -> Result<()> {
-        self.info.realloc(
-            size_of::<<T::OwnerProgram as StarFrameProgram>::AccountDiscriminant>(),
-            false,
-        )?;
-        self.info.try_borrow_mut_data()?.copy_from_slice(bytes_of(
-            &<T::OwnerProgram as StarFrameProgram>::CLOSED_ACCOUNT_DISCRIMINANT,
-        ));
-        **recipient.account_info().try_borrow_mut_lamports()? += self.info.lamports();
-        **self.info.try_borrow_mut_lamports()? = 0;
-        self.info.realloc(0, false)?;
-        self.info.assign(&system_program::ID);
-        Ok(())
-    }
+    // /// Closes the account by zeroing the lamports and leaving the data as the
+    // /// [`StarFrameProgram::CLOSED_ACCOUNT_DISCRIMINANT`], reallocating down to size.
+    // pub fn close(&mut self, recipient: &impl WritableAccount<'info>) -> Result<()> {
+    //     self.info.realloc(
+    //         size_of::<<T::OwnerProgram as StarFrameProgram>::AccountDiscriminant>(),
+    //         false,
+    //     )?;
+    //     self.info.try_borrow_mut_data()?.copy_from_slice(bytes_of(
+    //         &<T::OwnerProgram as StarFrameProgram>::CLOSED_ACCOUNT_DISCRIMINANT,
+    //     ));
+    //     **recipient.account_info().try_borrow_mut_lamports()? += self.info.lamports();
+    //     **self.info.try_borrow_mut_lamports()? = 0;
+    //     Ok(())
+    // }
+    //
+    // /// Closes the account by reallocating to zero and assigning to the System program.
+    // /// This is the same as calling `close` but not abusable and harder for indexer detection.
+    // pub fn close_full(&mut self, recipient: &impl WritableAccount<'info>) -> Result<()> {
+    //     **recipient.account_info().try_borrow_mut_lamports()? += self.info.lamports();
+    //     **self.info.try_borrow_mut_lamports()? = 0;
+    //     self.info.realloc(0, false)?;
+    //     self.info.assign(&system_program::ID);
+    //     Ok(())
+    // }
 
     /// See [`normalize_rent`]
     pub fn normalize_rent(

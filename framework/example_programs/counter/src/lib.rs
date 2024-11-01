@@ -15,6 +15,13 @@ pub struct CounterAccount {
     pub bump: u8,
 }
 
+#[derive(Align1, Pod, Zeroable, Copy, Clone, Debug, Eq, PartialEq, ProgramAccount)]
+#[program_account(seeds = CounterAccountSeeds)]
+#[repr(C, packed)]
+struct TokenAccount {
+    balance: u64,
+}
+
 #[derive(AccountSet, Deref, DerefMut, Debug)]
 pub struct WrappedCounter<'info>(#[single_account_set] DataAccount<'info, CounterAccount>);
 
@@ -30,6 +37,7 @@ pub struct CreateCounterIx {
 }
 
 #[derive(AccountSet)]
+// #[account_set(skip_default_account_set)]
 pub struct CreateCounterAccounts<'info> {
     #[account_set(funder)]
     pub funder: Signer<Mut<SystemAccount<'info>>>,
@@ -40,7 +48,7 @@ pub struct CreateCounterAccounts<'info> {
     ))]
     #[idl(arg = Seeds(FindCounterAccountSeeds { owner: seed_path("owner") }))]
     pub counter: Init<Seeded<WrappedCounter<'info>>>,
-    #[account_set(system_program)]
+    #[account_set(program)]
     pub system_program: Program<'info, SystemProgram>,
 }
 

@@ -1,5 +1,6 @@
 pub mod solana_runtime;
 use crate::account_set::{Funder, Mut, Program, SignedAccount, WritableAccount};
+use crate::program::StarFrameProgram;
 use crate::SolanaInstruction;
 use solana_program::account_info::AccountInfo;
 use solana_program::clock::Clock;
@@ -7,7 +8,6 @@ use solana_program::entrypoint_deprecated::ProgramResult;
 use solana_program::program_error::ProgramError;
 use solana_program::pubkey::Pubkey;
 use solana_program::rent::Rent;
-use star_frame::prelude::SystemProgram;
 
 /// Trait for syscalls provided by the solana runtime.
 pub trait Syscalls<'info>:
@@ -62,12 +62,6 @@ pub trait SyscallInvoke<'info>: SyscallCore + SyscallAccountCache<'info> {
 /// A trait for caching commonly used accounts in the Syscall. This allows [`crate::account_set::AccountSetValidate`]
 /// implementations to pull from this cache instead of requiring the user to explicitly pass in the accounts.
 pub trait SyscallAccountCache<'info> {
-    /// Gets a cached version of the `SystemProgram` if exists and Self has a `SystemProgram` cache.
-    fn get_system_program(&self) -> Option<&Program<'info, SystemProgram>> {
-        None
-    }
-    /// Sets the `SystemProgram` cache if Self has one. No-op if it doesn't.
-    fn set_system_program(&mut self, _program: Program<'info, SystemProgram>) {}
     /// Gets a cached version of the funder if exists and Self has a funder cache
     fn get_funder(&self) -> Option<&Funder<'info>> {
         None
@@ -80,6 +74,14 @@ pub trait SyscallAccountCache<'info> {
     }
     /// Sets the recipient cache if Self has one. No-op if it doesn't.
     fn set_recipient(&mut self, _recipient: &impl WritableAccount<'info>) {}
+
+    /// Inserts a program into the program cache if it doesn't already exist.
+    fn insert_program<T: StarFrameProgram>(&mut self, _program: &Program<'info, T>) {}
+
+    /// Gets the program from the cache if it exists.
+    fn get_program<T: StarFrameProgram>(&self) -> Option<&Program<'info, T>> {
+        None
+    }
 }
 
 /// System calls that all syscall implementations must provide.

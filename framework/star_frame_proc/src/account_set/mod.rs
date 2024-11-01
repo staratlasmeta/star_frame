@@ -23,6 +23,8 @@ struct AccountSetStructArgs {
     skip_default_validate: bool,
     #[argument(presence)]
     skip_default_cleanup: bool,
+    #[argument(presence)]
+    skip_default_account_set: bool,
     #[cfg(feature = "idl")]
     #[argument(presence)]
     skip_default_idl: bool,

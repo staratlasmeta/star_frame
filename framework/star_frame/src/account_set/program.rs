@@ -7,12 +7,24 @@ use std::marker::PhantomData;
     extra_validation = self.check_id(),
 )]
 #[idl(generics = [where T: StarFrameProgram])]
+#[repr(transparent)]
 pub struct Program<'info, T>(
     #[single_account_set]
     #[idl(arg = T::PROGRAM_ID)]
     pub(crate) AccountInfo<'info>,
     #[account_set(skip = PhantomData)] pub(crate) PhantomData<T>,
 );
+
+pub trait InnerProgram {
+    type Program: StarFrameProgram;
+}
+
+impl<T> InnerProgram for Program<'_, T>
+where
+    T: StarFrameProgram,
+{
+    type Program = T;
+}
 
 impl<T: StarFrameProgram> Program<'_, T> {
     pub fn check_id(&self) -> Result<()> {

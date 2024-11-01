@@ -75,10 +75,22 @@ where
     }
 }
 
+pub trait FindProgramAddress: HasSeeds + HasOwnerProgram {
+    fn find_program_address(seeds: &Self::Seeds) -> (Pubkey, u8);
+}
+
+impl<T: HasSeeds + HasOwnerProgram> FindProgramAddress for T {
+    fn find_program_address(seeds: &Self::Seeds) -> (Pubkey, u8) {
+        let seeds = seeds.seeds();
+        Pubkey::find_program_address(&seeds, &T::OwnerProgram::PROGRAM_ID)
+    }
+}
+
+// PlayerFaction::find_program_address(PlayerFactionSeeds { profile: profile.key() })
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Hash, PartialOrd, Ord)]
 #[repr(transparent)]
 pub struct Seeds<T>(pub T);
-
 /// Allows generic [`crate::account_set`]s to be used in multiple programs by defaulting the [`SeedProgram`] to the current
 /// executing program.
 #[derive(Debug, Clone, Copy)]
@@ -88,6 +100,7 @@ pub trait SeedProgram {
     fn id(sys_calls: &mut impl SyscallCore) -> Result<Pubkey>;
     fn idl_program() -> Option<Pubkey>;
 }
+
 impl SeedProgram for CurrentProgram {
     fn id(sys_calls: &mut impl SyscallCore) -> Result<Pubkey> {
         Ok(*sys_calls.current_program_id())
@@ -96,6 +109,7 @@ impl SeedProgram for CurrentProgram {
         None
     }
 }
+
 impl<P> SeedProgram for P
 where
     P: StarFrameProgram,

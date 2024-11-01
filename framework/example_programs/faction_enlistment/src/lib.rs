@@ -19,6 +19,30 @@ use star_frame::prelude::*;
 )]
 pub struct FactionEnlistment;
 
+#[derive(StarFrameProgram)]
+#[program(
+    instruction_set = (),
+    id = "FLisTRH6dJnCK8AzTfenGJgHBPMHoat9XRc65Qpk7Yua",
+    no_setup, no_entrypoint
+)]
+pub struct Program1;
+
+#[derive(StarFrameProgram)]
+#[program(
+    instruction_set = (),
+    id = "ALisTRH6dJnCK8AzTfenGJgHBPMHoat9XRc65Qpk7Yua",
+    no_setup, no_entrypoint
+)]
+pub struct Program2;
+
+#[derive(StarFrameProgram)]
+#[program(
+    instruction_set = (),
+    id = "BLisTRH6dJnCK8AzTfenGJgHBPMHoat9XRc65Qpk7Yua",
+    no_setup, no_entrypoint
+)]
+pub struct Program3;
+
 #[derive(InstructionSet)]
 pub enum FactionEnlistmentInstructionSet {
     ProcessEnlistPlayer(ProcessEnlistPlayerIx),
@@ -57,8 +81,11 @@ impl StarFrameInstruction for ProcessEnlistPlayerIx {
         faction_id: Self::RunArg<'_>,
         syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<Self::ReturnType> {
-        // let cloned_account = account_set.player_account.clone();
         let clock = syscalls.get_clock()?;
+        // let program = syscalls.get_program::<Program2>().unwrap();
+        // let program = syscalls.get_program::<Program1>().unwrap();
+        // let program = syscalls.get_program::<SystemProgram>().unwrap();
+        // let program = syscalls.get_program::<Program3>().unwrap();
         let bump = account_set.player_faction_account.access_seeds().bump;
         *account_set.player_faction_account.data_mut()? = PlayerFactionData {
             owner: *account_set.player_account.key,
@@ -88,9 +115,30 @@ pub struct ProcessEnlistPlayer<'info> {
     #[account_set(funder)]
     pub player_account: Mut<Signer<SystemAccount<'info>>>,
     /// Solana System program
-    #[account_set(system_program)]
+    #[account_set(program)]
     pub system_program: Program<'info, SystemProgram>,
+    #[account_set(program)]
+    pub program1: Program<'info, Program1>,
+    #[account_set(program)]
+    pub program2: Program<'info, Program2>,
+    #[account_set(program)]
+    pub program3: Program<'info, Program3>,
 }
+//8432 -> none in cache, no access
+//8533 -> 1 in cache, no access
+//8845 -> 2 in cache, no access
+//9247 -> 3 in cache, no access
+
+// with vecs:
+//8434 -> none in cache, no access
+//8722 -> 3 in cache, no access
+
+// no cache, size 0 -> 8514
+// 4 in cache, size 0 -> 8891
+// 4 in cache, size 0, 4 accesses -> 9027
+
+// no cache, size 4 -> 8552
+// 4 in cache, size 4 -> 8847
 
 #[derive(
     ProgramAccount, Debug, Align1, Copy, Clone, CheckedBitPattern, NoUninit, Eq, PartialEq, Zeroable,
@@ -154,9 +202,14 @@ mod tests {
         println!("{}", serde_json::to_string_pretty(&idl).unwrap());
     }
 
+    #[test]
+    fn info_size() {
+        println!("{}", std::mem::size_of::<AccountInfo>());
+    }
+
     #[tokio::test]
     async fn banks_test() -> Result<()> {
-        const SBF_FILE: bool = false;
+        const SBF_FILE: bool = true;
         let program_test = if SBF_FILE {
             let target_dir = std::env::current_dir()?
                 .join("../../../target/deploy")
@@ -215,6 +268,9 @@ mod tests {
             AccountMeta::new(faction_account, false),
             AccountMeta::new(player_account.pubkey(), true),
             AccountMeta::new_readonly(solana_sdk::system_program::id(), false),
+            AccountMeta::new_readonly(Program1::PROGRAM_ID, false),
+            AccountMeta::new_readonly(Program2::PROGRAM_ID, false),
+            AccountMeta::new_readonly(Program3::PROGRAM_ID, false),
         ];
         let ix = solana_sdk::instruction::Instruction::new_with_bytes(
             FactionEnlistment::PROGRAM_ID,
