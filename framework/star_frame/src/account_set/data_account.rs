@@ -6,7 +6,7 @@ use bytemuck::{bytes_of, from_bytes};
 use derivative::Derivative;
 use solana_program::entrypoint::MAX_PERMITTED_DATA_INCREASE;
 use solana_program::program_memory::sol_memset;
-use solana_program::{system_instruction, system_program};
+use solana_program::system_instruction;
 pub use star_frame_proc::ProgramAccount;
 use std::cell::{Ref, RefMut};
 use std::marker::PhantomData;
@@ -138,35 +138,6 @@ mod idl_impl {
     }
 }
 
-pub trait CanCloseAccount<'info>: SingleAccountSet<'info> + HasOwnerProgram {
-    /// Closes the account by zeroing the lamports and leaving the data as the
-    /// [`StarFrameProgram::CLOSED_ACCOUNT_DISCRIMINANT`], reallocating down to size.
-    fn close(&mut self, recipient: &impl WritableAccount<'info>) -> Result<()> {
-        let info = self.account_info();
-        info.realloc(
-            size_of::<<Self::OwnerProgram as StarFrameProgram>::AccountDiscriminant>(),
-            false,
-        )?;
-        info.try_borrow_mut_data()?.fill(u8::MAX);
-        **recipient.account_info().try_borrow_mut_lamports()? += info.lamports();
-        **info.try_borrow_mut_lamports()? = 0;
-        Ok(())
-    }
-
-    /// Closes the account by reallocating to zero and assigning to the System program.
-    /// This is the same as calling `close` but not abusable and harder for indexer detection.
-    fn close_full(&mut self, recipient: &impl WritableAccount<'info>) -> Result<()> {
-        let info = self.account_info();
-        **recipient.account_info().try_borrow_mut_lamports()? += info.lamports();
-        **info.try_borrow_mut_lamports()? = 0;
-        info.realloc(0, false)?;
-        info.assign(&system_program::ID);
-        Ok(())
-    }
-}
-
-impl<'info, T> CanCloseAccount<'info> for T where T: SingleAccountSet<'info> + HasOwnerProgram {}
-
 impl<'info, T> DataAccount<'info, T>
 where
     T: ProgramAccount + UnsizedType + ?Sized,
@@ -219,31 +190,6 @@ where
         };
         T::from_bytes(account_info_ref_mut).map(|ret| ret.ref_wrapper)
     }
-
-    // /// Closes the account by zeroing the lamports and leaving the data as the
-    // /// [`StarFrameProgram::CLOSED_ACCOUNT_DISCRIMINANT`], reallocating down to size.
-    // pub fn close(&mut self, recipient: &impl WritableAccount<'info>) -> Result<()> {
-    //     self.info.realloc(
-    //         size_of::<<T::OwnerProgram as StarFrameProgram>::AccountDiscriminant>(),
-    //         false,
-    //     )?;
-    //     self.info.try_borrow_mut_data()?.copy_from_slice(bytes_of(
-    //         &<T::OwnerProgram as StarFrameProgram>::CLOSED_ACCOUNT_DISCRIMINANT,
-    //     ));
-    //     **recipient.account_info().try_borrow_mut_lamports()? += self.info.lamports();
-    //     **self.info.try_borrow_mut_lamports()? = 0;
-    //     Ok(())
-    // }
-    //
-    // /// Closes the account by reallocating to zero and assigning to the System program.
-    // /// This is the same as calling `close` but not abusable and harder for indexer detection.
-    // pub fn close_full(&mut self, recipient: &impl WritableAccount<'info>) -> Result<()> {
-    //     **recipient.account_info().try_borrow_mut_lamports()? += self.info.lamports();
-    //     **self.info.try_borrow_mut_lamports()? = 0;
-    //     self.info.realloc(0, false)?;
-    //     self.info.assign(&system_program::ID);
-    //     Ok(())
-    // }
 
     /// See [`normalize_rent`]
     pub fn normalize_rent(
@@ -306,14 +252,14 @@ impl<'info, T: ProgramAccount + UnsizedType + ?Sized> CanInitAccount<'info, Crea
 where
     T: UnsizedInit<Zeroed>,
 {
-    fn init(
+    fn init_account(
         &mut self,
         _arg: Create<()>,
         syscalls: &mut impl SyscallInvoke<'info>,
         account_seeds: Option<Vec<&[u8]>>,
     ) -> Result<()> {
         let create = CreateAccount::new_from_syscalls(syscalls)?;
-        self.init(Create(create), syscalls, account_seeds)
+        self.init_account(Create(create), syscalls, account_seeds)
     }
 }
 
@@ -322,14 +268,14 @@ impl<'info, T: ProgramAccount + UnsizedType + ?Sized, A> CanInitAccount<'info, C
 where
     T: UnsizedInit<A>,
 {
-    fn init(
+    fn init_account(
         &mut self,
         arg: Create<(A,)>,
         syscalls: &mut impl SyscallInvoke<'info>,
         account_seeds: Option<Vec<&[u8]>>,
     ) -> Result<()> {
         let create = CreateAccount::new_with_arg_from_syscalls(arg.0 .0, syscalls)?;
-        self.init(Create(create), syscalls, account_seeds)
+        self.init_account(Create(create), syscalls, account_seeds)
     }
 }
 
@@ -338,14 +284,14 @@ impl<'info, T: ProgramAccount + UnsizedType + ?Sized> CanInitAccount<'info, Crea
 where
     T: UnsizedInit<Zeroed>,
 {
-    fn init(
+    fn init_account(
         &mut self,
         _arg: CreateIfNeeded<()>,
         syscalls: &mut impl SyscallInvoke<'info>,
         account_seeds: Option<Vec<&[u8]>>,
     ) -> Result<()> {
         let create = CreateAccount::new_from_syscalls(syscalls)?;
-        self.init(CreateIfNeeded(create), syscalls, account_seeds)
+        self.init_account(CreateIfNeeded(create), syscalls, account_seeds)
     }
 }
 
@@ -355,7 +301,7 @@ where
     T: UnsizedInit<A>,
     WT: SignedAccount<'info> + WritableAccount<'info>,
 {
-    fn init(
+    fn init_account(
         &mut self,
         arg: Create<CreateAccount<'info, A, WT>>,
         syscalls: &mut impl SyscallInvoke<'info>,
@@ -425,14 +371,14 @@ impl<'info, T: ProgramAccount + UnsizedType + ?Sized, A> CanInitAccount<'info, C
 where
     T: UnsizedInit<A>,
 {
-    fn init(
+    fn init_account(
         &mut self,
         arg: CreateIfNeeded<(A,)>,
         syscalls: &mut impl SyscallInvoke<'info>,
         account_seeds: Option<Vec<&[u8]>>,
     ) -> Result<()> {
         let create = CreateAccount::new_with_arg_from_syscalls(arg.0 .0, syscalls)?;
-        self.init(CreateIfNeeded(create), syscalls, account_seeds)
+        self.init_account(CreateIfNeeded(create), syscalls, account_seeds)
     }
 }
 
@@ -442,20 +388,20 @@ where
     T: UnsizedInit<A>,
     WT: SignedAccount<'info> + WritableAccount<'info>,
 {
-    fn init(
+    fn init_account(
         &mut self,
         arg: CreateIfNeeded<CreateAccount<'info, A, WT>>,
         syscalls: &mut impl SyscallInvoke<'info>,
         account_seeds: Option<Vec<&[u8]>>,
     ) -> Result<()> {
         let init_create = arg.0;
-        if self.owner() == init_create.system_program.key()
+        if self.owner() == &SystemProgram::PROGRAM_ID
             || self.account_info().data.borrow_mut()
                 [..size_of::<<T::OwnerProgram as StarFrameProgram>::AccountDiscriminant>()]
                 .iter()
                 .all(|x| *x == 0)
         {
-            self.init(Create(init_create), syscalls, account_seeds)?;
+            self.init_account(Create(init_create), syscalls, account_seeds)?;
         }
         Ok(())
     }

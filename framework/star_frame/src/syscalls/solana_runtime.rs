@@ -10,7 +10,6 @@ use solana_program::program::{
 };
 use solana_program::rent::Rent;
 use solana_program::sysvar::Sysvar;
-use std::collections::BTreeMap;
 
 /// Syscalls provided by the solana runtime.
 #[derive(Debug, Clone)]

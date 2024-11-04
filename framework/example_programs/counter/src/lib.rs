@@ -15,13 +15,6 @@ pub struct CounterAccount {
     pub bump: u8,
 }
 
-#[derive(Align1, Pod, Zeroable, Copy, Clone, Debug, Eq, PartialEq, ProgramAccount)]
-#[program_account(seeds = CounterAccountSeeds)]
-#[repr(C, packed)]
-struct TokenAccount {
-    balance: u64,
-}
-
 #[derive(AccountSet, Deref, DerefMut, Debug)]
 pub struct WrappedCounter<'info>(#[single_account_set] DataAccount<'info, CounterAccount>);
 

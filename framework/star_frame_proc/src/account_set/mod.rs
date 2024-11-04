@@ -44,7 +44,7 @@ struct SingleAccountSetFieldArgs {
     #[argument(presence)]
     skip_has_seeds: bool,
     #[argument(presence)]
-    skip_can_set_seeds: bool,
+    skip_can_init_seeds: bool,
     #[argument(presence)]
     skip_can_init_account: bool,
 }

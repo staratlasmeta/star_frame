@@ -67,10 +67,8 @@ impl StarFrameInstruction for ProcessEnlistPlayerIx {
     type ValidateArg<'a> = ();
     type CleanupArg<'a> = ();
     type ReturnType = ();
-    // type RunArg<'a> = (FactionId, &'a Vec<u8>);
     type RunArg<'a> = FactionId;
     type Accounts<'b, 'c, 'info> = ProcessEnlistPlayer<'info>;
-    // type ReturnType = usize;
 
     fn split_to_args<'a>(r: &Self) -> IxArgs<Self> {
         IxArgs::run(r.faction_id)
@@ -82,10 +80,6 @@ impl StarFrameInstruction for ProcessEnlistPlayerIx {
         syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<Self::ReturnType> {
         let clock = syscalls.get_clock()?;
-        // let program = syscalls.get_program::<Program2>().unwrap();
-        // let program = syscalls.get_program::<Program1>().unwrap();
-        // let program = syscalls.get_program::<SystemProgram>().unwrap();
-        // let program = syscalls.get_program::<Program3>().unwrap();
         let bump = account_set.player_faction_account.access_seeds().bump;
         *account_set.player_faction_account.data_mut()? = PlayerFactionData {
             owner: *account_set.player_account.key,
@@ -101,7 +95,7 @@ impl StarFrameInstruction for ProcessEnlistPlayerIx {
 #[derive(AccountSet)]
 pub struct ProcessEnlistPlayer<'info> {
     /// The player faction account
-    #[validate(arg = (Create(CreateAccount::new(&self.system_program, &self.player_account)),
+    #[validate(arg = (Create(()),
     Seeds(PlayerFactionAccountSeeds {
         player_account: *self.player_account.key()
     })))]
@@ -117,12 +111,12 @@ pub struct ProcessEnlistPlayer<'info> {
     /// Solana System program
     #[account_set(program)]
     pub system_program: Program<'info, SystemProgram>,
-    #[account_set(program)]
-    pub program1: Program<'info, Program1>,
-    #[account_set(program)]
-    pub program2: Program<'info, Program2>,
-    #[account_set(program)]
-    pub program3: Program<'info, Program3>,
+    // #[account_set(program)]
+    // pub program1: Program<'info, Program1>,
+    // #[account_set(program)]
+    // pub program2: Program<'info, Program2>,
+    // #[account_set(program)]
+    // pub program3: Program<'info, Program3>,
 }
 //8432 -> none in cache, no access
 //8533 -> 1 in cache, no access
@@ -268,9 +262,9 @@ mod tests {
             AccountMeta::new(faction_account, false),
             AccountMeta::new(player_account.pubkey(), true),
             AccountMeta::new_readonly(solana_sdk::system_program::id(), false),
-            AccountMeta::new_readonly(Program1::PROGRAM_ID, false),
-            AccountMeta::new_readonly(Program2::PROGRAM_ID, false),
-            AccountMeta::new_readonly(Program3::PROGRAM_ID, false),
+            // AccountMeta::new_readonly(Program1::PROGRAM_ID, false),
+            // AccountMeta::new_readonly(Program2::PROGRAM_ID, false),
+            // AccountMeta::new_readonly(Program3::PROGRAM_ID, false),
         ];
         let ix = solana_sdk::instruction::Instruction::new_with_bytes(
             FactionEnlistment::PROGRAM_ID,
