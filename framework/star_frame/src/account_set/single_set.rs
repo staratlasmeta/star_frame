@@ -1,13 +1,10 @@
-use crate::account_set::{AccountSet, HasOwnerProgram, Program, WritableAccount};
+use crate::account_set::{AccountSet, HasOwnerProgram, WritableAccount};
 use crate::anyhow::Result;
-use crate::prelude::{StarFrameProgram, SyscallInvoke, SystemProgram};
-use crate::program::system_program;
-use anyhow::Context;
+use crate::prelude::{StarFrameProgram, SystemProgram};
 use solana_program::account_info::AccountInfo;
 use solana_program::instruction::AccountMeta;
 use solana_program::program_error::ProgramError;
 use solana_program::pubkey::Pubkey;
-use star_frame::prelude::Funder;
 use std::cell::{Ref, RefMut};
 use std::mem::size_of;
 
