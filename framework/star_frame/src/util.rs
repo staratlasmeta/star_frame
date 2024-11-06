@@ -1,13 +1,9 @@
-use crate::account_set::{SignedAccount, WritableAccount};
 use crate::prelude::*;
 use crate::unsize::{
     AsBytes, AsMutBytes, RefBytes, RefBytesMut, RefWrapper, RefWrapperMutExt, RefWrapperTypes,
 };
 use advance::Advance;
-use anyhow::anyhow;
-use solana_program::system_instruction::transfer;
 use std::cell::{Ref, RefMut};
-use std::cmp::Ordering;
 use std::fmt::Debug;
 use std::mem::size_of;
 
@@ -54,89 +50,6 @@ pub const fn compare_strings(a: &str, b: &str) -> bool {
             break false;
         }
         index += 1;
-    }
-}
-
-/// Normalizes the rent of an account if data size is changed.
-/// Assumes `info` is owned by this program.
-///
-/// If the account has 0 lamports (i.e., it is set to be closed), this will do nothing.
-pub fn normalize_rent<'info, F: WritableAccount<'info> + SignedAccount<'info>>(
-    info: &AccountInfo<'info>,
-    funder: &F,
-    system_program: &Program<'info, SystemProgram>,
-    syscalls: &mut impl SyscallInvoke<'info>,
-) -> Result<()> {
-    let rent = syscalls.get_rent()?;
-    let lamports = info.account_info().lamports();
-    let data_len = info.account_info().data_len();
-    let rent_lamports = rent.minimum_balance(data_len);
-    match rent_lamports.cmp(&lamports) {
-        Ordering::Equal => Ok(()),
-        Ordering::Greater => {
-            if lamports == 0 {
-                return Ok(());
-            }
-            let transfer_amount = rent_lamports - lamports;
-            if funder.owner() == system_program.key() {
-                let transfer_ix = transfer(funder.key(), info.key(), transfer_amount);
-                let transfer_accounts = &[info.account_info_cloned(), funder.account_info_cloned()];
-                match funder.signer_seeds() {
-                    None => syscalls
-                        .invoke(&transfer_ix, transfer_accounts)
-                        .map_err(Into::into),
-                    Some(seeds) => syscalls
-                        .invoke_signed(&transfer_ix, transfer_accounts, &[&seeds])
-                        .map_err(Into::into),
-                }
-            } else {
-                Err(anyhow!(
-                    "Funder account `{}` is not owned by the system program, owned by `{}`",
-                    funder.key(),
-                    funder.owner()
-                ))
-            }
-        }
-        Ordering::Less => {
-            let transfer_amount = lamports - rent_lamports;
-            **info.account_info().lamports.borrow_mut() -= transfer_amount;
-            **funder.account_info().lamports.borrow_mut() += transfer_amount;
-            Ok(())
-        }
-    }
-}
-
-/// Refunds rent to the funder so long as the account has more than the minimum rent.
-/// Assumes `info` is owned by this program.
-///
-/// If the account has 0 lamports (i.e., it is set to be closed), this will do nothing.
-pub fn refund_rent<'info, F: WritableAccount<'info>>(
-    info: &AccountInfo<'info>,
-    funder: &F,
-    syscalls: &mut impl SyscallInvoke<'info>,
-) -> Result<()> {
-    let rent = syscalls.get_rent()?;
-    let lamports = info.account_info().lamports();
-    let data_len = info.account_info().data_len();
-    let rent_lamports = rent.minimum_balance(data_len);
-    match rent_lamports.cmp(&lamports) {
-        Ordering::Equal => Ok(()),
-        Ordering::Greater => {
-            if lamports > 0 {
-                Err(anyhow!(
-                    "Funder must be Signer to increase rent on {}",
-                    info.key()
-                ))
-            } else {
-                Ok(())
-            }
-        }
-        Ordering::Less => {
-            let transfer_amount = lamports - rent_lamports;
-            **info.account_info().lamports.borrow_mut() -= transfer_amount;
-            **funder.account_info().lamports.borrow_mut() += transfer_amount;
-            Ok(())
-        }
     }
 }
 

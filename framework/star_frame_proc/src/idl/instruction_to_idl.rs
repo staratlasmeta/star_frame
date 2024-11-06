@@ -41,10 +41,11 @@ pub fn derive_instruction_to_idl(input: DeriveInput) -> TokenStream {
         impl<'b, 'c, 'info, #generic_arg> #prelude::InstructionToIdl<#generic_arg> for #ident #where_clause {
             fn instruction_to_idl(idl_definition: &mut #prelude::IdlDefinition, arg: #generic_arg) -> Result<#prelude::IdlInstructionDef> {
                 let account_set = <<#ident as #prelude::StarFrameInstruction>::Accounts<'b, 'c, 'info> as #prelude::AccountSetToIdl<'info, #generic_arg>>::account_set_to_idl(idl_definition, arg)?;
-                let data = <#ident as #prelude::TypeToIdl>::type_to_idl(idl_definition)?;
+                let type_def = <#ident as #prelude::TypeToIdl>::type_to_idl(idl_definition)?;
+                let type_id = type_def.assert_defined()?.clone();
                 Ok(#prelude::IdlInstructionDef {
                     account_set,
-                    data: data,
+                    type_id,
                 })
             }
         }

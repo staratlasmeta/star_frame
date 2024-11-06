@@ -190,11 +190,11 @@ mod test {
             unimplemented!()
         }
 
-        fn get_rent(&mut self) -> Result<Rent, ProgramError> {
+        fn get_rent(&self) -> Result<Rent, ProgramError> {
             unimplemented!()
         }
 
-        fn get_clock(&mut self) -> Result<Clock, ProgramError> {
+        fn get_clock(&self) -> Result<Clock, ProgramError> {
             unimplemented!()
         }
     }
@@ -202,7 +202,7 @@ mod test {
     impl SyscallAccountCache<'_> for DummyRuntime {}
     impl<'info> SyscallInvoke<'info> for DummyRuntime {
         fn invoke(
-            &mut self,
+            &self,
             _instruction: &SolanaInstruction,
             _accounts: &[AccountInfo],
         ) -> ProgramResult {
@@ -210,7 +210,7 @@ mod test {
         }
 
         unsafe fn invoke_unchecked(
-            &mut self,
+            &self,
             _instruction: &SolanaInstruction,
             _accounts: &[AccountInfo],
         ) -> ProgramResult {
@@ -218,7 +218,7 @@ mod test {
         }
 
         fn invoke_signed(
-            &mut self,
+            &self,
             _instruction: &SolanaInstruction,
             _accounts: &[AccountInfo],
             _signers_seeds: &[&[&[u8]]],
@@ -227,7 +227,7 @@ mod test {
         }
 
         unsafe fn invoke_signed_unchecked(
-            &mut self,
+            &self,
             _instruction: &SolanaInstruction,
             _accounts: &[AccountInfo],
             _signers_seeds: &[&[&[u8]]],

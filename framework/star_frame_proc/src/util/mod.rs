@@ -1,10 +1,8 @@
 mod generics;
-mod ident_with_args;
 mod paths;
 mod repr;
 
 pub use generics::*;
-pub use ident_with_args::*;
 pub use paths::*;
 pub use repr::*;
 
@@ -69,7 +67,7 @@ pub trait EnumerableAttributes {
     fn enumerate_attributes(&mut self) -> impl Iterator<Item = (usize, &mut Vec<Attribute>)>;
 }
 
-impl EnumerableAttributes for syn::ItemStruct {
+impl EnumerableAttributes for ItemStruct {
     fn enumerate_attributes(&mut self) -> impl Iterator<Item = (usize, &mut Vec<Attribute>)> {
         self.fields
             .iter_mut()

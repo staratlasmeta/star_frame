@@ -1,5 +1,8 @@
-use crate::account_set::{AccountSet, SignedAccount, SingleAccountSet};
+use crate::account_set::{
+    AccountSet, AccountSetValidate, CanInitSeeds, SignedAccount, SingleAccountSet,
+};
 
+use crate::prelude::SyscallInvoke;
 use crate::Result;
 use derive_more::{Deref, DerefMut};
 use solana_program::account_info::AccountInfo;
@@ -24,15 +27,15 @@ where
     }
 }
 
-// // CanSetSeeds on Signer is a no-op
-// impl<'info, T, A> CanInitSeeds<'info, A> for Signer<T>
-// where
-//     Self: SingleAccountSet<'info> + AccountSetValidate<'info, A>,
-// {
-//     fn init_seeds(&mut self, _arg: &A, _syscalls: &mut impl SyscallInvoke<'info>) -> Result<()> {
-//         Ok(())
-//     }
-// }
+// CanInitSeeds on Signer is a no-op
+impl<'info, T, A> CanInitSeeds<'info, A> for Signer<T>
+where
+    Self: SingleAccountSet<'info> + AccountSetValidate<'info, A>,
+{
+    fn init_seeds(&mut self, _arg: &A, _syscalls: &mut impl SyscallInvoke<'info>) -> Result<()> {
+        Ok(())
+    }
+}
 
 #[cfg(feature = "idl")]
 mod idl_impl {

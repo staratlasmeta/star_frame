@@ -65,9 +65,9 @@ pub struct CloseAccountAuto;
     arg = NormalizeRentAuto,
     generics = [],
     extra_cleanup = {
-        let funder = syscalls.get_funder().context("Missing `funder` for NormalizeRentAuto")?.clone();
-        let system_program = syscalls.get_program().context("Missing `system_program` for NormalizeRentAuto")?.clone();
-        self.normalize_rent(&funder, &system_program, syscalls)
+        let funder = syscalls.get_funder().context("Missing `funder` for NormalizeRentAuto")?;
+        let system_program = syscalls.get_program().context("Missing `system_program` for NormalizeRentAuto")?;
+        self.normalize_rent(funder, system_program, syscalls)
     },
 )]
 #[cleanup(
@@ -81,8 +81,8 @@ pub struct CloseAccountAuto;
     arg = RefundRentAuto,
     generics = [],
     extra_cleanup = {
-        let recipient = syscalls.get_recipient().context("Missing `recipient` for RefundRentAuto")?.clone();
-        self.refund_rent(&recipient, syscalls)
+        let recipient = syscalls.get_recipient().context("Missing `recipient` for RefundRentAuto")?;
+        self.refund_rent(recipient, syscalls)
     }
 )]
 #[cleanup(
@@ -189,25 +189,6 @@ where
             phantom: PhantomData,
         };
         T::from_bytes(account_info_ref_mut).map(|ret| ret.ref_wrapper)
-    }
-
-    /// See [`normalize_rent`]
-    pub fn normalize_rent(
-        &mut self,
-        funder: &(impl WritableAccount<'info> + SignedAccount<'info>),
-        system_program: &Program<'info, SystemProgram>,
-        syscalls: &mut impl SyscallInvoke<'info>,
-    ) -> Result<()> {
-        normalize_rent(self.account_info(), funder, system_program, syscalls)
-    }
-
-    /// See [`refund_rent`]
-    pub fn refund_rent(
-        &mut self,
-        recipient: &impl WritableAccount<'info>,
-        sys_calls: &mut impl SyscallInvoke<'info>,
-    ) -> Result<()> {
-        refund_rent(self.account_info(), recipient, sys_calls)
     }
 
     /// Emits a warning message if the account has more lamports than required by rent.

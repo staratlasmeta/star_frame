@@ -19,30 +19,26 @@ impl<'info, T> Syscalls<'info> for T where T: SyscallReturn + SyscallInvoke<'inf
 /// Return syscalls for a solana program. Allows for simulation.
 pub trait SyscallReturn {
     /// Synonym for [`solana_program::program::set_return_data`].
-    fn set_return_data(&mut self, data: &[u8]);
+    fn set_return_data(&self, data: &[u8]);
     /// Synonym for [`solana_program::program::get_return_data`].
     fn get_return_data(&self) -> Option<(Pubkey, Vec<u8>)>;
 }
 /// Invoke syscalls for a solana program. Allows for simulation.
 pub trait SyscallInvoke<'info>: SyscallCore + SyscallAccountCache<'info> {
     /// Synonym for [`solana_program::program::invoke`].
-    fn invoke(
-        &mut self,
-        instruction: &SolanaInstruction,
-        accounts: &[AccountInfo],
-    ) -> ProgramResult;
+    fn invoke(&self, instruction: &SolanaInstruction, accounts: &[AccountInfo]) -> ProgramResult;
     /// Synonym for [`solana_program::program::invoke_unchecked`].
     ///
     /// # Safety
     /// All account info's [`RefCell`](std::cell::RefCell)s must not be borrowed in a way that conflicts with their writable status.
     unsafe fn invoke_unchecked(
-        &mut self,
+        &self,
         instruction: &SolanaInstruction,
         accounts: &[AccountInfo],
     ) -> ProgramResult;
     /// Synonym for [`solana_program::program::invoke_signed`].
     fn invoke_signed(
-        &mut self,
+        &self,
         instruction: &SolanaInstruction,
         accounts: &[AccountInfo],
         signers_seeds: &[&[&[u8]]],
@@ -52,7 +48,7 @@ pub trait SyscallInvoke<'info>: SyscallCore + SyscallAccountCache<'info> {
     /// # Safety
     /// All account info's [`RefCell`](std::cell::RefCell)s must not be borrowed in a way that conflicts with their writable status.
     unsafe fn invoke_signed_unchecked(
-        &mut self,
+        &self,
         instruction: &SolanaInstruction,
         accounts: &[AccountInfo],
         signers_seeds: &[&[&[u8]]],
@@ -89,7 +85,7 @@ pub trait SyscallCore {
     /// Get the current program id.
     fn current_program_id(&self) -> &Pubkey;
     /// Get the rent sysvar.
-    fn get_rent(&mut self) -> Result<Rent, ProgramError>;
+    fn get_rent(&self) -> Result<Rent, ProgramError>;
     /// Get the clock.
-    fn get_clock(&mut self) -> Result<Clock, ProgramError>;
+    fn get_clock(&self) -> Result<Clock, ProgramError>;
 }

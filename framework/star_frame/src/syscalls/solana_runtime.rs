@@ -10,14 +10,15 @@ use solana_program::program::{
 };
 use solana_program::rent::Rent;
 use solana_program::sysvar::Sysvar;
+use std::cell::RefCell;
 
 /// Syscalls provided by the solana runtime.
 #[derive(Debug, Clone)]
 pub struct SolanaRuntime<'info> {
     /// The program id of the currently executing program.
     pub program_id: Pubkey,
-    rent_cache: Option<Rent>,
-    clock_cache: Option<Clock>,
+    rent_cache: RefCell<Option<Rent>>,
+    clock_cache: RefCell<Option<Clock>>,
     recipient: Option<Mut<AccountInfo<'info>>>,
     funder: Option<Funder<'info>>,
     programs: Vec<AccountInfo<'info>>,
@@ -28,8 +29,8 @@ impl SolanaRuntime<'_> {
     pub fn new(program_id: Pubkey) -> Self {
         Self {
             program_id,
-            rent_cache: None,
-            clock_cache: None,
+            rent_cache: RefCell::new(None),
+            clock_cache: RefCell::new(None),
             recipient: None,
             funder: None,
             programs: Vec::new(),
@@ -37,7 +38,7 @@ impl SolanaRuntime<'_> {
     }
 }
 impl SyscallReturn for SolanaRuntime<'_> {
-    fn set_return_data(&mut self, data: &[u8]) {
+    fn set_return_data(&self, data: &[u8]) {
         set_return_data(data);
     }
 
@@ -46,16 +47,12 @@ impl SyscallReturn for SolanaRuntime<'_> {
     }
 }
 impl<'info> SyscallInvoke<'info> for SolanaRuntime<'info> {
-    fn invoke(
-        &mut self,
-        instruction: &SolanaInstruction,
-        accounts: &[AccountInfo],
-    ) -> ProgramResult {
+    fn invoke(&self, instruction: &SolanaInstruction, accounts: &[AccountInfo]) -> ProgramResult {
         invoke(instruction, accounts)
     }
 
     unsafe fn invoke_unchecked(
-        &mut self,
+        &self,
         instruction: &SolanaInstruction,
         accounts: &[AccountInfo],
     ) -> ProgramResult {
@@ -63,7 +60,7 @@ impl<'info> SyscallInvoke<'info> for SolanaRuntime<'info> {
     }
 
     fn invoke_signed(
-        &mut self,
+        &self,
         instruction: &SolanaInstruction,
         accounts: &[AccountInfo],
         signers_seeds: &[&[&[u8]]],
@@ -102,7 +99,7 @@ impl<'info> SyscallInvoke<'info> for SolanaRuntime<'info> {
     }
 
     unsafe fn invoke_signed_unchecked(
-        &mut self,
+        &self,
         instruction: &SolanaInstruction,
         accounts: &[AccountInfo],
         signers_seeds: &[&[&[u8]]],
@@ -115,25 +112,27 @@ impl<'info> SyscallCore for SolanaRuntime<'info> {
         &self.program_id
     }
 
-    fn get_rent(&mut self) -> Result<Rent, ProgramError> {
-        match self.rent_cache.clone() {
+    fn get_rent(&self) -> std::result::Result<Rent, ProgramError> {
+        let mut rent = self.rent_cache.borrow_mut();
+        match &*rent {
             None => {
-                let rent = Rent::get()?;
-                self.rent_cache = Some(rent.clone());
-                Ok(rent)
+                let new_rent = Rent::get()?;
+                *rent = Some(new_rent.clone());
+                Ok(new_rent)
             }
-            Some(rent) => Ok(rent),
+            Some(rent) => Ok(rent.clone()),
         }
     }
 
-    fn get_clock(&mut self) -> Result<Clock, ProgramError> {
-        match self.clock_cache.clone() {
+    fn get_clock(&self) -> std::result::Result<Clock, ProgramError> {
+        let mut clock = self.clock_cache.borrow_mut();
+        match &*clock {
             None => {
-                let clock = Clock::get()?;
-                self.clock_cache = Some(clock.clone());
-                Ok(clock)
+                let new_clock = Clock::get()?;
+                *clock = Some(new_clock.clone());
+                Ok(new_clock)
             }
-            Some(clock) => Ok(clock),
+            Some(clock) => Ok(clock.clone()),
         }
     }
 }

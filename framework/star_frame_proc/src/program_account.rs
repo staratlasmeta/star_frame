@@ -89,9 +89,11 @@ pub fn program_account_impl_inner(input: DeriveInput, args: ProgramAccountArgs) 
             impl #impl_gen #prelude::AccountToIdl for #ident #ty_gen #where_clause {
                 fn account_to_idl(idl_definition: &mut #prelude::IdlDefinition) -> #prelude::Result<#prelude::IdlAccountId> {
                     let source = #prelude::item_source::<Self>();
+                    let type_def = <Self as #prelude::TypeToIdl>::type_to_idl(idl_definition)?;
+                    let type_id = type_def.assert_defined()?.clone();
                     let idl_account = #prelude::IdlAccount {
                         discriminant: <Self as #prelude::ProgramAccount>::discriminant_bytes(),
-                        type_def: <Self as #prelude::TypeToIdl>::type_to_idl(idl_definition)?,
+                        type_id,
                         seeds: #seeds,
                     };
                     let namespace = idl_definition.add_account(idl_account, Self::AssociatedProgram::PROGRAM_ID)?;
