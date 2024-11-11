@@ -1,7 +1,8 @@
 use crate::account_set::generics::AccountSetGenerics;
-use crate::account_set::{AccountSetStructArgs, StrippedDeriveInput};
-use crate::util::{BetterGenerics, Paths};
+use crate::account_set::struct_impl::StepInput;
+use crate::util::{new_generic, BetterGenerics, Paths};
 use easy_proc::{find_attrs, ArgumentList};
+use itertools::Itertools;
 use proc_macro2::TokenStream;
 use proc_macro_error::abort;
 use quote::quote;
@@ -29,12 +30,16 @@ pub enum DecodeFieldTy<'a> {
 }
 
 pub(super) fn decodes(
-    paths: &Paths,
-    input: &StrippedDeriveInput,
-    account_set_struct_args: &AccountSetStructArgs,
-    account_set_generics: &AccountSetGenerics,
+    StepInput {
+        paths,
+        input,
+        account_set_struct_args,
+        account_set_generics,
+        single_set_field,
+        ..
+    }: StepInput,
     data_struct: &DataStruct,
-    field_name: &[TokenStream],
+    all_field_name: &[TokenStream],
     decode_field_ty: &[DecodeFieldTy],
 ) -> Vec<TokenStream> {
     let ident = &input.ident;
@@ -49,6 +54,7 @@ pub(super) fn decodes(
         account_info,
         result,
         account_set_decode,
+        macro_prelude,
         syscall_invoke,
         decode_ident,
         ..
@@ -56,7 +62,7 @@ pub(super) fn decodes(
     let init = |inits: &mut dyn Iterator<Item = TokenStream>| match &data_struct.fields {
         Fields::Named(_) => quote! {
             #ident {
-                #(#field_name: #inits,)*
+                #(#all_field_name: #inits,)*
             }
         },
         Fields::Unnamed(_) => quote! {
@@ -124,13 +130,10 @@ pub(super) fn decodes(
     }
 
     decode_ids.into_iter().map(|(id, decode_struct_args)|{
-        let decode_type: Type = decode_struct_args.arg.unwrap_or_else(|| syn::parse_quote!(()));
-        let decode_args: Vec<Expr> = field_decodes.iter().map(|f| {
-            f.iter().find(|f| f.id.as_ref().map(LitStr::value) == id).map(|f| f.arg.clone()).unwrap_or_else(|| syn::parse_quote!(()))
-        }).collect();
-
         let (_, ty_generics, _) = main_generics.split_for_impl();
         let mut generics = decode_generics.clone();
+        let mut default_decode_arg: Expr = syn::parse_quote!(());
+        let mut decode_type: Type = syn::parse_quote!(());
         if let Some(extra_generics) = decode_struct_args.generics.map(|g| g.into_inner()) {
             generics.params.extend(extra_generics.params);
             if let Some(extra_where_clause) = extra_generics.where_clause {
@@ -139,10 +142,27 @@ pub(super) fn decodes(
                     .predicates
                     .extend(extra_where_clause.predicates);
             }
+        } else if let Some(single_set_field) = single_set_field {
+            let generic_arg = new_generic(main_generics);
+            default_decode_arg = syn::parse_quote!(arg);
+            decode_type = syn::parse_quote!(#generic_arg);
+            generics.params.push(syn::parse_quote!(#generic_arg));
+            let single_ty = &single_set_field.ty;
+            generics.make_where_clause().predicates.push(syn::parse_quote!(#single_ty: #account_set_decode<#decode_lifetime, #info_lifetime, #generic_arg> + #macro_prelude::SingleAccountSet<#info_lifetime>));
         }
+        let decode_type = decode_struct_args.arg.unwrap_or(decode_type);
+        let decode_args: Vec<Expr> = field_decodes
+            .iter()
+            .map(|f| {
+                f.iter()
+                    .find(|f| f.id.as_ref().map(LitStr::value) == id)
+                    .map(|f| f.arg.clone())
+                    .unwrap_or_else(|| default_decode_arg.clone())
+        }).collect();
+
         let (impl_generics, _, where_clause) = generics.split_for_impl();
 
-        let decode_inner = init(&mut decode_field_ty.iter().zip(&decode_args).map(|(field_ty, decode_args)| {
+        let decode_inner = init(&mut decode_field_ty.iter().zip_eq(&decode_args).map(|(field_ty, decode_args)| {
             match &field_ty {
                 DecodeFieldTy::Type(field_type) => quote! {
                         <#field_type as #account_set_decode<#decode_lifetime, #info_lifetime, _>>::decode_accounts(accounts, #decode_args, syscalls)?

@@ -227,6 +227,23 @@ pub mod idl_impl {
                 writable: false,
                 signer: false,
                 optional: false,
+                is_init: false,
+            }))
+        }
+    }
+    impl<'info> AccountSetToIdl<'info, Pubkey> for AccountInfo<'info> {
+        fn account_set_to_idl(
+            _idl_definition: &mut IdlDefinition,
+            arg: Pubkey,
+        ) -> Result<IdlAccountSetDef> {
+            Ok(IdlAccountSetDef::Single(IdlSingleAccountSet {
+                program_accounts: vec![],
+                seeds: None,
+                address: Some(arg),
+                writable: false,
+                signer: false,
+                optional: false,
+                is_init: false,
             }))
         }
     }

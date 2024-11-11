@@ -36,6 +36,7 @@ pub struct IdlSingleAccountSet {
     pub writable: bool,
     pub signer: bool,
     pub optional: bool,
+    pub is_init: bool,
     pub program_accounts: Vec<IdlAccountId>,
     pub seeds: Option<IdlFindSeeds>,
     #[serde(with = "serde_base58_pubkey_option")]

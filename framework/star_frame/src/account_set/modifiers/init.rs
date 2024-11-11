@@ -2,15 +2,10 @@ use crate::prelude::*;
 use anyhow::Context;
 use derivative::Derivative;
 use derive_more::{Deref, DerefMut};
-use star_frame::syscalls::SyscallAccountCache;
-use star_frame_proc::AccountSet;
+
 #[derive(AccountSet, Clone, Debug, Deref, DerefMut)]
-#[account_set(
-    skip_default_idl,
-    skip_default_validate,
-    generics = [where T: AccountSet < 'info >]
-)]
-#[decode(generics = [<A> where T: AccountSetDecode<'a, 'info, A>], arg = A)]
+#[repr(transparent)]
+#[account_set(skip_default_idl, skip_default_validate)]
 #[validate(
     id = "create",
     generics = [
@@ -59,17 +54,12 @@ use star_frame_proc::AccountSet;
         self.init(arg.0, syscalls, None)
     }
 )]
-#[cleanup(generics = [<A> where T: AccountSetCleanup <'info, A>], arg = A)]
 pub struct Init<T>(
-    #[decode(arg = arg)]
+    #[single_account_set(skip_can_set_seeds, skip_can_init_account)]
     #[validate(id = "create_generic", arg = arg.1)]
     #[validate(id = "create_if_needed_generic", arg = arg.1)]
-    #[cleanup(arg = arg)]
-    #[single_account_set(skip_can_set_seeds, skip_can_init_account)]
     T,
 );
-
-use std::fmt::Debug;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
 #[repr(transparent)]
@@ -130,6 +120,7 @@ impl<'info, A> CreateAccount<'info, A, Funder<'info>> {
 #[cfg(feature = "idl")]
 mod idl_impl {
     use super::*;
+    use anyhow::bail;
     use star_frame::idl::AccountSetToIdl;
     use star_frame_idl::account_set::IdlAccountSetDef;
     use star_frame_idl::IdlDefinition;
@@ -142,8 +133,17 @@ mod idl_impl {
             idl_definition: &mut IdlDefinition,
             arg: A,
         ) -> Result<IdlAccountSetDef> {
-            // manually mark as writable. Nothing else is needed for the IDL. T Will be marked as signer automatically
-            <Mut<T> as AccountSetToIdl<'info, A>>::account_set_to_idl(idl_definition, arg)
+            let mut set =
+                <Mut<T> as AccountSetToIdl<'info, A>>::account_set_to_idl(idl_definition, arg)?;
+            let single = set.single()?;
+            if single.is_init {
+                bail!(
+                    "Account set is already wrapped with `Init`! Got {:?}",
+                    single
+                );
+            }
+            set.single()?.is_init = true;
+            Ok(set)
         }
     }
 }

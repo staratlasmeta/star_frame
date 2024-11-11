@@ -1,23 +1,13 @@
 use crate::account_set::{AccountSet, SingleAccountSet, WritableAccount};
-use crate::prelude::{AccountSetCleanup, AccountSetDecode, AccountSetValidate};
 use derive_more::{Deref, DerefMut};
 
 #[derive(AccountSet, Copy, Clone, Debug, Deref, DerefMut)]
-#[account_set(skip_default_idl, generics = [where T: AccountSet<'info>])]
+#[account_set(skip_default_idl)]
 #[validate(
-    generics = [<A> where T: AccountSetValidate<'info, A> + SingleAccountSet<'info>], arg = A,
     extra_validation = self.check_writable(),
 )]
-#[decode(generics = [<A> where T: AccountSetDecode<'a, 'info, A>], arg = A)]
-#[cleanup(generics = [<A> where T: AccountSetCleanup<'info, A>], arg = A)]
 #[repr(transparent)]
-pub struct Mut<T>(
-    #[decode(arg = arg)]
-    #[validate(arg = arg)]
-    #[cleanup(arg = arg)]
-    #[single_account_set(skip_writable_account)]
-    pub(crate) T,
-);
+pub struct Mut<T>(#[single_account_set(skip_writable_account)] pub(crate) T);
 
 impl<'info, T> WritableAccount<'info> for Mut<T> where T: SingleAccountSet<'info> {}
 

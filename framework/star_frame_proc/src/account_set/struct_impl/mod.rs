@@ -1,8 +1,6 @@
 use crate::account_set::generics::AccountSetGenerics;
-use crate::account_set::struct_impl::cleanup::cleanups;
 use crate::account_set::struct_impl::decode::DecodeFieldTy;
-use crate::account_set::struct_impl::validate::validates;
-use crate::account_set::{AccountSetStructArgs, StrippedDeriveInput};
+use crate::account_set::{AccountSetStructArgs, SingleAccountSetFieldArgs, StrippedDeriveInput};
 use crate::util::{new_generic, Paths};
 use easy_proc::{find_attr, ArgumentList};
 use proc_macro2::TokenStream;
@@ -46,22 +44,16 @@ struct AccountSetFieldAttrs {
     recipient: bool,
 }
 
-#[derive(ArgumentList, Debug, Clone, Default)]
-struct SingleAccountSetFieldAttrs {
-    #[argument(presence)]
-    skip_signed_account: bool,
-    #[argument(presence)]
-    skip_writable_account: bool,
-    #[argument(presence)]
-    skip_has_program_account: bool,
-    #[argument(presence)]
-    skip_has_owner_program: bool,
-    #[argument(presence)]
-    skip_has_seeds: bool,
-    #[argument(presence)]
-    skip_can_set_seeds: bool,
-    #[argument(presence)]
-    skip_can_init_account: bool,
+#[derive(Debug, Copy, Clone)]
+pub struct StepInput<'a> {
+    paths: &'a Paths,
+    input: &'a StrippedDeriveInput,
+    account_set_struct_args: &'a AccountSetStructArgs,
+    account_set_generics: &'a AccountSetGenerics,
+    single_set_field: Option<&'a Field>,
+    field_name: &'a [TokenStream],
+    fields: &'a [&'a Field],
+    field_type: &'a [&'a syn::Type],
 }
 
 pub(super) fn derive_account_set_impl_struct(
@@ -90,21 +82,6 @@ pub(super) fn derive_account_set_impl_struct(
     } = &paths;
 
     let ident = &input.ident;
-    let single_generics = main_generics.clone();
-
-    let mut generics = other_generics.clone();
-    if let Some(extra_generics) = &account_set_struct_args.generics {
-        generics.params.extend(extra_generics.params.clone());
-        if let Some(extra_where_clause) = &extra_generics.where_clause {
-            generics
-                .make_where_clause()
-                .predicates
-                .extend(extra_where_clause.predicates.clone());
-        }
-    }
-    let (other_impl_generics, _, other_where_clause) = generics.split_for_impl();
-
-    let (_, ty_generics, _) = main_generics.split_for_impl();
 
     let filter_skip = |f: &&Field| -> bool {
         find_attr(&f.attrs, &paths.account_set_ident)
@@ -121,7 +98,7 @@ pub(super) fn derive_account_set_impl_struct(
             .unwrap_or_else(|| Index::from(index).into_token_stream())
     };
 
-    let field_name = data_struct
+    let all_field_name = data_struct
         .fields
         .iter()
         .enumerate()
@@ -147,24 +124,51 @@ pub(super) fn derive_account_set_impl_struct(
                     format!("Only one field can be marked as {name}")
                 );
             }
-            fields.pop().map(|(index, _)| field_name[index].clone())
+            fields.pop().map(|(index, _)| all_field_name[index].clone())
         };
 
-    let mut single_account_sets = data_struct
+    let (fields, skipped_fields): (Vec<_>, Vec<_>) =
+        data_struct.fields.iter().partition(filter_skip);
+    let field_name = data_struct
         .fields
         .iter()
+        .enumerate()
+        .filter(|(_, f)| filter_skip(f))
+        .map(resolve_field_name)
+        .collect::<Vec<_>>();
+    let field_type = data_struct
+        .fields
+        .iter()
+        .filter(filter_skip)
+        .map(|field| &field.ty)
+        .collect::<Vec<_>>();
+
+    let mut single_account_sets = fields
+        .iter()
+        .copied()
         .enumerate()
         .filter_map(|field| {
             find_attr(&field.1.attrs, &paths.single_account_set_ident).map(|a| {
                 let parsed = if a.meta.require_path_only().is_ok() {
                     Default::default()
                 } else {
-                    SingleAccountSetFieldAttrs::parse_arguments(a)
+                    SingleAccountSetFieldArgs::parse_arguments(a)
                 };
                 (field.1, field_name[field.0].clone(), parsed)
             })
         })
         .collect::<Vec<_>>();
+
+    skipped_fields.iter().for_each(|field| {
+        if let Some(attr) = find_attr(&field.attrs, &paths.single_account_set_ident) {
+            abort!(
+                attr,
+                "`{}` cannot be applied to skipped fields",
+                &paths.single_account_set_ident
+            );
+        }
+    });
+
     if single_account_sets.len() > 1 {
         abort!(
             single_account_sets[1].0,
@@ -173,9 +177,21 @@ pub(super) fn derive_account_set_impl_struct(
         );
     }
 
-    // todo: potentially refactor single account set modifier to change default behavior for both idl and arg.
-    //  could also be a top level struct field and require only 1 unskipped field remaining for it to work.
-    let single_account_set_impls = single_account_sets.pop().map(|(field, field_name, args)| {
+    let single_account_set = single_account_sets.pop();
+    let mut single_set_field = None;
+
+    let (_, ty_generics, _) = main_generics.split_for_impl();
+
+    let single_account_set_impls = single_account_set.map(|(field, field_name, args)| {
+        if fields.len() > 1 {
+            abort!(
+                field,
+                "`{}` can only be applied to a struct with a single unskipped field",
+                &paths.single_account_set_ident
+            );
+        }
+        let single_generics = main_generics.clone();
+        single_set_field.replace(field.clone());
         let sg_impl = single_generics.clone();
         let (sg_impl, _, _) = sg_impl.split_for_impl();
 
@@ -346,6 +362,23 @@ pub(super) fn derive_account_set_impl_struct(
         }
     });
 
+    let mut generics = other_generics.clone();
+    if let Some(extra_generics) = &account_set_struct_args.generics {
+        generics.params.extend(extra_generics.params.clone());
+        if let Some(extra_where_clause) = &extra_generics.where_clause {
+            generics
+                .make_where_clause()
+                .predicates
+                .extend(extra_where_clause.predicates.clone());
+        }
+    } else if let Some(single_set_field) = &single_set_field {
+        let single_ty = &single_set_field.ty;
+        generics.make_where_clause().predicates.push(parse_quote! {
+            #single_ty: #account_set<#info_lifetime>
+        });
+    }
+    let (other_impl_generics, _, other_where_clause) = generics.split_for_impl();
+
     let decode_types = data_struct
         .fields
         .iter()
@@ -357,71 +390,25 @@ pub(super) fn derive_account_set_impl_struct(
         })
         .collect::<Vec<_>>();
 
-    let decodes = decode::decodes(
-        &paths,
-        &input,
-        &account_set_struct_args,
-        &account_set_generics,
-        &data_struct,
-        &field_name,
-        &decode_types,
-    );
+    let step_input = StepInput {
+        paths: &paths,
+        input: &input,
+        account_set_struct_args: &account_set_struct_args,
+        account_set_generics: &account_set_generics,
+        single_set_field: single_set_field.as_ref(),
+        field_name: &field_name,
+        fields: &fields,
+        field_type: &field_type,
+    };
 
-    let fields = data_struct
-        .fields
-        .iter()
-        .filter(filter_skip)
-        .collect::<Vec<_>>();
-    let field_name = data_struct
-        .fields
-        .iter()
-        .enumerate()
-        .filter(|(_, f)| filter_skip(f))
-        .map(resolve_field_name)
-        .collect::<Vec<_>>();
-    let field_type = data_struct
-        .fields
-        .iter()
-        .filter(filter_skip)
-        .map(|field| &field.ty)
-        .collect::<Vec<_>>();
+    let decodes = decode::decodes(step_input, &data_struct, &all_field_name, &decode_types);
+    let validates = validate::validates(step_input);
+    let cleanups = cleanup::cleanups(step_input);
 
-    let validates = validates(
-        &paths,
-        &input,
-        &account_set_struct_args,
-        &account_set_generics,
-        &fields,
-        &field_name,
-        &field_type,
-    );
-    let cleanups = cleanups(
-        &paths,
-        &input,
-        &account_set_struct_args,
-        &account_set_generics,
-        &fields,
-        &field_name,
-        &field_type,
-    );
-
-    let idls: Vec<TokenStream>;
     #[cfg(feature = "idl")]
-    {
-        idls = idl::idls(
-            &paths,
-            &input,
-            &account_set_struct_args,
-            &account_set_generics,
-            &fields,
-            &field_name,
-            &field_type,
-        );
-    }
+    let idls = idl::idls(step_input);
     #[cfg(not(feature = "idl"))]
-    {
-        idls = Vec::new();
-    }
+    let idls = Vec::<TokenStream>::new();
 
     let set_account_caches = {
         let set_system =
@@ -490,11 +477,11 @@ pub(super) fn derive_account_set_impl_struct(
             }
         }
 
-        #single_account_set_impls
-
         #(#decodes)*
         #(#validates)*
         #(#cleanups)*
         #(#idls)*
+
+        #single_account_set_impls
     }
 }

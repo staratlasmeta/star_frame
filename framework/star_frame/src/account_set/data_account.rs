@@ -48,12 +48,12 @@ pub struct CloseAccount<'a, F> {
 pub struct CloseAccountAuto;
 
 #[derive(AccountSet, Debug)]
-#[account_set(skip_default_idl)]
-#[validate(
-    generics = [<A> where AccountInfo<'info>: AccountSetValidate<'info, A>], arg = A,
-    extra_validation = self.validate()
+#[account_set(skip_default_idl, skip_default_cleanup)]
+#[validate(extra_validation = self.validate())]
+#[cleanup(
+    generics = [],
+    extra_cleanup = self.check_cleanup(syscalls),
 )]
-#[cleanup(extra_cleanup = self.check_cleanup(syscalls))]
 #[cleanup(
     id = "normalize_rent",
     generics = [<'a, F> where F: WritableAccount<'info> + SignedAccount<'info>],
@@ -63,11 +63,12 @@ pub struct CloseAccountAuto;
 #[cleanup(
     id = "normalize_rent_auto",
     arg = NormalizeRentAuto,
+    generics = [],
     extra_cleanup = {
         let funder = syscalls.get_funder().context("Missing `funder` for NormalizeRentAuto")?.clone();
         let system_program = syscalls.get_system_program().context("Missing `system_program` for NormalizeRentAuto")?.clone();
         self.normalize_rent(&funder, &system_program, syscalls)
-    }
+    },
 )]
 #[cleanup(
     id = "refund_rent",
@@ -78,6 +79,7 @@ pub struct CloseAccountAuto;
 #[cleanup(
     id = "refund_rent_auto",
     arg = RefundRentAuto,
+    generics = [],
     extra_cleanup = {
         let recipient = syscalls.get_recipient().context("Missing `recipient` for RefundRentAuto")?.clone();
         self.refund_rent(&recipient, syscalls)
@@ -92,6 +94,7 @@ pub struct CloseAccountAuto;
 #[cleanup(
     id = "close_account_auto",
     arg = CloseAccountAuto,
+    generics = [],
     extra_cleanup = {
         let recipient = syscalls.get_recipient().context("Missing `recipient` for CloseAccountAuto")?;
         self.close(recipient)
@@ -104,8 +107,8 @@ pub struct DataAccount<'info, T: ProgramAccount + UnsizedType + ?Sized> {
         skip_has_seeds,
         skip_has_owner_program
     )]
-    #[validate(arg = arg)]
     info: AccountInfo<'info>,
+    #[account_set(skip = PhantomData)]
     phantom_t: PhantomData<T>,
 }
 
