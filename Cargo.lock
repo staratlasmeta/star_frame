@@ -5137,7 +5137,6 @@ dependencies = [
  "advance",
  "anyhow",
  "array-init",
- "bincode",
  "borsh 1.5.0",
  "bumpalo",
  "bytemuck",
@@ -5177,13 +5176,11 @@ version = "0.0.1"
 dependencies = [
  "anchor-lang-idl-spec",
  "anyhow",
- "bincode",
  "derivative",
  "derive_more",
  "rand 0.8.5",
  "semver",
  "serde",
- "serde_json",
  "solana-program",
 ]
 

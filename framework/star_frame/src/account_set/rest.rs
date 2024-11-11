@@ -1,19 +1,17 @@
-use crate::account_set::{
-    AccountSet, AccountSetCleanup, AccountSetDecode, AccountSetValidate,
-};
+use crate::account_set::{AccountSet, AccountSetCleanup, AccountSetDecode, AccountSetValidate};
+use crate::client::{ClientAccountSet, CpiAccountSet};
 use crate::syscalls::SyscallInvoke;
 use derive_more::{Deref, DerefMut};
 use solana_program::account_info::AccountInfo;
 use solana_program::instruction::AccountMeta;
 use solana_program::pubkey::Pubkey;
-use crate::client::{ClientAccountSet, CpiAccountSet};
 
 #[derive(AccountSet, Debug, Deref, DerefMut)]
 #[account_set(
-    skip_cpi_account_set, 
-    skip_client_account_set, 
-    skip_default_decode, 
-    skip_default_idl, 
+    skip_cpi_account_set,
+    skip_client_account_set,
+    skip_default_decode,
+    skip_default_idl,
     generics = [where T: AccountSet<'info>]
 )]
 #[validate(generics = [<A> where T: AccountSetValidate<'info, A>, A: Clone], arg = A)]
