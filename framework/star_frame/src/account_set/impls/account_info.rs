@@ -1,4 +1,5 @@
-use crate::account_set::{AccountSetDecode, SingleAccountSet};
+use crate::account_set::{AccountSetDecode, SingleAccountSet, SingleSetMeta};
+use crate::prelude::SyscallAccountCache;
 use crate::syscalls::SyscallInvoke;
 use crate::Result;
 use advance::AdvanceArray;
@@ -9,9 +10,14 @@ use solana_program::pubkey::Pubkey;
 use star_frame::account_set::{AccountSet, AccountSetCleanup, AccountSetValidate};
 use std::cell::{Ref, RefMut};
 
-impl<'info> AccountSet<'info> for AccountInfo<'info> {}
-impl<'__a, 'info> AccountSet<'info> for &'__a AccountInfo<'info> {}
+impl<'info> AccountSet<'info> for AccountInfo<'info> {
+    fn set_account_cache(&mut self, _syscalls: &mut impl SyscallAccountCache<'info>) {}
+}
+impl<'__a, 'info> AccountSet<'info> for &'__a AccountInfo<'info> {
+    fn set_account_cache(&mut self, _syscalls: &mut impl SyscallAccountCache<'info>) {}
+}
 impl<'info> SingleAccountSet<'info> for AccountInfo<'info> {
+    const META: SingleSetMeta = SingleSetMeta::default();
     fn account_info(&self) -> &AccountInfo<'info> {
         self
     }
@@ -58,6 +64,7 @@ impl<'info> SingleAccountSet<'info> for AccountInfo<'info> {
     }
 }
 impl<'__a, 'info> SingleAccountSet<'info> for &'__a AccountInfo<'info> {
+    const META: SingleSetMeta = SingleSetMeta::default();
     fn account_info(&self) -> &AccountInfo<'info> {
         self
     }

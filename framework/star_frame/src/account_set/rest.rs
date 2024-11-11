@@ -1,10 +1,21 @@
-use crate::account_set::{AccountSet, AccountSetCleanup, AccountSetDecode, AccountSetValidate};
+use crate::account_set::{
+    AccountSet, AccountSetCleanup, AccountSetDecode, AccountSetValidate,
+};
 use crate::syscalls::SyscallInvoke;
 use derive_more::{Deref, DerefMut};
 use solana_program::account_info::AccountInfo;
+use solana_program::instruction::AccountMeta;
+use solana_program::pubkey::Pubkey;
+use crate::client::{ClientAccountSet, CpiAccountSet};
 
 #[derive(AccountSet, Debug, Deref, DerefMut)]
-#[account_set(skip_default_decode, skip_default_idl, generics = [where T: AccountSet<'info>])]
+#[account_set(
+    skip_cpi_account_set, 
+    skip_client_account_set, 
+    skip_default_decode, 
+    skip_default_idl, 
+    generics = [where T: AccountSet<'info>]
+)]
 #[validate(generics = [<A> where T: AccountSetValidate<'info, A>, A: Clone], arg = A)]
 #[cleanup(generics = [<A> where T: AccountSetCleanup<'info, A>, A: Clone], arg = A)]
 pub struct Rest<T>(
@@ -12,6 +23,42 @@ pub struct Rest<T>(
     #[cleanup(arg = (arg,))]
     Vec<T>,
 );
+
+impl<'info, T> CpiAccountSet<'info> for Rest<T>
+where
+    T: CpiAccountSet<'info>,
+{
+    type CpiAccounts<'a> = Vec<T::CpiAccounts<'info>>;
+    const MIN_LEN: usize = 0;
+    fn extend_account_infos(
+        accounts: Self::CpiAccounts<'info>,
+        infos: &mut Vec<AccountInfo<'info>>,
+    ) {
+        <Vec<T>>::extend_account_infos(accounts, infos);
+    }
+    fn extend_account_metas(
+        program_id: &Pubkey,
+        accounts: &Self::CpiAccounts<'info>,
+        metas: &mut Vec<AccountMeta>,
+    ) {
+        <Vec<T>>::extend_account_metas(program_id, accounts, metas);
+    }
+}
+
+impl<T> ClientAccountSet for Rest<T>
+where
+    T: ClientAccountSet,
+{
+    type ClientAccounts = Vec<T::ClientAccounts>;
+    const MIN_LEN: usize = 0;
+    fn extend_account_metas(
+        program_id: &Pubkey,
+        accounts: &Self::ClientAccounts,
+        metas: &mut Vec<AccountMeta>,
+    ) {
+        <Vec<T>>::extend_account_metas(program_id, accounts, metas);
+    }
+}
 
 impl<'a, 'info, A, T> AccountSetDecode<'a, 'info, A> for Rest<T>
 where

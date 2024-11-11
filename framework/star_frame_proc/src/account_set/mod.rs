@@ -18,14 +18,17 @@ struct StrippedDeriveInput {
 #[derive(ArgumentList, Default, Debug)]
 struct AccountSetStructArgs {
     #[argument(presence)]
+    skip_account_set: bool,
+    #[argument(presence)]
+    skip_client_account_set: bool,
+    #[argument(presence)]
+    skip_cpi_account_set: bool,
+    #[argument(presence)]
     skip_default_decode: bool,
     #[argument(presence)]
     skip_default_validate: bool,
     #[argument(presence)]
     skip_default_cleanup: bool,
-    #[argument(presence)]
-    skip_default_account_set: bool,
-    #[cfg(feature = "idl")]
     #[argument(presence)]
     skip_default_idl: bool,
     generics: Option<BetterGenerics>,
@@ -33,6 +36,10 @@ struct AccountSetStructArgs {
 
 #[derive(ArgumentList, Debug, Clone, Default)]
 struct SingleAccountSetFieldArgs {
+    #[argument(presence)]
+    signer: bool,
+    #[argument(presence)]
+    writable: bool,
     #[argument(presence)]
     skip_signed_account: bool,
     #[argument(presence)]

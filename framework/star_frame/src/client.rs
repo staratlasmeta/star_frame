@@ -1,0 +1,124 @@
+use crate::instruction::{InstructionDiscriminant, InstructionSet, StarFrameInstruction};
+use crate::prelude::{StarFrameProgram, SyscallInvoke};
+use crate::SolanaInstruction;
+use borsh::BorshSerialize;
+use solana_program::account_info::AccountInfo;
+use solana_program::entrypoint::ProgramResult;
+use solana_program::instruction::AccountMeta;
+use solana_program::pubkey::Pubkey;
+use std::fmt::Debug;
+
+pub trait CpiAccountSet<'info> {
+    type CpiAccounts<'a>: Debug + Clone;
+    /// The minimum number of accounts this CPI might use
+    const MIN_LEN: usize;
+
+    fn extend_account_infos(
+        accounts: Self::CpiAccounts<'info>,
+        infos: &mut Vec<AccountInfo<'info>>,
+    );
+    fn extend_account_metas(
+        program_id: &Pubkey,
+        accounts: &Self::CpiAccounts<'info>,
+        metas: &mut Vec<AccountMeta>,
+    );
+}
+
+pub trait ClientAccountSet {
+    type ClientAccounts: Debug + Clone;
+    /// The minimum number of accounts this CPI might use
+    const MIN_LEN: usize;
+    fn extend_account_metas(
+        program_id: &Pubkey,
+        accounts: &Self::ClientAccounts,
+        metas: &mut Vec<AccountMeta>,
+    );
+}
+
+#[derive(Debug, Clone)]
+pub struct CpiBuilder<'info> {
+    pub instruction: SolanaInstruction,
+    pub accounts: Vec<AccountInfo<'info>>,
+}
+
+impl<'info> CpiBuilder<'info> {
+    pub fn invoke(&self, syscalls: &impl SyscallInvoke<'info>) -> ProgramResult {
+        syscalls.invoke(&self.instruction, &self.accounts)
+    }
+
+    pub fn invoke_signed(
+        &self,
+        signer_seeds: &[&[&[u8]]],
+        syscalls: &impl SyscallInvoke<'info>,
+    ) -> ProgramResult {
+        syscalls.invoke_signed(&self.instruction, &self.accounts, signer_seeds)
+    }
+}
+
+pub trait MakeCpi<'info>: StarFrameProgram {
+    fn cpi<I, A>(data: &I, accounts: A::CpiAccounts<'info>) -> anyhow::Result<CpiBuilder<'info>>
+    where
+        I: StarFrameInstruction<Accounts<'static, 'static, 'info> = A>
+            + InstructionDiscriminant<Self::InstructionSet>
+            + BorshSerialize,
+        A: CpiAccountSet<'info>,
+    {
+        CpiBuilder::new::<Self::InstructionSet, I, A>(Self::PROGRAM_ID, data, accounts)
+    }
+}
+
+impl<'info, T> MakeCpi<'info> for T where T: StarFrameProgram + ?Sized {}
+
+impl<'info> CpiBuilder<'info> {
+    pub fn new<S, I, A>(
+        program_id: Pubkey,
+        data: &I,
+        accounts: A::CpiAccounts<'info>,
+    ) -> anyhow::Result<Self>
+    where
+        S: InstructionSet,
+        I: StarFrameInstruction<Accounts<'static, 'static, 'info> = A>
+            + InstructionDiscriminant<S>
+            + BorshSerialize,
+        A: CpiAccountSet<'info>,
+    {
+        let mut metas = Vec::with_capacity(A::MIN_LEN);
+        A::extend_account_metas(&program_id, &accounts, &mut metas);
+        let mut infos = Vec::with_capacity(A::MIN_LEN);
+        A::extend_account_infos(accounts, &mut infos);
+
+        let mut ix_data = I::discriminant_bytes();
+        BorshSerialize::serialize(&data, &mut ix_data)?;
+
+        Ok(Self {
+            instruction: SolanaInstruction {
+                program_id,
+                accounts: metas,
+                data: ix_data,
+            },
+            accounts: infos,
+        })
+    }
+}
+
+pub trait MakeInstruction<'info>: StarFrameProgram {
+    fn instruction<I, A>(data: &I, accounts: A::ClientAccounts) -> anyhow::Result<SolanaInstruction>
+    where
+        I: StarFrameInstruction<Accounts<'static, 'static, 'info> = A>
+            + InstructionDiscriminant<Self::InstructionSet>
+            + BorshSerialize,
+        A: ClientAccountSet,
+    {
+        let mut metas = Vec::with_capacity(A::MIN_LEN);
+        A::extend_account_metas(&Self::PROGRAM_ID, &accounts, &mut metas);
+        let mut ix_data = I::discriminant_bytes();
+        BorshSerialize::serialize(&data, &mut ix_data)?;
+        Ok(SolanaInstruction {
+            program_id: Self::PROGRAM_ID,
+            accounts: metas,
+            data: ix_data,
+        })
+    }
+}
+
+impl<'info, T> MakeInstruction<'info> for T where T: StarFrameProgram + ?Sized {}

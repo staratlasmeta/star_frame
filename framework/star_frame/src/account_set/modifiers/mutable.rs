@@ -7,7 +7,7 @@ use derive_more::{Deref, DerefMut};
     extra_validation = self.check_writable(),
 )]
 #[repr(transparent)]
-pub struct Mut<T>(#[single_account_set(skip_writable_account)] pub(crate) T);
+pub struct Mut<T>(#[single_account_set(writable, skip_writable_account)] pub(crate) T);
 
 impl<'info, T> WritableAccount<'info> for Mut<T> where T: SingleAccountSet<'info> {}
 

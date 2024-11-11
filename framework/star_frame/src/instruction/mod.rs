@@ -231,6 +231,32 @@ where
     }
 }
 
+#[macro_export]
+macro_rules! empty_star_frame_instruction {
+    ($ix:ident, $accounts:ident) => {
+        impl $crate::instruction::StarFrameInstruction for $ix {
+            type DecodeArg<'a> = ();
+            type ValidateArg<'a> = ();
+            type RunArg<'a> = ();
+            type CleanupArg<'a> = ();
+            type ReturnType = ();
+            type Accounts<'b, 'c, 'info> = $accounts<'info>;
+
+            fn split_to_args<'a>(_r: &Self) -> $crate::instruction::IxArgs<Self> {
+                Default::default()
+            }
+
+            fn run_instruction<'info>(
+                _account_set: &mut Self::Accounts<'_, '_, 'info>,
+                _run_args: Self::RunArg<'_>,
+                _syscalls: &mut impl $crate::syscalls::SyscallInvoke<'info>,
+            ) -> $crate::Result<Self::ReturnType> {
+                Ok(())
+            }
+        }
+    };
+}
+
 #[cfg(feature = "test_helpers")]
 mod test_helpers {
     /// A helper macro for implementing blank instructions for testing.
