@@ -40,8 +40,8 @@ pub struct CloseAccount<T>(pub T);
 )]
 #[cleanup(
     id = "normalize_rent",
-    generics = [<'a, F> where F: WritableAccount<'info> + SignedAccount<'info>],
-    arg = NormalizeRent<&'a F>,
+    generics = [<'a, Funder> where Funder: WritableAccount<'info> + SignedAccount<'info>],
+    arg = NormalizeRent<&'a Funder>,
     extra_cleanup = self.normalize_rent(arg.0, syscalls)
 )]
 #[cleanup(
@@ -55,8 +55,8 @@ pub struct CloseAccount<T>(pub T);
 )]
 #[cleanup(
     id = "refund_rent",
-    generics = [<'a, F> where F: WritableAccount<'info>],
-    arg = RefundRent<&'a F>,
+    generics = [<'a, Recipient> where Recipient: WritableAccount<'info>],
+    arg = RefundRent<&'a Recipient>,
     extra_cleanup = self.refund_rent(arg.0, syscalls)
 )]
 #[cleanup(
@@ -70,8 +70,8 @@ pub struct CloseAccount<T>(pub T);
 )]
 #[cleanup(
     id = "close_account",
-    generics = [<'a, F> where F: WritableAccount<'info>],
-    arg = CloseAccount<&'a F>,
+    generics = [<'a, Recipient> where Recipient: WritableAccount<'info>],
+    arg = CloseAccount<&'a Recipient>,
     extra_cleanup = self.close(arg.0)
 )]
 #[cleanup(
@@ -226,14 +226,14 @@ where
     }
 }
 
-impl<'info, T: ProgramAccount + UnsizedType + ?Sized, A> CanInitAccount<'info, CreateIfNeeded<(A,)>>
-    for DataAccount<'info, T>
+impl<'info, T: ProgramAccount + UnsizedType + ?Sized, InitArg>
+    CanInitAccount<'info, CreateIfNeeded<(InitArg,)>> for DataAccount<'info, T>
 where
-    T: UnsizedInit<A>,
+    T: UnsizedInit<InitArg>,
 {
     fn init_account(
         &mut self,
-        arg: CreateIfNeeded<(A,)>,
+        arg: CreateIfNeeded<(InitArg,)>,
         syscalls: &mut impl SyscallInvoke<'info>,
         account_seeds: Option<Vec<&[u8]>>,
     ) -> Result<()> {
@@ -248,15 +248,15 @@ where
     }
 }
 
-impl<'info, T: ProgramAccount + UnsizedType + ?Sized, A, WT>
-    CanInitAccount<'info, CreateIfNeeded<(A, WT)>> for DataAccount<'info, T>
+impl<'info, T: ProgramAccount + UnsizedType + ?Sized, InitArg, Funder>
+    CanInitAccount<'info, CreateIfNeeded<(InitArg, Funder)>> for DataAccount<'info, T>
 where
-    T: UnsizedInit<A>,
-    WT: SignedAccount<'info> + WritableAccount<'info>,
+    T: UnsizedInit<InitArg>,
+    Funder: SignedAccount<'info> + WritableAccount<'info>,
 {
     fn init_account(
         &mut self,
-        arg: CreateIfNeeded<(A, WT)>,
+        arg: CreateIfNeeded<(InitArg, Funder)>,
         syscalls: &mut impl SyscallInvoke<'info>,
         account_seeds: Option<Vec<&[u8]>>,
     ) -> Result<()> {
@@ -287,14 +287,14 @@ where
     }
 }
 
-impl<'info, T: ProgramAccount + UnsizedType + ?Sized, A> CanInitAccount<'info, Create<(A,)>>
-    for DataAccount<'info, T>
+impl<'info, T: ProgramAccount + UnsizedType + ?Sized, InitArg>
+    CanInitAccount<'info, Create<(InitArg,)>> for DataAccount<'info, T>
 where
-    T: UnsizedInit<A>,
+    T: UnsizedInit<InitArg>,
 {
     fn init_account(
         &mut self,
-        arg: Create<(A,)>,
+        arg: Create<(InitArg,)>,
         syscalls: &mut impl SyscallInvoke<'info>,
         account_seeds: Option<Vec<&[u8]>>,
     ) -> Result<()> {
@@ -306,15 +306,15 @@ where
     }
 }
 
-impl<'info, T: ProgramAccount + UnsizedType + ?Sized, A, WT> CanInitAccount<'info, Create<(A, WT)>>
-    for DataAccount<'info, T>
+impl<'info, T: ProgramAccount + UnsizedType + ?Sized, InitArg, Funder>
+    CanInitAccount<'info, Create<(InitArg, Funder)>> for DataAccount<'info, T>
 where
-    T: UnsizedInit<A>,
-    WT: SignedAccount<'info> + WritableAccount<'info>,
+    T: UnsizedInit<InitArg>,
+    Funder: SignedAccount<'info> + WritableAccount<'info>,
 {
     fn init_account(
         &mut self,
-        arg: Create<(A, WT)>,
+        arg: Create<(InitArg, Funder)>,
         syscalls: &mut impl SyscallInvoke<'info>,
         account_seeds: Option<Vec<&[u8]>>,
     ) -> Result<()> {
