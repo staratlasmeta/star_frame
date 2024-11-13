@@ -1,6 +1,4 @@
 use crate::prelude::*;
-use anyhow::Context;
-use derivative::Derivative;
 use derive_more::{Deref, DerefMut};
 
 #[derive(AccountSet, Clone, Debug, Deref, DerefMut)]
@@ -55,55 +53,6 @@ pub struct Create<T>(pub T);
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
 #[repr(transparent)]
 pub struct CreateIfNeeded<T>(pub T);
-
-#[derive(Derivative)]
-#[derivative(Debug(bound = "A: Debug, Program<'info, SystemProgram>: Debug, WT: Debug"))]
-pub struct CreateAccount<'info, A, WT> {
-    pub(crate) arg: A,
-    pub(crate) system_program: Program<'info, SystemProgram>,
-    pub(crate) funder: WT,
-}
-
-impl<'info, WT: Clone> CreateAccount<'info, Zeroed, WT> {
-    pub fn new(system_program: &Program<'info, SystemProgram>, funder: &WT) -> Self {
-        Self::new_with_arg(Zeroed, system_program, funder)
-    }
-}
-
-impl<'info> CreateAccount<'info, Zeroed, Funder<'info>> {
-    pub fn new_from_syscalls(syscalls: &impl SyscallAccountCache<'info>) -> Result<Self> {
-        Self::new_with_arg_from_syscalls(Zeroed, syscalls)
-    }
-}
-
-impl<'info, A, WT: Clone> CreateAccount<'info, A, WT> {
-    pub fn new_with_arg(
-        arg: A,
-        system_program: &Program<'info, SystemProgram>,
-        funder: &WT,
-    ) -> Self {
-        Self {
-            arg,
-            system_program: system_program.clone(),
-            funder: funder.clone(),
-        }
-    }
-}
-
-impl<'info, A> CreateAccount<'info, A, Funder<'info>> {
-    pub fn new_with_arg_from_syscalls(
-        arg: A,
-        syscalls: &impl SyscallAccountCache<'info>,
-    ) -> Result<Self> {
-        let system_program = syscalls
-            .get_program::<SystemProgram>()
-            .context("Missing `system_program` for CreateAccount auto")?;
-        let funder = syscalls
-            .get_funder()
-            .context("Missing `funder` for CreateAccount auto")?;
-        Ok(Self::new_with_arg(arg, system_program, funder))
-    }
-}
 
 #[cfg(feature = "idl")]
 mod idl_impl {

@@ -85,7 +85,6 @@ pub struct ProcessEnlistPlayer<'info> {
     #[account_set(funder)]
     pub player_account: Mut<Signer<SystemAccount<'info>>>,
     /// Solana System program
-    #[account_set(program)]
     pub system_program: Program<'info, SystemProgram>,
 }
 
@@ -140,7 +139,6 @@ mod tests {
     use solana_sdk::account::Account;
     use solana_sdk::clock::Clock;
     use solana_sdk::signature::{Keypair, Signer};
-    use solana_sdk::system_program;
     use star_frame::solana_program::native_token::LAMPORTS_PER_SOL;
 
     #[test]
@@ -151,8 +149,7 @@ mod tests {
 
     #[tokio::test]
     async fn banks_test() -> Result<()> {
-        const SBF_FILE: bool = false;
-        let program_test = if SBF_FILE {
+        let program_test = if option_env!("USE_BIN").is_some() {
             let target_dir = std::env::current_dir()?
                 .join("../../../target/deploy")
                 .canonicalize()?;
@@ -199,7 +196,7 @@ mod tests {
             ProcessEnlistPlayerClientAccounts {
                 player_faction_account: faction_account,
                 player_account: player_account.pubkey(),
-                system_program: system_program::ID,
+                system_program: SystemProgram::PROGRAM_ID,
             },
         )?;
 
