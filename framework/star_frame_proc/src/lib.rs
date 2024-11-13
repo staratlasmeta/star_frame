@@ -199,7 +199,6 @@ pub fn program_account(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
 ///     instruction_set = MyInstructionSet<'static>,
 ///     id = Pubkey::new_from_array([0; 32]),
 ///     account_discriminant = [u8; 8],
-///     closed_account_discriminant = [u8::MAX; 8],
 ///     no_entrypoint,
 ///     no_setup,
 ///     skip_idl

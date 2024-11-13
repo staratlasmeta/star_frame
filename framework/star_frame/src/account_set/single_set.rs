@@ -146,8 +146,8 @@ where
 }
 
 pub trait CanCloseAccount<'info>: SingleAccountSet<'info> {
-    /// Closes the account by zeroing the lamports and leaving the data as the
-    /// [`StarFrameProgram::CLOSED_ACCOUNT_DISCRIMINANT`], reallocating down to size.
+    /// Closes the account by zeroing the lamports and replacing the discriminant with all `u8::MAX`,
+    /// reallocating down to size.
     fn close(&self, recipient: &impl WritableAccount<'info>) -> Result<()>
     where
         Self: HasOwnerProgram,
