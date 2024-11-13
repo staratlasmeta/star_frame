@@ -3,31 +3,8 @@ use crate::syscalls::SyscallInvoke;
 use crate::Result;
 use array_init::try_array_init;
 use solana_program::account_info::AccountInfo;
-use solana_program::instruction::AccountMeta;
 
-impl<'info, A, const N: usize> AccountSet<'info> for [A; N]
-where
-    A: AccountSet<'info>,
-{
-    fn try_to_accounts<'a, E>(
-        &'a self,
-        mut add_account: impl FnMut(&'a AccountInfo<'info>) -> Result<(), E>,
-    ) -> Result<(), E>
-    where
-        'info: 'a,
-    {
-        for a in self {
-            a.try_to_accounts(&mut add_account)?;
-        }
-        Ok(())
-    }
-
-    fn to_account_metas(&self, mut add_account_meta: impl FnMut(AccountMeta)) {
-        for a in self {
-            a.to_account_metas(&mut add_account_meta);
-        }
-    }
-}
+impl<'info, A, const N: usize> AccountSet<'info> for [A; N] where A: AccountSet<'info> {}
 
 impl<'a, 'info, A, const N: usize, DArg> AccountSetDecode<'a, 'info, [DArg; N]> for [A; N]
 where

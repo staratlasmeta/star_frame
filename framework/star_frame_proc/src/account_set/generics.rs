@@ -1,4 +1,4 @@
-use crate::util::{new_generic, new_lifetime};
+use crate::util::new_generic;
 use proc_macro2::{Ident, Span};
 use std::collections::HashMap;
 use syn::{GenericParam, Generics, Lifetime, LifetimeParam};
@@ -10,7 +10,6 @@ pub struct AccountSetGenerics {
     pub decode_generics: Generics,
     pub info_lifetime: Lifetime,
     pub decode_lifetime: Lifetime,
-    pub function_lifetime: Lifetime,
     pub function_generic_type: Ident,
 }
 
@@ -27,7 +26,6 @@ pub fn account_set_generics(generics: Generics) -> AccountSetGenerics {
             LifetimeParam::new(Lifetime::new("'info", Span::call_site()))
         })
         .clone();
-    let function_lifetime = new_lifetime(&generics);
     let function_generic_type = new_generic(&generics);
     let mut decode_lifetimes = lifetimes.clone();
     let mut add_decode = false;
@@ -61,7 +59,6 @@ pub fn account_set_generics(generics: Generics) -> AccountSetGenerics {
         decode_generics,
         info_lifetime: info_lifetime.lifetime,
         decode_lifetime: decode_lifetime.lifetime,
-        function_lifetime,
         function_generic_type,
     }
 }

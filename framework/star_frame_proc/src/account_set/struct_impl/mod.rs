@@ -67,7 +67,6 @@ pub(super) fn derive_account_set_impl_struct(
         main_generics,
         other_generics,
         info_lifetime,
-        function_lifetime,
         function_generic_type,
         ..
     } = &account_set_generics;
@@ -75,7 +74,6 @@ pub(super) fn derive_account_set_impl_struct(
     let Paths {
         account_info,
         account_set,
-        crate_name,
         macro_prelude,
         result,
         ..
@@ -449,31 +447,6 @@ pub(super) fn derive_account_set_impl_struct(
             ) {
                 #set_account_caches
                 #(<#field_type as #account_set<#info_lifetime>>::set_account_cache(&mut self.#field_name, syscalls);)*
-            }
-
-            fn try_to_accounts<#function_lifetime, #function_generic_type>(
-                &#function_lifetime self,
-                mut add_account: impl FnMut(&#function_lifetime #account_info<#info_lifetime>) -> #result<(), #function_generic_type>,
-            ) -> #result<(), #function_generic_type>
-            where
-                #info_lifetime: #function_lifetime,
-            {
-                #(<#field_type as #account_set<#info_lifetime>>::try_to_accounts(&self.#field_name, &mut add_account)?;)*
-                Ok(())
-            }
-
-            fn to_accounts<#function_lifetime>(
-                &#function_lifetime self,
-                mut add_account: impl FnMut(&#function_lifetime #account_info<#info_lifetime>),
-            )
-            where
-                #info_lifetime: #function_lifetime,
-            {
-                #(<#field_type as #account_set<#info_lifetime>>::to_accounts(&self.#field_name, &mut add_account);)*
-            }
-
-            fn to_account_metas(&self, mut add_account_meta: impl FnMut(#crate_name::solana_program::instruction::AccountMeta)) {
-                #(<#field_type as #account_set<#info_lifetime>>::to_account_metas(&self.#field_name, &mut add_account_meta);)*
             }
         }
 

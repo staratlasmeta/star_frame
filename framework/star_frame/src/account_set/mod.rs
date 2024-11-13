@@ -22,49 +22,12 @@ use solana_program::instruction::AccountMeta;
 use solana_program::program_error::ProgramError;
 use solana_program::pubkey::Pubkey;
 use std::cell::{Ref, RefMut};
-use std::convert::Infallible;
 use std::slice;
 
 /// A set of accounts that can be used as input to an instruction.
 pub trait AccountSet<'info> {
     /// Sets account cache
     fn set_account_cache(&mut self, _syscalls: &mut impl SyscallAccountCache<'info>) {}
-
-    fn try_to_accounts<'a, E>(
-        &'a self,
-        add_account: impl FnMut(&'a AccountInfo<'info>) -> Result<(), E>,
-    ) -> Result<(), E>
-    where
-        'info: 'a;
-
-    /// Add all the accounts in this set using `add_account`.
-    fn to_accounts<'a>(&'a self, mut add_account: impl FnMut(&'a AccountInfo<'info>))
-    where
-        'info: 'a,
-    {
-        self.try_to_accounts::<Infallible>(|a| {
-            add_account(a);
-            Ok(())
-        })
-        .unwrap();
-    }
-
-    /// Gets a vector of all the accounts in this set.
-    fn to_accounts_vec<'a>(&'a self) -> Vec<&'a AccountInfo<'info>> {
-        let mut out = Vec::new();
-        self.to_accounts(|acc| out.push(acc));
-        out
-    }
-
-    /// Add all accounts in this set using `add_account_meta`.
-    fn to_account_metas(&self, add_account_meta: impl FnMut(AccountMeta));
-
-    /// Gets a vector of all the account metas in this set.
-    fn to_account_metas_vec(&self) -> Vec<AccountMeta> {
-        let mut out = Vec::new();
-        self.to_account_metas(|acc| out.push(acc));
-        out
-    }
 }
 
 /// Convenience methods for decoding and validating a list of [`AccountInfo`]s to an [`AccountSet`]. Performs

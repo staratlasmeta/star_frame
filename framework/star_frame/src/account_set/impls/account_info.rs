@@ -8,36 +8,8 @@ use solana_program::pubkey::Pubkey;
 use star_frame::account_set::{AccountSet, AccountSetCleanup, AccountSetValidate};
 use std::cell::{Ref, RefMut};
 
-impl<'info> AccountSet<'info> for AccountInfo<'info> {
-    fn try_to_accounts<'a, E>(
-        &'a self,
-        mut add_account: impl FnMut(&'a AccountInfo<'info>) -> Result<(), E>,
-    ) -> Result<(), E>
-    where
-        'info: 'a,
-    {
-        add_account(self)
-    }
-
-    fn to_account_metas(&self, mut add_account_meta: impl FnMut(AccountMeta)) {
-        add_account_meta(self.account_meta());
-    }
-}
-impl<'__a, 'info> AccountSet<'info> for &'__a AccountInfo<'info> {
-    fn try_to_accounts<'a, E>(
-        &'a self,
-        mut add_account: impl FnMut(&'a AccountInfo<'info>) -> Result<(), E>,
-    ) -> Result<(), E>
-    where
-        'info: 'a,
-    {
-        add_account(self)
-    }
-
-    fn to_account_metas(&self, mut add_account_meta: impl FnMut(AccountMeta)) {
-        add_account_meta(self.account_meta());
-    }
-}
+impl<'info> AccountSet<'info> for AccountInfo<'info> {}
+impl<'__a, 'info> AccountSet<'info> for &'__a AccountInfo<'info> {}
 impl<'info> SingleAccountSet<'info> for AccountInfo<'info> {
     fn account_info(&self) -> &AccountInfo<'info> {
         self

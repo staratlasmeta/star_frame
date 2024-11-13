@@ -3,32 +3,9 @@ use crate::syscalls::SyscallInvoke;
 use crate::Result;
 use anyhow::bail;
 use solana_program::account_info::AccountInfo;
-use solana_program::instruction::AccountMeta;
 use solana_program::program_error::ProgramError;
 
-impl<'info, T> AccountSet<'info> for Vec<T>
-where
-    T: AccountSet<'info>,
-{
-    fn try_to_accounts<'a, E>(
-        &'a self,
-        mut add_account: impl FnMut(&'a AccountInfo<'info>) -> crate::Result<(), E>,
-    ) -> crate::Result<(), E>
-    where
-        'info: 'a,
-    {
-        for acc in self {
-            acc.try_to_accounts(&mut add_account)?;
-        }
-        Ok(())
-    }
-
-    fn to_account_metas(&self, mut add_account_meta: impl FnMut(AccountMeta)) {
-        for acc in self {
-            acc.to_account_metas(&mut add_account_meta);
-        }
-    }
-}
+impl<'info, T> AccountSet<'info> for Vec<T> where T: AccountSet<'info> {}
 impl<'a, 'info, T> AccountSetDecode<'a, 'info, usize> for Vec<T>
 where
     T: AccountSetDecode<'a, 'info, ()>,

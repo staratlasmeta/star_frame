@@ -137,6 +137,7 @@ impl CombineGenerics for Generics {
     }
 }
 
+#[allow(dead_code)]
 pub fn new_lifetime<G: GetGenerics>(generics: &G) -> Lifetime {
     let mut lifetime = "l".to_string();
     while generics
