@@ -1,4 +1,6 @@
 use crate::prelude::*;
+use crate::program::system_program;
+use crate::program::system_program::CreateAccountCpiAccounts;
 use crate::util::*;
 use advance::Advance;
 use anyhow::{bail, Context};
@@ -6,7 +8,6 @@ use bytemuck::{bytes_of, from_bytes};
 use derivative::Derivative;
 use solana_program::entrypoint::MAX_PERMITTED_DATA_INCREASE;
 use solana_program::program_memory::sol_memset;
-use solana_program::system_instruction;
 pub use star_frame_proc::ProgramAccount;
 use std::cell::{Ref, RefMut};
 use std::marker::PhantomData;
@@ -301,30 +302,30 @@ where
         let rent = syscalls.get_rent()?;
         let size =
             T::INIT_BYTES + size_of::<<T::OwnerProgram as StarFrameProgram>::AccountDiscriminant>();
-        let ix = system_instruction::create_account(
-            funder.key(),
-            self.key(),
-            rent.minimum_balance(size),
-            size as u64,
-            &T::OwnerProgram::PROGRAM_ID,
-        );
-        let accounts: &[AccountInfo<'info>] = &[
-            self.account_info_cloned(),
-            system_program.account_info_cloned(),
-            funder.account_info_cloned(),
-        ];
+        let cpi = SystemProgram::cpi(
+            &system_program::CreateAccount {
+                lamports: rent.minimum_balance(size),
+                owner: T::OwnerProgram::PROGRAM_ID,
+                space: size as u64,
+            },
+            CreateAccountCpiAccounts {
+                funder: funder.account_info_cloned(),
+                new_account: self.account_info_cloned(),
+            },
+        )?;
+
         match (funder.signer_seeds(), account_seeds) {
             (None, None) => {
-                syscalls.invoke(&ix, accounts)?;
+                cpi.invoke(syscalls)?;
             }
             (Some(funder), None) => {
-                syscalls.invoke_signed(&ix, accounts, &[&funder])?;
+                cpi.invoke_signed(syscalls, &[&funder])?;
             }
             (None, Some(account_seeds)) => {
-                syscalls.invoke_signed(&ix, accounts, &[&account_seeds])?;
+                cpi.invoke_signed(syscalls, &[&account_seeds])?;
             }
             (Some(funder), Some(account_seeds)) => {
-                syscalls.invoke_signed(&ix, accounts, &[&account_seeds, &funder])?;
+                cpi.invoke_signed(syscalls, &[&account_seeds, &funder])?;
             }
         }
         {

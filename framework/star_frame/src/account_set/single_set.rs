@@ -1,13 +1,13 @@
 use crate::account_set::{AccountSet, HasOwnerProgram, Program, SignedAccount, WritableAccount};
 use crate::anyhow::Result;
-use crate::client::ClientAccountSet;
+use crate::client::{ClientAccountSet, MakeCpi};
 use crate::prelude::{StarFrameProgram, SyscallInvoke, SystemProgram};
+use crate::program::system_program::{Transfer, TransferCpiAccounts};
 use anyhow::anyhow;
 use solana_program::account_info::AccountInfo;
 use solana_program::instruction::AccountMeta;
 use solana_program::program_error::ProgramError;
 use solana_program::pubkey::Pubkey;
-use solana_program::system_instruction::transfer;
 use star_frame::client::CpiAccountSet;
 use std::cell::{Ref, RefMut};
 use std::cmp::Ordering;
@@ -185,7 +185,7 @@ pub trait CanModifyRent<'info>: SingleAccountSet<'info> {
     fn normalize_rent<F: WritableAccount<'info> + SignedAccount<'info>>(
         &self,
         funder: &F,
-        system_program: &Program<'info, SystemProgram>,
+        _system_program: &Program<'info, SystemProgram>,
         syscalls: &impl SyscallInvoke<'info>,
     ) -> Result<()> {
         let rent = syscalls.get_rent()?;
@@ -199,25 +199,20 @@ pub trait CanModifyRent<'info>: SingleAccountSet<'info> {
                     return Ok(());
                 }
                 let transfer_amount = rent_lamports - lamports;
-                if funder.owner() == system_program.key() {
-                    let transfer_ix = transfer(funder.key(), self.key(), transfer_amount);
-                    let transfer_accounts =
-                        &[self.account_info_cloned(), funder.account_info_cloned()];
-                    match funder.signer_seeds() {
-                        None => syscalls
-                            .invoke(&transfer_ix, transfer_accounts)
-                            .map_err(Into::into),
-                        Some(seeds) => syscalls
-                            .invoke_signed(&transfer_ix, transfer_accounts, &[&seeds])
-                            .map_err(Into::into),
-                    }
-                } else {
-                    Err(anyhow!(
-                        "Funder account `{}` is not owned by the system program, owned by `{}`",
-                        funder.key(),
-                        funder.owner()
-                    ))
-                }
+                let cpi = SystemProgram::cpi(
+                    &Transfer {
+                        lamports: transfer_amount,
+                    },
+                    TransferCpiAccounts {
+                        funder: funder.account_info_cloned(),
+                        recipient: self.account_info_cloned(),
+                    },
+                )?;
+                match funder.signer_seeds() {
+                    None => cpi.invoke(syscalls)?,
+                    Some(seeds) => cpi.invoke_signed(syscalls, &[&seeds])?,
+                };
+                Ok(())
             }
             Ordering::Less => {
                 let transfer_amount = lamports - rent_lamports;

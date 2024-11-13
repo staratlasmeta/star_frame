@@ -1,7 +1,7 @@
+use crate::empty_star_frame_instruction;
 use crate::prelude::*;
-use borsh::BorshDeserialize;
+use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::system_program;
-use system_instruction_impl::SystemInstructionSet;
 
 /// Solana's system program.
 #[derive(Debug, Copy, Clone, Align1)]
@@ -9,7 +9,6 @@ pub struct SystemProgram;
 impl StarFrameProgram for SystemProgram {
     type InstructionSet = SystemInstructionSet;
     type AccountDiscriminant = ();
-    const CLOSED_ACCOUNT_DISCRIMINANT: Self::AccountDiscriminant = ();
     const PROGRAM_ID: Pubkey = system_program::ID;
 }
 
@@ -28,62 +27,166 @@ impl ProgramToIdl for SystemProgram {
     }
 }
 
-mod system_instruction_impl {
+// we miss some instructions due to being incompatible with borsh
+#[derive(Copy, Debug, Clone, PartialEq, Eq, InstructionSet)]
+#[ix_set(use_repr)]
+#[repr(u32)]
+pub enum SystemInstructionSet {
+    CreateAccount(CreateAccount),
+    Assign(Assign),
+    Transfer(Transfer),
+    AdvanceNonceAccount(AdvanceNonceAccount) = 4,
+    WithdrawNonceAccount(WithdrawNonceAccount),
+    InitializeNonceAccount(InitializeNonceAccount),
+    AuthorizeNonceAccount(AuthorizeNonceAccount),
+    Allocate(Allocate),
+    UpgradeNonceAccount(UpgradeNonceAccount) = 12,
+}
+
+// CreateAccount
+/// Creates a new account and assigns ownership to the `owner` program.
+#[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize)]
+#[instruction_to_idl(program = SystemProgram)]
+pub struct CreateAccount {
+    /// The number of lamports to transfer to the new account. 1 SOL = 10^9 lamports
+    pub lamports: u64,
+    pub space: u64,
+    pub owner: Pubkey,
+}
+/// Accounts for the [`CreateAccount`] instruction.
+#[derive(Debug, Clone, AccountSet)]
+pub struct CreateAccountAccounts<'info> {
+    /// The account that pays the rent for the `new_account`
+    pub funder: Mut<Signer<AccountInfo<'info>>>,
+    pub new_account: Mut<Signer<AccountInfo<'info>>>,
+}
+empty_star_frame_instruction!(CreateAccount, CreateAccountAccounts);
+
+// Assign
+/// Assigns an account to a program.
+#[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize)]
+#[instruction_to_idl(program = SystemProgram)]
+pub struct Assign {
+    pub owner: Pubkey,
+}
+/// Accounts for the [`Assign`] instruction.
+#[derive(Debug, Clone, AccountSet)]
+pub struct AssignAccounts<'info> {
+    pub account: Mut<Signer<AccountInfo<'info>>>,
+}
+empty_star_frame_instruction!(Assign, AssignAccounts);
+
+// Transfer
+/// Transfers lamports from one account to another.
+#[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize)]
+#[instruction_to_idl(program = SystemProgram)]
+pub struct Transfer {
+    pub lamports: u64,
+}
+/// Accounts for the [`Transfer`] instruction.
+#[derive(Debug, Clone, AccountSet)]
+pub struct TransferAccounts<'info> {
+    pub funder: Mut<Signer<AccountInfo<'info>>>,
+    pub recipient: Mut<AccountInfo<'info>>,
+}
+empty_star_frame_instruction!(Transfer, TransferAccounts);
+
+// AdvanceNonceAccount
+/// Consumes a stored nonce, replacing it with a successor.
+#[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize)]
+#[instruction_to_idl(program = SystemProgram)]
+pub struct AdvanceNonceAccount;
+/// Accounts for the [`AdvanceNonceAccount`] instruction.
+#[derive(Debug, Clone, AccountSet)]
+pub struct AdvanceNonceAccountAccounts<'info> {
+    pub nonce_account: Mut<AccountInfo<'info>>,
+    // todo: sysvars!
+    pub recent_blockhashes: AccountInfo<'info>,
+    pub nonce_authority: Signer<AccountInfo<'info>>,
+}
+empty_star_frame_instruction!(AdvanceNonceAccount, AdvanceNonceAccountAccounts);
+
+// WithdrawNonceAccount
+/// Withdraws funds from a nonce account.
+#[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize)]
+#[instruction_to_idl(program = SystemProgram)]
+pub struct WithdrawNonceAccount(pub u64);
+/// Accounts for the [`WithdrawNonceAccount`] instruction.
+#[derive(Debug, Clone, AccountSet)]
+pub struct WithdrawNonceAccountAccounts<'info> {
+    pub nonce_account: Mut<AccountInfo<'info>>,
+    pub recipient: Mut<AccountInfo<'info>>,
+    pub recent_blockhashes: AccountInfo<'info>,
+    pub rent: AccountInfo<'info>,
+    pub nonce_authority: Signer<AccountInfo<'info>>,
+}
+empty_star_frame_instruction!(WithdrawNonceAccount, WithdrawNonceAccountAccounts);
+
+// InitializeNonceAccount
+/// Drives the state of an uninitialized nonce account to initialized, setting the nonce value.
+#[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize)]
+#[instruction_to_idl(program = SystemProgram)]
+pub struct InitializeNonceAccount(pub Pubkey);
+/// Accounts for the [`InitializeNonceAccount`] instruction.
+#[derive(Debug, Clone, AccountSet)]
+pub struct InitializeNonceAccountAccounts<'info> {
+    pub nonce_account: Mut<AccountInfo<'info>>,
+    pub recent_blockhashes: AccountInfo<'info>,
+    pub rent: AccountInfo<'info>,
+}
+empty_star_frame_instruction!(InitializeNonceAccount, InitializeNonceAccountAccounts);
+
+// AuthorizeNonceAccount
+/// Changes the entity authorized to execute nonce instructions on the account.
+#[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize)]
+#[instruction_to_idl(program = SystemProgram)]
+pub struct AuthorizeNonceAccount(pub Pubkey);
+/// Accounts for the [`AuthorizeNonceAccount`] instruction.
+#[derive(Debug, Clone, AccountSet)]
+pub struct AuthorizeNonceAccountAccounts<'info> {
+    pub nonce_account: Mut<AccountInfo<'info>>,
+    pub nonce_authority: Signer<AccountInfo<'info>>,
+}
+empty_star_frame_instruction!(AuthorizeNonceAccount, AuthorizeNonceAccountAccounts);
+
+// Allocate
+/// Allocates space in a new account without funding it.
+#[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize)]
+#[instruction_to_idl(program = SystemProgram)]
+pub struct Allocate {
+    pub space: u64,
+}
+/// Accounts for the [`Allocate`] instruction.
+#[derive(Debug, Clone, AccountSet)]
+pub struct AllocateAccounts<'info> {
+    pub account: Mut<Signer<AccountInfo<'info>>>,
+}
+empty_star_frame_instruction!(Allocate, AllocateAccounts);
+
+// UpgradeNonceAccount
+/// Upgrades legacy nonce versions to bump them out of the chain blockhash domain.
+#[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize)]
+#[instruction_to_idl(program = SystemProgram)]
+pub struct UpgradeNonceAccount;
+/// Accounts for the [`UpgradeNonceAccount`] instruction.
+#[derive(Debug, Clone, AccountSet)]
+pub struct UpgradeNonceAccountAccounts<'info> {
+    pub nonce_account: Mut<AccountInfo<'info>>,
+}
+empty_star_frame_instruction!(UpgradeNonceAccount, UpgradeNonceAccountAccounts);
+
+#[cfg(feature = "idl")]
+#[cfg(test)]
+mod tests {
     use super::*;
-
-    // todo: support custom discriminants
-    #[derive(Copy, Debug, Clone, PartialEq, Eq, InstructionSet)]
-    pub enum SystemInstructionSet {
-        CreateAccount(CreateAccountIx),
-    }
-
-    /// Accounts for the [`CreateAccountIx`] instruction.
-    #[derive(Debug, AccountSet)]
-    pub struct CreateAccountSet<'info> {
-        /// The account that pays the rent for the `new_account`
-        pub funder: Mut<Signer<AccountInfo<'info>>>,
-        pub new_account: Mut<Signer<AccountInfo<'info>>>,
-    }
-
-    /// Creates a new account and assigns ownership to the `owner` program.
-    #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize)]
-    #[instruction_to_idl(program = SystemProgram)]
-    pub struct CreateAccountIx {
-        /// The number of lamports to transfer to the new account. 1 SOL = 10^9 lamports
-        pub lamports: u64,
-        pub space: u64,
-        pub owner: Pubkey,
-    }
-    impl StarFrameInstruction for CreateAccountIx {
-        type DecodeArg<'a> = ();
-        type ValidateArg<'a> = ();
-        type RunArg<'a> = ();
-        type CleanupArg<'a> = ();
-        type ReturnType = ();
-        type Accounts<'b, 'c, 'info> = CreateAccountSet<'info>;
-
-        fn split_to_args(_r: &Self) -> IxArgs<Self> {
-            unimplemented!()
-        }
-
-        fn run_instruction<'info>(
-            _account_set: &mut Self::Accounts<'_, '_, 'info>,
-            _run_arg: Self::RunArg<'_>,
-            _syscalls: &mut impl SyscallInvoke<'info>,
-        ) -> Result<Self::ReturnType> {
-            unimplemented!()
-        }
-    }
-
-    #[cfg(feature = "idl")]
     #[test]
     fn check_idl() {
         use star_frame_idl::item_source;
         use star_frame_idl::ty::IdlTypeDef;
 
         let idl = SystemProgram::program_to_idl().unwrap();
-        let ix_set_source = item_source::<CreateAccountSet>();
-        let ix_source = item_source::<CreateAccountIx>();
+        let ix_set_source = item_source::<CreateAccountAccounts>();
+        let ix_source = item_source::<CreateAccount>();
         assert!(idl.instructions.contains_key(&ix_source));
         assert!(idl.account_sets.contains_key(&ix_set_source));
         assert!(idl.types.contains_key(&ix_source));
@@ -92,5 +195,11 @@ mod system_instruction_impl {
             create_account_data.type_def,
             IdlTypeDef::Struct(_)
         ));
+    }
+
+    #[test]
+    fn print_idl() {
+        let idl = SystemProgram::program_to_idl().unwrap();
+        println!("{}", serde_json::to_string_pretty(&idl).unwrap());
     }
 }
