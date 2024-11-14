@@ -1,7 +1,9 @@
 use crate::empty_star_frame_instruction;
 use crate::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
+use solana_program::rent::Rent;
 use solana_program::system_program;
+use solana_program::sysvar::recent_blockhashes::RecentBlockhashes;
 
 /// Solana's system program.
 #[derive(Debug, Copy, Clone, Align1)]
@@ -95,13 +97,17 @@ empty_star_frame_instruction!(Transfer, TransferAccounts);
 #[instruction_to_idl(program = SystemProgram)]
 pub struct AdvanceNonceAccount;
 /// Accounts for the [`AdvanceNonceAccount`] instruction.
-#[derive(Debug, Clone, AccountSet)]
-pub struct AdvanceNonceAccountAccounts<'info> {
-    pub nonce_account: Mut<AccountInfo<'info>>,
-    // todo: sysvars!
-    pub recent_blockhashes: AccountInfo<'info>,
-    pub nonce_authority: Signer<AccountInfo<'info>>,
+#[allow(deprecated)]
+mod advance_nonce {
+    use super::*;
+    #[derive(Debug, Clone, AccountSet)]
+    pub struct AdvanceNonceAccountAccounts<'info> {
+        pub nonce_account: Mut<AccountInfo<'info>>,
+        pub recent_blockhashes: Sysvar<'info, RecentBlockhashes>,
+        pub nonce_authority: Signer<AccountInfo<'info>>,
+    }
 }
+pub use advance_nonce::*;
 empty_star_frame_instruction!(AdvanceNonceAccount, AdvanceNonceAccountAccounts);
 
 // WithdrawNonceAccount
@@ -109,15 +115,20 @@ empty_star_frame_instruction!(AdvanceNonceAccount, AdvanceNonceAccountAccounts);
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize)]
 #[instruction_to_idl(program = SystemProgram)]
 pub struct WithdrawNonceAccount(pub u64);
-/// Accounts for the [`WithdrawNonceAccount`] instruction.
-#[derive(Debug, Clone, AccountSet)]
-pub struct WithdrawNonceAccountAccounts<'info> {
-    pub nonce_account: Mut<AccountInfo<'info>>,
-    pub recipient: Mut<AccountInfo<'info>>,
-    pub recent_blockhashes: AccountInfo<'info>,
-    pub rent: AccountInfo<'info>,
-    pub nonce_authority: Signer<AccountInfo<'info>>,
+#[allow(deprecated)]
+mod withdraw_nonce {
+    use super::*;
+    /// Accounts for the [`WithdrawNonceAccount`] instruction.
+    #[derive(Debug, Clone, AccountSet)]
+    pub struct WithdrawNonceAccountAccounts<'info> {
+        pub nonce_account: Mut<AccountInfo<'info>>,
+        pub recipient: Mut<AccountInfo<'info>>,
+        pub recent_blockhashes: Sysvar<'info, RecentBlockhashes>,
+        pub rent: Sysvar<'info, Rent>,
+        pub nonce_authority: Signer<AccountInfo<'info>>,
+    }
 }
+pub use withdraw_nonce::*;
 empty_star_frame_instruction!(WithdrawNonceAccount, WithdrawNonceAccountAccounts);
 
 // InitializeNonceAccount
@@ -125,13 +136,18 @@ empty_star_frame_instruction!(WithdrawNonceAccount, WithdrawNonceAccountAccounts
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize)]
 #[instruction_to_idl(program = SystemProgram)]
 pub struct InitializeNonceAccount(pub Pubkey);
-/// Accounts for the [`InitializeNonceAccount`] instruction.
-#[derive(Debug, Clone, AccountSet)]
-pub struct InitializeNonceAccountAccounts<'info> {
-    pub nonce_account: Mut<AccountInfo<'info>>,
-    pub recent_blockhashes: AccountInfo<'info>,
-    pub rent: AccountInfo<'info>,
+#[allow(deprecated)]
+mod initialize_nonce {
+    use super::*;
+    /// Accounts for the [`InitializeNonceAccount`] instruction.
+    #[derive(Debug, Clone, AccountSet)]
+    pub struct InitializeNonceAccountAccounts<'info> {
+        pub nonce_account: Mut<AccountInfo<'info>>,
+        pub recent_blockhashes: Sysvar<'info, RecentBlockhashes>,
+        pub rent: Sysvar<'info, Rent>,
+    }
 }
+pub use initialize_nonce::*;
 empty_star_frame_instruction!(InitializeNonceAccount, InitializeNonceAccountAccounts);
 
 // AuthorizeNonceAccount
