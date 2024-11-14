@@ -3,6 +3,7 @@ use crate::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::rent::Rent;
 use solana_program::system_program;
+#[allow(deprecated)]
 use solana_program::sysvar::recent_blockhashes::RecentBlockhashes;
 
 /// Solana's system program.
