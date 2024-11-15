@@ -37,7 +37,7 @@ pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
         pubkey,
         result,
         syscalls,
-        macro_prelude: prelude,
+        prelude,
         instruction_set_args_ident,
         ..
     } = Paths::default();

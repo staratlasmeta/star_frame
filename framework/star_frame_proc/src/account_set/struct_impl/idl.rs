@@ -46,7 +46,7 @@ pub(super) fn idls(
     let Paths {
         result,
         idl_ident,
-        macro_prelude: prelude,
+        prelude,
         ..
     } = paths;
 

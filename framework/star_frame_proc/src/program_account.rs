@@ -31,7 +31,7 @@ pub fn program_account_impl(input: DeriveInput) -> TokenStream {
 
 pub fn program_account_impl_inner(input: DeriveInput, args: ProgramAccountArgs) -> TokenStream {
     let Paths {
-        macro_prelude: prelude,
+        prelude,
         type_to_idl_args_ident,
         declared_program_type,
         ..

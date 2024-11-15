@@ -23,7 +23,7 @@ pub fn derive_get_seeds_impl(input: DeriveInput) -> TokenStream {
     let Paths {
         get_seeds_ident,
         result,
-        macro_prelude: prelude,
+        prelude,
         ..
     } = Paths::default();
 

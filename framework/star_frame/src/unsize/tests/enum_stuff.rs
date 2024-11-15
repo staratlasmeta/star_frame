@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use crate::prelude::*;
 use crate::unsize::tests::test::TestStruct;
 use crate::util::OffsetRef;

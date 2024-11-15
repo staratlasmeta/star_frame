@@ -23,7 +23,7 @@ pub(crate) fn program_impl(input: DeriveInput) -> TokenStream {
     let Paths {
         crate_name,
         pubkey,
-        macro_prelude: prelude,
+        prelude,
         star_frame_program_ident,
         ..
     } = Paths::default();

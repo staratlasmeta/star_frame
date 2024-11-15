@@ -33,9 +33,6 @@ serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, optional = true }
 star_frame_idl = { workspace = true, optional = true }
 
-# version locks for msrv
-bumpalo = { workspace = true }
-
 [dev-dependencies]
 pretty_assertions = { workspace = true }
 lazy_static = { workspace = true }

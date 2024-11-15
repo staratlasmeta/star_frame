@@ -9,7 +9,7 @@ pub fn derive_instruction_to_idl(input: DeriveInput) -> TokenStream {
     let Paths {
         instruction_to_idl_args_ident,
         type_to_idl_args_ident,
-        macro_prelude: prelude,
+        prelude,
         ..
     } = &Paths::default();
     reject_generics(

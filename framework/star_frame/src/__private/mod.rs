@@ -4,6 +4,7 @@ pub mod macro_prelude {
         HasProgramAccount, HasSeeds, ProgramAccount, Seed, SignedAccount, SingleAccountSet,
         SingleSetMeta, WritableAccount,
     };
+    pub use crate::align1::Align1;
     pub use crate::client::{
         ClientAccountSet, CpiAccountSet, CpiBuilder, MakeCpi, MakeInstruction,
     };

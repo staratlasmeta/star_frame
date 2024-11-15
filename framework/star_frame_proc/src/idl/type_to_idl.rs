@@ -35,7 +35,7 @@ pub fn derive_type_to_idl(input: DeriveInput) -> TokenStream {
 
 pub fn derive_type_to_idl_inner(input: &DeriveInput, args: TypeToIdlArgs) -> TokenStream {
     let Paths {
-        macro_prelude: prelude,
+        prelude,
         declared_program_type,
         result,
         ..
@@ -88,7 +88,7 @@ pub fn derive_type_to_idl_inner(input: &DeriveInput, args: TypeToIdlArgs) -> Tok
 fn idl_struct_type_def(fields: &Fields) -> TokenStream {
     let Paths {
         type_to_idl_args_ident,
-        macro_prelude: prelude,
+        prelude,
         ..
     } = &Paths::default();
     let tuple = matches!(fields, Fields::Unnamed(_));
@@ -133,10 +133,7 @@ fn idl_struct_type_def(fields: &Fields) -> TokenStream {
 }
 
 fn idl_enum_type_def(data_enum: &syn::DataEnum, attributes: &[Attribute]) -> TokenStream {
-    let Paths {
-        macro_prelude: prelude,
-        ..
-    } = &Paths::default();
+    let Paths { prelude, .. } = &Paths::default();
     let repr = get_repr(attributes);
 
     if !matches!(repr.repr.as_integer(), Some(IntegerRepr::U8)) {

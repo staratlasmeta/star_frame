@@ -219,7 +219,7 @@ mod tests {
             CounterProgram::PROGRAM_ID,
             processor!(CounterProgram::processor),
         );
-        let (mut banks_client, payer, recent_blockhash) = program_test.start().await;
+        let (banks_client, payer, recent_blockhash) = program_test.start().await;
 
         // Init a new counter
         let account_key = Keypair::new();

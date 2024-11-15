@@ -13,17 +13,16 @@ prod = []
 no-entrypoint = []
 no-idl = []
 cpi = ["no-entrypoint"]
-default = ["serde_json", "no-idl"]
+default = ["no-idl"]
 
 [dependencies]
-bytemuck = "1.14.0"
 star_frame = { path = "../../star_frame" }
-serde_json = { version = "1.0.108", optional = true }
+bytemuck.workspace = true
 
 [dev-dependencies]
-solana-program-test = { workspace = true }
-solana-sdk = { version = "1.18" }
-solana-transaction-status = "1.18"
-solana-client = "1.18"
-tokio = "1.37.0"
-rand = { workspace = true }
+solana-program-test.workspace = true
+solana-sdk.workspace = true
+solana-transaction-status.workspace = true
+solana-client.workspace = true
+tokio.workspace = true
+rand.workspace = true
