@@ -52,7 +52,7 @@ impl StarFrameInstruction for CreateCounterIx {
     type ReturnType = ();
     type Accounts<'b, 'c, 'info> = CreateCounterAccounts<'info>;
 
-    fn split_to_args<'a>(r: &Self) -> IxArgs<Self> {
+    fn split_to_args<'a>(r: &mut Self) -> IxArgs<Self> {
         IxArgs::run(&r.start_at)
     }
 
@@ -101,7 +101,7 @@ impl StarFrameInstruction for UpdateCounterSignerIx {
     type ReturnType = ();
     type Accounts<'b, 'c, 'info> = UpdateCounterSignerAccounts<'info>;
 
-    fn split_to_args<'a>(_r: &Self) -> IxArgs<Self> {
+    fn split_to_args<'a>(_r: &mut Self) -> IxArgs<Self> {
         IxArgs::default()
     }
 
@@ -147,7 +147,7 @@ impl StarFrameInstruction for CountIx {
     type ReturnType = ();
     type Accounts<'b, 'c, 'info> = CountAccounts<'info>;
 
-    fn split_to_args<'a>(r: &Self) -> IxArgs<Self> {
+    fn split_to_args<'a>(r: &mut Self) -> IxArgs<Self> {
         IxArgs::run((r.amount, r.subtract))
     }
 
