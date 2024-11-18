@@ -59,6 +59,7 @@ pub fn derive_type_to_idl_inner(input: &DeriveInput, args: TypeToIdlArgs) -> Tok
     let (impl_gen, ty_gen, where_clause) = input.generics.split_for_impl();
 
     quote! {
+        #[cfg(not(target_os = "solana"))]
         #[automatically_derived]
         impl #impl_gen #prelude::TypeToIdl for #ident #ty_gen #where_clause {
             type AssociatedProgram = #associated_program;

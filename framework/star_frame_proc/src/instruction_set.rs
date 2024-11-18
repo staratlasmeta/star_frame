@@ -95,6 +95,7 @@ pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
         }).unzip::<_, _, Vec<_>, Vec<_>>();
 
         quote! {
+            #[cfg(not(target_os = "solana"))]
             #[automatically_derived]
             impl #impl_generics #prelude::InstructionSetToIdl for #ident #ty_generics #where_clause {
                 #[allow(clippy::let_unit_value)]

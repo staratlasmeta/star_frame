@@ -140,6 +140,7 @@ pub(crate) fn program_impl(input: DeriveInput) -> TokenStream {
     let idl_impl = (!skip_idl && cfg!(feature = "idl")).then(|| {
         let docs = util::get_docs(&input.attrs);
         quote! {
+            #[cfg(not(target_os = "solana"))]
             #[automatically_derived]
             impl #prelude::ProgramToIdl for #ident {
                 fn crate_metadata() -> #prelude::CrateMetadata {

@@ -37,6 +37,7 @@ pub fn derive_instruction_to_idl(input: DeriveInput) -> TokenStream {
     quote! {
         #type_to_idl_derivation
 
+        #[cfg(not(target_os = "solana"))]
         #[automatically_derived]
         impl<'b, 'c, 'info, #generic_arg> #prelude::InstructionToIdl<#generic_arg> for #ident #where_clause {
             fn instruction_to_idl(idl_definition: &mut #prelude::IdlDefinition, arg: #generic_arg) -> Result<#prelude::IdlInstructionDef> {

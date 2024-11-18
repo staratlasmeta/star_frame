@@ -39,10 +39,10 @@ pub extern crate num_traits;
 pub extern crate paste;
 pub extern crate self as star_frame;
 pub extern crate serde;
-#[cfg(feature = "idl")]
+#[cfg(all(feature = "idl", not(target_os = "solana")))]
 pub extern crate serde_json;
 pub extern crate solana_program;
-#[cfg(feature = "idl")]
+#[cfg(all(feature = "idl", not(target_os = "solana")))]
 pub extern crate star_frame_idl;
 pub extern crate static_assertions;
 pub extern crate typenum;
@@ -53,7 +53,7 @@ pub mod client;
 pub mod data_types;
 pub mod entrypoint;
 pub mod errors;
-#[cfg(feature = "idl")]
+#[cfg(all(feature = "idl", not(target_os = "solana")))]
 pub mod idl;
 pub mod instruction;
 pub mod prelude;
@@ -81,7 +81,6 @@ compile_error!("You must enable the `test_helpers` feature for running tests!");
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::idl::ProgramToIdl;
     use crate::program::StarFrameProgram;
     use solana_program::pubkey::Pubkey;
 
@@ -93,8 +92,10 @@ mod tests {
     )]
     pub struct MyProgram;
 
+    #[cfg(all(feature = "idl", not(target_os = "solana")))]
     #[test]
     fn test_idl() {
+        use crate::idl::ProgramToIdl;
         let idl = MyProgram::program_to_idl().unwrap();
         println!("{}", serde_json::to_string_pretty(&idl).unwrap());
     }

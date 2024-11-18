@@ -342,7 +342,7 @@ where
     }
 }
 
-#[cfg(feature = "idl")]
+#[cfg(all(feature = "idl", not(target_os = "solana")))]
 pub mod idl_impl {
     use crate::idl::AccountSetToIdl;
     use star_frame_idl::account_set::IdlAccountSetDef;

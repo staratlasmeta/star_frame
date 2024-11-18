@@ -54,7 +54,7 @@ pub struct Create<T>(pub T);
 #[repr(transparent)]
 pub struct CreateIfNeeded<T>(pub T);
 
-#[cfg(feature = "idl")]
+#[cfg(all(feature = "idl", not(target_os = "solana")))]
 mod idl_impl {
     use super::*;
     use anyhow::bail;

@@ -95,7 +95,7 @@ pub struct DataAccount<'info, T: ProgramAccount + UnsizedType + ?Sized> {
     phantom_t: PhantomData<T>,
 }
 
-#[cfg(feature = "idl")]
+#[cfg(all(feature = "idl", not(target_os = "solana")))]
 mod idl_impl {
     use super::*;
     use star_frame::idl::AccountSetToIdl;

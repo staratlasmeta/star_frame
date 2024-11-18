@@ -14,7 +14,7 @@ use syn::{bracketed, parse_quote, token, DataStruct, Field, Ident, Index, Token,
 
 mod cleanup;
 mod decode;
-#[cfg(feature = "idl")]
+#[cfg(all(feature = "idl", not(target_os = "solana")))]
 mod idl;
 mod validate;
 
@@ -514,7 +514,7 @@ pub(super) fn derive_account_set_impl_struct(
     let validates = validate::validates(step_input);
     let cleanups = cleanup::cleanups(step_input);
 
-    #[cfg(feature = "idl")]
+    #[cfg(all(feature = "idl", not(target_os = "solana")))]
     let idls = idl::idls(step_input);
     #[cfg(not(feature = "idl"))]
     let idls = Vec::<TokenStream>::new();

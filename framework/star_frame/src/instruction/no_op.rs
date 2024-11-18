@@ -16,7 +16,7 @@ impl InstructionSet for () {
     }
 }
 
-#[cfg(feature = "idl")]
+#[cfg(all(feature = "idl", not(target_os = "solana")))]
 mod idl_impl {
     use crate::idl::InstructionSetToIdl;
     use star_frame_idl::IdlDefinition;

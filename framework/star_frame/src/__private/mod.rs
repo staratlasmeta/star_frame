@@ -21,7 +21,7 @@ pub mod macro_prelude {
     };
     pub use crate::Result;
 
-    #[cfg(feature = "idl")]
+    #[cfg(all(feature = "idl", not(target_os = "solana")))]
     pub use crate::idl::{
         seed_const, seed_path, AccountSetToIdl, AccountToIdl, FindIdlSeeds, FindSeed,
         InstructionSetToIdl, InstructionToIdl, ProgramToIdl, SeedsToIdl, TypeToIdl,
@@ -29,7 +29,7 @@ pub mod macro_prelude {
 
     pub use solana_program::{account_info::AccountInfo, instruction::AccountMeta, pubkey::Pubkey};
 
-    #[cfg(feature = "idl")]
+    #[cfg(all(feature = "idl", not(target_os = "solana")))]
     pub use star_frame_idl::{
         account::{IdlAccount, IdlAccountId},
         account_set::{IdlAccountSet, IdlAccountSetDef, IdlAccountSetId, IdlAccountSetStructField},

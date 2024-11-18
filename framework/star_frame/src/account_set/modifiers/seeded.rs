@@ -84,7 +84,7 @@ pub struct Seeds<T>(pub T);
 pub struct CurrentProgram;
 pub trait SeedProgram {
     fn id(sys_calls: &mut impl SyscallCore) -> Result<Pubkey>;
-    #[cfg(feature = "idl")]
+    #[cfg(all(feature = "idl", not(target_os = "solana")))]
     fn idl_program() -> Option<Pubkey>;
 }
 
@@ -92,7 +92,7 @@ impl SeedProgram for CurrentProgram {
     fn id(sys_calls: &mut impl SyscallCore) -> Result<Pubkey> {
         Ok(*sys_calls.current_program_id())
     }
-    #[cfg(feature = "idl")]
+    #[cfg(all(feature = "idl", not(target_os = "solana")))]
     fn idl_program() -> Option<Pubkey> {
         None
     }
@@ -106,7 +106,7 @@ where
         Ok(P::PROGRAM_ID)
     }
 
-    #[cfg(feature = "idl")]
+    #[cfg(all(feature = "idl", not(target_os = "solana")))]
     fn idl_program() -> Option<Pubkey> {
         Some(P::PROGRAM_ID)
     }
@@ -322,7 +322,7 @@ where
     }
 }
 
-#[cfg(feature = "idl")]
+#[cfg(all(feature = "idl", not(target_os = "solana")))]
 mod idl_impl {
     use super::*;
     use star_frame_idl::account_set::IdlAccountSetDef;
