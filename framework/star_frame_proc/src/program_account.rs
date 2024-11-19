@@ -1,6 +1,6 @@
 use crate::hash::SIGHASH_ACCOUNT_NAMESPACE;
 use crate::idl::TypeToIdlArgs;
-use crate::util::{reject_attributes, Paths};
+use crate::util::{cfg_idl, reject_attributes, Paths};
 use easy_proc::{find_attr, ArgumentList};
 use proc_macro2::TokenStream;
 use quote::quote;
@@ -71,18 +71,20 @@ pub fn program_account_impl_inner(input: DeriveInput, args: ProgramAccountArgs) 
         }
     });
 
-    let idl_impl = (!args.skip_idl && cfg!(feature = "idl")).then(|| {
+    let idl_impl = cfg_idl(args.skip_idl, || {
         let type_args = TypeToIdlArgs {
             program: Some(owner_program.clone()),
         };
         let type_to_idl_impl = crate::idl::derive_type_to_idl_inner(&input, type_args);
 
         let seeds = match &args.seeds {
-            Some(seeds) => quote! { Some(<#seeds as #prelude::SeedsToIdl>::seeds_to_idl(idl_definition)?) },
+            Some(seeds) => {
+                quote! { Some(<#seeds as #prelude::SeedsToIdl>::seeds_to_idl(idl_definition)?) }
+            }
             None => quote! { None },
         };
 
-        quote!{
+        quote! {
             #type_to_idl_impl
 
             #[cfg(not(target_os = "solana"))]

@@ -1,7 +1,7 @@
 use crate::account_set::generics::AccountSetGenerics;
 use crate::account_set::struct_impl::decode::DecodeFieldTy;
 use crate::account_set::{AccountSetStructArgs, SingleAccountSetFieldArgs, StrippedDeriveInput};
-use crate::util::{make_struct, new_generic, new_lifetime, Paths};
+use crate::util::{cfg_idl, make_struct, new_generic, new_lifetime, Paths};
 use easy_proc::{find_attr, ArgumentList};
 use itertools::Itertools;
 use proc_macro2::TokenStream;
@@ -14,7 +14,6 @@ use syn::{bracketed, parse_quote, token, DataStruct, Field, Ident, Index, Token,
 
 mod cleanup;
 mod decode;
-#[cfg(all(feature = "idl", not(target_os = "solana")))]
 mod idl;
 mod validate;
 
@@ -513,11 +512,7 @@ pub(super) fn derive_account_set_impl_struct(
     let decodes = decode::decodes(step_input, &data_struct, &all_field_name, &decode_types);
     let validates = validate::validates(step_input);
     let cleanups = cleanup::cleanups(step_input);
-
-    #[cfg(all(feature = "idl", not(target_os = "solana")))]
-    let idls = idl::idls(step_input);
-    #[cfg(not(feature = "idl"))]
-    let idls = Vec::<TokenStream>::new();
+    let idls = cfg_idl(false, || idl::idls(step_input));
 
     let set_account_caches = {
         let find_field_name =

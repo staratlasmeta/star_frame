@@ -1,4 +1,4 @@
-use crate::util::{get_docs, Paths};
+use crate::util::{cfg_idl, get_docs, Paths};
 use easy_proc::{find_attr, ArgumentList};
 use proc_macro2::TokenStream;
 use proc_macro_error::abort;
@@ -44,28 +44,38 @@ pub fn derive_get_seeds_impl(input: DeriveInput) -> TokenStream {
         );
     }
 
-    let idl_impl = (!skip_idl && cfg!(feature = "idl")).then(|| {
+    let idl_impl = cfg_idl(skip_idl, || {
         let seeds_to_idl = {
             let mut generics = input.generics.clone();
             let where_clause = generics.make_where_clause();
-            let field_seeds: Vec<_> = data_struct.fields.iter().map(|field| {
-                let ty = &field.ty;
-                let docs = get_docs(&field.attrs);
-                let ident = field.ident.clone().expect("Field must have an identifier").to_string();
-                where_clause.predicates.push(parse_quote! {
-                    #ty: #prelude::TypeToIdl
-                });
-                quote! {
-                    #prelude::IdlSeed::Variable {
-                        name: #ident.to_string(),
-                        description: #docs,
-                        ty: <#ty as #prelude::TypeToIdl>::type_to_idl(idl_definition)?,
+            let field_seeds: Vec<_> = data_struct
+                .fields
+                .iter()
+                .map(|field| {
+                    let ty = &field.ty;
+                    let docs = get_docs(&field.attrs);
+                    let ident = field
+                        .ident
+                        .clone()
+                        .expect("Field must have an identifier")
+                        .to_string();
+                    where_clause.predicates.push(parse_quote! {
+                        #ty: #prelude::TypeToIdl
+                    });
+                    quote! {
+                        #prelude::IdlSeed::Variable {
+                            name: #ident.to_string(),
+                            description: #docs,
+                            ty: <#ty as #prelude::TypeToIdl>::type_to_idl(idl_definition)?,
+                        }
                     }
-                }
-            }).collect();
-            let idl_seeds = seed_const.as_ref().map(|expr| {
-                quote!(#prelude::IdlSeed::Const(#expr.to_vec()))
-            }).into_iter().chain(field_seeds);
+                })
+                .collect();
+            let idl_seeds = seed_const
+                .as_ref()
+                .map(|expr| quote!(#prelude::IdlSeed::Const(#expr.to_vec())))
+                .into_iter()
+                .chain(field_seeds);
 
             quote! {
                 #[cfg(not(target_os = "solana"))]
@@ -83,15 +93,21 @@ pub fn derive_get_seeds_impl(input: DeriveInput) -> TokenStream {
         let find_seeds = {
             let find_seeds_ident = format_ident!("Find{ident}");
 
-            let field_find_seeds: Vec<_> = data_struct.fields.iter().map(|field| {
-                let ident = field.ident.as_ref().expect("Field must have an identifier");
-                quote! {
-                    Into::into(&self.#ident)
-                }
-            }).collect();
-            let find_seeds = seed_const.as_ref().map(|expr| {
-                parse_quote!(#prelude::IdlFindSeed::Const(#expr.to_vec()))
-            }).into_iter().chain(field_find_seeds);
+            let field_find_seeds: Vec<_> = data_struct
+                .fields
+                .iter()
+                .map(|field| {
+                    let ident = field.ident.as_ref().expect("Field must have an identifier");
+                    quote! {
+                        Into::into(&self.#ident)
+                    }
+                })
+                .collect();
+            let find_seeds = seed_const
+                .as_ref()
+                .map(|expr| parse_quote!(#prelude::IdlFindSeed::Const(#expr.to_vec())))
+                .into_iter()
+                .chain(field_find_seeds);
 
             let find_fields = data_struct.fields.iter().map(|field| {
                 let mut field = field.clone();
@@ -117,7 +133,6 @@ pub fn derive_get_seeds_impl(input: DeriveInput) -> TokenStream {
                 }
             }
         };
-
 
         quote! {
             #seeds_to_idl

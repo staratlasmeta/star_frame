@@ -3,7 +3,6 @@ mod account_set;
 mod align1;
 mod get_seeds;
 mod hash;
-#[cfg(feature = "idl")]
 mod idl;
 mod instruction_set;
 mod program;
@@ -12,6 +11,7 @@ mod solana_pubkey;
 mod unsize;
 mod util;
 
+use crate::util::cfg_idl;
 use proc_macro_error::proc_macro_error;
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
@@ -258,14 +258,11 @@ pub fn unsized_type(
 
 /// Derives `TypeToIdl` for a valid type.
 // todo: docs
-#[cfg(feature = "idl")]
 #[proc_macro_error]
 #[proc_macro_derive(TypeToIdl, attributes(type_to_idl))]
 pub fn derive_type_to_idl(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    #[cfg(feature = "idl")]
-    let out = idl::derive_type_to_idl(parse_macro_input!(item as DeriveInput));
-    #[cfg(not(feature = "idl"))]
-    let out = TokenStream::default();
+    let item = parse_macro_input!(item as DeriveInput);
+    let out = cfg_idl(false, || idl::derive_type_to_idl(item));
     out.into()
 }
 
@@ -273,10 +270,8 @@ pub fn derive_type_to_idl(item: proc_macro::TokenStream) -> proc_macro::TokenStr
 #[proc_macro_error]
 #[proc_macro_derive(InstructionToIdl, attributes(instruction_to_idl, type_to_idl))]
 pub fn derive_instruction_to_idl(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    #[cfg(feature = "idl")]
-    let out = idl::derive_instruction_to_idl(parse_macro_input!(input as DeriveInput));
-    #[cfg(not(feature = "idl"))]
-    let out = TokenStream::default();
+    let input = parse_macro_input!(input as DeriveInput);
+    let out = cfg_idl(false, || idl::derive_instruction_to_idl(input));
     out.into()
 }
 

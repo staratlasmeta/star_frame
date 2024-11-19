@@ -45,7 +45,7 @@ impl StarFrameInstruction for ProcessEnlistPlayerIx {
     type ReturnType = ();
     type Accounts<'b, 'c, 'info> = ProcessEnlistPlayer<'info>;
 
-    fn split_to_args<'a>(r: &Self) -> IxArgs<Self> {
+    fn split_to_args<'a>(r: &mut Self) -> IxArgs<Self> {
         IxArgs::run(r.faction_id)
     }
 
