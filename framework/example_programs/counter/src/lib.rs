@@ -30,6 +30,7 @@ pub struct CreateCounterIx {
 }
 
 #[derive(AccountSet)]
+// #[account_set(skip_default_account_set)]
 pub struct CreateCounterAccounts<'info> {
     #[account_set(funder)]
     pub funder: Signer<Mut<SystemAccount<'info>>>,
@@ -40,7 +41,7 @@ pub struct CreateCounterAccounts<'info> {
     ))]
     #[idl(arg = Seeds(FindCounterAccountSeeds { owner: seed_path("owner") }))]
     pub counter: Init<Seeded<WrappedCounter<'info>>>,
-    #[account_set(system_program)]
+    #[account_set(program)]
     pub system_program: Program<'info, SystemProgram>,
 }
 

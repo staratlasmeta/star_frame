@@ -125,6 +125,12 @@ pub struct Representation {
     pub modifier: Option<Modifier>,
 }
 
+impl Representation {
+    pub fn is_packed(&self) -> bool {
+        self.modifier == Some(Modifier::Packed(1))
+    }
+}
+
 impl Default for Representation {
     fn default() -> Self {
         Self {

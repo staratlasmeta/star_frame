@@ -34,7 +34,6 @@ use std::marker::PhantomData;
 /// }
 ///
 /// ```
-///
 pub trait GetSeeds: Debug + Clone {
     fn seeds(&self) -> Vec<&[u8]>;
 }
@@ -78,24 +77,27 @@ where
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Hash, PartialOrd, Ord)]
 #[repr(transparent)]
 pub struct Seeds<T>(pub T);
-
 /// Allows generic [`crate::account_set`]s to be used in multiple programs by defaulting the [`SeedProgram`] to the current
-/// executing program.
+/// executing program. This is the default `SeedProgram` for [`Seeded`], and the only `SeedProgram` that can be used with
+/// the [`Init`] account set.
 #[derive(Debug, Clone, Copy)]
 pub struct CurrentProgram;
-// todo: do we really need this? Consider removing this and CurrentProgram and replacing with StarFrameProgram instead
 pub trait SeedProgram {
     fn id(sys_calls: &mut impl SyscallCore) -> Result<Pubkey>;
+    #[cfg(feature = "idl")]
     fn idl_program() -> Option<Pubkey>;
 }
+
 impl SeedProgram for CurrentProgram {
     fn id(sys_calls: &mut impl SyscallCore) -> Result<Pubkey> {
         Ok(*sys_calls.current_program_id())
     }
+    #[cfg(feature = "idl")]
     fn idl_program() -> Option<Pubkey> {
         None
     }
 }
+
 impl<P> SeedProgram for P
 where
     P: StarFrameProgram,
@@ -103,6 +105,8 @@ where
     fn id(_syscalls: &mut impl SyscallCore) -> Result<Pubkey> {
         Ok(P::PROGRAM_ID)
     }
+
+    #[cfg(feature = "idl")]
     fn idl_program() -> Option<Pubkey> {
         Some(P::PROGRAM_ID)
     }
@@ -114,33 +118,33 @@ where
     id = "seeds",
     generics = [where T: AccountSetValidate<'info, ()> + SingleAccountSet<'info>],
     arg = Seeds<S>,
-    before_validation = self.set_seeds(&arg, syscalls)
+    before_validation = self.validate_and_set_seeds(&arg, syscalls)
 )]
 #[validate(
     id = "seeds_generic",
     arg = (Seeds<S>, A),
-    before_validation = self.set_seeds(&arg, syscalls)
+    before_validation = self.validate_and_set_seeds(&arg.0, syscalls)
 )]
 #[validate(
     id = "seeds_with_bump",
     generics = [where T: AccountSetValidate<'info, ()> + SingleAccountSet<'info>],
     arg = SeedsWithBump<S>,
-    before_validation = self.set_seeds(&arg, syscalls)
+    before_validation = self.validate_and_set_seeds_with_bump(&arg, syscalls)
 )]
 #[validate(
     id = "seeds_with_bump_generic",
     arg = (SeedsWithBump<S>, A),
-    before_validation = self.set_seeds(&arg, syscalls)
+    before_validation = self.validate_and_set_seeds_with_bump(&arg.0, syscalls)
 )]
-pub struct Seeded<
-    T,
-    S: GetSeeds + Clone = <T as HasSeeds>::Seeds,
-    P: SeedProgram = <T as HasOwnerProgram>::OwnerProgram,
-> {
+pub struct Seeded<T, S = <T as HasSeeds>::Seeds, P = CurrentProgram>
+where
+    S: GetSeeds,
+    P: SeedProgram,
+{
     #[single_account_set(
-        skip_can_set_seeds,
         skip_signed_account,
         skip_has_seeds,
+        skip_can_init_seeds,
         skip_can_init_account
     )]
     #[validate(id = "seeds_generic", arg = arg.1)]
@@ -155,63 +159,81 @@ pub struct Seeded<
     phantom_p: PhantomData<P>,
 }
 
-impl<'info, T: SingleAccountSet<'info>, S: GetSeeds + Clone, P: SeedProgram, A>
-    CanSetSeeds<'info, (Seeds<S>, A)> for Seeded<T, S, P>
+impl<'info, T, S, P, A> CanInitSeeds<'info, (Seeds<S>, A)> for Seeded<T, S, P>
+where
+    T: SingleAccountSet<'info> + AccountSetValidate<'info, A>,
+    S: GetSeeds,
+    P: SeedProgram,
 {
-    fn set_seeds(
+    fn init_seeds(
         &mut self,
         arg: &(Seeds<S>, A),
         syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<()> {
-        self.validate_and_set_seeds(arg.0 .0.clone(), syscalls)
+        self.validate_and_set_seeds(&arg.0, syscalls)
     }
 }
 
-impl<'info, T: SingleAccountSet<'info>, S: GetSeeds + Clone, P: SeedProgram>
-    CanSetSeeds<'info, Seeds<S>> for Seeded<T, S, P>
+impl<'info, T, S, P> CanInitSeeds<'info, Seeds<S>> for Seeded<T, S, P>
+where
+    T: SingleAccountSet<'info> + AccountSetValidate<'info, ()>,
+    S: GetSeeds,
+    P: SeedProgram,
 {
-    fn set_seeds(
+    fn init_seeds(
         &mut self,
         arg: &Seeds<S>,
         syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<()> {
-        self.validate_and_set_seeds(arg.0.clone(), syscalls)
+        self.validate_and_set_seeds(arg, syscalls)
     }
 }
 
-impl<'info, T: SingleAccountSet<'info>, S: GetSeeds + Clone, P: SeedProgram, A>
-    CanSetSeeds<'info, (SeedsWithBump<S>, A)> for Seeded<T, S, P>
+impl<'info, T, S, P, A> CanInitSeeds<'info, (SeedsWithBump<S>, A)> for Seeded<T, S, P>
+where
+    T: SingleAccountSet<'info> + AccountSetValidate<'info, A>,
+    S: GetSeeds,
+    P: SeedProgram,
 {
-    fn set_seeds(
+    fn init_seeds(
         &mut self,
         arg: &(SeedsWithBump<S>, A),
         syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<()> {
-        self.validate_and_set_seeds_with_bump(arg.0.clone(), syscalls)
+        self.validate_and_set_seeds_with_bump(&arg.0, syscalls)
     }
 }
 
-impl<'info, T: SingleAccountSet<'info>, S: GetSeeds + Clone, P: SeedProgram>
-    CanSetSeeds<'info, SeedsWithBump<S>> for Seeded<T, S, P>
+impl<'info, T, S, P> CanInitSeeds<'info, SeedsWithBump<S>> for Seeded<T, S, P>
+where
+    T: SingleAccountSet<'info> + AccountSetValidate<'info, ()>,
+    S: GetSeeds,
+    P: SeedProgram,
 {
-    fn set_seeds(
+    fn init_seeds(
         &mut self,
         arg: &SeedsWithBump<S>,
         syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<()> {
-        self.validate_and_set_seeds_with_bump(arg.clone(), syscalls)
+        self.validate_and_set_seeds_with_bump(arg, syscalls)
     }
 }
 
-impl<'info, T: SingleAccountSet<'info>, S: GetSeeds, P: SeedProgram> Seeded<T, S, P> {
+impl<'info, T, S, P> Seeded<T, S, P>
+where
+    T: SingleAccountSet<'info>,
+    S: GetSeeds,
+    P: SeedProgram,
+{
     fn validate_and_set_seeds(
         &mut self,
-        seeds: S,
+        seeds: &Seeds<S>,
         sys_calls: &mut impl SyscallInvoke<'info>,
     ) -> Result<()> {
         if self.seeds.is_some() {
             return Ok(());
         }
+        let seeds = seeds.clone().0;
         let (address, bump) = Pubkey::find_program_address(&seeds.seeds(), &P::id(sys_calls)?);
         if self.account.account_info().key != &address {
             bail!(
@@ -228,7 +250,7 @@ impl<'info, T: SingleAccountSet<'info>, S: GetSeeds, P: SeedProgram> Seeded<T, S
 
     fn validate_and_set_seeds_with_bump(
         &mut self,
-        seeds: SeedsWithBump<S>,
+        seeds: &SeedsWithBump<S>,
         sys_calls: &mut impl SyscallInvoke<'info>,
     ) -> Result<()> {
         if self.seeds.is_some() {
@@ -244,38 +266,48 @@ impl<'info, T: SingleAccountSet<'info>, S: GetSeeds, P: SeedProgram> Seeded<T, S
                 self.account.account_info().key
             );
         }
-        self.seeds = Some(seeds);
+        self.seeds = Some(seeds.clone());
         Ok(())
     }
 }
 
-impl<T, S: GetSeeds, P: SeedProgram> Seeded<T, S, P> {
+impl<T, S, P> Seeded<T, S, P>
+where
+    S: GetSeeds,
+    P: SeedProgram,
+{
     pub fn access_seeds(&self) -> &SeedsWithBump<S> {
-        self.seeds.as_ref().unwrap()
+        self.seeds.as_ref().expect("Seeds not set!")
     }
 }
 
-impl<'info, T, S: GetSeeds, P: SeedProgram> SignedAccount<'info> for Seeded<T, S, P>
+/// [`Seeded`] can only sign when the seed program is [`CurrentProgram`].
+impl<'info, T, S> SignedAccount<'info> for Seeded<T, S, CurrentProgram>
 where
     T: SingleAccountSet<'info>,
+    S: GetSeeds,
 {
     fn signer_seeds(&self) -> Option<Vec<&[u8]>> {
         Some(self.access_seeds().seeds_with_bump())
     }
 }
 
-impl<'info, T, S: GetSeeds, P: SeedProgram> HasSeeds for Seeded<T, S, P>
+impl<'info, T, S, P> HasSeeds for Seeded<T, S, P>
 where
     T: SingleAccountSet<'info>,
+    S: GetSeeds,
+    P: SeedProgram,
 {
     type Seeds = S;
 }
 
-impl<'info, T, S: GetSeeds, P: SeedProgram, A> CanInitAccount<'info, A> for Seeded<T, S, P>
+/// [`Seeded`] can only be initialized with [`CurrentProgram`] as the seed program.
+impl<'info, T, S, A> CanInitAccount<'info, A> for Seeded<T, S, CurrentProgram>
 where
     T: SingleAccountSet<'info> + CanInitAccount<'info, A>,
+    S: GetSeeds,
 {
-    fn init(
+    fn init_account(
         &mut self,
         arg: A,
         syscalls: &mut impl SyscallInvoke<'info>,
@@ -286,7 +318,7 @@ where
             bail!("Conflicting account seeds during init!");
         }
         let seeds = self.seeds.as_ref().map(|s| s.seeds_with_bump());
-        self.account.init(arg, syscalls, seeds)
+        self.account.init_account(arg, syscalls, seeds)
     }
 }
 
@@ -297,10 +329,11 @@ mod idl_impl {
     use star_frame_idl::seeds::IdlFindSeeds;
     use star_frame_idl::IdlDefinition;
 
-    impl<'info, T, A, S, F, P: SeedProgram> AccountSetToIdl<'info, (Seeds<F>, A)> for Seeded<T, S, P>
+    impl<'info, T, A, S, P, F> AccountSetToIdl<'info, (Seeds<F>, A)> for Seeded<T, S, P>
     where
         T: AccountSetToIdl<'info, A> + SingleAccountSet<'info>,
         S: GetSeeds,
+        P: SeedProgram,
         F: FindIdlSeeds,
     {
         fn account_set_to_idl(
@@ -325,10 +358,11 @@ mod idl_impl {
         }
     }
 
-    impl<'info, T, S, F, P: SeedProgram> AccountSetToIdl<'info, Seeds<F>> for Seeded<T, S, P>
+    impl<'info, T, S, P, F> AccountSetToIdl<'info, Seeds<F>> for Seeded<T, S, P>
     where
         T: AccountSetToIdl<'info, ()> + SingleAccountSet<'info>,
         S: GetSeeds,
+        P: SeedProgram,
         F: FindIdlSeeds,
     {
         fn account_set_to_idl(
@@ -339,10 +373,11 @@ mod idl_impl {
         }
     }
 
-    impl<'info, T, S, P: SeedProgram> AccountSetToIdl<'info, ()> for Seeded<T, S, P>
+    impl<'info, T, S, P> AccountSetToIdl<'info, ()> for Seeded<T, S, P>
     where
         T: AccountSetToIdl<'info, ()> + SingleAccountSet<'info>,
         S: GetSeeds,
+        P: SeedProgram,
     {
         fn account_set_to_idl(
             idl_definition: &mut IdlDefinition,
@@ -352,10 +387,11 @@ mod idl_impl {
         }
     }
 
-    impl<'info, T, S, P: SeedProgram> AccountSetToIdl<'info, Pubkey> for Seeded<T, S, P>
+    impl<'info, T, S, P> AccountSetToIdl<'info, Pubkey> for Seeded<T, S, P>
     where
         T: AccountSetToIdl<'info, Pubkey> + SingleAccountSet<'info>,
         S: GetSeeds,
+        P: SeedProgram,
     {
         fn account_set_to_idl(
             idl_definition: &mut IdlDefinition,

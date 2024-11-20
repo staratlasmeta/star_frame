@@ -4,6 +4,7 @@ mod impls;
 mod modifiers;
 mod program;
 mod rest;
+mod single_set;
 mod system_account;
 
 pub use data_account::*;
@@ -12,16 +13,13 @@ pub use impls::*;
 pub use modifiers::*;
 pub use program::*;
 pub use rest::*;
+pub use single_set::*;
 pub use star_frame_proc::AccountSet;
 pub use system_account::*;
 
 use crate::syscalls::{SyscallAccountCache, SyscallInvoke};
 use crate::Result;
 use solana_program::account_info::AccountInfo;
-use solana_program::instruction::AccountMeta;
-use solana_program::program_error::ProgramError;
-use solana_program::pubkey::Pubkey;
-use std::cell::{Ref, RefMut};
 use std::slice;
 
 /// A set of accounts that can be used as input to an instruction.
@@ -91,77 +89,6 @@ impl<'a, 'info, T, D, V> TryFromAccountsWithArgs<'a, 'info, D, V> for T where
 impl<'a, 'info, T> TryFromAccounts<'a, 'info> for T where
     T: TryFromAccountsWithArgs<'a, 'info, (), ()>
 {
-}
-
-/// An [`AccountSet`] that contains exactly 1 account.
-pub trait SingleAccountSet<'info>: AccountSet<'info> {
-    /// Gets the contained account.
-    fn account_info(&self) -> &AccountInfo<'info>;
-    /// Gets the contained account cloned.
-    fn account_info_cloned(&self) -> AccountInfo<'info> {
-        self.account_info().clone()
-    }
-    /// Gets the account meta of the contained account.
-    fn account_meta(&self) -> AccountMeta {
-        let info = self.account_info();
-        AccountMeta {
-            pubkey: *info.key(),
-            is_signer: info.is_signer(),
-            is_writable: info.is_writable(),
-        }
-    }
-
-    /// Gets whether this account signed.
-    fn is_signer(&self) -> bool {
-        self.account_info().is_signer()
-    }
-
-    /// Checks if this account is signed.
-    fn check_signer(&self) -> Result<()> {
-        if self.is_signer() {
-            Ok(())
-        } else {
-            Err(ProgramError::MissingRequiredSignature.into())
-        }
-    }
-
-    /// Gets whether this account is writable.
-    fn is_writable(&self) -> bool {
-        self.account_info().is_writable()
-    }
-
-    /// Checks if this account is writable.
-    fn check_writable(&self) -> Result<()> {
-        if self.is_writable() {
-            Ok(())
-        } else {
-            Err(ProgramError::AccountBorrowFailed.into())
-        }
-    }
-
-    /// Gets the key of the contained account.
-    fn key(&self) -> &'info Pubkey {
-        self.account_info().key()
-    }
-    /// Gets the owner of the contained account.
-    fn owner(&self) -> &'info Pubkey {
-        self.account_info().owner()
-    }
-
-    /// Gets the data of the contained account immutably.
-    fn info_data_bytes<'a>(&'a self) -> Result<Ref<'a, [u8]>>
-    where
-        'info: 'a,
-    {
-        self.account_info().info_data_bytes()
-    }
-    /// Gets the data of the contained account mutably.
-    fn info_data_bytes_mut<'a>(&'a self) -> Result<RefMut<'a, &'info mut [u8]>>
-    where
-        'info: 'a,
-    {
-        self.account_info().info_data_bytes_mut()
-    }
 }
 
 /// An [`AccountSet`] that can be decoded from a list of [`AccountInfo`]s using arg `A`.
@@ -263,11 +190,11 @@ mod test {
             unimplemented!()
         }
 
-        fn get_rent(&mut self) -> Result<Rent, ProgramError> {
+        fn get_rent(&self) -> Result<Rent, ProgramError> {
             unimplemented!()
         }
 
-        fn get_clock(&mut self) -> Result<Clock, ProgramError> {
+        fn get_clock(&self) -> Result<Clock, ProgramError> {
             unimplemented!()
         }
     }
@@ -275,7 +202,7 @@ mod test {
     impl SyscallAccountCache<'_> for DummyRuntime {}
     impl<'info> SyscallInvoke<'info> for DummyRuntime {
         fn invoke(
-            &mut self,
+            &self,
             _instruction: &SolanaInstruction,
             _accounts: &[AccountInfo],
         ) -> ProgramResult {
@@ -283,7 +210,7 @@ mod test {
         }
 
         unsafe fn invoke_unchecked(
-            &mut self,
+            &self,
             _instruction: &SolanaInstruction,
             _accounts: &[AccountInfo],
         ) -> ProgramResult {
@@ -291,7 +218,7 @@ mod test {
         }
 
         fn invoke_signed(
-            &mut self,
+            &self,
             _instruction: &SolanaInstruction,
             _accounts: &[AccountInfo],
             _signers_seeds: &[&[&[u8]]],
@@ -300,7 +227,7 @@ mod test {
         }
 
         unsafe fn invoke_signed_unchecked(
-            &mut self,
+            &self,
             _instruction: &SolanaInstruction,
             _accounts: &[AccountInfo],
             _signers_seeds: &[&[&[u8]]],

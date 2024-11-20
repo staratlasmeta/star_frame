@@ -1,4 +1,6 @@
-use crate::account_set::{AccountSet, CanSetSeeds, SignedAccount, SingleAccountSet};
+use crate::account_set::{
+    AccountSet, AccountSetValidate, CanInitSeeds, SignedAccount, SingleAccountSet,
+};
 
 use crate::prelude::SyscallInvoke;
 use crate::Result;
@@ -12,7 +14,7 @@ use std::fmt::Debug;
 #[validate(
     extra_validation = self.check_signer(),
 )]
-pub struct Signer<T>(#[single_account_set(skip_signed_account, skip_can_set_seeds)] pub(crate) T);
+pub struct Signer<T>(#[single_account_set(skip_signed_account, skip_can_init_seeds)] pub(crate) T);
 
 pub type SignerInfo<'info> = Signer<AccountInfo<'info>>;
 
@@ -25,12 +27,12 @@ where
     }
 }
 
-// CanSetSeeds on Signer is a no-op
-impl<'info, T> CanSetSeeds<'info, ()> for Signer<T>
+// CanInitSeeds on Signer is a no-op
+impl<'info, T, A> CanInitSeeds<'info, A> for Signer<T>
 where
-    Self: SingleAccountSet<'info>,
+    Self: SingleAccountSet<'info> + AccountSetValidate<'info, A>,
 {
-    fn set_seeds(&mut self, _arg: &(), _syscalls: &mut impl SyscallInvoke<'info>) -> Result<()> {
+    fn init_seeds(&mut self, _arg: &A, _syscalls: &mut impl SyscallInvoke<'info>) -> Result<()> {
         Ok(())
     }
 }

@@ -69,7 +69,7 @@ impl TryToAnchor<anchor::IdlMetadata> for IdlMetadata {
 
 impl TryToAnchor<anchor::IdlInstruction> for IdlInstruction {
     fn try_to_anchor(&self, idl_definition: &IdlDefinition) -> Result<anchor::IdlInstruction> {
-        let ty = self.definition.data.get_defined(idl_definition)?;
+        let ty = self.definition.type_id.get_defined(idl_definition)?;
         let args = match &ty.type_def {
             IdlTypeDef::Struct(fields) => 'matchy: {
                 let Some(first_field) = fields.first() else {
@@ -202,7 +202,7 @@ fn account_set_to_anchor_inner(
 
 impl TryToAnchor<anchor::IdlAccount> for IdlAccount {
     fn try_to_anchor(&self, idl_definition: &IdlDefinition) -> Result<anchor::IdlAccount> {
-        let ty = self.type_def.get_defined(idl_definition)?;
+        let ty = self.type_id.get_defined(idl_definition)?;
         let account = anchor::IdlAccount {
             name: ty.info.name.clone(),
             discriminator: self.discriminant.clone(),

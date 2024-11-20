@@ -76,25 +76,26 @@ pub enum IdlTypeDef {
     Enum(Vec<IdlEnumVariant>),
 }
 
+impl IdlTypeId {
+    pub fn get_defined<'a>(
+        &self,
+        idl_definition: &'a IdlDefinition,
+    ) -> anyhow::Result<&'a IdlType> {
+        if idl_definition.types.contains_key(&self.source) {
+            Ok(&idl_definition.types[&self.source])
+        } else if idl_definition.external_types.contains_key(&self.source) {
+            Ok(&idl_definition.external_types[&self.source])
+        } else {
+            bail!("Type not found in idl definition")
+        }
+    }
+}
+
 impl IdlTypeDef {
     pub fn assert_defined(&self) -> anyhow::Result<&IdlTypeId> {
         match self {
             IdlTypeDef::Defined(ref type_id) => Ok(type_id),
             _ => bail!("Expected defined type, found {:?}", self),
-        }
-    }
-
-    pub fn get_defined<'a>(
-        &self,
-        idl_definition: &'a IdlDefinition,
-    ) -> anyhow::Result<&'a IdlType> {
-        let type_id = self.assert_defined()?;
-        if idl_definition.types.contains_key(&type_id.source) {
-            Ok(&idl_definition.types[&type_id.source])
-        } else if idl_definition.external_types.contains_key(&type_id.source) {
-            Ok(&idl_definition.external_types[&type_id.source])
-        } else {
-            bail!("Type not found in idl definition")
         }
     }
 }

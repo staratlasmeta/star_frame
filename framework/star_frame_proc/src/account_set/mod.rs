@@ -23,6 +23,8 @@ struct AccountSetStructArgs {
     skip_default_validate: bool,
     #[argument(presence)]
     skip_default_cleanup: bool,
+    #[argument(presence)]
+    skip_default_account_set: bool,
     #[cfg(feature = "idl")]
     #[argument(presence)]
     skip_default_idl: bool,
@@ -42,7 +44,7 @@ struct SingleAccountSetFieldArgs {
     #[argument(presence)]
     skip_has_seeds: bool,
     #[argument(presence)]
-    skip_can_set_seeds: bool,
+    skip_can_init_seeds: bool,
     #[argument(presence)]
     skip_can_init_account: bool,
 }

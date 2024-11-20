@@ -2,6 +2,7 @@ use crate::account_set::{AccountSetDecode, SingleAccountSet};
 use crate::syscalls::SyscallInvoke;
 use crate::Result;
 use advance::AdvanceArray;
+use anyhow::Context;
 use solana_program::account_info::AccountInfo;
 use solana_program::instruction::AccountMeta;
 use solana_program::pubkey::Pubkey;
@@ -45,14 +46,15 @@ impl<'info> SingleAccountSet<'info> for AccountInfo<'info> {
     {
         self.try_borrow_data()
             .map(|d| Ref::map(d, |d| &**d))
-            .map_err(Into::into)
+            .with_context(|| format!("Error borrowing data on account {}", self.key))
     }
 
     fn info_data_bytes_mut<'a>(&'a self) -> Result<RefMut<'a, &'info mut [u8]>>
     where
         'info: 'a,
     {
-        self.try_borrow_mut_data().map_err(Into::into)
+        self.try_borrow_mut_data()
+            .with_context(|| format!("Error borrowing mut data on account {}", self.key))
     }
 }
 impl<'__a, 'info> SingleAccountSet<'info> for &'__a AccountInfo<'info> {

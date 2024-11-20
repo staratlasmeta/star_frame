@@ -123,7 +123,7 @@ impl IdlDefinition {
         definition: IdlInstructionDef,
         discriminant: IdlDiscriminant,
     ) -> anyhow::Result<()> {
-        let source = definition.data.assert_defined()?.source.clone();
+        let source = definition.type_id.source.clone();
         let idl_instruction = IdlInstruction {
             definition,
             discriminant,
@@ -137,7 +137,7 @@ impl IdlDefinition {
         account: IdlAccount,
         namespace: Pubkey,
     ) -> anyhow::Result<Option<IdlNamespace>> {
-        let source = account.type_def.assert_defined()?.source.clone();
+        let source = account.type_id.source.clone();
         if namespace == self.address {
             self.accounts.entry(source).or_insert(account);
             Ok(None)

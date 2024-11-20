@@ -43,10 +43,8 @@ impl StarFrameInstruction for ProcessEnlistPlayerIx {
     type ValidateArg<'a> = ();
     type CleanupArg<'a> = ();
     type ReturnType = ();
-    // type RunArg<'a> = (FactionId, &'a Vec<u8>);
     type RunArg<'a> = FactionId;
     type Accounts<'b, 'c, 'info> = ProcessEnlistPlayer<'info>;
-    // type ReturnType = usize;
 
     fn split_to_args<'a>(r: &Self) -> IxArgs<Self> {
         IxArgs::run(r.faction_id)
@@ -57,7 +55,6 @@ impl StarFrameInstruction for ProcessEnlistPlayerIx {
         faction_id: Self::RunArg<'_>,
         syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<Self::ReturnType> {
-        // let cloned_account = account_set.player_account.clone();
         let clock = syscalls.get_clock()?;
         let bump = account_set.player_faction_account.access_seeds().bump;
         *account_set.player_faction_account.data_mut()? = PlayerFactionData {
@@ -74,7 +71,7 @@ impl StarFrameInstruction for ProcessEnlistPlayerIx {
 #[derive(AccountSet)]
 pub struct ProcessEnlistPlayer<'info> {
     /// The player faction account
-    #[validate(arg = (Create(CreateAccount::new(&self.system_program, &self.player_account)),
+    #[validate(arg = (Create(()),
     Seeds(PlayerFactionAccountSeeds {
         player_account: *self.player_account.key()
     })))]
@@ -88,7 +85,7 @@ pub struct ProcessEnlistPlayer<'info> {
     #[account_set(funder)]
     pub player_account: Mut<Signer<SystemAccount<'info>>>,
     /// Solana System program
-    #[account_set(system_program)]
+    #[account_set(program)]
     pub system_program: Program<'info, SystemProgram>,
 }
 
@@ -152,6 +149,11 @@ mod tests {
     fn idl() {
         let idl = FactionEnlistment::program_to_idl().unwrap();
         println!("{}", serde_json::to_string_pretty(&idl).unwrap());
+    }
+
+    #[test]
+    fn info_size() {
+        println!("{}", std::mem::size_of::<AccountInfo>());
     }
 
     #[tokio::test]
