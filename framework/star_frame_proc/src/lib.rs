@@ -171,7 +171,7 @@ pub fn star_frame_instruction_set(item: proc_macro::TokenStream) -> proc_macro::
 
 // todo: docs
 #[proc_macro_error]
-#[proc_macro_derive(ProgramAccount, attributes(program_account))]
+#[proc_macro_derive(ProgramAccount, attributes(program_account, type_to_idl))]
 pub fn program_account(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let out = program_account::program_account_impl(parse_macro_input!(input as DeriveInput));
     out.into()
@@ -272,7 +272,7 @@ pub fn derive_type_to_idl(item: proc_macro::TokenStream) -> proc_macro::TokenStr
 
 // todo: docs
 #[proc_macro_error]
-#[proc_macro_derive(InstructionToIdl, attributes(instruction_to_idl))]
+#[proc_macro_derive(InstructionToIdl, attributes(instruction_to_idl, type_to_idl))]
 pub fn derive_instruction_to_idl(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     #[cfg(feature = "idl")]
     let out = idl::derive_instruction_to_idl(parse_macro_input!(input as DeriveInput));

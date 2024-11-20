@@ -1,7 +1,7 @@
 use crate::account::IdlAccountId;
 use crate::seeds::IdlFindSeeds;
-use crate::serde_base58_pubkey_option;
 use crate::ty::IdlTypeDef;
+use crate::{serde_base58_pubkey_option, IdlDefinition};
 use crate::{IdlGeneric, ItemInfo};
 use crate::{ItemDescription, ItemSource};
 use anyhow::bail;
@@ -58,6 +58,24 @@ pub enum IdlAccountSetDef {
 }
 
 impl IdlAccountSetDef {
+    pub fn assert_defined(&self) -> anyhow::Result<&IdlAccountSetId> {
+        match self {
+            IdlAccountSetDef::Defined(id) => Ok(id),
+            _ => bail!("Expected defined account set, found {:?}", self),
+        }
+    }
+
+    pub fn get_defined<'a>(
+        &self,
+        idl_definition: &'a IdlDefinition,
+    ) -> anyhow::Result<&'a IdlAccountSet> {
+        let source = &self.assert_defined()?.source;
+        idl_definition
+            .account_sets
+            .get(source)
+            .ok_or_else(|| anyhow::anyhow!("Account set `{source}` not found in definition"))
+    }
+
     pub fn empty_struct() -> Self {
         IdlAccountSetDef::Struct(vec![])
     }

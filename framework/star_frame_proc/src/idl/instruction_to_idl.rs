@@ -1,5 +1,5 @@
 use crate::idl::{derive_type_to_idl_inner, TypeToIdlArgs};
-use crate::util::{reject_generics, Paths};
+use crate::util::{reject_attributes, reject_generics, Paths};
 use easy_proc::{find_attr, ArgumentList};
 use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote};
@@ -8,6 +8,7 @@ use syn::{parse_quote, DeriveInput};
 pub fn derive_instruction_to_idl(input: DeriveInput) -> TokenStream {
     let Paths {
         instruction_to_idl_args_ident,
+        type_to_idl_args_ident,
         macro_prelude: prelude,
         ..
     } = &Paths::default();
@@ -22,6 +23,7 @@ pub fn derive_instruction_to_idl(input: DeriveInput) -> TokenStream {
         .map(TypeToIdlArgs::parse_arguments)
         .unwrap_or_default();
 
+    reject_attributes(&input.attrs, type_to_idl_args_ident, None);
     let type_to_idl_derivation = derive_type_to_idl_inner(&input, args);
     let mut generics = input.generics.clone();
     let where_clause = generics.make_where_clause();

@@ -3,6 +3,10 @@ extern crate core;
 
 pub mod account;
 pub mod account_set;
+#[cfg(feature = "anchor")]
+mod anchor;
+#[cfg(feature = "anchor")]
+pub use anchor::*;
 pub mod instruction;
 pub mod seeds;
 pub mod serde_impls;
@@ -58,33 +62,45 @@ impl ItemInfo {
 pub struct IdlMetadata {
     /// Version of the `IdlDefinition`
     pub idl_spec: Version,
-    /// Version of program
-    pub version: Version,
-    // todo: crate metadata?
-    // #[serde(flatten)]
-    // pub crate_metadata: CrateMetadata,
+    #[serde(flatten)]
+    pub crate_metadata: CrateMetadata,
     // todo: figure out required_idl_definitions
     pub required_idl_definitions: HashMap<String, IdlDefinitionReference>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct CrateMetadata {
+    /// Version of the program
+    pub version: Version,
+    /// Name of the program
     pub name: String,
+    pub docs: ItemDescription,
     pub description: Option<String>,
+    pub homepage: Option<String>,
+    pub license: Option<String>,
     pub repository: Option<String>,
+}
+
+impl Default for CrateMetadata {
+    fn default() -> Self {
+        Self {
+            version: Version::new(0, 0, 0),
+            name: String::new(),
+            docs: Vec::new(),
+            description: None,
+            homepage: None,
+            license: None,
+            repository: None,
+        }
+    }
 }
 
 impl Default for IdlMetadata {
     fn default() -> Self {
         Self {
-            version: Version::new(0, 0, 0),
-            // crate_metadata: CrateMetadata {
-            //     name: String::default(),
-            //     description: None,
-            //     repository: None,
-            // },
-            required_idl_definitions: HashMap::default(),
             idl_spec: idl_spec_version(),
+            crate_metadata: Default::default(),
+            required_idl_definitions: HashMap::default(),
         }
     }
 }
@@ -144,6 +160,12 @@ impl IdlDefinition {
             self.external_types.entry(source).or_insert(ty);
             Some(namespace)
         }
+    }
+
+    pub fn get_type(&self, source: &ItemSource) -> Option<&IdlType> {
+        self.types
+            .get(source)
+            .or_else(|| self.external_types.get(source))
     }
 }
 

@@ -1,10 +1,10 @@
+use crate::util;
+use crate::util::{ensure_data_struct, reject_generics, Paths};
 use easy_proc::{find_attrs, ArgumentList};
 use proc_macro2::TokenStream;
 use proc_macro_error::{abort, abort_call_site};
 use quote::{quote, ToTokens};
 use syn::{parse_quote, DeriveInput, Expr, ExprLit, Lit, Type};
-
-use crate::util::{ensure_data_struct, reject_generics, Paths};
 
 #[derive(ArgumentList, Default)]
 pub struct StarFrameProgramDerive {
@@ -164,12 +164,28 @@ pub(crate) fn program_impl(input: DeriveInput) -> TokenStream {
     };
 
     let idl_impl = (!skip_idl && cfg!(feature = "idl")).then(|| {
+        let docs = util::get_docs(&input.attrs);
         quote! {
             #[automatically_derived]
             impl #prelude::ProgramToIdl for #ident {
-                fn version() -> #prelude::Version {
-                    #prelude::Version::parse(env!("CARGO_PKG_VERSION"))
-                        .expect("Invalid package version. This should never happen.")
+                fn crate_metadata() -> #prelude::CrateMetadata {
+                    let to_option = |s: &str| {
+                        if s.is_empty() {
+                            None
+                        } else {
+                            Some(s.to_string())
+                        }
+                    };
+                    #prelude::CrateMetadata {
+                        version: #prelude::Version::parse(env!("CARGO_PKG_VERSION"))
+                            .expect("Invalid package version. This should never happen."),
+                        name: env!("CARGO_PKG_NAME").to_string(),
+                        docs: #docs,
+                        description: to_option(env!("CARGO_PKG_DESCRIPTION")),
+                        homepage: to_option(env!("CARGO_PKG_HOMEPAGE")),
+                        license: to_option(env!("CARGO_PKG_LICENSE")),
+                        repository: to_option(env!("CARGO_PKG_REPOSITORY")),
+                    }
                 }
             }
         }

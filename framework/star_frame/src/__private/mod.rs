@@ -30,6 +30,6 @@ pub mod macro_prelude {
         item_source,
         seeds::{IdlFindSeed, IdlFindSeeds, IdlSeed, IdlSeeds},
         ty::{IdlEnumVariant, IdlStructField, IdlType, IdlTypeDef, IdlTypeId},
-        IdlDefinition, IdlDefinitionReference, ItemInfo, Version,
+        CrateMetadata, IdlDefinition, IdlDefinitionReference, ItemInfo, Version,
     };
 }

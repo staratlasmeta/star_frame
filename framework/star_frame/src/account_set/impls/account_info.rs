@@ -183,8 +183,10 @@ impl<'a, 'info> AccountSetCleanup<'info, ()> for &'a AccountInfo<'info> {
 #[cfg(feature = "idl")]
 pub mod idl_impl {
     use super::*;
-    use crate::idl::AccountSetToIdl;
+    use crate::idl::{AccountSetToIdl, FindIdlSeeds};
+    use crate::prelude::Seeds;
     use star_frame_idl::account_set::{IdlAccountSetDef, IdlSingleAccountSet};
+    use star_frame_idl::seeds::IdlFindSeeds;
     use star_frame_idl::IdlDefinition;
 
     impl<'info> AccountSetToIdl<'info, ()> for AccountInfo<'info> {
@@ -192,15 +194,7 @@ pub mod idl_impl {
             _idl_definition: &mut IdlDefinition,
             _arg: (),
         ) -> Result<IdlAccountSetDef> {
-            Ok(IdlAccountSetDef::Single(IdlSingleAccountSet {
-                program_accounts: vec![],
-                seeds: None,
-                address: None,
-                writable: false,
-                signer: false,
-                optional: false,
-                is_init: false,
-            }))
+            Ok(IdlAccountSetDef::Single(IdlSingleAccountSet::default()))
         }
     }
     impl<'info> AccountSetToIdl<'info, Pubkey> for AccountInfo<'info> {
@@ -209,16 +203,49 @@ pub mod idl_impl {
             arg: Pubkey,
         ) -> Result<IdlAccountSetDef> {
             Ok(IdlAccountSetDef::Single(IdlSingleAccountSet {
-                program_accounts: vec![],
-                seeds: None,
                 address: Some(arg),
-                writable: false,
-                signer: false,
-                optional: false,
-                is_init: false,
+                ..Default::default()
             }))
         }
     }
+
+    impl<'info, T> AccountSetToIdl<'info, Seeds<(T, Pubkey)>> for AccountInfo<'info>
+    where
+        T: FindIdlSeeds,
+    {
+        fn account_set_to_idl(
+            _idl_definition: &mut IdlDefinition,
+            arg: Seeds<(T, Pubkey)>,
+        ) -> Result<IdlAccountSetDef> {
+            let (seeds, program) = arg.0;
+            Ok(IdlAccountSetDef::Single(IdlSingleAccountSet {
+                seeds: Some(IdlFindSeeds {
+                    seeds: T::find_seeds(&seeds)?,
+                    program: Some(program),
+                }),
+                ..Default::default()
+            }))
+        }
+    }
+
+    impl<'info, T> AccountSetToIdl<'info, Seeds<T>> for AccountInfo<'info>
+    where
+        T: FindIdlSeeds,
+    {
+        fn account_set_to_idl(
+            _idl_definition: &mut IdlDefinition,
+            arg: Seeds<T>,
+        ) -> Result<IdlAccountSetDef> {
+            Ok(IdlAccountSetDef::Single(IdlSingleAccountSet {
+                seeds: Some(IdlFindSeeds {
+                    seeds: T::find_seeds(&arg.0)?,
+                    program: None,
+                }),
+                ..Default::default()
+            }))
+        }
+    }
+
     impl<'a, 'info, A> AccountSetToIdl<'info, A> for &'a AccountInfo<'info>
     where
         AccountInfo<'info>: AccountSetToIdl<'info, A>,
