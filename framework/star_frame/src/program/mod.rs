@@ -15,7 +15,6 @@ pub trait StarFrameProgram {
     type InstructionSet: InstructionSet;
 
     type AccountDiscriminant: Pod + Eq;
-    const CLOSED_ACCOUNT_DISCRIMINANT: Self::AccountDiscriminant;
 
     const PROGRAM_ID: Pubkey;
 

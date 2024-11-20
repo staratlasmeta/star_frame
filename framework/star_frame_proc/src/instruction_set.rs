@@ -2,27 +2,31 @@ use easy_proc::{find_attr, ArgumentList};
 use heck::ToSnakeCase;
 use itertools::Itertools;
 use proc_macro2::TokenStream;
-use proc_macro_error::abort;
+use proc_macro_error::{abort, abort_call_site};
 use quote::quote;
-use syn::*;
-use syn::{parse_quote, Fields, FieldsUnnamed, ItemEnum, Lifetime, Type};
+use syn::{parse_quote, Expr, Fields, FieldsUnnamed, ItemEnum, Lifetime, Type};
 
 use crate::hash::SIGHASH_GLOBAL_NAMESPACE;
-use crate::util::Paths;
+use crate::util::{enum_discriminants, get_repr, Paths};
 
 #[derive(Debug, ArgumentList, Clone, Default)]
 pub struct InstructionSetStructArgs {
     #[argument(presence)]
     pub skip_idl: bool,
+    #[argument(presence)]
+    pub use_repr: bool,
+}
+
+#[derive(Debug, ArgumentList, Clone, Default)]
+pub struct InstructionSetFieldArgs {
+    pub idl_arg: Option<Expr>,
+    pub idl_arg_ty: Option<Type>,
 }
 
 pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
     let (impl_generics, ty_generics, where_clause) = &item.generics.split_for_impl();
     let ident = &item.ident;
     let info_lifetime: Lifetime = parse_quote! { '__info };
-
-    // todo: allow for repr discriminants
-    let discriminant_type: Type = parse_quote!([u8; 8]);
 
     let Paths {
         account_info,
@@ -42,6 +46,16 @@ pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
         .map(InstructionSetStructArgs::parse_arguments)
         .unwrap_or_default();
 
+    let discriminant_type: Type = if args.use_repr {
+        let repr = get_repr(&item.attrs);
+        repr.repr.as_integer().map_or_else(
+            || abort_call_site!("Invalid repr attribute for ix_set. Must use integer repr with `use_repr` enabled"),
+            |ty| parse_quote! { #ty },
+        )
+    } else {
+        parse_quote!([u8; 8])
+    };
+
     let variant_tys = item
         .variants
         .iter()
@@ -58,24 +72,27 @@ pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
         })
         .collect_vec();
 
-    let ix_disc_values: Vec<Expr> = item
-        .variants
-        .iter()
-        .map(|v| {
-            let method_name = v.ident.to_string().to_snake_case();
-            parse_quote!(#prelude::sighash!(#SIGHASH_GLOBAL_NAMESPACE, #method_name))
-        })
-        .collect();
+    let ix_disc_values = if args.use_repr {
+        enum_discriminants(item.variants.iter()).collect_vec()
+    } else {
+        item.variants
+            .iter()
+            .map(|v| {
+                let method_name = v.ident.to_string().to_snake_case();
+                parse_quote!(#prelude::sighash!(#SIGHASH_GLOBAL_NAMESPACE, #method_name))
+            })
+            .collect()
+    };
 
     let idl_impl = (!args.skip_idl && cfg!(feature = "idl")).then(|| {
-        let mut generics = item.generics.clone();
-        let where_clause = generics.make_where_clause();
-        variant_tys.iter().for_each(|ty| {
-            where_clause.predicates.push(parse_quote! {
-                // todo: support passing args to instruction_to_idl per variant
-                #ty: #prelude::InstructionToIdl<()>
-            });
-        });
+        let (idl_args, idl_arg_tys) = item.variants.iter().map(|v| {
+            let args = find_attr(&v.attrs, &instruction_set_args_ident)
+                .map(InstructionSetFieldArgs::parse_arguments)
+                .unwrap_or_default();
+            let idl_arg = args.idl_arg.unwrap_or_else(|| parse_quote!(()));
+            let idl_arg_ty = args.idl_arg_ty.unwrap_or_else(|| parse_quote!(_));
+            (idl_arg, idl_arg_ty)
+        }).unzip::<_, _, Vec<_>, Vec<_>>();
 
         quote! {
             #[automatically_derived]
@@ -85,10 +102,8 @@ pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
                     idl_definition: &mut #prelude::IdlDefinition,
                 ) -> #result<()> {
                     #({
-                        // todo: support passing args to instruction_to_idl per variant
-                        type __ArgTy = ();
-                        let arg: __ArgTy = ();
-                        let definition = <#variant_tys as #prelude::InstructionToIdl<_>>::instruction_to_idl(idl_definition, arg)?;
+                        let definition =
+                            <#variant_tys as #prelude::InstructionToIdl<#idl_arg_tys>>::instruction_to_idl(idl_definition, #idl_args)?;
                         let discriminant =
                             <#variant_tys as #prelude::InstructionDiscriminant<Self>>::discriminant_bytes();
                         idl_definition.add_instruction(definition, discriminant)?;

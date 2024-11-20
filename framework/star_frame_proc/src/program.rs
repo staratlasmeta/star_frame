@@ -10,7 +10,6 @@ use syn::{parse_quote, DeriveInput, Expr, ExprLit, Lit, Type};
 pub struct StarFrameProgramDerive {
     account_discriminant: Option<Type>,
     instruction_set: Option<Type>,
-    closed_account_discriminant: Option<Expr>,
     id: Option<Expr>,
     #[argument(presence)]
     no_entrypoint: bool,
@@ -38,7 +37,6 @@ pub(crate) fn program_impl(input: DeriveInput) -> TokenStream {
         let StarFrameProgramDerive {
             account_discriminant,
             instruction_set,
-            closed_account_discriminant,
             id: program_id,
             no_entrypoint,
             no_setup,
@@ -63,18 +61,6 @@ pub(crate) fn program_impl(input: DeriveInput) -> TokenStream {
                 .replace(instruction_set.clone());
             if current.is_some() {
                 abort!(instruction_set, "Duplicate `instruction_set` argument");
-            }
-        }
-
-        if let Some(closed_account_discriminant) = closed_account_discriminant {
-            let current = derive_input
-                .closed_account_discriminant
-                .replace(closed_account_discriminant.clone());
-            if current.is_some() {
-                abort!(
-                    closed_account_discriminant,
-                    "Duplicate `closed_account_discriminant` argument"
-                );
             }
         }
 
@@ -129,26 +115,14 @@ pub(crate) fn program_impl(input: DeriveInput) -> TokenStream {
     let ident = &input.ident;
     let StarFrameProgramDerive {
         mut account_discriminant,
-        mut closed_account_discriminant,
         no_entrypoint,
         no_setup,
         skip_idl,
         ..
     } = derive_input;
 
-    if account_discriminant.is_none() && closed_account_discriminant.is_none() {
-        closed_account_discriminant.replace(parse_quote! { [u8::MAX; 8] });
+    if account_discriminant.is_none() {
         account_discriminant.replace(parse_quote! { [u8; 8] });
-    }
-
-    const DISCRIMINANT_WARNING: &str =
-        "`closed_account_discriminant` argument must be used with `account_discriminant` argument";
-    if account_discriminant.is_some() && closed_account_discriminant.is_none() {
-        abort!(account_discriminant, DISCRIMINANT_WARNING);
-    }
-
-    if closed_account_discriminant.is_some() && account_discriminant.is_none() {
-        abort!(closed_account_discriminant, DISCRIMINANT_WARNING);
     }
 
     let entrypoint = if no_entrypoint {
@@ -196,7 +170,6 @@ pub(crate) fn program_impl(input: DeriveInput) -> TokenStream {
         impl #prelude::StarFrameProgram for #ident {
             type InstructionSet = #instruction_set_type;
             type AccountDiscriminant = #account_discriminant;
-            const CLOSED_ACCOUNT_DISCRIMINANT: Self::AccountDiscriminant = #closed_account_discriminant;
             const PROGRAM_ID: #pubkey = #program_id;
         }
         #program_setup

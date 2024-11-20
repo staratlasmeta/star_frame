@@ -302,6 +302,7 @@ mod test {
 
     #[allow(dead_code)]
     #[derive(InstructionSet)]
+    #[ix_set(skip_idl)]
     enum TestInstructionSet3 {
         Ix1(Ix1),
         Ix2(Ix2),
