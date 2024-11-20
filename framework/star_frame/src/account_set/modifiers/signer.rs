@@ -14,7 +14,9 @@ use std::fmt::Debug;
 #[validate(
     extra_validation = self.check_signer(),
 )]
-pub struct Signer<T>(#[single_account_set(skip_signed_account, skip_can_init_seeds)] pub(crate) T);
+pub struct Signer<T>(
+    #[single_account_set(signer, skip_signed_account, skip_can_init_seeds)] pub(crate) T,
+);
 
 pub type SignerInfo<'info> = Signer<AccountInfo<'info>>;
 

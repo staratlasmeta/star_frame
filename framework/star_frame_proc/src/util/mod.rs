@@ -15,9 +15,10 @@ use quote::{format_ident, quote, quote_spanned, ToTokens};
 use std::fmt::Debug;
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
+use syn::token::{Brace, Paren};
 use syn::{
     parse_quote, Attribute, Data, DataStruct, DataUnion, DeriveInput, Expr, ExprLit, Field, Fields,
-    ItemStruct, Lit, Meta, MetaNameValue, Path, Token, Type, Variant,
+    FieldsNamed, FieldsUnnamed, ItemStruct, Lit, Meta, MetaNameValue, Path, Token, Type, Variant,
 };
 
 pub fn get_crate_name() -> TokenStream {
@@ -184,6 +185,28 @@ pub fn ensure_data_struct<'a>(item: &'a DeriveInput, error: Option<&str>) -> &'a
     }
 }
 
+pub fn make_struct(
+    ident: &Ident,
+    fields: &impl FieldIter,
+    generics: &impl GetGenerics,
+) -> ItemStruct {
+    let fields = make_struct_fields(fields);
+    let generics = generics.get_generics();
+    let (impl_generics, _ty_generics, where_clause) = generics.split_for_impl();
+    match fields {
+        Fields::Named(named) => {
+            parse_quote! {
+                pub struct #ident #impl_generics #where_clause #named
+            }
+        }
+        unnamed => {
+            parse_quote! {
+                pub struct #ident #impl_generics #unnamed #where_clause;
+            }
+        }
+    }
+}
+
 pub trait FieldIter {
     fn field_iter(&self) -> impl Iterator<Item = &Field>;
 }
@@ -221,6 +244,25 @@ impl FieldIter for DeriveInput {
             Data::Union(DataUnion { fields, .. }) => fields.named.iter(),
             Data::Enum(_) => abort!(self, "cannot get fields on an enum"),
         }
+    }
+}
+
+pub fn make_struct_fields(fields: &impl FieldIter) -> Fields {
+    let fields =
+        syn::punctuated::Punctuated::<_, Token![,]>::from_iter(fields.field_iter().cloned());
+    let Some(first) = fields.first() else {
+        return Fields::Unit;
+    };
+    if first.ident.is_some() {
+        Fields::Named(FieldsNamed {
+            named: fields,
+            brace_token: Brace::default(),
+        })
+    } else {
+        Fields::Unnamed(FieldsUnnamed {
+            unnamed: fields,
+            paren_token: Paren::default(),
+        })
     }
 }
 

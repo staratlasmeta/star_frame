@@ -4,7 +4,7 @@ use crate::program::StarFrameProgram;
 use crate::SolanaInstruction;
 use solana_program::account_info::AccountInfo;
 use solana_program::clock::Clock;
-use solana_program::entrypoint_deprecated::ProgramResult;
+use solana_program::entrypoint::ProgramResult;
 use solana_program::program_error::ProgramError;
 use solana_program::pubkey::Pubkey;
 use solana_program::rent::Rent;

@@ -25,7 +25,7 @@ use std::slice;
 /// A set of accounts that can be used as input to an instruction.
 pub trait AccountSet<'info> {
     /// Sets account cache
-    fn set_account_cache(&mut self, _syscalls: &mut impl SyscallAccountCache<'info>) {}
+    fn set_account_cache(&mut self, syscalls: &mut impl SyscallAccountCache<'info>);
 }
 
 /// Convenience methods for decoding and validating a list of [`AccountInfo`]s to an [`AccountSet`]. Performs

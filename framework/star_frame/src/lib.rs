@@ -15,6 +15,7 @@
 )]
 #![allow(
     clippy::non_canonical_clone_impl,
+    clippy::inline_always,
     clippy::default_trait_access,
     clippy::manual_string_new,
     clippy::missing_errors_doc,
@@ -48,6 +49,8 @@ pub extern crate typenum;
 
 pub mod account_set;
 pub mod align1;
+pub mod client;
+pub mod data_types;
 pub mod entrypoint;
 pub mod errors;
 #[cfg(feature = "idl")]
@@ -62,7 +65,6 @@ pub mod util;
 /// Internal paths mainly for use in macros. DO NOT USE MANUALLY. NOT PART OF THE PUBLIC API.
 #[doc(hidden)]
 pub mod __private;
-pub mod data_types;
 
 pub use anyhow::Result;
 pub use solana_program::instruction::Instruction as SolanaInstruction;

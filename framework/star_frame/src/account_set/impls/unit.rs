@@ -1,9 +1,42 @@
 use crate::account_set::{AccountSet, AccountSetCleanup, AccountSetDecode, AccountSetValidate};
+use crate::prelude::{ClientAccountSet, CpiAccountSet, SyscallAccountCache};
 use crate::syscalls::SyscallInvoke;
 use crate::Result;
 use solana_program::account_info::AccountInfo;
+use solana_program::instruction::AccountMeta;
+use solana_program::pubkey::Pubkey;
 
-impl<'info> AccountSet<'info> for () {}
+impl<'info> AccountSet<'info> for () {
+    fn set_account_cache(&mut self, _syscalls: &mut impl SyscallAccountCache<'info>) {}
+}
+
+impl<'info> CpiAccountSet<'info> for () {
+    type CpiAccounts<'a> = ();
+    const MIN_LEN: usize = 0;
+    fn extend_account_infos(
+        _accounts: Self::CpiAccounts<'info>,
+        _infos: &mut Vec<AccountInfo<'info>>,
+    ) {
+    }
+    fn extend_account_metas(
+        _program_id: &Pubkey,
+        _accounts: &Self::CpiAccounts<'info>,
+        _metas: &mut Vec<AccountMeta>,
+    ) {
+    }
+}
+
+impl ClientAccountSet for () {
+    type ClientAccounts = ();
+    const MIN_LEN: usize = 0;
+    fn extend_account_metas(
+        _program_id: &Pubkey,
+        _accounts: &Self::ClientAccounts,
+        _metas: &mut Vec<AccountMeta>,
+    ) {
+    }
+}
+
 impl<'a, 'info> AccountSetDecode<'a, 'info, ()> for () {
     fn decode_accounts(
         _accounts: &mut &'a [AccountInfo],

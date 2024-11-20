@@ -2,7 +2,10 @@ pub mod macro_prelude {
     pub use crate::account_set::{
         AccountSet, AccountSetValidate, CanInitAccount, CanInitSeeds, GetSeeds, HasOwnerProgram,
         HasProgramAccount, HasSeeds, ProgramAccount, Seed, SignedAccount, SingleAccountSet,
-        WritableAccount,
+        SingleSetMeta, WritableAccount,
+    };
+    pub use crate::client::{
+        ClientAccountSet, CpiAccountSet, CpiBuilder, MakeCpi, MakeInstruction,
     };
     pub use crate::instruction::{
         Instruction, InstructionDiscriminant, InstructionSet, StarFrameInstruction,
@@ -22,6 +25,8 @@ pub mod macro_prelude {
         seed_const, seed_path, AccountSetToIdl, AccountToIdl, FindIdlSeeds, FindSeed,
         InstructionSetToIdl, InstructionToIdl, ProgramToIdl, SeedsToIdl, TypeToIdl,
     };
+
+    pub use solana_program::{account_info::AccountInfo, instruction::AccountMeta, pubkey::Pubkey};
 
     #[cfg(feature = "idl")]
     pub use star_frame_idl::{

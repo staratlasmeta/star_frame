@@ -43,7 +43,7 @@ use derive_more::{Deref, DerefMut};
     }
 )]
 pub struct Init<T>(
-    #[single_account_set(skip_can_init_seeds, skip_can_init_account)]
+    #[single_account_set(writable, skip_can_init_seeds, skip_can_init_account)]
     #[validate(id = "create_generic", arg = arg.1)]
     #[validate(id = "create_if_needed_generic", arg = arg.1)]
     T,

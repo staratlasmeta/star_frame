@@ -6,21 +6,18 @@ publish.workspace = true
 
 [features]
 default = ["anchor"]
-verifier = ["anyhow"]
+verifier = []
 anchor = ["anchor-lang-idl-spec"]
 
 [dependencies]
 # verifier
 anchor-lang-idl-spec = { workspace = true, optional = true }
-anyhow = { workspace = true, optional = true }
-bincode = { workspace = true }
+anyhow = { workspace = true }
 derivative = { workspace = true }
 derive_more = { workspace = true }
 serde = { workspace = true }
-serde_json = { workspace = true }
 solana-program = { workspace = true }
 semver = { workspace = true }
 
 [dev-dependencies]
-anyhow = { workspace = true }
 rand = { workspace = true }

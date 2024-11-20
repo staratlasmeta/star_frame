@@ -41,9 +41,9 @@ pub struct ProcessEnlistPlayerIx {
 impl StarFrameInstruction for ProcessEnlistPlayerIx {
     type DecodeArg<'a> = ();
     type ValidateArg<'a> = ();
+    type RunArg<'a> = FactionId;
     type CleanupArg<'a> = ();
     type ReturnType = ();
-    type RunArg<'a> = FactionId;
     type Accounts<'b, 'c, 'info> = ProcessEnlistPlayer<'info>;
 
     fn split_to_args<'a>(r: &Self) -> IxArgs<Self> {
@@ -140,20 +140,13 @@ mod tests {
     use solana_sdk::account::Account;
     use solana_sdk::clock::Clock;
     use solana_sdk::signature::{Keypair, Signer};
-    use star_frame::borsh::to_vec;
-    use star_frame::itertools::Itertools;
-    use star_frame::solana_program::instruction::AccountMeta;
+    use solana_sdk::system_program;
     use star_frame::solana_program::native_token::LAMPORTS_PER_SOL;
 
     #[test]
     fn idl() {
         let idl = FactionEnlistment::program_to_idl().unwrap();
         println!("{}", serde_json::to_string_pretty(&idl).unwrap());
-    }
-
-    #[test]
-    fn info_size() {
-        println!("{}", std::mem::size_of::<AccountInfo>());
     }
 
     #[tokio::test]
@@ -201,28 +194,15 @@ mod tests {
 
         let faction_id = FactionId::MUD;
 
-        let enlist_ix = ProcessEnlistPlayerIx {
-            bump,
-            faction_id,
-            // buncha_data,
-        };
-        let ix_data = [
-            ProcessEnlistPlayerIx::DISCRIMINANT.to_vec(),
-            to_vec(&enlist_ix)?,
-        ]
-        .into_iter()
-        .flatten()
-        .collect_vec();
-        let accounts = vec![
-            AccountMeta::new(faction_account, false),
-            AccountMeta::new(player_account.pubkey(), true),
-            AccountMeta::new_readonly(solana_sdk::system_program::id(), false),
-        ];
-        let ix = solana_sdk::instruction::Instruction::new_with_bytes(
-            FactionEnlistment::PROGRAM_ID,
-            &ix_data,
-            accounts,
-        );
+        let ix = FactionEnlistment::instruction(
+            &ProcessEnlistPlayerIx { bump, faction_id },
+            ProcessEnlistPlayerClientAccounts {
+                player_faction_account: faction_account,
+                player_account: player_account.pubkey(),
+                system_program: system_program::ID,
+            },
+        )?;
+
         let mut tx = solana_sdk::transaction::Transaction::new_with_payer(
             &[ix],
             Some(&player_account.pubkey()),

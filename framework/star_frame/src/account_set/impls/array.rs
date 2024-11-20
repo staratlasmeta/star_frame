@@ -1,10 +1,61 @@
 use crate::account_set::{AccountSet, AccountSetCleanup, AccountSetDecode, AccountSetValidate};
+use crate::client::{ClientAccountSet, CpiAccountSet};
+use crate::prelude::SyscallAccountCache;
 use crate::syscalls::SyscallInvoke;
 use crate::Result;
 use array_init::try_array_init;
 use solana_program::account_info::AccountInfo;
+use solana_program::instruction::AccountMeta;
+use solana_program::pubkey::Pubkey;
 
-impl<'info, A, const N: usize> AccountSet<'info> for [A; N] where A: AccountSet<'info> {}
+impl<'info, A, const N: usize> AccountSet<'info> for [A; N]
+where
+    A: AccountSet<'info>,
+{
+    fn set_account_cache(&mut self, _syscalls: &mut impl SyscallAccountCache<'info>) {}
+}
+
+impl<'info, A, const N: usize> CpiAccountSet<'info> for [A; N]
+where
+    A: CpiAccountSet<'info>,
+{
+    type CpiAccounts<'a> = [A::CpiAccounts<'a>; N];
+    const MIN_LEN: usize = N * A::MIN_LEN;
+    fn extend_account_infos(
+        accounts: Self::CpiAccounts<'info>,
+        infos: &mut Vec<AccountInfo<'info>>,
+    ) {
+        for a in accounts {
+            A::extend_account_infos(a, infos);
+        }
+    }
+    fn extend_account_metas(
+        program_id: &Pubkey,
+        accounts: &Self::CpiAccounts<'info>,
+        metas: &mut Vec<AccountMeta>,
+    ) {
+        for a in accounts {
+            A::extend_account_metas(program_id, a, metas);
+        }
+    }
+}
+
+impl<A, const N: usize> ClientAccountSet for [A; N]
+where
+    A: ClientAccountSet,
+{
+    type ClientAccounts = [A::ClientAccounts; N];
+    const MIN_LEN: usize = N * A::MIN_LEN;
+    fn extend_account_metas(
+        program_id: &Pubkey,
+        accounts: &Self::ClientAccounts,
+        metas: &mut Vec<AccountMeta>,
+    ) {
+        for a in accounts {
+            A::extend_account_metas(program_id, a, metas);
+        }
+    }
+}
 
 impl<'a, 'info, A, const N: usize, DArg> AccountSetDecode<'a, 'info, [DArg; N]> for [A; N]
 where

@@ -1,12 +1,12 @@
 use crate::account_set::generics::AccountSetGenerics;
 use crate::account_set::struct_impl::decode::DecodeFieldTy;
 use crate::account_set::{AccountSetStructArgs, SingleAccountSetFieldArgs, StrippedDeriveInput};
-use crate::util::{new_generic, Paths};
+use crate::util::{make_struct, new_generic, new_lifetime, Paths};
 use easy_proc::{find_attr, ArgumentList};
 use itertools::Itertools;
 use proc_macro2::TokenStream;
 use proc_macro_error::abort;
-use quote::{quote, ToTokens};
+use quote::{format_ident, quote, ToTokens};
 use std::ops::Not;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
@@ -210,9 +210,19 @@ pub(super) fn derive_account_set_impl_struct(
             Self: #macro_prelude::AccountSet<#info_lifetime>
         });
 
+        let signer = args.signer.then(||quote!(signer: true,));
+        let writable = args.writable.then(||quote!(writable: true,));
+
         let single = quote! {
             #[automatically_derived]
             impl #info_sg_impl #macro_prelude::SingleAccountSet<#info_lifetime> for #ident #ty_generics #single_where {
+                #[allow(clippy::needless_update)]
+                const META: #macro_prelude::SingleSetMeta = #macro_prelude::SingleSetMeta {
+                    #signer
+                    #writable
+                    ..<#field_ty as #macro_prelude::SingleAccountSet<#info_lifetime>>::META
+                };
+
                 fn account_info(&self) -> &#account_info<#info_lifetime> {
                     <#field_ty as #macro_prelude::SingleAccountSet<#info_lifetime>>::account_info(&self.#field_name)
                 }
@@ -345,6 +355,127 @@ pub(super) fn derive_account_set_impl_struct(
         }
     });
 
+    let ident_str = ident.to_string();
+    let trimmed_ident_str = ident_str.strip_suffix("Accounts").unwrap_or(&ident_str);
+
+    let cpi_account_set_impl = (!account_set_struct_args.skip_cpi_account_set && single_account_set_impls.is_none()).then(|| {
+        let cpi_accounts_ident= format_ident!("{trimmed_ident_str}CpiAccounts");
+        let (_, self_ty_gen, _) = main_generics.split_for_impl();
+        let mut cpi_gen = other_generics.clone();
+        let where_clause = cpi_gen.make_where_clause();
+        let cpi_set = quote!(#macro_prelude::CpiAccountSet<#info_lifetime>);
+        let cpi_accounts = quote!(Self::CpiAccounts<#info_lifetime>);
+
+        let new_fields: Vec<Field> = fields
+            .iter()
+            .map(|field| {
+                let Field {
+                    vis,
+                    ident,
+                    colon_token,
+                    ty,
+                    ..
+                } = field;
+                where_clause.predicates.push(parse_quote! {
+                    #ty: #cpi_set
+                });
+                parse_quote!(#vis #ident #colon_token <#ty as #cpi_set>::CpiAccounts<#info_lifetime>)
+            })
+            .collect();
+
+        let new_struct_gen = if new_fields.is_empty() {
+            main_generics
+        } else {
+            other_generics
+        };
+        let cpi_accounts_struct = make_struct(&cpi_accounts_ident, &new_fields, new_struct_gen);
+        let new_struct_ty_gen = new_struct_gen.split_for_impl().1;
+
+        let accounts_lifetime = new_lifetime(&cpi_gen);
+
+        let (impl_gen, _, where_clause) = cpi_gen.split_for_impl();
+
+        quote! {
+            #[automatically_derived]
+            #[derive(Clone, Debug)]
+            #cpi_accounts_struct
+
+            #[automatically_derived]
+            impl #impl_gen #cpi_set for #ident #self_ty_gen #where_clause {
+                type CpiAccounts<#accounts_lifetime> = #cpi_accounts_ident #new_struct_ty_gen;
+                const MIN_LEN: usize =  0#(+ <#field_type as #cpi_set>::MIN_LEN)*;
+
+                #[inline(always)]
+                fn extend_account_infos(
+                    accounts: #cpi_accounts,
+                    infos: &mut Vec<#account_info<#info_lifetime>>,
+                ) {
+                    #(<#field_type as #cpi_set>::extend_account_infos(accounts.#field_name, infos);)*
+                }
+
+                #[inline(always)]
+                fn extend_account_metas(
+                    program_id: &#macro_prelude::Pubkey,
+                    accounts: &#cpi_accounts,
+                    metas: &mut Vec<#macro_prelude::AccountMeta>,
+                ) {
+                    #(<#field_type as #cpi_set>::extend_account_metas(program_id, &accounts.#field_name, metas);)*
+                }
+            }
+        }
+    });
+
+    let client_account_set_impl = (!account_set_struct_args.skip_client_account_set && single_account_set_impls.is_none()).then(|| {
+        let client_accounts_ident= format_ident!("{trimmed_ident_str}ClientAccounts");
+        let client_set = quote!(#macro_prelude::ClientAccountSet);
+        let client_accounts = quote!(Self::ClientAccounts);
+
+        let mut client_gen = main_generics.clone();
+        let where_clause = client_gen.make_where_clause();
+
+        let new_fields: Vec<Field> = fields
+            .iter()
+            .map(|field| {
+                let Field {
+                    vis,
+                    ident,
+                    colon_token,
+                    ty,
+                    ..
+                } = field;
+                where_clause.predicates.push(parse_quote! {
+                    #ty: #client_set
+                });
+                parse_quote!(#vis #ident #colon_token <#ty as #client_set>::ClientAccounts)
+            })
+            .collect();
+
+        let client_accounts_struct = make_struct(&client_accounts_ident, &new_fields, &client_gen);
+
+
+        let (impl_gen, ty_gen, where_clause) = client_gen.split_for_impl();
+
+        quote! {
+            #[automatically_derived]
+            #[derive(Clone, Debug)]
+            #client_accounts_struct
+
+            #[automatically_derived]
+            impl #impl_gen #client_set for #ident #ty_gen #where_clause {
+                type ClientAccounts = #client_accounts_ident #ty_gen;
+                const MIN_LEN: usize =  0#(+ <#field_type as #client_set>::MIN_LEN)*;
+
+                fn extend_account_metas(
+                    program_id: &#macro_prelude::Pubkey,
+                    accounts: &#client_accounts,
+                    metas: &mut Vec<#macro_prelude::AccountMeta>,
+                ) {
+                    #(<#field_type as #client_set>::extend_account_metas(program_id, &accounts.#field_name, metas);)*
+                }
+            }
+        }
+    });
+
     let mut generics = other_generics.clone();
     if let Some(extra_generics) = &account_set_struct_args.generics {
         generics.params.extend(extra_generics.params.clone());
@@ -451,7 +582,7 @@ pub(super) fn derive_account_set_impl_struct(
         }
     };
 
-    let account_set_impl = account_set_struct_args.skip_default_account_set.not().then(|| {
+    let account_set_impl = account_set_struct_args.skip_account_set.not().then(|| {
         quote! {
             #[automatically_derived]
             impl #other_impl_generics #account_set<#info_lifetime> for #ident #ty_generics #other_where_clause {
@@ -468,6 +599,8 @@ pub(super) fn derive_account_set_impl_struct(
 
     quote! {
         #account_set_impl
+        #cpi_account_set_impl
+        #client_account_set_impl
 
         #(#decodes)*
         #(#validates)*
