@@ -20,8 +20,7 @@ pub struct SolanaRuntime<'info> {
     rent_cache: RefCell<Option<Rent>>,
     clock_cache: RefCell<Option<Clock>>,
     recipient: Option<Mut<AccountInfo<'info>>>,
-    funder: Option<Funder<'info>>,
-    programs: Vec<AccountInfo<'info>>,
+    funder: Option<Mut<SignerInfo<'info>>>,
 }
 impl SolanaRuntime<'_> {
     /// Create a new solana runtime.
@@ -33,7 +32,6 @@ impl SolanaRuntime<'_> {
             clock_cache: RefCell::new(None),
             recipient: None,
             funder: None,
-            programs: Vec::new(),
         }
     }
 }
@@ -138,12 +136,13 @@ impl<'info> SyscallCore for SolanaRuntime<'info> {
 }
 
 impl<'info> SyscallAccountCache<'info> for SolanaRuntime<'info> {
-    fn get_funder(&self) -> Option<&Funder<'info>> {
+    fn get_funder(&self) -> Option<&Mut<SignerInfo<'info>>> {
         self.funder.as_ref()
     }
 
     fn set_funder(&mut self, funder: &(impl SignedAccount<'info> + WritableAccount<'info>)) {
-        self.funder.replace(Funder::new(funder));
+        self.funder
+            .replace(Mut(Signer(funder.account_info_cloned())));
     }
 
     fn get_recipient(&self) -> Option<&Mut<AccountInfo<'info>>> {
@@ -152,26 +151,5 @@ impl<'info> SyscallAccountCache<'info> for SolanaRuntime<'info> {
 
     fn set_recipient(&mut self, recipient: &impl WritableAccount<'info>) {
         self.recipient.replace(Mut(recipient.account_info_cloned()));
-    }
-
-    fn insert_program<T: StarFrameProgram>(&mut self, program: &Program<'info, T>) {
-        if self.programs.iter().any(|p| p.key == program.0.key) {
-            return;
-        }
-        self.programs.push(program.0.clone());
-    }
-
-    fn get_program<T: StarFrameProgram>(&self) -> Option<&Program<'info, T>> {
-        self.programs
-            .iter()
-            .find(|p| p.key == &T::PROGRAM_ID)
-            .map(|p| {
-                // Safety: The program is guaranteed to be the correct type because we only insert
-                // programs of the correct type.
-                unsafe { &*(p as *const AccountInfo<'_>).cast::<Program<'_, T>>() }
-            })
-        // let program = self.programs.get(&T::PROGRAM_ID)?;
-        // // todo: how bad is this??
-        // Some(unsafe { &*(program as *const AccountInfo<'_>).cast::<Program<'_, T>>() })
     }
 }

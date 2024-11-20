@@ -10,10 +10,7 @@ use quote::{format_ident, quote, ToTokens};
 use std::ops::Not;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
-use syn::{
-    bracketed, parse_quote, token, Attribute, DataStruct, Field, Ident, Index, Token,
-    WherePredicate,
-};
+use syn::{bracketed, parse_quote, token, DataStruct, Field, Ident, Index, Token, WherePredicate};
 
 mod cleanup;
 mod decode;
@@ -40,8 +37,6 @@ impl Parse for Requires {
 #[derive(ArgumentList, Debug, Clone)]
 struct AccountSetFieldAttrs {
     skip: Option<TokenStream>,
-    #[argument(presence)]
-    program: bool,
     #[argument(presence)]
     funder: bool,
     #[argument(presence)]
@@ -525,9 +520,9 @@ pub(super) fn derive_account_set_impl_struct(
     let idls = Vec::<TokenStream>::new();
 
     let set_account_caches = {
-        let find_field_names =
-            |is_active: fn(AccountSetFieldAttrs) -> bool| -> Vec<(TokenStream, Attribute)> {
-                data_struct
+        let find_field_name =
+            |name: &str, is_active: fn(AccountSetFieldAttrs) -> bool| -> Option<TokenStream> {
+                let names = data_struct
                     .fields
                     .iter()
                     .zip(all_field_name.iter())
@@ -536,47 +531,32 @@ pub(super) fn derive_account_set_impl_struct(
                         let args = AccountSetFieldAttrs::parse_arguments(attr);
                         is_active(args).then_some((name.clone(), attr.clone()))
                     })
-                    .collect_vec()
+                    .collect_vec();
+                if names.len() > 1 {
+                    abort!(
+                        names[1].1,
+                        format!("Only one field can be marked as {}", name)
+                    );
+                }
+                names.first().map(|(name, _)| name.clone())
             };
 
-        let single_name = |name: &str, names: &[(TokenStream, Attribute)]| {
-            if names.len() > 1 {
-                abort!(
-                    names[1].1,
-                    format!("Only one field can be marked as {}", name)
-                );
+        let set_funder = find_field_name("funder", |args| args.funder).map(|field_name| {
+            quote! {
+                if syscalls.get_funder().is_none() {
+                    syscalls.set_funder(&self.#field_name);
+                }
             }
-            names.first().map(|(name, _)| name.clone())
-        };
+        });
 
-        let set_programs = find_field_names(|args| args.program)
-            .iter()
-            .map(|(name, _attr)| {
-                quote! {
-                    syscalls.insert_program(&self.#name);
+        let set_recipient = find_field_name("recipient", |args| args.recipient).map(|field_name| {
+            quote! {
+                if syscalls.get_recipient().is_none() {
+                    syscalls.set_recipient(&self.#field_name);
                 }
-            })
-            .collect_vec();
-
-        let set_funder =
-            single_name("funder", &find_field_names(|args| args.funder)).map(|field_name| {
-                quote! {
-                    if syscalls.get_funder().is_none() {
-                        syscalls.set_funder(&self.#field_name);
-                    }
-                }
-            });
-
-        let set_recipient =
-            single_name("recipient", &find_field_names(|args| args.recipient)).map(|field_name| {
-                quote! {
-                    if syscalls.get_recipient().is_none() {
-                        syscalls.set_recipient(&self.#field_name);
-                    }
-                }
-            });
+            }
+        });
         quote! {
-            #(#set_programs)*
             #set_funder
             #set_recipient
         }

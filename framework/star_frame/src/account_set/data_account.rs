@@ -22,31 +22,14 @@ pub trait ProgramAccount: HasOwnerProgram {
     }
 }
 
-#[derive(Debug, Derivative, Copy, Clone)]
-// #[derivative(Copy(bound = ""), Clone(bound = ""))]
-pub struct NormalizeRent<'a, 'info, F> {
-    pub system_program: &'a Program<'info, SystemProgram>,
-    pub funder: &'a F,
-}
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
+pub struct NormalizeRent<T>(pub T);
 
-#[derive(Debug, Copy, Clone)]
-pub struct NormalizeRentAuto;
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
+pub struct RefundRent<T>(pub T);
 
-#[derive(Debug, Copy, Clone)]
-pub struct RefundRent<'a, F> {
-    pub recipient: &'a F,
-}
-
-#[derive(Debug, Copy, Clone)]
-pub struct RefundRentAuto;
-
-#[derive(Debug, Copy, Clone)]
-pub struct CloseAccount<'a, F> {
-    pub recipient: &'a F,
-}
-
-#[derive(Debug, Copy, Clone)]
-pub struct CloseAccountAuto;
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
+pub struct CloseAccount<T>(pub T);
 
 #[derive(AccountSet, Debug)]
 #[account_set(skip_default_idl, skip_default_cleanup)]
@@ -57,47 +40,46 @@ pub struct CloseAccountAuto;
 )]
 #[cleanup(
     id = "normalize_rent",
-    generics = [<'a, F> where F: WritableAccount<'info> + SignedAccount<'info>],
-    arg = NormalizeRent<'a, 'info, F>,
-    extra_cleanup = self.normalize_rent(arg.funder, arg.system_program, syscalls)
+    generics = [<'a, Funder> where Funder: WritableAccount<'info> + SignedAccount<'info>],
+    arg = NormalizeRent<&'a Funder>,
+    extra_cleanup = self.normalize_rent(arg.0, syscalls)
 )]
 #[cleanup(
-    id = "normalize_rent_auto",
-    arg = NormalizeRentAuto,
+    id = "normalize_rent_cached",
+    arg = NormalizeRent<()>,
     generics = [],
     extra_cleanup = {
-        let funder = syscalls.get_funder().context("Missing `funder` for NormalizeRentAuto")?;
-        let system_program = syscalls.get_program().context("Missing `system_program` for NormalizeRentAuto")?;
-        self.normalize_rent(funder, system_program, syscalls)
+        let funder = syscalls.get_funder().context("Missing `funder` in cache for `NormalizeRent`")?;
+        self.normalize_rent(funder, syscalls)
     },
 )]
 #[cleanup(
     id = "refund_rent",
-    generics = [<'a, F> where F: WritableAccount<'info>],
-    arg = RefundRent<'a, F>,
-    extra_cleanup = self.refund_rent(arg.recipient, syscalls)
+    generics = [<'a, Recipient> where Recipient: WritableAccount<'info>],
+    arg = RefundRent<&'a Recipient>,
+    extra_cleanup = self.refund_rent(arg.0, syscalls)
 )]
 #[cleanup(
-    id = "refund_rent_auto",
-    arg = RefundRentAuto,
+    id = "refund_rent_cached",
+    arg = RefundRent<()>,
     generics = [],
     extra_cleanup = {
-        let recipient = syscalls.get_recipient().context("Missing `recipient` for RefundRentAuto")?;
+        let recipient = syscalls.get_recipient().context("Missing `recipient` in cache for `RefundRent`")?;
         self.refund_rent(recipient, syscalls)
     }
 )]
 #[cleanup(
     id = "close_account",
-    generics = [<'a, F> where F: WritableAccount<'info>],
-    arg = CloseAccount<'a, F>,
-    extra_cleanup = self.close(arg.recipient)
+    generics = [<'a, Recipient> where Recipient: WritableAccount<'info>],
+    arg = CloseAccount<&'a Recipient>,
+    extra_cleanup = self.close(arg.0)
 )]
 #[cleanup(
-    id = "close_account_auto",
-    arg = CloseAccountAuto,
+    id = "close_account_cached",
+    arg = CloseAccount<()>,
     generics = [],
     extra_cleanup = {
-        let recipient = syscalls.get_recipient().context("Missing `recipient` for CloseAccountAuto")?;
+        let recipient = syscalls.get_recipient().context("Missing `recipient` in cache for `CloseAccount`")?;
         self.close(recipient)
     }
 )]
@@ -229,38 +211,6 @@ where
     type Seeds = T::Seeds;
 }
 
-impl<'info, T: ProgramAccount + UnsizedType + ?Sized> CanInitAccount<'info, Create<()>>
-    for DataAccount<'info, T>
-where
-    T: UnsizedInit<Zeroed>,
-{
-    fn init_account(
-        &mut self,
-        _arg: Create<()>,
-        syscalls: &mut impl SyscallInvoke<'info>,
-        account_seeds: Option<Vec<&[u8]>>,
-    ) -> Result<()> {
-        let create = CreateAccount::new_from_syscalls(syscalls)?;
-        self.init_account(Create(create), syscalls, account_seeds)
-    }
-}
-
-impl<'info, T: ProgramAccount + UnsizedType + ?Sized, A> CanInitAccount<'info, Create<(A,)>>
-    for DataAccount<'info, T>
-where
-    T: UnsizedInit<A>,
-{
-    fn init_account(
-        &mut self,
-        arg: Create<(A,)>,
-        syscalls: &mut impl SyscallInvoke<'info>,
-        account_seeds: Option<Vec<&[u8]>>,
-    ) -> Result<()> {
-        let create = CreateAccount::new_with_arg_from_syscalls(arg.0 .0, syscalls)?;
-        self.init_account(Create(create), syscalls, account_seeds)
-    }
-}
-
 impl<'info, T: ProgramAccount + UnsizedType + ?Sized> CanInitAccount<'info, CreateIfNeeded<()>>
     for DataAccount<'info, T>
 where
@@ -272,31 +222,106 @@ where
         syscalls: &mut impl SyscallInvoke<'info>,
         account_seeds: Option<Vec<&[u8]>>,
     ) -> Result<()> {
-        let create = CreateAccount::new_from_syscalls(syscalls)?;
-        self.init_account(CreateIfNeeded(create), syscalls, account_seeds)
+        self.init_account(CreateIfNeeded((Zeroed,)), syscalls, account_seeds)
     }
 }
 
-impl<'info, T: ProgramAccount + UnsizedType + ?Sized, A, WT>
-    CanInitAccount<'info, Create<CreateAccount<'info, A, WT>>> for DataAccount<'info, T>
+impl<'info, T: ProgramAccount + UnsizedType + ?Sized, InitArg>
+    CanInitAccount<'info, CreateIfNeeded<(InitArg,)>> for DataAccount<'info, T>
 where
-    T: UnsizedInit<A>,
-    WT: SignedAccount<'info> + WritableAccount<'info>,
+    T: UnsizedInit<InitArg>,
 {
     fn init_account(
         &mut self,
-        arg: Create<CreateAccount<'info, A, WT>>,
+        arg: CreateIfNeeded<(InitArg,)>,
+        syscalls: &mut impl SyscallInvoke<'info>,
+        account_seeds: Option<Vec<&[u8]>>,
+    ) -> Result<()> {
+        let funder = syscalls
+            .get_funder()
+            .context("Missing `funder` for `CreateIfNeeded`")?;
+        self.init_account(
+            CreateIfNeeded((arg.0 .0, funder.clone())),
+            syscalls,
+            account_seeds,
+        )
+    }
+}
+
+impl<'info, T: ProgramAccount + UnsizedType + ?Sized, InitArg, Funder>
+    CanInitAccount<'info, CreateIfNeeded<(InitArg, Funder)>> for DataAccount<'info, T>
+where
+    T: UnsizedInit<InitArg>,
+    Funder: SignedAccount<'info> + WritableAccount<'info>,
+{
+    fn init_account(
+        &mut self,
+        arg: CreateIfNeeded<(InitArg, Funder)>,
+        syscalls: &mut impl SyscallInvoke<'info>,
+        account_seeds: Option<Vec<&[u8]>>,
+    ) -> Result<()> {
+        if self.owner() == &SystemProgram::PROGRAM_ID
+            || self.account_info().data.borrow_mut()
+                [..size_of::<<T::OwnerProgram as StarFrameProgram>::AccountDiscriminant>()]
+                .iter()
+                .all(|x| *x == 0)
+        {
+            self.init_account(Create(arg.0), syscalls, account_seeds)?;
+        }
+        Ok(())
+    }
+}
+
+impl<'info, T: ProgramAccount + UnsizedType + ?Sized> CanInitAccount<'info, Create<()>>
+    for DataAccount<'info, T>
+where
+    T: UnsizedInit<Zeroed>,
+{
+    fn init_account(
+        &mut self,
+        _arg: Create<()>,
+        syscalls: &mut impl SyscallInvoke<'info>,
+        account_seeds: Option<Vec<&[u8]>>,
+    ) -> Result<()> {
+        self.init_account(Create((Zeroed,)), syscalls, account_seeds)
+    }
+}
+
+impl<'info, T: ProgramAccount + UnsizedType + ?Sized, InitArg>
+    CanInitAccount<'info, Create<(InitArg,)>> for DataAccount<'info, T>
+where
+    T: UnsizedInit<InitArg>,
+{
+    fn init_account(
+        &mut self,
+        arg: Create<(InitArg,)>,
+        syscalls: &mut impl SyscallInvoke<'info>,
+        account_seeds: Option<Vec<&[u8]>>,
+    ) -> Result<()> {
+        let funder = syscalls
+            .get_funder()
+            .context("Missing `funder` for `Create`")?
+            .clone();
+        self.init_account(Create((arg.0 .0, funder)), syscalls, account_seeds)
+    }
+}
+
+impl<'info, T: ProgramAccount + UnsizedType + ?Sized, InitArg, Funder>
+    CanInitAccount<'info, Create<(InitArg, Funder)>> for DataAccount<'info, T>
+where
+    T: UnsizedInit<InitArg>,
+    Funder: SignedAccount<'info> + WritableAccount<'info>,
+{
+    fn init_account(
+        &mut self,
+        arg: Create<(InitArg, Funder)>,
         syscalls: &mut impl SyscallInvoke<'info>,
         account_seeds: Option<Vec<&[u8]>>,
     ) -> Result<()> {
         self.check_writable()
             .context("InitAccount must be writable")?;
-        let CreateAccount {
-            arg,
-            system_program,
-            funder,
-        } = arg.0;
-        if self.owner() != system_program.key() || funder.owner() != system_program.key() {
+        let (arg, funder) = arg.0;
+        if self.owner() != &SystemProgram::PROGRAM_ID {
             bail!(ProgramError::IllegalOwner);
         }
         let rent = syscalls.get_rent()?;
@@ -344,47 +369,6 @@ where
             }
         }
 
-        Ok(())
-    }
-}
-
-impl<'info, T: ProgramAccount + UnsizedType + ?Sized, A> CanInitAccount<'info, CreateIfNeeded<(A,)>>
-    for DataAccount<'info, T>
-where
-    T: UnsizedInit<A>,
-{
-    fn init_account(
-        &mut self,
-        arg: CreateIfNeeded<(A,)>,
-        syscalls: &mut impl SyscallInvoke<'info>,
-        account_seeds: Option<Vec<&[u8]>>,
-    ) -> Result<()> {
-        let create = CreateAccount::new_with_arg_from_syscalls(arg.0 .0, syscalls)?;
-        self.init_account(CreateIfNeeded(create), syscalls, account_seeds)
-    }
-}
-
-impl<'info, T: ProgramAccount + UnsizedType + ?Sized, A, WT>
-    CanInitAccount<'info, CreateIfNeeded<CreateAccount<'info, A, WT>>> for DataAccount<'info, T>
-where
-    T: UnsizedInit<A>,
-    WT: SignedAccount<'info> + WritableAccount<'info>,
-{
-    fn init_account(
-        &mut self,
-        arg: CreateIfNeeded<CreateAccount<'info, A, WT>>,
-        syscalls: &mut impl SyscallInvoke<'info>,
-        account_seeds: Option<Vec<&[u8]>>,
-    ) -> Result<()> {
-        let init_create = arg.0;
-        if self.owner() == &SystemProgram::PROGRAM_ID
-            || self.account_info().data.borrow_mut()
-                [..size_of::<<T::OwnerProgram as StarFrameProgram>::AccountDiscriminant>()]
-                .iter()
-                .all(|x| *x == 0)
-        {
-            self.init_account(Create(init_create), syscalls, account_seeds)?;
-        }
         Ok(())
     }
 }

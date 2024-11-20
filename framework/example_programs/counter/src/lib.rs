@@ -37,11 +37,10 @@ pub struct CreateCounterAccounts<'info> {
     pub owner: SystemAccount<'info>,
     #[validate(arg = (
         CreateIfNeeded(()),
-        Seeds(CounterAccountSeeds { owner: *self.owner.key(), }),
+        Seeds(CounterAccountSeeds { owner: *self.owner.key() }),
     ))]
     #[idl(arg = Seeds(FindCounterAccountSeeds { owner: seed_path("owner") }))]
     pub counter: Init<Seeded<WrappedCounter<'info>>>,
-    #[account_set(program)]
     pub system_program: Program<'info, SystemProgram>,
 }
 
@@ -178,7 +177,7 @@ pub struct CloseCounterAccounts<'info> {
     pub signer: Signer<SystemAccount<'info>>,
     #[account_set(recipient)]
     pub funds_to: Mut<SystemAccount<'info>>,
-    #[cleanup(arg = CloseAccountAuto)]
+    #[cleanup(arg = CloseAccount(()))]
     pub counter: Mut<WrappedCounter<'info>>,
 }
 empty_star_frame_instruction!(CloseCounterIx, CloseCounterAccounts);

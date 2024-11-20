@@ -1,8 +1,9 @@
-use crate::account_set::{AccountSet, HasOwnerProgram, Program, SignedAccount, WritableAccount};
+use crate::account_set::{AccountSet, HasOwnerProgram, SignedAccount, WritableAccount};
 use crate::anyhow::Result;
 use crate::client::{ClientAccountSet, MakeCpi};
 use crate::prelude::{StarFrameProgram, SyscallInvoke, SystemProgram};
 use crate::program::system_program::{Transfer, TransferCpiAccounts};
+use crate::syscalls::SyscallCore;
 use anyhow::anyhow;
 use solana_program::account_info::AccountInfo;
 use solana_program::instruction::AccountMeta;
@@ -185,7 +186,6 @@ pub trait CanModifyRent<'info>: SingleAccountSet<'info> {
     fn normalize_rent<F: WritableAccount<'info> + SignedAccount<'info>>(
         &self,
         funder: &F,
-        _system_program: &Program<'info, SystemProgram>,
         syscalls: &impl SyscallInvoke<'info>,
     ) -> Result<()> {
         let rent = syscalls.get_rent()?;
@@ -230,7 +230,7 @@ pub trait CanModifyRent<'info>: SingleAccountSet<'info> {
     fn refund_rent<F: WritableAccount<'info>>(
         &self,
         funder: &F,
-        syscalls: &impl SyscallInvoke<'info>,
+        syscalls: &impl SyscallCore,
     ) -> Result<()> {
         let rent = syscalls.get_rent()?;
         let lamports = **self.account_info().try_borrow_lamports()?;

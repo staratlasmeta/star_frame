@@ -18,16 +18,14 @@ impl ProgramToIdl for SystemProgram {
         star_frame_idl::CrateMetadata {
             version: star_frame_idl::Version::new(1, 18, 10),
             name: "system_program".to_string(),
-            docs: vec![],
-            description: None,
-            homepage: None,
-            license: None,
-            repository: None,
+            ..Default::default()
         }
     }
 }
 
-// we miss some instructions due to being incompatible with borsh
+// we miss some instructions due to being incompatible with borsh. Probably need to update our IDL spec
+// to add a string length width, and then can fix w/ manual borsh impls.
+// Bincode prefixes with u64 and borsh with u32 :(
 #[derive(Copy, Debug, Clone, PartialEq, Eq, InstructionSet)]
 #[ix_set(use_repr)]
 #[repr(u32)]

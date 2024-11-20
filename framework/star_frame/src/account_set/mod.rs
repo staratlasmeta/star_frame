@@ -1,5 +1,4 @@
 mod data_account;
-mod funder;
 mod impls;
 mod modifiers;
 mod program;
@@ -8,7 +7,6 @@ mod single_set;
 mod system_account;
 
 pub use data_account::*;
-pub use funder::*;
 pub use impls::*;
 pub use modifiers::*;
 pub use program::*;
