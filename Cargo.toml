@@ -20,7 +20,7 @@ star_frame_idl = { path = "framework/star_frame_idl", registry = "star-atlas", v
 star_frame_proc = { path = "framework/star_frame_proc", registry = "star-atlas", version = "0.0.1" }
 
 # Advance has its own version. It won't be part of the workspace forever.
-advance = { path = "advance", package = "advance_temp", registry = "star-atlas", features = ["solana"], version = "0.2.0" }
+advance = { path = "advance", package = "advance_temp", registry = "star-atlas", features = ["solana"], version = "0.0.1" }
 
 # Non workspace crates
 anchor-lang-idl-spec = "0.1.0"
