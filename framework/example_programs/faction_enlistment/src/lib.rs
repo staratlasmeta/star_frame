@@ -1,6 +1,5 @@
 // #![allow(clippy::result_large_err)]
 
-use bytemuck::Zeroable;
 use star_frame::borsh;
 use star_frame::borsh::{BorshDeserialize, BorshSerialize};
 use star_frame::prelude::*;
@@ -46,7 +45,7 @@ impl StarFrameInstruction for ProcessEnlistPlayerIx {
     type ReturnType = ();
     type Accounts<'b, 'c, 'info> = ProcessEnlistPlayer<'info>;
 
-    fn split_to_args<'a>(r: &Self) -> IxArgs<Self> {
+    fn split_to_args<'a>(r: &mut Self) -> IxArgs<Self> {
         IxArgs::run(r.faction_id)
     }
 
@@ -144,7 +143,10 @@ mod tests {
     #[test]
     fn idl() {
         let idl = FactionEnlistment::program_to_idl().unwrap();
-        println!("{}", serde_json::to_string_pretty(&idl).unwrap());
+        println!(
+            "{}",
+            star_frame::serde_json::to_string_pretty(&idl).unwrap()
+        );
     }
 
     #[tokio::test]
@@ -187,7 +189,7 @@ mod tests {
                 break (key, player_faction);
             }
         };
-        let mut banks_client = test_context.banks_client;
+        let banks_client = test_context.banks_client;
 
         let faction_id = FactionId::MUD;
 

@@ -4,10 +4,10 @@ use itertools::Itertools;
 use proc_macro2::TokenStream;
 use proc_macro_error::{abort, abort_call_site};
 use quote::quote;
-use syn::{parse_quote, Expr, Fields, FieldsUnnamed, ItemEnum, Lifetime, Type};
+use syn::{parse_quote, Expr, Fields, FieldsUnnamed, ItemEnum, Type};
 
 use crate::hash::SIGHASH_GLOBAL_NAMESPACE;
-use crate::util::{enum_discriminants, get_repr, Paths};
+use crate::util::{cfg_idl, enum_discriminants, get_repr, new_lifetime, Paths};
 
 #[derive(Debug, ArgumentList, Clone, Default)]
 pub struct InstructionSetStructArgs {
@@ -24,9 +24,9 @@ pub struct InstructionSetFieldArgs {
 }
 
 pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
+    let info_lifetime = new_lifetime(&item);
     let (impl_generics, ty_generics, where_clause) = &item.generics.split_for_impl();
     let ident = &item.ident;
-    let info_lifetime: Lifetime = parse_quote! { '__info };
 
     let Paths {
         account_info,
@@ -37,7 +37,7 @@ pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
         pubkey,
         result,
         syscalls,
-        macro_prelude: prelude,
+        prelude,
         instruction_set_args_ident,
         ..
     } = Paths::default();
@@ -84,17 +84,22 @@ pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
             .collect()
     };
 
-    let idl_impl = (!args.skip_idl && cfg!(feature = "idl")).then(|| {
-        let (idl_args, idl_arg_tys) = item.variants.iter().map(|v| {
-            let args = find_attr(&v.attrs, &instruction_set_args_ident)
-                .map(InstructionSetFieldArgs::parse_arguments)
-                .unwrap_or_default();
-            let idl_arg = args.idl_arg.unwrap_or_else(|| parse_quote!(()));
-            let idl_arg_ty = args.idl_arg_ty.unwrap_or_else(|| parse_quote!(_));
-            (idl_arg, idl_arg_ty)
-        }).unzip::<_, _, Vec<_>, Vec<_>>();
+    let idl_impl = cfg_idl(args.skip_idl, || {
+        let (idl_args, idl_arg_tys) = item
+            .variants
+            .iter()
+            .map(|v| {
+                let args = find_attr(&v.attrs, &instruction_set_args_ident)
+                    .map(InstructionSetFieldArgs::parse_arguments)
+                    .unwrap_or_default();
+                let idl_arg = args.idl_arg.unwrap_or_else(|| parse_quote!(()));
+                let idl_arg_ty = args.idl_arg_ty.unwrap_or_else(|| parse_quote!(_));
+                (idl_arg, idl_arg_ty)
+            })
+            .unzip::<_, _, Vec<_>, Vec<_>>();
 
         quote! {
+            #[cfg(not(target_os = "solana"))]
             #[automatically_derived]
             impl #impl_generics #prelude::InstructionSetToIdl for #ident #ty_generics #where_clause {
                 #[allow(clippy::let_unit_value)]
@@ -133,8 +138,8 @@ pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
                 match discriminant {
                     #(
                         <#variant_tys as #prelude::InstructionDiscriminant<#ident #ty_generics>>::DISCRIMINANT => {
-                            let data = <#variant_tys as #instruction>::data_from_bytes(&mut ix_bytes)?;
-                            <#variant_tys as #instruction>::run_ix_from_raw(accounts, &data, syscalls)
+                            let mut data = <#variant_tys as #instruction>::data_from_bytes(&mut ix_bytes)?;
+                            <#variant_tys as #instruction>::run_ix_from_raw(accounts, &mut data, syscalls)
                         }
                     )*
                     x => Err(#anyhow_macro!("Invalid ix discriminant: {:?}", x)),

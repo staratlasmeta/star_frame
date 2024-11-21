@@ -6,7 +6,7 @@ use solana_program::account_info::AccountInfo;
 use solana_program::instruction::AccountMeta;
 use solana_program::pubkey::Pubkey;
 
-#[derive(AccountSet, Debug, Deref, DerefMut)]
+#[derive(AccountSet, Debug, Deref, DerefMut, Clone)]
 #[account_set(
     skip_cpi_account_set,
     skip_client_account_set,
@@ -80,7 +80,7 @@ where
     }
 }
 
-#[cfg(feature = "idl")]
+#[cfg(all(feature = "idl", not(target_os = "solana")))]
 mod idl_impl {
     use super::*;
     use crate::account_set::vec::idl_impl::VecSize;

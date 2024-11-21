@@ -52,7 +52,7 @@ pub(super) fn validates(
         result,
         syscall_invoke,
         validate_ident,
-        macro_prelude,
+        prelude,
         account_set_validate,
         ..
     } = paths;
@@ -134,7 +134,7 @@ pub(super) fn validates(
             validate_type = syn::parse_quote!(#generic_arg);
             generics.params.push(syn::parse_quote!(#generic_arg));
             let single_ty = &single_set_field.ty;
-            generics.make_where_clause().predicates.push(syn::parse_quote!(#single_ty: #account_set_validate<#info_lifetime, #generic_arg> + #macro_prelude::SingleAccountSet<#info_lifetime>));
+            generics.make_where_clause().predicates.push(syn::parse_quote!(#single_ty: #account_set_validate<#info_lifetime, #generic_arg> + #prelude::SingleAccountSet<#info_lifetime>));
         }
 
         validate_type = validate_struct_args.arg.unwrap_or(validate_type);

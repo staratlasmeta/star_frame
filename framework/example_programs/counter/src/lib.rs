@@ -1,6 +1,6 @@
 use star_frame::anyhow::bail;
 use star_frame::borsh::{BorshDeserialize, BorshSerialize};
-use star_frame::derive_more::{Deref, DerefMut};
+use star_frame::derive_more::{self, Deref, DerefMut};
 use star_frame::empty_star_frame_instruction;
 use star_frame::prelude::*;
 use star_frame::solana_program::pubkey::Pubkey;
@@ -52,7 +52,7 @@ impl StarFrameInstruction for CreateCounterIx {
     type ReturnType = ();
     type Accounts<'b, 'c, 'info> = CreateCounterAccounts<'info>;
 
-    fn split_to_args<'a>(r: &Self) -> IxArgs<Self> {
+    fn split_to_args<'a>(r: &mut Self) -> IxArgs<Self> {
         IxArgs::run(&r.start_at)
     }
 
@@ -101,7 +101,7 @@ impl StarFrameInstruction for UpdateCounterSignerIx {
     type ReturnType = ();
     type Accounts<'b, 'c, 'info> = UpdateCounterSignerAccounts<'info>;
 
-    fn split_to_args<'a>(_r: &Self) -> IxArgs<Self> {
+    fn split_to_args<'a>(_r: &mut Self) -> IxArgs<Self> {
         IxArgs::default()
     }
 
@@ -147,7 +147,7 @@ impl StarFrameInstruction for CountIx {
     type ReturnType = ();
     type Accounts<'b, 'c, 'info> = CountAccounts<'info>;
 
-    fn split_to_args<'a>(r: &Self) -> IxArgs<Self> {
+    fn split_to_args<'a>(r: &mut Self) -> IxArgs<Self> {
         IxArgs::run((r.amount, r.subtract))
     }
 
@@ -214,12 +214,23 @@ mod tests {
 
     #[tokio::test]
     async fn test_that_it_works() -> Result<()> {
-        let program_test = ProgramTest::new(
-            "counter",
-            CounterProgram::PROGRAM_ID,
-            processor!(CounterProgram::processor),
-        );
-        let (mut banks_client, payer, recent_blockhash) = program_test.start().await;
+        let program_test = if option_env!("USE_BIN").is_some() {
+            let target_dir = std::env::current_dir()?
+                .join("../../../target/deploy")
+                .canonicalize()?;
+            std::env::set_var(
+                "BPF_OUT_DIR",
+                target_dir.to_str().expect("Failed to convert path to str"),
+            );
+            ProgramTest::new("counter", StarFrameDeclaredProgram::PROGRAM_ID, None)
+        } else {
+            ProgramTest::new(
+                "counter",
+                StarFrameDeclaredProgram::PROGRAM_ID,
+                processor!(CounterProgram::processor),
+            )
+        };
+        let (banks_client, payer, recent_blockhash) = program_test.start().await;
 
         // Init a new counter
         let account_key = Keypair::new();

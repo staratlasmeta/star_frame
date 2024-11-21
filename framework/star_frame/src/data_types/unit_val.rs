@@ -156,7 +156,7 @@ impl<T1, Unit1> UnitVal<T1, Unit1> {
 /// Marks that a given unit can be converted to a different unit system's unit.
 pub trait Convert<Rhs> {}
 
-#[cfg(feature = "idl")]
+#[cfg(all(feature = "idl", not(target_os = "solana")))]
 mod idl {
     use super::*;
     use crate::idl::TypeToIdl;

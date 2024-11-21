@@ -5,7 +5,6 @@ edition.workspace = true
 publish.workspace = true
 
 [features]
-default = ["idl", "cleanup_rent_warning"]
 cleanup_rent_warning = []
 idl = ["star_frame_idl", "serde_json", "star_frame_proc/idl"]
 test_helpers = []
@@ -32,9 +31,6 @@ typenum = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, optional = true }
 star_frame_idl = { workspace = true, optional = true }
-
-# version locks for msrv
-bumpalo = { workspace = true }
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }

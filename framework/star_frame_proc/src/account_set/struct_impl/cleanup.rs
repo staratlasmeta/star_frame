@@ -46,7 +46,7 @@ pub(super) fn cleanups(
         result,
         syscall_invoke,
         cleanup_ident,
-        macro_prelude,
+        prelude,
         account_set_cleanup,
         ..
     } = paths;
@@ -119,7 +119,7 @@ pub(super) fn cleanups(
             cleanup_type = syn::parse_quote!(#generic_arg);
             generics.params.push(syn::parse_quote!(#generic_arg));
             let single_ty = &single_set_field.ty;
-            generics.make_where_clause().predicates.push(syn::parse_quote!(#single_ty: #account_set_cleanup<#info_lifetime, #generic_arg> + #macro_prelude::SingleAccountSet<#info_lifetime>));
+            generics.make_where_clause().predicates.push(syn::parse_quote!(#single_ty: #account_set_cleanup<#info_lifetime, #generic_arg> + #prelude::SingleAccountSet<#info_lifetime>));
         }
         let cleanup_type = cleanup_struct_args.arg.unwrap_or(cleanup_type);
 

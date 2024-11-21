@@ -98,7 +98,7 @@ where
 #[allow(trivial_bounds)]
 unsafe impl<T: 'static + ?Sized> Pod for KeyFor<T> where Pubkey: Pod {}
 
-#[cfg(feature = "idl")]
+#[cfg(all(feature = "idl", not(target_os = "solana")))]
 mod idl_impl {
     use super::*;
     use star_frame_idl::ty::IdlTypeDef;

@@ -95,7 +95,7 @@ pub struct DataAccount<'info, T: ProgramAccount + UnsizedType + ?Sized> {
     phantom_t: PhantomData<T>,
 }
 
-#[cfg(feature = "idl")]
+#[cfg(all(feature = "idl", not(target_os = "solana")))]
 mod idl_impl {
     use super::*;
     use star_frame::idl::AccountSetToIdl;
@@ -175,6 +175,7 @@ where
     }
 
     /// Emits a warning message if the account has more lamports than required by rent.
+    #[cfg_attr(not(feature = "cleanup_rent_warning"), allow(unused_variables))]
     pub fn check_cleanup(&self, sys_calls: &mut impl SyscallCore) -> Result<()> {
         #[cfg(feature = "cleanup_rent_warning")]
         {

@@ -1,7 +1,8 @@
 use crate::instruction::{InstructionDiscriminant, InstructionSet, StarFrameInstruction};
 use crate::prelude::{StarFrameProgram, SyscallInvoke};
 use crate::SolanaInstruction;
-use borsh::BorshSerialize;
+use borsh::{object_length, BorshSerialize};
+use bytemuck::bytes_of;
 use solana_program::account_info::AccountInfo;
 use solana_program::entrypoint::ProgramResult;
 use solana_program::instruction::AccountMeta;
@@ -33,6 +34,18 @@ pub trait ClientAccountSet {
         accounts: &Self::ClientAccounts,
         metas: &mut Vec<AccountMeta>,
     );
+}
+
+pub fn star_frame_instruction_data<S, I>(data: &I) -> anyhow::Result<Vec<u8>>
+where
+    S: InstructionSet,
+    I: InstructionDiscriminant<S> + BorshSerialize,
+{
+    let data_len = std::mem::size_of::<S::Discriminant>() + object_length(data)?;
+    let mut ix_data = Vec::with_capacity(data_len);
+    ix_data.extend_from_slice(bytes_of(&I::DISCRIMINANT));
+    BorshSerialize::serialize(data, &mut ix_data)?;
+    Ok(ix_data)
 }
 
 #[derive(Debug, Clone)]
@@ -86,15 +99,12 @@ impl<'info> CpiBuilder<'info> {
         A::extend_account_metas(&program_id, &accounts, &mut metas);
         let mut infos = Vec::with_capacity(A::MIN_LEN);
         A::extend_account_infos(accounts, &mut infos);
-
-        let mut ix_data = I::discriminant_bytes();
-        BorshSerialize::serialize(&data, &mut ix_data)?;
-
+        let data = star_frame_instruction_data::<S, I>(data)?;
         Ok(Self {
             instruction: SolanaInstruction {
                 program_id,
                 accounts: metas,
-                data: ix_data,
+                data,
             },
             accounts: infos,
         })
@@ -111,12 +121,11 @@ pub trait MakeInstruction<'info>: StarFrameProgram {
     {
         let mut metas = Vec::with_capacity(A::MIN_LEN);
         A::extend_account_metas(&Self::PROGRAM_ID, &accounts, &mut metas);
-        let mut ix_data = I::discriminant_bytes();
-        BorshSerialize::serialize(&data, &mut ix_data)?;
+        let data = star_frame_instruction_data::<Self::InstructionSet, I>(data)?;
         Ok(SolanaInstruction {
             program_id: Self::PROGRAM_ID,
             accounts: metas,
-            data: ix_data,
+            data,
         })
     }
 }

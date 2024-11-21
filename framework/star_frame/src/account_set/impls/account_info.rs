@@ -189,7 +189,7 @@ impl<'a, 'info> AccountSetCleanup<'info, ()> for &'a AccountInfo<'info> {
         Ok(cleanup_input)
     }
 }
-#[cfg(feature = "idl")]
+#[cfg(all(feature = "idl", not(target_os = "solana")))]
 pub mod idl_impl {
     use super::*;
     use crate::idl::{AccountSetToIdl, FindIdlSeeds};

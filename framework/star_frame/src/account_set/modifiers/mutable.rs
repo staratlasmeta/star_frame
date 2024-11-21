@@ -11,7 +11,7 @@ pub struct Mut<T>(#[single_account_set(writable, skip_writable_account)] pub(cra
 
 impl<'info, T> WritableAccount<'info> for Mut<T> where T: SingleAccountSet<'info> {}
 
-#[cfg(feature = "idl")]
+#[cfg(all(feature = "idl", not(target_os = "solana")))]
 mod idl_impl {
     use super::*;
     use crate::Result;

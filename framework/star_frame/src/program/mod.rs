@@ -39,6 +39,7 @@ pub trait StarFrameProgram {
 #[macro_export]
 macro_rules! program_setup {
     ($program:ty) => {
+        #[allow(dead_code)]
         pub type StarFrameDeclaredProgram = $program;
 
         #[doc = r" The const program ID."]

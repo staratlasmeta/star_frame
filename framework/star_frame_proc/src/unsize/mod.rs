@@ -243,10 +243,13 @@ fn unsized_type_struct_impl(item_struct: ItemStruct, _args: TokenStream) -> Toke
         bytemuck,
         checked,
         derivative,
-        macro_prelude: prelude,
+        prelude,
         phantom_data,
         result,
         size_of,
+        debug,
+        clone,
+        copy,
         ..
     } = Default::default();
     let context = UnsizedTypeContext::parse(item_struct, _args);
@@ -510,7 +513,7 @@ fn unsized_type_struct_impl(item_struct: ItemStruct, _args: TokenStream) -> Toke
     );
 
     let init_with_struct = quote! {
-        #[derive(Copy, Clone, Debug)]
+        #[derive(#copy, #clone, #debug)]
         pub struct #init_struct_ident #unsized_init_impl_generics #init_where_clause {
             #(#sized_fields,)*
             #(pub #unsized_field_idents: #init_generic_idents,)*
@@ -541,7 +544,7 @@ fn unsized_type_struct_impl(item_struct: ItemStruct, _args: TokenStream) -> Toke
         );
 
         let mut sized_struct: ItemStruct = parse_quote! {
-            #[derive(Align1, #derivative, #sized_bytemuck_derives)]
+            #[derive(#prelude::Align1, #derivative, #sized_bytemuck_derives)]
             #[repr(C, packed)]
             pub struct #sized_ident #combined_impl_generics #combined_where {
                 #(#sized_fields),*
@@ -587,7 +590,7 @@ fn unsized_type_struct_impl(item_struct: ItemStruct, _args: TokenStream) -> Toke
     });
 
     let mut main_struct: ItemStruct = parse_quote! {
-        #[derive(Align1, #derivative)]
+        #[derive(#prelude::Align1, #derivative)]
         #[repr(transparent)]
         pub struct #struct_ident #combined_impl_generics (#inner_type) #combined_where;
     };
@@ -601,7 +604,7 @@ fn unsized_type_struct_impl(item_struct: ItemStruct, _args: TokenStream) -> Toke
     add_derivative_attributes(&mut meta_struct, parse_quote!(Debug, Copy, Clone));
 
     let mut ref_struct: ItemStruct = parse_quote! {
-        #[derive(Copy, Clone, #derivative)]
+        #[derive(#copy, #clone, #derivative)]
         #[repr(transparent)]
         pub struct #ref_ident #combined_impl_generics (<#inner_type as #prelude::UnsizedType>::RefData) #combined_where;
     };
@@ -767,8 +770,8 @@ fn with_parenthesis(first: &TokenStream, second: &TokenStream) -> TokenStream {
 }
 
 fn combine_unsized(first: &TokenStream, second: &TokenStream) -> TokenStream {
-    let Paths { macro_prelude, .. } = Paths::default();
-    quote!(#macro_prelude::CombinedUnsized<#first, #second>)
+    let Paths { prelude, .. } = Paths::default();
+    quote!(#prelude::CombinedUnsized<#first, #second>)
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
@@ -860,7 +863,7 @@ fn make_ext_type(
     index: usize,
 ) -> (TokenStream, Vec<CombinePath>) {
     let paths = get_combine_paths(fields.len(), index);
-    let Paths { macro_prelude, .. } = Paths::default();
+    let Paths { prelude, .. } = Paths::default();
     fn make_ext_type_inner(
         super_ref: &impl ToTokens,
         fields: &[impl ToTokens],
@@ -887,7 +890,7 @@ fn make_ext_type(
             CombinePath::U => make_ext_type_inner(&new_super, u, new_paths, macro_prelude),
         }
     }
-    let ty = make_ext_type_inner(root, fields, &paths, &macro_prelude);
+    let ty = make_ext_type_inner(root, fields, &paths, &prelude);
     (ty, paths)
 }
 

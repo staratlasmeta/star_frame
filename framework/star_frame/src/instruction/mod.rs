@@ -51,7 +51,7 @@ pub trait Instruction {
     /// Runs the instruction from a raw solana input.
     fn run_ix_from_raw<'info>(
         accounts: &[AccountInfo<'info>],
-        data: &Self::SelfData<'_>,
+        data: &mut Self::SelfData<'_>,
         syscalls: &mut impl Syscalls<'info>,
     ) -> Result<()>;
 }
@@ -173,7 +173,7 @@ pub trait StarFrameInstruction: BorshDeserialize {
         + AccountSetCleanup<'info, Self::CleanupArg<'c>>;
 
     /// Splits self into decode, validate, and run args.
-    fn split_to_args(r: &Self) -> IxArgs<Self>;
+    fn split_to_args(r: &mut Self) -> IxArgs<Self>;
 
     /// Runs any extra validations on the accounts.
     #[allow(unused_variables)]
@@ -204,7 +204,7 @@ where
 
     fn run_ix_from_raw<'info>(
         mut accounts: &[AccountInfo<'info>],
-        data: &Self::SelfData<'_>,
+        data: &mut Self,
         syscalls: &mut impl Syscalls<'info>,
     ) -> Result<()> {
         let IxArgs {
@@ -242,7 +242,7 @@ macro_rules! empty_star_frame_instruction {
             type ReturnType = ();
             type Accounts<'b, 'c, 'info> = $accounts<'info>;
 
-            fn split_to_args<'a>(_r: &Self) -> $crate::instruction::IxArgs<Self> {
+            fn split_to_args<'a>(_r: &mut Self) -> $crate::instruction::IxArgs<Self> {
                 Default::default()
             }
 
@@ -272,7 +272,7 @@ mod test_helpers {
 
                     fn run_ix_from_raw<'info>(
                         _accounts: &[$crate::prelude::AccountInfo<'info>],
-                        _data: &Self::SelfData<'_>,
+                        _data: &mut Self::SelfData<'_>,
                         _syscalls: &mut impl $crate::prelude::Syscalls<'info>,
                     ) -> $crate::Result<()> {
                         todo!()

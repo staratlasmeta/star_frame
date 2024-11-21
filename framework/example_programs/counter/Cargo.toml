@@ -9,11 +9,9 @@ crate-type = ["cdylib", "lib"]
 name = "counter"
 
 [dependencies]
-advance = { workspace = true }
 borsh = { workspace = true }
 bytemuck = { workspace = true }
-solana-program = { workspace = true }
-star_frame = { workspace = true }
+star_frame = { workspace = true, features = ["idl"] }
 
 [dev-dependencies]
 solana-program-test = { workspace = true }

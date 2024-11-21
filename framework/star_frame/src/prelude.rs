@@ -30,14 +30,14 @@ pub use crate::create_unit_system;
 // bytemuck
 pub use bytemuck::{CheckedBitPattern, NoUninit, Pod, Zeroable};
 
-#[cfg(feature = "idl")]
+#[cfg(all(feature = "idl", not(target_os = "solana")))]
 pub use crate::idl::{
     seed_const, seed_path, AccountSetToIdl, AccountToIdl, FindIdlSeeds, InstructionSetToIdl,
     InstructionToIdl, ProgramToIdl, TypeToIdl,
 };
 
 // ensure derive macros are in scope
-#[cfg(not(feature = "idl"))]
+#[cfg(not(all(feature = "idl", not(target_os = "solana"))))]
 pub use star_frame_proc::{InstructionToIdl, TypeToIdl};
 
 pub use std::fmt::Debug;

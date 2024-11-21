@@ -1,7 +1,7 @@
 use crate::account_set::generics::AccountSetGenerics;
 use crate::account_set::struct_impl::decode::DecodeFieldTy;
 use crate::account_set::{AccountSetStructArgs, SingleAccountSetFieldArgs, StrippedDeriveInput};
-use crate::util::{make_struct, new_generic, new_lifetime, Paths};
+use crate::util::{cfg_idl, make_struct, new_generic, new_lifetime, Paths};
 use easy_proc::{find_attr, ArgumentList};
 use itertools::Itertools;
 use proc_macro2::TokenStream;
@@ -14,7 +14,6 @@ use syn::{bracketed, parse_quote, token, DataStruct, Field, Ident, Index, Token,
 
 mod cleanup;
 mod decode;
-#[cfg(feature = "idl")]
 mod idl;
 mod validate;
 
@@ -73,7 +72,7 @@ pub(super) fn derive_account_set_impl_struct(
     let Paths {
         account_info,
         account_set,
-        macro_prelude,
+        prelude,
         result,
         ..
     } = &paths;
@@ -191,7 +190,7 @@ pub(super) fn derive_account_set_impl_struct(
         let (info_gen_sg_impl, _, _) = info_gen_sg_impl.split_for_impl();
 
         let self_single_bound: WherePredicate = parse_quote! {
-            Self: #macro_prelude::SingleAccountSet<#info_lifetime>
+            Self: #prelude::SingleAccountSet<#info_lifetime>
         };
 
         let mut single_set_generics = info_sg.clone();
@@ -199,10 +198,10 @@ pub(super) fn derive_account_set_impl_struct(
         let field_ty = &field.ty;
 
         single_where.predicates.push(parse_quote! {
-            #field_ty: #macro_prelude::SingleAccountSet<#info_lifetime>
+            #field_ty: #prelude::SingleAccountSet<#info_lifetime>
         });
         single_where.predicates.push(parse_quote!{
-            Self: #macro_prelude::AccountSet<#info_lifetime>
+            Self: #prelude::AccountSet<#info_lifetime>
         });
 
         let signer = args.signer.then(||quote!(signer: true,));
@@ -210,16 +209,16 @@ pub(super) fn derive_account_set_impl_struct(
 
         let single = quote! {
             #[automatically_derived]
-            impl #info_sg_impl #macro_prelude::SingleAccountSet<#info_lifetime> for #ident #ty_generics #single_where {
+            impl #info_sg_impl #prelude::SingleAccountSet<#info_lifetime> for #ident #ty_generics #single_where {
                 #[allow(clippy::needless_update)]
-                const META: #macro_prelude::SingleSetMeta = #macro_prelude::SingleSetMeta {
+                const META: #prelude::SingleSetMeta = #prelude::SingleSetMeta {
                     #signer
                     #writable
-                    ..<#field_ty as #macro_prelude::SingleAccountSet<#info_lifetime>>::META
+                    ..<#field_ty as #prelude::SingleAccountSet<#info_lifetime>>::META
                 };
 
                 fn account_info(&self) -> &#account_info<#info_lifetime> {
-                    <#field_ty as #macro_prelude::SingleAccountSet<#info_lifetime>>::account_info(&self.#field_name)
+                    <#field_ty as #prelude::SingleAccountSet<#info_lifetime>>::account_info(&self.#field_name)
                 }
             }
         };
@@ -228,14 +227,14 @@ pub(super) fn derive_account_set_impl_struct(
             let mut signed_generics = info_sg.clone();
             let signed_where = signed_generics.make_where_clause();
             signed_where.predicates.push(parse_quote! {
-                #field_ty: #macro_prelude::SignedAccount<#info_lifetime>
+                #field_ty: #prelude::SignedAccount<#info_lifetime>
             });
             signed_where.predicates.push(self_single_bound.clone());
             quote! {
                 #[automatically_derived]
-                impl #info_sg_impl #macro_prelude::SignedAccount<#info_lifetime> for #ident #ty_generics #signed_where {
+                impl #info_sg_impl #prelude::SignedAccount<#info_lifetime> for #ident #ty_generics #signed_where {
                     fn signer_seeds(&self) -> Option<Vec<&[u8]>> {
-                        <#field_ty as #macro_prelude::SignedAccount<#info_lifetime>>::signer_seeds(&self.#field_name)
+                        <#field_ty as #prelude::SignedAccount<#info_lifetime>>::signer_seeds(&self.#field_name)
                     }
                 }
             }
@@ -245,12 +244,12 @@ pub(super) fn derive_account_set_impl_struct(
             let mut writable_generics = info_sg.clone();
             let writable_where = writable_generics.make_where_clause();
             writable_where.predicates.push(parse_quote! {
-                #field_ty: #macro_prelude::WritableAccount<#info_lifetime>
+                #field_ty: #prelude::WritableAccount<#info_lifetime>
             });
             writable_where.predicates.push(self_single_bound.clone());
             quote! {
                 #[automatically_derived]
-                impl #info_sg_impl #macro_prelude::WritableAccount<#info_lifetime> for #ident #ty_generics #writable_where {}
+                impl #info_sg_impl #prelude::WritableAccount<#info_lifetime> for #ident #ty_generics #writable_where {}
             }
         });
 
@@ -258,12 +257,12 @@ pub(super) fn derive_account_set_impl_struct(
             let mut program_generics = single_generics.clone();
             let program_where = program_generics.make_where_clause();
             program_where.predicates.push(parse_quote! {
-                #field_ty: #macro_prelude::HasProgramAccount
+                #field_ty: #prelude::HasProgramAccount
             });
             quote! {
                 #[automatically_derived]
-                impl #sg_impl #macro_prelude::HasProgramAccount for #ident #ty_generics #program_where {
-                    type ProgramAccount = <#field_ty as #macro_prelude::HasProgramAccount>::ProgramAccount;
+                impl #sg_impl #prelude::HasProgramAccount for #ident #ty_generics #program_where {
+                    type ProgramAccount = <#field_ty as #prelude::HasProgramAccount>::ProgramAccount;
                 }
             }
         });
@@ -272,12 +271,12 @@ pub(super) fn derive_account_set_impl_struct(
             let mut owner_generics = single_generics.clone();
             let owner_where = owner_generics.make_where_clause();
             owner_where.predicates.push(parse_quote! {
-                #field_ty: #macro_prelude::HasOwnerProgram
+                #field_ty: #prelude::HasOwnerProgram
             });
             quote! {
                 #[automatically_derived]
-                impl #sg_impl #macro_prelude::HasOwnerProgram for #ident #ty_generics #owner_where {
-                    type OwnerProgram = <#field_ty as #macro_prelude::HasOwnerProgram>::OwnerProgram;
+                impl #sg_impl #prelude::HasOwnerProgram for #ident #ty_generics #owner_where {
+                    type OwnerProgram = <#field_ty as #prelude::HasOwnerProgram>::OwnerProgram;
                 }
             }
         });
@@ -286,12 +285,12 @@ pub(super) fn derive_account_set_impl_struct(
             let mut seeds_generics = single_generics.clone();
             let seeds_where = seeds_generics.make_where_clause();
             seeds_where.predicates.push(parse_quote! {
-                #field_ty: #macro_prelude::HasSeeds
+                #field_ty: #prelude::HasSeeds
             });
             quote! {
                 #[automatically_derived]
-                impl #sg_impl #macro_prelude::HasSeeds for #ident #ty_generics #seeds_where {
-                    type Seeds = <#field_ty as #macro_prelude::HasSeeds>::Seeds;
+                impl #sg_impl #prelude::HasSeeds for #ident #ty_generics #seeds_where {
+                    type Seeds = <#field_ty as #prelude::HasSeeds>::Seeds;
                 }
             }
         });
@@ -300,17 +299,17 @@ pub(super) fn derive_account_set_impl_struct(
             let mut init_seeds_generics = info_gen_sg.clone();
             let init_seeds_where = init_seeds_generics.make_where_clause();
             init_seeds_where.predicates.push(parse_quote! {
-                #field_ty: #macro_prelude::CanInitSeeds<#info_lifetime, #function_generic_type>
+                #field_ty: #prelude::CanInitSeeds<#info_lifetime, #function_generic_type>
             });
             init_seeds_where.predicates.push(parse_quote! {
-                Self: #macro_prelude::AccountSetValidate<#info_lifetime, #function_generic_type>
+                Self: #prelude::AccountSetValidate<#info_lifetime, #function_generic_type>
             });
             init_seeds_where.predicates.push(self_single_bound.clone());
             quote! {
                 #[automatically_derived]
-                impl #info_gen_sg_impl #macro_prelude::CanInitSeeds<#info_lifetime, #new_generic> for #ident #ty_generics #init_seeds_where {
-                    fn init_seeds(&mut self, arg: &#new_generic, syscalls: &mut impl #macro_prelude::SyscallInvoke<#info_lifetime>) -> #result<()> {
-                        <#field_ty as #macro_prelude::CanInitSeeds<#info_lifetime, #new_generic>>::init_seeds(&mut self.#field_name, arg, syscalls)
+                impl #info_gen_sg_impl #prelude::CanInitSeeds<#info_lifetime, #new_generic> for #ident #ty_generics #init_seeds_where {
+                    fn init_seeds(&mut self, arg: &#new_generic, syscalls: &mut impl #prelude::SyscallInvoke<#info_lifetime>) -> #result<()> {
+                        <#field_ty as #prelude::CanInitSeeds<#info_lifetime, #new_generic>>::init_seeds(&mut self.#field_name, arg, syscalls)
                     }
                 }
             }
@@ -320,18 +319,18 @@ pub(super) fn derive_account_set_impl_struct(
             let mut init_generics = info_gen_sg.clone();
             let init_where = init_generics.make_where_clause();
             init_where.predicates.push(parse_quote! {
-                #field_ty: #macro_prelude::CanInitAccount<#info_lifetime, #new_generic>
+                #field_ty: #prelude::CanInitAccount<#info_lifetime, #new_generic>
             });
             quote! {
                 #[automatically_derived]
-                impl #info_gen_sg_impl #macro_prelude::CanInitAccount<#info_lifetime, #new_generic> for #ident #ty_generics #init_where {
+                impl #info_gen_sg_impl #prelude::CanInitAccount<#info_lifetime, #new_generic> for #ident #ty_generics #init_where {
                     fn init_account(
                         &mut self,
                         arg: #new_generic,
-                        syscalls: &mut impl #macro_prelude::SyscallInvoke<#info_lifetime>,
+                        syscalls: &mut impl #prelude::SyscallInvoke<#info_lifetime>,
                         account_seeds: Option<Vec<&[u8]>>,
                     ) -> #result<()> {
-                        <#field_ty as #macro_prelude::CanInitAccount<#info_lifetime, #new_generic>>::init_account(&mut self.#field_name, arg, syscalls, account_seeds)
+                        <#field_ty as #prelude::CanInitAccount<#info_lifetime, #new_generic>>::init_account(&mut self.#field_name, arg, syscalls, account_seeds)
                     }
                 }
             }
@@ -358,7 +357,7 @@ pub(super) fn derive_account_set_impl_struct(
         let (_, self_ty_gen, _) = main_generics.split_for_impl();
         let mut cpi_gen = other_generics.clone();
         let where_clause = cpi_gen.make_where_clause();
-        let cpi_set = quote!(#macro_prelude::CpiAccountSet<#info_lifetime>);
+        let cpi_set = quote!(#prelude::CpiAccountSet<#info_lifetime>);
         let cpi_accounts = quote!(Self::CpiAccounts<#info_lifetime>);
 
         let new_fields: Vec<Field> = fields
@@ -410,9 +409,9 @@ pub(super) fn derive_account_set_impl_struct(
 
                 #[inline(always)]
                 fn extend_account_metas(
-                    program_id: &#macro_prelude::Pubkey,
+                    program_id: &#prelude::Pubkey,
                     accounts: &#cpi_accounts,
-                    metas: &mut Vec<#macro_prelude::AccountMeta>,
+                    metas: &mut Vec<#prelude::AccountMeta>,
                 ) {
                     #(<#field_type as #cpi_set>::extend_account_metas(program_id, &accounts.#field_name, metas);)*
                 }
@@ -422,7 +421,7 @@ pub(super) fn derive_account_set_impl_struct(
 
     let client_account_set_impl = (!account_set_struct_args.skip_client_account_set && single_account_set_impls.is_none()).then(|| {
         let client_accounts_ident= format_ident!("{trimmed_ident_str}ClientAccounts");
-        let client_set = quote!(#macro_prelude::ClientAccountSet);
+        let client_set = quote!(#prelude::ClientAccountSet);
         let client_accounts = quote!(Self::ClientAccounts);
 
         let mut client_gen = main_generics.clone();
@@ -461,9 +460,9 @@ pub(super) fn derive_account_set_impl_struct(
                 const MIN_LEN: usize =  0#(+ <#field_type as #client_set>::MIN_LEN)*;
 
                 fn extend_account_metas(
-                    program_id: &#macro_prelude::Pubkey,
+                    program_id: &#prelude::Pubkey,
                     accounts: &#client_accounts,
-                    metas: &mut Vec<#macro_prelude::AccountMeta>,
+                    metas: &mut Vec<#prelude::AccountMeta>,
                 ) {
                     #(<#field_type as #client_set>::extend_account_metas(program_id, &accounts.#field_name, metas);)*
                 }
@@ -513,11 +512,7 @@ pub(super) fn derive_account_set_impl_struct(
     let decodes = decode::decodes(step_input, &data_struct, &all_field_name, &decode_types);
     let validates = validate::validates(step_input);
     let cleanups = cleanup::cleanups(step_input);
-
-    #[cfg(feature = "idl")]
-    let idls = idl::idls(step_input);
-    #[cfg(not(feature = "idl"))]
-    let idls = Vec::<TokenStream>::new();
+    let idls = cfg_idl(false, || idl::idls(step_input));
 
     let set_account_caches = {
         let find_field_name =
@@ -568,7 +563,7 @@ pub(super) fn derive_account_set_impl_struct(
             impl #other_impl_generics #account_set<#info_lifetime> for #ident #ty_generics #other_where_clause {
                 fn set_account_cache(
                     &mut self,
-                    syscalls: &mut impl #macro_prelude::SyscallAccountCache<#info_lifetime>,
+                    syscalls: &mut impl #prelude::SyscallAccountCache<#info_lifetime>,
                 ) {
                     #set_account_caches
                     #(<#field_type as #account_set<#info_lifetime>>::set_account_cache(&mut self.#field_name, syscalls);)*

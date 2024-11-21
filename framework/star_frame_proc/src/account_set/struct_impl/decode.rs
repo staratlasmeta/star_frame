@@ -54,7 +54,7 @@ pub(super) fn decodes(
         account_info,
         result,
         account_set_decode,
-        macro_prelude,
+        prelude,
         syscall_invoke,
         decode_ident,
         ..
@@ -148,7 +148,7 @@ pub(super) fn decodes(
             decode_type = syn::parse_quote!(#generic_arg);
             generics.params.push(syn::parse_quote!(#generic_arg));
             let single_ty = &single_set_field.ty;
-            generics.make_where_clause().predicates.push(syn::parse_quote!(#single_ty: #account_set_decode<#decode_lifetime, #info_lifetime, #generic_arg> + #macro_prelude::SingleAccountSet<#info_lifetime>));
+            generics.make_where_clause().predicates.push(syn::parse_quote!(#single_ty: #account_set_decode<#decode_lifetime, #info_lifetime, #generic_arg> + #prelude::SingleAccountSet<#info_lifetime>));
         }
         let decode_type = decode_struct_args.arg.unwrap_or(decode_type);
         let decode_args: Vec<Expr> = field_decodes

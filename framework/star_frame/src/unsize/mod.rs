@@ -163,7 +163,7 @@ where
 pub struct FromBytesReturn<S, R, M> {
     /// How many bytes the [`UnsizedType::from_bytes`] used on the underlying bytes.
     pub bytes_used: usize,
-    /// The resulting [`RefWrapper`] from the operation, where S is the SuperRef
+    /// The resulting [`RefWrapper`] from the operation, where S is the `SuperRef`
     pub ref_wrapper: RefWrapper<S, R>,
     /// The resulting [`UnsizedType::RefData`] from the operation.
     pub meta: M,
