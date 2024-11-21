@@ -5,6 +5,7 @@ mod program;
 mod rest;
 mod single_set;
 mod system_account;
+mod sysvar;
 
 pub use data_account::*;
 pub use impls::*;
@@ -14,6 +15,7 @@ pub use rest::*;
 pub use single_set::*;
 pub use star_frame_proc::AccountSet;
 pub use system_account::*;
+pub use sysvar::*;
 
 use crate::syscalls::{SyscallAccountCache, SyscallInvoke};
 use crate::Result;
