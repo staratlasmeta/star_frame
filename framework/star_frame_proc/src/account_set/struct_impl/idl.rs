@@ -3,6 +3,7 @@ use crate::account_set::struct_impl::StepInput;
 use crate::util;
 use crate::util::{new_generic, BetterGenerics, Paths};
 use easy_proc::{find_attrs, ArgumentList};
+use itertools::Itertools;
 use proc_macro2::{Span, TokenStream};
 use proc_macro_error::abort;
 use quote::quote;
@@ -21,7 +22,8 @@ struct IdlStructArgs {
 #[derive(ArgumentList)]
 struct IdlFieldArgs {
     id: Option<LitStr>,
-    arg: Expr,
+    arg: Option<Expr>,
+    address: Option<Expr>,
 }
 
 pub(super) fn idls(
@@ -144,24 +146,44 @@ pub(super) fn idls(
                 generics.make_where_clause().predicates.push(syn::parse_quote!(#single_ty: #prelude::AccountSetToIdl<#info_lifetime, #generic_arg>));
             }
             let idl_type: Type = idl_struct_args.arg.unwrap_or(idl_type);
-            let idl_args: Vec<Expr> = field_idls
+            let (idl_args, idl_addresses): (Vec<Option<Expr>>, Vec<Option<Expr>>) = field_idls
                 .iter()
                 .map(|f| {
                     f.iter()
                         .find(|f| f.id.as_ref().map(LitStr::value) == id)
-                        .map(|f| f.arg.clone())
-                        .unwrap_or_else(|| default_idl_arg.clone())
+                        .map(|f| (f.arg.clone(), f.address.clone()))
+                        .unwrap_or_default()
                 })
                 .collect();
+            let idl_args: Vec<Expr> = idl_args.into_iter().map(|a| a.unwrap_or(default_idl_arg.clone())).collect();
             let (impl_generics, _, where_clause) = generics.split_for_impl();
+
 
             let inner = if let Some(single) = single_set_field {
                 let ty = &single.ty;
                 let idl_arg = idl_args.first().expect("single field idl arg");
-                quote! {
+                let idl_address = idl_addresses.first().expect("single field idl address");
+                let expression = quote! {
                     <#ty as #prelude::AccountSetToIdl<#info_lifetime, _>>::account_set_to_idl(idl_definition, #idl_arg)
+                };
+                if let Some(address) = idl_address {
+                    quote! (#expression?.with_single_address(#address))
+                } else {
+                    expression
                 }
             } else {
+                let account_set_defs = field_type.iter().zip(idl_args).zip(idl_addresses).map(|((ty, idl_arg), idl_address)| {
+                    let expression = quote! {
+                        <#ty as #prelude::AccountSetToIdl<#info_lifetime, _>>::account_set_to_idl(idl_definition, #idl_arg)?
+                    };
+                    if let Some(address) = idl_address {
+                        quote! (#expression?.with_single_address(#address)?)
+                    } else {
+                        expression
+                    }
+
+                }).collect_vec();
+
                 quote! {
                     let source = #prelude::item_source::<Self>();
                     let account_set_def = #prelude::IdlAccountSetDef::Struct(vec![
@@ -169,7 +191,7 @@ pub(super) fn idls(
                         #prelude::IdlAccountSetStructField {
                             path: #field_path,
                             description: #field_docs,
-                            account_set_def: <#field_type as #prelude::AccountSetToIdl<#info_lifetime, _>>::account_set_to_idl(idl_definition, #idl_args)?,
+                            account_set_def: #account_set_defs,
                         }
                     ),*
                     ]);

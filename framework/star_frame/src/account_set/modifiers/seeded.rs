@@ -386,20 +386,6 @@ mod idl_impl {
             T::account_set_to_idl(idl_definition, arg)?.assert_single()
         }
     }
-
-    impl<'info, T, S, P> AccountSetToIdl<'info, Pubkey> for Seeded<T, S, P>
-    where
-        T: AccountSetToIdl<'info, Pubkey> + SingleAccountSet<'info>,
-        S: GetSeeds,
-        P: SeedProgram,
-    {
-        fn account_set_to_idl(
-            idl_definition: &mut IdlDefinition,
-            arg: Pubkey,
-        ) -> Result<IdlAccountSetDef> {
-            T::account_set_to_idl(idl_definition, arg)?.assert_single()
-        }
-    }
 }
 
 ///

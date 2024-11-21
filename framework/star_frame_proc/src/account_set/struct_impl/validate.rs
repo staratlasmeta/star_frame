@@ -3,6 +3,7 @@ use crate::account_set::struct_impl::{Requires, StepInput};
 use crate::util::{new_generic, BetterGenerics, Paths};
 use daggy::Dag;
 use easy_proc::{find_attrs, ArgumentList};
+use itertools::Itertools;
 use proc_macro2::TokenStream;
 use proc_macro_error::abort;
 use quote::quote;
@@ -27,6 +28,7 @@ struct ValidateFieldArgs {
     requires: Option<Requires>,
     arg: Option<Expr>,
     arg_ty: Option<Type>,
+    address: Option<Expr>,
 }
 
 pub(super) fn validates(
@@ -145,6 +147,8 @@ pub(super) fn validates(
                 (f.arg.clone().unwrap_or_else(|| default_validate_arg.clone()), f.arg_ty.clone().unwrap_or_else(|| syn::parse_quote!(_)))
         }).collect();
 
+        let validate_addresses = relevant_field_validates.iter().map(|f| f.address.clone()).collect_vec();
+
         // Cycle detection
         let mut field_id_map = HashMap::new();
         let mut validates_dag = Dag::<_, _, u32>::new();
@@ -167,16 +171,21 @@ pub(super) fn validates(
         let validates = field_type.iter()
             .zip(field_name.iter())
             .zip(validate_args.iter())
+            .zip(validate_addresses.iter())
             .zip(relevant_field_validates.iter().map(|a| {
                 if a.skip && a.arg.is_some() {
                     abort!(a.arg, "Cannot specify arg when skip is true");
                 }
                 a.skip
             }))
-            .map(| (((field_type, field_name), (validate_arg, validate_ty)), skip)| if skip {
+            .map(| ((((field_type, field_name), (validate_arg, validate_ty)), validate_address), skip)| if skip {
                 quote! {}
             } else {
+                let address_check = validate_address.as_ref().map(|address| quote! {
+                    <#field_type as #prelude::SingleAccountSet<#info_lifetime>>::check_key(&self.#field_name, #address)?;
+                });
                 quote! {
+                    #address_check
                     <#field_type as #account_set_validate<#info_lifetime, #validate_ty>>::validate_accounts(&mut self.#field_name, #validate_arg, syscalls)?;
                 }
             })
