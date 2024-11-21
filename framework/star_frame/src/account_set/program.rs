@@ -10,7 +10,7 @@ use std::marker::PhantomData;
 #[repr(transparent)]
 pub struct Program<'info, T>(
     #[single_account_set]
-    #[idl(arg = T::PROGRAM_ID)]
+    #[idl(address = T::PROGRAM_ID)]
     pub(crate) AccountInfo<'info>,
     #[account_set(skip = PhantomData)] pub(crate) PhantomData<T>,
 );

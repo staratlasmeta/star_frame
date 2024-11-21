@@ -173,7 +173,7 @@ pub struct CloseCounterIx;
 
 #[derive(AccountSet, Debug)]
 pub struct CloseCounterAccounts<'info> {
-    #[validate(arg = &self.counter.data()?.signer)]
+    #[validate(address = &self.counter.data()?.signer)]
     pub signer: Signer<SystemAccount<'info>>,
     #[account_set(recipient)]
     pub funds_to: Mut<SystemAccount<'info>>,

@@ -139,17 +139,6 @@ impl<'info> AccountSetValidate<'info, ()> for AccountInfo<'info> {
     }
 }
 
-impl<'info> AccountSetValidate<'info, &Pubkey> for AccountInfo<'info> {
-    fn validate_accounts(
-        &mut self,
-        validate_input: &Pubkey,
-        _syscalls: &mut impl SyscallInvoke<'info>,
-    ) -> Result<()> {
-        anyhow::ensure!(self.key == validate_input);
-        Ok(())
-    }
-}
-
 impl<'a, 'info> AccountSetValidate<'info, ()> for &'a AccountInfo<'info> {
     fn validate_accounts(
         &mut self,
@@ -157,17 +146,6 @@ impl<'a, 'info> AccountSetValidate<'info, ()> for &'a AccountInfo<'info> {
         _syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<()> {
         Ok(validate_input)
-    }
-}
-
-impl<'a, 'info> AccountSetValidate<'info, &Pubkey> for &'a AccountInfo<'info> {
-    fn validate_accounts(
-        &mut self,
-        validate_input: &Pubkey,
-        _syscalls: &mut impl SyscallInvoke<'info>,
-    ) -> Result<()> {
-        anyhow::ensure!(self.key == validate_input);
-        Ok(())
     }
 }
 
@@ -204,17 +182,6 @@ pub mod idl_impl {
             _arg: (),
         ) -> Result<IdlAccountSetDef> {
             Ok(IdlAccountSetDef::Single(IdlSingleAccountSet::default()))
-        }
-    }
-    impl<'info> AccountSetToIdl<'info, Pubkey> for AccountInfo<'info> {
-        fn account_set_to_idl(
-            _idl_definition: &mut IdlDefinition,
-            arg: Pubkey,
-        ) -> Result<IdlAccountSetDef> {
-            Ok(IdlAccountSetDef::Single(IdlSingleAccountSet {
-                address: Some(arg),
-                ..Default::default()
-            }))
         }
     }
 

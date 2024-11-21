@@ -10,8 +10,8 @@ where
     T: SysvarId,
 {
     #[single_account_set]
-    #[idl(arg = T::id())]
-    #[validate(arg = &T::id())]
+    #[idl(address = T::id())]
+    #[validate(address = &T::id())]
     info: AccountInfo<'info>,
     #[account_set(skip = PhantomData)]
     phantom_t: PhantomData<fn() -> T>,

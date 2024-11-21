@@ -91,4 +91,13 @@ impl IdlAccountSetDef {
         self.single()?;
         Ok(self)
     }
+
+    pub fn with_single_address(mut self, address: Pubkey) -> anyhow::Result<Self> {
+        let single = self.single()?;
+        if let Some(old_address) = single.address {
+            eprintln!("Warning: Overwriting address `{old_address}` in single account set with address `{address}`");
+        }
+        self.single()?.address = Some(address);
+        Ok(self)
+    }
 }

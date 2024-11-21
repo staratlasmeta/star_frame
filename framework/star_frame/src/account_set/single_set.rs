@@ -81,6 +81,16 @@ pub trait SingleAccountSet<'info>: AccountSet<'info> {
     fn key(&self) -> &'info Pubkey {
         self.account_info().key()
     }
+
+    /// Checks if the key matches the expected key.
+    fn check_key(&self, expected: &Pubkey) -> Result<()> {
+        if self.key() == expected {
+            Ok(())
+        } else {
+            Err(ProgramError::InvalidAccountData.into())
+        }
+    }
+
     /// Gets the owner of the contained account.
     fn owner(&self) -> &'info Pubkey {
         self.account_info().owner()
