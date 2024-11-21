@@ -1,6 +1,6 @@
 use star_frame::anyhow::bail;
 use star_frame::borsh::{BorshDeserialize, BorshSerialize};
-use star_frame::derive_more::{Deref, DerefMut};
+use star_frame::derive_more::{self, Deref, DerefMut};
 use star_frame::empty_star_frame_instruction;
 use star_frame::prelude::*;
 use star_frame::solana_program::pubkey::Pubkey;

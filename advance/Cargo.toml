@@ -1,5 +1,5 @@
 [package]
-name = "advance"
+name = "advance_temp"
 version = "0.2.0"
 edition = "2021"
 publish = ["star-atlas"]

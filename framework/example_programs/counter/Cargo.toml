@@ -9,7 +9,6 @@ crate-type = ["cdylib", "lib"]
 name = "counter"
 
 [dependencies]
-advance = { workspace = true }
 borsh = { workspace = true }
 bytemuck = { workspace = true }
 star_frame = { workspace = true }
