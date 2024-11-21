@@ -214,11 +214,22 @@ mod tests {
 
     #[tokio::test]
     async fn test_that_it_works() -> Result<()> {
-        let program_test = ProgramTest::new(
-            "counter",
-            CounterProgram::PROGRAM_ID,
-            processor!(CounterProgram::processor),
-        );
+        let program_test = if option_env!("USE_BIN").is_some() {
+            let target_dir = std::env::current_dir()?
+                .join("../../../target/deploy")
+                .canonicalize()?;
+            std::env::set_var(
+                "BPF_OUT_DIR",
+                target_dir.to_str().expect("Failed to convert path to str"),
+            );
+            ProgramTest::new("counter", StarFrameDeclaredProgram::PROGRAM_ID, None)
+        } else {
+            ProgramTest::new(
+                "counter",
+                StarFrameDeclaredProgram::PROGRAM_ID,
+                processor!(CounterProgram::processor),
+            )
+        };
         let (banks_client, payer, recent_blockhash) = program_test.start().await;
 
         // Init a new counter

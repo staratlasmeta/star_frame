@@ -11,7 +11,7 @@ name = "counter"
 [dependencies]
 borsh = { workspace = true }
 bytemuck = { workspace = true }
-star_frame = { workspace = true }
+star_frame = { workspace = true, features = ["idl"] }
 
 [dev-dependencies]
 solana-program-test = { workspace = true }

@@ -11,12 +11,10 @@ name = "faction_enlistment"
 [features]
 prod = []
 no-entrypoint = []
-no-idl = []
 cpi = ["no-entrypoint"]
-default = ["no-idl"]
 
 [dependencies]
-star_frame = { path = "../../star_frame" }
+star_frame = { workspace = true, features = ["idl"] }
 bytemuck.workspace = true
 
 [dev-dependencies]
