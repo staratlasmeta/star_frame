@@ -189,7 +189,7 @@ mod tests {
                 break (key, player_faction);
             }
         };
-        let banks_client = test_context.banks_client;
+        let mut banks_client = test_context.banks_client;
 
         let faction_id = FactionId::MUD;
 
