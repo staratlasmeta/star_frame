@@ -5,7 +5,6 @@ edition.workspace = true
 publish.workspace = true
 
 [features]
-default = ["idl", "cleanup_rent_warning"]
 cleanup_rent_warning = []
 idl = ["star_frame_idl", "serde_json", "star_frame_proc/idl"]
 test_helpers = []
