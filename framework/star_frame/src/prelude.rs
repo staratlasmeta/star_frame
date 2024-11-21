@@ -6,6 +6,8 @@ pub use crate::syscalls::{
     SyscallAccountCache, SyscallCore, SyscallInvoke, SyscallReturn, Syscalls,
 };
 
+pub use crate::util::borsh_bytemuck;
+
 pub use crate::instruction::*;
 
 // todo: curate this list

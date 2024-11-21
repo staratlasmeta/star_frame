@@ -86,6 +86,55 @@ pub fn uninit_array_bytes<T: NoUninit, const N: usize>(array: &[T; N]) -> &[u8] 
     unsafe { core::slice::from_raw_parts(array.as_ptr().cast::<u8>(), size_of::<T>() * N) }
 }
 
+pub mod borsh_bytemuck {
+    use crate::align1::Align1;
+    use bytemuck::{CheckedBitPattern, NoUninit};
+    use std::io::{Read, Write};
+
+    /// Custom `serialize_with` override for [`borsh::BorshSerialize`] that uses [`bytemuck`] to serialize.
+    /// This is intended for packed structs that are probably used in account data.
+    ///
+    /// # Example
+    /// ```
+    /// use borsh::BorshSerialize;
+    /// use star_frame::prelude::*;
+    ///
+    /// #[derive(Align1, NoUninit, Copy, Clone)]
+    /// #[repr(C, packed)]
+    /// pub struct SomePackedThing {
+    ///     pub a: u32,
+    ///     pub b: u64,
+    /// }
+    ///
+    /// #[derive(BorshSerialize)]
+    /// pub struct SomeBorshThing {
+    ///     #[borsh(serialize_with = "borsh_bytemuck::serialize")]
+    ///     pub packed_thing: SomePackedThing,
+    /// }
+    ///```
+    pub fn serialize<W: Write, P: NoUninit + Align1>(
+        value: &P,
+        writer: &mut W,
+    ) -> std::io::Result<()> {
+        let bytes = bytemuck::bytes_of(value);
+        writer.write_all(bytes)
+    }
+    // todo: figure out if theres a way to make this more optimized. If we could
+    //  create just an array [0u8; std::mem::size_of::<P>()], that would probably match
+    //  borsh or exceed borsh. If we really need this, we can use the unstable `generic_const_exprs`
+    //  feature.
+    #[deprecated = "try using `BorshDeserialize` directly. This is much less efficient."]
+    pub fn deserialize<R: Read, P: NoUninit + CheckedBitPattern + Align1>(
+        reader: &mut R,
+    ) -> std::io::Result<P> {
+        let mut value_bytes = vec![0; std::mem::size_of::<P>()];
+        reader.read_exact(&mut value_bytes)?;
+        let value: &P = bytemuck::checked::try_from_bytes(&value_bytes)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+        Ok(*value)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
