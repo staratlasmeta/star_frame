@@ -3,6 +3,7 @@ name = "star_frame"
 version.workspace = true
 edition.workspace = true
 publish.workspace = true
+rust-version.workspace = true
 
 [features]
 cleanup_rent_warning = []
