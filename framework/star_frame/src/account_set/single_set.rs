@@ -2,9 +2,9 @@ use crate::account_set::{AccountSet, HasOwnerProgram, SignedAccount, WritableAcc
 use crate::anyhow::Result;
 use crate::client::{ClientAccountSet, MakeCpi};
 use crate::prelude::{StarFrameProgram, SyscallInvoke, SystemProgram};
-use crate::program::system_program::{Transfer, TransferCpiAccounts};
+use crate::program::system_program;
 use crate::syscalls::SyscallCore;
-use anyhow::anyhow;
+use anyhow::{anyhow, bail};
 use solana_program::account_info::AccountInfo;
 use solana_program::instruction::AccountMeta;
 use solana_program::program_error::ProgramError;
@@ -210,10 +210,10 @@ pub trait CanModifyRent<'info>: SingleAccountSet<'info> {
                 }
                 let transfer_amount = rent_lamports - lamports;
                 let cpi = SystemProgram::cpi(
-                    &Transfer {
+                    &system_program::Transfer {
                         lamports: transfer_amount,
                     },
-                    TransferCpiAccounts {
+                    system_program::TransferCpiAccounts {
                         funder: funder.account_info_cloned(),
                         recipient: self.account_info_cloned(),
                     },
@@ -269,3 +269,83 @@ pub trait CanModifyRent<'info>: SingleAccountSet<'info> {
 }
 
 impl<'info, T> CanModifyRent<'info> for T where T: SingleAccountSet<'info> {}
+
+pub trait CanSystemCreateAccount<'info>: SingleAccountSet<'info> {
+    /// Creates an account using the system program
+    fn system_create_account<F: WritableAccount<'info> + SignedAccount<'info>>(
+        &self,
+        funder: &F,
+        owner: Pubkey,
+        space: usize,
+        account_seeds: &Option<Vec<&[u8]>>,
+        syscalls: &impl SyscallInvoke<'info>,
+    ) -> Result<()> {
+        if self.owner() != &SystemProgram::PROGRAM_ID {
+            bail!(ProgramError::InvalidAccountOwner);
+        }
+        let current_lamports = **self.account_info().try_borrow_lamports()?;
+        let exempt_lamports = syscalls.get_rent()?.minimum_balance(space);
+
+        if current_lamports == 0 {
+            let funder_seeds = funder.signer_seeds();
+            let seeds: &[&[&[u8]]] = match (&funder_seeds, account_seeds) {
+                (Some(signer_seeds), Some(account_seeds)) => &[signer_seeds, account_seeds],
+                (Some(signer_seeds), None) => &[signer_seeds],
+                (None, Some(account_seeds)) => &[account_seeds],
+                (None, None) => &[],
+            };
+            SystemProgram::cpi(
+                &system_program::CreateAccount {
+                    lamports: exempt_lamports,
+                    space: space as u64,
+                    owner,
+                },
+                system_program::CreateAccountCpiAccounts {
+                    funder: funder.account_info_cloned(),
+                    new_account: self.account_info_cloned(),
+                },
+            )?
+            .invoke_signed(syscalls, seeds)?;
+        } else {
+            let required_lamports = exempt_lamports.saturating_sub(current_lamports);
+            if required_lamports > 0 {
+                let cpi = SystemProgram::cpi(
+                    &system_program::Transfer {
+                        lamports: required_lamports,
+                    },
+                    system_program::TransferCpiAccounts {
+                        funder: funder.account_info_cloned(),
+                        recipient: self.account_info_cloned(),
+                    },
+                )?;
+                match funder.signer_seeds() {
+                    None => cpi.invoke(syscalls)?,
+                    Some(seeds) => cpi.invoke_signed(syscalls, &[&seeds])?,
+                }
+            }
+            let account_seeds: &[&[&[u8]]] = match &account_seeds {
+                Some(seeds) => &[seeds],
+                None => &[],
+            };
+            SystemProgram::cpi(
+                &system_program::Allocate {
+                    space: space as u64,
+                },
+                system_program::AllocateCpiAccounts {
+                    account: self.account_info_cloned(),
+                },
+            )?
+            .invoke_signed(syscalls, account_seeds)?;
+            SystemProgram::cpi(
+                &system_program::Assign { owner },
+                system_program::AssignCpiAccounts {
+                    account: self.account_info_cloned(),
+                },
+            )?
+            .invoke_signed(syscalls, account_seeds)?;
+        }
+        Ok(())
+    }
+}
+
+impl<'info, T> CanSystemCreateAccount<'info> for T where T: SingleAccountSet<'info> {}

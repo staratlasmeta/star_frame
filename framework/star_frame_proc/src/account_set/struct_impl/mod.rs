@@ -308,7 +308,7 @@ pub(super) fn derive_account_set_impl_struct(
             quote! {
                 #[automatically_derived]
                 impl #info_gen_sg_impl #prelude::CanInitSeeds<#info_lifetime, #new_generic> for #ident #ty_generics #init_seeds_where {
-                    fn init_seeds(&mut self, arg: &#new_generic, syscalls: &mut impl #prelude::SyscallInvoke<#info_lifetime>) -> #result<()> {
+                    fn init_seeds(&mut self, arg: &#new_generic, syscalls: &impl #prelude::SyscallInvoke<#info_lifetime>) -> #result<()> {
                         <#field_ty as #prelude::CanInitSeeds<#info_lifetime, #new_generic>>::init_seeds(&mut self.#field_name, arg, syscalls)
                     }
                 }
@@ -327,7 +327,7 @@ pub(super) fn derive_account_set_impl_struct(
                     fn init_account(
                         &mut self,
                         arg: #new_generic,
-                        syscalls: &mut impl #prelude::SyscallInvoke<#info_lifetime>,
+                        syscalls: &impl #prelude::SyscallInvoke<#info_lifetime>,
                         account_seeds: Option<Vec<&[u8]>>,
                     ) -> #result<()> {
                         <#field_ty as #prelude::CanInitAccount<#info_lifetime, #new_generic>>::init_account(&mut self.#field_name, arg, syscalls, account_seeds)

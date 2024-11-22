@@ -1,6 +1,4 @@
 use crate::prelude::*;
-use crate::program::system_program;
-use crate::program::system_program::CreateAccountCpiAccounts;
 use crate::util::*;
 use advance::Advance;
 use anyhow::{bail, Context};
@@ -176,7 +174,7 @@ where
 
     /// Emits a warning message if the account has more lamports than required by rent.
     #[cfg_attr(not(feature = "cleanup_rent_warning"), allow(unused_variables))]
-    pub fn check_cleanup(&self, sys_calls: &mut impl SyscallCore) -> Result<()> {
+    pub fn check_cleanup(&self, sys_calls: &impl SyscallCore) -> Result<()> {
         #[cfg(feature = "cleanup_rent_warning")]
         {
             use std::cmp::Ordering;
@@ -220,7 +218,7 @@ where
     fn init_account(
         &mut self,
         _arg: CreateIfNeeded<()>,
-        syscalls: &mut impl SyscallInvoke<'info>,
+        syscalls: &impl SyscallInvoke<'info>,
         account_seeds: Option<Vec<&[u8]>>,
     ) -> Result<()> {
         self.init_account(CreateIfNeeded((Zeroed,)), syscalls, account_seeds)
@@ -235,30 +233,26 @@ where
     fn init_account(
         &mut self,
         arg: CreateIfNeeded<(InitArg,)>,
-        syscalls: &mut impl SyscallInvoke<'info>,
+        syscalls: &impl SyscallInvoke<'info>,
         account_seeds: Option<Vec<&[u8]>>,
     ) -> Result<()> {
         let funder = syscalls
             .get_funder()
             .context("Missing `funder` for `CreateIfNeeded`")?;
-        self.init_account(
-            CreateIfNeeded((arg.0 .0, funder.clone())),
-            syscalls,
-            account_seeds,
-        )
+        self.init_account(CreateIfNeeded((arg.0 .0, funder)), syscalls, account_seeds)
     }
 }
 
 impl<'info, T: ProgramAccount + UnsizedType + ?Sized, InitArg, Funder>
-    CanInitAccount<'info, CreateIfNeeded<(InitArg, Funder)>> for DataAccount<'info, T>
+    CanInitAccount<'info, CreateIfNeeded<(InitArg, &Funder)>> for DataAccount<'info, T>
 where
     T: UnsizedInit<InitArg>,
     Funder: SignedAccount<'info> + WritableAccount<'info>,
 {
     fn init_account(
         &mut self,
-        arg: CreateIfNeeded<(InitArg, Funder)>,
-        syscalls: &mut impl SyscallInvoke<'info>,
+        arg: CreateIfNeeded<(InitArg, &Funder)>,
+        syscalls: &impl SyscallInvoke<'info>,
         account_seeds: Option<Vec<&[u8]>>,
     ) -> Result<()> {
         if self.owner() == &SystemProgram::PROGRAM_ID
@@ -281,7 +275,7 @@ where
     fn init_account(
         &mut self,
         _arg: Create<()>,
-        syscalls: &mut impl SyscallInvoke<'info>,
+        syscalls: &impl SyscallInvoke<'info>,
         account_seeds: Option<Vec<&[u8]>>,
     ) -> Result<()> {
         self.init_account(Create((Zeroed,)), syscalls, account_seeds)
@@ -296,64 +290,40 @@ where
     fn init_account(
         &mut self,
         arg: Create<(InitArg,)>,
-        syscalls: &mut impl SyscallInvoke<'info>,
+        syscalls: &impl SyscallInvoke<'info>,
         account_seeds: Option<Vec<&[u8]>>,
     ) -> Result<()> {
         let funder = syscalls
             .get_funder()
-            .context("Missing `funder` for `Create`")?
-            .clone();
+            .context("Missing `funder` for `Create`")?;
         self.init_account(Create((arg.0 .0, funder)), syscalls, account_seeds)
     }
 }
 
 impl<'info, T: ProgramAccount + UnsizedType + ?Sized, InitArg, Funder>
-    CanInitAccount<'info, Create<(InitArg, Funder)>> for DataAccount<'info, T>
+    CanInitAccount<'info, Create<(InitArg, &Funder)>> for DataAccount<'info, T>
 where
     T: UnsizedInit<InitArg>,
     Funder: SignedAccount<'info> + WritableAccount<'info>,
 {
     fn init_account(
         &mut self,
-        arg: Create<(InitArg, Funder)>,
-        syscalls: &mut impl SyscallInvoke<'info>,
+        arg: Create<(InitArg, &Funder)>,
+        syscalls: &impl SyscallInvoke<'info>,
         account_seeds: Option<Vec<&[u8]>>,
     ) -> Result<()> {
         self.check_writable()
             .context("InitAccount must be writable")?;
         let (arg, funder) = arg.0;
-        if self.owner() != &SystemProgram::PROGRAM_ID {
-            bail!(ProgramError::IllegalOwner);
-        }
-        let rent = syscalls.get_rent()?;
         let size =
             T::INIT_BYTES + size_of::<<T::OwnerProgram as StarFrameProgram>::AccountDiscriminant>();
-        let cpi = SystemProgram::cpi(
-            &system_program::CreateAccount {
-                lamports: rent.minimum_balance(size),
-                owner: T::OwnerProgram::PROGRAM_ID,
-                space: size as u64,
-            },
-            CreateAccountCpiAccounts {
-                funder: funder.account_info_cloned(),
-                new_account: self.account_info_cloned(),
-            },
+        self.system_create_account(
+            funder,
+            T::OwnerProgram::PROGRAM_ID,
+            size,
+            &account_seeds,
+            syscalls,
         )?;
-
-        match (funder.signer_seeds(), account_seeds) {
-            (None, None) => {
-                cpi.invoke(syscalls)?;
-            }
-            (Some(funder), None) => {
-                cpi.invoke_signed(syscalls, &[&funder])?;
-            }
-            (None, Some(account_seeds)) => {
-                cpi.invoke_signed(syscalls, &[&account_seeds])?;
-            }
-            (Some(funder), Some(account_seeds)) => {
-                cpi.invoke_signed(syscalls, &[&account_seeds, &funder])?;
-            }
-        }
         {
             let mut data_bytes = self.info_data_bytes_mut()?;
             let mut data_bytes = &mut **data_bytes;

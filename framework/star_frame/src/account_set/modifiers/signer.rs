@@ -34,7 +34,7 @@ impl<'info, T, A> CanInitSeeds<'info, A> for Signer<T>
 where
     Self: SingleAccountSet<'info> + AccountSetValidate<'info, A>,
 {
-    fn init_seeds(&mut self, _arg: &A, _syscalls: &mut impl SyscallInvoke<'info>) -> Result<()> {
+    fn init_seeds(&mut self, _arg: &A, _syscalls: &impl SyscallInvoke<'info>) -> Result<()> {
         Ok(())
     }
 }

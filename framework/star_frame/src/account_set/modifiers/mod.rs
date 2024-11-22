@@ -37,7 +37,7 @@ pub trait HasSeeds {
 
 /// A trait that allows setting seeds on the underlying account. This helps enable the [`Init`] and [`Seeded`] modifiers.
 pub trait CanInitSeeds<'info, A>: SingleAccountSet<'info> + AccountSetValidate<'info, A> {
-    fn init_seeds(&mut self, arg: &A, syscalls: &mut impl SyscallInvoke<'info>) -> Result<()>;
+    fn init_seeds(&mut self, arg: &A, syscalls: &impl SyscallInvoke<'info>) -> Result<()>;
 }
 
 /// A trait that provides logic for the initializing the underlying account. This helps enable the [`Init`] and [`Seeded`] modifiers.
@@ -45,7 +45,7 @@ pub trait CanInitAccount<'info, A>: SingleAccountSet<'info> {
     fn init_account(
         &mut self,
         arg: A,
-        syscalls: &mut impl SyscallInvoke<'info>,
+        syscalls: &impl SyscallInvoke<'info>,
         account_seeds: Option<Vec<&[u8]>>,
     ) -> Result<()>;
 }
