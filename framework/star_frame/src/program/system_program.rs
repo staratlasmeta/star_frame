@@ -217,4 +217,6 @@ mod tests {
         let idl = SystemProgram::program_to_idl().unwrap();
         println!("{}", serde_json::to_string_pretty(&idl).unwrap());
     }
+
+    // TODO: add tests for all the ix builders to ensure they match the solana_program::system_instruction ix methods
 }
