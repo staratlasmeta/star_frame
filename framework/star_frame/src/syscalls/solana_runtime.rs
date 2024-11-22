@@ -112,6 +112,7 @@ impl<'info> SyscallCore for SolanaRuntime<'info> {
 
     fn get_rent(&self) -> std::result::Result<Rent, ProgramError> {
         let mut rent = self.rent_cache.borrow_mut();
+        #[allow(clippy::clone_on_copy)]
         match &*rent {
             None => {
                 let new_rent = Rent::get()?;
