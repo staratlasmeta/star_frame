@@ -10,7 +10,6 @@ proc-macro = true
 
 [features]
 default = []
-idl = []
 
 [dependencies]
 bs58 = { workspace = true }

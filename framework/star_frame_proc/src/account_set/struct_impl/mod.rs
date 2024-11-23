@@ -1,7 +1,7 @@
 use crate::account_set::generics::AccountSetGenerics;
 use crate::account_set::struct_impl::decode::DecodeFieldTy;
 use crate::account_set::{AccountSetStructArgs, SingleAccountSetFieldArgs, StrippedDeriveInput};
-use crate::util::{cfg_idl, make_struct, new_generic, new_lifetime, Paths};
+use crate::util::{make_struct, new_generic, new_lifetime, Paths};
 use easy_proc::{find_attr, ArgumentList};
 use itertools::Itertools;
 use proc_macro2::TokenStream;
@@ -10,7 +10,10 @@ use quote::{format_ident, quote, ToTokens};
 use std::ops::Not;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
-use syn::{bracketed, parse_quote, token, DataStruct, Field, Ident, Index, Token, WherePredicate};
+use syn::{
+    bracketed, parse_quote, token, Attribute, DataStruct, Field, Ident, Index, Token,
+    WherePredicate,
+};
 
 mod cleanup;
 mod decode;
@@ -37,9 +40,27 @@ impl Parse for Requires {
 struct AccountSetFieldAttrs {
     skip: Option<TokenStream>,
     #[argument(presence)]
+    program: bool,
+    #[argument(presence)]
     funder: bool,
     #[argument(presence)]
     recipient: bool,
+}
+
+impl AccountSetFieldAttrs {
+    fn skip(&self) -> bool {
+        if self.skip.is_some() {
+            if self.program || self.funder || self.recipient {
+                abort!(
+                    self.skip,
+                    "Cannot use `skip` with `program`, `funder`, or `recipient`"
+                );
+            }
+            true
+        } else {
+            false
+        }
+    }
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -82,7 +103,7 @@ pub(super) fn derive_account_set_impl_struct(
     let filter_skip = |f: &&Field| -> bool {
         find_attr(&f.attrs, &paths.account_set_ident)
             .map(AccountSetFieldAttrs::parse_arguments)
-            .map(|args| args.skip.is_none())
+            .map(|args| !args.skip())
             .unwrap_or(true)
     };
 
@@ -512,12 +533,12 @@ pub(super) fn derive_account_set_impl_struct(
     let decodes = decode::decodes(step_input, &data_struct, &all_field_name, &decode_types);
     let validates = validate::validates(step_input);
     let cleanups = cleanup::cleanups(step_input);
-    let idls = cfg_idl(false, || idl::idls(step_input));
+    let idls = idl::idls(step_input);
 
     let set_account_caches = {
-        let find_field_name =
-            |name: &str, is_active: fn(AccountSetFieldAttrs) -> bool| -> Option<TokenStream> {
-                let names = data_struct
+        let find_field_names =
+            |is_active: fn(AccountSetFieldAttrs) -> bool| -> Vec<(TokenStream, Attribute)> {
+                data_struct
                     .fields
                     .iter()
                     .zip(all_field_name.iter())
@@ -526,32 +547,47 @@ pub(super) fn derive_account_set_impl_struct(
                         let args = AccountSetFieldAttrs::parse_arguments(attr);
                         is_active(args).then_some((name.clone(), attr.clone()))
                     })
-                    .collect_vec();
-                if names.len() > 1 {
-                    abort!(
-                        names[1].1,
-                        format!("Only one field can be marked as {}", name)
-                    );
-                }
-                names.first().map(|(name, _)| name.clone())
+                    .collect_vec()
             };
 
-        let set_funder = find_field_name("funder", |args| args.funder).map(|field_name| {
-            quote! {
-                if syscalls.get_funder().is_none() {
-                    syscalls.set_funder(&self.#field_name);
-                }
+        let single_name = |name: &str, names: &[(TokenStream, Attribute)]| {
+            if names.len() > 1 {
+                abort!(
+                    names[1].1,
+                    format!("Only one field can be marked as {}", name)
+                );
             }
-        });
+            names.first().map(|(name, _)| name.clone())
+        };
 
-        let set_recipient = find_field_name("recipient", |args| args.recipient).map(|field_name| {
-            quote! {
-                if syscalls.get_recipient().is_none() {
-                    syscalls.set_recipient(&self.#field_name);
+        let set_programs = find_field_names(|args| args.program)
+            .iter()
+            .map(|(name, _attr)| {
+                quote! {
+                    syscalls.insert_program(&self.#name);
                 }
-            }
-        });
+            })
+            .collect_vec();
+
+        let set_funder =
+            single_name("funder", &find_field_names(|args| args.funder)).map(|field_name| {
+                quote! {
+                    if syscalls.get_funder().is_none() {
+                        syscalls.set_funder(&self.#field_name);
+                    }
+                }
+            });
+
+        let set_recipient =
+            single_name("recipient", &find_field_names(|args| args.recipient)).map(|field_name| {
+                quote! {
+                    if syscalls.get_recipient().is_none() {
+                        syscalls.set_recipient(&self.#field_name);
+                    }
+                }
+            });
         quote! {
+            #(#set_programs)*
             #set_funder
             #set_recipient
         }

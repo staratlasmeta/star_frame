@@ -21,14 +21,6 @@ use syn::{
     FieldsNamed, FieldsUnnamed, ItemStruct, Lit, Meta, MetaNameValue, Path, Token, Type, Variant,
 };
 
-pub fn cfg_idl<T: Default>(skip_idl: bool, tokens: impl FnOnce() -> T) -> T {
-    if !skip_idl && cfg!(feature = "idl") {
-        tokens()
-    } else {
-        T::default()
-    }
-}
-
 pub fn get_crate_name() -> TokenStream {
     let generator_crate = crate_name("star_frame").expect("Could not find `star_frame`");
     match generator_crate {

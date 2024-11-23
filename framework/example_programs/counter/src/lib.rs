@@ -204,12 +204,15 @@ mod tests {
     use solana_program_test::*;
     use solana_sdk::signature::{Keypair, Signer};
     use solana_sdk::transaction::Transaction;
-    use star_frame::serde_json;
 
+    #[cfg(feature = "idl")]
     #[test]
     fn idl_test() {
         let idl = CounterProgram::program_to_idl().unwrap();
-        println!("{}", serde_json::to_string_pretty(&idl).unwrap());
+        println!(
+            "{}",
+            star_frame::serde_json::to_string_pretty(&idl).unwrap()
+        );
     }
 
     #[tokio::test]

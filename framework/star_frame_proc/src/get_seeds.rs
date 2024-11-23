@@ -1,4 +1,4 @@
-use crate::util::{cfg_idl, get_docs, Paths};
+use crate::util::{get_docs, Paths};
 use easy_proc::{find_attr, ArgumentList};
 use proc_macro2::TokenStream;
 use proc_macro_error::abort;
@@ -44,7 +44,7 @@ pub fn derive_get_seeds_impl(input: DeriveInput) -> TokenStream {
         );
     }
 
-    let idl_impl = cfg_idl(skip_idl, || {
+    let idl_impl = (!skip_idl).then(|| {
         let seeds_to_idl = {
             let mut generics = input.generics.clone();
             let where_clause = generics.make_where_clause();
@@ -78,7 +78,7 @@ pub fn derive_get_seeds_impl(input: DeriveInput) -> TokenStream {
                 .chain(field_seeds);
 
             quote! {
-                #[cfg(not(target_os = "solana"))]
+                #[cfg(all(feature = "idl", not(target_os = "solana")))]
                 #[automatically_derived]
                 impl #impl_generics #prelude::SeedsToIdl for #ident #type_generics #where_clause {
                     fn seeds_to_idl(idl_definition: &mut #prelude::IdlDefinition) -> #result<#prelude::IdlSeeds> {
@@ -117,14 +117,14 @@ pub fn derive_get_seeds_impl(input: DeriveInput) -> TokenStream {
             });
 
             quote! {
-                #[cfg(not(target_os = "solana"))]
+                #[cfg(all(feature = "idl", not(target_os = "solana")))]
                 #[automatically_derived]
                 #[derive(Debug, Clone)]
                 pub struct #find_seeds_ident #type_generics #where_clause {
                     #(#find_fields),*
                 }
 
-                #[cfg(not(target_os = "solana"))]
+                #[cfg(all(feature = "idl", not(target_os = "solana")))]
                 #[automatically_derived]
                 impl #impl_generics #prelude::FindIdlSeeds for #find_seeds_ident #type_generics #where_clause {
                     fn find_seeds(&self) -> #result<Vec<#prelude::IdlFindSeed>> {

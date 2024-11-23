@@ -11,7 +11,6 @@ mod solana_pubkey;
 mod unsize;
 mod util;
 
-use crate::util::cfg_idl;
 use proc_macro_error::proc_macro_error;
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
@@ -261,8 +260,7 @@ pub fn unsized_type(
 #[proc_macro_error]
 #[proc_macro_derive(TypeToIdl, attributes(type_to_idl))]
 pub fn derive_type_to_idl(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let item = parse_macro_input!(item as DeriveInput);
-    let out = cfg_idl(false, || idl::derive_type_to_idl(item));
+    let out = idl::derive_type_to_idl(parse_macro_input!(item as DeriveInput));
     out.into()
 }
 
@@ -270,8 +268,7 @@ pub fn derive_type_to_idl(item: proc_macro::TokenStream) -> proc_macro::TokenStr
 #[proc_macro_error]
 #[proc_macro_derive(InstructionToIdl, attributes(instruction_to_idl, type_to_idl))]
 pub fn derive_instruction_to_idl(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let input = parse_macro_input!(input as DeriveInput);
-    let out = cfg_idl(false, || idl::derive_instruction_to_idl(input));
+    let out = idl::derive_instruction_to_idl(parse_macro_input!(input as DeriveInput));
     out.into()
 }
 

@@ -214,7 +214,7 @@ pub(super) fn idls(
                 }
             };
             quote! {
-                #[cfg(not(target_os = "solana"))]
+                #[cfg(all(feature = "idl", not(target_os = "solana")))]
                 #[automatically_derived]
                 impl #impl_generics #prelude::AccountSetToIdl<#info_lifetime, #idl_type> for #ident #ty_generics #where_clause {
                     fn account_set_to_idl(

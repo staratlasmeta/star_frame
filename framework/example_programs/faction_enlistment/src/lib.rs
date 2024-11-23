@@ -140,6 +140,7 @@ mod tests {
     use solana_sdk::signature::{Keypair, Signer};
     use star_frame::solana_program::native_token::LAMPORTS_PER_SOL;
 
+    #[cfg(feature = "idl")]
     #[test]
     fn idl() {
         let idl = FactionEnlistment::program_to_idl().unwrap();
