@@ -7,7 +7,7 @@ use std::fmt::Debug;
 
 /// Packs a given `T` to be align 1.
 #[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Align1, Pod, Zeroable, Derivative, From)]
+#[derive(Align1, Pod, Zeroable, Derivative, From, Default)]
 #[derivative(
     Debug(bound = "T: Debug + Copy"),
     Copy,
