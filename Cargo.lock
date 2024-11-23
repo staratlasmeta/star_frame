@@ -1590,7 +1590,9 @@ dependencies = [
  "solana-program-test",
  "solana-sdk",
  "solana-transaction-status",
+ "spl-associated-token-account 3.0.4",
  "star_frame",
+ "star_frame_spl",
  "tokio",
 ]
 
@@ -5556,6 +5558,7 @@ version = "0.0.1"
 dependencies = [
  "arrayref",
  "borsh 1.5.3",
+ "bytemuck",
  "num_enum 0.6.1",
  "pretty_assertions",
  "spl-associated-token-account 3.0.4",

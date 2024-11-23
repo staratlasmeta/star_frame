@@ -8,17 +8,18 @@ rust-version.workspace = true
 [features]
 # todo: are these default features okay?
 default = ["token", "associated_token"]
-token = ["spl-token"]
-associated_token = ["spl-associated-token-account"]
+token = []
+associated_token = []
 idl = ["star_frame/idl"]
 
 [dependencies]
 star_frame.workspace = true
-spl-token = { workspace = true, optional = true, features = ["no-entrypoint"] }
 arrayref.workspace = true
-spl-associated-token-account = { workspace = true, optional = true, features = ["no-entrypoint"] }
 borsh.workspace = true
 num_enum.workspace = true
+bytemuck.workspace = true
 
 [dev-dependencies]
+spl-associated-token-account.workspace = true
+spl-token.workspace = true
 pretty_assertions.workspace = true
