@@ -220,7 +220,6 @@ where
 /// It validates the account data on validate and provides cheap accessor methods for accessing fields
 /// without deserializing the entire account data, although it does provide full deserialization methods.
 #[derive(AccountSet, Debug, Clone)]
-#[account_set(skip_default_idl)]
 #[validate(extra_validation = self.validate())]
 #[validate(
     id = "validate_token", arg = ValidateToken, generics = [],
