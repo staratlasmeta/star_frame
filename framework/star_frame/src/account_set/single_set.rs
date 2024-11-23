@@ -307,7 +307,7 @@ pub trait CanSystemCreateAccount<'info>: SingleAccountSet<'info> {
             )?
             .invoke_signed(syscalls, seeds)?;
         } else {
-            let required_lamports = exempt_lamports.saturating_sub(current_lamports);
+            let required_lamports = exempt_lamports.saturating_sub(current_lamports).max(1);
             if required_lamports > 0 {
                 let cpi = SystemProgram::cpi(
                     &system_program::Transfer {
