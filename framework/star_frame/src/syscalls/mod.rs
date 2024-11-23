@@ -1,5 +1,6 @@
 pub mod solana_runtime;
-use crate::account_set::{Mut, SignedAccount, SignerInfo, WritableAccount};
+use crate::account_set::{Mut, Program, SignedAccount, SignerInfo, WritableAccount};
+use crate::program::StarFrameProgram;
 use crate::SolanaInstruction;
 use solana_program::account_info::AccountInfo;
 use solana_program::clock::Clock;
@@ -69,6 +70,14 @@ pub trait SyscallAccountCache<'info> {
     }
     /// Sets the recipient cache if Self has one. No-op if it doesn't.
     fn set_recipient(&mut self, _recipient: &impl WritableAccount<'info>) {}
+
+    /// Inserts a program into the program cache if it doesn't already exist.
+    fn insert_program<T: StarFrameProgram>(&mut self, _program: &Program<'info, T>) {}
+
+    /// Gets the program from the cache if it exists.
+    fn get_program<T: StarFrameProgram>(&self) -> Option<&Program<'info, T>> {
+        None
+    }
 }
 
 /// System calls that all syscall implementations must provide.
