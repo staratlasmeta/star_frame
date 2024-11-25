@@ -21,6 +21,7 @@ star_frame_spl.workspace = true
 bytemuck.workspace = true
 
 [dev-dependencies]
+spl-associated-token-account.workspace = true
 solana-program-test.workspace = true
 solana-sdk.workspace = true
 solana-transaction-status.workspace = true

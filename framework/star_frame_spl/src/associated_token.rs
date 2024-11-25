@@ -1,3 +1,4 @@
+use crate::token::TokenProgram;
 use borsh::{BorshDeserialize, BorshSerialize};
 use star_frame::empty_star_frame_instruction;
 use star_frame::prelude::*;
@@ -17,35 +18,83 @@ impl StarFrameProgram for AssociatedTokenProgram {
     const PROGRAM_ID: Pubkey = pubkey!("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");
 }
 
-#[cfg(all(feature = "idl", not(target_os = "solana")))]
-impl ProgramToIdl for AssociatedTokenProgram {
-    fn crate_metadata() -> star_frame::star_frame_idl::CrateMetadata {
-        star_frame::star_frame_idl::CrateMetadata {
-            version: star_frame::star_frame_idl::Version::new(3, 0, 4),
-            name: "associated_token".to_string(),
-            docs: vec![],
-            description: None,
-            homepage: None,
-            license: None,
-            repository: None,
-        }
-    }
+/// A helper struct for calling the [`FindProgramAddress`] trait for associated token accounts.
+/// ```
+/// # use star_frame_spl::associated_token::{Ata, AtaSeeds};
+/// # use star_frame::prelude::*;
+/// let address = Ata::find_program_address(&AtaSeeds {
+///     mint: Pubkey::new_unique(),
+///     wallet: Pubkey::new_unique(),
+/// });
+/// ```
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
+pub struct Ata;
+
+impl HasSeeds for Ata {
+    type Seeds = AtaSeeds;
 }
 
-#[derive(Copy, Debug, Clone, PartialEq, Eq, InstructionSet)]
-#[ix_set(use_repr)]
-#[repr(u8)]
-pub enum AssociatedTokenInstructionSet {
-    Create(Create),
-    // CreateIdempotent(), todo
-    // InitializeMultisig(), todo
+impl HasOwnerProgram for Ata {
+    type OwnerProgram = AssociatedTokenProgram;
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, BorshDeserialize, BorshSerialize)]
+pub struct AtaSeeds {
+    pub wallet: Pubkey,
+    pub mint: Pubkey,
+}
+
+impl GetSeeds for AtaSeeds {
+    fn seeds(&self) -> Vec<&[u8]> {
+        vec![
+            self.wallet.seed(),
+            TokenProgram::PROGRAM_ID.as_ref(),
+            self.mint.seed(),
+        ]
+    }
 }
 
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
 mod idl_impl {
     use super::*;
-    use star_frame::idl::{FindIdlSeeds, FindSeed};
-    use star_frame::star_frame_idl::seeds::IdlFindSeed;
+    use star_frame::idl::{FindIdlSeeds, FindSeed, SeedsToIdl};
+    use star_frame::star_frame_idl::seeds::{IdlFindSeed, IdlSeed, IdlSeeds};
+
+    use crate::token::TokenProgram;
+    use star_frame::star_frame_idl::IdlDefinition;
+
+    impl SeedsToIdl for AtaSeeds {
+        fn seeds_to_idl(idl_definition: &mut IdlDefinition) -> Result<IdlSeeds> {
+            Ok(IdlSeeds(vec![
+                IdlSeed::Variable {
+                    name: "wallet".to_string(),
+                    description: vec![],
+                    ty: <Pubkey as TypeToIdl>::type_to_idl(idl_definition)?,
+                },
+                IdlSeed::Const(TokenProgram::PROGRAM_ID.as_ref().to_vec()),
+                IdlSeed::Variable {
+                    name: "mint".to_string(),
+                    description: vec![],
+                    ty: <Pubkey as TypeToIdl>::type_to_idl(idl_definition)?,
+                },
+            ]))
+        }
+    }
+
+    impl ProgramToIdl for AssociatedTokenProgram {
+        fn crate_metadata() -> star_frame::star_frame_idl::CrateMetadata {
+            star_frame::star_frame_idl::CrateMetadata {
+                version: star_frame::star_frame_idl::Version::new(3, 0, 4),
+                name: "associated_token".to_string(),
+                docs: vec![],
+                description: None,
+                homepage: None,
+                license: None,
+                repository: None,
+            }
+        }
+    }
+
     #[derive(Debug, Clone)]
     pub struct FindAtaSeeds {
         pub wallet: FindSeed<Pubkey>,
@@ -62,7 +111,15 @@ mod idl_impl {
     }
 }
 
-use crate::token::TokenProgram;
+#[derive(Copy, Debug, Clone, PartialEq, Eq, InstructionSet)]
+#[ix_set(use_repr)]
+#[repr(u8)]
+pub enum AssociatedTokenInstructionSet {
+    Create(Create),
+    // CreateIdempotent(), todo
+    // InitializeMultisig(), todo
+}
+
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
 use idl_impl::*;
 
@@ -96,6 +153,10 @@ mod tests {
     #[cfg(feature = "idl")]
     #[test]
     fn print_token_idl() -> Result<()> {
+        let address = Ata::find_program_address(&AtaSeeds {
+            wallet: Default::default(),
+            mint: Default::default(),
+        });
         let idl = AssociatedTokenProgram::program_to_idl()?;
         println!("{}", star_frame::serde_json::to_string_pretty(&idl)?);
         Ok(())

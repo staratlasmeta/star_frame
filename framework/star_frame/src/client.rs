@@ -1,3 +1,4 @@
+use crate::account_set::{GetSeeds, HasOwnerProgram, HasSeeds};
 use crate::instruction::{InstructionDiscriminant, InstructionSet, StarFrameInstruction};
 use crate::prelude::{StarFrameProgram, SyscallInvoke};
 use crate::SolanaInstruction;
@@ -131,3 +132,21 @@ pub trait MakeInstruction<'info>: StarFrameProgram {
 }
 
 impl<'info, T> MakeInstruction<'info> for T where T: StarFrameProgram + ?Sized {}
+
+pub trait FindProgramAddress: HasSeeds + HasOwnerProgram {
+    fn find_program_address(seeds: &Self::Seeds) -> (Pubkey, u8) {
+        Pubkey::find_program_address(&seeds.seeds(), &Self::OwnerProgram::PROGRAM_ID)
+    }
+
+    fn create_program_address(seeds: &Self::Seeds, bump: u8) -> anyhow::Result<Pubkey> {
+        let mut seeds = seeds.seeds();
+        let bump = &[bump];
+        seeds.push(bump);
+        Ok(Pubkey::create_program_address(
+            &seeds,
+            &Self::OwnerProgram::PROGRAM_ID,
+        )?)
+    }
+}
+
+impl<T> FindProgramAddress for T where T: HasSeeds + HasOwnerProgram {}

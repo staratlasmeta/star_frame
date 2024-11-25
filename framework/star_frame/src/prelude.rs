@@ -15,7 +15,9 @@ pub use crate::unsize::*;
 
 pub use crate::align1::Align1;
 
-pub use crate::client::{ClientAccountSet, CpiAccountSet, CpiBuilder, MakeCpi, MakeInstruction};
+pub use crate::client::{
+    ClientAccountSet, CpiAccountSet, CpiBuilder, FindProgramAddress, MakeCpi, MakeInstruction,
+};
 
 pub use crate::program::{system_program::SystemProgram, StarFrameProgram};
 pub use crate::pubkey;
