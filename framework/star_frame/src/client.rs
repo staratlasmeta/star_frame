@@ -62,8 +62,8 @@ impl<'info> CpiBuilder<'info> {
 
     pub fn invoke_signed(
         &self,
-        syscalls: &impl SyscallInvoke<'info>,
         signer_seeds: &[&[&[u8]]],
+        syscalls: &impl SyscallInvoke<'info>,
     ) -> ProgramResult {
         syscalls.invoke_signed(&self.instruction, &self.accounts, signer_seeds)
     }

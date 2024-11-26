@@ -6,6 +6,35 @@ use star_frame::prelude::*;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
 pub struct AssociatedTokenProgram;
 
+impl AssociatedTokenProgram {
+    /// Find the associated token address for the given wallet and mint.
+    ///
+    /// See [`spl_associated_token_account::get_associated_token_address`].
+    /// ```
+    /// # use star_frame_spl::associated_token::AssociatedTokenProgram;
+    /// # use spl_associated_token_account::get_associated_token_address;
+    /// # use pretty_assertions::assert_eq;
+    /// # use star_frame::prelude::Pubkey;
+    /// let wallet = Pubkey::new_unique();
+    /// let mint = Pubkey::new_unique();
+    /// assert_eq!(
+    ///     AssociatedTokenProgram::find_address(&wallet, &mint),
+    ///     get_associated_token_address(&wallet, &mint),
+    /// );
+    /// ```
+    pub fn find_address(wallet: &Pubkey, mint: &Pubkey) -> Pubkey {
+        Pubkey::find_program_address(
+            &[
+                wallet.as_ref(),
+                TokenProgram::PROGRAM_ID.as_ref(),
+                mint.as_ref(),
+            ],
+            &Self::PROGRAM_ID,
+        )
+        .0
+    }
+}
+
 impl StarFrameProgram for AssociatedTokenProgram {
     type InstructionSet = AssociatedTokenInstructionSet;
     type AccountDiscriminant = ();
@@ -18,42 +47,6 @@ impl StarFrameProgram for AssociatedTokenProgram {
     const PROGRAM_ID: Pubkey = pubkey!("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");
 }
 
-/// A helper struct for calling the [`FindProgramAddress`] trait for associated token accounts.
-/// ```
-/// # use star_frame_spl::associated_token::{Ata, AtaSeeds};
-/// # use star_frame::prelude::*;
-/// let address = Ata::find_program_address(&AtaSeeds {
-///     mint: Pubkey::new_unique(),
-///     wallet: Pubkey::new_unique(),
-/// });
-/// ```
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
-pub struct Ata;
-
-impl HasSeeds for Ata {
-    type Seeds = AtaSeeds;
-}
-
-impl HasOwnerProgram for Ata {
-    type OwnerProgram = AssociatedTokenProgram;
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, BorshDeserialize, BorshSerialize)]
-pub struct AtaSeeds {
-    pub wallet: Pubkey,
-    pub mint: Pubkey,
-}
-
-impl GetSeeds for AtaSeeds {
-    fn seeds(&self) -> Vec<&[u8]> {
-        vec![
-            self.wallet.seed(),
-            TokenProgram::PROGRAM_ID.as_ref(),
-            self.mint.seed(),
-        ]
-    }
-}
-
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
 mod idl_impl {
     use super::*;
@@ -63,7 +56,26 @@ mod idl_impl {
     use crate::token::TokenProgram;
     use star_frame::star_frame_idl::IdlDefinition;
 
-    impl SeedsToIdl for AtaSeeds {
+    #[derive(Debug, Clone, PartialEq, Eq, BorshDeserialize, BorshSerialize)]
+    pub struct AssociatedTokenSeeds {
+        pub wallet: Pubkey,
+        pub mint: Pubkey,
+    }
+
+    pub type AtaSeeds = AssociatedTokenSeeds;
+    pub type FindAtaSeeds = FindAssociatedTokenSeeds;
+
+    impl GetSeeds for AssociatedTokenSeeds {
+        fn seeds(&self) -> Vec<&[u8]> {
+            vec![
+                self.wallet.seed(),
+                TokenProgram::PROGRAM_ID.as_ref(),
+                self.mint.seed(),
+            ]
+        }
+    }
+
+    impl SeedsToIdl for AssociatedTokenSeeds {
         fn seeds_to_idl(idl_definition: &mut IdlDefinition) -> Result<IdlSeeds> {
             Ok(IdlSeeds(vec![
                 IdlSeed::Variable {
@@ -96,11 +108,11 @@ mod idl_impl {
     }
 
     #[derive(Debug, Clone)]
-    pub struct FindAtaSeeds {
+    pub struct FindAssociatedTokenSeeds {
         pub wallet: FindSeed<Pubkey>,
         pub mint: FindSeed<Pubkey>,
     }
-    impl FindIdlSeeds for FindAtaSeeds {
+    impl FindIdlSeeds for FindAssociatedTokenSeeds {
         fn find_seeds(&self) -> Result<Vec<IdlFindSeed>> {
             Ok(vec![
                 Into::into(&self.wallet),
@@ -111,6 +123,9 @@ mod idl_impl {
     }
 }
 
+#[cfg(all(feature = "idl", not(target_os = "solana")))]
+pub use idl_impl::*;
+
 #[derive(Copy, Debug, Clone, PartialEq, Eq, InstructionSet)]
 #[ix_set(use_repr)]
 #[repr(u8)]
@@ -119,9 +134,6 @@ pub enum AssociatedTokenInstructionSet {
     // CreateIdempotent(), todo
     // InitializeMultisig(), todo
 }
-
-#[cfg(all(feature = "idl", not(target_os = "solana")))]
-use idl_impl::*;
 
 // create
 /// See [`spl_associated_token_account::instruction::AssociatedTokenAccountInstruction::Create`].
@@ -148,15 +160,12 @@ empty_star_frame_instruction!(Create, CreateAccounts);
 
 #[cfg(test)]
 mod tests {
+    #[allow(unused_imports)]
     use super::*;
 
     #[cfg(feature = "idl")]
     #[test]
     fn print_token_idl() -> Result<()> {
-        let address = Ata::find_program_address(&AtaSeeds {
-            wallet: Default::default(),
-            mint: Default::default(),
-        });
         let idl = AssociatedTokenProgram::program_to_idl()?;
         println!("{}", star_frame::serde_json::to_string_pretty(&idl)?);
         Ok(())

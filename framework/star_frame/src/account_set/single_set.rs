@@ -220,7 +220,7 @@ pub trait CanModifyRent<'info>: SingleAccountSet<'info> {
                 )?;
                 match funder.signer_seeds() {
                     None => cpi.invoke(syscalls)?,
-                    Some(seeds) => cpi.invoke_signed(syscalls, &[&seeds])?,
+                    Some(seeds) => cpi.invoke_signed(&[&seeds], syscalls)?,
                 };
                 Ok(())
             }
@@ -305,7 +305,7 @@ pub trait CanSystemCreateAccount<'info>: SingleAccountSet<'info> {
                     new_account: self.account_info_cloned(),
                 },
             )?
-            .invoke_signed(syscalls, seeds)?;
+            .invoke_signed(seeds, syscalls)?;
         } else {
             let required_lamports = exempt_lamports.saturating_sub(current_lamports).max(1);
             if required_lamports > 0 {
@@ -320,7 +320,7 @@ pub trait CanSystemCreateAccount<'info>: SingleAccountSet<'info> {
                 )?;
                 match funder.signer_seeds() {
                     None => cpi.invoke(syscalls)?,
-                    Some(seeds) => cpi.invoke_signed(syscalls, &[&seeds])?,
+                    Some(seeds) => cpi.invoke_signed(&[&seeds], syscalls)?,
                 }
             }
             let account_seeds: &[&[&[u8]]] = match &account_seeds {
@@ -335,14 +335,14 @@ pub trait CanSystemCreateAccount<'info>: SingleAccountSet<'info> {
                     account: self.account_info_cloned(),
                 },
             )?
-            .invoke_signed(syscalls, account_seeds)?;
+            .invoke_signed(account_seeds, syscalls)?;
             SystemProgram::cpi(
                 &system_program::Assign { owner },
                 system_program::AssignCpiAccounts {
                     account: self.account_info_cloned(),
                 },
             )?
-            .invoke_signed(syscalls, account_seeds)?;
+            .invoke_signed(account_seeds, syscalls)?;
         }
         Ok(())
     }

@@ -215,7 +215,7 @@ where
                 mint: self.account_info_cloned(),
             },
         )?
-        .invoke_signed(syscalls, account_seeds)?;
+        .invoke_signed(account_seeds, syscalls)?;
         Ok(())
     }
 }
