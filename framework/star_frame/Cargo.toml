@@ -3,10 +3,11 @@ name = "star_frame"
 version.workspace = true
 edition.workspace = true
 publish.workspace = true
+rust-version.workspace = true
 
 [features]
 cleanup_rent_warning = []
-idl = ["star_frame_idl", "serde_json", "star_frame_proc/idl"]
+idl = ["star_frame_idl", "serde_json"]
 test_helpers = []
 
 [dependencies]

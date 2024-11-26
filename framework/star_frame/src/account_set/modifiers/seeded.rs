@@ -83,13 +83,13 @@ pub struct Seeds<T>(pub T);
 #[derive(Debug, Clone, Copy)]
 pub struct CurrentProgram;
 pub trait SeedProgram {
-    fn id(sys_calls: &mut impl SyscallCore) -> Result<Pubkey>;
+    fn id(sys_calls: &impl SyscallCore) -> Result<Pubkey>;
     #[cfg(all(feature = "idl", not(target_os = "solana")))]
     fn idl_program() -> Option<Pubkey>;
 }
 
 impl SeedProgram for CurrentProgram {
-    fn id(sys_calls: &mut impl SyscallCore) -> Result<Pubkey> {
+    fn id(sys_calls: &impl SyscallCore) -> Result<Pubkey> {
         Ok(*sys_calls.current_program_id())
     }
     #[cfg(all(feature = "idl", not(target_os = "solana")))]
@@ -102,7 +102,7 @@ impl<P> SeedProgram for P
 where
     P: StarFrameProgram,
 {
-    fn id(_syscalls: &mut impl SyscallCore) -> Result<Pubkey> {
+    fn id(_syscalls: &impl SyscallCore) -> Result<Pubkey> {
         Ok(P::PROGRAM_ID)
     }
 
@@ -168,7 +168,7 @@ where
     fn init_seeds(
         &mut self,
         arg: &(Seeds<S>, A),
-        syscalls: &mut impl SyscallInvoke<'info>,
+        syscalls: &impl SyscallInvoke<'info>,
     ) -> Result<()> {
         self.validate_and_set_seeds(&arg.0, syscalls)
     }
@@ -180,11 +180,7 @@ where
     S: GetSeeds,
     P: SeedProgram,
 {
-    fn init_seeds(
-        &mut self,
-        arg: &Seeds<S>,
-        syscalls: &mut impl SyscallInvoke<'info>,
-    ) -> Result<()> {
+    fn init_seeds(&mut self, arg: &Seeds<S>, syscalls: &impl SyscallInvoke<'info>) -> Result<()> {
         self.validate_and_set_seeds(arg, syscalls)
     }
 }
@@ -198,7 +194,7 @@ where
     fn init_seeds(
         &mut self,
         arg: &(SeedsWithBump<S>, A),
-        syscalls: &mut impl SyscallInvoke<'info>,
+        syscalls: &impl SyscallInvoke<'info>,
     ) -> Result<()> {
         self.validate_and_set_seeds_with_bump(&arg.0, syscalls)
     }
@@ -213,7 +209,7 @@ where
     fn init_seeds(
         &mut self,
         arg: &SeedsWithBump<S>,
-        syscalls: &mut impl SyscallInvoke<'info>,
+        syscalls: &impl SyscallInvoke<'info>,
     ) -> Result<()> {
         self.validate_and_set_seeds_with_bump(arg, syscalls)
     }
@@ -228,7 +224,7 @@ where
     fn validate_and_set_seeds(
         &mut self,
         seeds: &Seeds<S>,
-        sys_calls: &mut impl SyscallInvoke<'info>,
+        sys_calls: &impl SyscallInvoke<'info>,
     ) -> Result<()> {
         if self.seeds.is_some() {
             return Ok(());
@@ -251,7 +247,7 @@ where
     fn validate_and_set_seeds_with_bump(
         &mut self,
         seeds: &SeedsWithBump<S>,
-        sys_calls: &mut impl SyscallInvoke<'info>,
+        sys_calls: &impl SyscallInvoke<'info>,
     ) -> Result<()> {
         if self.seeds.is_some() {
             return Ok(());
@@ -310,7 +306,7 @@ where
     fn init_account(
         &mut self,
         arg: A,
-        syscalls: &mut impl SyscallInvoke<'info>,
+        syscalls: &impl SyscallInvoke<'info>,
         account_seeds: Option<Vec<&[u8]>>,
     ) -> Result<()> {
         // override seeds. Init should be called after seeds are set

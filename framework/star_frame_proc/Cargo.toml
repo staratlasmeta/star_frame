@@ -3,13 +3,13 @@ name = "star_frame_proc"
 version.workspace = true
 edition.workspace = true
 publish.workspace = true
+rust-version.workspace = true
 
 [lib]
 proc-macro = true
 
 [features]
 default = []
-idl = []
 
 [dependencies]
 bs58 = { workspace = true }

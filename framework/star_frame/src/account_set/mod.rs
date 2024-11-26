@@ -37,9 +37,9 @@ pub trait TryFromAccountsWithArgs<'a, 'info, D, V>:
 {
     fn try_from_accounts_with_args(
         accounts: &mut &'a [AccountInfo<'info>],
-        syscalls: &mut impl SyscallInvoke<'info>,
         decode: D,
         validate: V,
+        syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<Self> {
         let mut set = Self::decode_accounts(accounts, decode, syscalls)?;
         set.set_account_cache(syscalls);
@@ -49,15 +49,15 @@ pub trait TryFromAccountsWithArgs<'a, 'info, D, V>:
 
     fn try_from_account_with_args(
         account: &'a AccountInfo<'info>,
-        syscalls: &mut impl SyscallInvoke<'info>,
         decode: D,
         validate: V,
+        syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<Self>
     where
         Self: SingleAccountSet<'info>,
     {
         let accounts = &mut slice::from_ref(account);
-        Self::try_from_accounts_with_args(accounts, syscalls, decode, validate)
+        Self::try_from_accounts_with_args(accounts, decode, validate, syscalls)
     }
 }
 
@@ -67,7 +67,7 @@ pub trait TryFromAccounts<'a, 'info>: TryFromAccountsWithArgs<'a, 'info, (), ()>
         accounts: &mut &'a [AccountInfo<'info>],
         syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<Self> {
-        Self::try_from_accounts_with_args(accounts, syscalls, (), ())
+        Self::try_from_accounts_with_args(accounts, (), (), syscalls)
     }
 
     fn try_from_account(
@@ -77,7 +77,7 @@ pub trait TryFromAccounts<'a, 'info>: TryFromAccountsWithArgs<'a, 'info, (), ()>
     where
         Self: SingleAccountSet<'info>,
     {
-        Self::try_from_account_with_args(account, syscalls, (), ())
+        Self::try_from_account_with_args(account, (), (), syscalls)
     }
 }
 

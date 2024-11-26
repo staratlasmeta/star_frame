@@ -18,6 +18,7 @@ rust-version = "1.79.0"
 star_frame = { path = "framework/star_frame", registry = "star-atlas", version = "0.0.1" }
 star_frame_idl = { path = "framework/star_frame_idl", registry = "star-atlas", version = "0.0.1" }
 star_frame_proc = { path = "framework/star_frame_proc", registry = "star-atlas", version = "0.0.1" }
+star_frame_spl = { path = "framework/star_frame_spl", registry = "star-atlas", version = "0.0.1" }
 
 # Advance has its own version. It won't be part of the workspace forever.
 advance = { path = "advance", package = "advance_temp", registry = "star-atlas", features = ["solana"], version = "0.0.1" }
@@ -25,6 +26,7 @@ advance = { path = "advance", package = "advance_temp", registry = "star-atlas",
 # Non workspace crates
 anchor-lang-idl-spec = "0.1.0"
 anyhow = "1.0.75"
+arrayref = "0.3.9"
 array-init = "2.1.0"
 borsh = "1.3.1"
 bs58 = "0.5.0"
@@ -39,6 +41,7 @@ half = "2.4.0"
 heck = "0.5.0"
 itertools = "0.13.0"
 lazy_static = "1.4.0"
+num_enum = "0.6.1"
 num-traits = "0.2.17"
 paste = "1.0.14"
 pretty_assertions = "1.4.0"
@@ -57,7 +60,8 @@ solana-program = "1.18.26"
 solana-program-test = "1.18.26"
 solana-sdk = "1.18.26"
 solana-transaction-status = "1.18.26"
-spl-token = "7.0.0"
+spl-token = { version = "4.0.0", features = ["no-entrypoint"] }
+spl-associated-token-account = { version = "3.0.4", features = ["no-entrypoint"] }
 static_assertions = "1.1.0"
 strum = { version = "0.26.2", features = ["derive"] }
 syn = { version = "2.0.40", features = ["extra-traits"] }

@@ -7,7 +7,7 @@ use quote::quote;
 use syn::{parse_quote, Expr, Fields, FieldsUnnamed, ItemEnum, Type};
 
 use crate::hash::SIGHASH_GLOBAL_NAMESPACE;
-use crate::util::{cfg_idl, enum_discriminants, get_repr, new_lifetime, Paths};
+use crate::util::{enum_discriminants, get_repr, new_lifetime, Paths};
 
 #[derive(Debug, ArgumentList, Clone, Default)]
 pub struct InstructionSetStructArgs {
@@ -84,7 +84,7 @@ pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
             .collect()
     };
 
-    let idl_impl = cfg_idl(args.skip_idl, || {
+    let idl_impl = (!args.skip_idl).then( || {
         let (idl_args, idl_arg_tys) = item
             .variants
             .iter()
@@ -99,7 +99,7 @@ pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
             .unzip::<_, _, Vec<_>, Vec<_>>();
 
         quote! {
-            #[cfg(not(target_os = "solana"))]
+            #[cfg(all(feature = "idl", not(target_os = "solana")))]
             #[automatically_derived]
             impl #impl_generics #prelude::InstructionSetToIdl for #ident #ty_generics #where_clause {
                 #[allow(clippy::let_unit_value)]
