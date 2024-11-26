@@ -99,14 +99,15 @@ impl<'__a, 'info> SingleAccountSet<'info> for &'__a AccountInfo<'info> {
     {
         self.try_borrow_data()
             .map(|d| Ref::map(d, |d| &**d))
-            .map_err(Into::into)
+            .with_context(|| format!("Error borrowing data on account {}", self.key))
     }
 
     fn info_data_bytes_mut<'a>(&'a self) -> Result<RefMut<'a, &'info mut [u8]>>
     where
         'info: 'a,
     {
-        self.try_borrow_mut_data().map_err(Into::into)
+        self.try_borrow_mut_data()
+            .with_context(|| format!("Error borrowing mut data on account {}", self.key))
     }
 }
 impl<'a, 'info> AccountSetDecode<'a, 'info, ()> for AccountInfo<'info> {
