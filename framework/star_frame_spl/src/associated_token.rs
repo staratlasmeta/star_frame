@@ -56,6 +56,7 @@ mod idl_impl {
     use crate::token::TokenProgram;
     use star_frame::star_frame_idl::IdlDefinition;
 
+    // todo: potentially support multiple token programs here
     #[derive(Debug, Clone, PartialEq, Eq, BorshDeserialize, BorshSerialize)]
     pub struct AssociatedTokenSeeds {
         pub wallet: Pubkey,
@@ -131,8 +132,8 @@ pub use idl_impl::*;
 #[repr(u8)]
 pub enum AssociatedTokenInstructionSet {
     Create(Create),
-    // CreateIdempotent(), todo
-    // InitializeMultisig(), todo
+    CreateIdempotent(CreateIdempotent),
+    RecoverNested(RecoverNested),
 }
 
 // create
@@ -157,6 +158,51 @@ pub struct CreateAccounts<'info> {
     pub token_program: Program<'info, TokenProgram>,
 }
 empty_star_frame_instruction!(Create, CreateAccounts);
+
+// create idempotent
+/// See [`spl_associated_token_account::instruction::AssociatedTokenAccountInstruction::CreateIdempotent`].
+///
+/// This instruction has an identical AccountSet to [`Create`].
+#[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize)]
+#[instruction_to_idl(program = AssociatedTokenProgram)]
+pub struct CreateIdempotent;
+empty_star_frame_instruction!(CreateIdempotent, CreateAccounts);
+
+// recover nested
+/// See [`spl_associated_token_account::instruction::AssociatedTokenAccountInstruction::RecoverNested`].
+#[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize)]
+#[instruction_to_idl(program = AssociatedTokenProgram)]
+pub struct RecoverNested;
+/// Accounts for the [`RecoverNested`] instruction.
+#[derive(Debug, Clone, AccountSet)]
+pub struct RecoverNestedAccounts<'info> {
+    #[idl(arg =
+        Seeds(FindAtaSeeds {
+            wallet: seed_path("owner_ata"),
+            mint: seed_path("nested_mint"),
+        })
+    )]
+    pub nested_ata: Mut<AccountInfo<'info>>,
+    pub nested_mint: AccountInfo<'info>,
+    #[idl(arg =
+        Seeds(FindAtaSeeds {
+            wallet: seed_path("wallet"),
+            mint: seed_path("nested_mint"),
+        })
+    )]
+    pub destination_ata: Mut<AccountInfo<'info>>,
+    #[idl(arg =
+        Seeds(FindAtaSeeds {
+            wallet: seed_path("wallet"),
+            mint: seed_path("owner_mint"),
+        })
+    )]
+    pub owner_ata: Mut<AccountInfo<'info>>,
+    pub owner_mint: AccountInfo<'info>,
+    pub wallet: Mut<Signer<AccountInfo<'info>>>,
+    pub token_program: Program<'info, TokenProgram>,
+}
+empty_star_frame_instruction!(RecoverNested, RecoverNestedAccounts);
 
 #[cfg(test)]
 mod tests {

@@ -1,4 +1,3 @@
-use crate::associated_token::AssociatedTokenProgram;
 use crate::pod::PodOption;
 use crate::token::instructions::{InitializeMint2, InitializeMint2CpiAccounts};
 use crate::token::TokenProgram;
@@ -14,15 +13,17 @@ use std::cell::Ref;
 #[derive(AccountSet, Debug, Clone)]
 #[validate(extra_validation = self.validate())]
 #[validate(
-    id = "validate_mint", arg = ValidateMint, generics = [],
+    id = "validate_mint", arg = ValidateMint<'a>, generics = [<'a>],
     extra_validation = {
         self.validate()?;
-        self.validate_mint(&arg)
+        self.validate_mint(arg)
     }
 )]
 pub struct MintAccount<'info> {
     #[single_account_set(skip_can_init_account, skip_has_owner_program)]
     info: AccountInfo<'info>,
+    #[account_set(skip = false)]
+    validated: bool,
 }
 
 impl HasOwnerProgram for MintAccount<'_> {
@@ -50,29 +51,32 @@ impl<'info> MintAccount<'info> {
     /// ```
     pub const LEN: usize = 82;
 
-    pub fn validate(&self) -> Result<()> {
-        let data = self.info.try_borrow_data()?;
-        // todo: maybe relax this check to allow token22
+    pub fn validate(&mut self) -> Result<()> {
+        if self.validated {
+            return Ok(());
+        }
+        // // todo: maybe relax this check to allow token22
         if self.owner() != &TokenProgram::PROGRAM_ID {
             bail!(ProgramError::InvalidAccountOwner);
         }
-        if data.len() != Self::LEN {
+        if self.info_data_bytes()?.len() != Self::LEN {
             bail!(ProgramError::InvalidAccountData);
         }
         // check initialized
         if !self.data()?.is_initialized {
             bail!(ProgramError::UninitializedAccount);
         }
+        self.validated = true;
         Ok(())
     }
 
     fn data(&self) -> Result<Ref<MintData>> {
-        Ok(Ref::map(self.info.data.try_borrow()?, |data| {
+        Ok(Ref::map(self.info_data_bytes()?, |data| {
             bytemuck::checked::from_bytes::<MintData>(data)
         }))
     }
 
-    pub fn validate_mint(&self, validate_mint: &ValidateMint) -> Result<()> {
+    pub fn validate_mint(&self, validate_mint: ValidateMint) -> Result<()> {
         let data = self.data()?;
         if let Some(decimals) = validate_mint.decimals {
             if data.decimals != decimals {
@@ -80,7 +84,7 @@ impl<'info> MintAccount<'info> {
             }
         }
         if let Some(authority) = validate_mint.authority {
-            if data.mint_authority != PodOption::some(authority) {
+            if data.mint_authority != PodOption::some(*authority) {
                 bail!(ProgramError::InvalidArgument);
             }
         }
@@ -91,7 +95,7 @@ impl<'info> MintAccount<'info> {
                 }
             }
             FreezeAuthority::Some(authority) => {
-                if data.freeze_authority != PodOption::some(authority) {
+                if data.freeze_authority != PodOption::some(*authority) {
                     bail!(ProgramError::InvalidArgument);
                 }
             }
@@ -107,24 +111,30 @@ impl<'info> MintAccount<'info> {
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
-pub enum FreezeAuthority {
+pub enum FreezeAuthority<'a> {
     #[default]
     Any,
     None,
-    Some(Pubkey),
+    Some(&'a Pubkey),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Copy, Default)]
-pub struct ValidateMint {
+pub struct ValidateMint<'a> {
     pub decimals: Option<u8>,
-    pub authority: Option<Pubkey>,
-    pub freeze_authority: FreezeAuthority,
+    pub authority: Option<&'a Pubkey>,
+    pub freeze_authority: FreezeAuthority<'a>,
     // pub token_program: Option<Pubkey>,
 }
-pub type InitMint = InitializeMint2;
 
-impl From<InitMint> for ValidateMint {
-    fn from(value: InitMint) -> Self {
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub struct InitMint<'a> {
+    pub decimals: u8,
+    pub mint_authority: &'a Pubkey,
+    pub freeze_authority: Option<&'a Pubkey>,
+}
+
+impl<'a> From<InitMint<'a>> for ValidateMint<'a> {
+    fn from(value: InitMint<'a>) -> Self {
         let freeze_authority = match value.freeze_authority {
             None => FreezeAuthority::None,
             Some(authority) => FreezeAuthority::Some(authority),
@@ -137,7 +147,7 @@ impl From<InitMint> for ValidateMint {
     }
 }
 
-impl<'info> CanInitAccount<'info, CreateIfNeeded<InitMint>> for MintAccount<'info> {
+impl<'info, 'a> CanInitAccount<'info, CreateIfNeeded<InitMint<'a>>> for MintAccount<'info> {
     fn init_account(
         &mut self,
         arg: CreateIfNeeded<InitMint>,
@@ -151,7 +161,7 @@ impl<'info> CanInitAccount<'info, CreateIfNeeded<InitMint>> for MintAccount<'inf
     }
 }
 
-impl<'info, Funder> CanInitAccount<'info, CreateIfNeeded<(InitMint, &Funder)>>
+impl<'info, 'a, Funder> CanInitAccount<'info, CreateIfNeeded<(InitMint<'a>, &Funder)>>
     for MintAccount<'info>
 where
     Funder: SignedAccount<'info> + WritableAccount<'info>,
@@ -167,13 +177,13 @@ where
             self.init_account(Create((init_mint, funder)), syscalls, account_seeds)?;
         } else {
             self.validate()?;
-            self.validate_mint(&init_mint.into())?;
+            self.validate_mint(init_mint.into())?;
         }
         Ok(())
     }
 }
 
-impl<'info> CanInitAccount<'info, Create<InitMint>> for MintAccount<'info> {
+impl<'info, 'a> CanInitAccount<'info, Create<InitMint<'a>>> for MintAccount<'info> {
     fn init_account(
         &mut self,
         arg: Create<InitMint>,
@@ -187,7 +197,8 @@ impl<'info> CanInitAccount<'info, Create<InitMint>> for MintAccount<'info> {
     }
 }
 
-impl<'info, Funder> CanInitAccount<'info, Create<(InitMint, &Funder)>> for MintAccount<'info>
+impl<'info, 'a, Funder> CanInitAccount<'info, Create<(InitMint<'a>, &Funder)>>
+    for MintAccount<'info>
 where
     Funder: SignedAccount<'info> + WritableAccount<'info>,
 {
@@ -210,7 +221,11 @@ where
             None => &[],
         };
         TokenProgram::cpi(
-            &init_mint,
+            &InitializeMint2 {
+                decimals: init_mint.decimals,
+                mint_authority: *init_mint.mint_authority,
+                freeze_authority: init_mint.freeze_authority.cloned(),
+            },
             InitializeMint2CpiAccounts {
                 mint: self.account_info_cloned(),
             },
@@ -226,22 +241,24 @@ where
 #[derive(AccountSet, Debug, Clone)]
 #[validate(extra_validation = self.validate())]
 #[validate(
-    id = "validate_token", arg = ValidateToken, generics = [],
+    id = "validate_token", arg = ValidateToken<'a>, generics = [<'a>],
     extra_validation = {
         self.validate()?;
-        self.validate_token(&arg)
+        self.validate_token(arg)
     }
 )]
 #[validate(
-    id = "validate_ata", arg = ValidateAta, generics = [],
+    id = "validate_ata", arg = ValidateAta<'a>, generics = [<'a>],
     extra_validation = {
         self.validate()?;
-        self.validate_ata(&arg)
+        self.validate_ata(arg)
     }
 )]
 pub struct TokenAccount<'info> {
     #[single_account_set(skip_can_init_account, skip_can_init_seeds, skip_has_owner_program)]
     info: AccountInfo<'info>,
+    #[account_set(skip = false)]
+    validated: bool,
 }
 
 impl HasOwnerProgram for TokenAccount<'_> {
@@ -287,51 +304,49 @@ impl<'info> TokenAccount<'info> {
     /// ```
     pub const LEN: usize = 165;
     fn data(&self) -> Result<Ref<TokenAccountData>> {
-        Ok(Ref::map(self.info.data.try_borrow()?, |data| {
+        Ok(Ref::map(self.info_data_bytes()?, |data| {
             bytemuck::checked::from_bytes::<TokenAccountData>(data)
         }))
     }
 
-    pub fn validate(&self) -> Result<()> {
-        let data = self.info.try_borrow_data()?;
+    pub fn validate(&mut self) -> Result<()> {
+        if self.validated {
+            return Ok(());
+        }
         // todo: maybe relax this check to allow token22
         if self.owner() != &TokenProgram::PROGRAM_ID {
             bail!(ProgramError::InvalidAccountOwner);
         }
-        if data.len() != Self::LEN {
+        if self.info_data_bytes()?.len() != Self::LEN {
             bail!(ProgramError::InvalidAccountData);
         }
         if self.data()?.state == AccountState::Uninitialized {
             bail!(ProgramError::UninitializedAccount);
         }
+        self.validated = true;
         Ok(())
     }
 
-    pub fn validate_token(&self, validate_token: &ValidateToken) -> Result<()> {
+    pub fn validate_token(&self, validate_token: ValidateToken) -> Result<()> {
         let data = self.data()?;
         if let Some(mint) = validate_token.mint {
-            if data.mint != mint {
+            if data.mint != *mint {
                 bail!(ProgramError::InvalidAccountData);
             }
         }
         if let Some(owner) = validate_token.owner {
-            if data.owner != owner {
+            if data.owner != *owner {
                 bail!(ProgramError::InvalidAccountData);
             }
         }
         Ok(())
     }
 
-    pub fn validate_ata(&self, validate_ata: &ValidateAta) -> Result<()> {
-        let expected_address = Pubkey::find_program_address(
-            &[
-                &validate_ata.owner.to_bytes(),
-                &TokenProgram::PROGRAM_ID.to_bytes(),
-                &validate_ata.mint.to_bytes(),
-            ],
-            &AssociatedTokenProgram::PROGRAM_ID,
-        )
-        .0;
+    pub fn validate_ata(&self, validate_ata: ValidateAta) -> Result<()> {
+        let expected_address = crate::associated_token::AssociatedTokenProgram::find_address(
+            validate_ata.owner,
+            validate_ata.mint,
+        );
         if self.owner() != &expected_address {
             bail!(ProgramError::InvalidAccountData);
         }
@@ -340,16 +355,16 @@ impl<'info> TokenAccount<'info> {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Copy, Default)]
-pub struct ValidateToken {
-    pub mint: Option<Pubkey>,
-    pub owner: Option<Pubkey>,
+pub struct ValidateToken<'a> {
+    pub mint: Option<&'a Pubkey>,
+    pub owner: Option<&'a Pubkey>,
     // pub token_program: Option<Pubkey>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]
-pub struct ValidateAta {
-    pub mint: Pubkey,
-    pub owner: Pubkey,
+pub struct ValidateAta<'a> {
+    pub mint: &'a Pubkey,
+    pub owner: &'a Pubkey,
 }
 
 impl<'info, A> CanInitSeeds<'info, A> for TokenAccount<'info>
@@ -391,11 +406,14 @@ mod tests {
             false,
             0,
         );
-        let mint = MintAccount { info };
+        let mut mint = MintAccount {
+            info,
+            validated: false,
+        };
         mint.validate()?;
-        mint.validate_mint(&ValidateMint {
+        mint.validate_mint(ValidateMint {
             decimals: Some(data.decimals),
-            authority: Some(mint_authority),
+            authority: Some(&mint_authority),
             freeze_authority: FreezeAuthority::Any,
         })?;
         let pod_data = mint.data()?;
@@ -439,11 +457,14 @@ mod tests {
             false,
             0,
         );
-        let account = TokenAccount { info };
+        let mut account = TokenAccount {
+            info,
+            validated: false,
+        };
         account.validate()?;
-        account.validate_token(&ValidateToken {
-            mint: Some(data.mint),
-            owner: Some(data.owner),
+        account.validate_token(ValidateToken {
+            mint: Some(&data.mint),
+            owner: Some(&data.owner),
         })?;
         let pod_data = account.data()?;
         assert_eq!(pod_data.mint, data.mint);

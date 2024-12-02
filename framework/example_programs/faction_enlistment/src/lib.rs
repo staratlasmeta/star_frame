@@ -3,7 +3,6 @@
 use star_frame::borsh;
 use star_frame::borsh::{BorshDeserialize, BorshSerialize};
 use star_frame::prelude::*;
-use star_frame_spl::associated_token::AssociatedTokenProgram;
 use star_frame_spl::token::{InitMint, MintAccount, TokenProgram};
 
 #[derive(StarFrameProgram)]
@@ -65,16 +64,16 @@ impl StarFrameInstruction for ProcessEnlistPlayerIx {
             bump,
             _padding: [0; 5],
         };
-        <Init<Signer<MintAccount<'info>>>>::try_from_account_with_args(
-            &account_set.mint,
-            (),
-            Create(InitMint {
-                decimals: 0,
-                mint_authority: *account_set.player_account.key(),
-                freeze_authority: None,
-            }),
-            syscalls,
-        )?;
+        // <Init<Signer<MintAccount<'info>>>>::try_from_account_with_args(
+        //     &account_set.mint,
+        //     (),
+        //     Create(InitMint {
+        //         decimals: 0,
+        //         mint_authority: *account_set.player_account.key(),
+        //         freeze_authority: None,
+        //     }),
+        //     syscalls,
+        // )?;
         // AssociatedTokenProgram::cpi(
         //     &associated_token::Create,
         //     associated_token::CreateCpiAccounts {
@@ -111,14 +110,14 @@ pub struct ProcessEnlistPlayer<'info> {
     /// Solana System program
     pub system_program: Program<'info, SystemProgram>,
     pub token_program: Program<'info, TokenProgram>,
-    pub associated_token_program: Program<'info, AssociatedTokenProgram>,
-    pub mint: Signer<AccountInfo<'info>>,
-    // #[validate(arg = Create(InitMint {
-    //     decimals: 0,
-    //     mint_authority: *self.player_account.key(),
-    //     freeze_authority: None,
-    // }))]
-    // pub mint: Init<Signer<MintAccount<'info>>>,
+    // pub associated_token_program: Program<'info, AssociatedTokenProgram>,
+    // pub mint: Signer<AccountInfo<'info>>,
+    #[validate(arg = Create(InitMint {
+        decimals: 0,
+        mint_authority: self.player_account.key(),
+        freeze_authority: Some(self.player_account.key()),
+    }))]
+    pub mint: Init<Signer<MintAccount<'info>>>,
     // #[validate(arg = Create(InitTokenAccount {
     //     mint: *self.mint.key(),
     //     owner: *self.player_account.key(),
@@ -178,7 +177,6 @@ mod tests {
     use solana_sdk::clock::Clock;
     use solana_sdk::signature::{Keypair, Signer};
     use star_frame::solana_program::native_token::LAMPORTS_PER_SOL;
-    use star_frame_spl::associated_token::AssociatedTokenProgram;
     use star_frame_spl::token::TokenProgram;
 
     #[cfg(feature = "idl")]
@@ -246,7 +244,7 @@ mod tests {
                 player_account: player_account.pubkey(),
                 system_program: SystemProgram::PROGRAM_ID,
                 token_program: TokenProgram::PROGRAM_ID,
-                associated_token_program: AssociatedTokenProgram::PROGRAM_ID,
+                // associated_token_program: AssociatedTokenProgram::PROGRAM_ID,
                 mint: mint_keypair.pubkey(),
                 // token_account,
             },
@@ -265,7 +263,7 @@ mod tests {
             .process_transaction_with_metadata(tx.clone())
             .await?;
 
-        println!("{:?}", txn);
+        println!("{:#?}", txn);
 
         let clock = banks_client.get_sysvar::<Clock>().await?;
         let expected_faction_account = PlayerFactionData {
