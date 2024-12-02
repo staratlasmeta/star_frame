@@ -238,6 +238,7 @@ pub(super) fn derive_account_set_impl_struct(
                     ..<#field_ty as #prelude::SingleAccountSet<#info_lifetime>>::META
                 };
 
+                #[inline]
                 fn account_info(&self) -> &#account_info<#info_lifetime> {
                     <#field_ty as #prelude::SingleAccountSet<#info_lifetime>>::account_info(&self.#field_name)
                 }
@@ -254,6 +255,7 @@ pub(super) fn derive_account_set_impl_struct(
             quote! {
                 #[automatically_derived]
                 impl #info_sg_impl #prelude::SignedAccount<#info_lifetime> for #ident #ty_generics #signed_where {
+                    #[inline]
                     fn signer_seeds(&self) -> Option<Vec<&[u8]>> {
                         <#field_ty as #prelude::SignedAccount<#info_lifetime>>::signer_seeds(&self.#field_name)
                     }
@@ -329,6 +331,7 @@ pub(super) fn derive_account_set_impl_struct(
             quote! {
                 #[automatically_derived]
                 impl #info_gen_sg_impl #prelude::CanInitSeeds<#info_lifetime, #new_generic> for #ident #ty_generics #init_seeds_where {
+                    #[inline]
                     fn init_seeds(&mut self, arg: &#new_generic, syscalls: &impl #prelude::SyscallInvoke<#info_lifetime>) -> #result<()> {
                         <#field_ty as #prelude::CanInitSeeds<#info_lifetime, #new_generic>>::init_seeds(&mut self.#field_name, arg, syscalls)
                     }
@@ -345,6 +348,7 @@ pub(super) fn derive_account_set_impl_struct(
             quote! {
                 #[automatically_derived]
                 impl #info_gen_sg_impl #prelude::CanInitAccount<#info_lifetime, #new_generic> for #ident #ty_generics #init_where {
+                    #[inline]
                     fn init_account(
                         &mut self,
                         arg: #new_generic,
@@ -420,7 +424,7 @@ pub(super) fn derive_account_set_impl_struct(
                 type CpiAccounts<#accounts_lifetime> = #cpi_accounts_ident #new_struct_ty_gen;
                 const MIN_LEN: usize =  0#(+ <#field_type as #cpi_set>::MIN_LEN)*;
 
-                #[inline(always)]
+                #[inline]
                 fn extend_account_infos(
                     accounts: #cpi_accounts,
                     infos: &mut Vec<#account_info<#info_lifetime>>,
@@ -428,7 +432,7 @@ pub(super) fn derive_account_set_impl_struct(
                     #(<#field_type as #cpi_set>::extend_account_infos(accounts.#field_name, infos);)*
                 }
 
-                #[inline(always)]
+                #[inline]
                 fn extend_account_metas(
                     program_id: &#prelude::Pubkey,
                     accounts: &#cpi_accounts,
@@ -480,6 +484,7 @@ pub(super) fn derive_account_set_impl_struct(
                 type ClientAccounts = #client_accounts_ident #ty_gen;
                 const MIN_LEN: usize =  0#(+ <#field_type as #client_set>::MIN_LEN)*;
 
+                #[inline]
                 fn extend_account_metas(
                     program_id: &#prelude::Pubkey,
                     accounts: &#client_accounts,
@@ -597,6 +602,7 @@ pub(super) fn derive_account_set_impl_struct(
         quote! {
             #[automatically_derived]
             impl #other_impl_generics #account_set<#info_lifetime> for #ident #ty_generics #other_where_clause {
+                #[inline]
                 fn set_account_cache(
                     &mut self,
                     syscalls: &mut impl #prelude::SyscallAccountCache<#info_lifetime>,

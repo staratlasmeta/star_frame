@@ -6,22 +6,26 @@ use advance::AdvanceArray;
 use anyhow::Context;
 use solana_program::account_info::AccountInfo;
 use solana_program::instruction::AccountMeta;
+use solana_program::program_error::ProgramError;
 use solana_program::pubkey::Pubkey;
 use star_frame::account_set::{AccountSet, AccountSetCleanup, AccountSetValidate};
 use std::cell::{Ref, RefMut};
 
 impl<'info> AccountSet<'info> for AccountInfo<'info> {
+    #[inline]
     fn set_account_cache(&mut self, _syscalls: &mut impl SyscallAccountCache<'info>) {}
 }
 impl<'__a, 'info> AccountSet<'info> for &'__a AccountInfo<'info> {
+    #[inline]
     fn set_account_cache(&mut self, _syscalls: &mut impl SyscallAccountCache<'info>) {}
 }
 impl<'info> SingleAccountSet<'info> for AccountInfo<'info> {
     const META: SingleSetMeta = SingleSetMeta::default();
+    #[inline]
     fn account_info(&self) -> &AccountInfo<'info> {
         self
     }
-
+    #[inline]
     fn account_meta(&self) -> AccountMeta {
         AccountMeta {
             pubkey: *self.key,
@@ -29,85 +33,49 @@ impl<'info> SingleAccountSet<'info> for AccountInfo<'info> {
             is_writable: self.is_writable,
         }
     }
-
+    #[inline]
     fn is_signer(&self) -> bool {
         self.is_signer
     }
-
+    #[inline]
     fn is_writable(&self) -> bool {
         self.is_writable
     }
-
+    #[inline]
     fn key(&self) -> &'info Pubkey {
         self.key
     }
-
+    #[inline]
     fn owner(&self) -> &'info Pubkey {
         self.owner
     }
-
+    #[inline]
     fn info_data_bytes<'a>(&'a self) -> Result<Ref<'a, [u8]>>
     where
         'info: 'a,
     {
-        self.try_borrow_data()
+        self.data
+            .try_borrow()
+            .map_err(|_| ProgramError::AccountBorrowFailed)
             .map(|d| Ref::map(d, |d| &**d))
             .with_context(|| format!("Error borrowing data on account {}", self.key))
     }
-
+    #[inline]
     fn info_data_bytes_mut<'a>(&'a self) -> Result<RefMut<'a, &'info mut [u8]>>
     where
         'info: 'a,
     {
-        self.try_borrow_mut_data()
+        self.data
+            .try_borrow_mut()
+            .map_err(|_| ProgramError::AccountBorrowFailed)
             .with_context(|| format!("Error borrowing mut data on account {}", self.key))
     }
 }
 impl<'__a, 'info> SingleAccountSet<'info> for &'__a AccountInfo<'info> {
     const META: SingleSetMeta = SingleSetMeta::default();
+    #[inline]
     fn account_info(&self) -> &AccountInfo<'info> {
         self
-    }
-
-    fn account_meta(&self) -> AccountMeta {
-        AccountMeta {
-            pubkey: *self.key,
-            is_signer: self.is_signer,
-            is_writable: self.is_writable,
-        }
-    }
-
-    fn is_signer(&self) -> bool {
-        self.is_signer
-    }
-
-    fn is_writable(&self) -> bool {
-        self.is_writable
-    }
-
-    fn key(&self) -> &'info Pubkey {
-        self.key
-    }
-
-    fn owner(&self) -> &'info Pubkey {
-        self.owner
-    }
-
-    fn info_data_bytes<'a>(&'a self) -> Result<Ref<'a, [u8]>>
-    where
-        'info: 'a,
-    {
-        self.try_borrow_data()
-            .map(|d| Ref::map(d, |d| &**d))
-            .with_context(|| format!("Error borrowing data on account {}", self.key))
-    }
-
-    fn info_data_bytes_mut<'a>(&'a self) -> Result<RefMut<'a, &'info mut [u8]>>
-    where
-        'info: 'a,
-    {
-        self.try_borrow_mut_data()
-            .with_context(|| format!("Error borrowing mut data on account {}", self.key))
     }
 }
 impl<'a, 'info> AccountSetDecode<'a, 'info, ()> for AccountInfo<'info> {

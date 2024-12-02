@@ -36,10 +36,12 @@ pub trait SingleAccountSet<'info>: AccountSet<'info> {
     /// Gets the contained account.
     fn account_info(&self) -> &AccountInfo<'info>;
     /// Gets the contained account cloned.
+    #[inline]
     fn account_info_cloned(&self) -> AccountInfo<'info> {
         self.account_info().clone()
     }
     /// Gets the account meta of the contained account.
+    #[inline]
     fn account_meta(&self) -> AccountMeta {
         let info = self.account_info();
         AccountMeta {
@@ -50,11 +52,13 @@ pub trait SingleAccountSet<'info>: AccountSet<'info> {
     }
 
     /// Gets whether this account signed.
+    #[inline]
     fn is_signer(&self) -> bool {
         self.account_info().is_signer()
     }
 
     /// Checks if this account is signed.
+    #[inline]
     fn check_signer(&self) -> Result<()> {
         if self.is_signer() {
             Ok(())
@@ -64,11 +68,13 @@ pub trait SingleAccountSet<'info>: AccountSet<'info> {
     }
 
     /// Gets whether this account is writable.
+    #[inline]
     fn is_writable(&self) -> bool {
         self.account_info().is_writable()
     }
 
     /// Checks if this account is writable.
+    #[inline]
     fn check_writable(&self) -> Result<()> {
         if self.is_writable() {
             Ok(())
@@ -78,11 +84,13 @@ pub trait SingleAccountSet<'info>: AccountSet<'info> {
     }
 
     /// Gets the key of the contained account.
+    #[inline]
     fn key(&self) -> &'info Pubkey {
         self.account_info().key()
     }
 
     /// Checks if the key matches the expected key.
+    #[inline]
     fn check_key(&self, expected: &Pubkey) -> Result<()> {
         if self.key() == expected {
             Ok(())
@@ -92,11 +100,13 @@ pub trait SingleAccountSet<'info>: AccountSet<'info> {
     }
 
     /// Gets the owner of the contained account.
+    #[inline]
     fn owner(&self) -> &'info Pubkey {
         self.account_info().owner()
     }
 
     /// Gets the data of the contained account immutably.
+    #[inline]
     fn info_data_bytes<'a>(&'a self) -> Result<Ref<'a, [u8]>>
     where
         'info: 'a,
@@ -104,6 +114,7 @@ pub trait SingleAccountSet<'info>: AccountSet<'info> {
         self.account_info().info_data_bytes()
     }
     /// Gets the data of the contained account mutably.
+    #[inline]
     fn info_data_bytes_mut<'a>(&'a self) -> Result<RefMut<'a, &'info mut [u8]>>
     where
         'info: 'a,
@@ -118,12 +129,14 @@ where
 {
     type CpiAccounts<'a> = AccountInfo<'info>;
     const MIN_LEN: usize = 1;
+    #[inline]
     fn extend_account_infos(
         account_info: Self::CpiAccounts<'info>,
         infos: &mut Vec<AccountInfo<'info>>,
     ) {
         infos.push(account_info);
     }
+    #[inline]
     fn extend_account_metas(
         _program_id: &Pubkey,
         account_info: &Self::CpiAccounts<'info>,
@@ -143,6 +156,7 @@ where
 {
     type ClientAccounts = Pubkey;
     const MIN_LEN: usize = 1;
+    #[inline]
     fn extend_account_metas(
         _program_id: &Pubkey,
         accounts: &Self::ClientAccounts,

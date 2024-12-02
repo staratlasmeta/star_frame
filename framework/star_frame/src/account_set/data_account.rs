@@ -125,11 +125,10 @@ where
 {
     /// Validates the owner and the discriminant of the account.
     pub fn validate(&self) -> Result<()> {
-        if self.info.owner != &T::OwnerProgram::PROGRAM_ID {
+        if self.owner() != &T::OwnerProgram::PROGRAM_ID {
             bail!(ProgramError::IllegalOwner);
         }
-        let data = self.info.try_borrow_data()?;
-
+        let data = self.info_data_bytes()?;
         Self::check_discriminant(&data)?;
         Ok(())
     }
@@ -146,10 +145,10 @@ where
     }
 
     pub fn data<'a>(&'a self) -> Result<RefWrapper<AccountInfoRef<'a>, T::RefData>> {
-        let r: Ref<'a, _> = self.info.try_borrow_data()?;
+        let r: Ref<'a, _> = self.info_data_bytes()?;
         Self::check_discriminant(&r)?;
         let r = try_map_ref(r, |bytes| {
-            let bytes = &mut &**bytes;
+            let bytes = &mut &*bytes;
             bytes.try_advance(size_of::<
                 <T::OwnerProgram as StarFrameProgram>::AccountDiscriminant,
             >())?;
@@ -162,7 +161,7 @@ where
     pub fn data_mut<'a>(
         &'a mut self,
     ) -> Result<RefWrapper<AccountInfoRefMut<'a, 'info, T::OwnerProgram>, T::RefData>> {
-        let r: RefMut<'a, _> = self.info.try_borrow_mut_data()?;
+        let r: RefMut<'a, _> = self.info_data_bytes_mut()?;
         Self::check_discriminant(&r)?;
         let account_info_ref_mut = AccountInfoRefMut {
             account_info: &self.info,

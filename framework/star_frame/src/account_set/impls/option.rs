@@ -11,6 +11,7 @@ impl<'info, A> AccountSet<'info> for Option<A>
 where
     A: AccountSet<'info>,
 {
+    #[inline]
     fn set_account_cache(&mut self, syscalls: &mut impl SyscallAccountCache<'info>) {
         if let Some(inner) = self {
             inner.set_account_cache(syscalls);
@@ -24,6 +25,7 @@ where
 {
     type CpiAccounts<'a> = Option<T::CpiAccounts<'info>>;
     const MIN_LEN: usize = 1;
+    #[inline]
     fn extend_account_infos(
         accounts: Self::CpiAccounts<'info>,
         infos: &mut Vec<AccountInfo<'info>>,
@@ -32,6 +34,7 @@ where
             T::extend_account_infos(accounts, infos);
         }
     }
+    #[inline]
     fn extend_account_metas(
         program_id: &Pubkey,
         accounts: &Self::CpiAccounts<'info>,
@@ -51,6 +54,7 @@ where
 {
     type ClientAccounts = Option<T::ClientAccounts>;
     const MIN_LEN: usize = 1;
+    #[inline]
     fn extend_account_metas(
         program_id: &Pubkey,
         accounts: &Self::ClientAccounts,

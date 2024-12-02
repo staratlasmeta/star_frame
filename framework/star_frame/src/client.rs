@@ -1,11 +1,12 @@
 use crate::account_set::{GetSeeds, HasOwnerProgram, HasSeeds};
 use crate::instruction::{InstructionDiscriminant, InstructionSet, StarFrameInstruction};
-use crate::prelude::{StarFrameProgram, SyscallInvoke};
+use crate::program::StarFrameProgram;
+use crate::syscalls::SyscallInvoke;
+use crate::Result;
 use crate::SolanaInstruction;
 use borsh::{object_length, BorshSerialize};
 use bytemuck::bytes_of;
 use solana_program::account_info::AccountInfo;
-use solana_program::entrypoint::ProgramResult;
 use solana_program::instruction::AccountMeta;
 use solana_program::pubkey::Pubkey;
 use std::fmt::Debug;
@@ -37,7 +38,7 @@ pub trait ClientAccountSet {
     );
 }
 
-pub fn star_frame_instruction_data<S, I>(data: &I) -> anyhow::Result<Vec<u8>>
+pub fn star_frame_instruction_data<S, I>(data: &I) -> Result<Vec<u8>>
 where
     S: InstructionSet,
     I: InstructionDiscriminant<S> + BorshSerialize,
@@ -56,21 +57,23 @@ pub struct CpiBuilder<'info> {
 }
 
 impl<'info> CpiBuilder<'info> {
-    pub fn invoke(&self, syscalls: &impl SyscallInvoke<'info>) -> ProgramResult {
+    #[inline]
+    pub fn invoke(&self, syscalls: &impl SyscallInvoke<'info>) -> Result<()> {
         syscalls.invoke(&self.instruction, &self.accounts)
     }
 
+    #[inline]
     pub fn invoke_signed(
         &self,
         signer_seeds: &[&[&[u8]]],
         syscalls: &impl SyscallInvoke<'info>,
-    ) -> ProgramResult {
+    ) -> Result<()> {
         syscalls.invoke_signed(&self.instruction, &self.accounts, signer_seeds)
     }
 }
 
 pub trait MakeCpi<'info>: StarFrameProgram {
-    fn cpi<I, A>(data: &I, accounts: A::CpiAccounts<'info>) -> anyhow::Result<CpiBuilder<'info>>
+    fn cpi<I, A>(data: &I, accounts: A::CpiAccounts<'info>) -> Result<CpiBuilder<'info>>
     where
         I: StarFrameInstruction<Accounts<'static, 'static, 'info> = A>
             + InstructionDiscriminant<Self::InstructionSet>
@@ -88,7 +91,7 @@ impl<'info> CpiBuilder<'info> {
         program_id: Pubkey,
         data: &I,
         accounts: A::CpiAccounts<'info>,
-    ) -> anyhow::Result<Self>
+    ) -> Result<Self>
     where
         S: InstructionSet,
         I: StarFrameInstruction<Accounts<'static, 'static, 'info> = A>
@@ -113,7 +116,7 @@ impl<'info> CpiBuilder<'info> {
 }
 
 pub trait MakeInstruction<'info>: StarFrameProgram {
-    fn instruction<I, A>(data: &I, accounts: A::ClientAccounts) -> anyhow::Result<SolanaInstruction>
+    fn instruction<I, A>(data: &I, accounts: A::ClientAccounts) -> Result<SolanaInstruction>
     where
         I: StarFrameInstruction<Accounts<'static, 'static, 'info> = A>
             + InstructionDiscriminant<Self::InstructionSet>
@@ -138,7 +141,7 @@ pub trait FindProgramAddress: HasSeeds + HasOwnerProgram {
         Pubkey::find_program_address(&seeds.seeds(), &Self::OwnerProgram::PROGRAM_ID)
     }
 
-    fn create_program_address(seeds: &Self::Seeds, bump: u8) -> anyhow::Result<Pubkey> {
+    fn create_program_address(seeds: &Self::Seeds, bump: u8) -> Result<Pubkey> {
         let mut seeds = seeds.seeds();
         let bump = &[bump];
         seeds.push(bump);

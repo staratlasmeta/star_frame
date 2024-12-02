@@ -7,17 +7,20 @@ use solana_program::instruction::AccountMeta;
 use solana_program::pubkey::Pubkey;
 
 impl<'info> AccountSet<'info> for () {
+    #[inline]
     fn set_account_cache(&mut self, _syscalls: &mut impl SyscallAccountCache<'info>) {}
 }
 
 impl<'info> CpiAccountSet<'info> for () {
     type CpiAccounts<'a> = ();
     const MIN_LEN: usize = 0;
+    #[inline]
     fn extend_account_infos(
         _accounts: Self::CpiAccounts<'info>,
         _infos: &mut Vec<AccountInfo<'info>>,
     ) {
     }
+    #[inline]
     fn extend_account_metas(
         _program_id: &Pubkey,
         _accounts: &Self::CpiAccounts<'info>,
@@ -29,6 +32,7 @@ impl<'info> CpiAccountSet<'info> for () {
 impl ClientAccountSet for () {
     type ClientAccounts = ();
     const MIN_LEN: usize = 0;
+    #[inline]
     fn extend_account_metas(
         _program_id: &Pubkey,
         _accounts: &Self::ClientAccounts,
