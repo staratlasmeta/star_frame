@@ -1,11 +1,9 @@
 pub mod solana_runtime;
 use crate::account_set::{Mut, Program, SignedAccount, SignerInfo, WritableAccount};
 use crate::program::StarFrameProgram;
-use crate::SolanaInstruction;
+use crate::{Result, SolanaInstruction};
 use solana_program::account_info::AccountInfo;
 use solana_program::clock::Clock;
-use solana_program::entrypoint::ProgramResult;
-use solana_program::program_error::ProgramError;
 use solana_program::pubkey::Pubkey;
 use solana_program::rent::Rent;
 
@@ -26,33 +24,14 @@ pub trait SyscallReturn {
 /// Invoke syscalls for a solana program. Allows for simulation.
 pub trait SyscallInvoke<'info>: SyscallCore + SyscallAccountCache<'info> {
     /// Synonym for [`solana_program::program::invoke`].
-    fn invoke(&self, instruction: &SolanaInstruction, accounts: &[AccountInfo]) -> ProgramResult;
-    /// Synonym for [`solana_program::program::invoke_unchecked`].
-    ///
-    /// # Safety
-    /// All account info's [`RefCell`](std::cell::RefCell)s must not be borrowed in a way that conflicts with their writable status.
-    unsafe fn invoke_unchecked(
-        &self,
-        instruction: &SolanaInstruction,
-        accounts: &[AccountInfo],
-    ) -> ProgramResult;
+    fn invoke(&self, instruction: &SolanaInstruction, accounts: &[AccountInfo]) -> Result<()>;
     /// Synonym for [`solana_program::program::invoke_signed`].
     fn invoke_signed(
         &self,
         instruction: &SolanaInstruction,
         accounts: &[AccountInfo],
         signers_seeds: &[&[&[u8]]],
-    ) -> ProgramResult;
-    /// Synonym for [`solana_program::program::invoke_signed_unchecked`].
-    ///
-    /// # Safety
-    /// All account info's [`RefCell`](std::cell::RefCell)s must not be borrowed in a way that conflicts with their writable status.
-    unsafe fn invoke_signed_unchecked(
-        &self,
-        instruction: &SolanaInstruction,
-        accounts: &[AccountInfo],
-        signers_seeds: &[&[&[u8]]],
-    ) -> ProgramResult;
+    ) -> Result<()>;
 }
 
 /// A trait for caching commonly used accounts in the Syscall. This allows [`crate::account_set::AccountSetValidate`]
@@ -85,7 +64,7 @@ pub trait SyscallCore {
     /// Get the current program id.
     fn current_program_id(&self) -> &Pubkey;
     /// Get the rent sysvar.
-    fn get_rent(&self) -> Result<Rent, ProgramError>;
+    fn get_rent(&self) -> Result<Rent>;
     /// Get the clock.
-    fn get_clock(&self) -> Result<Clock, ProgramError>;
+    fn get_clock(&self) -> Result<Clock>;
 }
