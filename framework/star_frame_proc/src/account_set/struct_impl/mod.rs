@@ -345,17 +345,18 @@ pub(super) fn derive_account_set_impl_struct(
             init_where.predicates.push(parse_quote! {
                 #field_ty: #prelude::CanInitAccount<#info_lifetime, #new_generic>
             });
+            let if_needed = format_ident!("__IF_NEEDED");
             quote! {
                 #[automatically_derived]
                 impl #info_gen_sg_impl #prelude::CanInitAccount<#info_lifetime, #new_generic> for #ident #ty_generics #init_where {
                     #[inline]
-                    fn init_account(
+                    fn init_account<const #if_needed: bool>(
                         &mut self,
                         arg: #new_generic,
-                        syscalls: &impl #prelude::SyscallInvoke<#info_lifetime>,
                         account_seeds: Option<Vec<&[u8]>>,
+                        syscalls: &impl #prelude::SyscallInvoke<#info_lifetime>,
                     ) -> #result<()> {
-                        <#field_ty as #prelude::CanInitAccount<#info_lifetime, #new_generic>>::init_account(&mut self.#field_name, arg, syscalls, account_seeds)
+                        <#field_ty as #prelude::CanInitAccount<#info_lifetime, #new_generic>>::init_account::<#if_needed>(&mut self.#field_name, arg, account_seeds, syscalls)
                     }
                 }
             }

@@ -303,18 +303,18 @@ where
     T: SingleAccountSet<'info> + CanInitAccount<'info, A>,
     S: GetSeeds,
 {
-    fn init_account(
+    fn init_account<const IF_NEEDED: bool>(
         &mut self,
         arg: A,
-        syscalls: &impl SyscallInvoke<'info>,
         account_seeds: Option<Vec<&[u8]>>,
+        syscalls: &impl SyscallInvoke<'info>,
     ) -> Result<()> {
         // override seeds. Init should be called after seeds are set
         if account_seeds.is_some() {
             bail!("Conflicting account seeds during init!");
         }
         let seeds = self.seeds.as_ref().map(|s| s.seeds_with_bump());
-        self.account.init_account(arg, syscalls, seeds)
+        self.account.init_account::<IF_NEEDED>(arg, seeds, syscalls)
     }
 }
 

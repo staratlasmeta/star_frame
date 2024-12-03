@@ -42,10 +42,10 @@ pub trait CanInitSeeds<'info, A>: SingleAccountSet<'info> + AccountSetValidate<'
 
 /// A trait that provides logic for the initializing the underlying account. This helps enable the [`Init`] and [`Seeded`] modifiers.
 pub trait CanInitAccount<'info, A>: SingleAccountSet<'info> {
-    fn init_account(
+    fn init_account<const IF_NEEDED: bool>(
         &mut self,
         arg: A,
-        syscalls: &impl SyscallInvoke<'info>,
         account_seeds: Option<Vec<&[u8]>>,
+        syscalls: &impl SyscallInvoke<'info>,
     ) -> Result<()>;
 }

@@ -1,6 +1,6 @@
 use crate::pod::PodOption;
 use crate::token::instructions::{InitializeMint2, InitializeMint2CpiAccounts};
-use crate::token::TokenProgram;
+use crate::token::{InitializeAccount3, InitializeAccount3CpiAccounts, TokenProgram};
 use star_frame::account_set::AccountSet;
 use star_frame::anyhow::{bail, Context};
 use star_frame::bytemuck;
@@ -147,68 +147,37 @@ impl<'a> From<InitMint<'a>> for ValidateMint<'a> {
     }
 }
 
-impl<'info, 'a> CanInitAccount<'info, CreateIfNeeded<InitMint<'a>>> for MintAccount<'info> {
-    fn init_account(
+impl<'info, 'a> CanInitAccount<'info, InitMint<'a>> for MintAccount<'info> {
+    fn init_account<const IF_NEEDED: bool>(
         &mut self,
-        arg: CreateIfNeeded<InitMint>,
-        syscalls: &impl SyscallInvoke<'info>,
+        arg: InitMint,
         account_seeds: Option<Vec<&[u8]>>,
+        syscalls: &impl SyscallInvoke<'info>,
     ) -> Result<()> {
         let funder = syscalls
             .get_funder()
-            .context("Missing `funder` for `CreateIfNeeded<InitMint>`")?;
-        self.init_account(CreateIfNeeded((arg.0, funder)), syscalls, account_seeds)
+            .context("Missing tagged `funder` for MintAccount `init_account`")?;
+        self.init_account::<IF_NEEDED>((arg, funder), account_seeds, syscalls)
     }
 }
 
-impl<'info, 'a, Funder> CanInitAccount<'info, CreateIfNeeded<(InitMint<'a>, &Funder)>>
-    for MintAccount<'info>
+impl<'info, 'a, Funder> CanInitAccount<'info, (InitMint<'a>, &Funder)> for MintAccount<'info>
 where
     Funder: SignedAccount<'info> + WritableAccount<'info>,
 {
-    fn init_account(
+    fn init_account<const IF_NEEDED: bool>(
         &mut self,
-        arg: CreateIfNeeded<(InitMint, &Funder)>,
-        syscalls: &impl SyscallInvoke<'info>,
+        arg: (InitMint, &Funder),
         account_seeds: Option<Vec<&[u8]>>,
+        syscalls: &impl SyscallInvoke<'info>,
     ) -> Result<()> {
-        let (init_mint, funder) = arg.0;
-        if self.owner() == &SystemProgram::PROGRAM_ID {
-            self.init_account(Create((init_mint, funder)), syscalls, account_seeds)?;
-        } else {
+        let (init_mint, funder) = arg;
+        if IF_NEEDED && self.owner() == &TokenProgram::PROGRAM_ID {
             self.validate()?;
             self.validate_mint(init_mint.into())?;
+            return Ok(());
         }
-        Ok(())
-    }
-}
-
-impl<'info, 'a> CanInitAccount<'info, Create<InitMint<'a>>> for MintAccount<'info> {
-    fn init_account(
-        &mut self,
-        arg: Create<InitMint>,
-        syscalls: &impl SyscallInvoke<'info>,
-        account_seeds: Option<Vec<&[u8]>>,
-    ) -> Result<()> {
-        let funder = syscalls
-            .get_funder()
-            .context("Missing `funder` for `Create<InitMint>`")?;
-        self.init_account(Create((arg.0, funder)), syscalls, account_seeds)
-    }
-}
-
-impl<'info, 'a, Funder> CanInitAccount<'info, Create<(InitMint<'a>, &Funder)>>
-    for MintAccount<'info>
-where
-    Funder: SignedAccount<'info> + WritableAccount<'info>,
-{
-    fn init_account(
-        &mut self,
-        arg: Create<(InitMint, &Funder)>,
-        syscalls: &impl SyscallInvoke<'info>,
-        account_seeds: Option<Vec<&[u8]>>,
-    ) -> Result<()> {
-        let (init_mint, funder) = arg.0;
+        self.check_writable()?;
         self.system_create_account(
             funder,
             TokenProgram::PROGRAM_ID,
@@ -373,6 +342,86 @@ where
     Self: AccountSetValidate<'info, A>,
 {
     fn init_seeds(&mut self, _arg: &A, _syscalls: &impl SyscallInvoke<'info>) -> Result<()> {
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Copy)]
+pub struct InitToken<'a, MintInfo> {
+    pub owner: &'a Pubkey,
+    pub mint: &'a MintInfo,
+}
+
+impl<'a, 'info, MintInfo> From<InitToken<'a, MintInfo>> for ValidateToken<'a>
+where
+    MintInfo: SingleAccountSet<'info>,
+    'info: 'a,
+{
+    fn from(value: InitToken<'a, MintInfo>) -> Self {
+        Self {
+            mint: Some(value.mint.key()),
+            owner: Some(value.owner),
+        }
+    }
+}
+
+impl<'info, 'a, MintInfo> CanInitAccount<'info, InitToken<'a, MintInfo>> for TokenAccount<'info>
+where
+    MintInfo: SingleAccountSet<'info>,
+{
+    fn init_account<const IF_NEEDED: bool>(
+        &mut self,
+        arg: InitToken<MintInfo>,
+        account_seeds: Option<Vec<&[u8]>>,
+        syscalls: &impl SyscallInvoke<'info>,
+    ) -> Result<()> {
+        let funder = syscalls
+            .get_funder()
+            .context("Missing tagged `funder` for TokenAccount `init_account`")?;
+        self.init_account::<IF_NEEDED>((arg, funder), account_seeds, syscalls)
+    }
+}
+
+impl<'info, 'a, MintInfo, Funder> CanInitAccount<'info, (InitToken<'a, MintInfo>, &Funder)>
+    for TokenAccount<'info>
+where
+    Funder: SignedAccount<'info> + WritableAccount<'info>,
+    MintInfo: SingleAccountSet<'info>,
+{
+    fn init_account<const IF_NEEDED: bool>(
+        &mut self,
+        arg: (InitToken<MintInfo>, &Funder),
+        account_seeds: Option<Vec<&[u8]>>,
+        syscalls: &impl SyscallInvoke<'info>,
+    ) -> Result<()> {
+        if IF_NEEDED && self.owner() == &TokenProgram::PROGRAM_ID {
+            self.validate()?;
+            self.validate_token(arg.0.into())?;
+            return Ok(());
+        }
+        self.check_writable()?;
+        let (init_token, funder) = arg;
+        self.system_create_account(
+            funder,
+            TokenProgram::PROGRAM_ID,
+            Self::LEN,
+            &account_seeds,
+            syscalls,
+        )?;
+        let account_seeds: &[&[&[u8]]] = match &account_seeds {
+            Some(seeds) => &[seeds],
+            None => &[],
+        };
+        TokenProgram::cpi(
+            &InitializeAccount3 {
+                owner: *init_token.owner,
+            },
+            InitializeAccount3CpiAccounts {
+                account: self.account_info_cloned(),
+                mint: init_token.mint.account_info_cloned(),
+            },
+        )?
+        .invoke_signed(account_seeds, syscalls)?;
         Ok(())
     }
 }
