@@ -18,7 +18,6 @@ pub struct SolanaRuntime<'info> {
     clock_cache: RefCell<Option<Clock>>,
     recipient: Option<Mut<AccountInfo<'info>>>,
     funder: Option<Mut<SignerInfo<'info>>>,
-    programs: Vec<AccountInfo<'info>>,
 }
 impl SolanaRuntime<'_> {
     /// Create a new solana runtime.
@@ -30,7 +29,6 @@ impl SolanaRuntime<'_> {
             clock_cache: RefCell::new(None),
             recipient: None,
             funder: None,
-            programs: vec![],
         }
     }
 }
@@ -138,21 +136,5 @@ impl<'info> SyscallAccountCache<'info> for SolanaRuntime<'info> {
 
     fn set_recipient(&mut self, recipient: &impl WritableAccount<'info>) {
         self.recipient.replace(Mut(recipient.account_info_cloned()));
-    }
-
-    fn insert_program<T: StarFrameProgram>(&mut self, program: &Program<'info, T>) {
-        if self.programs.iter().any(|p| p.key == program.0.key) {
-            return;
-        }
-        self.programs.push(program.0.clone());
-    }
-
-    fn get_program<T: StarFrameProgram>(&self) -> Option<&Program<'info, T>> {
-        self.programs
-            .iter()
-            .find(|p| p.key == &T::PROGRAM_ID)
-            .map(|p|
-                // program ID is validated in the iter find above
-                Program::cast_info_unchecked(p))
     }
 }

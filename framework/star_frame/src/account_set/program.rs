@@ -37,6 +37,7 @@ impl<'info, T: StarFrameProgram> Program<'info, T> {
     }
 
     /// Allows casting references from an `AccountInfo` without validating the program id.
+    #[allow(dead_code)]
     #[ref_cast_custom]
     pub(crate) fn cast_info_unchecked<'a>(info: &'a AccountInfo<'info>) -> &'a Self;
 }

@@ -216,15 +216,8 @@ where
         self.validate_token(arg)
     }
 )]
-#[validate(
-    id = "validate_ata", arg = ValidateAta<'a>, generics = [<'a>],
-    extra_validation = {
-        self.validate()?;
-        self.validate_ata(arg)
-    }
-)]
 pub struct TokenAccount<'info> {
-    #[single_account_set(skip_can_init_account, skip_can_init_seeds, skip_has_owner_program)]
+    #[single_account_set(skip_can_init_account, skip_has_owner_program)]
     info: AccountInfo<'info>,
     #[account_set(skip = false)]
     validated: bool,
@@ -311,17 +304,6 @@ impl<'info> TokenAccount<'info> {
         }
         Ok(())
     }
-
-    pub fn validate_ata(&self, validate_ata: ValidateAta) -> Result<()> {
-        let expected_address = crate::associated_token::AssociatedTokenProgram::find_address(
-            validate_ata.owner,
-            validate_ata.mint,
-        );
-        if self.owner() != &expected_address {
-            bail!(ProgramError::InvalidAccountData);
-        }
-        Ok(())
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Copy, Default)]
@@ -329,21 +311,6 @@ pub struct ValidateToken<'a> {
     pub mint: Option<&'a Pubkey>,
     pub owner: Option<&'a Pubkey>,
     // pub token_program: Option<Pubkey>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Copy)]
-pub struct ValidateAta<'a> {
-    pub mint: &'a Pubkey,
-    pub owner: &'a Pubkey,
-}
-
-impl<'info, A> CanInitSeeds<'info, A> for TokenAccount<'info>
-where
-    Self: AccountSetValidate<'info, A>,
-{
-    fn init_seeds(&mut self, _arg: &A, _syscalls: &impl SyscallInvoke<'info>) -> Result<()> {
-        Ok(())
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]

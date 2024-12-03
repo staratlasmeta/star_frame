@@ -40,8 +40,6 @@ impl Parse for Requires {
 struct AccountSetFieldAttrs {
     skip: Option<TokenStream>,
     #[argument(presence)]
-    program: bool,
-    #[argument(presence)]
     funder: bool,
     #[argument(presence)]
     recipient: bool,
@@ -50,11 +48,8 @@ struct AccountSetFieldAttrs {
 impl AccountSetFieldAttrs {
     fn skip(&self) -> bool {
         if self.skip.is_some() {
-            if self.program || self.funder || self.recipient {
-                abort!(
-                    self.skip,
-                    "Cannot use `skip` with `program`, `funder`, or `recipient`"
-                );
+            if self.funder || self.recipient {
+                abort!(self.skip, "Cannot use `skip` with `funder` or `recipient`");
             }
             true
         } else {
@@ -566,15 +561,6 @@ pub(super) fn derive_account_set_impl_struct(
             names.first().map(|(name, _)| name.clone())
         };
 
-        let set_programs = find_field_names(|args| args.program)
-            .iter()
-            .map(|(name, _attr)| {
-                quote! {
-                    syscalls.insert_program(&self.#name);
-                }
-            })
-            .collect_vec();
-
         let set_funder =
             single_name("funder", &find_field_names(|args| args.funder)).map(|field_name| {
                 quote! {
@@ -593,7 +579,6 @@ pub(super) fn derive_account_set_impl_struct(
                 }
             });
         quote! {
-            #(#set_programs)*
             #set_funder
             #set_recipient
         }
