@@ -66,7 +66,7 @@ impl<'info> MintAccount<'info> {
         Ok(())
     }
 
-    fn data(&self) -> Result<Ref<MintData>> {
+    pub fn data(&self) -> Result<Ref<MintData>> {
         Ok(Ref::map(self.info.data.try_borrow()?, |data| {
             bytemuck::checked::from_bytes::<MintData>(data)
         }))
@@ -286,7 +286,8 @@ impl<'info> TokenAccount<'info> {
     /// assert_eq!(TokenAccount::LEN, core::mem::size_of::<TokenAccountData>());
     /// ```
     pub const LEN: usize = 165;
-    fn data(&self) -> Result<Ref<TokenAccountData>> {
+
+    pub fn data(&self) -> Result<Ref<TokenAccountData>> {
         Ok(Ref::map(self.info.data.try_borrow()?, |data| {
             bytemuck::checked::from_bytes::<TokenAccountData>(data)
         }))
