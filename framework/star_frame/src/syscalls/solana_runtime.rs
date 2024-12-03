@@ -151,11 +151,8 @@ impl<'info> SyscallAccountCache<'info> for SolanaRuntime<'info> {
         self.programs
             .iter()
             .find(|p| p.key == &T::PROGRAM_ID)
-            .map(|p| {
-                // Safety: Because Program is transparent over AccountInfo, we can safely cast references of AccountInfo to Programt. {}
-                // Casting with a specific `T` is fine because it's only in phantom data. Because `T::PROGRAM_ID`
-                // should match the key, this should be fine from a correctness perspective.
-                unsafe { &*std::ptr::from_ref::<AccountInfo<'_>>(p).cast::<Program<'_, T>>() }
-            })
+            .map(|p|
+                // program ID is validated in the iter find above
+                Program::cast_info_unchecked(p))
     }
 }

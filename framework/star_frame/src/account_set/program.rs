@@ -1,7 +1,8 @@
 use crate::prelude::*;
+use ref_cast::{ref_cast_custom, RefCastCustom};
 use std::marker::PhantomData;
 
-#[derive(AccountSet, Debug, Clone)]
+#[derive(AccountSet, Debug, Clone, RefCastCustom)]
 #[validate(
     generics = [where T: StarFrameProgram],
     extra_validation = self.check_id(),
@@ -26,7 +27,7 @@ where
     type Program = T;
 }
 
-impl<T: StarFrameProgram> Program<'_, T> {
+impl<'info, T: StarFrameProgram> Program<'info, T> {
     pub fn check_id(&self) -> Result<()> {
         if self.0.key() == &T::PROGRAM_ID {
             Ok(())
@@ -34,6 +35,10 @@ impl<T: StarFrameProgram> Program<'_, T> {
             Err(ProgramError::IncorrectProgramId.into())
         }
     }
+
+    /// Allows casting references from an `AccountInfo` without validating the program id.
+    #[ref_cast_custom]
+    pub(crate) fn cast_info_unchecked<'a>(info: &'a AccountInfo<'info>) -> &'a Self;
 }
 
 // TODO: maybe add some helper methods here? Anchor has a program executable pda find method. Could be helpful to have here too.
