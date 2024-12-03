@@ -12,6 +12,7 @@ impl<'info, T> AccountSet<'info> for Vec<T>
 where
     T: AccountSet<'info>,
 {
+    #[inline]
     fn set_account_cache(&mut self, _syscalls: &mut impl SyscallAccountCache<'info>) {}
 }
 
@@ -21,6 +22,7 @@ where
 {
     type CpiAccounts<'a> = Vec<T::CpiAccounts<'a>>;
     const MIN_LEN: usize = 0;
+    #[inline]
     fn extend_account_infos(
         accounts: Self::CpiAccounts<'info>,
         infos: &mut Vec<AccountInfo<'info>>,
@@ -29,6 +31,7 @@ where
             T::extend_account_infos(a, infos);
         }
     }
+    #[inline]
     fn extend_account_metas(
         program_id: &Pubkey,
         accounts: &Self::CpiAccounts<'info>,
@@ -46,6 +49,7 @@ where
 {
     type ClientAccounts = Vec<T::ClientAccounts>;
     const MIN_LEN: usize = 0;
+    #[inline]
     fn extend_account_metas(
         program_id: &Pubkey,
         accounts: &Self::ClientAccounts,

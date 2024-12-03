@@ -7,9 +7,8 @@ rust-version.workspace = true
 
 [features]
 # todo: are these default features okay?
-default = ["token", "associated_token"]
+default = ["token"]
 token = []
-associated_token = []
 idl = ["star_frame/idl"]
 
 [dependencies]

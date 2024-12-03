@@ -67,6 +67,7 @@ strum = { version = "0.26.2", features = ["derive"] }
 syn = { version = "2.0.40", features = ["extra-traits"] }
 tokio = "1.41.1"
 typenum = "1.17.0"
+ref-cast = "1.0"
 
 [profile.release]
 overflow-checks = true

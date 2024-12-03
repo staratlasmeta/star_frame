@@ -126,11 +126,10 @@ pub trait AccountSetCleanup<'info, A>: AccountSet<'info> + Sized {
 mod test {
     use crate::account_set::AccountSetValidate;
     use crate::syscalls::{SyscallCore, SyscallInvoke};
+    use crate::Result;
     use crate::SolanaInstruction;
     use solana_program::account_info::AccountInfo;
     use solana_program::clock::Clock;
-    use solana_program::entrypoint_deprecated::ProgramResult;
-    use solana_program::program_error::ProgramError;
     use solana_program::pubkey::Pubkey;
     use solana_program::rent::Rent;
     use star_frame::syscalls::SyscallAccountCache;
@@ -190,11 +189,11 @@ mod test {
             unimplemented!()
         }
 
-        fn get_rent(&self) -> Result<Rent, ProgramError> {
+        fn get_rent(&self) -> Result<Rent> {
             unimplemented!()
         }
 
-        fn get_clock(&self) -> Result<Clock, ProgramError> {
+        fn get_clock(&self) -> Result<Clock> {
             unimplemented!()
         }
     }
@@ -205,15 +204,7 @@ mod test {
             &self,
             _instruction: &SolanaInstruction,
             _accounts: &[AccountInfo],
-        ) -> ProgramResult {
-            unimplemented!()
-        }
-
-        unsafe fn invoke_unchecked(
-            &self,
-            _instruction: &SolanaInstruction,
-            _accounts: &[AccountInfo],
-        ) -> ProgramResult {
+        ) -> Result<()> {
             unimplemented!()
         }
 
@@ -222,16 +213,7 @@ mod test {
             _instruction: &SolanaInstruction,
             _accounts: &[AccountInfo],
             _signers_seeds: &[&[&[u8]]],
-        ) -> ProgramResult {
-            unimplemented!()
-        }
-
-        unsafe fn invoke_signed_unchecked(
-            &self,
-            _instruction: &SolanaInstruction,
-            _accounts: &[AccountInfo],
-            _signers_seeds: &[&[&[u8]]],
-        ) -> ProgramResult {
+        ) -> Result<()> {
             unimplemented!()
         }
     }

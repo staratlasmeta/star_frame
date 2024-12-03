@@ -1,5 +1,6 @@
-use crate::token::TokenProgram;
+use crate::token::{TokenAccount, TokenProgram};
 use borsh::{BorshDeserialize, BorshSerialize};
+use star_frame::derive_more;
 use star_frame::empty_star_frame_instruction;
 use star_frame::prelude::*;
 
@@ -56,6 +57,7 @@ mod idl_impl {
     use crate::token::TokenProgram;
     use star_frame::star_frame_idl::IdlDefinition;
 
+    // todo: potentially support multiple token programs here
     #[derive(Debug, Clone, PartialEq, Eq, BorshDeserialize, BorshSerialize)]
     pub struct AssociatedTokenSeeds {
         pub wallet: Pubkey,
@@ -125,14 +127,16 @@ mod idl_impl {
 
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
 pub use idl_impl::*;
+use star_frame::anyhow::{bail, Context};
+use star_frame::derive_more::{Deref, DerefMut};
 
 #[derive(Copy, Debug, Clone, PartialEq, Eq, InstructionSet)]
 #[ix_set(use_repr)]
 #[repr(u8)]
 pub enum AssociatedTokenInstructionSet {
     Create(Create),
-    // CreateIdempotent(), todo
-    // InitializeMultisig(), todo
+    CreateIdempotent(CreateIdempotent),
+    RecoverNested(RecoverNested),
 }
 
 // create
@@ -157,6 +161,194 @@ pub struct CreateAccounts<'info> {
     pub token_program: Program<'info, TokenProgram>,
 }
 empty_star_frame_instruction!(Create, CreateAccounts);
+
+// create idempotent
+/// See [`spl_associated_token_account::instruction::AssociatedTokenAccountInstruction::CreateIdempotent`].
+///
+/// This instruction has an identical AccountSet to [`Create`].
+#[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize)]
+#[instruction_to_idl(program = AssociatedTokenProgram)]
+pub struct CreateIdempotent;
+empty_star_frame_instruction!(CreateIdempotent, CreateAccounts);
+
+// recover nested
+/// See [`spl_associated_token_account::instruction::AssociatedTokenAccountInstruction::RecoverNested`].
+#[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize)]
+#[instruction_to_idl(program = AssociatedTokenProgram)]
+pub struct RecoverNested;
+/// Accounts for the [`RecoverNested`] instruction.
+#[derive(Debug, Clone, AccountSet)]
+pub struct RecoverNestedAccounts<'info> {
+    #[idl(arg =
+        Seeds(FindAtaSeeds {
+            wallet: seed_path("owner_ata"),
+            mint: seed_path("nested_mint"),
+        })
+    )]
+    pub nested_ata: Mut<AccountInfo<'info>>,
+    pub nested_mint: AccountInfo<'info>,
+    #[idl(arg =
+        Seeds(FindAtaSeeds {
+            wallet: seed_path("wallet"),
+            mint: seed_path("nested_mint"),
+        })
+    )]
+    pub destination_ata: Mut<AccountInfo<'info>>,
+    #[idl(arg =
+        Seeds(FindAtaSeeds {
+            wallet: seed_path("wallet"),
+            mint: seed_path("owner_mint"),
+        })
+    )]
+    pub owner_ata: Mut<AccountInfo<'info>>,
+    pub owner_mint: AccountInfo<'info>,
+    pub wallet: Mut<Signer<AccountInfo<'info>>>,
+    pub token_program: Program<'info, TokenProgram>,
+}
+empty_star_frame_instruction!(RecoverNested, RecoverNestedAccounts);
+
+#[derive(AccountSet, Debug, Clone, Deref, DerefMut)]
+#[validate(
+    id = "validate_ata",
+    arg = ValidateAta<'a>,
+    generics = [<'a>],
+    extra_validation = self.validate_ata(arg)
+)]
+pub struct AssociatedTokenAccount<'info>(
+    #[single_account_set(skip_can_init_account, skip_can_init_seeds)] pub(crate) TokenAccount<'info>,
+);
+
+impl AssociatedTokenAccount<'_> {
+    /// Validates that the given account is an associated token account.
+    pub fn validate_ata(&self, validate_ata: ValidateAta) -> Result<()> {
+        let expected_address =
+            AssociatedTokenProgram::find_address(validate_ata.wallet, validate_ata.mint);
+        if self.key() != &expected_address {
+            bail!(ProgramError::InvalidAccountData);
+        }
+        Ok(())
+    }
+}
+
+impl<'info, A> CanInitSeeds<'info, A> for AssociatedTokenAccount<'info>
+where
+    Self: AccountSetValidate<'info, A>,
+{
+    fn init_seeds(&mut self, _arg: &A, _syscalls: &impl SyscallInvoke<'info>) -> Result<()> {
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Copy)]
+pub struct ValidateAta<'a> {
+    pub wallet: &'a Pubkey,
+    pub mint: &'a Pubkey,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct InitAta<'a, 'info, WalletInfo, MintInfo> {
+    pub wallet: &'a WalletInfo,
+    pub mint: &'a MintInfo,
+    pub system_program: &'a Program<'info, SystemProgram>,
+    pub token_program: &'a Program<'info, TokenProgram>,
+}
+
+impl<'a, 'info, WalletInfo, MintInfo> InitAta<'a, 'info, WalletInfo, MintInfo> {
+    pub fn new(
+        wallet: &'a WalletInfo,
+        mint: &'a MintInfo,
+        system_program: &'a Program<'info, SystemProgram>,
+        token_program: &'a Program<'info, TokenProgram>,
+    ) -> Self {
+        Self {
+            wallet,
+            mint,
+            system_program,
+            token_program,
+        }
+    }
+}
+
+impl<'a, 'info, WalletInfo, MintInfo> From<InitAta<'a, 'info, WalletInfo, MintInfo>>
+    for ValidateAta<'a>
+where
+    WalletInfo: SingleAccountSet<'info>,
+    MintInfo: SingleAccountSet<'info>,
+    'info: 'a,
+{
+    fn from(value: InitAta<'a, 'info, WalletInfo, MintInfo>) -> Self {
+        Self {
+            mint: value.mint.key(),
+            wallet: value.wallet.key(),
+        }
+    }
+}
+
+impl<'info, 'a, WalletInfo, MintInfo>
+    CanInitAccount<'info, InitAta<'a, 'info, WalletInfo, MintInfo>>
+    for AssociatedTokenAccount<'info>
+where
+    WalletInfo: SingleAccountSet<'info>,
+    MintInfo: SingleAccountSet<'info>,
+{
+    fn init_account<const IF_NEEDED: bool>(
+        &mut self,
+        arg: InitAta<'a, 'info, WalletInfo, MintInfo>,
+        account_seeds: Option<Vec<&[u8]>>,
+        syscalls: &impl SyscallInvoke<'info>,
+    ) -> Result<()> {
+        let funder = syscalls
+            .get_funder()
+            .context("Missing tagged `funder` for AssociatedTokenAccount `init_account`")?;
+        self.init_account::<IF_NEEDED>((arg, funder), account_seeds, syscalls)
+    }
+}
+
+impl<'info, 'a, WalletInfo, MintInfo, Funder>
+    CanInitAccount<'info, (InitAta<'a, 'info, WalletInfo, MintInfo>, &Funder)>
+    for AssociatedTokenAccount<'info>
+where
+    Funder: SignedAccount<'info> + WritableAccount<'info>,
+    WalletInfo: SingleAccountSet<'info>,
+    MintInfo: SingleAccountSet<'info>,
+{
+    fn init_account<const IF_NEEDED: bool>(
+        &mut self,
+        arg: (InitAta<'a, 'info, WalletInfo, MintInfo>, &Funder),
+        account_seeds: Option<Vec<&[u8]>>,
+        syscalls: &impl SyscallInvoke<'info>,
+    ) -> Result<()> {
+        if IF_NEEDED && self.owner() == &TokenProgram::PROGRAM_ID {
+            self.validate()?;
+            self.validate_ata(arg.0.into())?;
+            return Ok(());
+        }
+        if account_seeds.is_some() {
+            bail!("Account seeds are not supported for Init<AssociatedTokenAccount>");
+        }
+        self.check_writable()?;
+        let (init_ata, funder) = arg;
+        let funder_seeds = funder.signer_seeds();
+        let seeds: &[&[&[u8]]] = match &funder_seeds {
+            Some(seeds) => &[seeds],
+            None => &[],
+        };
+
+        AssociatedTokenProgram::cpi(
+            &Create,
+            CreateCpiAccounts {
+                funder: funder.account_info_cloned(),
+                token_account: self.account_info_cloned(),
+                wallet: init_ata.wallet.account_info_cloned(),
+                mint: init_ata.mint.account_info_cloned(),
+                system_program: init_ata.system_program.account_info_cloned(),
+                token_program: init_ata.token_program.account_info_cloned(),
+            },
+        )?
+        .invoke_signed(seeds, syscalls)?;
+        Ok(())
+    }
+}
 
 #[cfg(test)]
 mod tests {

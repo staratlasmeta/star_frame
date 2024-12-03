@@ -7,7 +7,7 @@ use solana_program::system_program;
 use solana_program::sysvar::recent_blockhashes::RecentBlockhashes;
 
 /// Solana's system program.
-#[derive(Debug, Copy, Clone, Align1)]
+#[derive(Debug, Copy, Clone, Align1, PartialEq, Eq, Ord, PartialOrd)]
 pub struct SystemProgram;
 impl StarFrameProgram for SystemProgram {
     type InstructionSet = SystemInstructionSet;

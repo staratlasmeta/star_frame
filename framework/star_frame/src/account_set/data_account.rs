@@ -125,11 +125,10 @@ where
 {
     /// Validates the owner and the discriminant of the account.
     pub fn validate(&self) -> Result<()> {
-        if self.info.owner != &T::OwnerProgram::PROGRAM_ID {
+        if self.owner() != &T::OwnerProgram::PROGRAM_ID {
             bail!(ProgramError::IllegalOwner);
         }
-        let data = self.info.try_borrow_data()?;
-
+        let data = self.info_data_bytes()?;
         Self::check_discriminant(&data)?;
         Ok(())
     }
@@ -146,10 +145,10 @@ where
     }
 
     pub fn data<'a>(&'a self) -> Result<RefWrapper<AccountInfoRef<'a>, T::RefData>> {
-        let r: Ref<'a, _> = self.info.try_borrow_data()?;
+        let r: Ref<'a, _> = self.info_data_bytes()?;
         Self::check_discriminant(&r)?;
         let r = try_map_ref(r, |bytes| {
-            let bytes = &mut &**bytes;
+            let bytes = &mut &*bytes;
             bytes.try_advance(size_of::<
                 <T::OwnerProgram as StarFrameProgram>::AccountDiscriminant,
             >())?;
@@ -162,7 +161,7 @@ where
     pub fn data_mut<'a>(
         &'a mut self,
     ) -> Result<RefWrapper<AccountInfoRefMut<'a, 'info, T::OwnerProgram>, T::RefData>> {
-        let r: RefMut<'a, _> = self.info.try_borrow_mut_data()?;
+        let r: RefMut<'a, _> = self.info_data_bytes_mut()?;
         Self::check_discriminant(&r)?;
         let account_info_ref_mut = AccountInfoRefMut {
             account_info: &self.info,
@@ -210,111 +209,63 @@ where
     type Seeds = T::Seeds;
 }
 
-impl<'info, T: ProgramAccount + UnsizedType + ?Sized> CanInitAccount<'info, CreateIfNeeded<()>>
+impl<'info, T: ProgramAccount + UnsizedType + ?Sized> CanInitAccount<'info, ()>
     for DataAccount<'info, T>
 where
     T: UnsizedInit<Zeroed>,
 {
-    fn init_account(
+    fn init_account<const IF_NEEDED: bool>(
         &mut self,
-        _arg: CreateIfNeeded<()>,
-        syscalls: &impl SyscallInvoke<'info>,
+        _arg: (),
         account_seeds: Option<Vec<&[u8]>>,
+        syscalls: &impl SyscallInvoke<'info>,
     ) -> Result<()> {
-        self.init_account(CreateIfNeeded((Zeroed,)), syscalls, account_seeds)
+        self.init_account::<IF_NEEDED>((Zeroed,), account_seeds, syscalls)
     }
 }
 
-impl<'info, T: ProgramAccount + UnsizedType + ?Sized, InitArg>
-    CanInitAccount<'info, CreateIfNeeded<(InitArg,)>> for DataAccount<'info, T>
+impl<'info, T: ProgramAccount + UnsizedType + ?Sized, InitArg> CanInitAccount<'info, (InitArg,)>
+    for DataAccount<'info, T>
 where
     T: UnsizedInit<InitArg>,
 {
-    fn init_account(
+    fn init_account<const IF_NEEDED: bool>(
         &mut self,
-        arg: CreateIfNeeded<(InitArg,)>,
-        syscalls: &impl SyscallInvoke<'info>,
+        arg: (InitArg,),
         account_seeds: Option<Vec<&[u8]>>,
+        syscalls: &impl SyscallInvoke<'info>,
     ) -> Result<()> {
         let funder = syscalls
             .get_funder()
-            .context("Missing `funder` for `CreateIfNeeded`")?;
-        self.init_account(CreateIfNeeded((arg.0 .0, funder)), syscalls, account_seeds)
+            .context("Missing tagged `funder` for DataAccount `init_account`")?;
+        self.init_account::<IF_NEEDED>((arg.0, funder), account_seeds, syscalls)
     }
 }
 
 impl<'info, T: ProgramAccount + UnsizedType + ?Sized, InitArg, Funder>
-    CanInitAccount<'info, CreateIfNeeded<(InitArg, &Funder)>> for DataAccount<'info, T>
+    CanInitAccount<'info, (InitArg, &Funder)> for DataAccount<'info, T>
 where
     T: UnsizedInit<InitArg>,
     Funder: SignedAccount<'info> + WritableAccount<'info>,
 {
-    fn init_account(
+    fn init_account<const IF_NEEDED: bool>(
         &mut self,
-        arg: CreateIfNeeded<(InitArg, &Funder)>,
-        syscalls: &impl SyscallInvoke<'info>,
+        arg: (InitArg, &Funder),
         account_seeds: Option<Vec<&[u8]>>,
+        syscalls: &impl SyscallInvoke<'info>,
     ) -> Result<()> {
-        if self.owner() == &SystemProgram::PROGRAM_ID
-            || self.account_info().data.borrow_mut()
-                [..size_of::<<T::OwnerProgram as StarFrameProgram>::AccountDiscriminant>()]
-                .iter()
-                .all(|x| *x == 0)
-        {
-            self.init_account(Create(arg.0), syscalls, account_seeds)?;
+        if IF_NEEDED {
+            let needs_init = self.owner() == &SystemProgram::PROGRAM_ID
+                || self.info_data_bytes()?
+                    [..size_of::<<T::OwnerProgram as StarFrameProgram>::AccountDiscriminant>()]
+                    .iter()
+                    .all(|x| *x == 0);
+            if !needs_init {
+                return Ok(());
+            }
         }
-        Ok(())
-    }
-}
-
-impl<'info, T: ProgramAccount + UnsizedType + ?Sized> CanInitAccount<'info, Create<()>>
-    for DataAccount<'info, T>
-where
-    T: UnsizedInit<Zeroed>,
-{
-    fn init_account(
-        &mut self,
-        _arg: Create<()>,
-        syscalls: &impl SyscallInvoke<'info>,
-        account_seeds: Option<Vec<&[u8]>>,
-    ) -> Result<()> {
-        self.init_account(Create((Zeroed,)), syscalls, account_seeds)
-    }
-}
-
-impl<'info, T: ProgramAccount + UnsizedType + ?Sized, InitArg>
-    CanInitAccount<'info, Create<(InitArg,)>> for DataAccount<'info, T>
-where
-    T: UnsizedInit<InitArg>,
-{
-    fn init_account(
-        &mut self,
-        arg: Create<(InitArg,)>,
-        syscalls: &impl SyscallInvoke<'info>,
-        account_seeds: Option<Vec<&[u8]>>,
-    ) -> Result<()> {
-        let funder = syscalls
-            .get_funder()
-            .context("Missing `funder` for `Create`")?;
-        self.init_account(Create((arg.0 .0, funder)), syscalls, account_seeds)
-    }
-}
-
-impl<'info, T: ProgramAccount + UnsizedType + ?Sized, InitArg, Funder>
-    CanInitAccount<'info, Create<(InitArg, &Funder)>> for DataAccount<'info, T>
-where
-    T: UnsizedInit<InitArg>,
-    Funder: SignedAccount<'info> + WritableAccount<'info>,
-{
-    fn init_account(
-        &mut self,
-        arg: Create<(InitArg, &Funder)>,
-        syscalls: &impl SyscallInvoke<'info>,
-        account_seeds: Option<Vec<&[u8]>>,
-    ) -> Result<()> {
-        self.check_writable()
-            .context("InitAccount must be writable")?;
-        let (arg, funder) = arg.0;
+        self.check_writable()?;
+        let (arg, funder) = arg;
         let size =
             T::INIT_BYTES + size_of::<<T::OwnerProgram as StarFrameProgram>::AccountDiscriminant>();
         self.system_create_account(

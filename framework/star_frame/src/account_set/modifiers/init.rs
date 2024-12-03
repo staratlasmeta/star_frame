@@ -6,38 +6,38 @@ use derive_more::{Deref, DerefMut};
 #[account_set(skip_default_idl, skip_default_validate)]
 #[validate(
     id = "create",
-    generics = [<C> where T: CanInitSeeds<'info, ()> + CanInitAccount<'info, Create<C>>],
+    generics = [<C> where T: CanInitSeeds<'info, ()> + CanInitAccount<'info, C>],
     arg = Create<C>,
     before_validation = {
         self.init_seeds(&(), syscalls)?;
-        self.init_account(arg, syscalls, None)
+        self.init_account::<false>(arg.0, None, syscalls)
     }
 )]
 #[validate(
     id = "create_generic",
-    generics = [<C, A> where T: CanInitSeeds<'info, A> + CanInitAccount<'info, Create<C>>],
+    generics = [<C, A> where T: CanInitSeeds<'info, A> + CanInitAccount<'info, C>],
     arg = (Create<C>, A),
     before_validation = {
         self.init_seeds(&arg.1, syscalls)?;
-        self.init_account(arg.0, syscalls, None)
+        self.init_account::<false>(arg.0.0, None, syscalls)
     }
 )]
 #[validate(
     id = "create_if_needed",
-    generics = [<C> where T: CanInitSeeds<'info, ()> + CanInitAccount<'info, CreateIfNeeded<C>>],
+    generics = [<C> where T: CanInitSeeds<'info, ()> + CanInitAccount<'info, C>],
     arg = CreateIfNeeded<C>,
     before_validation = {
         self.init_seeds(&(), syscalls)?;
-        self.init_account(arg, syscalls, None)
+        self.init_account::<true>(arg.0, None, syscalls)
     }
 )]
 #[validate(
     id = "create_if_needed_generic",
-    generics = [<C, A> where T: CanInitSeeds<'info, A> + CanInitAccount<'info, CreateIfNeeded<C>>],
+    generics = [<C, A> where T: CanInitSeeds<'info, A> + CanInitAccount<'info, C>],
     arg = (CreateIfNeeded<C>, A),
     before_validation = {
         self.init_seeds(&arg.1, syscalls)?;
-        self.init_account(arg.0, syscalls, None)
+        self.init_account::<true>(arg.0.0, None, syscalls)
     }
 )]
 pub struct Init<T>(

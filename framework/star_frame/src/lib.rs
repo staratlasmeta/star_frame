@@ -15,7 +15,6 @@
 )]
 #![allow(
     clippy::non_canonical_clone_impl,
-    clippy::inline_always,
     clippy::default_trait_access,
     clippy::manual_string_new,
     clippy::missing_errors_doc,
