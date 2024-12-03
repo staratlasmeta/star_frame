@@ -70,7 +70,7 @@ impl<'info> MintAccount<'info> {
         Ok(())
     }
 
-    fn data(&self) -> Result<Ref<MintData>> {
+    pub fn data(&self) -> Result<Ref<MintData>> {
         Ok(Ref::map(self.info_data_bytes()?, |data| {
             bytemuck::checked::from_bytes::<MintData>(data)
         }))
@@ -303,11 +303,6 @@ impl<'info> TokenAccount<'info> {
     /// assert_eq!(TokenAccount::LEN, core::mem::size_of::<TokenAccountData>());
     /// ```
     pub const LEN: usize = 165;
-    fn data(&self) -> Result<Ref<TokenAccountData>> {
-        Ok(Ref::map(self.info_data_bytes()?, |data| {
-            bytemuck::checked::from_bytes::<TokenAccountData>(data)
-        }))
-    }
 
     pub fn validate(&mut self) -> Result<()> {
         if self.validated {
@@ -325,6 +320,12 @@ impl<'info> TokenAccount<'info> {
         }
         self.validated = true;
         Ok(())
+    }
+
+    pub fn data(&self) -> Result<Ref<TokenAccountData>> {
+        Ok(Ref::map(self.info_data_bytes()?, |data| {
+            bytemuck::checked::from_bytes::<TokenAccountData>(data)
+        }))
     }
 
     pub fn validate_token(&self, validate_token: ValidateToken) -> Result<()> {
