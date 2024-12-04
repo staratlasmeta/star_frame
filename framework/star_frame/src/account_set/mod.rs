@@ -17,8 +17,10 @@ pub use star_frame_proc::AccountSet;
 pub use system_account::*;
 pub use sysvar::*;
 
+use crate::prelude::StarFrameProgram;
 use crate::syscalls::{SyscallAccountCache, SyscallInvoke};
 use crate::Result;
+use bytemuck::bytes_of;
 use solana_program::account_info::AccountInfo;
 use std::slice;
 
@@ -26,6 +28,14 @@ use std::slice;
 pub trait AccountSet<'info> {
     /// Sets account cache
     fn set_account_cache(&mut self, syscalls: &mut impl SyscallAccountCache<'info>);
+}
+
+pub trait ProgramAccount: HasOwnerProgram {
+    const DISCRIMINANT: <Self::OwnerProgram as StarFrameProgram>::AccountDiscriminant;
+    #[must_use]
+    fn discriminant_bytes() -> Vec<u8> {
+        bytes_of(&Self::DISCRIMINANT).into()
+    }
 }
 
 /// Convenience methods for decoding and validating a list of [`AccountInfo`]s to an [`AccountSet`]. Performs
@@ -142,44 +152,44 @@ mod test {
     #[derive(AccountSet)]
     #[validate(arg = &mut Vec<usize>)]
     struct AccountSet123 {
-        #[validate(arg = arg)]
+        #[validate(arg = &mut *arg)]
         a: InnerAccount<1>,
-        #[validate(arg = arg)]
+        #[validate(arg = &mut *arg)]
         b: InnerAccount<2>,
-        #[validate(arg = arg)]
+        #[validate(arg = &mut *arg)]
         c: InnerAccount<3>,
     }
 
     #[derive(AccountSet)]
     #[validate(arg = &mut Vec<usize>)]
     struct AccountSet213 {
-        #[validate(arg = arg, requires = [b])]
+        #[validate(arg = &mut *arg, requires = [b])]
         a: InnerAccount<1>,
-        #[validate(arg = arg)]
+        #[validate(arg = &mut *arg)]
         b: InnerAccount<2>,
-        #[validate(arg = arg)]
+        #[validate(arg = &mut *arg)]
         c: InnerAccount<3>,
     }
 
     #[derive(AccountSet)]
     #[validate(arg = &mut Vec<usize>)]
     struct AccountSet312 {
-        #[validate(arg = arg, requires = [c])]
+        #[validate(arg = &mut *arg, requires = [c])]
         a: InnerAccount<1>,
-        #[validate(arg = arg, requires = [c])]
+        #[validate(arg = &mut *arg, requires = [c])]
         b: InnerAccount<2>,
-        #[validate(arg = arg)]
+        #[validate(arg = &mut *arg)]
         c: InnerAccount<3>,
     }
 
     #[derive(AccountSet)]
     #[validate(arg = &mut Vec<usize>)]
     struct AccountSet231 {
-        #[validate(arg = arg, requires = [c])]
+        #[validate(arg = &mut *arg, requires = [c])]
         a: InnerAccount<1>,
-        #[validate(arg = arg)]
+        #[validate(arg = &mut *arg)]
         b: InnerAccount<2>,
-        #[validate(arg = arg)]
+        #[validate(arg = &mut *arg)]
         c: InnerAccount<3>,
     }
 

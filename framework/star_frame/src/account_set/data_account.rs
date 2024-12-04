@@ -12,14 +12,6 @@ use std::marker::PhantomData;
 use std::mem::size_of;
 use std::slice::from_raw_parts_mut;
 
-pub trait ProgramAccount: HasOwnerProgram {
-    const DISCRIMINANT: <Self::OwnerProgram as StarFrameProgram>::AccountDiscriminant;
-    #[must_use]
-    fn discriminant_bytes() -> Vec<u8> {
-        bytes_of(&Self::DISCRIMINANT).into()
-    }
-}
-
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
 pub struct NormalizeRent<T>(pub T);
 

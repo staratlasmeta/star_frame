@@ -165,10 +165,7 @@ pub(super) fn decodes(
         let decode_inner = init(&mut decode_field_ty.iter().zip_eq(&decode_args).map(|(field_ty, decode_args)| {
             match &field_ty {
                 DecodeFieldTy::Type(field_type) => quote! {
-                        {
-                            let __decode_arg = #decode_args;
-                            <#field_type as #account_set_decode<#decode_lifetime, #info_lifetime, _>>::decode_accounts(accounts, __decode_arg, syscalls)?
-                        }
+                        <#field_type as #account_set_decode<#decode_lifetime, #info_lifetime, _>>::decode_accounts(accounts, #decode_args, syscalls)?
                     },
                 DecodeFieldTy::Default(default) => quote!(#default)
             }
