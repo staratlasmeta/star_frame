@@ -166,8 +166,8 @@ pub(super) fn decodes(
             match &field_ty {
                 DecodeFieldTy::Type(field_type) => quote! {
                         {
-                            let __arg = #decode_args;
-                            <#field_type as #account_set_decode<#decode_lifetime, #info_lifetime, _>>::decode_accounts(accounts, __arg, syscalls)?
+                            let __decode_arg = #decode_args;
+                            <#field_type as #account_set_decode<#decode_lifetime, #info_lifetime, _>>::decode_accounts(accounts, __decode_arg, syscalls)?
                         }
                     },
                 DecodeFieldTy::Default(default) => quote!(#default)
