@@ -143,7 +143,12 @@ pub(super) fn cleanups(
                     arg: #cleanup_type,
                     syscalls: &mut impl #syscall_invoke<#info_lifetime>,
                 ) -> #result<()> {
-                    #(<#field_type as #account_set_cleanup<#info_lifetime, _>>::cleanup_accounts(&mut self.#field_name, #cleanup_args, syscalls)?;)*
+                    #(
+                        {
+                            let __cleanup_arg = #cleanup_args;
+                            <#field_type as #account_set_cleanup<#info_lifetime, _>>::cleanup_accounts(&mut self.#field_name, __cleanup_arg, syscalls)?;
+                        }
+                    )*
                     #extra_cleanup
                     Ok(())
                 }
