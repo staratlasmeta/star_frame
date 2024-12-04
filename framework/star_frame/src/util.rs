@@ -8,6 +8,7 @@ use std::fmt::Debug;
 use std::mem::size_of;
 
 /// Similar to [`Ref::map`], but the closure can return an error.
+#[inline]
 pub fn try_map_ref<'a, I: 'a + ?Sized, O: 'a + ?Sized, E>(
     r: Ref<'a, I>,
     f: impl FnOnce(&I) -> Result<&O, E>,
@@ -20,7 +21,8 @@ pub fn try_map_ref<'a, I: 'a + ?Sized, O: 'a + ?Sized, E>(
     }
 }
 
-/// Similar to [`RefMut::map`], but the closure can return an error.
+/// Similar to [`RefMut::map`], but the closure can return an error
+#[inline]
 pub fn try_map_ref_mut<'a, I: 'a + ?Sized, O: 'a + ?Sized, E>(
     mut r: RefMut<'a, I>,
     f: impl FnOnce(&mut I) -> Result<&mut O, E>,
@@ -60,6 +62,7 @@ unsafe impl<S> RefBytes<S> for OffsetRef
 where
     S: AsBytes,
 {
+    #[inline]
     fn bytes(wrapper: &RefWrapper<S, Self>) -> Result<&[u8]> {
         let mut bytes = wrapper.sup().as_bytes()?;
         bytes.try_advance(wrapper.r().0)?;
@@ -70,6 +73,7 @@ unsafe impl<S> RefBytesMut<S> for OffsetRef
 where
     S: AsMutBytes,
 {
+    #[inline]
     fn bytes_mut(wrapper: &mut RefWrapper<S, Self>) -> Result<&mut [u8]> {
         let (sup, r) = unsafe { wrapper.s_r_mut() };
         let mut bytes = sup.as_mut_bytes()?;
@@ -79,6 +83,7 @@ where
 }
 
 /// Returns a slice of bytes from an array of [`NoUninit`] types.
+#[inline]
 pub fn uninit_array_bytes<T: NoUninit, const N: usize>(array: &[T; N]) -> &[u8] {
     // Safety: `T` is `NoUninit`, so all underlying reads are valid since there's no padding
     // between array elements. The pointer is valid. The entire memory is valid.

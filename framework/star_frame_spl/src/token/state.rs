@@ -5,6 +5,7 @@ use star_frame::account_set::AccountSet;
 use star_frame::anyhow::{bail, Context};
 use star_frame::bytemuck;
 use star_frame::prelude::*;
+use star_frame::util::try_map_ref;
 use std::cell::Ref;
 
 /// A wrapper around `AccountInfo` for the [`spl_token::state::Mint`] account.
@@ -51,6 +52,7 @@ impl<'info> MintAccount<'info> {
     /// ```
     pub const LEN: usize = 82;
 
+    #[inline]
     pub fn validate(&mut self) -> Result<()> {
         if self.validated {
             return Ok(());
@@ -62,20 +64,27 @@ impl<'info> MintAccount<'info> {
         if self.info_data_bytes()?.len() != Self::LEN {
             bail!(ProgramError::InvalidAccountData);
         }
+        // set validate before checking state to allow us to call .data()
+        self.validated = true;
         // check initialized
         if !self.data()?.is_initialized {
             bail!(ProgramError::UninitializedAccount);
         }
-        self.validated = true;
         Ok(())
     }
 
+    #[inline]
     pub fn data(&self) -> Result<Ref<MintData>> {
-        Ok(Ref::map(self.info_data_bytes()?, |data| {
-            bytemuck::checked::from_bytes::<MintData>(data)
-        }))
+        if !self.validated {
+            return Err(ProgramError::InvalidAccountData)
+                .context("Called `.data()` on MintAccount before validation");
+        }
+        Ok(try_map_ref(self.info_data_bytes()?, |data| {
+            bytemuck::checked::try_from_bytes::<MintData>(data)
+        })?)
     }
 
+    #[inline]
     pub fn validate_mint(&self, validate_mint: ValidateMint) -> Result<()> {
         let data = self.data()?;
         if let Some(decimals) = validate_mint.decimals {
@@ -266,6 +275,7 @@ impl<'info> TokenAccount<'info> {
     /// ```
     pub const LEN: usize = 165;
 
+    #[inline]
     pub fn validate(&mut self) -> Result<()> {
         if self.validated {
             return Ok(());
@@ -277,19 +287,26 @@ impl<'info> TokenAccount<'info> {
         if self.info_data_bytes()?.len() != Self::LEN {
             bail!(ProgramError::InvalidAccountData);
         }
+        // set validate before checking state to allow us to call .data()
+        self.validated = true;
         if self.data()?.state == AccountState::Uninitialized {
             bail!(ProgramError::UninitializedAccount);
         }
-        self.validated = true;
         Ok(())
     }
 
+    #[inline]
     pub fn data(&self) -> Result<Ref<TokenAccountData>> {
-        Ok(Ref::map(self.info_data_bytes()?, |data| {
-            bytemuck::checked::from_bytes::<TokenAccountData>(data)
-        }))
+        if !self.validated {
+            return Err(ProgramError::InvalidAccountData)
+                .context("Called `.data()` on TokenAccount before validation");
+        }
+        Ok(try_map_ref(self.info_data_bytes()?, |data| {
+            bytemuck::checked::try_from_bytes::<TokenAccountData>(data)
+        })?)
     }
 
+    #[inline]
     pub fn validate_token(&self, validate_token: ValidateToken) -> Result<()> {
         let data = self.data()?;
         if let Some(mint) = validate_token.mint {
