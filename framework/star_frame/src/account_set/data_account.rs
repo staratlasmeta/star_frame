@@ -124,6 +124,7 @@ where
     T: ProgramAccount + UnsizedType + ?Sized,
 {
     /// Validates the owner and the discriminant of the account.
+    #[inline]
     pub fn validate(&self) -> Result<()> {
         if self.owner() != &T::OwnerProgram::PROGRAM_ID {
             bail!(ProgramError::IllegalOwner);
@@ -133,6 +134,7 @@ where
         Ok(())
     }
 
+    #[inline]
     fn check_discriminant(bytes: &[u8]) -> Result<()> {
         if bytes.len() < size_of::<<T::OwnerProgram as StarFrameProgram>::AccountDiscriminant>()
             || from_bytes::<PackedValue<<T::OwnerProgram as StarFrameProgram>::AccountDiscriminant>>(
@@ -144,6 +146,7 @@ where
         Ok(())
     }
 
+    #[inline]
     pub fn data<'a>(&'a self) -> Result<RefWrapper<AccountInfoRef<'a>, T::RefData>> {
         let r: Ref<'a, _> = self.info_data_bytes()?;
         Self::check_discriminant(&r)?;
@@ -158,6 +161,7 @@ where
         T::from_bytes(account_info_ref).map(|ret| ret.ref_wrapper)
     }
 
+    #[inline]
     pub fn data_mut<'a>(
         &'a mut self,
     ) -> Result<RefWrapper<AccountInfoRefMut<'a, 'info, T::OwnerProgram>, T::RefData>> {

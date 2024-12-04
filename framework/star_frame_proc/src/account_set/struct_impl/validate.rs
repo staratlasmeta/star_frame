@@ -182,11 +182,15 @@ pub(super) fn validates(
                 quote! {}
             } else {
                 let address_check = validate_address.as_ref().map(|address| quote! {
-                    <#field_type as #prelude::SingleAccountSet<#info_lifetime>>::check_key(&self.#field_name, #address)?;
+                    let __address = #address;
+                    <#field_type as #prelude::SingleAccountSet<#info_lifetime>>::check_key(&self.#field_name, __address)?;
                 });
                 quote! {
-                    #address_check
-                    <#field_type as #account_set_validate<#info_lifetime, #validate_ty>>::validate_accounts(&mut self.#field_name, #validate_arg, syscalls)?;
+                    {
+                        #address_check
+                        let __validate_arg = #validate_arg;
+                        <#field_type as #account_set_validate<#info_lifetime, #validate_ty>>::validate_accounts(&mut self.#field_name, __validate_arg, syscalls)?;
+                    }
                 }
             })
             .collect::<Vec<_>>();
