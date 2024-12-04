@@ -74,7 +74,7 @@ pub fn derive_type_to_idl_inner(input: &DeriveInput, args: TypeToIdlArgs) -> Tok
                     type_def,
                     generics: vec![],
                 };
-                let namespace = idl_definition.add_type(idl_type, Self::AssociatedProgram::PROGRAM_ID);
+                let namespace = idl_definition.add_type(idl_type, Self::AssociatedProgram::ID);
                 Ok(#prelude::IdlTypeDef::Defined(#prelude::IdlTypeId {
                     namespace,
                     source,

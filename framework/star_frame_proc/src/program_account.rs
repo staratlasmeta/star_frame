@@ -99,7 +99,7 @@ pub fn program_account_impl_inner(input: DeriveInput, args: ProgramAccountArgs) 
                         type_id,
                         seeds: #seeds,
                     };
-                    let namespace = idl_definition.add_account(idl_account, Self::AssociatedProgram::PROGRAM_ID)?;
+                    let namespace = idl_definition.add_account(idl_account, Self::AssociatedProgram::ID)?;
                     Ok(#prelude::IdlAccountId {
                         namespace,
                         source,

@@ -8,17 +8,17 @@ members = [
 ]
 
 [workspace.package]
-version = "0.0.1"
+version = "0.0.2"
 edition = "2021"
 publish = ["star-atlas"]
 rust-version = "1.79.0"
 
 [workspace.dependencies]
 # Keep the version in sync with the workspace.package.version
-star_frame = { path = "framework/star_frame", registry = "star-atlas", version = "0.0.1" }
-star_frame_idl = { path = "framework/star_frame_idl", registry = "star-atlas", version = "0.0.1" }
-star_frame_proc = { path = "framework/star_frame_proc", registry = "star-atlas", version = "0.0.1" }
-star_frame_spl = { path = "framework/star_frame_spl", registry = "star-atlas", version = "0.0.1" }
+star_frame = { path = "framework/star_frame", registry = "star-atlas", version = "0.0.2" }
+star_frame_idl = { path = "framework/star_frame_idl", registry = "star-atlas", version = "0.0.2" }
+star_frame_proc = { path = "framework/star_frame_proc", registry = "star-atlas", version = "0.0.2" }
+star_frame_spl = { path = "framework/star_frame_spl", registry = "star-atlas", version = "0.0.2" }
 
 # Advance has its own version. It won't be part of the workspace forever.
 advance = { path = "advance", package = "advance_temp", registry = "star-atlas", features = ["solana"], version = "0.0.1" }

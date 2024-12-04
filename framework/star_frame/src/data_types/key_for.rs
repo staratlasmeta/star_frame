@@ -105,7 +105,7 @@ mod idl_impl {
     use star_frame_idl::IdlDefinition;
 
     impl<T: AccountToIdl + ?Sized> TypeToIdl for KeyFor<T> {
-        type AssociatedProgram = SystemProgram;
+        type AssociatedProgram = System;
         fn type_to_idl(idl_definition: &mut IdlDefinition) -> Result<IdlTypeDef> {
             Ok(IdlTypeDef::PubkeyFor {
                 id: T::account_to_idl(idl_definition)?,

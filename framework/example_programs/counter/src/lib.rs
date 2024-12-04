@@ -41,7 +41,7 @@ pub struct CreateCounterAccounts<'info> {
     ))]
     #[idl(arg = Seeds(FindCounterAccountSeeds { owner: seed_path("owner") }))]
     pub counter: Init<Seeded<WrappedCounter<'info>>>,
-    pub system_program: Program<'info, SystemProgram>,
+    pub system_program: Program<'info, System>,
 }
 
 impl StarFrameInstruction for CreateCounterIx {
@@ -225,11 +225,11 @@ mod tests {
                 "BPF_OUT_DIR",
                 target_dir.to_str().expect("Failed to convert path to str"),
             );
-            ProgramTest::new("counter", StarFrameDeclaredProgram::PROGRAM_ID, None)
+            ProgramTest::new("counter", StarFrameDeclaredProgram::ID, None)
         } else {
             ProgramTest::new(
                 "counter",
-                StarFrameDeclaredProgram::PROGRAM_ID,
+                StarFrameDeclaredProgram::ID,
                 processor!(CounterProgram::processor),
             )
         };
@@ -243,7 +243,7 @@ mod tests {
             owner: account_key.pubkey(),
         };
         let (counter_account, bump) =
-            Pubkey::find_program_address(&seeds.seeds(), &StarFrameDeclaredProgram::PROGRAM_ID);
+            Pubkey::find_program_address(&seeds.seeds(), &StarFrameDeclaredProgram::ID);
 
         let instruction = CounterProgram::instruction(
             &CreateCounterIx { start_at },
@@ -251,7 +251,7 @@ mod tests {
                 funder: payer.pubkey(),
                 owner: account_key.pubkey(),
                 counter: counter_account,
-                system_program: SystemProgram::PROGRAM_ID,
+                system_program: System::ID,
             },
         )?;
 

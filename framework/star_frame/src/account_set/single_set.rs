@@ -1,7 +1,7 @@
 use crate::account_set::{AccountSet, HasOwnerProgram, SignedAccount, WritableAccount};
 use crate::anyhow::Result;
 use crate::client::{ClientAccountSet, MakeCpi};
-use crate::prelude::{StarFrameProgram, SyscallInvoke, SystemProgram};
+use crate::prelude::{StarFrameProgram, SyscallInvoke, System};
 use crate::program::system_program;
 use crate::syscalls::SyscallCore;
 use anyhow::{anyhow, bail};
@@ -195,7 +195,7 @@ pub trait CanCloseAccount<'info>: SingleAccountSet<'info> {
         **recipient.account_info().try_borrow_mut_lamports()? += **info.try_borrow_lamports()?;
         **info.try_borrow_mut_lamports()? = 0;
         info.realloc(0, false)?;
-        info.assign(&SystemProgram::PROGRAM_ID);
+        info.assign(&System::ID);
         Ok(())
     }
 }
@@ -223,7 +223,7 @@ pub trait CanModifyRent<'info>: SingleAccountSet<'info> {
                     return Ok(());
                 }
                 let transfer_amount = rent_lamports - lamports;
-                let cpi = SystemProgram::cpi(
+                let cpi = System::cpi(
                     &system_program::Transfer {
                         lamports: transfer_amount,
                     },
@@ -294,7 +294,7 @@ pub trait CanSystemCreateAccount<'info>: SingleAccountSet<'info> {
         account_seeds: &Option<Vec<&[u8]>>,
         syscalls: &impl SyscallInvoke<'info>,
     ) -> Result<()> {
-        if self.owner() != &SystemProgram::PROGRAM_ID {
+        if self.owner() != &System::ID {
             bail!(ProgramError::InvalidAccountOwner);
         }
         let current_lamports = **self.account_info().try_borrow_lamports()?;
@@ -308,7 +308,7 @@ pub trait CanSystemCreateAccount<'info>: SingleAccountSet<'info> {
                 (None, Some(account_seeds)) => &[account_seeds],
                 (None, None) => &[],
             };
-            SystemProgram::cpi(
+            System::cpi(
                 &system_program::CreateAccount {
                     lamports: exempt_lamports,
                     space: space as u64,
@@ -323,7 +323,7 @@ pub trait CanSystemCreateAccount<'info>: SingleAccountSet<'info> {
         } else {
             let required_lamports = exempt_lamports.saturating_sub(current_lamports).max(1);
             if required_lamports > 0 {
-                let cpi = SystemProgram::cpi(
+                let cpi = System::cpi(
                     &system_program::Transfer {
                         lamports: required_lamports,
                     },
@@ -341,7 +341,7 @@ pub trait CanSystemCreateAccount<'info>: SingleAccountSet<'info> {
                 Some(seeds) => &[seeds],
                 None => &[],
             };
-            SystemProgram::cpi(
+            System::cpi(
                 &system_program::Allocate {
                     space: space as u64,
                 },
@@ -350,7 +350,7 @@ pub trait CanSystemCreateAccount<'info>: SingleAccountSet<'info> {
                 },
             )?
             .invoke_signed(account_seeds, syscalls)?;
-            SystemProgram::cpi(
+            System::cpi(
                 &system_program::Assign { owner },
                 system_program::AssignCpiAccounts {
                     account: self.account_info_cloned(),

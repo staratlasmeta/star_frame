@@ -16,7 +16,7 @@ pub trait StarFrameProgram {
 
     type AccountDiscriminant: Pod + Eq;
 
-    const PROGRAM_ID: Pubkey;
+    const ID: Pubkey;
 
     /// The entrypoint for the program. This has the same signature as the Solana program entrypoint, and
     /// is called by [`star_frame_entrypoint`](crate::star_frame_entrypoint) macro.
@@ -43,8 +43,7 @@ macro_rules! program_setup {
         pub type StarFrameDeclaredProgram = $program;
 
         #[doc = r" The const program ID."]
-        pub const ID: $crate::prelude::Pubkey =
-            <$program as $crate::program::StarFrameProgram>::PROGRAM_ID;
+        pub const ID: $crate::prelude::Pubkey = <$program as $crate::program::StarFrameProgram>::ID;
 
         #[doc = r" Returns `true` if given pubkey is the program ID."]
         pub fn check_id(id: &$crate::prelude::Pubkey) -> bool {

@@ -48,7 +48,7 @@ pub trait ProgramToIdl: StarFrameProgram {
         <Self as StarFrameProgram>::InstructionSet: InstructionSetToIdl,
     {
         let mut out = IdlDefinition {
-            address: Self::PROGRAM_ID,
+            address: Self::ID,
             metadata: IdlMetadata {
                 crate_metadata: Self::crate_metadata(),
                 ..Default::default()

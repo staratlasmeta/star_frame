@@ -126,7 +126,7 @@ where
     /// Validates the owner and the discriminant of the account.
     #[inline]
     pub fn validate(&self) -> Result<()> {
-        if self.owner() != &T::OwnerProgram::PROGRAM_ID {
+        if self.owner() != &T::OwnerProgram::ID {
             bail!(ProgramError::IllegalOwner);
         }
         let data = self.info_data_bytes()?;
@@ -259,7 +259,7 @@ where
         syscalls: &impl SyscallInvoke<'info>,
     ) -> Result<()> {
         if IF_NEEDED {
-            let needs_init = self.owner() == &SystemProgram::PROGRAM_ID
+            let needs_init = self.owner() == &System::ID
                 || self.info_data_bytes()?
                     [..size_of::<<T::OwnerProgram as StarFrameProgram>::AccountDiscriminant>()]
                     .iter()
@@ -272,13 +272,7 @@ where
         let (arg, funder) = arg;
         let size =
             T::INIT_BYTES + size_of::<<T::OwnerProgram as StarFrameProgram>::AccountDiscriminant>();
-        self.system_create_account(
-            funder,
-            T::OwnerProgram::PROGRAM_ID,
-            size,
-            &account_seeds,
-            syscalls,
-        )?;
+        self.system_create_account(funder, T::OwnerProgram::ID, size, &account_seeds, syscalls)?;
         {
             let mut data_bytes = self.info_data_bytes_mut()?;
             let mut data_bytes = &mut **data_bytes;
