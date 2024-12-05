@@ -28,15 +28,9 @@ jobs:
           key: cargo
           cargo-workspace: programs
 
-      # fails for clippy warnings by design!
-      - name: Run strict clippy
-        run: ./scripts/strict-clippy.sh sol-programs
-        shell: bash
-        working-directory: programs
-
       - name: Run clippy with tests
         run: |
-          RUSTFLAGS="-Dwarnings" cargo clippy --tests --all-features
+          RUSTFLAGS="-Dwarnings" cargo clippy --all-targets --all-features
         shell: bash
         working-directory: programs
 
