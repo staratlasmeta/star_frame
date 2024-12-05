@@ -22,12 +22,6 @@ jobs:
           private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
           cargo-config: programs
 
-      - name: Cache Cargo
-        uses: staratlasmeta/actions/cache-cargo@latest
-        with:
-          key: cargo
-          cargo-workspace: programs
-
       - name: Run clippy with tests
         run: |
           RUSTFLAGS="-Dwarnings" cargo clippy --all-targets --all-features
