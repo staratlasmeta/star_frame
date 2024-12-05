@@ -55,7 +55,6 @@ pub(super) fn validates(
         syscall_invoke,
         validate_ident,
         prelude,
-        crate_name,
         account_set_validate,
         ..
     } = paths;
