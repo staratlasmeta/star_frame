@@ -144,7 +144,14 @@ pub(super) fn cleanups(
                     syscalls: &mut impl #syscall_invoke<#info_lifetime>,
                 ) -> #result<()> {
                     #(
-                        #prelude::_account_set_cleanup_reverse::<#field_type, _>(#cleanup_args, &mut self.#field_name, syscalls)?;
+                        #prelude::_account_set_cleanup_reverse::<#field_type, _>(
+                            { 
+                                let __arg = #cleanup_args;
+                                __arg
+                            }, 
+                            &mut self.#field_name, 
+                            syscalls
+                        )?;
                     )*
                     #extra_cleanup
                     Ok(())

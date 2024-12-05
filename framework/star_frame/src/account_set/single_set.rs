@@ -204,7 +204,7 @@ impl<'info, T> CanCloseAccount<'info> for T where T: SingleAccountSet<'info> {}
 
 pub trait CanModifyRent<'info>: SingleAccountSet<'info> {
     /// Normalizes the rent of an account if data size is changed.
-    /// Assumes `Self` is owned by this program.
+    /// Assumes `Self` is owned by this program and funder is a System account
     ///
     /// If the account has 0 lamports (i.e., it is set to be closed), this will do nothing.
     fn normalize_rent<F: WritableAccount<'info> + SignedAccount<'info>>(
@@ -286,6 +286,7 @@ impl<'info, T> CanModifyRent<'info> for T where T: SingleAccountSet<'info> {}
 
 pub trait CanSystemCreateAccount<'info>: SingleAccountSet<'info> {
     /// Creates an account using the system program
+    /// Assumes `Self` is owned by the System program and funder is a System account
     fn system_create_account<F: WritableAccount<'info> + SignedAccount<'info>>(
         &self,
         funder: &F,
