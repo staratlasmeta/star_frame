@@ -132,6 +132,34 @@ pub trait AccountSetCleanup<'info, A>: AccountSet<'info> + Sized {
     ) -> Result<()>;
 }
 
+pub(crate) mod internal_reverse {
+    use super::*;
+
+    #[inline]
+    pub fn _account_set_validate_reverse<'info, T, A>(
+        validate_input: A,
+        this: &mut T,
+        syscalls: &mut impl SyscallInvoke<'info>,
+    ) -> Result<()>
+    where
+        T: AccountSetValidate<'info, A>,
+    {
+        this.validate_accounts(validate_input, syscalls)
+    }
+
+    #[inline]
+    pub fn _account_set_cleanup_reverse<'info, T, A>(
+        cleanup_input: A,
+        this: &mut T,
+        syscalls: &mut impl SyscallInvoke<'info>,
+    ) -> Result<()>
+    where
+        T: AccountSetCleanup<'info, A>,
+    {
+        this.cleanup_accounts(cleanup_input, syscalls)
+    }
+}
+
 #[cfg(test)]
 mod test {
     use crate::account_set::AccountSetValidate;

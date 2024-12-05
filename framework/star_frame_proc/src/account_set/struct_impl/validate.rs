@@ -187,8 +187,7 @@ pub(super) fn validates(
                 quote! {
                     {
                         #address_check
-                        let __validate_arg = #validate_arg;
-                        <#field_type as #account_set_validate<#info_lifetime, #validate_ty>>::validate_accounts(&mut self.#field_name, __validate_arg, syscalls)?;
+                        #prelude::_account_set_validate_reverse::<#field_type, #validate_ty>(#validate_arg, &mut self.#field_name, syscalls)?;
                     }
                 }
             })
