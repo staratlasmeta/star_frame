@@ -17,7 +17,7 @@ pub struct CounterAccount {
 }
 
 #[derive(AccountSet, Deref, DerefMut, Debug)]
-pub struct WrappedCounter<'info>(#[single_account_set] DataAccount<'info, CounterAccount>);
+pub struct WrappedCounter<'info>(#[single_account_set] Account<'info, CounterAccount>);
 
 #[derive(Debug, GetSeeds, Clone)]
 #[get_seeds(seed_const = b"COUNTER")]
@@ -81,7 +81,7 @@ pub struct UpdateCounterSignerIx;
 pub struct UpdateCounterSignerAccounts<'info> {
     pub signer: Signer<SystemAccount<'info>>,
     pub new_signer: SystemAccount<'info>,
-    pub counter: Mut<DataAccount<'info, CounterAccount>>,
+    pub counter: Mut<Account<'info, CounterAccount>>,
 }
 
 impl<'info> UpdateCounterSignerAccounts<'info> {
@@ -127,7 +127,7 @@ pub struct CountIx {
 #[validate(extra_validation = self.validate())]
 pub struct CountAccounts<'info> {
     pub owner: Signer<SystemAccount<'info>>,
-    pub counter: Mut<DataAccount<'info, CounterAccount>>,
+    pub counter: Mut<Account<'info, CounterAccount>>,
 }
 
 impl<'info> CountAccounts<'info> {

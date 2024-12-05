@@ -82,7 +82,7 @@ pub struct ProcessEnlistPlayer<'info> {
             player_account: seed_path("player_account")
         })
     )]
-    pub player_faction_account: Init<Seeded<DataAccount<'info, PlayerFactionData>>>,
+    pub player_faction_account: Init<Seeded<Account<'info, PlayerFactionData>>>,
     /// The player account
     #[account_set(funder)]
     pub player_account: Mut<Signer<SystemAccount<'info>>>,

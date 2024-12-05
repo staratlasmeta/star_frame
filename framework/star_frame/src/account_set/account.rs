@@ -73,7 +73,7 @@ pub struct CloseAccount<T>(pub T);
         self.close(recipient)
     }
 )]
-pub struct DataAccount<'info, T: ProgramAccount + UnsizedType + ?Sized> {
+pub struct Account<'info, T: ProgramAccount + UnsizedType + ?Sized> {
     #[single_account_set(
         skip_has_program_account,
         skip_can_init_account,
@@ -93,7 +93,7 @@ mod idl_impl {
     use star_frame_idl::IdlDefinition;
 
     impl<'info, T: ProgramAccount + UnsizedType + ?Sized, A> AccountSetToIdl<'info, A>
-        for DataAccount<'info, T>
+        for Account<'info, T>
     where
         AccountInfo<'info>: AccountSetToIdl<'info, A>,
         T: AccountToIdl,
@@ -111,7 +111,7 @@ mod idl_impl {
     }
 }
 
-impl<'info, T> DataAccount<'info, T>
+impl<'info, T> Account<'info, T>
 where
     T: ProgramAccount + UnsizedType + ?Sized,
 {
@@ -190,15 +190,15 @@ where
     }
 }
 
-impl<'info, T: ProgramAccount + UnsizedType + ?Sized> HasProgramAccount for DataAccount<'info, T> {
+impl<'info, T: ProgramAccount + UnsizedType + ?Sized> HasProgramAccount for Account<'info, T> {
     type ProgramAccount = T;
 }
 
-impl<'info, T: ProgramAccount + UnsizedType + ?Sized> HasOwnerProgram for DataAccount<'info, T> {
+impl<'info, T: ProgramAccount + UnsizedType + ?Sized> HasOwnerProgram for Account<'info, T> {
     type OwnerProgram = T::OwnerProgram;
 }
 
-impl<'info, T: ProgramAccount + UnsizedType + ?Sized> HasSeeds for DataAccount<'info, T>
+impl<'info, T: ProgramAccount + UnsizedType + ?Sized> HasSeeds for Account<'info, T>
 where
     T: HasSeeds,
 {
@@ -206,7 +206,7 @@ where
 }
 
 impl<'info, T: ProgramAccount + UnsizedType + ?Sized> CanInitAccount<'info, ()>
-    for DataAccount<'info, T>
+    for Account<'info, T>
 where
     T: UnsizedInit<Zeroed>,
 {
@@ -221,7 +221,7 @@ where
 }
 
 impl<'info, T: ProgramAccount + UnsizedType + ?Sized, InitArg> CanInitAccount<'info, (InitArg,)>
-    for DataAccount<'info, T>
+    for Account<'info, T>
 where
     T: UnsizedInit<InitArg>,
 {
@@ -239,7 +239,7 @@ where
 }
 
 impl<'info, T: ProgramAccount + UnsizedType + ?Sized, InitArg, Funder>
-    CanInitAccount<'info, (InitArg, &Funder)> for DataAccount<'info, T>
+    CanInitAccount<'info, (InitArg, &Funder)> for Account<'info, T>
 where
     T: UnsizedInit<InitArg>,
     Funder: SignedAccount<'info> + WritableAccount<'info>,
