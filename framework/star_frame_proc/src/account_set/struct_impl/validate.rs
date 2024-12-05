@@ -187,7 +187,15 @@ pub(super) fn validates(
                 quote! {
                     {
                         #address_check
-                        #prelude::_account_set_validate_reverse::<#field_type, #validate_ty>(#validate_arg, &mut self.#field_name, syscalls)?;
+                        // self.#field_name.validate_accounts(#validate_arg, syscalls)?;
+                        #prelude::_account_set_validate_reverse::<#field_type, #validate_ty>(
+                            { 
+                                let __arg = #validate_arg;
+                                __arg
+                            }, 
+                            &mut self.#field_name, 
+                            syscalls
+                        )?;
                     }
                 }
             })
