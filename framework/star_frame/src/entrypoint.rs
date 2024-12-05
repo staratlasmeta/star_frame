@@ -11,7 +11,7 @@
 ///
 /// #[derive(StarFrameProgram)]
 /// #[program(
-///     id = SystemProgram::PROGRAM_ID,
+///     id = System::ID,
 ///     instruction_set = (),
 /// // By default, the `StarFrameProgram` derive macro will already call `star_frame_entrypoint`
 ///     no_entrypoint

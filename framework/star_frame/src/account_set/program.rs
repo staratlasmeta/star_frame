@@ -11,7 +11,7 @@ use std::marker::PhantomData;
 #[repr(transparent)]
 pub struct Program<'info, T>(
     #[single_account_set]
-    #[idl(address = T::PROGRAM_ID)]
+    #[idl(address = T::ID)]
     pub(crate) AccountInfo<'info>,
     #[account_set(skip = PhantomData)] pub(crate) PhantomData<T>,
 );
@@ -29,7 +29,7 @@ where
 
 impl<'info, T: StarFrameProgram> Program<'info, T> {
     pub fn check_id(&self) -> Result<()> {
-        if self.0.key() == &T::PROGRAM_ID {
+        if self.0.key() == &T::ID {
             Ok(())
         } else {
             Err(ProgramError::IncorrectProgramId.into())

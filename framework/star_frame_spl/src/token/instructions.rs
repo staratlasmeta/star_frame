@@ -36,7 +36,7 @@ pub enum TokenInstructionSet {
 /// Specifies the authority type for SetAuthority instructions
 /// Copied from [`spl_token::instruction::AuthorityType`] to allow for `TypeToIdl` implementation
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BorshSerialize, BorshDeserialize, TypeToIdl)]
-#[type_to_idl(program = crate::token::TokenProgram)]
+#[type_to_idl(program = crate::token::Token)]
 #[repr(u8)]
 pub enum AuthorityType {
     /// Authority to mint new tokens
@@ -52,7 +52,7 @@ pub enum AuthorityType {
 // initialize mint
 /// See [`spl_token::instruction::TokenInstruction::InitializeMint`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize)]
-#[instruction_to_idl(program = crate::token::TokenProgram)]
+#[instruction_to_idl(program = crate::token::Token)]
 pub struct InitializeMint {
     pub decimals: u8,
     pub mint_authority: Pubkey,
@@ -69,7 +69,7 @@ empty_star_frame_instruction!(InitializeMint, InitializeMintAccounts);
 // initialize account
 /// See [`spl_token::instruction::TokenInstruction::InitializeAccount`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize)]
-#[instruction_to_idl(program = crate::token::TokenProgram)]
+#[instruction_to_idl(program = crate::token::Token)]
 pub struct InitializeAccount;
 /// Accounts for the [`InitializeAccount`] instruction.
 #[derive(Debug, Clone, AccountSet)]
@@ -84,7 +84,7 @@ empty_star_frame_instruction!(InitializeAccount, InitializeAccountAccounts);
 // initialize multisig
 /// See [`spl_token::instruction::TokenInstruction::InitializeMultisig`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize)]
-#[instruction_to_idl(program = crate::token::TokenProgram)]
+#[instruction_to_idl(program = crate::token::Token)]
 pub struct InitializeMultisig {
     pub m: u8,
 }
@@ -100,7 +100,7 @@ empty_star_frame_instruction!(InitializeMultisig, InitializeMultisigAccounts);
 // transfer
 /// See [`spl_token::instruction::TokenInstruction::Transfer`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize)]
-#[instruction_to_idl(program = crate::token::TokenProgram)]
+#[instruction_to_idl(program = crate::token::Token)]
 pub struct Transfer {
     pub amount: u64,
 }
@@ -117,7 +117,7 @@ empty_star_frame_instruction!(Transfer, TransferAccounts);
 // approve
 /// See [`spl_token::instruction::TokenInstruction::Approve`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize)]
-#[instruction_to_idl(program = crate::token::TokenProgram)]
+#[instruction_to_idl(program = crate::token::Token)]
 pub struct Approve {
     pub amount: u64,
 }
@@ -134,7 +134,7 @@ empty_star_frame_instruction!(Approve, ApproveAccounts);
 // revoke
 /// See [`spl_token::instruction::TokenInstruction::Revoke`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize)]
-#[instruction_to_idl(program = crate::token::TokenProgram)]
+#[instruction_to_idl(program = crate::token::Token)]
 pub struct Revoke;
 // todo: handle multisig with AccountSet enums
 /// Accounts for the [`Revoke`] instruction.
@@ -148,7 +148,7 @@ empty_star_frame_instruction!(Revoke, RevokeAccounts);
 // set authority
 /// See [`spl_token::instruction::TokenInstruction::SetAuthority`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize)]
-#[instruction_to_idl(program = crate::token::TokenProgram)]
+#[instruction_to_idl(program = crate::token::Token)]
 pub struct SetAuthority {
     pub authority_type: AuthorityType,
     pub new_authority: Option<Pubkey>,
@@ -165,7 +165,7 @@ empty_star_frame_instruction!(SetAuthority, SetAuthorityAccounts);
 // mint to
 /// See [`spl_token::instruction::TokenInstruction::MintTo`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize)]
-#[instruction_to_idl(program = crate::token::TokenProgram)]
+#[instruction_to_idl(program = crate::token::Token)]
 pub struct MintTo {
     pub amount: u64,
 }
@@ -182,7 +182,7 @@ empty_star_frame_instruction!(MintTo, MintToAccounts);
 // burn
 /// See [`spl_token::instruction::TokenInstruction::Burn`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize)]
-#[instruction_to_idl(program = crate::token::TokenProgram)]
+#[instruction_to_idl(program = crate::token::Token)]
 pub struct Burn {
     pub amount: u64,
 }
@@ -199,7 +199,7 @@ empty_star_frame_instruction!(Burn, BurnAccounts);
 // close account
 /// See [`spl_token::instruction::TokenInstruction::CloseAccount`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize)]
-#[instruction_to_idl(program = crate::token::TokenProgram)]
+#[instruction_to_idl(program = crate::token::Token)]
 pub struct CloseAccount;
 // todo: handle multisig with AccountSet enums
 /// Accounts for the [`CloseAccount`] instruction.
@@ -214,7 +214,7 @@ empty_star_frame_instruction!(CloseAccount, CloseAccountAccounts);
 // freeze account
 /// See [`spl_token::instruction::TokenInstruction::FreezeAccount`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize)]
-#[instruction_to_idl(program = crate::token::TokenProgram)]
+#[instruction_to_idl(program = crate::token::Token)]
 pub struct FreezeAccount;
 // todo: handle multisig with AccountSet enums
 /// Accounts for the [`FreezeAccount`] instruction.
@@ -229,7 +229,7 @@ empty_star_frame_instruction!(FreezeAccount, FreezeAccountAccounts);
 // thaw account
 /// See [`spl_token::instruction::TokenInstruction::ThawAccount`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize)]
-#[instruction_to_idl(program = crate::token::TokenProgram)]
+#[instruction_to_idl(program = crate::token::Token)]
 pub struct ThawAccount;
 // todo: handle multisig with AccountSet enums
 /// Accounts for the [`ThawAccount`] instruction.
@@ -244,7 +244,7 @@ empty_star_frame_instruction!(ThawAccount, ThawAccountAccounts);
 // transfer checked
 /// See [`spl_token::instruction::TokenInstruction::TransferChecked`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize)]
-#[instruction_to_idl(program = crate::token::TokenProgram)]
+#[instruction_to_idl(program = crate::token::Token)]
 pub struct TransferChecked {
     pub amount: u64,
     pub decimals: u8,
@@ -263,7 +263,7 @@ empty_star_frame_instruction!(TransferChecked, TransferCheckedAccounts);
 // approve checked
 /// See [`spl_token::instruction::TokenInstruction::ApproveChecked`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize)]
-#[instruction_to_idl(program = crate::token::TokenProgram)]
+#[instruction_to_idl(program = crate::token::Token)]
 pub struct ApproveChecked {
     pub amount: u64,
     pub decimals: u8,
@@ -282,7 +282,7 @@ empty_star_frame_instruction!(ApproveChecked, ApproveCheckedAccounts);
 // mint to checked
 /// See [`spl_token::instruction::TokenInstruction::MintToChecked`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize)]
-#[instruction_to_idl(program = crate::token::TokenProgram)]
+#[instruction_to_idl(program = crate::token::Token)]
 pub struct MintToChecked {
     pub amount: u64,
     pub decimals: u8,
@@ -300,7 +300,7 @@ empty_star_frame_instruction!(MintToChecked, MintToCheckedAccounts);
 // burn checked
 /// See [`spl_token::instruction::TokenInstruction::BurnChecked`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize)]
-#[instruction_to_idl(program = crate::token::TokenProgram)]
+#[instruction_to_idl(program = crate::token::Token)]
 pub struct BurnChecked {
     pub amount: u64,
     pub decimals: u8,
@@ -318,7 +318,7 @@ empty_star_frame_instruction!(BurnChecked, BurnCheckedAccounts);
 // initialize account 2
 /// See [`spl_token::instruction::TokenInstruction::InitializeAccount2`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize)]
-#[instruction_to_idl(program = crate::token::TokenProgram)]
+#[instruction_to_idl(program = crate::token::Token)]
 pub struct InitializeAccount2 {
     pub owner: Pubkey,
 }
@@ -335,7 +335,7 @@ empty_star_frame_instruction!(InitializeAccount2, InitializeAccount2Accounts);
 // sync native
 /// See [`spl_token::instruction::TokenInstruction::SyncNative`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize)]
-#[instruction_to_idl(program = crate::token::TokenProgram)]
+#[instruction_to_idl(program = crate::token::Token)]
 pub struct SyncNative;
 /// Accounts for the [`SyncNative`] instruction.
 #[derive(Debug, Clone, AccountSet)]
@@ -347,7 +347,7 @@ empty_star_frame_instruction!(SyncNative, SyncNativeAccounts);
 // initialize account 3
 /// See [`spl_token::instruction::TokenInstruction::InitializeAccount3`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize)]
-#[instruction_to_idl(program = crate::token::TokenProgram)]
+#[instruction_to_idl(program = crate::token::Token)]
 pub struct InitializeAccount3 {
     pub owner: Pubkey,
 }
@@ -362,7 +362,7 @@ empty_star_frame_instruction!(InitializeAccount3, InitializeAccount3Accounts);
 // initialize multisig 2
 /// See [`spl_token::instruction::TokenInstruction::InitializeMultisig2`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize)]
-#[instruction_to_idl(program = crate::token::TokenProgram)]
+#[instruction_to_idl(program = crate::token::Token)]
 pub struct InitializeMultisig2 {
     pub m: u8,
 }
@@ -377,7 +377,7 @@ empty_star_frame_instruction!(InitializeMultisig2, InitializeMultisig2Accounts);
 // initialize mint 2
 /// See [`spl_token::instruction::TokenInstruction::InitializeMint2`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize)]
-#[instruction_to_idl(program = crate::token::TokenProgram)]
+#[instruction_to_idl(program = crate::token::Token)]
 pub struct InitializeMint2 {
     pub decimals: u8,
     pub mint_authority: Pubkey,
@@ -393,7 +393,7 @@ empty_star_frame_instruction!(InitializeMint2, InitializeMint2Accounts);
 // get account data size
 /// See [`spl_token::instruction::TokenInstruction::GetAccountDataSize`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize)]
-#[instruction_to_idl(program = crate::token::TokenProgram)]
+#[instruction_to_idl(program = crate::token::Token)]
 pub struct GetAccountDataSize;
 /// Accounts for the [`GetAccountDataSize`] instruction.
 #[derive(Debug, Clone, AccountSet)]
@@ -405,7 +405,7 @@ empty_star_frame_instruction!(GetAccountDataSize, GetAccountDataSizeAccounts);
 // initialize immutable owner
 /// See [`spl_token::instruction::TokenInstruction::InitializeImmutableOwner`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize)]
-#[instruction_to_idl(program = crate::token::TokenProgram)]
+#[instruction_to_idl(program = crate::token::Token)]
 pub struct InitializeImmutableOwner;
 /// Accounts for the [`InitializeImmutableOwner`] instruction.
 #[derive(Debug, Clone, AccountSet)]
@@ -417,7 +417,7 @@ empty_star_frame_instruction!(InitializeImmutableOwner, InitializeImmutableOwner
 // amount to ui amount
 /// See [`spl_token::instruction::TokenInstruction::AmountToUiAmount`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize)]
-#[instruction_to_idl(program = crate::token::TokenProgram)]
+#[instruction_to_idl(program = crate::token::Token)]
 pub struct AmountToUiAmount {
     pub amount: u64,
 }
@@ -431,7 +431,7 @@ empty_star_frame_instruction!(AmountToUiAmount, AmountToUiAmountAccounts);
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::token::TokenProgram;
+    use crate::token::Token;
     use pretty_assertions::assert_eq;
     use star_frame::itertools::Itertools;
     use star_frame::solana_program::sysvar::SysvarId;
@@ -439,7 +439,7 @@ mod tests {
     #[cfg(feature = "idl")]
     #[test]
     fn print_token_idl() -> Result<()> {
-        let idl = TokenProgram::program_to_idl()?;
+        let idl = Token::program_to_idl()?;
         println!("{}", star_frame::serde_json::to_string_pretty(&idl)?);
         Ok(())
     }
@@ -451,7 +451,7 @@ mod tests {
         let mint_authority = Pubkey::new_unique();
         let freeze_authority = Some(Pubkey::new_unique());
 
-        let initialize_mint_sf = TokenProgram::instruction(
+        let initialize_mint_sf = Token::instruction(
             &InitializeMint {
                 decimals,
                 mint_authority,
@@ -480,7 +480,7 @@ mod tests {
         let mint = Pubkey::new_unique();
         let owner = Pubkey::new_unique();
 
-        let initialize_account_sf = TokenProgram::instruction(
+        let initialize_account_sf = Token::instruction(
             &InitializeAccount,
             InitializeAccountClientAccounts {
                 account,
@@ -502,7 +502,7 @@ mod tests {
         let signers = vec![Pubkey::new_unique(), Pubkey::new_unique()];
         let m = 2u8;
 
-        let initialize_multisig_sf = TokenProgram::instruction(
+        let initialize_multisig_sf = Token::instruction(
             &InitializeMultisig { m },
             InitializeMultisigClientAccounts {
                 multisig,
@@ -525,7 +525,7 @@ mod tests {
         let owner = Pubkey::new_unique();
         let amount = 500u64;
 
-        let transfer_sf = TokenProgram::instruction(
+        let transfer_sf = Token::instruction(
             &Transfer { amount },
             TransferClientAccounts {
                 source,
@@ -553,7 +553,7 @@ mod tests {
         let owner = Pubkey::new_unique();
         let amount = 250u64;
 
-        let approve_sf = TokenProgram::instruction(
+        let approve_sf = Token::instruction(
             &Approve { amount },
             ApproveClientAccounts {
                 source,
@@ -579,7 +579,7 @@ mod tests {
         let source = Pubkey::new_unique();
         let owner = Pubkey::new_unique();
 
-        let revoke_sf = TokenProgram::instruction(&Revoke, RevokeClientAccounts { source, owner })?;
+        let revoke_sf = Token::instruction(&Revoke, RevokeClientAccounts { source, owner })?;
 
         let revoke_ix = spl_token::instruction::revoke(&spl_token::id(), &source, &owner, &[])?;
         assert_eq!(revoke_sf, revoke_ix);
@@ -594,7 +594,7 @@ mod tests {
         let authority_type = AuthorityType::AccountOwner;
         let authority_type_spl = spl_token::instruction::AuthorityType::AccountOwner;
 
-        let set_authority_sf = TokenProgram::instruction(
+        let set_authority_sf = Token::instruction(
             &SetAuthority {
                 authority_type,
                 new_authority,
@@ -624,7 +624,7 @@ mod tests {
         let mint_authority = Pubkey::new_unique();
         let amount = 1000u64;
 
-        let mint_to_sf = TokenProgram::instruction(
+        let mint_to_sf = Token::instruction(
             &MintTo { amount },
             MintToClientAccounts {
                 mint,
@@ -652,7 +652,7 @@ mod tests {
         let owner = Pubkey::new_unique();
         let amount = 500u64;
 
-        let burn_sf = TokenProgram::instruction(
+        let burn_sf = Token::instruction(
             &Burn { amount },
             BurnClientAccounts {
                 account,
@@ -673,7 +673,7 @@ mod tests {
         let destination = Pubkey::new_unique();
         let owner = Pubkey::new_unique();
 
-        let close_account_sf = TokenProgram::instruction(
+        let close_account_sf = Token::instruction(
             &CloseAccount,
             CloseAccountClientAccounts {
                 account,
@@ -699,7 +699,7 @@ mod tests {
         let mint = Pubkey::new_unique();
         let authority = Pubkey::new_unique();
 
-        let freeze_account_sf = TokenProgram::instruction(
+        let freeze_account_sf = Token::instruction(
             &FreezeAccount,
             FreezeAccountClientAccounts {
                 account,
@@ -725,7 +725,7 @@ mod tests {
         let mint = Pubkey::new_unique();
         let authority = Pubkey::new_unique();
 
-        let thaw_account_sf = TokenProgram::instruction(
+        let thaw_account_sf = Token::instruction(
             &ThawAccount,
             ThawAccountClientAccounts {
                 account,
@@ -754,7 +754,7 @@ mod tests {
         let amount = 100u64;
         let decimals = 2u8;
 
-        let transfer_checked_sf = TokenProgram::instruction(
+        let transfer_checked_sf = Token::instruction(
             &TransferChecked { amount, decimals },
             TransferCheckedClientAccounts {
                 source,
@@ -787,7 +787,7 @@ mod tests {
         let amount = 50u64;
         let decimals = 2u8;
 
-        let approve_checked_sf = TokenProgram::instruction(
+        let approve_checked_sf = Token::instruction(
             &ApproveChecked { amount, decimals },
             ApproveCheckedClientAccounts {
                 source,
@@ -819,7 +819,7 @@ mod tests {
         let amount = 1000u64;
         let decimals = 2u8;
 
-        let mint_to_checked_sf = TokenProgram::instruction(
+        let mint_to_checked_sf = Token::instruction(
             &MintToChecked { amount, decimals },
             MintToCheckedClientAccounts {
                 mint,
@@ -849,7 +849,7 @@ mod tests {
         let amount = 500u64;
         let decimals = 2u8;
 
-        let burn_checked_sf = TokenProgram::instruction(
+        let burn_checked_sf = Token::instruction(
             &BurnChecked { amount, decimals },
             BurnCheckedClientAccounts {
                 account,
@@ -875,8 +875,7 @@ mod tests {
     fn test_sync_native() -> Result<()> {
         let account = Pubkey::new_unique();
 
-        let sync_native_sf =
-            TokenProgram::instruction(&SyncNative, SyncNativeClientAccounts { account })?;
+        let sync_native_sf = Token::instruction(&SyncNative, SyncNativeClientAccounts { account })?;
 
         let sync_native_ix = spl_token::instruction::sync_native(&spl_token::id(), &account)?;
         assert_eq!(sync_native_sf, sync_native_ix);
@@ -889,7 +888,7 @@ mod tests {
         let mint = Pubkey::new_unique();
         let owner = Pubkey::new_unique();
 
-        let initialize_account2_sf = TokenProgram::instruction(
+        let initialize_account2_sf = Token::instruction(
             &InitializeAccount2 { owner },
             InitializeAccount2ClientAccounts {
                 account,
@@ -910,7 +909,7 @@ mod tests {
         let mint = Pubkey::new_unique();
         let owner = Pubkey::new_unique();
 
-        let initialize_account3_sf = TokenProgram::instruction(
+        let initialize_account3_sf = Token::instruction(
             &InitializeAccount3 { owner },
             InitializeAccount3ClientAccounts { account, mint },
         )?;
@@ -927,7 +926,7 @@ mod tests {
         let signers = vec![Pubkey::new_unique(), Pubkey::new_unique()];
         let m = 2u8;
 
-        let initialize_multisig2_sf = TokenProgram::instruction(
+        let initialize_multisig2_sf = Token::instruction(
             &InitializeMultisig2 { m },
             InitializeMultisig2ClientAccounts {
                 multisig,
@@ -950,7 +949,7 @@ mod tests {
         let mint_authority = Pubkey::new_unique();
         let freeze_authority = None;
 
-        let initialize_mint2_sf = TokenProgram::instruction(
+        let initialize_mint2_sf = Token::instruction(
             &InitializeMint2 {
                 decimals,
                 mint_authority,
@@ -974,7 +973,7 @@ mod tests {
     fn test_get_account_data_size() -> Result<()> {
         let mint = Pubkey::new_unique();
 
-        let get_account_data_size_sf = TokenProgram::instruction(
+        let get_account_data_size_sf = Token::instruction(
             &GetAccountDataSize,
             GetAccountDataSizeClientAccounts { mint },
         )?;
@@ -989,7 +988,7 @@ mod tests {
     fn test_initialize_immutable_owner() -> Result<()> {
         let account = Pubkey::new_unique();
 
-        let initialize_immutable_owner_sf = TokenProgram::instruction(
+        let initialize_immutable_owner_sf = Token::instruction(
             &InitializeImmutableOwner,
             InitializeImmutableOwnerClientAccounts { account },
         )?;
@@ -1005,7 +1004,7 @@ mod tests {
         let mint = Pubkey::new_unique();
         let amount = 1000u64;
 
-        let amount_to_ui_amount_sf = TokenProgram::instruction(
+        let amount_to_ui_amount_sf = Token::instruction(
             &AmountToUiAmount { amount },
             AmountToUiAmountClientAccounts { mint },
         )?;

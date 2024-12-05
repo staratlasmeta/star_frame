@@ -171,7 +171,7 @@ pub(crate) fn program_impl(input: DeriveInput) -> TokenStream {
         impl #prelude::StarFrameProgram for #ident {
             type InstructionSet = #instruction_set_type;
             type AccountDiscriminant = #account_discriminant;
-            const PROGRAM_ID: #pubkey = #program_id;
+            const ID: #pubkey = #program_id;
         }
         #program_setup
         #entrypoint

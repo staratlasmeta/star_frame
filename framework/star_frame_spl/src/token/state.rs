@@ -1,6 +1,6 @@
 use crate::pod::PodOption;
 use crate::token::instructions::{InitializeMint2, InitializeMint2CpiAccounts};
-use crate::token::{InitializeAccount3, InitializeAccount3CpiAccounts, TokenProgram};
+use crate::token::{InitializeAccount3, InitializeAccount3CpiAccounts, Token};
 use star_frame::account_set::AccountSet;
 use star_frame::anyhow::{bail, Context};
 use star_frame::bytemuck;
@@ -28,7 +28,7 @@ pub struct MintAccount<'info> {
 }
 
 impl HasOwnerProgram for MintAccount<'_> {
-    type OwnerProgram = TokenProgram;
+    type OwnerProgram = Token;
 }
 
 /// See [`spl_token::state::Mint`].
@@ -58,7 +58,7 @@ impl<'info> MintAccount<'info> {
             return Ok(());
         }
         // // todo: maybe relax this check to allow token22
-        if self.owner() != &TokenProgram::PROGRAM_ID {
+        if self.owner() != &Token::ID {
             bail!(ProgramError::InvalidAccountOwner);
         }
         if self.info_data_bytes()?.len() != Self::LEN {
@@ -181,24 +181,18 @@ where
         syscalls: &impl SyscallInvoke<'info>,
     ) -> Result<()> {
         let (init_mint, funder) = arg;
-        if IF_NEEDED && self.owner() == &TokenProgram::PROGRAM_ID {
+        if IF_NEEDED && self.owner() == &Token::ID {
             self.validate()?;
             self.validate_mint(init_mint.into())?;
             return Ok(());
         }
         self.check_writable()?;
-        self.system_create_account(
-            funder,
-            TokenProgram::PROGRAM_ID,
-            Self::LEN,
-            &account_seeds,
-            syscalls,
-        )?;
+        self.system_create_account(funder, Token::ID, Self::LEN, &account_seeds, syscalls)?;
         let account_seeds: &[&[&[u8]]] = match &account_seeds {
             Some(seeds) => &[seeds],
             None => &[],
         };
-        TokenProgram::cpi(
+        Token::cpi(
             &InitializeMint2 {
                 decimals: init_mint.decimals,
                 mint_authority: *init_mint.mint_authority,
@@ -233,7 +227,7 @@ pub struct TokenAccount<'info> {
 }
 
 impl HasOwnerProgram for TokenAccount<'_> {
-    type OwnerProgram = TokenProgram;
+    type OwnerProgram = Token;
 }
 
 /// See [`spl_token::state::AccountState`].
@@ -281,7 +275,7 @@ impl<'info> TokenAccount<'info> {
             return Ok(());
         }
         // todo: maybe relax this check to allow token22
-        if self.owner() != &TokenProgram::PROGRAM_ID {
+        if self.owner() != &Token::ID {
             bail!(ProgramError::InvalidAccountOwner);
         }
         if self.info_data_bytes()?.len() != Self::LEN {
@@ -378,25 +372,19 @@ where
         account_seeds: Option<Vec<&[u8]>>,
         syscalls: &impl SyscallInvoke<'info>,
     ) -> Result<()> {
-        if IF_NEEDED && self.owner() == &TokenProgram::PROGRAM_ID {
+        if IF_NEEDED && self.owner() == &Token::ID {
             self.validate()?;
             self.validate_token(arg.0.into())?;
             return Ok(());
         }
         self.check_writable()?;
         let (init_token, funder) = arg;
-        self.system_create_account(
-            funder,
-            TokenProgram::PROGRAM_ID,
-            Self::LEN,
-            &account_seeds,
-            syscalls,
-        )?;
+        self.system_create_account(funder, Token::ID, Self::LEN, &account_seeds, syscalls)?;
         let account_seeds: &[&[&[u8]]] = match &account_seeds {
             Some(seeds) => &[seeds],
             None => &[],
         };
-        TokenProgram::cpi(
+        Token::cpi(
             &InitializeAccount3 {
                 owner: *init_token.owner,
             },
@@ -436,7 +424,7 @@ mod tests {
             false,
             &mut lamports,
             &mut mint_data,
-            &TokenProgram::PROGRAM_ID,
+            &Token::ID,
             false,
             0,
         );
@@ -487,7 +475,7 @@ mod tests {
             false,
             &mut lamports,
             &mut account_data,
-            &TokenProgram::PROGRAM_ID,
+            &Token::ID,
             false,
             0,
         );

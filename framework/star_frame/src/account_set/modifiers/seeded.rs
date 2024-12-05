@@ -103,12 +103,12 @@ where
     P: StarFrameProgram,
 {
     fn id(_syscalls: &impl SyscallCore) -> Result<Pubkey> {
-        Ok(P::PROGRAM_ID)
+        Ok(P::ID)
     }
 
     #[cfg(all(feature = "idl", not(target_os = "solana")))]
     fn idl_program() -> Option<Pubkey> {
-        Some(P::PROGRAM_ID)
+        Some(P::ID)
     }
 }
 

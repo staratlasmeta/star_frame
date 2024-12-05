@@ -6,22 +6,22 @@ use star_frame::prelude::*;
 pub use state::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
-pub struct TokenProgram;
+pub struct Token;
 
-impl StarFrameProgram for TokenProgram {
+impl StarFrameProgram for Token {
     type InstructionSet = TokenInstructionSet;
     type AccountDiscriminant = ();
     /// See [`spl_token::ID`].
     /// ```
     /// # use star_frame::program::StarFrameProgram;
-    /// # use star_frame_spl::token::TokenProgram;
-    /// assert_eq!(TokenProgram::PROGRAM_ID, spl_token::ID);
+    /// # use star_frame_spl::token::Token;
+    /// assert_eq!(Token::ID, spl_token::ID);
     /// ```
-    const PROGRAM_ID: Pubkey = pubkey!("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
+    const ID: Pubkey = pubkey!("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
 }
 
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
-impl ProgramToIdl for TokenProgram {
+impl ProgramToIdl for Token {
     fn crate_metadata() -> star_frame::star_frame_idl::CrateMetadata {
         star_frame::star_frame_idl::CrateMetadata {
             version: star_frame::star_frame_idl::Version::new(4, 0, 0),

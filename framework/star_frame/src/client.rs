@@ -80,7 +80,7 @@ pub trait MakeCpi<'info>: StarFrameProgram {
             + BorshSerialize,
         A: CpiAccountSet<'info>,
     {
-        CpiBuilder::new::<Self::InstructionSet, I, A>(Self::PROGRAM_ID, data, accounts)
+        CpiBuilder::new::<Self::InstructionSet, I, A>(Self::ID, data, accounts)
     }
 }
 
@@ -124,10 +124,10 @@ pub trait MakeInstruction<'info>: StarFrameProgram {
         A: ClientAccountSet,
     {
         let mut metas = Vec::with_capacity(A::MIN_LEN);
-        A::extend_account_metas(&Self::PROGRAM_ID, &accounts, &mut metas);
+        A::extend_account_metas(&Self::ID, &accounts, &mut metas);
         let data = star_frame_instruction_data::<Self::InstructionSet, I>(data)?;
         Ok(SolanaInstruction {
-            program_id: Self::PROGRAM_ID,
+            program_id: Self::ID,
             accounts: metas,
             data,
         })
@@ -138,7 +138,7 @@ impl<'info, T> MakeInstruction<'info> for T where T: StarFrameProgram + ?Sized {
 
 pub trait FindProgramAddress: HasSeeds + HasOwnerProgram {
     fn find_program_address(seeds: &Self::Seeds) -> (Pubkey, u8) {
-        Pubkey::find_program_address(&seeds.seeds(), &Self::OwnerProgram::PROGRAM_ID)
+        Pubkey::find_program_address(&seeds.seeds(), &Self::OwnerProgram::ID)
     }
 
     fn create_program_address(seeds: &Self::Seeds, bump: u8) -> Result<Pubkey> {
@@ -147,7 +147,7 @@ pub trait FindProgramAddress: HasSeeds + HasOwnerProgram {
         seeds.push(bump);
         Ok(Pubkey::create_program_address(
             &seeds,
-            &Self::OwnerProgram::PROGRAM_ID,
+            &Self::OwnerProgram::ID,
         )?)
     }
 }

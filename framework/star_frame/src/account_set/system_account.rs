@@ -18,5 +18,5 @@ impl SystemAccount<'_> {
 }
 
 impl HasOwnerProgram for SystemAccount<'_> {
-    type OwnerProgram = SystemProgram;
+    type OwnerProgram = System;
 }

@@ -212,7 +212,7 @@ pub fn program_account(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
 /// #[derive(StarFrameProgram)]
 /// #[program(instruction_set = ())]
 /// #[cfg_attr(feature = "prod", program(id = "11111111111111111111111111111111"))]
-/// #[cfg_attr(not(feature = "prod"), program(id = SystemProgram::PROGRAM_ID))]
+/// #[cfg_attr(not(feature = "prod"), program(id = System::ID))]
 /// struct MyOtherProgram;
 /// ```
 ///

@@ -19,7 +19,7 @@ pub use crate::client::{
     ClientAccountSet, CpiAccountSet, CpiBuilder, FindProgramAddress, MakeCpi, MakeInstruction,
 };
 
-pub use crate::program::{system_program::SystemProgram, StarFrameProgram};
+pub use crate::program::{system_program::System, StarFrameProgram};
 pub use crate::pubkey;
 
 pub use crate::Result;

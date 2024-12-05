@@ -1,11 +1,11 @@
 use star_frame::borsh;
 use star_frame::borsh::{BorshDeserialize, BorshSerialize};
 use star_frame::prelude::*;
+use star_frame_spl::associated_token::AssociatedToken;
 use star_frame_spl::associated_token::AssociatedTokenAccount;
-use star_frame_spl::associated_token::AssociatedTokenProgram;
 use star_frame_spl::associated_token::InitAta;
 use star_frame_spl::token::InitMint;
-use star_frame_spl::token::{MintAccount, TokenProgram};
+use star_frame_spl::token::{MintAccount, Token};
 
 #[derive(StarFrameProgram)]
 #[program(
@@ -82,14 +82,14 @@ pub struct ProcessEnlistPlayer<'info> {
             player_account: seed_path("player_account")
         })
     )]
-    pub player_faction_account: Init<Seeded<DataAccount<'info, PlayerFactionData>>>,
+    pub player_faction_account: Init<Seeded<Account<'info, PlayerFactionData>>>,
     /// The player account
     #[account_set(funder)]
     pub player_account: Mut<Signer<SystemAccount<'info>>>,
     /// Solana System program
-    pub system_program: Program<'info, SystemProgram>,
-    pub token_program: Program<'info, TokenProgram>,
-    pub associated_token_program: Program<'info, AssociatedTokenProgram>,
+    pub system_program: Program<'info, System>,
+    pub token_program: Program<'info, Token>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
     #[validate(arg = Create(InitMint {
         decimals: 0,
         mint_authority: self.player_account.key(),
@@ -97,9 +97,9 @@ pub struct ProcessEnlistPlayer<'info> {
     }))]
     pub mint: Init<Signer<MintAccount<'info>>>,
     #[validate(arg = Create(InitAta {
-        wallet: &self.player_account, 
-        mint: &self.mint, 
-        system_program: &self.system_program, 
+        wallet: &self.player_account,
+        mint: &self.mint,
+        system_program: &self.system_program,
         token_program: &self.token_program
     }))]
     pub token_account: Init<AssociatedTokenAccount<'info>>,
@@ -157,7 +157,7 @@ mod tests {
     use solana_sdk::clock::Clock;
     use solana_sdk::signature::{Keypair, Signer};
     use star_frame::solana_program::native_token::LAMPORTS_PER_SOL;
-    use star_frame_spl::token::TokenProgram;
+    use star_frame_spl::token::Token;
 
     #[cfg(feature = "idl")]
     #[test]
@@ -179,15 +179,11 @@ mod tests {
                 "BPF_OUT_DIR",
                 target_dir.to_str().expect("Failed to convert path to str"),
             );
-            ProgramTest::new(
-                "faction_enlistment",
-                StarFrameDeclaredProgram::PROGRAM_ID,
-                None,
-            )
+            ProgramTest::new("faction_enlistment", StarFrameDeclaredProgram::ID, None)
         } else {
             ProgramTest::new(
                 "faction_enlistment",
-                StarFrameDeclaredProgram::PROGRAM_ID,
+                StarFrameDeclaredProgram::ID,
                 processor!(FactionEnlistment::processor),
             )
         };
@@ -199,7 +195,7 @@ mod tests {
                 player_account: key.pubkey(),
             };
             let player_faction =
-                Pubkey::find_program_address(&seeds.seeds(), &StarFrameDeclaredProgram::PROGRAM_ID);
+                Pubkey::find_program_address(&seeds.seeds(), &StarFrameDeclaredProgram::ID);
             if player_faction.1 == 255 {
                 let data = Account {
                     lamports: LAMPORTS_PER_SOL * 100,
@@ -215,16 +211,16 @@ mod tests {
 
         let mint_keypair = Keypair::new();
         let token_account =
-            AssociatedTokenProgram::find_address(&player_account.pubkey(), &mint_keypair.pubkey());
+            AssociatedToken::find_address(&player_account.pubkey(), &mint_keypair.pubkey());
 
         let ix = FactionEnlistment::instruction(
             &ProcessEnlistPlayerIx { bump, faction_id },
             ProcessEnlistPlayerClientAccounts {
                 player_faction_account: faction_account,
                 player_account: player_account.pubkey(),
-                system_program: SystemProgram::PROGRAM_ID,
-                token_program: TokenProgram::PROGRAM_ID,
-                associated_token_program: AssociatedTokenProgram::PROGRAM_ID,
+                system_program: System::ID,
+                token_program: Token::ID,
+                associated_token_program: AssociatedToken::ID,
                 mint: mint_keypair.pubkey(),
                 token_account,
             },

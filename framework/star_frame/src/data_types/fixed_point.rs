@@ -1,7 +1,7 @@
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
 mod idl_impl {
     use crate::idl::TypeToIdl;
-    use crate::program::system_program::SystemProgram;
+    use crate::program::system_program::System;
     use fixed::*;
     use star_frame_idl::ty::IdlTypeDef;
     use star_frame_idl::IdlDefinition;
@@ -13,7 +13,7 @@ mod idl_impl {
             where
                 Frac: Unsigned,
             {
-                type AssociatedProgram = SystemProgram;
+                type AssociatedProgram = System;
 
                 fn type_to_idl(_idl_definition: &mut IdlDefinition) -> crate::Result<IdlTypeDef> {
                     Ok(IdlTypeDef::FixedPoint {

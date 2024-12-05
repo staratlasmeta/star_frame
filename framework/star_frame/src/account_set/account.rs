@@ -12,14 +12,6 @@ use std::marker::PhantomData;
 use std::mem::size_of;
 use std::slice::from_raw_parts_mut;
 
-pub trait ProgramAccount: HasOwnerProgram {
-    const DISCRIMINANT: <Self::OwnerProgram as StarFrameProgram>::AccountDiscriminant;
-    #[must_use]
-    fn discriminant_bytes() -> Vec<u8> {
-        bytes_of(&Self::DISCRIMINANT).into()
-    }
-}
-
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
 pub struct NormalizeRent<T>(pub T);
 
@@ -81,7 +73,7 @@ pub struct CloseAccount<T>(pub T);
         self.close(recipient)
     }
 )]
-pub struct DataAccount<'info, T: ProgramAccount + UnsizedType + ?Sized> {
+pub struct Account<'info, T: ProgramAccount + UnsizedType + ?Sized> {
     #[single_account_set(
         skip_has_program_account,
         skip_can_init_account,
@@ -101,7 +93,7 @@ mod idl_impl {
     use star_frame_idl::IdlDefinition;
 
     impl<'info, T: ProgramAccount + UnsizedType + ?Sized, A> AccountSetToIdl<'info, A>
-        for DataAccount<'info, T>
+        for Account<'info, T>
     where
         AccountInfo<'info>: AccountSetToIdl<'info, A>,
         T: AccountToIdl,
@@ -119,14 +111,14 @@ mod idl_impl {
     }
 }
 
-impl<'info, T> DataAccount<'info, T>
+impl<'info, T> Account<'info, T>
 where
     T: ProgramAccount + UnsizedType + ?Sized,
 {
     /// Validates the owner and the discriminant of the account.
     #[inline]
     pub fn validate(&self) -> Result<()> {
-        if self.owner() != &T::OwnerProgram::PROGRAM_ID {
+        if self.owner() != &T::OwnerProgram::ID {
             bail!(ProgramError::IllegalOwner);
         }
         let data = self.info_data_bytes()?;
@@ -198,15 +190,15 @@ where
     }
 }
 
-impl<'info, T: ProgramAccount + UnsizedType + ?Sized> HasProgramAccount for DataAccount<'info, T> {
+impl<'info, T: ProgramAccount + UnsizedType + ?Sized> HasProgramAccount for Account<'info, T> {
     type ProgramAccount = T;
 }
 
-impl<'info, T: ProgramAccount + UnsizedType + ?Sized> HasOwnerProgram for DataAccount<'info, T> {
+impl<'info, T: ProgramAccount + UnsizedType + ?Sized> HasOwnerProgram for Account<'info, T> {
     type OwnerProgram = T::OwnerProgram;
 }
 
-impl<'info, T: ProgramAccount + UnsizedType + ?Sized> HasSeeds for DataAccount<'info, T>
+impl<'info, T: ProgramAccount + UnsizedType + ?Sized> HasSeeds for Account<'info, T>
 where
     T: HasSeeds,
 {
@@ -214,7 +206,7 @@ where
 }
 
 impl<'info, T: ProgramAccount + UnsizedType + ?Sized> CanInitAccount<'info, ()>
-    for DataAccount<'info, T>
+    for Account<'info, T>
 where
     T: UnsizedInit<Zeroed>,
 {
@@ -229,7 +221,7 @@ where
 }
 
 impl<'info, T: ProgramAccount + UnsizedType + ?Sized, InitArg> CanInitAccount<'info, (InitArg,)>
-    for DataAccount<'info, T>
+    for Account<'info, T>
 where
     T: UnsizedInit<InitArg>,
 {
@@ -247,7 +239,7 @@ where
 }
 
 impl<'info, T: ProgramAccount + UnsizedType + ?Sized, InitArg, Funder>
-    CanInitAccount<'info, (InitArg, &Funder)> for DataAccount<'info, T>
+    CanInitAccount<'info, (InitArg, &Funder)> for Account<'info, T>
 where
     T: UnsizedInit<InitArg>,
     Funder: SignedAccount<'info> + WritableAccount<'info>,
@@ -259,7 +251,7 @@ where
         syscalls: &impl SyscallInvoke<'info>,
     ) -> Result<()> {
         if IF_NEEDED {
-            let needs_init = self.owner() == &SystemProgram::PROGRAM_ID
+            let needs_init = self.owner() == &System::ID
                 || self.info_data_bytes()?
                     [..size_of::<<T::OwnerProgram as StarFrameProgram>::AccountDiscriminant>()]
                     .iter()
@@ -272,13 +264,7 @@ where
         let (arg, funder) = arg;
         let size =
             T::INIT_BYTES + size_of::<<T::OwnerProgram as StarFrameProgram>::AccountDiscriminant>();
-        self.system_create_account(
-            funder,
-            T::OwnerProgram::PROGRAM_ID,
-            size,
-            &account_seeds,
-            syscalls,
-        )?;
+        self.system_create_account(funder, T::OwnerProgram::ID, size, &account_seeds, syscalls)?;
         {
             let mut data_bytes = self.info_data_bytes_mut()?;
             let mut data_bytes = &mut **data_bytes;
