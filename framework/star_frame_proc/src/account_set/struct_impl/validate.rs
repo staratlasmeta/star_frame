@@ -182,8 +182,7 @@ pub(super) fn validates(
                 quote! {}
             } else {
                 let address_check = validate_address.as_ref().map(|address| quote! {
-                    let __address = #address;
-                    <#field_type as #prelude::SingleAccountSet<#info_lifetime>>::check_key(&self.#field_name, __address)?;
+                    <#field_type as #prelude::SingleAccountSet<#info_lifetime>>::check_key(&self.#field_name, #address)?;
                 });
                 quote! {
                     {
