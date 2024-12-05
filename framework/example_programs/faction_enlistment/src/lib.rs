@@ -1,8 +1,8 @@
 use star_frame::borsh;
 use star_frame::borsh::{BorshDeserialize, BorshSerialize};
 use star_frame::prelude::*;
-use star_frame_spl::associated_token::AssociatedTokenAccount;
 use star_frame_spl::associated_token::AssociatedToken;
+use star_frame_spl::associated_token::AssociatedTokenAccount;
 use star_frame_spl::associated_token::InitAta;
 use star_frame_spl::token::InitMint;
 use star_frame_spl::token::{MintAccount, Token};
@@ -97,9 +97,9 @@ pub struct ProcessEnlistPlayer<'info> {
     }))]
     pub mint: Init<Signer<MintAccount<'info>>>,
     #[validate(arg = Create(InitAta {
-        wallet: &self.player_account, 
-        mint: &self.mint, 
-        system_program: &self.system_program, 
+        wallet: &self.player_account,
+        mint: &self.mint,
+        system_program: &self.system_program,
         token_program: &self.token_program
     }))]
     pub token_account: Init<AssociatedTokenAccount<'info>>,
@@ -179,11 +179,7 @@ mod tests {
                 "BPF_OUT_DIR",
                 target_dir.to_str().expect("Failed to convert path to str"),
             );
-            ProgramTest::new(
-                "faction_enlistment",
-                StarFrameDeclaredProgram::ID,
-                None,
-            )
+            ProgramTest::new("faction_enlistment", StarFrameDeclaredProgram::ID, None)
         } else {
             ProgramTest::new(
                 "faction_enlistment",
