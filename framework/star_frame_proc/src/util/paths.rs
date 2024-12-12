@@ -24,7 +24,6 @@ pub struct Paths {
     pub eq: TokenStream,
     #[allow(dead_code)]
     pub partial_eq: TokenStream,
-    #[allow(dead_code)]
     pub phantom_data: TokenStream,
     #[allow(dead_code)]
     pub ptr: TokenStream,

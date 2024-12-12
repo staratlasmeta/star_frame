@@ -14,7 +14,6 @@ use proc_macro2::Ident;
 use proc_macro2::TokenStream;
 use proc_macro_error::{abort, abort_call_site};
 use quote::{format_ident, quote, ToTokens};
-use syn::parse::Parse;
 use syn::punctuated::Punctuated;
 use syn::{
     parse2, parse_quote, Attribute, Field, GenericParam, Generics, ImplGenerics, ItemStruct,
@@ -22,16 +21,15 @@ use syn::{
 };
 
 #[derive(Debug, Clone)]
-pub struct UnsizedTypeContext {
+pub struct UnsizedStructContext {
     pub item_struct: ItemStruct,
     pub account_item_struct: ItemStruct,
     pub sized_fields: Vec<Field>,
     pub unsized_fields: Vec<Field>,
-    pub args: UnsizedTypeArgs,
 }
 
-impl UnsizedTypeContext {
-    fn parse(mut item_struct: ItemStruct, args: TokenStream) -> Self {
+impl UnsizedStructContext {
+    fn parse(mut item_struct: ItemStruct) -> Self {
         let unsized_start =
             strip_inner_attributes(&mut item_struct, "unsized_start").collect::<Vec<_>>();
         reject_attributes(
@@ -60,12 +58,11 @@ impl UnsizedTypeContext {
         let all_fields = item_struct.fields.iter().cloned().collect::<Vec<_>>();
         let (sized_fields, unsized_fields) = all_fields.split_at(first_unsized);
 
-        let args_attr: Attribute = parse_quote!(#[unsized_type(#args)]);
-        let unsized_args = UnsizedTypeArgs::parse_arguments(&args_attr);
-
-        const LIFETIME_ERROR: &str = "Lifetimes are not allowed in unsized types";
         if !item_struct.generics.lifetimes().collect_vec().is_empty() {
-            abort!(item_struct.generics, LIFETIME_ERROR)
+            abort!(
+                item_struct.generics,
+                "Lifetimes are not allowed in unsized types"
+            )
         }
 
         if !item_struct.generics.const_params().collect_vec().is_empty() {
@@ -89,7 +86,6 @@ impl UnsizedTypeContext {
             account_item_struct,
             sized_fields: sized_fields.to_vec(),
             unsized_fields: unsized_fields.to_vec(),
-            args: unsized_args,
         }
     }
 
@@ -186,7 +182,10 @@ fn derive_bytemucks(sized_struct: &ItemStruct) -> TokenStream {
     }
 }
 
-pub(crate) fn unsized_type_struct_impl(item_struct: ItemStruct, _args: TokenStream) -> TokenStream {
+pub(crate) fn unsized_type_struct_impl(
+    item_struct: ItemStruct,
+    unsized_args: UnsizedTypeArgs,
+) -> TokenStream {
     let Paths {
         bytemuck,
         checked,
@@ -200,23 +199,29 @@ pub(crate) fn unsized_type_struct_impl(item_struct: ItemStruct, _args: TokenStre
         copy,
         ..
     } = Default::default();
-    let context = UnsizedTypeContext::parse(item_struct, _args);
+    let context = UnsizedStructContext::parse(item_struct);
     let sized_ident = context.sized_ident();
 
-    let UnsizedTypeContext {
+    let UnsizedStructContext {
         mut sized_fields,
         unsized_fields,
         item_struct,
         account_item_struct,
-        args: unsized_args,
     } = context;
 
     let combined_generics = item_struct.generics.clone();
 
     let generic_idents: Vec<_> = type_generic_idents(&combined_generics);
+    let phantom_generics = format_ident!("__phantom_generics");
+    let mut extra_phantom_declaration = None;
     if !generic_idents.is_empty() {
+        if sized_fields.is_empty() {
+            extra_phantom_declaration.replace(quote! {
+                let #phantom_generics = #phantom_data;
+            });
+        }
         sized_fields.push(
-            parse_quote!(pub __phantom_generics: #phantom_data<fn() -> (#(#generic_idents),*)>),
+            parse_quote!(pub #phantom_generics: #phantom_data<fn() -> (#(#generic_idents),*)>),
         );
     }
 
@@ -570,7 +575,7 @@ pub(crate) fn unsized_type_struct_impl(item_struct: ItemStruct, _args: TokenStre
     };
     add_derivative_attributes(&mut owned_struct, parse_quote!(Debug));
 
-    let account_impl = account::account_impl(&account_item_struct, &unsized_args);
+    let account_impl = account::account_impl(&account_item_struct.clone().into(), &unsized_args);
 
     quote! {
         #[allow(type_alias_bounds)]
@@ -676,6 +681,7 @@ pub(crate) fn unsized_type_struct_impl(item_struct: ItemStruct, _args: TokenStre
 
             fn owned<#as_bytes_generic>(r: #prelude::RefWrapper<#s, Self::RefData>) -> #result <Self::Owned> {
                 let #combined_names = <#inner_type as #prelude::UnsizedType>::owned(unsafe { r.wrap_r(|_, r| r.0) })?;
+                #extra_phantom_declaration
                 Ok(#owned_ident {
                     #(#owned_field_idents),*
                 })

@@ -4,9 +4,10 @@ use proc_macro_error::abort;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::token::Bracket;
-use syn::{bracketed, Expr, Item, Meta, Token, Type};
+use syn::{bracketed, parse_quote, Attribute, Expr, Item, Meta, Token, Type};
 
 mod account;
+mod enum_impl;
 mod struct_impl;
 
 #[derive(Debug, Clone, Default)]
@@ -41,14 +42,13 @@ pub struct UnsizedTypeArgs {
 }
 
 pub fn unsized_type_impl(item: Item, args: TokenStream) -> TokenStream {
+    let args_attr: Attribute = parse_quote!(#[unsized_type(#args)]);
+    let unsized_args = UnsizedTypeArgs::parse_arguments(&args_attr);
     match item {
-        Item::Struct(struct_item) => struct_impl::unsized_type_struct_impl(struct_item, args),
-        Item::Enum(_enum_item) => {
-            abort!(
-                args,
-                "unsized_type cannot be applied to enums yet. It will be supported in the future. (soonTM)"
-            )
+        Item::Struct(struct_item) => {
+            struct_impl::unsized_type_struct_impl(struct_item, unsized_args)
         }
+        Item::Enum(enum_item) => enum_impl::unsized_type_struct_impl(enum_item, unsized_args),
         _ => {
             abort!(
                 args,
