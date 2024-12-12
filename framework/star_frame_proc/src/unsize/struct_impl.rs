@@ -1,8 +1,12 @@
-mod account;
-
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
+use crate::unsize::{account, UnsizedTypeArgs};
+use crate::util::{
+    add_derivative_attributes, generate_fields_are_trait, get_field_types,
+    make_derivative_attribute, reject_attributes, strip_inner_attributes, type_generic_idents,
+    BetterGenerics, CombineGenerics, Paths,
+};
 use easy_proc::ArgumentList;
 use heck::ToUpperCamelCase;
 use itertools::Itertools;
@@ -10,68 +14,12 @@ use proc_macro2::Ident;
 use proc_macro2::TokenStream;
 use proc_macro_error::{abort, abort_call_site};
 use quote::{format_ident, quote, ToTokens};
-use syn::parse::{Parse, ParseStream};
+use syn::parse::Parse;
 use syn::punctuated::Punctuated;
-use syn::token::Bracket;
 use syn::{
-    bracketed, parse2, parse_quote, Attribute, Expr, Field, GenericParam, Generics, ImplGenerics,
-    Item, ItemStruct, Meta, Token, Type, TypeParam, WhereClause, WherePredicate,
+    parse2, parse_quote, Attribute, Field, GenericParam, Generics, ImplGenerics, ItemStruct,
+    TypeParam, WhereClause, WherePredicate,
 };
-
-use crate::util::{
-    add_derivative_attributes, generate_fields_are_trait, get_field_types,
-    make_derivative_attribute, reject_attributes, strip_inner_attributes, type_generic_idents,
-    BetterGenerics, CombineGenerics, Paths,
-};
-
-#[derive(Debug, Clone, Default)]
-pub struct UnsizedAttributeMetas {
-    _bracket: Bracket,
-    attributes: Punctuated<Meta, Token![,]>,
-}
-
-impl Parse for UnsizedAttributeMetas {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
-        let attributes;
-        Ok(Self {
-            _bracket: bracketed!(attributes in input),
-            attributes: attributes.parse_terminated(Meta::parse, Token![,])?,
-        })
-    }
-}
-
-// todo: figure out what args this may need
-// todo: derives for each new struct. allow disabling unnecessary default derives
-#[derive(ArgumentList, Debug, Clone)]
-pub struct UnsizedTypeArgs {
-    #[argument(default)]
-    pub owned_attributes: UnsizedAttributeMetas,
-    #[argument(presence)]
-    pub program_account: bool,
-    #[argument(presence)]
-    pub skip_idl: bool,
-    pub program: Option<Type>,
-    pub seeds: Option<Type>,
-    pub discriminant: Option<Expr>,
-}
-
-pub fn unsized_type_impl(item: Item, args: TokenStream) -> TokenStream {
-    match item {
-        Item::Struct(struct_item) => unsized_type_struct_impl(struct_item, args),
-        Item::Enum(_enum_item) => {
-            abort!(
-                args,
-                "unsized_type cannot be applied to enums yet. It will be supported in the future. (soonTM)"
-            )
-        }
-        _ => {
-            abort!(
-                args,
-                "unsized_type can only be applied to structs and enums"
-            )
-        }
-    }
-}
 
 #[derive(Debug, Clone)]
 pub struct UnsizedTypeContext {
@@ -238,7 +186,7 @@ fn derive_bytemucks(sized_struct: &ItemStruct) -> TokenStream {
     }
 }
 
-fn unsized_type_struct_impl(item_struct: ItemStruct, _args: TokenStream) -> TokenStream {
+pub(crate) fn unsized_type_struct_impl(item_struct: ItemStruct, _args: TokenStream) -> TokenStream {
     let Paths {
         bytemuck,
         checked,

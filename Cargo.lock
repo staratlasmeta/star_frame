@@ -1585,12 +1585,8 @@ name = "faction_enlistment"
 version = "0.1.0"
 dependencies = [
  "bytemuck",
- "rand 0.8.5",
- "solana-client",
  "solana-program-test",
  "solana-sdk",
- "solana-transaction-status",
- "spl-associated-token-account 3.0.4",
  "star_frame",
  "star_frame_spl",
  "tokio",
@@ -5569,7 +5565,6 @@ dependencies = [
  "quote",
  "sha2 0.10.8",
  "star_frame",
- "strum 0.26.3",
  "syn 2.0.87",
 ]
 
