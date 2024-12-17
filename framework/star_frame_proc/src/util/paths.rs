@@ -70,6 +70,17 @@ pub struct Paths {
     pub anyhow_macro: TokenStream,
 }
 
+macro_rules! paths_macro {
+    ($($name:ident $(: $rename:ident)? $(,)?)*) => {
+        let Paths {
+            $($name $(: $rename)? ,)*
+            ..
+        } = Default::default();
+    };
+}
+
+pub(crate) use paths_macro as Paths;
+
 impl Default for Paths {
     fn default() -> Self {
         let crate_name = get_crate_name();

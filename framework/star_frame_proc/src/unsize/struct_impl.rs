@@ -58,20 +58,6 @@ impl UnsizedStructContext {
         let all_fields = item_struct.fields.iter().cloned().collect::<Vec<_>>();
         let (sized_fields, unsized_fields) = all_fields.split_at(first_unsized);
 
-        if !item_struct.generics.lifetimes().collect_vec().is_empty() {
-            abort!(
-                item_struct.generics,
-                "Lifetimes are not allowed in unsized types"
-            )
-        }
-
-        if !item_struct.generics.const_params().collect_vec().is_empty() {
-            abort!(
-                item_struct.generics,
-                "Const generics are not allowed in unsized types (yet)"
-            )
-        }
-
         // if !unsized_args
         //     .unsized_generics
         //     .lifetimes()

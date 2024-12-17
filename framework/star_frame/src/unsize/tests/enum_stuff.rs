@@ -23,7 +23,7 @@ pub struct CombinedTest {
     pub list2: List<TestStruct>,
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, CheckedBitPattern, NoUninit)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, CheckedBitPattern, NoUninit)]
 #[repr(u8)]
 pub enum TestEnumDiscriminant {
     A,

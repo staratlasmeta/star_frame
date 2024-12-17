@@ -2,19 +2,15 @@
 
 use crate::prelude::*;
 use crate::unsize::tests::test::TestStruct;
-use crate::util::OffsetRef;
-use advance::Advance;
-use bytemuck::checked::try_from_bytes;
-use bytemuck::{bytes_of, CheckedBitPattern, NoUninit};
-use std::marker::PhantomData;
 use std::mem::size_of;
-use typenum::True;
-// #[repr(u8)]
-// pub enum TestEnum {
-//     A(()),
-//     B(List<u8>) = 4,
-//     C(CombinedTest),
-// }
+
+#[unsized_type]
+#[repr(u8)]
+pub enum TestEnum<A: UnsizedGenerics> {
+    A,
+    B(List<A>) = 1,
+    C(CombinedTest),
+}
 
 #[unsized_type]
 pub struct CombinedTest {
@@ -23,240 +19,59 @@ pub struct CombinedTest {
     pub list2: List<TestStruct>,
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, CheckedBitPattern, NoUninit)]
-#[repr(u8)]
-pub enum TestEnumDiscriminant {
-    A,
-    B = 4,
-    C,
-}
-pub type AInner = ();
-pub type BInner<A> = List<A>;
-pub type CInner = CombinedTest;
-
-#[derive(Copy, Clone)]
-pub enum TestEnumMeta<A: UnsizedGenerics> {
-    A(<AInner as UnsizedType>::RefMeta),
-    B(<BInner<A> as UnsizedType>::RefMeta),
-    C(<CInner as UnsizedType>::RefMeta),
-}
-
-pub enum TestEnumOwned<A: UnsizedGenerics> {
-    A(<AInner as UnsizedType>::Owned),
-    B(<BInner<A> as UnsizedType>::Owned),
-    C(<CInner as UnsizedType>::Owned),
-}
-
-#[repr(transparent)]
-pub struct TestEnum<A> {
-    __phantom_generics: PhantomData<fn() -> (A)>,
-    data: [u8],
-}
-unsafe impl<A: UnsizedGenerics> UnsizedType for TestEnum<A> {
-    type RefMeta = TestEnumMeta<A>;
-    type RefData = TestEnumMeta<A>;
-    type Owned = TestEnumOwned<A>;
-    type IsUnsized = True;
-
-    fn from_bytes<S: AsBytes>(
-        super_ref: S,
-    ) -> anyhow::Result<FromBytesReturn<S, Self::RefData, Self::RefMeta>> {
-        let repr: &TestEnumDiscriminant =
-            try_from_bytes(&super_ref.as_bytes()?[..size_of::<TestEnumDiscriminant>()])?;
-
-        match repr {
-            TestEnumDiscriminant::A => unsafe { TestEnumVariantA::from_bytes(super_ref) },
-            TestEnumDiscriminant::B => unsafe { TestEnumVariantB::from_bytes(super_ref) },
-            TestEnumDiscriminant::C => unsafe { TestEnumVariantC::from_bytes(super_ref) },
-        }
-    }
-
-    unsafe fn from_bytes_and_meta<S: AsBytes>(
-        super_ref: S,
-        meta: Self::RefMeta,
-    ) -> anyhow::Result<FromBytesReturn<S, Self::RefData, Self::RefMeta>> {
-        match meta {
-            TestEnumMeta::A(m) => unsafe {
-                TestEnumVariantA::from_bytes_and_meta(super_ref, meta, m)
-            },
-            TestEnumMeta::B(m) => unsafe {
-                TestEnumVariantB::from_bytes_and_meta(super_ref, meta, m)
-            },
-            TestEnumMeta::C(m) => unsafe {
-                TestEnumVariantC::from_bytes_and_meta(super_ref, meta, m)
-            },
-        }
-    }
-
-    fn owned<S: AsBytes>(r: RefWrapper<S, Self::RefData>) -> anyhow::Result<Self::Owned> {
-        match r.get()? {
-            TestEnumRefWrapper::A(r) => AInner::owned(r).map(TestEnumOwned::A),
-            TestEnumRefWrapper::B(r) => BInner::owned(r).map(TestEnumOwned::B),
-            TestEnumRefWrapper::C(r) => CInner::owned(r).map(TestEnumOwned::C),
-        }
-    }
-}
-#[automatically_derived]
-#[allow(clippy::ignored_unit_patterns)]
-impl<A: UnsizedGenerics> UnsizedEnum for TestEnum<A> {
-    type Discriminant = TestEnumDiscriminant;
-
-    fn discriminant<S: AsBytes>(
-        r: &impl RefWrapperTypes<Super = S, Ref = Self::RefData>,
-    ) -> Self::Discriminant {
-        match r.r() {
-            TestEnumMeta::A(_) => Self::Discriminant::A,
-            TestEnumMeta::B(_) => Self::Discriminant::B,
-            TestEnumMeta::C(_) => Self::Discriminant::C,
-        }
-    }
-}
-
 #[derive(Copy, Clone, Debug)]
 pub struct TestEnumInitA<I>(pub I);
 #[derive(Copy, Clone, Debug)]
 pub struct TestEnumInitB<I>(pub I);
+
 #[derive(Copy, Clone, Debug)]
 pub struct TestEnumInitC<I>(pub I);
-
 impl<I, A> UnsizedInit<TestEnumInitA<I>> for TestEnum<A>
 where
     A: UnsizedGenerics,
-    AInner: UnsizedInit<I>,
+    (): UnsizedInit<I>,
 {
     const INIT_BYTES: usize =
-        size_of::<TestEnumDiscriminant>() + <AInner as UnsizedInit<I>>::INIT_BYTES;
+        size_of::<TestEnumDiscriminant>() + <() as UnsizedInit<I>>::INIT_BYTES;
 
     unsafe fn init<S: AsMutBytes>(
-        mut super_ref: S,
+        super_ref: S,
         arg: TestEnumInitA<I>,
     ) -> anyhow::Result<(RefWrapper<S, Self::RefData>, Self::RefMeta)> {
-        super_ref.as_mut_bytes()?[..size_of::<TestEnumDiscriminant>()]
-            .copy_from_slice(bytes_of(&TestEnumDiscriminant::A));
-        let (_, ref_meta) = unsafe {
-            <AInner as UnsizedInit<I>>::init(
-                RefWrapper::new(&mut super_ref, OffsetRef(size_of::<TestEnumDiscriminant>())),
-                arg.0,
-            )?
-        };
-        let meta = TestEnumMeta::A(ref_meta);
-        Ok((unsafe { RefWrapper::new(super_ref, meta) }, meta))
+        TestEnumVariantA::init(super_ref, arg, |init_type| init_type.0)
     }
 }
 impl<I, A> UnsizedInit<TestEnumInitB<I>> for TestEnum<A>
 where
-    BInner<A>: UnsizedInit<I>,
+    List<A>: UnsizedInit<I>,
     A: UnsizedGenerics,
 {
     const INIT_BYTES: usize =
-        size_of::<TestEnumDiscriminant>() + <BInner<A> as UnsizedInit<I>>::INIT_BYTES;
+        size_of::<TestEnumDiscriminant>() + <List<A> as UnsizedInit<I>>::INIT_BYTES;
 
     unsafe fn init<S: AsMutBytes>(
-        mut super_ref: S,
+        super_ref: S,
         arg: TestEnumInitB<I>,
-    ) -> anyhow::Result<(RefWrapper<S, Self::RefData>, Self::RefMeta)> {
-        super_ref.as_mut_bytes()?[..size_of::<TestEnumDiscriminant>()]
-            .copy_from_slice(bytes_of(&TestEnumDiscriminant::B));
-        let (_, ref_meta) = unsafe {
-            <BInner<A> as UnsizedInit<I>>::init(
-                RefWrapper::new(&mut super_ref, OffsetRef(size_of::<TestEnumDiscriminant>())),
-                arg.0,
-            )?
-        };
-        let meta = TestEnumMeta::B(ref_meta);
-        Ok((unsafe { RefWrapper::new(super_ref, meta) }, meta))
+    ) -> Result<(RefWrapper<S, Self::RefData>, Self::RefMeta)> {
+        TestEnumVariantB::init(super_ref, arg, |init_type| init_type.0)
     }
 }
+
 impl<A: UnsizedGenerics, I> UnsizedInit<TestEnumInitC<I>> for TestEnum<A>
 where
-    CInner: UnsizedInit<I>,
+    CombinedTest: UnsizedInit<I>,
 {
     const INIT_BYTES: usize =
-        size_of::<TestEnumDiscriminant>() + <CInner as UnsizedInit<I>>::INIT_BYTES;
+        size_of::<TestEnumDiscriminant>() + <CombinedTest as UnsizedInit<I>>::INIT_BYTES;
 
     unsafe fn init<S: AsMutBytes>(
-        mut super_ref: S,
+        super_ref: S,
         arg: TestEnumInitC<I>,
     ) -> anyhow::Result<(RefWrapper<S, Self::RefData>, Self::RefMeta)> {
-        super_ref.as_mut_bytes()?[..size_of::<TestEnumDiscriminant>()]
-            .copy_from_slice(bytes_of(&TestEnumDiscriminant::C));
-        let (_, ref_meta) = unsafe {
-            <CInner as UnsizedInit<I>>::init(
-                RefWrapper::new(&mut super_ref, OffsetRef(size_of::<TestEnumDiscriminant>())),
-                arg.0,
-            )?
-        };
-        let meta = TestEnumMeta::C(ref_meta);
-        Ok((unsafe { RefWrapper::new(super_ref, meta) }, meta))
+        TestEnumVariantC::init(super_ref, arg, |init_type| init_type.0)
     }
 }
 
-#[derive(Copy, Clone, Debug)]
-pub struct TestEnumVariantA<A>(PhantomData<fn() -> A>);
-
-unsafe impl<A: UnsizedGenerics> UnsizedEnumVariant for TestEnumVariantA<A> {
-    type UnsizedEnum = TestEnum<A>;
-    type InnerType = ();
-    const DISCRIMINANT: <Self::UnsizedEnum as UnsizedEnum>::Discriminant = TestEnumDiscriminant::A;
-    fn new() -> Self {
-        Self(PhantomData)
-    }
-    fn new_meta(
-        meta: <Self::InnerType as UnsizedType>::RefMeta,
-    ) -> <Self::UnsizedEnum as UnsizedType>::RefMeta {
-        TestEnumMeta::A(meta)
-    }
-}
-
-unsafe impl<A: UnsizedGenerics> UnsizedEnumVariant for TestEnumVariantB<A> {
-    type UnsizedEnum = TestEnum<A>;
-    type InnerType = BInner<A>;
-    const DISCRIMINANT: <Self::UnsizedEnum as UnsizedEnum>::Discriminant = TestEnumDiscriminant::B;
-    fn new() -> Self {
-        Self(PhantomData)
-    }
-    fn new_meta(
-        meta: <Self::InnerType as UnsizedType>::RefMeta,
-    ) -> <Self::UnsizedEnum as UnsizedType>::RefMeta {
-        TestEnumMeta::B(meta)
-    }
-}
-
-unsafe impl<A: UnsizedGenerics> UnsizedEnumVariant for TestEnumVariantC<A> {
-    type UnsizedEnum = TestEnum<A>;
-    type InnerType = CInner;
-    const DISCRIMINANT: <Self::UnsizedEnum as UnsizedEnum>::Discriminant = TestEnumDiscriminant::C;
-    fn new() -> Self {
-        Self(PhantomData)
-    }
-    fn new_meta(
-        meta: <Self::InnerType as UnsizedType>::RefMeta,
-    ) -> <Self::UnsizedEnum as UnsizedType>::RefMeta {
-        TestEnumMeta::C(meta)
-    }
-}
-
-#[derive(Copy, Clone, Debug)]
-pub struct TestEnumVariantB<A>(PhantomData<fn() -> A>);
-
-#[derive(Copy, Clone, Debug)]
-pub struct TestEnumVariantC<A>(PhantomData<fn() -> A>);
-
-pub type ARef<S, A> =
-    RefWrapper<RefWrapper<S, TestEnumVariantA<A>>, <AInner as UnsizedType>::RefData>;
-pub type BRef<S, A> =
-    RefWrapper<RefWrapper<S, TestEnumVariantB<A>>, <BInner<A> as UnsizedType>::RefData>;
-pub type CRef<S, A> =
-    RefWrapper<RefWrapper<S, TestEnumVariantC<A>>, <CInner as UnsizedType>::RefData>;
-#[derive(Copy, Clone)]
-pub enum TestEnumRefWrapper<S, A>
-where
-    A: UnsizedGenerics,
-{
-    A(ARef<S, A>),
-    B(BRef<S, A>),
-    C(CRef<S, A>),
-}
 pub trait TestEnumExt<A>:
     Sized + RefWrapperTypes<Ref = <TestEnum<A> as UnsizedType>::RefData>
 where
@@ -269,21 +84,30 @@ where
         TestEnum::discriminant(self)
     }
 
-    fn set_a<I>(self, a_init: I) -> anyhow::Result<ARef<Self, A>>
+    fn set_a<I>(
+        self,
+        a_init: I,
+    ) -> anyhow::Result<UnsizedEnumVariantRef<Self, TestEnumVariantA<A>>>
     where
         Self: RefWrapperMutExt,
         Self::Super: Resize<<TestEnum<A> as UnsizedType>::RefMeta>,
-        AInner: UnsizedInit<I>;
-    fn set_b<I>(self, b_init: I) -> anyhow::Result<BRef<Self, A>>
+        (): UnsizedInit<I>;
+    fn set_b<I>(
+        self,
+        b_init: I,
+    ) -> anyhow::Result<UnsizedEnumVariantRef<Self, TestEnumVariantB<A>>>
     where
         Self: RefWrapperMutExt,
         Self::Super: Resize<<TestEnum<A> as UnsizedType>::RefMeta>,
-        BInner<A>: UnsizedInit<I>;
-    fn set_c<I>(self, c_init: I) -> anyhow::Result<CRef<Self, A>>
+        List<A>: UnsizedInit<I>;
+    fn set_c<I>(
+        self,
+        c_init: I,
+    ) -> anyhow::Result<UnsizedEnumVariantRef<Self, TestEnumVariantC<A>>>
     where
         Self: RefWrapperMutExt,
         Self::Super: Resize<<TestEnum<A> as UnsizedType>::RefMeta>,
-        CInner: UnsizedInit<I>;
+        CombinedTest: UnsizedInit<I>;
 }
 pub trait TestEnumMutExt<A>: TestEnumExt<A>
 where
@@ -311,29 +135,29 @@ where
         }
     }
 
-    fn set_a<I>(self, a_init: I) -> anyhow::Result<ARef<Self, A>>
+    fn set_a<I>(self, a_init: I) -> anyhow::Result<UnsizedEnumVariantRef<Self, TestEnumVariantA<A>>>
     where
         Self: RefWrapperMutExt,
         Self::Super: Resize<<TestEnum<A> as UnsizedType>::RefMeta>,
-        AInner: UnsizedInit<I>,
+        (): UnsizedInit<I>,
     {
         TestEnumVariantA::set(self, a_init)
     }
 
-    fn set_b<I>(self, b_init: I) -> anyhow::Result<BRef<Self, A>>
+    fn set_b<I>(self, b_init: I) -> anyhow::Result<UnsizedEnumVariantRef<Self, TestEnumVariantB<A>>>
     where
         Self: RefWrapperMutExt,
         Self::Super: Resize<<TestEnum<A> as UnsizedType>::RefMeta>,
-        BInner<A>: UnsizedInit<I>,
+        List<A>: UnsizedInit<I>,
     {
         TestEnumVariantB::set(self, b_init)
     }
 
-    fn set_c<I>(self, c_init: I) -> anyhow::Result<CRef<Self, A>>
+    fn set_c<I>(self, c_init: I) -> anyhow::Result<UnsizedEnumVariantRef<Self, TestEnumVariantC<A>>>
     where
         Self: RefWrapperMutExt,
         Self::Super: Resize<<TestEnum<A> as UnsizedType>::RefMeta>,
-        CInner: UnsizedInit<I>,
+        CombinedTest: UnsizedInit<I>,
     {
         TestEnumVariantC::set(self, c_init)
     }

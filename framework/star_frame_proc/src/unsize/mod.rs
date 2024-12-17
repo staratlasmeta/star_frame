@@ -1,4 +1,6 @@
+use crate::util::GetGenerics;
 use easy_proc::ArgumentList;
+use itertools::Itertools;
 use proc_macro2::TokenStream;
 use proc_macro_error::abort;
 use syn::parse::{Parse, ParseStream};
@@ -41,14 +43,32 @@ pub struct UnsizedTypeArgs {
     pub discriminant: Option<Expr>,
 }
 
+pub fn reject_non_ty_gen(item: &impl GetGenerics) {
+    let generics = item.get_generics();
+    if !generics.lifetimes().collect_vec().is_empty() {
+        abort!(generics, "Lifetimes are not allowed in unsized types")
+    }
+
+    if !generics.const_params().collect_vec().is_empty() {
+        abort!(
+            generics,
+            "Const generics are not allowed in unsized types (yet)"
+        )
+    }
+}
+
 pub fn unsized_type_impl(item: Item, args: TokenStream) -> TokenStream {
     let args_attr: Attribute = parse_quote!(#[unsized_type(#args)]);
     let unsized_args = UnsizedTypeArgs::parse_arguments(&args_attr);
     match item {
         Item::Struct(struct_item) => {
+            reject_non_ty_gen(&struct_item);
             struct_impl::unsized_type_struct_impl(struct_item, unsized_args)
         }
-        Item::Enum(enum_item) => enum_impl::unsized_type_struct_impl(enum_item, unsized_args),
+        Item::Enum(enum_item) => {
+            reject_non_ty_gen(&enum_item);
+            enum_impl::unsized_type_enum_impl(enum_item, unsized_args)
+        }
         _ => {
             abort!(
                 args,

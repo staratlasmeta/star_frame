@@ -1,12 +1,15 @@
+use crate::util::Paths;
 use derive_more::{Deref, DerefMut};
+use itertools::Itertools;
 use proc_macro2::Span;
 use proc_macro_error::abort;
-use quote::format_ident;
+use quote::{format_ident, quote, ToTokens};
+use std::marker::PhantomData;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::{
-    bracketed, token, Attribute, ConstParam, DeriveInput, GenericParam, Generics, Ident, ItemEnum,
-    ItemStruct, Lifetime, LifetimeParam, Token, TypeParam, WhereClause,
+    bracketed, parse_quote, token, Attribute, ConstParam, DeriveInput, GenericParam, Generics,
+    Ident, ItemEnum, ItemStruct, Lifetime, LifetimeParam, Token, Type, TypeParam, WhereClause,
 };
 
 #[derive(Debug, Deref, DerefMut, Clone, Default)]
@@ -186,4 +189,21 @@ pub fn reject_generics(item: &impl GetGenerics, error: Option<&str>) {
     if !generics.params.is_empty() {
         abort!(generics, error.unwrap_or("Generics are not supported"));
     }
+}
+
+pub fn phantom_generics_type(item: &impl GetGenerics) -> Option<Type> {
+    let phantom_data = Paths::default().phantom_data;
+    let generics = item.get_generics();
+    if generics.params.is_empty() {
+        return None;
+    }
+    let type_params = generics.type_params().map(|p| p.ident.to_token_stream());
+    let lifetime_tys = generics.lifetimes().map(|p| {
+        let lifetime = &p.lifetime;
+        quote! {&#lifetime ()}
+    });
+    let tys = type_params.chain(lifetime_tys).collect_vec();
+    Some(parse_quote! {
+        #phantom_data<fn() -> (#(#tys),*)>
+    })
 }

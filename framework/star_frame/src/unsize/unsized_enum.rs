@@ -5,12 +5,20 @@ use crate::prelude::{
 use crate::unsize::ref_wrapper::{AsBytes, RefWrapperTypes};
 use crate::unsize::{RefBytesMut, RefResize, RefWrapperMutExt, Resize, UnsizedInit};
 use advance::Advance;
+use bytemuck::checked::try_from_bytes;
 use bytemuck::{bytes_of, CheckedBitPattern, NoUninit};
 use core::mem::size_of;
 use star_frame::util::OffsetRef;
 
 pub trait UnsizedEnum: UnsizedType {
     type Discriminant: CheckedBitPattern + NoUninit;
+
+    #[inline]
+    fn discriminant_from_bytes<S: AsBytes>(super_ref: &S) -> anyhow::Result<&Self::Discriminant> {
+        Ok(try_from_bytes(
+            &super_ref.as_bytes()?[..size_of::<Self::Discriminant>()],
+        )?)
+    }
 
     fn discriminant<S: AsBytes>(
         r: &impl RefWrapperTypes<Super = S, Ref = Self::RefData>,
@@ -26,12 +34,11 @@ type UnsizedEnumFromBytesReturn<Super, SelfType> = FromBytesReturn<
     <<SelfType as UnsizedEnumVariant>::UnsizedEnum as UnsizedType>::RefMeta,
 >;
 
-pub unsafe trait UnsizedEnumVariant: Sized {
+pub unsafe trait UnsizedEnumVariant: Sized + Default {
     type UnsizedEnum: UnsizedEnum<RefData = <Self::UnsizedEnum as UnsizedType>::RefMeta> + ?Sized;
     type InnerType: UnsizedType + ?Sized;
     const DISCRIMINANT: <Self::UnsizedEnum as UnsizedEnum>::Discriminant;
 
-    fn new() -> Self;
     fn new_meta(
         meta: <Self::InnerType as UnsizedType>::RefMeta,
     ) -> <Self::UnsizedEnum as UnsizedType>::RefMeta;
@@ -87,7 +94,7 @@ pub unsafe trait UnsizedEnumVariant: Sized {
     {
         Ok(unsafe {
             <Self::InnerType as UnsizedType>::from_bytes_and_meta(
-                RefWrapper::new(r, Self::new()),
+                RefWrapper::new(r, Self::default()),
                 meta,
             )?
             .ref_wrapper
@@ -113,7 +120,7 @@ pub unsafe trait UnsizedEnumVariant: Sized {
                 .copy_from_slice(bytes_of(&Self::DISCRIMINANT));
         }
         let (mut r, m) = unsafe {
-            <Self::InnerType as UnsizedInit<I>>::init(RefWrapper::new(r, Self::new()), init)?
+            <Self::InnerType as UnsizedInit<I>>::init(RefWrapper::new(r, Self::default()), init)?
         };
         unsafe {
             r.sup_mut()
@@ -124,9 +131,32 @@ pub unsafe trait UnsizedEnumVariant: Sized {
         }
         Ok(r)
     }
-}
 
-pub unsafe trait UnsizedEnumVariantInit {}
+    #[inline]
+    fn init<S, InitType, I>(
+        mut super_ref: S,
+        arg: InitType,
+        inner: impl Fn(InitType) -> I,
+    ) -> anyhow::Result<UnsizedInitReturn<S, Self::UnsizedEnum>>
+    where
+        S: AsMutBytes,
+        Self::InnerType: UnsizedInit<I>,
+    {
+        super_ref.as_mut_bytes()?[..size_of::<<Self::UnsizedEnum as UnsizedEnum>::Discriminant>()]
+            .copy_from_slice(bytes_of(&Self::DISCRIMINANT));
+        let (_, ref_meta) = unsafe {
+            <Self::InnerType as UnsizedInit<I>>::init(
+                RefWrapper::new(
+                    &mut super_ref,
+                    OffsetRef(size_of::<<Self::UnsizedEnum as UnsizedEnum>::Discriminant>()),
+                ),
+                inner(arg),
+            )?
+        };
+        let meta = Self::new_meta(ref_meta);
+        Ok((unsafe { RefWrapper::new(super_ref, meta) }, meta))
+    }
+}
 
 unsafe impl<S, T> RefResize<S, <T::InnerType as UnsizedType>::RefMeta> for T
 where

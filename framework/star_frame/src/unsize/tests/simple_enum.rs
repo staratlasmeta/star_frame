@@ -6,6 +6,7 @@ use crate::util::OffsetRef;
 use advance::Advance;
 use bytemuck::checked::try_from_bytes;
 use bytemuck::{bytes_of, CheckedBitPattern, NoUninit};
+use derivative::Derivative;
 use std::marker::PhantomData;
 use std::mem::size_of;
 use typenum::True;
@@ -25,10 +26,6 @@ unsafe impl UnsizedEnumVariant for TestEnumVariantA {
     type InnerType = Inner;
     const DISCRIMINANT: <Self::UnsizedEnum as UnsizedEnum>::Discriminant = TestEnumDiscriminant::A;
 
-    fn new() -> Self {
-        Self(PhantomData)
-    }
-
     fn new_meta(
         meta: <Self::InnerType as UnsizedType>::RefMeta,
     ) -> <Self::UnsizedEnum as UnsizedType>::RefMeta {
@@ -37,17 +34,18 @@ unsafe impl UnsizedEnumVariant for TestEnumVariantA {
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, CheckedBitPattern, NoUninit)]
-#[repr(u8)]
+#[repr(u32)]
 pub enum TestEnumDiscriminant {
     A = 4,
 }
 pub type AInner = Inner;
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum TestEnumMeta {
     A(<AInner as UnsizedType>::RefMeta),
 }
 
+#[derive(Debug)]
 pub enum TestEnumOwned {
     A(<AInner as UnsizedType>::Owned),
 }
@@ -66,10 +64,7 @@ unsafe impl UnsizedType for TestEnum {
     fn from_bytes<S: AsBytes>(
         super_ref: S,
     ) -> anyhow::Result<FromBytesReturn<S, Self::RefData, Self::RefMeta>> {
-        let repr: &TestEnumDiscriminant =
-            try_from_bytes(&super_ref.as_bytes()?[..size_of::<TestEnumDiscriminant>()])?;
-
-        match repr {
+        match Self::discriminant_from_bytes(&super_ref)? {
             TestEnumDiscriminant::A => unsafe { TestEnumVariantA::from_bytes(super_ref) },
         }
     }
@@ -116,29 +111,21 @@ where
         size_of::<TestEnumDiscriminant>() + <AInner as UnsizedInit<I>>::INIT_BYTES;
 
     unsafe fn init<S: AsMutBytes>(
-        mut super_ref: S,
+        super_ref: S,
         arg: TestEnumInitA<I>,
     ) -> anyhow::Result<(RefWrapper<S, Self::RefData>, Self::RefMeta)> {
-        super_ref.as_mut_bytes()?[..size_of::<TestEnumDiscriminant>()]
-            .copy_from_slice(bytes_of(&TestEnumDiscriminant::A));
-        let (_, ref_meta) = unsafe {
-            <AInner as UnsizedInit<I>>::init(
-                RefWrapper::new(&mut super_ref, OffsetRef(size_of::<TestEnumDiscriminant>())),
-                arg.0,
-            )?
-        };
-        let meta = TestEnumMeta::A(ref_meta);
-        Ok((unsafe { RefWrapper::new(super_ref, meta) }, meta))
+        TestEnumVariantA::init(super_ref, arg, |a| a.0)
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Derivative)]
+#[derivative(
+    Debug(bound = ""),
+    Default(bound = ""),
+    Clone(bound = ""),
+    Copy(bound = "")
+)]
 pub struct TestEnumVariantA(PhantomData<()>);
-impl TestEnumVariantA {
-    pub fn new() -> Self {
-        Self(PhantomData)
-    }
-}
 
 // pub type ARef<S> = RefWrapper<RefWrapper<S, TestEnumVariantA>, <AInner as UnsizedType>::RefData>;
 pub type ARef<S> = UnsizedEnumVariantRef<S, TestEnumVariantA>;
