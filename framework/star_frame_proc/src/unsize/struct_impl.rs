@@ -7,7 +7,6 @@ use crate::util::{
     make_derivative_attribute, reject_attributes, strip_inner_attributes, type_generic_idents,
     BetterGenerics, CombineGenerics, Paths,
 };
-use easy_proc::ArgumentList;
 use heck::ToUpperCamelCase;
 use itertools::Itertools;
 use proc_macro2::Ident;
@@ -16,8 +15,8 @@ use proc_macro_error::{abort, abort_call_site};
 use quote::{format_ident, quote, ToTokens};
 use syn::punctuated::Punctuated;
 use syn::{
-    parse2, parse_quote, Attribute, Field, GenericParam, Generics, ImplGenerics, ItemStruct,
-    TypeParam, WhereClause, WherePredicate,
+    parse2, parse_quote, Field, GenericParam, Generics, ImplGenerics, ItemStruct, TypeParam,
+    WhereClause, WherePredicate,
 };
 
 #[derive(Debug, Clone)]

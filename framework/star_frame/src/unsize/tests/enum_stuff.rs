@@ -49,7 +49,7 @@ pub enum TestEnumOwned<A: UnsizedGenerics> {
 
 #[repr(transparent)]
 pub struct TestEnum<A> {
-    __phantom_generics: PhantomData<fn() -> (A)>,
+    __phantom_generics: PhantomData<fn() -> A>,
     data: [u8],
 }
 unsafe impl<A: UnsizedGenerics> UnsizedType for TestEnum<A> {

@@ -4,9 +4,7 @@ use itertools::Itertools;
 use proc_macro2::{Ident, TokenStream};
 use proc_macro_error::abort;
 use quote::{format_ident, quote};
-use syn::{
-    parse_quote, Expr, Fields, ImplGenerics, ItemEnum, ItemStruct, Type, TypeGenerics, Variant,
-};
+use syn::{parse_quote, Fields, ImplGenerics, ItemEnum, ItemStruct, Type, TypeGenerics, Variant};
 
 #[allow(non_snake_case)]
 macro_rules! UnsizedEnumContext {
@@ -358,8 +356,8 @@ impl UnsizedEnumContext {
                         #(
                             #meta_ident::#variant_idents(m) => unsafe {
                                 #variant_struct_idents::from_bytes_and_meta(super_ref, meta, m)
-                            }
-                        ),*
+                            },
+                        )*
                     }
                 }
 
@@ -369,7 +367,7 @@ impl UnsizedEnumContext {
                            #ref_wrapper_ident::#variant_idents(r) =>
                                 <#variant_types as #prelude::UnsizedType>::owned(r)
                                 .map(#owned_ident::#variant_idents),
-                        ),*
+                        )*
                     }
                 }
             }

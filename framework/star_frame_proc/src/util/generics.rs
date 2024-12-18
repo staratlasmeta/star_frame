@@ -4,7 +4,6 @@ use itertools::Itertools;
 use proc_macro2::Span;
 use proc_macro_error::abort;
 use quote::{format_ident, quote, ToTokens};
-use std::marker::PhantomData;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::{

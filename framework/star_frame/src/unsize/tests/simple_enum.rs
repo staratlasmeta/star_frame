@@ -1,11 +1,7 @@
 #![allow(dead_code)]
 
 use crate::prelude::*;
-use crate::unsize::tests::test::TestStruct;
-use crate::util::OffsetRef;
-use advance::Advance;
-use bytemuck::checked::try_from_bytes;
-use bytemuck::{bytes_of, CheckedBitPattern, NoUninit};
+use bytemuck::{CheckedBitPattern, NoUninit};
 use derivative::Derivative;
 use std::marker::PhantomData;
 use std::mem::size_of;
