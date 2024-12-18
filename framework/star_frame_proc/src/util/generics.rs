@@ -1,12 +1,14 @@
+use crate::util::Paths;
 use derive_more::{Deref, DerefMut};
+use itertools::Itertools;
 use proc_macro2::Span;
 use proc_macro_error::abort;
-use quote::format_ident;
+use quote::{format_ident, quote, ToTokens};
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::{
-    bracketed, token, Attribute, ConstParam, DeriveInput, GenericParam, Generics, Ident, ItemEnum,
-    ItemStruct, Lifetime, LifetimeParam, Token, TypeParam, WhereClause,
+    bracketed, parse_quote, token, Attribute, ConstParam, DeriveInput, GenericParam, Generics,
+    Ident, ItemEnum, ItemStruct, Lifetime, LifetimeParam, Token, Type, TypeParam, WhereClause,
 };
 
 #[derive(Debug, Deref, DerefMut, Clone, Default)]
@@ -151,7 +153,7 @@ pub fn new_lifetime<G: GetGenerics>(generics: &G) -> Lifetime {
     Lifetime::new(&format!("'{lifetime}"), Span::call_site())
 }
 
-pub fn new_generic<G: GetGenerics>(generics: &G) -> Ident {
+fn new_generic_inner<G: GetGenerics>(generics: &G, extra_idents: &[Ident]) -> Ident {
     let generics = generics.get_generics();
     let type_idents = generics
         .type_params()
@@ -165,12 +167,27 @@ pub fn new_generic<G: GetGenerics>(generics: &G) -> Ident {
     while type_idents
         .iter()
         .chain(const_idents.iter())
+        .chain(extra_idents.iter())
         .map(ToString::to_string)
         .any(|g| g == new_generic)
     {
         new_generic.push('_');
     }
     format_ident!("{new_generic}")
+}
+
+pub fn new_generic<G: GetGenerics>(generics: &G) -> Ident {
+    new_generic_inner(generics, &[])
+}
+
+pub fn new_generics<G: GetGenerics, const N: usize>(generics: &G) -> [Ident; N] {
+    let mut idents = Vec::with_capacity(N);
+    for _ in 0..N {
+        idents.push(new_generic_inner(generics, &idents));
+    }
+    idents
+        .try_into()
+        .expect("idents should be of the same length")
 }
 
 pub fn type_generic_idents<G: GetGenerics>(generics: &G) -> Vec<Ident> {
@@ -186,4 +203,21 @@ pub fn reject_generics(item: &impl GetGenerics, error: Option<&str>) {
     if !generics.params.is_empty() {
         abort!(generics, error.unwrap_or("Generics are not supported"));
     }
+}
+
+pub fn phantom_generics_type(item: &impl GetGenerics) -> Option<Type> {
+    let phantom_data = Paths::default().phantom_data;
+    let generics = item.get_generics();
+    if generics.params.is_empty() {
+        return None;
+    }
+    let type_params = generics.type_params().map(|p| p.ident.to_token_stream());
+    let lifetime_tys = generics.lifetimes().map(|p| {
+        let lifetime = &p.lifetime;
+        quote! {&#lifetime ()}
+    });
+    let tys = type_params.chain(lifetime_tys).collect_vec();
+    Some(parse_quote! {
+        #phantom_data<fn() -> (#(#tys),*)>
+    })
 }

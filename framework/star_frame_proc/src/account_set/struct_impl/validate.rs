@@ -116,7 +116,7 @@ pub(super) fn validates(
         }
     }
 
-    validate_ids.into_iter().map(|(id, validate_struct_args)|{
+    validate_ids.into_iter().map(|(id, validate_struct_args)| {
         let relevant_field_validates = field_validates.iter().map(|f| f.iter().find(|f| f.id.as_ref().map(LitStr::value) == id).cloned().unwrap_or_default()).collect::<Vec<_>>();
         let (_, ty_generics, _) = main_generics.split_for_impl();
         let mut generics = other_generics.clone();
@@ -145,14 +145,14 @@ pub(super) fn validates(
             .iter()
             .map(|f| {
                 (f.arg.clone().unwrap_or_else(|| default_validate_arg.clone()), f.arg_ty.clone().unwrap_or_else(|| syn::parse_quote!(_)))
-        }).collect();
+            }).collect();
 
         let validate_addresses = relevant_field_validates.iter().map(|f| f.address.clone()).collect_vec();
 
         // Cycle detection
         let mut field_id_map = HashMap::new();
         let mut validates_dag = Dag::<_, _, u32>::new();
-        for field_name in field_name.iter().map(|f|f.to_string()) {
+        for field_name in field_name.iter().map(|f| f.to_string()) {
             field_id_map.insert(field_name, validates_dag.add_node(()));
         }
         for (field_arg, field_name) in relevant_field_validates.iter().zip(field_name).filter_map(|(a, name)| a.requires.as_ref().map(|r| (r, name.to_string()))) {
@@ -178,7 +178,7 @@ pub(super) fn validates(
                 }
                 a.skip
             }))
-            .map(| ((((field_type, field_name), (validate_arg, validate_ty)), validate_address), skip)| if skip {
+            .map(|((((field_type, field_name), (validate_arg, validate_ty)), validate_address), skip)| if skip {
                 quote! {}
             } else {
                 let address_check = validate_address.as_ref().map(|address| quote! {
@@ -189,11 +189,11 @@ pub(super) fn validates(
                         #address_check
                         // self.#field_name.validate_accounts(#validate_arg, syscalls)?;
                         #prelude::_account_set_validate_reverse::<#field_type, #validate_ty>(
-                            { 
+                            {
                                 let __arg = #validate_arg;
                                 __arg
-                            }, 
-                            &mut self.#field_name, 
+                            },
+                            &mut self.#field_name,
                             syscalls
                         )?;
                     }
@@ -242,7 +242,7 @@ pub(super) fn validates(
             res?;
         });
 
-        quote!{
+        quote! {
             #[automatically_derived]
             impl #impl_generics #account_set_validate<#info_lifetime, #validate_type> for #ident #ty_generics #where_clause {
                 fn validate_accounts(

@@ -100,7 +100,7 @@ pub(super) fn cleanups(
         }
     }
 
-    cleanup_ids.into_iter().map(|(id, cleanup_struct_args)|{
+    cleanup_ids.into_iter().map(|(id, cleanup_struct_args)| {
         let (_, ty_generics, _) = main_generics.split_for_impl();
         let mut generics = other_generics.clone();
         let mut cleanup_type: Type = syn::parse_quote!(());
@@ -130,12 +130,12 @@ pub(super) fn cleanups(
                     .find(|f| f.id.as_ref().map(LitStr::value) == id)
                     .map(|f| f.arg.clone())
                     .unwrap_or_else(|| default_cleanup_arg.clone())
-        }).collect();
+            }).collect();
 
         let (impl_generics, _, where_clause) = generics.split_for_impl();
         let extra_cleanup = cleanup_struct_args.extra_cleanup.map(|extra_validation| quote! {{ #extra_validation }?;});
 
-        quote!{
+        quote! {
             #[automatically_derived]
             impl #impl_generics #account_set_cleanup<#info_lifetime, #cleanup_type> for #ident #ty_generics #where_clause {
                 fn cleanup_accounts(
@@ -145,11 +145,11 @@ pub(super) fn cleanups(
                 ) -> #result<()> {
                     #(
                         #prelude::_account_set_cleanup_reverse::<#field_type, _>(
-                            { 
+                            {
                                 let __arg = #cleanup_args;
                                 __arg
-                            }, 
-                            &mut self.#field_name, 
+                            },
+                            &mut self.#field_name,
                             syscalls
                         )?;
                     )*

@@ -129,9 +129,9 @@ pub fn reject_attributes(attributes: &[Attribute], ident: &Ident, message: Optio
     }
 }
 
-pub fn make_derivative_attribute(
+pub fn make_derivative_attribute<T: ToTokens>(
     traits: Punctuated<Path, Token![,]>,
-    types: &[impl ToTokens],
+    types: &[T],
 ) -> Attribute {
     let bounds = traits
         .iter()

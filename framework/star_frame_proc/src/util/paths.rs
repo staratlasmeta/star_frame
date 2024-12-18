@@ -24,7 +24,6 @@ pub struct Paths {
     pub eq: TokenStream,
     #[allow(dead_code)]
     pub partial_eq: TokenStream,
-    #[allow(dead_code)]
     pub phantom_data: TokenStream,
     #[allow(dead_code)]
     pub ptr: TokenStream,
@@ -70,6 +69,17 @@ pub struct Paths {
     // anyhow
     pub anyhow_macro: TokenStream,
 }
+
+macro_rules! paths_macro {
+    ($($name:ident $(: $rename:ident)? $(,)?)*) => {
+        let Paths {
+            $($name $(: $rename)? ,)*
+            ..
+        } = Default::default();
+    };
+}
+
+pub(crate) use paths_macro as Paths;
 
 impl Default for Paths {
     fn default() -> Self {
