@@ -154,21 +154,21 @@ impl UnsizedEnumContext {
     }
 
     fn enum_struct(&self) -> ItemStruct {
-        Paths!(debug);
+        Paths!(prelude, derivative);
         UnsizedEnumContext!(self => enum_ident, item_enum);
         let (impl_gen, _, wc) = self.split_for_impl();
         let phantom_generics_type = phantom_generics_type(item_enum);
 
-        let phantom_generics: Option<TokenStream> =
-            phantom_generics_type.map(|ty| quote!(__phantom_generics: #ty,));
+        let phantom_generics: Option<TokenStream> = phantom_generics_type.map(|ty| quote!((#ty)));
+
+        let derivative_attr =
+            make_derivative_attribute::<bool>(parse_quote!(Debug, Default, Clone, Copy), &[]);
 
         parse_quote! {
-            #[repr(transparent)]
-            #[derive(#debug)]
-            pub struct #enum_ident #impl_gen #wc {
-                #phantom_generics
-                data: [u8]
-            }
+            #[repr(C)]
+            #[derive(#prelude::Align1, #derivative)]
+            #derivative_attr
+            pub struct #enum_ident #impl_gen #phantom_generics #wc;
         }
     }
 
