@@ -1,4 +1,3 @@
-#![allow(clippy::missing_safety_doc)] // todo: turn this off
 use crate::prelude::{
     AsMutBytes, FromBytesReturn, RefBytes, RefWrapper, UnsizedInitReturn, UnsizedType,
 };
@@ -34,6 +33,10 @@ type UnsizedEnumFromBytesReturn<Super, SelfType> = FromBytesReturn<
     <<SelfType as UnsizedEnumVariant>::UnsizedEnum as UnsizedType>::RefMeta,
 >;
 
+/// A helper trait for implementing [`UnsizedType`] methods on [`UnsizedEnum`]s.
+///
+/// # Safety
+/// This trait should be implemented via the [`super::unsized_type`] proc macro.
 pub unsafe trait UnsizedEnumVariant: Sized + Default {
     type UnsizedEnum: UnsizedEnum<RefData = <Self::UnsizedEnum as UnsizedType>::RefMeta> + ?Sized;
     type InnerType: UnsizedType + ?Sized;
@@ -43,6 +46,8 @@ pub unsafe trait UnsizedEnumVariant: Sized + Default {
         meta: <Self::InnerType as UnsizedType>::RefMeta,
     ) -> <Self::UnsizedEnum as UnsizedType>::RefMeta;
 
+    /// # Safety
+    /// The enum discriminant must already be checked before calling this.
     #[inline]
     unsafe fn from_bytes<S>(super_ref: S) -> anyhow::Result<UnsizedEnumFromBytesReturn<S, Self>>
     where
@@ -64,6 +69,8 @@ pub unsafe trait UnsizedEnumVariant: Sized + Default {
         })
     }
 
+    /// # Safety
+    /// Has the same requirements as [`Self::from_bytes`] and [`UnsizedType::from_bytes_and_meta`]
     #[inline]
     unsafe fn from_bytes_and_meta<S>(
         super_ref: S,
@@ -83,6 +90,8 @@ pub unsafe trait UnsizedEnumVariant: Sized + Default {
         })
     }
 
+    /// # Safety
+    /// The enum discriminant must be checked before calling this method
     #[inline]
     unsafe fn get<R>(
         r: R,

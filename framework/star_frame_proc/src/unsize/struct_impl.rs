@@ -15,8 +15,8 @@ use proc_macro_error::{abort, abort_call_site};
 use quote::{format_ident, quote, ToTokens};
 use syn::punctuated::Punctuated;
 use syn::{
-    parse2, parse_quote, Field, GenericParam, Generics, ImplGenerics, ItemStruct, TypeParam,
-    WhereClause, WherePredicate,
+    parse_quote, Field, GenericParam, Generics, ImplGenerics, ItemStruct, TypeParam, WhereClause,
+    WherePredicate,
 };
 
 #[derive(Debug, Clone)]
@@ -133,7 +133,6 @@ fn derive_bytemucks(sized_struct: &ItemStruct) -> TokenStream {
     );
 
     quote! {
-
         #validate_fields_are_trait
 
         #[doc = #zeroable_safety]
@@ -345,10 +344,7 @@ pub(crate) fn unsized_type_struct_impl(
         })
         .unzip();
 
-    let ext_generics: BetterGenerics = parse2(
-        quote! { [<#r> where #r: #prelude::RefWrapperTypes<Ref = #ref_type> + #prelude::AsBytes] },
-    )
-    .expect("Shouldn't fail to parse better generics for ext type");
+    let ext_generics: BetterGenerics = parse_quote! { [<#r> where #r: #prelude::RefWrapperTypes<Ref = #ref_type> + #prelude::AsBytes] };
 
     let ext_generics = combined_generics.combine(&ext_generics);
 

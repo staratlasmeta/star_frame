@@ -18,8 +18,8 @@ pub mod macro_prelude {
     pub use crate::unsize::{
         AsBytes, AsMutBytes, FromBytesReturn, RefBytes, RefBytesMut, RefDeref, RefDerefMut,
         RefResize, RefWrapper, RefWrapperMutExt, RefWrapperTypes, Resize, UnsizedEnum,
-        UnsizedEnumVariant, UnsizedEnumVariantRef, UnsizedInit, UnsizedType, Zeroed,
-        {CombinedExt, CombinedRef, CombinedUnsized, RefWrapperT, RefWrapperU},
+        UnsizedEnumVariant, UnsizedEnumVariantRef, UnsizedInit, UnsizedInitReturn, UnsizedType,
+        Zeroed, {CombinedExt, CombinedRef, CombinedUnsized, RefWrapperT, RefWrapperU},
     };
     pub use crate::Result;
 
