@@ -3,11 +3,14 @@ use crate::util::{
     discriminant_vec, enum_discriminants, get_repr, reject_generics, IntegerRepr, Paths,
 };
 use easy_proc::{find_attr, ArgumentList};
+use itertools::Itertools;
 use proc_macro2::{Span, TokenStream};
 use proc_macro_error::{abort, OptionExt};
 use quote::quote;
 use syn::spanned::Spanned;
-use syn::{parse_quote, Attribute, DataStruct, DataUnion, DeriveInput, Expr, Fields, LitStr, Type};
+use syn::{
+    parse_quote, Attribute, DataStruct, DataUnion, DeriveInput, Expr, Field, Fields, LitStr, Type,
+};
 
 #[derive(Debug, ArgumentList, Default)]
 pub struct TypeToIdlArgs {
@@ -92,14 +95,27 @@ fn idl_struct_type_def(fields: &Fields) -> TokenStream {
         ..
     } = &Paths::default();
     let tuple = matches!(fields, Fields::Unnamed(_));
-    let idl_fields: Vec<TokenStream> = fields
+    let is_skip = |f: &Field| {
+        find_attr(&f.attrs, type_to_idl_args_ident)
+            .map(TypeToIdlFieldArgs::parse_arguments)
+            .unwrap_or_default()
+            .skip
+    };
+    let skip_position = fields
         .iter()
-        .filter(|f| {
-            !find_attr(&f.attrs, type_to_idl_args_ident)
-                .map(TypeToIdlFieldArgs::parse_arguments)
-                .unwrap_or_default()
-                .skip
-        })
+        .position(is_skip)
+        .unwrap_or_else(|| fields.len());
+    let mut idl_fields = fields.iter().collect_vec();
+    let skipped_fields = idl_fields.split_off(skip_position);
+    if let Some(skipped) = skipped_fields[1..].iter().find(|f| is_skip(f)) {
+        abort!(
+            skipped,
+            "There can only be one `#[{}(skip)]`. All fields below the attribute are skipped.",
+            type_to_idl_args_ident
+        );
+    }
+    let idl_fields: Vec<TokenStream> = idl_fields
+        .iter()
         .map(|f| {
             let path: Expr = if tuple {
                 parse_quote!(None)
