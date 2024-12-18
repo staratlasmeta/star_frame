@@ -101,13 +101,13 @@ fn idl_struct_type_def(fields: &Fields) -> TokenStream {
             .unwrap_or_default()
             .skip
     };
-    let skip_position = fields
-        .iter()
-        .position(is_skip)
-        .unwrap_or_else(|| fields.len());
-    let mut idl_fields = fields.iter().collect_vec();
-    let skipped_fields = idl_fields.split_off(skip_position);
-    if let Some(skipped) = skipped_fields[1..].iter().find(|f| is_skip(f)) {
+    let mut field_iter = fields.iter();
+    let idl_fields = field_iter
+        .by_ref()
+        .take_while(|f| !is_skip(f))
+        .collect_vec();
+
+    if let Some(skipped) = field_iter.skip(1).find(|f| is_skip(f)) {
         abort!(
             skipped,
             "There can only be one `#[{}(skip)]`. All fields below the attribute are skipped.",
