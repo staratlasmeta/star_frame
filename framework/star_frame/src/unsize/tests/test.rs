@@ -20,7 +20,7 @@ pub struct SingleUnsized {
 
 #[test]
 fn test_single_unsized() -> Result<()> {
-    TestByteSet::<SingleUnsized>::new(Zeroed)?;
+    TestByteSet::<SingleUnsized>::new(DefaultInit)?;
     let r = &mut TestByteSet::<SingleUnsized>::new(SingleUnsizedInit {
         unsized1: [PackedValue(1)],
     })?;
@@ -46,7 +46,7 @@ pub struct ManyUnsized {
 
 #[test]
 fn test_many_unsized() -> Result<()> {
-    TestByteSet::<ManyUnsized>::new(Zeroed)?;
+    TestByteSet::<ManyUnsized>::new(DefaultInit)?;
     let r = TestByteSet::<ManyUnsized>::new(ManyUnsizedInit {
         unsized1: [PackedValue(1)],
         unsized2: SingleUnsizedInit {
@@ -80,7 +80,7 @@ pub struct SingleUnsizedWithSized {
 
 #[test]
 fn test_single_unsized_with_sized() -> Result<()> {
-    TestByteSet::<SingleUnsizedWithSized>::new(Zeroed)?;
+    TestByteSet::<SingleUnsizedWithSized>::new(DefaultInit)?;
     let r = TestByteSet::<SingleUnsizedWithSized>::new(SingleUnsizedWithSizedInit {
         sized1: true,
         unsized1: [PackedValue(1)],
@@ -110,7 +110,7 @@ pub struct SizedAndUnsized {
 
 #[test]
 fn test_sized_and_unsized() -> Result<()> {
-    TestByteSet::<SizedAndUnsized>::new(Zeroed)?;
+    TestByteSet::<SizedAndUnsized>::new(DefaultInit)?;
     let r = TestByteSet::<SizedAndUnsized>::new(SizedAndUnsizedInit {
         sized1: true,
         sized2: PackedValue(1),
@@ -150,7 +150,7 @@ where
 
 #[test]
 fn test_with_sized_generics() -> Result<()> {
-    TestByteSet::<WithSizedGenerics<TestStruct, bool>>::new(Zeroed)?;
+    TestByteSet::<WithSizedGenerics<TestStruct, bool>>::new(DefaultInit)?;
     let r = TestByteSet::<WithSizedGenerics<TestStruct, bool>>::new(WithSizedGenericsInit {
         sized1: TestStruct { val1: 1, val2: 2 },
         sized2: true,
@@ -185,7 +185,7 @@ where
 
 #[test]
 fn test_with_unsized_generics() -> Result<()> {
-    TestByteSet::<WithUnsizedGenerics<PackedValueChecked<u16>, TestStruct>>::new(Zeroed)?;
+    TestByteSet::<WithUnsizedGenerics<PackedValueChecked<u16>, TestStruct>>::new(DefaultInit)?;
     let r = TestByteSet::<WithUnsizedGenerics<PackedValueChecked<u16>, TestStruct>>::new(
         WithUnsizedGenericsInit {
             sized1: 1,
@@ -230,7 +230,7 @@ where
 fn test_with_sized_and_unsized_generics() -> Result<()> {
     TestByteSet::<
         WithSizedAndUnsizedGenerics<TestStruct, PackedValueChecked<u16>, PackedValueChecked<u32>>,
-    >::new(Zeroed)?;
+    >::new(DefaultInit)?;
     let r = TestByteSet::<
         WithSizedAndUnsizedGenerics<TestStruct, PackedValueChecked<u16>, PackedValueChecked<u32>>,
     >::new(WithSizedAndUnsizedGenericsInit {

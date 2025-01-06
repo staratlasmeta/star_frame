@@ -129,6 +129,29 @@ pub fn reject_attributes(attributes: &[Attribute], ident: &Ident, message: Optio
     }
 }
 
+pub fn restrict_attributes(
+    attributes: &mut impl EnumerableAttributes,
+    allowed_attributes: &[&str],
+) {
+    attributes.enumerate_attributes().for_each(|(_, attrs)| {
+        for attr in attrs.iter() {
+            let ident = attr.path().get_ident().unwrap_or_else(|| {
+                abort!(attr, "Expected attribute to be an identifier");
+            });
+            if !allowed_attributes.iter().any(|allowed| ident == allowed) {
+                abort!(
+                    attr,
+                    "Only the following attribute idents are allowed: {}",
+                    allowed_attributes
+                        .iter()
+                        .map(ToString::to_string)
+                        .join(", ")
+                );
+            }
+        }
+    });
+}
+
 pub fn make_derivative_attribute<T: ToTokens>(
     traits: Punctuated<Path, Token![,]>,
     types: &[T],
@@ -154,6 +177,12 @@ pub fn add_derivative_attributes(
 
 pub fn get_field_types(fields: &impl FieldIter) -> impl Iterator<Item = &Type> {
     fields.field_iter().map(|field| &field.ty)
+}
+
+pub fn get_field_idents(fields: &impl FieldIter) -> impl Iterator<Item = &Ident> {
+    fields
+        .field_iter()
+        .map(|field| field.ident.as_ref().expect("Unnamed field"))
 }
 
 /// Check that all fields implement a given trait

@@ -380,7 +380,7 @@ pub(crate) fn unsized_type_struct_impl(
 
     let init_zeroed_generics = Generics {
         where_clause: Some(
-            parse_quote!(where #inner_type: #prelude::UnsizedInit<#prelude::Zeroed>),
+            parse_quote!(where #inner_type: #prelude::UnsizedInit<#prelude::DefaultInit>),
         ),
         ..Default::default()
     };
@@ -612,16 +612,16 @@ pub(crate) fn unsized_type_struct_impl(
             }
         }
 
-        impl #combined_impl_generics #prelude::UnsizedInit<#prelude::Zeroed> for #struct_type #init_zeroed_where
+        impl #combined_impl_generics #prelude::UnsizedInit<#prelude::DefaultInit> for #struct_type #init_zeroed_where
         {
-            const INIT_BYTES: usize = <#inner_type as #prelude::UnsizedInit<#prelude::Zeroed>>::INIT_BYTES;
+            const INIT_BYTES: usize = <#inner_type as #prelude::UnsizedInit<#prelude::DefaultInit>>::INIT_BYTES;
 
             unsafe fn init<#as_mut_bytes_generic>(
                 super_ref: #s,
-                arg: #prelude::Zeroed,
+                arg: #prelude::DefaultInit,
             ) -> #result<(#prelude::RefWrapper<#s, Self::RefData>, Self::RefMeta)> {
                 unsafe {
-                    let (r, m) = <#inner_type as #prelude::UnsizedInit<#prelude::Zeroed>>::init(super_ref, arg)?;
+                    let (r, m) = <#inner_type as #prelude::UnsizedInit<#prelude::DefaultInit>>::init(super_ref, arg)?;
                     Ok((r.wrap_r(|_, r| #ref_ident(r)), #meta_ident(m)))
                 }
             }

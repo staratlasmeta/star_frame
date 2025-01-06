@@ -28,7 +28,7 @@ mod tests {
         {
             let mut mutable = bytes.mutable()?;
             {
-                let b = (&mut mutable).set_b(Zeroed)?;
+                let b = (&mut mutable).set_b(DefaultInit)?;
                 assert_eq!(&**b, &[] as &[u8]);
             }
             assert_eq!(mutable.discriminant(), TestEnumDiscriminant::B);
@@ -59,7 +59,7 @@ mod tests {
         {
             let mut mutable = bytes.mutable()?;
             {
-                let c = (&mut mutable).set_c(Zeroed)?;
+                let c = (&mut mutable).set_c(DefaultInit)?;
                 assert_eq!(&**(&c).list1()?, &[] as &[u8]);
                 assert_eq!(&**c.list2()?, &[]);
             }

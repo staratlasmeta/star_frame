@@ -20,6 +20,6 @@ pub trait UnsizedInit<InitArg>: UnsizedType {
         -> Result<UnsizedInitReturn<S, Self>>;
 }
 
-/// Argument for initializing a type to zeroed bytes.
+/// Argument for initializing a type to a default value
 #[derive(Debug, Copy, Clone)]
-pub struct Zeroed;
+pub struct DefaultInit;

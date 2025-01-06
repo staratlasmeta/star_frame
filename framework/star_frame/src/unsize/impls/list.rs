@@ -23,8 +23,8 @@ use star_frame::unsize::ref_wrapper::RefDeref;
 
 use crate::align1::Align1;
 use crate::data_types::PackedValue;
+use crate::unsize::init::DefaultInit;
 use crate::unsize::init::UnsizedInit;
-use crate::unsize::init::Zeroed;
 use crate::unsize::ref_wrapper::{
     AsBytes, AsMutBytes, RefDerefMut, RefWrapper, RefWrapperMutExt, RefWrapperTypes,
 };
@@ -248,7 +248,7 @@ where
         Ok(r.as_checked_slice()?.to_vec())
     }
 }
-impl<T, L> UnsizedInit<Zeroed> for List<T, L>
+impl<T, L> UnsizedInit<DefaultInit> for List<T, L>
 where
     T: CheckedBitPattern + NoUninit + Align1,
     L: ListLength + Zero,
@@ -257,7 +257,7 @@ where
 
     unsafe fn init<S: AsMutBytes>(
         mut super_ref: S,
-        _arg: Zeroed,
+        _arg: DefaultInit,
     ) -> Result<(RefWrapper<S, Self::RefData>, Self::RefMeta)> {
         let bytes = super_ref.as_mut_bytes()?;
         bytes[0..size_of::<L>()].copy_from_slice(bytes_of(&L::zeroed()));
@@ -472,7 +472,7 @@ mod tests {
     #[test]
     fn list_test() -> anyhow::Result<()> {
         let mut watcher = Vec::new();
-        let mut test_set = TestByteSet::<List<TestStruct>>::new(Zeroed)?;
+        let mut test_set = TestByteSet::<List<TestStruct>>::new(DefaultInit)?;
 
         // test no-ops
         {

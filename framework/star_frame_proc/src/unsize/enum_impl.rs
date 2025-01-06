@@ -2,7 +2,7 @@ use crate::unsize::account::account_impl;
 use crate::unsize::UnsizedTypeArgs;
 use crate::util::{
     get_repr, make_derivative_attribute, new_generic, new_generics, phantom_generics_type,
-    strip_inner_attributes, BetterGenerics, CombineGenerics, Paths,
+    restrict_attributes, strip_inner_attributes, BetterGenerics, CombineGenerics, Paths,
 };
 use heck::ToSnakeCase;
 use itertools::{izip, Itertools};
@@ -36,7 +36,7 @@ pub(crate) fn unsized_type_enum_impl(
     let ref_wrapper_enum = context.ref_wrapper_enum();
     let variant_structs = context.variant_structs();
     let init_structs = context.init_structs();
-    let zeroed_init_impl = context.zeroed_init_impl();
+    let zeroed_init_impl = context.default_init_impl();
     let enum_trait = context.unsized_enum_impl();
     let unsized_type_impl = context.unsized_type_impl();
     let ext_trait_impl = context.ext_trait_impl();
@@ -77,7 +77,8 @@ pub struct UnsizedEnumContext {
 }
 
 impl UnsizedEnumContext {
-    fn parse(item_enum: ItemEnum) -> Self {
+    fn parse(mut item_enum: ItemEnum) -> Self {
+        restrict_attributes(&mut item_enum, &["default_init", "doc"]);
         let (_, ty_generics, _) = item_enum.generics.split_for_impl();
         let enum_ident = item_enum.ident.clone();
         let enum_type = parse_quote!(#enum_ident #ty_generics);
@@ -280,7 +281,7 @@ impl UnsizedEnumContext {
         }
     }
 
-    fn zeroed_init_impl(&self) -> TokenStream {
+    fn default_init_impl(&self) -> TokenStream {
         Paths!(prelude, size_of, result);
         UnsizedEnumContext!(self => enum_type, item_enum, variant_struct_types, discriminant_ident);
         let mut owned_enum = item_enum.clone();
@@ -294,29 +295,29 @@ impl UnsizedEnumContext {
                 "Unsized enums may only have one `#[default_init]` attribute"
             );
         }
-        let zeroed = quote!(#prelude::Zeroed);
-        let zeroed_variant_struct = &variant_struct_types[default_init.index];
+        let init_type = quote!(#prelude::DefaultInit);
+        let default_variant_struct = &variant_struct_types[default_init.index];
         let inner_type =
-            quote!(<#zeroed_variant_struct as #prelude::UnsizedEnumVariant>::InnerType);
+            quote!(<#default_variant_struct as #prelude::UnsizedEnumVariant>::InnerType);
 
         let mut generics = self.generics();
         generics
             .make_where_clause()
             .predicates
-            .push(parse_quote!(#inner_type: #prelude::UnsizedInit<#zeroed>));
+            .push(parse_quote!(#inner_type: #prelude::UnsizedInit<#init_type>));
         let (impl_gen, _, where_clause) = self.split_for_impl();
 
         let s_gen = new_generic(&generics);
         quote! {
             #[automatically_derived]
-            impl #impl_gen #prelude::UnsizedInit<#zeroed> for #enum_type #where_clause {
-                const INIT_BYTES: usize = #size_of::<#discriminant_ident>() + <#inner_type as #prelude::UnsizedInit<#zeroed>>::INIT_BYTES;
+            impl #impl_gen #prelude::UnsizedInit<#init_type> for #enum_type #where_clause {
+                const INIT_BYTES: usize = #size_of::<#discriminant_ident>() + <#inner_type as #prelude::UnsizedInit<#init_type>>::INIT_BYTES;
 
                 unsafe fn init<#s_gen: #prelude::AsMutBytes>(
                     super_ref: #s_gen,
-                    arg: #zeroed,
+                    arg: #init_type,
                 ) -> #result<#prelude::UnsizedInitReturn<#s_gen, Self>> {
-                    <#zeroed_variant_struct as #prelude::UnsizedEnumVariant>::init(super_ref, arg, |zeroed| zeroed)
+                    <#default_variant_struct as #prelude::UnsizedEnumVariant>::init(super_ref, arg, |init| init)
                 }
             }
         }

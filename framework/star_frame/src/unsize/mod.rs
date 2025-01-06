@@ -50,7 +50,7 @@ use typenum::{Bit, False, True};
 /// }
 ///
 /// // TestByteSet allows us to emulate how DataAccount works with on-chain AccountInfo data
-/// let mut bytes = TestByteSet::<UnsizedTest<u8, [u8; 1]>>::new(Zeroed)?;
+/// let mut bytes = TestByteSet::<UnsizedTest<u8, [u8; 1]>>::new(DefaultInit)?;
 /// let mut r = &mut bytes.mutable()?;
 /// r.sized1 = 1;
 /// r.unsized2()?.push([1])?;
@@ -99,6 +99,11 @@ pub unsafe trait UnsizedType: 'static {
     }
 
     fn owned<S: AsBytes>(r: RefWrapper<S, Self::RefData>) -> Result<Self::Owned>;
+
+    /// A convenience method to convert impl [`AsBytes`] to `Self::Owned`. This is mainly intended to be used on the client side.
+    fn deserialize<S: AsBytes>(bytes: S) -> Result<Self::Owned> {
+        Self::owned(Self::from_bytes(bytes)?.ref_wrapper)
+    }
 }
 /// This is a helper trait for the [`UnsizedType`] trait. The required supertraits meet the [`CheckedBitPattern`] blanket implementation for [`UnsizedType`].
 pub trait UnsizedGenerics: CheckedBitPattern + Align1 + NoUninit + Zeroable {}
