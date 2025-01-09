@@ -16,10 +16,10 @@ pub mod macro_prelude {
     pub use crate::sighash;
     pub use crate::syscalls::{SyscallAccountCache, SyscallInvoke};
     pub use crate::unsize::{
-        AsBytes, AsMutBytes, FromBytesReturn, RefBytes, RefBytesMut, RefDeref, RefDerefMut,
-        RefResize, RefWrapper, RefWrapperMutExt, RefWrapperTypes, Resize, UnsizedEnum,
+        AsBytes, AsMutBytes, DefaultInit, FromBytesReturn, RefBytes, RefBytesMut, RefDeref,
+        RefDerefMut, RefResize, RefWrapper, RefWrapperMutExt, RefWrapperTypes, Resize, UnsizedEnum,
         UnsizedEnumVariant, UnsizedEnumVariantRef, UnsizedInit, UnsizedInitReturn, UnsizedType,
-        Zeroed, {CombinedExt, CombinedRef, CombinedUnsized, RefWrapperT, RefWrapperU},
+        {CombinedExt, CombinedRef, CombinedUnsized, RefWrapperT, RefWrapperU},
     };
     pub use crate::Result;
 

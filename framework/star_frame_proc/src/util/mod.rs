@@ -5,16 +5,16 @@ mod repr;
 pub use generics::*;
 pub use paths::*;
 pub use repr::*;
+use std::borrow::Borrow;
 
 use easy_proc::find_attr;
 use itertools::Itertools;
 use proc_macro2::{Ident, TokenStream};
 use proc_macro_crate::{crate_name, FoundCrate};
 use proc_macro_error::abort;
-use quote::{format_ident, quote, quote_spanned, ToTokens};
+use quote::{format_ident, quote, ToTokens};
 use std::fmt::Debug;
 use syn::punctuated::Punctuated;
-use syn::spanned::Spanned;
 use syn::token::{Brace, Paren};
 use syn::{
     parse_quote, Attribute, Data, DataStruct, DataUnion, DeriveInput, Expr, ExprLit, Field, Fields,
@@ -58,6 +58,15 @@ pub fn get_docs<'a>(attrs: impl IntoIterator<Item = &'a Attribute>) -> Expr {
     parse_quote! { vec![#(#doc_strings.into()),*] }
 }
 
+pub fn is_doc_attribute(attribute: &impl Borrow<Attribute>) -> bool {
+    attribute.borrow().path().is_ident("doc")
+        && attribute.borrow().meta.require_name_value().is_ok()
+}
+
+pub fn get_doc_attributes(attrs: &[Attribute]) -> Vec<Attribute> {
+    attrs.iter().filter(is_doc_attribute).cloned().collect_vec()
+}
+
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct StrippedAttribute {
     pub index: usize,
@@ -65,29 +74,45 @@ pub struct StrippedAttribute {
 }
 
 pub trait EnumerableAttributes {
-    fn enumerate_attributes(&mut self) -> impl Iterator<Item = (usize, &mut Vec<Attribute>)>;
+    fn enumerate_attributes_mut(&mut self) -> impl Iterator<Item = (usize, &mut Vec<Attribute>)>;
+    fn enumerate_attributes(&self) -> impl Iterator<Item = (usize, &Vec<Attribute>)>;
 }
 
 impl EnumerableAttributes for ItemStruct {
-    fn enumerate_attributes(&mut self) -> impl Iterator<Item = (usize, &mut Vec<Attribute>)> {
+    fn enumerate_attributes_mut(&mut self) -> impl Iterator<Item = (usize, &mut Vec<Attribute>)> {
         self.fields
             .iter_mut()
             .enumerate()
             .map(|(index, f)| (index, &mut f.attrs))
     }
+    fn enumerate_attributes(&self) -> impl Iterator<Item = (usize, &Vec<Attribute>)> {
+        self.fields
+            .iter()
+            .enumerate()
+            .map(|(index, f)| (index, &f.attrs))
+    }
 }
 
 impl EnumerableAttributes for syn::ItemEnum {
-    fn enumerate_attributes(&mut self) -> impl Iterator<Item = (usize, &mut Vec<Attribute>)> {
+    fn enumerate_attributes_mut(&mut self) -> impl Iterator<Item = (usize, &mut Vec<Attribute>)> {
         self.variants
             .iter_mut()
             .enumerate()
             .map(|(index, v)| (index, &mut v.attrs))
     }
+    fn enumerate_attributes(&self) -> impl Iterator<Item = (usize, &Vec<Attribute>)> {
+        self.variants
+            .iter()
+            .enumerate()
+            .map(|(index, v)| (index, &v.attrs))
+    }
 }
 
 impl EnumerableAttributes for Vec<Attribute> {
-    fn enumerate_attributes(&mut self) -> impl Iterator<Item = (usize, &mut Vec<Attribute>)> {
+    fn enumerate_attributes_mut(&mut self) -> impl Iterator<Item = (usize, &mut Vec<Attribute>)> {
+        std::iter::once((0, self))
+    }
+    fn enumerate_attributes(&self) -> impl Iterator<Item = (usize, &Vec<Attribute>)> {
         std::iter::once((0, self))
     }
 }
@@ -102,7 +127,7 @@ where
     I: ?Sized,
     Ident: PartialEq<I>,
 {
-    item.enumerate_attributes().flat_map(|(index, attrs)| {
+    item.enumerate_attributes_mut().flat_map(|(index, attrs)| {
         let mut removed = vec![];
         attrs.retain(|attr| {
             attr.path()
@@ -129,6 +154,37 @@ pub fn reject_attributes(attributes: &[Attribute], ident: &Ident, message: Optio
     }
 }
 
+pub fn restrict_attributes(attributes: &impl EnumerableAttributes, allowed_attributes: &[&str]) {
+    attributes.enumerate_attributes().for_each(|(_, attrs)| {
+        for attr in attrs.iter() {
+            let ident = attr.path().get_ident().unwrap_or_else(|| {
+                abort!(attr, "Expected attribute to be an identifier");
+            });
+            if !allowed_attributes.iter().any(|allowed| ident == allowed) {
+                let message = if allowed_attributes.is_empty() {
+                    "No attributes are allowed here".into()
+                } else {
+                    format!(
+                        "Only the following attribute idents are allowed: {}",
+                        allowed_attributes
+                            .iter()
+                            .map(ToString::to_string)
+                            .join(", ")
+                    )
+                };
+                abort!(attr, message);
+            }
+        }
+    });
+}
+
+fn last_path_segment(path: &Path) -> Ident {
+    path.segments
+        .last()
+        .map(|last| last.ident.clone())
+        .unwrap_or_else(|| abort!(path, "Path has no segments!"))
+}
+
 pub fn make_derivative_attribute<T: ToTokens>(
     traits: Punctuated<Path, Token![,]>,
     types: &[T],
@@ -136,9 +192,10 @@ pub fn make_derivative_attribute<T: ToTokens>(
     let bounds = traits
         .iter()
         .map(|t| {
+            let path_ident = last_path_segment(t);
             let derivitive_bounds = types.iter().map(|ty| quote!(#ty: #t)).collect::<Vec<_>>();
-            let derivative_bounds = quote!(#(#derivitive_bounds),*).to_string();
-            quote!(#t(bound = #derivative_bounds))
+            let derivative_bounds = format!("{}", quote!(#(#derivitive_bounds),*));
+            quote!(#path_ident(bound = #derivative_bounds))
         })
         .collect_vec();
     parse_quote!(#[derivative(#(#bounds),*)])
@@ -156,18 +213,24 @@ pub fn get_field_types(fields: &impl FieldIter) -> impl Iterator<Item = &Type> {
     fields.field_iter().map(|field| &field.ty)
 }
 
+pub fn get_field_idents(fields: &impl FieldIter) -> impl Iterator<Item = &Ident> {
+    fields
+        .field_iter()
+        .map(|field| field.ident.as_ref().expect("Unnamed field"))
+}
+
 /// Check that all fields implement a given trait
 ///
 /// Adapted from the bytemuck derive crate
-pub fn generate_fields_are_trait<T: GetGenerics + FieldIter + Spanned>(
-    input: &T,
+pub fn generate_fields_are_trait<F: FieldIter, G: GetGenerics>(
+    fields: &F,
+    generics: &G,
     trait_: Punctuated<Path, Token![+]>,
 ) -> TokenStream {
-    let generics = input.get_generics();
+    let generics = generics.get_generics();
     let (impl_generics, _ty_generics, where_clause) = generics.split_for_impl();
-    let span = input.span();
-    let field_types = get_field_types(input);
-    quote_spanned! {span => const _: fn() = || {
+    let field_types = get_field_types(fields);
+    quote! {const _: fn() = || {
         #[allow(clippy::missing_const_for_fn)]
         #[doc(hidden)]
         fn check #impl_generics () #where_clause {

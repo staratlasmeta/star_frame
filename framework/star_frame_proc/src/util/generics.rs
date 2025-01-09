@@ -205,6 +205,10 @@ pub fn reject_generics(item: &impl GetGenerics, error: Option<&str>) {
     }
 }
 
+pub fn phantom_generics_ident() -> Ident {
+    format_ident!("__generics")
+}
+
 pub fn phantom_generics_type(item: &impl GetGenerics) -> Option<Type> {
     let phantom_data = Paths::default().phantom_data;
     let generics = item.get_generics();

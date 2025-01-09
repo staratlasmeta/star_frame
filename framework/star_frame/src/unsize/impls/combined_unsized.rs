@@ -98,10 +98,10 @@ where
         ))
     }
 }
-impl<T, U> UnsizedInit<Zeroed> for CombinedUnsized<T, U>
+impl<T, U> UnsizedInit<DefaultInit> for CombinedUnsized<T, U>
 where
-    T: ?Sized + UnsizedInit<Zeroed>,
-    U: ?Sized + UnsizedInit<Zeroed>,
+    T: ?Sized + UnsizedInit<DefaultInit>,
+    U: ?Sized + UnsizedInit<DefaultInit>,
     T::IsUnsized: BitOr<U::IsUnsized>,
     <T::IsUnsized as BitOr<U::IsUnsized>>::Output: Bit + LengthAccess<Self>,
 {
@@ -109,9 +109,9 @@ where
 
     unsafe fn init<S: AsMutBytes>(
         super_ref: S,
-        _arg: Zeroed,
+        _arg: DefaultInit,
     ) -> Result<(RefWrapper<S, Self::RefData>, Self::RefMeta)> {
-        unsafe { Self::init(super_ref, (Zeroed, Zeroed)) }
+        unsafe { Self::init(super_ref, (DefaultInit, DefaultInit)) }
     }
 }
 
@@ -350,7 +350,7 @@ mod tests {
     #[test]
     fn test_all_sized() -> Result<()> {
         type Thingy = CombinedUnsized<CombinedUnsized<u8, u8>, u8>;
-        let bytes = TestByteSet::<Thingy>::new(Zeroed)?;
+        let bytes = TestByteSet::<Thingy>::new(DefaultInit)?;
         let r = bytes.immut()?;
         assert_eq!(*r.t()?.t()?, 0);
         assert_eq!(*r.t()?.u()?, 0);
@@ -361,7 +361,7 @@ mod tests {
     #[test]
     fn test_all_unsized() -> Result<()> {
         type Thingy = CombinedUnsized<CombinedUnsized<List<u8>, List<u8>>, List<u8>>;
-        let bytes = TestByteSet::<Thingy>::new(Zeroed)?;
+        let bytes = TestByteSet::<Thingy>::new(DefaultInit)?;
         let r = bytes.immut()?;
         assert_eq!(r.t()?.t()?.len(), 0);
         assert_eq!(r.t()?.u()?.len(), 0);
@@ -374,13 +374,13 @@ mod tests {
         type Thingy1 = CombinedUnsized<CombinedUnsized<List<u8>, u8>, List<u8>>;
         type Thingy2 = CombinedUnsized<CombinedUnsized<List<u8>, u8>, u8>;
 
-        let bytes = TestByteSet::<Thingy1>::new(Zeroed)?;
+        let bytes = TestByteSet::<Thingy1>::new(DefaultInit)?;
         let r = bytes.immut()?;
         assert_eq!(r.t()?.t()?.len(), 0);
         assert_eq!(*r.t()?.u()?, 0);
         assert_eq!(r.u()?.len(), 0);
 
-        let bytes = TestByteSet::<Thingy2>::new(Zeroed)?;
+        let bytes = TestByteSet::<Thingy2>::new(DefaultInit)?;
         let r = bytes.immut()?;
         assert_eq!(r.t()?.t()?.len(), 0);
         assert_eq!(*r.t()?.u()?, 0);

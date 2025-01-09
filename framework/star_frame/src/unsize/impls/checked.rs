@@ -96,20 +96,33 @@ where
     }
 }
 
-impl<T> UnsizedInit<Zeroed> for T
+pub trait DefaultInitable {
+    fn default_init() -> Self;
+}
+
+impl<T> DefaultInitable for T
 where
-    T: Align1 + CheckedBitPattern + NoUninit + Zeroable,
+    T: Zeroable,
+{
+    fn default_init() -> Self {
+        T::zeroed()
+    }
+}
+
+impl<T> UnsizedInit<DefaultInit> for T
+where
+    T: Align1 + CheckedBitPattern + NoUninit + DefaultInitable,
 {
     const INIT_BYTES: usize = size_of::<T>();
 
     unsafe fn init<S: AsMutBytes>(
         mut super_ref: S,
-        _arg: Zeroed,
+        _arg: DefaultInit,
     ) -> Result<(RefWrapper<S, Self::RefData>, Self::RefMeta)> {
         super_ref
             .as_mut_bytes()?
             .try_advance(size_of::<T>())?
-            .copy_from_slice(bytes_of(&T::zeroed()));
+            .copy_from_slice(bytes_of(&T::default_init()));
         Ok((
             unsafe { RefWrapper::new(super_ref, CheckRef(PhantomData)) },
             (),

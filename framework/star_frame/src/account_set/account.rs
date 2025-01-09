@@ -208,7 +208,7 @@ where
 impl<'info, T: ProgramAccount + UnsizedType + ?Sized> CanInitAccount<'info, ()>
     for Account<'info, T>
 where
-    T: UnsizedInit<Zeroed>,
+    T: UnsizedInit<DefaultInit>,
 {
     fn init_account<const IF_NEEDED: bool>(
         &mut self,
@@ -216,7 +216,7 @@ where
         account_seeds: Option<Vec<&[u8]>>,
         syscalls: &impl SyscallInvoke<'info>,
     ) -> Result<()> {
-        self.init_account::<IF_NEEDED>((Zeroed,), account_seeds, syscalls)
+        self.init_account::<IF_NEEDED>((DefaultInit,), account_seeds, syscalls)
     }
 }
 
