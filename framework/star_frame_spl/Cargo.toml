@@ -13,9 +13,7 @@ idl = ["star_frame/idl"]
 
 [dependencies]
 star_frame.workspace = true
-arrayref.workspace = true
 borsh.workspace = true
-num_enum.workspace = true
 bytemuck.workspace = true
 
 [dev-dependencies]

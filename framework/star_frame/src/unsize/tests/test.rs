@@ -156,7 +156,7 @@ fn test_with_sized_generics() -> Result<()> {
         sized2: true,
         sized3: 4,
         unsized1: [TestStruct { val1: 5, val2: 6 }],
-        __phantom_generics: Default::default(),
+        __generics: Default::default(),
     })?;
     let owned = WithSizedGenerics::owned(r.immut()?)?;
     assert_eq!(
@@ -166,7 +166,7 @@ fn test_with_sized_generics() -> Result<()> {
             sized2: true,
             sized3: 4,
             unsized1: vec![TestStruct { val1: 5, val2: 6 }],
-            __phantom_generics: Default::default(),
+            __generics: Default::default(),
         }
     );
     Ok(())
@@ -194,7 +194,7 @@ fn test_with_unsized_generics() -> Result<()> {
                 PackedValueChecked(u16::MAX),
                 TestStruct { val1: 3, val2: 4 },
             ),
-            __phantom_generics: Default::default(),
+            __generics: Default::default(),
         },
     )?;
     let owned = WithUnsizedGenerics::owned(r.immut()?)?;
@@ -207,7 +207,38 @@ fn test_with_unsized_generics() -> Result<()> {
                 PackedValueChecked(u16::MAX),
                 TestStruct { val1: 3, val2: 4 }
             ),
-            __phantom_generics: Default::default(),
+            __generics: Default::default(),
+        }
+    );
+    Ok(())
+}
+
+#[unsized_type(owned_attributes = [derive(PartialEq, Eq, Clone)], skip_idl)]
+pub struct WithOnlyUnsizedGenerics<A: UnsizedGenerics, B: UnsizedType>
+where
+    B::Owned: PartialEq + Eq + Clone,
+{
+    #[unsized_start]
+    pub unsized1: List<A>,
+    pub unsized2: B,
+}
+
+#[test]
+fn test_with_only_unsized_generics() -> Result<()> {
+    TestByteSet::<WithOnlyUnsizedGenerics<TestStruct, PackedValueChecked<u16>>>::new(DefaultInit)?;
+    let r = TestByteSet::<WithOnlyUnsizedGenerics<TestStruct, PackedValueChecked<u16>>>::new(
+        WithOnlyUnsizedGenericsInit {
+            __generics: Default::default(),
+            unsized1: [TestStruct { val1: 4, val2: 5 }],
+            unsized2: PackedValueChecked(10),
+        },
+    )?;
+    let owned = WithOnlyUnsizedGenerics::owned(r.immut()?)?;
+    assert_eq!(
+        owned,
+        WithOnlyUnsizedGenericsOwned {
+            unsized1: vec![TestStruct { val1: 4, val2: 5 }],
+            unsized2: PackedValueChecked(10),
         }
     );
     Ok(())
@@ -241,7 +272,7 @@ fn test_with_sized_and_unsized_generics() -> Result<()> {
             TestStruct { val1: 6, val2: 7 },
             PackedValueChecked(u32::MAX / 4),
         ),
-        __phantom_generics: Default::default(),
+        __generics: Default::default(),
     })?;
     let owned = WithSizedAndUnsizedGenerics::owned(r.immut()?)?;
     assert_eq!(
@@ -254,7 +285,7 @@ fn test_with_sized_and_unsized_generics() -> Result<()> {
                 TestStruct { val1: 6, val2: 7 },
                 PackedValueChecked(u32::MAX / 4),
             ),
-            __phantom_generics: Default::default(),
+            __generics: Default::default(),
         }
     );
     Ok(())

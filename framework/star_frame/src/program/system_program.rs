@@ -190,6 +190,7 @@ empty_star_frame_instruction!(UpgradeNonceAccount, UpgradeNonceAccountAccounts);
 
 #[cfg(test)]
 mod tests {
+    #[cfg(all(feature = "idl", not(target_os = "solana")))]
     use super::*;
 
     #[cfg(all(feature = "idl", not(target_os = "solana")))]
