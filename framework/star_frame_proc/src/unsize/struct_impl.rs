@@ -717,7 +717,7 @@ impl UnsizedStructContext {
         let root_type_def = sized_type
             .as_ref()
             .map(|sized_type| {
-                let unsized_combined = combine_streams(&unsized_field_types, combine_unsized);
+                let unsized_combined = combine_streams(unsized_field_types, combine_unsized);
                 quote!(#prelude::RefWrapperU<#root_inner_type, #sized_type, #unsized_combined>)
             })
             .unwrap_or(root_inner_type);
@@ -726,7 +726,7 @@ impl UnsizedStructContext {
             .iter()
             .enumerate()
             .map(|(index, _ident)| {
-                let (ext_type_def, paths) = make_ext_type(&root_type, &unsized_field_types, index);
+                let (ext_type_def, paths) = make_ext_type(&root_type, unsized_field_types, index);
                 let path_methods = CombinePath::make_method_chain(&paths);
                 (ext_type_def, path_methods)
             })
