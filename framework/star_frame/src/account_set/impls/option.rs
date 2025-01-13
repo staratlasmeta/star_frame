@@ -3,6 +3,7 @@ use crate::client::{ClientAccountSet, CpiAccountSet};
 use crate::prelude::SyscallAccountCache;
 use crate::syscalls::SyscallInvoke;
 use crate::Result;
+use advance::{AdvanceArray, Length};
 use solana_program::account_info::AccountInfo;
 use solana_program::instruction::AccountMeta;
 use solana_program::pubkey::Pubkey;
@@ -77,7 +78,10 @@ where
         decode_input: DArg,
         syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<Self> {
-        if accounts.is_empty() || accounts[0].key == syscalls.current_program_id() {
+        if accounts.is_empty() {
+            Ok(None)
+        } else if accounts[0].key == syscalls.current_program_id() {
+            let _program: &[_; 1] = accounts.try_advance_array()?;
             Ok(None)
         } else {
             Ok(Some(A::decode_accounts(accounts, decode_input, syscalls)?))
