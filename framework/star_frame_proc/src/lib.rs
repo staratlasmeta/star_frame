@@ -14,7 +14,7 @@ mod util;
 use proc_macro_error::proc_macro_error;
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
-use syn::{parse_macro_input, DeriveInput, Item, ItemEnum, LitStr};
+use syn::{parse_macro_input, DeriveInput, ImplItem, Item, ItemEnum, ItemImpl, LitStr};
 
 #[proc_macro_error]
 #[proc_macro_derive(
@@ -252,6 +252,16 @@ pub fn unsized_type(
     item: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
     let out = unsize::unsized_type_impl(parse_macro_input!(item as Item), args.into());
+    out.into()
+}
+
+#[proc_macro_error]
+#[proc_macro_attribute]
+pub fn unsized_impl(
+    args: proc_macro::TokenStream,
+    item: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
+    let out = unsize::unsized_impl_impl(parse_macro_input!(item as ItemImpl), args.into());
     out.into()
 }
 

@@ -6,11 +6,13 @@ use proc_macro_error::abort;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::token::Bracket;
-use syn::{bracketed, parse_quote, Attribute, Expr, Item, Meta, Token, Type};
+use syn::{bracketed, parse_quote, Attribute, Expr, ImplItem, Item, ItemImpl, Meta, Token, Type};
 
 mod account;
 mod enum_impl;
+mod impl_impl;
 mod struct_impl;
+pub use impl_impl::*;
 
 #[derive(Debug, Clone, Default)]
 pub struct UnsizedAttributeMetas {
