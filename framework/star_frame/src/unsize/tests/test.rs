@@ -18,11 +18,20 @@ pub struct SingleUnsized {
     pub unsized1: List<PackedValue<u16>>,
 }
 
+#[unsized_impl]
+impl SingleUnsized {
+    fn foo(&mut self) -> Result<u16> {
+        let list = &mut self.unsized1()?;
+        list.push(2u16.into())?;
+        Ok(10)
+    }
+}
+
 #[test]
 fn test_single_unsized() -> Result<()> {
     TestByteSet::<SingleUnsized>::new(DefaultInit)?;
     let r = &mut TestByteSet::<SingleUnsized>::new(SingleUnsizedInit {
-        unsized1: [PackedValue(1)],
+        unsized1: [1.into()],
     })?;
     let owned = SingleUnsized::owned(r.immut()?)?;
     assert_eq!(
@@ -36,6 +45,8 @@ fn test_single_unsized() -> Result<()> {
 
 #[unsized_type(owned_attributes = [derive(PartialEq, Eq, Clone)])]
 pub struct ManyUnsized {
+    pub sized1: u8,
+    pub sized2: u8,
     #[unsized_start]
     pub unsized1: List<PackedValue<u16>>,
     pub unsized2: SingleUnsized,
@@ -44,23 +55,39 @@ pub struct ManyUnsized {
     pub unsized5: List<TestStruct>,
 }
 
+#[unsized_impl]
+impl ManyUnsized {
+    fn foo(&mut self) -> Result<u16> {
+        let list = &mut self.unsized1()?;
+        list.push(2u16.into())?;
+        Ok(10)
+    }
+}
+
 #[test]
 fn test_many_unsized() -> Result<()> {
     TestByteSet::<ManyUnsized>::new(DefaultInit)?;
-    let r = TestByteSet::<ManyUnsized>::new(ManyUnsizedInit {
-        unsized1: [PackedValue(1)],
+    let mut r = TestByteSet::<ManyUnsized>::new(ManyUnsizedInit {
+        sized1: 1,
+        sized2: 2,
+        unsized1: [1.into()],
         unsized2: SingleUnsizedInit {
-            unsized1: [PackedValue(2)],
+            unsized1: [2.into()],
         },
         unsized3: 3,
         unsized4: [TestStruct { val1: 4, val2: 5 }],
         unsized5: [TestStruct { val1: 6, val2: 7 }],
     })?;
 
+    let mut thingy = r.mutable()?;
+    thingy.foo()?;
+
     let expected = ManyUnsizedOwned {
-        unsized1: vec![PackedValue(1)],
+        sized1: 1,
+        sized2: 2,
+        unsized1: vec![1.into(), 2.into()],
         unsized2: SingleUnsizedOwned {
-            unsized1: vec![PackedValue(2)],
+            unsized1: vec![2.into()],
         },
         unsized3: 3,
         unsized4: vec![TestStruct { val1: 4, val2: 5 }],
@@ -83,14 +110,14 @@ fn test_single_unsized_with_sized() -> Result<()> {
     TestByteSet::<SingleUnsizedWithSized>::new(DefaultInit)?;
     let r = TestByteSet::<SingleUnsizedWithSized>::new(SingleUnsizedWithSizedInit {
         sized1: true,
-        unsized1: [PackedValue(1)],
+        unsized1: [1.into()],
     })?;
     let owned = SingleUnsizedWithSized::owned(r.immut()?)?;
     assert_eq!(
         owned,
         SingleUnsizedWithSizedOwned {
             sized1: true,
-            unsized1: vec![PackedValue(1)],
+            unsized1: vec![1.into()],
         }
     );
     Ok(())
@@ -113,10 +140,10 @@ fn test_sized_and_unsized() -> Result<()> {
     TestByteSet::<SizedAndUnsized>::new(DefaultInit)?;
     let r = TestByteSet::<SizedAndUnsized>::new(SizedAndUnsizedInit {
         sized1: true,
-        sized2: PackedValue(1),
+        sized2: 1.into(),
         sized3: 2,
         sized4: [3; 10],
-        unsized1: [PackedValue(4)],
+        unsized1: [4.into()],
         unsized2: [TestStruct { val1: 5, val2: 6 }],
         unsized3: 7,
     })?;
@@ -125,10 +152,10 @@ fn test_sized_and_unsized() -> Result<()> {
         owned,
         SizedAndUnsizedOwned {
             sized1: true,
-            sized2: PackedValue(1),
+            sized2: 1.into(),
             sized3: 2,
             sized4: [3; 10],
-            unsized1: vec![PackedValue(4)],
+            unsized1: vec![4.into()],
             unsized2: vec![TestStruct { val1: 5, val2: 6 }],
             unsized3: 7,
         }
@@ -257,12 +284,25 @@ where
     pub unsized2: CombinedUnsized<A, C>,
 }
 
+#[unsized_impl]
+impl<A: UnsizedGenerics, B, C> WithSizedAndUnsizedGenerics<A, B, C>
+where
+    B: UnsizedGenerics,
+    C: CheckedBitPattern + Align1 + NoUninit + Zeroable,
+{
+    fn thingy(&mut self) -> Result<()> {
+        let item_to_push = self.sized1;
+        self.unsized1()?.push(item_to_push)?;
+        Ok(())
+    }
+}
+
 #[test]
 fn test_with_sized_and_unsized_generics() -> Result<()> {
     TestByteSet::<
         WithSizedAndUnsizedGenerics<TestStruct, PackedValueChecked<u16>, PackedValueChecked<u32>>,
     >::new(DefaultInit)?;
-    let r = TestByteSet::<
+    let mut r = TestByteSet::<
         WithSizedAndUnsizedGenerics<TestStruct, PackedValueChecked<u16>, PackedValueChecked<u32>>,
     >::new(WithSizedAndUnsizedGenericsInit {
         sized1: TestStruct { val1: 1, val2: 2 },
@@ -274,13 +314,17 @@ fn test_with_sized_and_unsized_generics() -> Result<()> {
         ),
         __generics: Default::default(),
     })?;
+    r.mutable()?.thingy()?;
     let owned = WithSizedAndUnsizedGenerics::owned(r.immut()?)?;
     assert_eq!(
         owned,
         WithSizedAndUnsizedGenericsOwned {
             sized1: TestStruct { val1: 1, val2: 2 },
             sized2: PackedValueChecked(3u16),
-            unsized1: vec![TestStruct { val1: 4, val2: 5 }],
+            unsized1: vec![
+                TestStruct { val1: 4, val2: 5 },
+                TestStruct { val1: 1, val2: 2 }
+            ],
             unsized2: (
                 TestStruct { val1: 6, val2: 7 },
                 PackedValueChecked(u32::MAX / 4),

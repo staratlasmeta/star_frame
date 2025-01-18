@@ -14,7 +14,7 @@ mod util;
 use proc_macro_error::proc_macro_error;
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
-use syn::{parse_macro_input, DeriveInput, ImplItem, Item, ItemEnum, ItemImpl, LitStr};
+use syn::{parse_macro_input, DeriveInput, Item, ItemEnum, ItemImpl, LitStr};
 
 #[proc_macro_error]
 #[proc_macro_derive(

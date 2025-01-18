@@ -13,7 +13,7 @@ pub use impls::*;
 pub use init::*;
 pub use ref_wrapper::*;
 pub use resize::*;
-pub use star_frame_proc::unsized_type;
+pub use star_frame_proc::{unsized_impl, unsized_type};
 #[cfg(feature = "test_helpers")]
 pub use test_helpers::*;
 pub use unsized_enum::*;

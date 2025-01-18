@@ -6,7 +6,7 @@ use proc_macro_error::abort;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::token::Bracket;
-use syn::{bracketed, parse_quote, Attribute, Expr, ImplItem, Item, ItemImpl, Meta, Token, Type};
+use syn::{bracketed, parse_quote, Attribute, Expr, Item, Meta, Token, Type};
 
 mod account;
 mod enum_impl;

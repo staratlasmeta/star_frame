@@ -7,6 +7,35 @@ use star_frame_spl::associated_token::InitAta;
 use star_frame_spl::token::InitMint;
 use star_frame_spl::token::{MintAccount, Token};
 
+#[unsized_type(owned_attributes = [derive(PartialEq, Eq, Clone)])]
+struct SomeFields {
+    sized1: u8,
+    sized2: u8,
+    #[unsized_start]
+    unsized1: SomeUnsized,
+    unsized2: List<u8>,
+}
+
+#[unsized_type(owned_attributes = [derive(PartialEq, Eq, Clone)])]
+struct SomeUnsized {
+    #[unsized_start]
+    unsized1: List<u8>,
+    unsized2: List<u8>,
+}
+
+#[unsized_impl]
+impl SomeFields {
+    fn foo(&mut self) -> Result<()> {
+        self.sized1 = 10;
+        self.unsized2()?.push(5)?;
+        Ok(())
+    }
+
+    fn bar(&self) -> Result<u8> {
+        Ok(self.sized1 + self.unsized1()?.unsized2()?.len() as u8)
+    }
+}
+
 #[derive(StarFrameProgram)]
 #[program(
     instruction_set = FactionEnlistmentInstructionSet
@@ -59,13 +88,21 @@ impl StarFrameInstruction for ProcessEnlistPlayerIx {
     ) -> Result<Self::ReturnType> {
         let clock = syscalls.get_clock()?;
         let bump = account_set.player_faction_account.access_seeds().bump;
-        *account_set.player_faction_account.data_mut()? = PlayerFactionData {
+        let mut player_faction_account_data = account_set.player_faction_account.data_mut()?;
+        *player_faction_account_data = PlayerFactionDataSized {
             owner: *account_set.player_account.key,
             enlisted_at_timestamp: clock.unix_timestamp,
             faction_id,
             bump,
             _padding: [0; 5],
         };
+        player_faction_account_data.some_fields()?.foo()?;
+        account_set
+            .player_faction_account
+            .data_mut()?
+            .some_fields()?
+            .bar()?;
+
         Ok(())
     }
 }
@@ -82,6 +119,7 @@ pub struct ProcessEnlistPlayer<'info> {
             player_account: seed_path("player_account")
         })
     )]
+    #[cleanup(arg = NormalizeRent(()))]
     pub player_faction_account: Init<Seeded<Account<'info, PlayerFactionData>>>,
     /// The player account
     #[account_set(funder)]
@@ -105,17 +143,21 @@ pub struct ProcessEnlistPlayer<'info> {
     pub token_account: Init<AssociatedTokenAccount<'info>>,
 }
 
-#[derive(
-    ProgramAccount, Debug, Align1, Copy, Clone, CheckedBitPattern, NoUninit, Eq, PartialEq, Zeroable,
+// #[derive(
+//     ProgramAccount, Debug, Align1, Copy, Clone, CheckedBitPattern, NoUninit, Eq, PartialEq, Zeroable,
+// )]
+// #[repr(C, packed)]
+// #[program_account(seeds = PlayerFactionAccountSeeds)]
+#[unsized_type(program_account, seeds = PlayerFactionAccountSeeds, owned_attributes = [derive(PartialEq, Eq, Clone)]
 )]
-#[repr(C, packed)]
-#[program_account(seeds = PlayerFactionAccountSeeds)]
 pub struct PlayerFactionData {
     pub owner: Pubkey,
     pub enlisted_at_timestamp: i64,
     pub faction_id: FactionId,
     pub bump: u8,
     pub _padding: [u64; 5],
+    #[unsized_start]
+    some_fields: SomeFields,
 }
 
 #[derive(
@@ -151,7 +193,6 @@ pub struct PlayerFactionAccountSeeds {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bytemuck::checked::try_from_bytes;
     use solana_program_test::{processor, ProgramTest};
     use solana_sdk::account::Account;
     use solana_sdk::clock::Clock;
@@ -242,18 +283,28 @@ mod tests {
         println!("{:#?}", txn);
 
         let clock = banks_client.get_sysvar::<Clock>().await?;
-        let expected_faction_account = PlayerFactionData {
+        let expected_faction_account = PlayerFactionDataOwned {
             owner: player_account.pubkey(),
             enlisted_at_timestamp: clock.unix_timestamp,
             faction_id,
             bump,
             _padding: [0; 5],
+            some_fields: SomeFieldsOwned {
+                sized1: 10,
+                sized2: 0,
+                unsized1: SomeUnsizedOwned {
+                    unsized1: vec![],
+                    unsized2: vec![],
+                },
+                unsized2: vec![5],
+            },
         };
 
         let faction_info = banks_client.get_account(faction_account).await?.unwrap();
         assert_eq!(faction_info.data[0..8], PlayerFactionData::DISCRIMINANT);
-        let new_faction: &PlayerFactionData = try_from_bytes(&faction_info.data[8..])?;
-        assert_eq!(expected_faction_account, *new_faction);
+        let new_faction: PlayerFactionDataOwned =
+            PlayerFactionData::deserialize(&faction_info.data[8..])?;
+        assert_eq!(expected_faction_account, new_faction);
         Ok(())
     }
 }

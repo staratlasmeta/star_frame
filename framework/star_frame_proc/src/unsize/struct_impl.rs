@@ -486,7 +486,7 @@ impl UnsizedStructContext {
                     new_byte_len: usize,
                     new_meta: <#inner_type as #prelude::UnsizedType>::RefMeta,
                 ) -> #result<()> {
-                    use #prelude::{RefWrapperMutExt, Resize};
+                    use #prelude::RefWrapperMutExt;
                     unsafe {
                         #combine_resize
                         wrapper
@@ -499,7 +499,7 @@ impl UnsizedStructContext {
                     wrapper: &mut #prelude::RefWrapper<#s, Self>,
                     new_meta: <#inner_type as #prelude::UnsizedType>::RefMeta,
                 ) -> #result<()> {
-                    use #prelude::{RefWrapperMutExt, Resize};
+                    use #prelude::RefWrapperMutExt;
                     unsafe {
                         #combine_resize
                         wrapper.sup_mut().set_meta(#meta_ident(new_meta))
