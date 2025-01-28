@@ -49,10 +49,10 @@ pub struct ManyUnsized {
     pub sized2: u8,
     #[unsized_start]
     pub unsized1: List<PackedValue<u16>>,
-    pub unsized2: SingleUnsized,
+    unsized2: SingleUnsized,
     pub unsized3: u8,
     pub unsized4: List<TestStruct>,
-    pub unsized5: List<TestStruct>,
+    unsized5: List<TestStruct>,
 }
 
 #[unsized_impl]
@@ -61,6 +61,21 @@ impl ManyUnsized {
         let list = &mut self.unsized1()?;
         list.push(2u16.into())?;
         Ok(10)
+    }
+    pub fn bar(&self) -> Result<()> {
+        Ok(())
+    }
+}
+
+#[unsized_impl(tag = "1")]
+impl ManyUnsized {
+    fn foo1(&mut self) -> Result<u16> {
+        let list = &mut self.unsized1()?;
+        list.push(2u16.into())?;
+        Ok(10)
+    }
+    pub fn bar1(&self) -> Result<()> {
+        Ok(())
     }
 }
 
@@ -207,7 +222,7 @@ where
     pub sized1: u8,
     #[unsized_start]
     pub unsized1: List<A>,
-    pub unsized2: CombinedUnsized<A, B>,
+    unsized2: CombinedUnsized<A, B>,
 }
 
 #[test]

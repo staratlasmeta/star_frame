@@ -1,13 +1,27 @@
 use crate::util::{new_generic, BetterGenerics, CombineGenerics, Paths};
+use easy_proc::ArgumentList;
+use heck::ToUpperCamelCase;
 use itertools::{Either, Itertools};
 use proc_macro2::{Ident, TokenStream};
 use proc_macro_error::abort;
 use quote::{format_ident, quote};
 use syn::{
-    parse_quote, FnArg, ImplItem, ImplItemFn, ItemImpl, Signature, Type, Visibility, WherePredicate,
+    parse_quote, FnArg, ImplItem, ImplItemFn, ItemImpl, LitStr, Signature, Type, Visibility,
+    WherePredicate,
 };
 
-pub fn unsized_impl_impl(item: ItemImpl, _args: TokenStream) -> TokenStream {
+#[derive(ArgumentList)]
+pub struct UnsizedImplArgs {
+    tag: Option<LitStr>,
+}
+
+pub fn unsized_impl_impl(item: ItemImpl, args: TokenStream) -> TokenStream {
+    let args: UnsizedImplArgs =
+        UnsizedImplArgs::parse_arguments(&parse_quote!(#[unsized_impl(#args)]));
+    let tag_str = args
+        .tag
+        .map(|tag| tag.value().to_upper_camel_case())
+        .unwrap_or_default();
     Paths!(prelude);
     if let Some(trait_) = item.trait_ {
         abort!(
@@ -40,8 +54,8 @@ pub fn unsized_impl_impl(item: ItemImpl, _args: TokenStream) -> TokenStream {
         );
     };
 
-    let pub_impl_trait = format_ident!("{}PubImpl", trait_name.ident);
-    let priv_impl_trait = format_ident!("{}Impl", trait_name.ident);
+    let pub_impl_trait = format_ident!("{}PubImpl{tag_str}", trait_name.ident);
+    let priv_impl_trait = format_ident!("{}Impl{tag_str}", trait_name.ident);
     let new_generic = new_generic(&item.generics);
 
     let mut_predicate: WherePredicate =
