@@ -11,7 +11,9 @@ use solana_program::pubkey::Pubkey;
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct IdlAccountSetId {
     pub source: ItemSource,
+    #[serde(skip_serializing_if = "crate::is_default", default)]
     pub provided_type_generics: Vec<IdlTypeDef>,
+    #[serde(skip_serializing_if = "crate::is_default", default)]
     pub provided_account_generics: Vec<IdlAccountSetDef>,
 }
 
@@ -19,7 +21,9 @@ pub struct IdlAccountSetId {
 pub struct IdlAccountSet {
     #[serde(flatten)]
     pub info: ItemInfo,
+    #[serde(skip_serializing_if = "crate::is_default", default)]
     pub type_generics: Vec<IdlGeneric>,
+    #[serde(skip_serializing_if = "crate::is_default", default)]
     pub account_generics: Vec<IdlGeneric>,
     pub account_set_def: IdlAccountSetDef,
 }
@@ -35,11 +39,19 @@ pub struct IdlAccountSetStructField {
 pub struct IdlSingleAccountSet {
     pub writable: bool,
     pub signer: bool,
+    #[serde(skip_serializing_if = "crate::is_default", default)]
     pub optional: bool,
+    #[serde(skip_serializing_if = "crate::is_default", default)]
     pub is_init: bool,
+    #[serde(skip_serializing_if = "crate::is_default", default)]
     pub program_accounts: Vec<IdlAccountId>,
+    #[serde(skip_serializing_if = "crate::is_default", default)]
     pub seeds: Option<IdlFindSeeds>,
-    #[serde(with = "serde_base58_pubkey_option")]
+    #[serde(
+        with = "serde_base58_pubkey_option",
+        skip_serializing_if = "crate::is_default",
+        default
+    )]
     pub address: Option<Pubkey>,
 }
 

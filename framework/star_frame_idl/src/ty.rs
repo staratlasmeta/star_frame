@@ -1,4 +1,3 @@
-use crate::account::IdlAccountId;
 use crate::{
     serde_base58_pubkey_option, IdlDefinition, IdlDiscriminant, ItemDescription, ItemSource,
 };
@@ -11,6 +10,7 @@ use solana_program::pubkey::Pubkey;
 pub struct IdlType {
     #[serde(flatten)]
     pub info: ItemInfo,
+    #[serde(skip_serializing_if = "crate::is_default", default)]
     pub generics: Vec<IdlGeneric>,
     pub type_def: IdlTypeDef,
 }
@@ -20,6 +20,7 @@ pub struct IdlTypeId {
     pub source: ItemSource,
     #[serde(with = "serde_base58_pubkey_option")]
     pub namespace: Option<Pubkey>,
+    #[serde(skip_serializing_if = "crate::is_default", default)]
     pub provided_generics: Vec<IdlTypeDef>,
 }
 
@@ -57,11 +58,6 @@ pub enum IdlTypeDef {
     I128,
     String,
     Pubkey,
-    OptionalPubkey,
-    PubkeyFor {
-        id: IdlAccountId,
-        optional: bool,
-    },
     FixedPoint {
         ty: Box<IdlTypeDef>,
         frac: u8,

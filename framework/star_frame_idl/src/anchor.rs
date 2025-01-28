@@ -1,6 +1,6 @@
 use crate::account::IdlAccount;
 use crate::ty::{IdlEnumVariant, IdlStructField, IdlType, IdlTypeDef};
-use crate::{IdlDefinition, IdlMetadata, ItemDescription};
+use crate::{IdlDefinition, IdlMetadata, ItemDescription, ItemInfo};
 use anchor_lang_idl_spec as anchor;
 use anyhow::{bail, Context, Result};
 
@@ -127,32 +127,29 @@ impl TryToAnchor<anchor::IdlInstructionAccountItem> for IdlAccountSetDef {
         let mut incompat_set: Option<(String, IdlAccountSetDef)> = None;
 
         let defined = self.get_defined(idl_definition)?;
-        let item_source = defined.info.source.clone();
         account_set_to_anchor_inner(
             &defined.account_set_def,
-            &defined.info.name,
-            &defined.info.description,
+            &defined.info,
+            idl_definition,
             &mut incompat_set,
-            item_source,
         )
     }
 }
 
 fn account_set_to_anchor_inner(
     set: &IdlAccountSetDef,
-    name: &str,
-    item_description: &ItemDescription,
+    info: &ItemInfo,
+    idl_definition: &IdlDefinition,
     incompat_set: &mut Option<(String, IdlAccountSetDef)>,
-    item_path: String,
 ) -> Result<anchor::IdlInstructionAccountItem> {
     if let Some((path, incompat_set)) = incompat_set {
         bail!(
             "Incompatible account sets must be the last item in an account set. Non-last set found at `{path}. {incompat_set:?}`"
         );
     }
-    match set {
+    match &set {
         IdlAccountSetDef::Single(single_set) => Ok(anchor::IdlInstructionAccountItem::Single(
-            single_account_set_to_anchor(single_set, name, item_description),
+            single_account_set_to_anchor(single_set, &info.name, &info.description),
         )),
         IdlAccountSetDef::Struct(fields) => {
             let accounts = fields
@@ -162,10 +159,13 @@ fn account_set_to_anchor_inner(
                     let name = f.path.clone().unwrap_or_else(|| index.to_string());
                     account_set_to_anchor_inner(
                         &f.account_set_def,
-                        name.as_str(),
-                        &f.description,
+                        &ItemInfo {
+                            name: name.clone(),
+                            description: f.description.clone(),
+                            source: format!("{}.{name}", info.source),
+                        },
+                        idl_definition,
                         incompat_set,
-                        format!("{item_path}.{name}"),
                     )
                 })
                 .collect::<Result<Vec<_>>>()?
@@ -180,22 +180,28 @@ fn account_set_to_anchor_inner(
             Ok(anchor::IdlInstructionAccountItem::Composite(
                 anchor::IdlInstructionAccounts {
                     accounts,
-                    name: name.to_string(),
+                    name: info.name.to_string(),
                 },
             ))
         }
+        IdlAccountSetDef::Defined(_) => {
+            let defined = set.get_defined(idl_definition)?;
+            account_set_to_anchor_inner(
+                &defined.account_set_def,
+                &defined.info,
+                idl_definition,
+                incompat_set,
+            )
+        }
         IdlAccountSetDef::Many { .. } | IdlAccountSetDef::Or(_) => {
-            eprintln!("Incompatible account set found at `{item_path}`");
-            incompat_set.replace((item_path, set.clone()));
+            eprintln!("Incompatible account set found at `{}`", info.source);
+            incompat_set.replace((info.source.to_string(), set.clone()));
             Ok(anchor::IdlInstructionAccountItem::Composite(
                 anchor::IdlInstructionAccounts {
                     accounts: vec![],
-                    name: name.to_string(),
+                    name: info.name.to_string(),
                 },
             ))
-        }
-        IdlAccountSetDef::Defined(defined) => {
-            bail!("Defined account set found in account set list: {defined:?}")
         }
     }
 }
@@ -258,9 +264,7 @@ impl TryToAnchor<anchor::IdlTypeDefTy> for IdlTypeDef {
             IdlTypeDef::U128 => ty!(anchor::IdlType::U128),
             IdlTypeDef::I128 => ty!(anchor::IdlType::I128),
             IdlTypeDef::String => ty!(anchor::IdlType::String),
-            IdlTypeDef::Pubkey | IdlTypeDef::OptionalPubkey | IdlTypeDef::PubkeyFor { .. } => {
-                ty!(anchor::IdlType::Pubkey)
-            }
+            IdlTypeDef::Pubkey => ty!(anchor::IdlType::Pubkey),
             IdlTypeDef::FixedPoint { ty, .. } => ty
                 .try_to_anchor(idl_definition)
                 .context("Fixed point must be anchor compatible")?,
