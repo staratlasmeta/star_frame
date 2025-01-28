@@ -8,7 +8,7 @@ use star_frame_spl::token::InitMint;
 use star_frame_spl::token::{MintAccount, Token};
 
 #[unsized_type(owned_attributes = [derive(PartialEq, Eq, Clone)])]
-struct SomeFields {
+pub struct SomeFields {
     sized1: u8,
     sized2: u8,
     #[unsized_start]
@@ -17,13 +17,13 @@ struct SomeFields {
 }
 
 #[unsized_type(owned_attributes = [derive(PartialEq, Eq, Clone)])]
-struct SomeUnsized {
+pub struct SomeUnsized {
     #[unsized_start]
     unsized1: List<u8>,
     unsized2: List<u8>,
 }
 
-#[unsized_impl]
+#[unsized_impl(tag = "1")]
 impl SomeFields {
     fn foo(&mut self) -> Result<()> {
         self.sized1 = 10;
@@ -181,7 +181,6 @@ pub enum FactionId {
     ONI,
     Ustur,
 }
-
 unsafe impl Zeroable for FactionId {}
 
 #[derive(Debug, GetSeeds, Clone)]
