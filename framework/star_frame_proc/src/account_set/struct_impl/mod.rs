@@ -216,12 +216,12 @@ pub(super) fn derive_account_set_impl_struct(
         single_where.predicates.push(parse_quote! {
             #field_ty: #prelude::SingleAccountSet<#info_lifetime>
         });
-        single_where.predicates.push(parse_quote!{
+        single_where.predicates.push(parse_quote! {
             Self: #prelude::AccountSet<#info_lifetime>
         });
 
-        let signer = args.signer.then(||quote!(signer: true,));
-        let writable = args.writable.then(||quote!(writable: true,));
+        let signer = args.signer.then(|| quote!(signer: true,));
+        let writable = args.writable.then(|| quote!(writable: true,));
 
         let single = quote! {
             #[automatically_derived]
@@ -240,7 +240,7 @@ pub(super) fn derive_account_set_impl_struct(
             }
         };
 
-        let signed_account = args.skip_signed_account.not().then(||{
+        let signed_account = args.skip_signed_account.not().then(|| {
             let mut signed_generics = info_sg.clone();
             let signed_where = signed_generics.make_where_clause();
             signed_where.predicates.push(parse_quote! {
@@ -258,7 +258,7 @@ pub(super) fn derive_account_set_impl_struct(
             }
         });
 
-        let writable_account = args.skip_writable_account.not().then(||{
+        let writable_account = args.skip_writable_account.not().then(|| {
             let mut writable_generics = info_sg.clone();
             let writable_where = writable_generics.make_where_clause();
             writable_where.predicates.push(parse_quote! {
@@ -271,7 +271,7 @@ pub(super) fn derive_account_set_impl_struct(
             }
         });
 
-        let has_program_account = args.skip_has_program_account.not().then(||{
+        let has_program_account = args.skip_has_program_account.not().then(|| {
             let mut program_generics = single_generics.clone();
             let program_where = program_generics.make_where_clause();
             program_where.predicates.push(parse_quote! {
@@ -285,7 +285,7 @@ pub(super) fn derive_account_set_impl_struct(
             }
         });
 
-        let has_owner_program = args.skip_has_owner_program.not().then(||{
+        let has_owner_program = args.skip_has_owner_program.not().then(|| {
             let mut owner_generics = single_generics.clone();
             let owner_where = owner_generics.make_where_clause();
             owner_where.predicates.push(parse_quote! {
@@ -299,7 +299,7 @@ pub(super) fn derive_account_set_impl_struct(
             }
         });
 
-        let has_seeds = args.skip_has_seeds.not().then(||{
+        let has_seeds = args.skip_has_seeds.not().then(|| {
             let mut seeds_generics = single_generics.clone();
             let seeds_where = seeds_generics.make_where_clause();
             seeds_where.predicates.push(parse_quote! {
@@ -313,7 +313,7 @@ pub(super) fn derive_account_set_impl_struct(
             }
         });
 
-        let can_init_seeds = args.skip_can_init_seeds.not().then(||{
+        let can_init_seeds = args.skip_can_init_seeds.not().then(|| {
             let mut init_seeds_generics = info_gen_sg.clone();
             let init_seeds_where = init_seeds_generics.make_where_clause();
             init_seeds_where.predicates.push(parse_quote! {
@@ -334,7 +334,7 @@ pub(super) fn derive_account_set_impl_struct(
             }
         });
 
-        let can_init_account = args.skip_can_init_account.not().then(||{
+        let can_init_account = args.skip_can_init_account.not().then(|| {
             let mut init_generics = info_gen_sg.clone();
             let init_where = init_generics.make_where_clause();
             init_where.predicates.push(parse_quote! {
@@ -357,7 +357,7 @@ pub(super) fn derive_account_set_impl_struct(
             }
         });
 
-        quote!{
+        quote! {
             #single
 
             #signed_account
@@ -374,7 +374,7 @@ pub(super) fn derive_account_set_impl_struct(
     let trimmed_ident_str = ident_str.strip_suffix("Accounts").unwrap_or(&ident_str);
 
     let cpi_account_set_impl = (!account_set_struct_args.skip_cpi_account_set && single_account_set_impls.is_none()).then(|| {
-        let cpi_accounts_ident= format_ident!("{trimmed_ident_str}CpiAccounts");
+        let cpi_accounts_ident = format_ident!("{trimmed_ident_str}CpiAccounts");
         let (_, self_ty_gen, _) = main_generics.split_for_impl();
         let mut cpi_gen = other_generics.clone();
         let where_clause = cpi_gen.make_where_clause();
@@ -406,9 +406,12 @@ pub(super) fn derive_account_set_impl_struct(
         let cpi_accounts_struct = make_struct(&cpi_accounts_ident, &new_fields, new_struct_gen);
         let new_struct_ty_gen = new_struct_gen.split_for_impl().1;
 
+
         let accounts_lifetime = new_lifetime(&cpi_gen);
 
         let (impl_gen, _, where_clause) = cpi_gen.split_for_impl();
+
+        let struct_members = cpi_accounts_struct.fields.members();
 
         quote! {
             #[automatically_derived]
@@ -419,6 +422,13 @@ pub(super) fn derive_account_set_impl_struct(
             impl #impl_gen #cpi_set for #ident #self_ty_gen #where_clause {
                 type CpiAccounts<#accounts_lifetime> = #cpi_accounts_ident #new_struct_ty_gen;
                 const MIN_LEN: usize =  0#(+ <#field_type as #cpi_set>::MIN_LEN)*;
+
+                #[inline]
+                fn to_cpi_accounts(&self) -> Self::CpiAccounts<#info_lifetime> {
+                    Self::CpiAccounts {
+                        #(#struct_members: #prelude::CpiAccountSet::to_cpi_accounts(&self.#struct_members),)*
+                    }
+                }
 
                 #[inline]
                 fn extend_account_infos(
@@ -441,7 +451,7 @@ pub(super) fn derive_account_set_impl_struct(
     });
 
     let client_account_set_impl = (!account_set_struct_args.skip_client_account_set && single_account_set_impls.is_none()).then(|| {
-        let client_accounts_ident= format_ident!("{trimmed_ident_str}ClientAccounts");
+        let client_accounts_ident = format_ident!("{trimmed_ident_str}ClientAccounts");
         let client_set = quote!(#prelude::ClientAccountSet);
         let client_accounts = quote!(Self::ClientAccounts);
 

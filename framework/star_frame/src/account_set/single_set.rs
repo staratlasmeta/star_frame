@@ -130,6 +130,10 @@ where
     type CpiAccounts<'a> = AccountInfo<'info>;
     const MIN_LEN: usize = 1;
     #[inline]
+    fn to_cpi_accounts(&self) -> Self::CpiAccounts<'info> {
+        self.account_info_cloned()
+    }
+    #[inline]
     fn extend_account_infos(
         account_info: Self::CpiAccounts<'info>,
         infos: &mut Vec<AccountInfo<'info>>,
