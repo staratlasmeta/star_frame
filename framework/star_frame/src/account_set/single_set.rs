@@ -284,6 +284,28 @@ pub trait CanModifyRent<'info>: SingleAccountSet<'info> {
             }
         }
     }
+
+    /// Emits a warning message if the account has more lamports than required by rent.
+    #[cfg_attr(not(feature = "cleanup_rent_warning"), allow(unused_variables))]
+    fn check_cleanup(&self, sys_calls: &impl SyscallCore) -> Result<()> {
+        #[cfg(feature = "cleanup_rent_warning")]
+        {
+            use std::cmp::Ordering;
+            if self.is_writable() {
+                let rent = sys_calls.get_rent()?;
+                let lamports = self.account_info().lamports();
+                let data_len = self.account_info().data_len();
+                let rent_lamports = rent.minimum_balance(data_len);
+                if rent_lamports.cmp(&lamports) == Ordering::Less {
+                    solana_program::msg!(
+                        "{} was left with more lamports than required by rent",
+                        self.key()
+                    );
+                }
+            }
+        }
+        Ok(())
+    }
 }
 
 impl<'info, T> CanModifyRent<'info> for T where T: SingleAccountSet<'info> {}
