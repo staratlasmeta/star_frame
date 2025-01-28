@@ -15,6 +15,8 @@ impl<'info> CpiAccountSet<'info> for () {
     type CpiAccounts<'a> = ();
     const MIN_LEN: usize = 0;
     #[inline]
+    fn to_cpi_accounts(&self) -> Self::CpiAccounts<'info> {}
+    #[inline]
     fn extend_account_infos(
         _accounts: Self::CpiAccounts<'info>,
         _infos: &mut Vec<AccountInfo<'info>>,

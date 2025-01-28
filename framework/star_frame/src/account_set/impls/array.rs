@@ -23,6 +23,10 @@ where
     type CpiAccounts<'a> = [A::CpiAccounts<'a>; N];
     const MIN_LEN: usize = N * A::MIN_LEN;
     #[inline]
+    fn to_cpi_accounts(&self) -> Self::CpiAccounts<'info> {
+        self.each_ref().map(A::to_cpi_accounts)
+    }
+    #[inline]
     fn extend_account_infos(
         accounts: Self::CpiAccounts<'info>,
         infos: &mut Vec<AccountInfo<'info>>,

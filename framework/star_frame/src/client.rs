@@ -16,6 +16,7 @@ pub trait CpiAccountSet<'info> {
     /// The minimum number of accounts this CPI might use
     const MIN_LEN: usize;
 
+    fn to_cpi_accounts(&self) -> Self::CpiAccounts<'info>;
     fn extend_account_infos(
         accounts: Self::CpiAccounts<'info>,
         infos: &mut Vec<AccountInfo<'info>>,

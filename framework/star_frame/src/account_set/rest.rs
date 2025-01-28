@@ -29,6 +29,10 @@ where
     type CpiAccounts<'a> = Vec<T::CpiAccounts<'info>>;
     const MIN_LEN: usize = 0;
     #[inline]
+    fn to_cpi_accounts(&self) -> Self::CpiAccounts<'info> {
+        CpiAccountSet::to_cpi_accounts(&self.0)
+    }
+    #[inline]
     fn extend_account_infos(
         accounts: Self::CpiAccounts<'info>,
         infos: &mut Vec<AccountInfo<'info>>,
