@@ -286,6 +286,12 @@ impl FieldIter for Vec<Field> {
     }
 }
 
+impl FieldIter for Vec<&Field> {
+    fn field_iter(&self) -> impl Iterator<Item = &Field> {
+        self.iter().cloned()
+    }
+}
+
 macro_rules! field_iter {
     ($($item:ty),*) => {
         $(

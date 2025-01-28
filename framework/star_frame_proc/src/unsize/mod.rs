@@ -10,7 +10,9 @@ use syn::{bracketed, parse_quote, Attribute, Expr, Item, Meta, Token, Type};
 
 mod account;
 mod enum_impl;
+mod impl_impl;
 mod struct_impl;
+pub use impl_impl::*;
 
 #[derive(Debug, Clone, Default)]
 pub struct UnsizedAttributeMetas {
