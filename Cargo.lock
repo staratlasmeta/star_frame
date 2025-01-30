@@ -822,6 +822,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "cargo_toml"
+version = "0.20.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "88da5a13c620b4ca0078845707ea9c3faf11edbc3ffd8497d11d686211cd1ac0"
+dependencies = [
+ "serde",
+ "toml 0.8.19",
+]
+
+[[package]]
 name = "cc"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -957,6 +967,55 @@ name = "clap_lex"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cd7cc57abe963c6d3b9d8be5b06ba7c8957a930305ca90304f24ef040aa6f961"
+
+[[package]]
+name = "codama-errors"
+version = "0.1.0"
+source = "git+https://github.com/codama-idl/codama-rs#38c836557b54ae340ec896b0b4d4c97bb5cc8b49"
+dependencies = [
+ "cargo_toml",
+ "proc-macro2",
+ "serde_json",
+ "syn 2.0.95",
+ "thiserror 2.0.3",
+]
+
+[[package]]
+name = "codama-nodes"
+version = "0.1.0"
+source = "git+https://github.com/codama-idl/codama-rs#38c836557b54ae340ec896b0b4d4c97bb5cc8b49"
+dependencies = [
+ "codama-errors",
+ "codama-nodes-derive",
+ "derive_more",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "codama-nodes-derive"
+version = "0.1.0"
+source = "git+https://github.com/codama-idl/codama-rs#38c836557b54ae340ec896b0b4d4c97bb5cc8b49"
+dependencies = [
+ "codama-errors",
+ "codama-syn-helpers",
+ "derive_more",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.95",
+]
+
+[[package]]
+name = "codama-syn-helpers"
+version = "0.1.0"
+source = "git+https://github.com/codama-idl/codama-rs#38c836557b54ae340ec896b0b4d4c97bb5cc8b49"
+dependencies = [
+ "codama-errors",
+ "derive_more",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.95",
+]
 
 [[package]]
 name = "colorchoice"
@@ -1936,6 +1995,12 @@ name = "hermit-abi"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fbf6a919d6cf397374f7dfeeea91d974c7c0a7221d0d0f4f20d859d329e53fcc"
+
+[[package]]
+name = "hex"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
 name = "histogram"
@@ -3141,7 +3206,7 @@ version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1d6ea3c4595b96363c13943497db34af4460fb474a95c43f4446ad341b8c9785"
 dependencies = [
- "toml",
+ "toml 0.5.11",
 ]
 
 [[package]]
@@ -3768,6 +3833,15 @@ dependencies = [
  "itoa",
  "memchr",
  "ryu",
+ "serde",
+]
+
+[[package]]
+name = "serde_spanned"
+version = "0.6.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "87607cb1398ed59d48732e575a4c28a7a8ebf2454b964fe3f224f2afc07909e1"
+dependencies = [
  "serde",
 ]
 
@@ -5540,8 +5614,10 @@ version = "0.0.3"
 dependencies = [
  "anchor-lang-idl-spec",
  "anyhow",
+ "codama-nodes",
  "derivative",
  "derive_more",
+ "hex",
  "rand 0.8.5",
  "semver",
  "serde",
@@ -6098,10 +6174,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "toml"
+version = "0.8.19"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a1ed1f98e3fdc28d6d910e6737ae6ab1a93bf1985935a1193e68f93eeb68d24e"
+dependencies = [
+ "serde",
+ "serde_spanned",
+ "toml_datetime",
+ "toml_edit 0.22.22",
+]
+
+[[package]]
 name = "toml_datetime"
 version = "0.6.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0dd7358ecb8fc2f8d014bf86f6f638ce72ba252a2c3a2572f2a795f1d23efb41"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "toml_edit"
@@ -6121,6 +6212,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4ae48d6208a266e853d946088ed816055e556cc6028c5e8e2b84d9fa5dd7c7f5"
 dependencies = [
  "indexmap 2.6.0",
+ "serde",
+ "serde_spanned",
  "toml_datetime",
  "winnow 0.6.20",
 ]

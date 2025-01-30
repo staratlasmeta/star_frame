@@ -69,7 +69,10 @@ pub enum IdlTypeDef {
     },
     Array(Box<IdlTypeDef>, usize),
     Struct(Vec<IdlStructField>),
-    Enum(Vec<IdlEnumVariant>),
+    Enum {
+        size: Box<IdlTypeDef>,
+        variants: Vec<IdlEnumVariant>,
+    },
 }
 
 impl IdlTypeId {

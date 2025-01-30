@@ -7,6 +7,10 @@ pub mod account_set;
 mod anchor;
 #[cfg(feature = "anchor")]
 pub use anchor::*;
+#[cfg(feature = "codama")]
+mod codama;
+#[cfg(feature = "codama")]
+pub use codama::*;
 pub mod instruction;
 pub mod seeds;
 pub mod serde_impls;

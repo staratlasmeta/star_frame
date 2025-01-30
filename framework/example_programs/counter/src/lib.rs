@@ -204,11 +204,17 @@ mod tests {
     use solana_program_test::*;
     use solana_sdk::signature::{Keypair, Signer};
     use solana_sdk::transaction::Transaction;
+    use std::fs;
 
     #[cfg(feature = "idl")]
     #[test]
     fn idl_test() {
         let idl = CounterProgram::program_to_idl().unwrap();
+        fs::write(
+            "idl.json",
+            star_frame::serde_json::to_string_pretty(&idl).unwrap(),
+        )
+        .unwrap();
         println!(
             "{}",
             star_frame::serde_json::to_string_pretty(&idl).unwrap()

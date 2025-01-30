@@ -287,8 +287,8 @@ impl TryToAnchor<anchor::IdlTypeDefTy> for IdlTypeDef {
                 let fields = convert_fields_to_anchor(fields, idl_definition)?;
                 anchor::IdlTypeDefTy::Struct { fields }
             }
-            IdlTypeDef::Enum(variants) => {
-                let variants = convert_variants_to_anchor(variants, idl_definition)?;
+            IdlTypeDef::Enum { variants, size } => {
+                let variants = convert_variants_to_anchor(variants, size, idl_definition)?;
                 anchor::IdlTypeDefTy::Enum { variants }
             }
         };
@@ -391,14 +391,19 @@ fn convert_fields_to_anchor(
 
 fn convert_variants_to_anchor(
     variants: &[IdlEnumVariant],
+    size: &IdlTypeDef,
     idl_definition: &IdlDefinition,
 ) -> Result<Vec<anchor::IdlEnumVariant>> {
+    if !matches!(size, IdlTypeDef::U8) {
+        bail!("Enum discriminants must be u8 for anchor compatibility")
+    }
     for (expected_discriminant, variant) in variants.iter().enumerate() {
         if variant.discriminant.len() != 1 {
             bail!("Enum discriminants must be u8")
         }
         let discriminant = variant.discriminant[0];
-        if discriminant != expected_discriminant.try_into()? {
+        let expected_discriminant: u8 = expected_discriminant.try_into()?;
+        if discriminant != expected_discriminant {
             bail!("Enum discriminants must be sequential for anchor compatibility")
         }
     }

@@ -9,7 +9,8 @@ use proc_macro_error::{abort, OptionExt};
 use quote::quote;
 use syn::spanned::Spanned;
 use syn::{
-    parse_quote, Attribute, DataStruct, DataUnion, DeriveInput, Expr, Field, Fields, LitStr, Type,
+    parse_quote, Attribute, DataStruct, DataUnion, DeriveInput, Expr, Field, Fields, ItemEnum,
+    LitStr, Type,
 };
 
 #[derive(Debug, ArgumentList, Default)]
@@ -187,6 +188,9 @@ fn idl_enum_type_def(data_enum: &syn::DataEnum, attributes: &[Attribute]) -> Tok
         })
         .collect();
     quote! {
-        #prelude::IdlTypeDef::Enum(vec![#(#idl_variants),*])
+        #prelude::IdlTypeDef::Enum {
+            variants: vec![#(#idl_variants),*],
+            size: Box::new(<#repr as #prelude::TypeToIdl>::type_to_idl(idl_definition)?),
+        }
     }
 }
