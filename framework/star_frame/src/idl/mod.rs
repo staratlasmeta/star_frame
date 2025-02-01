@@ -40,8 +40,43 @@ pub trait SeedsToIdl: GetSeeds {
     fn seeds_to_idl(idl_definition: &mut IdlDefinition) -> Result<IdlSeeds>;
 }
 
+#[must_use]
+pub fn empty_env_option(env: &str) -> Option<String> {
+    if env.is_empty() {
+        None
+    } else {
+        Some(env.to_string())
+    }
+}
+
+#[macro_export]
+macro_rules! crate_metadata {
+    () => {
+        $crate::star_frame_idl::CrateMetadata {
+            version: $crate::star_frame_idl::Version::parse(env!("CARGO_PKG_VERSION"))
+                .expect("Invalid package version. This should never happen."),
+            name: env!("CARGO_PKG_NAME").to_string(),
+            description: $crate::idl::empty_env_option(env!("CARGO_PKG_DESCRIPTION")),
+            docs: vec![],
+            homepage: $crate::idl::empty_env_option(env!("CARGO_PKG_HOMEPAGE")),
+            license: $crate::idl::empty_env_option(env!("CARGO_PKG_LICENSE")),
+            repository: $crate::idl::empty_env_option(env!("CARGO_PKG_REPOSITORY")),
+        }
+    };
+}
+
 pub trait ProgramToIdl: StarFrameProgram {
-    fn crate_metadata() -> CrateMetadata;
+    #[must_use]
+    fn crate_metadata() -> CrateMetadata {
+        CrateMetadata {
+            docs: vec!["Hello".into()],
+            ..crate_metadata!()
+        }
+    }
+
+    fn modify_idl(_idl_definition: &mut IdlDefinition) -> Result<()> {
+        Ok(())
+    }
 
     fn program_to_idl() -> Result<IdlDefinition>
     where
@@ -56,6 +91,7 @@ pub trait ProgramToIdl: StarFrameProgram {
             ..Default::default()
         };
         <Self as StarFrameProgram>::InstructionSet::instruction_set_to_idl(&mut out)?;
+        Self::modify_idl(&mut out)?;
         Ok(out)
     }
 }
