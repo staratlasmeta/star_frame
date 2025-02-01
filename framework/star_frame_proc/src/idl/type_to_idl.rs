@@ -9,8 +9,7 @@ use proc_macro_error::{abort, OptionExt};
 use quote::quote;
 use syn::spanned::Spanned;
 use syn::{
-    parse_quote, Attribute, DataStruct, DataUnion, DeriveInput, Expr, Field, Fields, ItemEnum,
-    LitStr, Type,
+    parse_quote, Attribute, DataStruct, DataUnion, DeriveInput, Expr, Field, Fields, LitStr, Type,
 };
 
 #[derive(Debug, ArgumentList, Default)]
