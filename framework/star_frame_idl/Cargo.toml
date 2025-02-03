@@ -22,6 +22,7 @@ derive_more = { workspace = true }
 serde = { workspace = true }
 solana-program = { workspace = true }
 semver = { workspace = true }
+itertools = { workspace = true }
 
 [dev-dependencies]
 rand = { workspace = true }

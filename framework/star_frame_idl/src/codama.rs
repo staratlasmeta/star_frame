@@ -1,16 +1,19 @@
 use crate::account::IdlAccount;
+use crate::instruction::IdlInstruction;
 use crate::seeds::IdlSeed;
 use crate::ty::{IdlEnumVariant, IdlTypeDef};
 use crate::{IdlDefinition, IdlDiscriminant, ItemInfo};
 use anyhow::{bail, Result};
 use codama_nodes::{
     AccountNode, ArrayTypeNode, BooleanTypeNode, BytesTypeNode, BytesValueNode, CamelCaseString,
-    ConstantPdaSeedNode, DefinedTypeLinkNode, DefinedTypeNode, Docs, EnumEmptyVariantTypeNode,
-    EnumTupleVariantTypeNode, EnumTypeNode, EnumVariantTypeNode, NumberFormat, NumberTypeNode,
-    OptionTypeNode, PdaLinkNode, PdaNode, PdaSeedNode, ProgramNode, PublicKeyTypeNode, RootNode,
-    SizePrefixTypeNode, StringTypeNode, StructFieldTypeNode, StructTypeNode, TupleTypeNode,
-    TypeNode, TypeNodeTrait, ValueNode, VariablePdaSeedNode,
+    ConstantPdaSeedNode, DefaultValueStrategy, DefinedTypeLinkNode, DefinedTypeNode,
+    DiscriminatorNode, Docs, EnumEmptyVariantTypeNode, EnumTupleVariantTypeNode, EnumTypeNode,
+    EnumVariantTypeNode, FieldDiscriminatorNode, FixedSizeTypeNode, InstructionNode, NumberFormat,
+    NumberTypeNode, OptionTypeNode, PdaLinkNode, PdaNode, PdaSeedNode, ProgramNode,
+    PublicKeyTypeNode, SizePrefixTypeNode, StringTypeNode, StructFieldTypeNode, StructTypeNode,
+    TupleTypeNode, TypeNode, TypeNodeTrait, ValueNode, VariablePdaSeedNode,
 };
+use itertools::Itertools;
 
 impl ItemInfo {
     fn codama_name(&self) -> CamelCaseString {
@@ -35,45 +38,73 @@ impl CodamaNodeExt for TypeNode {
     }
 }
 
-impl TryFrom<IdlDefinition> for RootNode {
-    type Error = anyhow::Error;
+const DISCRIMINATOR_NAME: &str = "discriminator";
 
-    fn try_from(value: IdlDefinition) -> Result<Self, Self::Error> {
-        let program_node = star_frame_to_codama(&value)?;
-        Ok(RootNode::new(program_node))
-    }
+fn discriminator_info(discriminant: &IdlDiscriminant) -> (StructFieldTypeNode, DiscriminatorNode) {
+    (
+        StructFieldTypeNode {
+            name: DISCRIMINATOR_NAME.into(),
+            default_value_strategy: Some(DefaultValueStrategy::Omitted),
+            docs: Default::default(),
+            r#type: FixedSizeTypeNode::new(BytesTypeNode {}, discriminant.len()).into(),
+            default_value: Some(BytesValueNode::base16(hex::encode(discriminant)).into()),
+        },
+        DiscriminatorNode::Field(FieldDiscriminatorNode {
+            name: DISCRIMINATOR_NAME.into(),
+            offset: 0,
+        }),
+    )
 }
 
-fn star_frame_to_codama(def: &IdlDefinition) -> Result<ProgramNode> {
-    let mut program_node = ProgramNode {
-        name: def.metadata.crate_metadata.name.as_str().into(),
-        public_key: def.address.to_string(),
-        version: def.metadata.crate_metadata.version.to_string(),
-        origin: None,
-        docs: def.metadata.crate_metadata.docs.clone().into(),
-        defined_types: vec![], // done
-        accounts: vec![],      // done
-        pdas: vec![],          // done, todo: add "ghost-pda" support to star frame IDL definition
-        instructions: vec![],  // todo
-        errors: vec![],
-    };
+impl TryFrom<IdlDefinition> for ProgramNode {
+    type Error = anyhow::Error;
 
-    let ctx = &mut Context;
+    fn try_from(def: IdlDefinition) -> Result<Self, Self::Error> {
+        let ctx = &mut Context;
 
-    for (_, idl_type) in def.types.iter().chain(def.external_types.iter()) {
-        program_node.defined_types.push(DefinedTypeNode {
-            name: idl_type.info.codama_name(),
-            docs: idl_type.info.codama_docs(),
-            r#type: idl_type.type_def.try_to_codama(def, ctx)?,
+        let (accounts, maybe_pdas): (_, Vec<_>) = def
+            .accounts
+            .values()
+            .map(|account| account.try_to_codama(&def, ctx))
+            .try_collect()?;
+
+        let pdas = maybe_pdas.into_iter().flatten().collect();
+
+        let defined_types = def
+            .types
+            .iter()
+            .chain(def.external_types.iter())
+            .filter(|(source, _)| {
+                !def.accounts.contains_key(*source) && !def.instructions.contains_key(*source)
+            })
+            .map(|(_source, idl_type)| {
+                anyhow::Ok(DefinedTypeNode {
+                    name: idl_type.info.codama_name(),
+                    docs: idl_type.info.codama_docs(),
+                    r#type: idl_type.type_def.try_to_codama(&def, ctx)?,
+                })
+            })
+            .try_collect()?;
+
+        let instructions = def
+            .instructions
+            .values()
+            .map(|instruction| instruction.try_to_codama(&def, ctx))
+            .try_collect()?;
+
+        Ok(ProgramNode {
+            name: def.metadata.crate_metadata.name.as_str().into(),
+            public_key: def.address.to_string(),
+            version: def.metadata.crate_metadata.version.to_string(),
+            origin: None,
+            docs: def.metadata.crate_metadata.docs.clone().into(),
+            defined_types, // done
+            accounts,      // done
+            pdas,          // done, todo: add "ghost-pda" support to star frame IDL definition
+            instructions,
+            errors: vec![],
         })
     }
-
-    def.accounts.values().try_for_each(|account| {
-        let account_node = convert_idl_account(account, def, &mut program_node, ctx)?;
-        program_node.accounts.push(account_node);
-        anyhow::Ok(())
-    })?;
-    Ok(program_node)
 }
 
 // todo: potentially add some error handling "context" info that gets passed around
@@ -87,63 +118,108 @@ trait TryToCodama<Output> {
     ) -> Result<Output>;
 }
 
-fn convert_idl_account(
-    idl_account: &IdlAccount,
-    idl_definition: &IdlDefinition,
-    program_node: &mut ProgramNode,
-    context: &mut Context,
-) -> Result<AccountNode> {
-    let defined_account = idl_account.type_id.get_defined(idl_definition)?;
-    let info = &defined_account.info;
-    let pda_link = if let Some(seeds) = &idl_account.seeds {
-        let pda_node = PdaNode {
-            name: info.codama_name(),
-            docs: info.codama_docs(),
-            program_id: None,
-            seeds: seeds
-                .iter()
-                .map(|seed| {
-                    let res = match seed {
-                        IdlSeed::Const(bytes) => PdaSeedNode::Constant(ConstantPdaSeedNode {
-                            r#type: TypeNode::Bytes(BytesTypeNode {}),
-                            value: ValueNode::Bytes(BytesValueNode::base16(hex::encode(bytes))),
-                        }),
-                        IdlSeed::Variable {
-                            name,
-                            description,
-                            ty,
-                        } => PdaSeedNode::Variable(VariablePdaSeedNode {
-                            name: name.as_str().into(),
-                            docs: description.clone().into(),
-                            r#type: ty.try_to_codama(idl_definition, context)?,
-                        }),
-                    };
-                    Ok(res)
-                })
-                .collect::<Result<_>>()?,
+impl TryToCodama<InstructionNode> for IdlInstruction {
+    fn try_to_codama(
+        &self,
+        idl_definition: &IdlDefinition,
+        context: &mut Context,
+    ) -> Result<InstructionNode> {
+        let idl_type = self.definition.type_id.get_defined(idl_definition)?;
+        let (discriminator_field, discriminator_node) = discriminator_info(&self.discriminant);
+
+        let mut arguments = vec![discriminator_field.into()];
+
+        let instruction_node = InstructionNode {
+            name: idl_type.info.codama_name(),
+            docs: idl_type.info.codama_docs(),
+            accounts: vec![], // todo
+            arguments,
+            discriminators: vec![discriminator_node],
+            ..Default::default()
         };
-        program_node.pdas.push(pda_node);
-        Some(PdaLinkNode {
-            name: info.codama_name(),
-            program: None,
-        })
-    } else {
-        None
-    };
-    Ok(AccountNode {
-        name: info.codama_name(),
-        size: None,
-        docs: info.codama_docs(),
-        data: StructTypeNode::new(vec![StructFieldTypeNode::new(
-            "", // todo: make this link node potentially or only do link if type_def isnt struct
-            defined_account
-                .type_def
-                .try_to_codama(idl_definition, context)?,
-        )])
-        .into(),
-        pda: pda_link,
-        discriminators: vec![],
-    })
+        Ok(instruction_node)
+    }
+}
+
+impl TryToCodama<PdaSeedNode> for IdlSeed {
+    fn try_to_codama(
+        &self,
+        idl_definition: &IdlDefinition,
+        context: &mut Context,
+    ) -> Result<PdaSeedNode> {
+        let res = match self {
+            IdlSeed::Const(bytes) => PdaSeedNode::Constant(ConstantPdaSeedNode {
+                r#type: TypeNode::Bytes(BytesTypeNode {}),
+                value: ValueNode::Bytes(BytesValueNode::base16(hex::encode(bytes))),
+            }),
+            IdlSeed::Variable {
+                name,
+                description,
+                ty,
+            } => PdaSeedNode::Variable(VariablePdaSeedNode {
+                name: name.as_str().into(),
+                docs: description.clone().into(),
+                r#type: ty.try_to_codama(idl_definition, context)?,
+            }),
+        };
+        Ok(res)
+    }
+}
+
+impl TryToCodama<(AccountNode, Option<PdaNode>)> for IdlAccount {
+    fn try_to_codama(
+        &self,
+        idl_definition: &IdlDefinition,
+        context: &mut Context,
+    ) -> Result<(AccountNode, Option<PdaNode>)> {
+        let defined_account = self.type_id.get_defined(idl_definition)?;
+
+        let info = &defined_account.info;
+
+        let TypeNode::Struct(mut struct_node) = defined_account
+            .type_def
+            .try_to_codama(idl_definition, context)?
+        else {
+            bail!(
+                "Only struct account types are supported in Codama at the moment. Found: {:?}",
+                defined_account.type_def
+            );
+        };
+
+        let pda_node = self
+            .seeds
+            .as_ref()
+            .map(|seeds| {
+                anyhow::Ok(PdaNode {
+                    name: info.codama_name(),
+                    docs: info.codama_docs(),
+                    program_id: None,
+                    seeds: seeds
+                        .iter()
+                        .map(|seed| seed.try_to_codama(idl_definition, context))
+                        .try_collect()?,
+                })
+            })
+            .transpose()?;
+
+        let (discriminator_field, discriminator_node) = discriminator_info(&self.discriminant);
+        struct_node.fields.insert(0, discriminator_field);
+
+        Ok((
+            AccountNode {
+                name: info.codama_name(),
+                size: None,
+                docs: info.codama_docs(),
+                data: struct_node.into(),
+                pda: pda_node.is_some().then(|| PdaLinkNode {
+                    name: info.codama_name(),
+                    program: None,
+                }),
+                discriminators: vec![discriminator_node],
+            },
+            pda_node,
+        ))
+    }
 }
 
 impl TryToCodama<TypeNode> for IdlTypeDef {
@@ -194,7 +270,7 @@ impl TryToCodama<TypeNode> for IdlTypeDef {
                     .iter()
                     .enumerate()
                     .map(|(index, f)| {
-                        Ok(StructFieldTypeNode {
+                        anyhow::Ok(StructFieldTypeNode {
                             name: f.path.clone().unwrap_or(index.to_string()).into(),
                             default_value_strategy: None,
                             docs: f.description.clone().into(),
@@ -202,14 +278,14 @@ impl TryToCodama<TypeNode> for IdlTypeDef {
                             default_value: None,
                         })
                     })
-                    .collect::<Result<Vec<_>>>()?,
+                    .try_collect()?,
             )
             .into_type_node(),
             IdlTypeDef::Enum { variants, size } => EnumTypeNode {
                 variants: variants
                     .iter()
                     .map(|variant| variant.try_to_codama(idl_def, _context))
-                    .collect::<Result<_>>()?,
+                    .try_collect()?,
                 size: size.try_to_codama(idl_def, _context)?.as_number()?.into(),
             }
             .into_type_node(),
@@ -241,7 +317,7 @@ impl TryToCodama<EnumVariantTypeNode> for IdlEnumVariant {
                         fields
                             .iter()
                             .map(|f| f.type_def.try_to_codama(idl_definition, _context))
-                            .collect::<Result<_>>()?,
+                            .try_collect()?,
                     )
                     .into(),
                 })
