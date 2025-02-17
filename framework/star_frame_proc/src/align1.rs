@@ -1,6 +1,6 @@
 use crate::util::{get_crate_name, get_repr, IntegerRepr};
 use proc_macro2::TokenStream;
-use proc_macro_error::abort;
+use proc_macro_error2::abort;
 use quote::quote;
 use syn::punctuated::Punctuated;
 use syn::{parse_quote, Data, DataStruct, DataUnion, DeriveInput, Fields, Token, Variant};

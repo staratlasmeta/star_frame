@@ -971,7 +971,7 @@ checksum = "cd7cc57abe963c6d3b9d8be5b06ba7c8957a930305ca90304f24ef040aa6f961"
 [[package]]
 name = "codama-errors"
 version = "0.1.0"
-source = "git+https://github.com/codama-idl/codama-rs#38c836557b54ae340ec896b0b4d4c97bb5cc8b49"
+source = "git+https://github.com/stegaBOB/codama-rs?branch=stegaBOB/fix/initial-pass#0225041592fd17359a8ce4bb51db465d39f35e7c"
 dependencies = [
  "cargo_toml",
  "proc-macro2",
@@ -983,11 +983,11 @@ dependencies = [
 [[package]]
 name = "codama-nodes"
 version = "0.1.0"
-source = "git+https://github.com/codama-idl/codama-rs#38c836557b54ae340ec896b0b4d4c97bb5cc8b49"
+source = "git+https://github.com/stegaBOB/codama-rs?branch=stegaBOB/fix/initial-pass#0225041592fd17359a8ce4bb51db465d39f35e7c"
 dependencies = [
  "codama-errors",
  "codama-nodes-derive",
- "derive_more",
+ "derive_more 1.0.0",
  "serde",
  "serde_json",
 ]
@@ -995,11 +995,11 @@ dependencies = [
 [[package]]
 name = "codama-nodes-derive"
 version = "0.1.0"
-source = "git+https://github.com/codama-idl/codama-rs#38c836557b54ae340ec896b0b4d4c97bb5cc8b49"
+source = "git+https://github.com/stegaBOB/codama-rs?branch=stegaBOB/fix/initial-pass#0225041592fd17359a8ce4bb51db465d39f35e7c"
 dependencies = [
  "codama-errors",
  "codama-syn-helpers",
- "derive_more",
+ "derive_more 1.0.0",
  "proc-macro2",
  "quote",
  "syn 2.0.95",
@@ -1008,10 +1008,10 @@ dependencies = [
 [[package]]
 name = "codama-syn-helpers"
 version = "0.1.0"
-source = "git+https://github.com/codama-idl/codama-rs#38c836557b54ae340ec896b0b4d4c97bb5cc8b49"
+source = "git+https://github.com/stegaBOB/codama-rs?branch=stegaBOB/fix/initial-pass#0225041592fd17359a8ce4bb51db465d39f35e7c"
 dependencies = [
  "codama-errors",
- "derive_more",
+ "derive_more 1.0.0",
  "proc-macro2",
  "quote",
  "syn 2.0.95",
@@ -1092,9 +1092,9 @@ checksum = "7c74b8349d32d297c9134b8c88677813a227df8f779daa29bfc29c183fe3dca6"
 
 [[package]]
 name = "convert_case"
-version = "0.6.0"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ec182b0ca2f35d8fc196cf3404988fd8b8c739a4d270ff118a398feb0cbec1ca"
+checksum = "bb402b8d4c85569410425650ce3eddc7d698ed96d39a73f941b08fb63082f1e7"
 dependencies = [
  "unicode-segmentation",
 ]
@@ -1121,6 +1121,7 @@ version = "0.0.3"
 dependencies = [
  "borsh 1.5.3",
  "bytemuck",
+ "codama-nodes",
  "solana-program-test",
  "solana-sdk",
  "star_frame",
@@ -1347,7 +1348,16 @@ version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4a9b99b9cbbe49445b21764dc0625032a89b145a2642e67603e1c936f5458d05"
 dependencies = [
- "derive_more-impl",
+ "derive_more-impl 1.0.0",
+]
+
+[[package]]
+name = "derive_more"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "093242cf7570c207c83073cf82f79706fe7b8317e98620a47d5be7c3d8497678"
+dependencies = [
+ "derive_more-impl 2.0.1",
 ]
 
 [[package]]
@@ -1355,6 +1365,17 @@ name = "derive_more-impl"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cb7330aeadfbe296029522e6c40f315320aba36fc43a5b3632f3795348f3bd22"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.95",
+]
+
+[[package]]
+name = "derive_more-impl"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bda628edc44c4bb645fbe0f758797143e4e07926f7ebf4e9bdfbd3d2ce621df3"
 dependencies = [
  "convert_case",
  "proc-macro2",
@@ -1464,42 +1485,38 @@ checksum = "abe71d579d1812060163dff96056261deb5bf6729b100fa2e36a68b9649ba3d3"
 
 [[package]]
 name = "easy_proc"
-version = "0.3.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "10818e83f33bea65151e9f960387c609f99ed51537e712be5e9bb529ac645b0f"
+checksum = "1802eedfb6db938038e98cd0ea71667a454ea685245abe98192553c84abcbe90"
 dependencies = [
  "easy_proc_common",
  "easy_proc_derive",
- "proc-macro-error",
+ "proc-macro-error2",
  "proc-macro2",
- "quote",
  "syn 2.0.95",
 ]
 
 [[package]]
 name = "easy_proc_common"
-version = "0.3.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5079362c1681eb4883bb68c77de7da907588e85886f3a42891e69848d2fdaf35"
+checksum = "8b29141815d5062a5790ef9b63665e2cd3c24fbb3ae2338f2b651e2c2502a9da"
 dependencies = [
- "proc-macro-error",
+ "proc-macro-error2",
  "syn 2.0.95",
 ]
 
 [[package]]
 name = "easy_proc_derive"
-version = "0.3.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "77c033035b1ce9f9190b527b1c0137485634788a14d7c320859eae4169204c0b"
+checksum = "5f4dfd06f85f9904aeb3cf2ef2b0bfb32463474b90fae1726efa7b0f7ec23458"
 dependencies = [
  "easy_proc_common",
- "heck 0.4.1",
- "lazy_static",
- "proc-macro-crate 1.3.1",
- "proc-macro-error",
+ "proc-macro-crate 3.2.0",
+ "proc-macro-error2",
  "proc-macro2",
  "quote",
- "sha2 0.10.8",
  "syn 2.0.95",
 ]
 
@@ -1644,6 +1661,7 @@ name = "faction_enlistment"
 version = "0.1.0"
 dependencies = [
  "bytemuck",
+ "counter",
  "solana-program-test",
  "solana-sdk",
  "star_frame",
@@ -2386,9 +2404,9 @@ dependencies = [
 
 [[package]]
 name = "itertools"
-version = "0.13.0"
+version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
+checksum = "2b192c782037fadd9cfa75548310488aabdbf3d2da73885b31bd0abd03351285"
 dependencies = [
  "either",
 ]
@@ -3250,6 +3268,28 @@ dependencies = [
  "proc-macro2",
  "quote",
  "version_check",
+]
+
+[[package]]
+name = "proc-macro-error-attr2"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "96de42df36bb9bba5542fe9f1a054b8cc87e172759a1868aa05c1f3acc89dfc5"
+dependencies = [
+ "proc-macro2",
+ "quote",
+]
+
+[[package]]
+name = "proc-macro-error2"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "11ec05c52be0a07b08061f7dd003e7d7092e0472bc731b4af7bb1ef876109802"
+dependencies = [
+ "proc-macro-error-attr2",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.95",
 ]
 
 [[package]]
@@ -5578,10 +5618,10 @@ dependencies = [
  "borsh 1.5.3",
  "bytemuck",
  "derivative",
- "derive_more",
+ "derive_more 2.0.1",
  "fixed",
  "half",
- "itertools 0.13.0",
+ "itertools 0.14.0",
  "lazy_static",
  "num-traits",
  "paste",
@@ -5616,8 +5656,9 @@ dependencies = [
  "anyhow",
  "codama-nodes",
  "derivative",
- "derive_more",
+ "derive_more 2.0.1",
  "hex",
+ "itertools 0.14.0",
  "rand 0.8.5",
  "semver",
  "serde",
@@ -5630,13 +5671,13 @@ version = "0.0.3"
 dependencies = [
  "bs58 0.5.1",
  "daggy",
- "derive_more",
+ "derive_more 2.0.1",
  "easy_proc",
  "heck 0.5.0",
- "itertools 0.13.0",
+ "itertools 0.14.0",
  "pretty_assertions",
  "proc-macro-crate 3.2.0",
- "proc-macro-error",
+ "proc-macro-error2",
  "proc-macro2",
  "quote",
  "sha2 0.10.8",

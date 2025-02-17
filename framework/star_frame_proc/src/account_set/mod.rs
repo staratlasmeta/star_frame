@@ -1,7 +1,7 @@
 use crate::util::{BetterGenerics, Paths};
 use easy_proc::{find_attr, ArgumentList};
 use proc_macro2::TokenStream;
-use proc_macro_error::abort;
+use proc_macro_error2::abort;
 use syn::{Attribute, Data, DeriveInput, Ident, Visibility};
 
 mod generics;

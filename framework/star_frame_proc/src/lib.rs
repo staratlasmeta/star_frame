@@ -11,7 +11,7 @@ mod solana_pubkey;
 mod unsize;
 mod util;
 
-use proc_macro_error::proc_macro_error;
+use proc_macro_error2::proc_macro_error;
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
 use syn::{parse_macro_input, DeriveInput, Item, ItemEnum, ItemImpl, LitStr};

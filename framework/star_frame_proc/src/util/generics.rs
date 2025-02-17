@@ -2,7 +2,7 @@ use crate::util::Paths;
 use derive_more::{Deref, DerefMut};
 use itertools::Itertools;
 use proc_macro2::Span;
-use proc_macro_error::abort;
+use proc_macro_error2::abort;
 use quote::{format_ident, quote, ToTokens};
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;

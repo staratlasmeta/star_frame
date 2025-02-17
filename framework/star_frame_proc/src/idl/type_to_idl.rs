@@ -5,7 +5,7 @@ use crate::util::{
 use easy_proc::{find_attr, ArgumentList};
 use itertools::Itertools;
 use proc_macro2::{Span, TokenStream};
-use proc_macro_error::{abort, OptionExt};
+use proc_macro_error2::{abort, OptionExt};
 use quote::quote;
 use syn::spanned::Spanned;
 use syn::{

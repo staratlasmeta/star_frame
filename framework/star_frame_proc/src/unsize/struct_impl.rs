@@ -12,7 +12,7 @@ use heck::ToUpperCamelCase;
 use itertools::Itertools;
 use proc_macro2::Ident;
 use proc_macro2::TokenStream;
-use proc_macro_error::{abort, abort_call_site, OptionExt};
+use proc_macro_error2::{abort, abort_call_site, OptionExt};
 use quote::{format_ident, quote, ToTokens};
 use syn::{
     parse_quote, Field, Generics, ImplGenerics, ItemStruct, ItemType, Type, TypeGenerics,
