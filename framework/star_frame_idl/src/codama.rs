@@ -1,17 +1,21 @@
 use crate::account::IdlAccount;
+use crate::account_set::{IdlAccountSetDef, IdlAccountSetStructField, IdlSingleAccountSet};
 use crate::instruction::IdlInstruction;
-use crate::seeds::IdlSeed;
+use crate::seeds::{IdlFindSeed, IdlFindSeeds, IdlSeed};
 use crate::ty::{IdlEnumVariant, IdlTypeDef};
-use crate::{IdlDefinition, IdlDiscriminant, ItemInfo};
-use anyhow::{bail, Result};
+use crate::{IdlDefinition, IdlDiscriminant, ItemDescription, ItemInfo};
+use anyhow::{bail, Context, Result};
+pub use codama_nodes::ProgramNode;
 use codama_nodes::{
-    AccountNode, ArrayTypeNode, BooleanTypeNode, BytesTypeNode, BytesValueNode, CamelCaseString,
-    ConstantPdaSeedNode, DefaultValueStrategy, DefinedTypeLinkNode, DefinedTypeNode,
-    DiscriminatorNode, Docs, EnumEmptyVariantTypeNode, EnumTupleVariantTypeNode, EnumTypeNode,
-    EnumVariantTypeNode, FieldDiscriminatorNode, FixedSizeTypeNode, InstructionNode, NumberFormat,
-    NumberTypeNode, OptionTypeNode, PdaLinkNode, PdaNode, PdaSeedNode, ProgramNode,
-    PublicKeyTypeNode, SizePrefixTypeNode, StringTypeNode, StructFieldTypeNode, StructTypeNode,
-    TupleTypeNode, TypeNode, TypeNodeTrait, ValueNode, VariablePdaSeedNode,
+    AccountNode, AccountValueNode, ArgumentValueNode, ArrayTypeNode, BooleanTypeNode,
+    BytesTypeNode, BytesValueNode, CamelCaseString, ConstantPdaSeedNode, DefaultValueStrategy,
+    DefinedTypeLinkNode, DefinedTypeNode, DiscriminatorNode, Docs, EnumEmptyVariantTypeNode,
+    EnumTupleVariantTypeNode, EnumTypeNode, EnumVariantTypeNode, FieldDiscriminatorNode,
+    FixedSizeTypeNode, InstructionAccountNode, InstructionNode, InstructionRemainingAccountsNode,
+    InstructionRemainingAccountsNodeValue, NumberFormat, NumberTypeNode, OptionTypeNode,
+    PdaLinkNode, PdaNode, PdaSeedNode, PdaSeedValueNode, PdaValueNode, ProgramLinkNode,
+    PublicKeyTypeNode, PublicKeyValueNode, SizePrefixTypeNode, StringTypeNode, StructFieldTypeNode,
+    StructTypeNode, TupleTypeNode, TypeNode, TypeNodeTrait, VariablePdaSeedNode,
 };
 use itertools::Itertools;
 
@@ -60,7 +64,7 @@ impl TryFrom<IdlDefinition> for ProgramNode {
     type Error = anyhow::Error;
 
     fn try_from(def: IdlDefinition) -> Result<Self, Self::Error> {
-        let ctx = &mut Context;
+        let ctx = &mut TryToCodamaContext;
 
         let (accounts, maybe_pdas): (_, Vec<_>) = def
             .accounts
@@ -73,7 +77,6 @@ impl TryFrom<IdlDefinition> for ProgramNode {
         let defined_types = def
             .types
             .iter()
-            .chain(def.external_types.iter())
             .filter(|(source, _)| {
                 !def.accounts.contains_key(*source) && !def.instructions.contains_key(*source)
             })
@@ -98,9 +101,9 @@ impl TryFrom<IdlDefinition> for ProgramNode {
             version: def.metadata.crate_metadata.version.to_string(),
             origin: None,
             docs: def.metadata.crate_metadata.docs.clone().into(),
-            defined_types, // done
-            accounts,      // done
-            pdas,          // done, todo: add "ghost-pda" support to star frame IDL definition
+            defined_types,
+            accounts,
+            pdas, // todo: add "ghost-pda" support to star frame IDL definition
             instructions,
             errors: vec![],
         })
@@ -108,13 +111,13 @@ impl TryFrom<IdlDefinition> for ProgramNode {
 }
 
 // todo: potentially add some error handling "context" info that gets passed around
-pub struct Context;
+pub struct TryToCodamaContext;
 
 trait TryToCodama<Output> {
     fn try_to_codama(
         &self,
         idl_definition: &IdlDefinition,
-        context: &mut Context,
+        context: &mut TryToCodamaContext,
     ) -> Result<Output>;
 }
 
@@ -122,17 +125,32 @@ impl TryToCodama<InstructionNode> for IdlInstruction {
     fn try_to_codama(
         &self,
         idl_definition: &IdlDefinition,
-        context: &mut Context,
+        context: &mut TryToCodamaContext,
     ) -> Result<InstructionNode> {
         let idl_type = self.definition.type_id.get_defined(idl_definition)?;
-        let (discriminator_field, discriminator_node) = discriminator_info(&self.discriminant);
+        let TypeNode::Struct(StructTypeNode {
+            fields: struct_fields,
+        }) = idl_type.type_def.try_to_codama(idl_definition, context)?
+        else {
+            bail!(
+                "Only struct account types are supported in Codama at the moment. Found: {:?}",
+                idl_type.type_def
+            );
+        };
 
+        let (discriminator_field, discriminator_node) = discriminator_info(&self.discriminant);
         let mut arguments = vec![discriminator_field.into()];
+        arguments.extend(struct_fields.into_iter().map(Into::into));
+        let (accounts, remaining_accounts) = self
+            .definition
+            .account_set
+            .try_to_codama(idl_definition, context)?;
 
         let instruction_node = InstructionNode {
             name: idl_type.info.codama_name(),
             docs: idl_type.info.codama_docs(),
-            accounts: vec![], // todo
+            accounts,
+            remaining_accounts,
             arguments,
             discriminators: vec![discriminator_node],
             ..Default::default()
@@ -141,26 +159,215 @@ impl TryToCodama<InstructionNode> for IdlInstruction {
     }
 }
 
+type CodamaInstructionInfo = (
+    Vec<InstructionAccountNode>,
+    Vec<InstructionRemainingAccountsNode>,
+);
+
+#[derive(Debug, Clone, Default)]
+struct PathInfo {
+    paths: Vec<String>,
+}
+
+impl PathInfo {
+    fn name(&self) -> CamelCaseString {
+        self.paths.join(" ").into()
+    }
+    fn create_next(&self, name: Option<&str>, index: usize) -> Self {
+        let mut paths = self.clone();
+        let name = name.map(ToString::to_string);
+        paths.paths.push(name.unwrap_or_else(|| index.to_string()));
+        paths
+    }
+}
+
+fn seeds_to_pda_value_node(seeds: &IdlFindSeeds, paths: &PathInfo) -> PdaValueNode {
+    let mut paths = paths.clone();
+    let name = paths.name();
+    paths.paths.pop();
+    let (pda_node_seeds, lookup_seeds): (_, Vec<_>) = seeds
+        .seeds
+        .iter()
+        .enumerate()
+        .map(|(index, seed)| match seed {
+            IdlFindSeed::Const(bytes) => {
+                let value: PdaSeedNode = ConstantPdaSeedNode::new(
+                    BytesTypeNode {},
+                    BytesValueNode::base16(hex::encode(bytes)),
+                )
+                .into();
+                (value, None)
+            }
+            IdlFindSeed::AccountPath(account_path) => {
+                let name = format!("{account_path}{index}");
+                let value = VariablePdaSeedNode::new(name.clone(), PublicKeyTypeNode {}).into();
+                let account_path = paths.create_next(Some(account_path), index);
+                let lookup = PdaSeedValueNode {
+                    name: name.into(),
+                    value: AccountValueNode {
+                        name: account_path.name(),
+                    }
+                    .into(),
+                };
+                (value, Some(lookup))
+            }
+        })
+        .collect();
+
+    PdaValueNode {
+        pda: PdaNode {
+            name,
+            docs: Default::default(),
+            program_id: seeds.program.as_ref().map(ToString::to_string),
+            seeds: pda_node_seeds,
+        }
+        .into(),
+        seeds: lookup_seeds.into_iter().flatten().collect(),
+    }
+}
+
+fn single_set_to_account_node(
+    single_set: &IdlSingleAccountSet,
+    paths: &PathInfo,
+    description: &ItemDescription,
+) -> InstructionAccountNode {
+    let default_value = match (single_set.address, &single_set.seeds) {
+        (Some(address), _) => Some(PublicKeyValueNode::new(address.to_string()).into()),
+        (None, Some(seeds)) => Some(seeds_to_pda_value_node(seeds, paths).into()),
+        _ => None,
+    };
+    InstructionAccountNode {
+        name: paths.name(),
+        is_writable: single_set.writable,
+        is_signer: single_set.signer.into(),
+        is_optional: single_set.optional,
+        docs: (*description).clone().into(),
+        default_value,
+    }
+}
+
+fn instruction_account_to_remaining(
+    account: InstructionAccountNode,
+) -> Result<InstructionRemainingAccountsNode> {
+    if account.default_value.is_some() {
+        bail!(
+            "Remaining accounts cannot have default values: {:?}",
+            account
+        );
+    }
+    Ok(InstructionRemainingAccountsNode {
+        is_optional: account.is_optional,
+        is_signer: account.is_signer,
+        is_writable: account.is_writable,
+        docs: account.docs,
+        value: InstructionRemainingAccountsNodeValue::Argument(ArgumentValueNode {
+            name: account.name,
+        }),
+    })
+}
+
+impl TryToCodama<CodamaInstructionInfo> for (&IdlAccountSetStructField, &PathInfo) {
+    fn try_to_codama(
+        &self,
+        idl_definition: &IdlDefinition,
+        context: &mut TryToCodamaContext,
+    ) -> Result<CodamaInstructionInfo> {
+        let (field, paths) = self;
+        let account_set_def = &field.account_set_def;
+        let def = match account_set_def {
+            IdlAccountSetDef::Defined(_) => {
+                let set = account_set_def.get_defined(idl_definition)?;
+                (&set.account_set_def, *paths).try_to_codama(idl_definition, context)?
+            }
+            IdlAccountSetDef::Single(single_set) => {
+                let single = single_set_to_account_node(single_set, paths, &field.description);
+                (vec![single], vec![])
+            }
+            IdlAccountSetDef::Many { account_set, .. } => {
+                let mut set: IdlAccountSetDef = account_set.as_ref().clone();
+                let single = set
+                    .single()
+                    .context("Many sets must be made of single sets for Codama")?;
+                let single = single_set_to_account_node(single, paths, &field.description);
+                let remaining = instruction_account_to_remaining(single)?;
+                (vec![], vec![remaining])
+            }
+            IdlAccountSetDef::Struct(_) | IdlAccountSetDef::Or(_) => {
+                return (account_set_def, *paths).try_to_codama(idl_definition, context)
+            }
+        };
+        Ok(def)
+    }
+}
+
+impl TryToCodama<CodamaInstructionInfo> for (&IdlAccountSetDef, &PathInfo) {
+    fn try_to_codama(
+        &self,
+        idl_definition: &IdlDefinition,
+        _context: &mut TryToCodamaContext,
+    ) -> Result<CodamaInstructionInfo> {
+        let (account_set_def, paths) = self;
+        let fields = match account_set_def {
+            IdlAccountSetDef::Defined(_) => {
+                let set = account_set_def.get_defined(idl_definition)?;
+                (&set.account_set_def, *paths).try_to_codama(idl_definition, _context)?
+            }
+            IdlAccountSetDef::Struct(struct_fields) => {
+                let mut fields = vec![];
+                let mut remaining = vec![];
+                for (index, field) in struct_fields.iter().enumerate() {
+                    let new_path = paths.create_next(field.path.as_deref(), index);
+                    let (new_fields, new_remaining) =
+                        (field, &new_path).try_to_codama(idl_definition, _context)?;
+                    if !remaining.is_empty() && !new_fields.is_empty() {
+                        bail!("All `Many` account sets must come at the end of the instruction's AccountSet");
+                    }
+                    fields.extend(new_fields);
+                    remaining.extend(new_remaining);
+                }
+                (fields, remaining)
+            }
+            _ => bail!(
+                "Only struct account sets are supported with Codama: {:?}",
+                self
+            ),
+        };
+        Ok(fields)
+    }
+}
+
+impl TryToCodama<CodamaInstructionInfo> for IdlAccountSetDef {
+    fn try_to_codama(
+        &self,
+        idl_definition: &IdlDefinition,
+        context: &mut TryToCodamaContext,
+    ) -> Result<CodamaInstructionInfo> {
+        (self, &PathInfo::default()).try_to_codama(idl_definition, context)
+    }
+}
+
 impl TryToCodama<PdaSeedNode> for IdlSeed {
     fn try_to_codama(
         &self,
         idl_definition: &IdlDefinition,
-        context: &mut Context,
+        context: &mut TryToCodamaContext,
     ) -> Result<PdaSeedNode> {
         let res = match self {
-            IdlSeed::Const(bytes) => PdaSeedNode::Constant(ConstantPdaSeedNode {
-                r#type: TypeNode::Bytes(BytesTypeNode {}),
-                value: ValueNode::Bytes(BytesValueNode::base16(hex::encode(bytes))),
-            }),
+            IdlSeed::Const(bytes) => ConstantPdaSeedNode::new(
+                BytesTypeNode {},
+                BytesValueNode::base16(hex::encode(bytes)),
+            )
+            .into(),
             IdlSeed::Variable {
                 name,
                 description,
                 ty,
-            } => PdaSeedNode::Variable(VariablePdaSeedNode {
+            } => VariablePdaSeedNode {
                 name: name.as_str().into(),
                 docs: description.clone().into(),
                 r#type: ty.try_to_codama(idl_definition, context)?,
-            }),
+            }
+            .into(),
         };
         Ok(res)
     }
@@ -170,7 +377,7 @@ impl TryToCodama<(AccountNode, Option<PdaNode>)> for IdlAccount {
     fn try_to_codama(
         &self,
         idl_definition: &IdlDefinition,
-        context: &mut Context,
+        context: &mut TryToCodamaContext,
     ) -> Result<(AccountNode, Option<PdaNode>)> {
         let defined_account = self.type_id.get_defined(idl_definition)?;
 
@@ -223,16 +430,27 @@ impl TryToCodama<(AccountNode, Option<PdaNode>)> for IdlAccount {
 }
 
 impl TryToCodama<TypeNode> for IdlTypeDef {
-    fn try_to_codama(&self, idl_def: &IdlDefinition, _context: &mut Context) -> Result<TypeNode> {
+    fn try_to_codama(
+        &self,
+        idl_def: &IdlDefinition,
+        _context: &mut TryToCodamaContext,
+    ) -> Result<TypeNode> {
         use NumberFormat as Num;
         fn number(format: Num) -> TypeNode {
             NumberTypeNode::le(format).into_type_node()
         }
         let node = match self {
-            IdlTypeDef::Defined(ty) => TypeNode::Link(DefinedTypeLinkNode {
-                name: ty.get_defined(idl_def)?.info.name.as_str().into(),
-                program: None,
-            }),
+            IdlTypeDef::Defined(ty) => {
+                // todo: Right now if we're linking external types this may break if the external type is actually an account.
+                //  Codama needs to have accounts be DefinedTypeLinkNodes first or a discriminator will magically appear in any
+                //  of these types
+                let defined = ty.get_defined(idl_def)?;
+                let name = defined.info.codama_name();
+                let program = ty.namespace.map(|namespace| ProgramLinkNode {
+                    name: namespace.to_string().into(),
+                });
+                TypeNode::Link(DefinedTypeLinkNode { name, program })
+            }
             IdlTypeDef::Bool => BooleanTypeNode::default().into_type_node(),
             IdlTypeDef::U8 => number(Num::U8),
             IdlTypeDef::I8 => number(Num::I8),
@@ -299,7 +517,7 @@ impl TryToCodama<EnumVariantTypeNode> for IdlEnumVariant {
     fn try_to_codama(
         &self,
         idl_definition: &IdlDefinition,
-        _context: &mut Context,
+        _context: &mut TryToCodamaContext,
     ) -> Result<EnumVariantTypeNode> {
         let discriminator = Some(discriminant_to_usize(&self.discriminant)?);
         let name = self.name.as_str().into();

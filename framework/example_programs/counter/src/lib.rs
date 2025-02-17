@@ -5,7 +5,7 @@ use star_frame::empty_star_frame_instruction;
 use star_frame::prelude::*;
 use star_frame::solana_program::pubkey::Pubkey;
 
-#[derive(Align1, Pod, Zeroable, Copy, Clone, Debug, Eq, PartialEq, ProgramAccount)]
+#[derive(Align1, Pod, Zeroable, Default, Copy, Clone, Debug, Eq, PartialEq, ProgramAccount)]
 #[program_account(seeds = CounterAccountSeeds)]
 #[repr(C, packed)]
 pub struct CounterAccount {
@@ -201,24 +201,19 @@ pub struct CounterProgram;
 mod tests {
     use super::*;
     use bytemuck::checked::try_from_bytes;
+    use codama_nodes::{NodeTrait, ProgramNode};
     use solana_program_test::*;
     use solana_sdk::signature::{Keypair, Signer};
     use solana_sdk::transaction::Transaction;
-    use std::fs;
 
     #[cfg(feature = "idl")]
     #[test]
-    fn idl_test() {
-        let idl = CounterProgram::program_to_idl().unwrap();
-        fs::write(
-            "idl.json",
-            star_frame::serde_json::to_string_pretty(&idl).unwrap(),
-        )
-        .unwrap();
-        println!(
-            "{}",
-            star_frame::serde_json::to_string_pretty(&idl).unwrap()
-        );
+    fn generate_idl() -> Result<()> {
+        let idl = StarFrameDeclaredProgram::program_to_idl()?;
+        let codama_idl: ProgramNode = idl.try_into()?;
+        let idl_json = codama_idl.to_json()?;
+        println!("{idl_json}");
+        Ok(())
     }
 
     #[tokio::test]

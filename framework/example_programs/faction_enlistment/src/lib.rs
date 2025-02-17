@@ -1,3 +1,4 @@
+use counter::CounterAccount;
 use star_frame::borsh;
 use star_frame::borsh::{BorshDeserialize, BorshSerialize};
 use star_frame::prelude::*;
@@ -93,6 +94,7 @@ impl StarFrameInstruction for ProcessEnlistPlayerIx {
             owner: *account_set.player_account.key,
             enlisted_at_timestamp: clock.unix_timestamp,
             faction_id,
+            counter: Default::default(),
             bump,
             _padding: [0; 5],
         };
@@ -155,6 +157,19 @@ pub struct PlayerFactionData {
     pub enlisted_at_timestamp: i64,
     pub faction_id: FactionId,
     pub bump: u8,
+    pub counter: CounterAccount,
+    pub _padding: [u64; 5],
+    #[unsized_start]
+    some_fields: SomeFields,
+}
+
+#[unsized_type(program_account, seeds = PlayerFactionAccountSeeds, owned_attributes = [derive(PartialEq, Eq, Clone)]
+)]
+pub struct PlayerFactionData2 {
+    pub owner: Pubkey,
+    pub enlisted_at_timestamp: i64,
+    pub faction_id: FactionId,
+    pub bump: u8,
     pub _padding: [u64; 5],
     #[unsized_start]
     some_fields: SomeFields,
@@ -202,7 +217,10 @@ mod tests {
     #[cfg(feature = "idl")]
     #[test]
     fn idl() {
-        let idl = FactionEnlistment::program_to_idl().unwrap();
+        let idl: star_frame::star_frame_idl::ProgramNode = FactionEnlistment::program_to_idl()
+            .unwrap()
+            .try_into()
+            .unwrap();
         println!(
             "{}",
             star_frame::serde_json::to_string_pretty(&idl).unwrap()
@@ -286,6 +304,7 @@ mod tests {
             owner: player_account.pubkey(),
             enlisted_at_timestamp: clock.unix_timestamp,
             faction_id,
+            counter: Default::default(),
             bump,
             _padding: [0; 5],
             some_fields: SomeFieldsOwned {

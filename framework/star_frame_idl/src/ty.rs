@@ -2,7 +2,7 @@ use crate::{
     serde_base58_pubkey_option, IdlDefinition, IdlDiscriminant, ItemDescription, ItemSource,
 };
 use crate::{IdlGeneric, ItemInfo};
-use anyhow::bail;
+use anyhow::{bail, Context};
 use serde::{Deserialize, Serialize};
 use solana_program::pubkey::Pubkey;
 
@@ -80,13 +80,9 @@ impl IdlTypeId {
         &self,
         idl_definition: &'a IdlDefinition,
     ) -> anyhow::Result<&'a IdlType> {
-        if idl_definition.types.contains_key(&self.source) {
-            Ok(&idl_definition.types[&self.source])
-        } else if idl_definition.external_types.contains_key(&self.source) {
-            Ok(&idl_definition.external_types[&self.source])
-        } else {
-            bail!("Type not found in idl definition")
-        }
+        idl_definition
+            .get_type(&self.source)
+            .context("Type not found in idl definition")
     }
 }
 
