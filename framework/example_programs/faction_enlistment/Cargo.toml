@@ -18,6 +18,7 @@ idl = ["star_frame/idl", "star_frame_spl/idl"]
 [dependencies]
 star_frame = { workspace = true }
 star_frame_spl.workspace = true
+counter = { path = "../counter" }
 bytemuck.workspace = true
 
 [dev-dependencies]

@@ -3,7 +3,7 @@ use easy_proc::ArgumentList;
 use heck::ToUpperCamelCase;
 use itertools::{Either, Itertools};
 use proc_macro2::{Ident, TokenStream};
-use proc_macro_error::abort;
+use proc_macro_error2::abort;
 use quote::{format_ident, quote};
 use syn::{
     parse_quote, FnArg, ImplItem, ImplItemFn, ItemImpl, LitStr, Signature, Type, Visibility,

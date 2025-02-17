@@ -1,6 +1,7 @@
 use crate::serde_base58_pubkey_option;
 use crate::ty::IdlTypeDef;
 use crate::ItemDescription;
+use derive_more::{Deref, DerefMut};
 use serde::{Deserialize, Serialize};
 use solana_program::pubkey::Pubkey;
 
@@ -27,7 +28,7 @@ pub enum IdlFindSeed {
     AccountPath(String),
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Deref, DerefMut, Clone, Debug, PartialEq, Eq)]
 pub struct IdlSeeds(pub Vec<IdlSeed>);
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]

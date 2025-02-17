@@ -7,6 +7,10 @@ pub mod account_set;
 mod anchor;
 #[cfg(feature = "anchor")]
 pub use anchor::*;
+#[cfg(feature = "codama")]
+mod codama;
+#[cfg(feature = "codama")]
+pub use codama::*;
 pub mod instruction;
 pub mod seeds;
 pub mod serde_impls;
@@ -64,6 +68,7 @@ pub struct IdlMetadata {
     pub idl_spec: Version,
     #[serde(flatten)]
     pub crate_metadata: CrateMetadata,
+    #[serde(skip_serializing_if = "crate::is_default", default)]
     // todo: figure out required_idl_definitions
     pub required_idl_definitions: HashMap<String, IdlDefinitionReference>,
 }
@@ -75,9 +80,13 @@ pub struct CrateMetadata {
     /// Name of the program
     pub name: String,
     pub docs: ItemDescription,
+    #[serde(skip_serializing_if = "crate::is_default", default)]
     pub description: Option<String>,
+    #[serde(skip_serializing_if = "crate::is_default", default)]
     pub homepage: Option<String>,
+    #[serde(skip_serializing_if = "crate::is_default", default)]
     pub license: Option<String>,
+    #[serde(skip_serializing_if = "crate::is_default", default)]
     pub repository: Option<String>,
 }
 
@@ -204,8 +213,6 @@ pub fn item_source<T: ?Sized>() -> String {
 }
 
 // Serde helper function
-// todo: figure out what to serde is_default
-#[allow(dead_code)]
 fn is_default<T: Default + PartialEq>(t: &T) -> bool {
     t == &T::default()
 }

@@ -4,7 +4,7 @@ use crate::util::{new_generic, BetterGenerics, Paths};
 use easy_proc::{find_attrs, ArgumentList};
 use itertools::Itertools;
 use proc_macro2::TokenStream;
-use proc_macro_error::abort;
+use proc_macro_error2::abort;
 use quote::quote;
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};

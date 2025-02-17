@@ -2,7 +2,7 @@ use crate::util::GetGenerics;
 use easy_proc::ArgumentList;
 use itertools::Itertools;
 use proc_macro2::TokenStream;
-use proc_macro_error::abort;
+use proc_macro_error2::abort;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::token::Bracket;

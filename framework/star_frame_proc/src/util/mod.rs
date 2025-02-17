@@ -11,7 +11,7 @@ use easy_proc::find_attr;
 use itertools::Itertools;
 use proc_macro2::{Ident, TokenStream};
 use proc_macro_crate::{crate_name, FoundCrate};
-use proc_macro_error::abort;
+use proc_macro_error2::abort;
 use quote::{format_ident, quote, ToTokens};
 use std::fmt::Debug;
 use syn::punctuated::Punctuated;

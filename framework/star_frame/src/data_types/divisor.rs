@@ -112,3 +112,22 @@ where
         Ok(Self(T::deserialize_reader(reader)?))
     }
 }
+
+#[cfg(all(feature = "idl", not(target_os = "solana")))]
+mod idl_impl {
+    use super::*;
+    use crate::idl::TypeToIdl;
+    use star_frame_idl::ty::IdlTypeDef;
+    use star_frame_idl::IdlDefinition;
+
+    impl<T, const DIV: u32> TypeToIdl for Divisor<T, DIV>
+    where
+        T: TypeToIdl,
+    {
+        type AssociatedProgram = T::AssociatedProgram;
+
+        fn type_to_idl(idl_definition: &mut IdlDefinition) -> anyhow::Result<IdlTypeDef> {
+            T::type_to_idl(idl_definition)
+        }
+    }
+}

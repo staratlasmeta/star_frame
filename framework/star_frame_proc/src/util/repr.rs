@@ -3,7 +3,7 @@
 // Modified to use `proc_macro_errors` style instead of results and rejects invalid repr combinations.
 
 use proc_macro2::{Ident, Span, TokenStream};
-use proc_macro_error::abort;
+use proc_macro_error2::abort;
 use quote::{quote, ToTokens};
 use std::cmp;
 use syn::parse::{Parse, ParseStream};

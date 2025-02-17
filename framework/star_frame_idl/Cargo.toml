@@ -6,19 +6,23 @@ publish.workspace = true
 rust-version.workspace = true
 
 [features]
-default = ["anchor"]
+default = ["anchor", "codama"]
 verifier = []
 anchor = ["anchor-lang-idl-spec"]
+codama = ["codama-nodes", "hex"]
 
 [dependencies]
 # verifier
 anchor-lang-idl-spec = { workspace = true, optional = true }
+codama-nodes = { workspace = true, optional = true }
+hex = { workspace = true, optional = true }
 anyhow = { workspace = true }
 derivative = { workspace = true }
 derive_more = { workspace = true }
 serde = { workspace = true }
 solana-program = { workspace = true }
 semver = { workspace = true }
+itertools = { workspace = true }
 
 [dev-dependencies]
 rand = { workspace = true }

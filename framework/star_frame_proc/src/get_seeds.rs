@@ -1,7 +1,7 @@
 use crate::util::{get_docs, Paths};
 use easy_proc::{find_attr, ArgumentList};
 use proc_macro2::TokenStream;
-use proc_macro_error::abort;
+use proc_macro_error2::abort;
 use quote::{format_ident, quote};
 use syn::{parse_quote, Data, DeriveInput, Expr};
 

@@ -95,6 +95,8 @@ pub mod borsh_bytemuck {
     use crate::align1::Align1;
     use bytemuck::{CheckedBitPattern, NoUninit};
     use std::io::{Read, Write};
+    use std::mem::{size_of, MaybeUninit};
+    use std::ptr;
 
     /// Custom `serialize_with` override for [`borsh::BorshSerialize`] that uses [`bytemuck`] to serialize.
     /// This is intended for packed structs that are probably used in account data.
@@ -132,11 +134,19 @@ pub mod borsh_bytemuck {
     pub fn deserialize<R: Read, P: NoUninit + CheckedBitPattern + Align1>(
         reader: &mut R,
     ) -> std::io::Result<P> {
-        let mut value_bytes = vec![0; std::mem::size_of::<P>()];
-        reader.read_exact(&mut value_bytes)?;
-        let value: &P = bytemuck::checked::try_from_bytes(&value_bytes)
+        let mut buffer = MaybeUninit::<P>::uninit();
+        let bytes =
+            unsafe { &mut *ptr::from_raw_parts_mut(buffer.as_mut_ptr().cast(), size_of::<P>()) };
+        reader.read_exact(bytes)?;
+        bytemuck::checked::try_from_bytes::<P>(bytes)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
-        Ok(*value)
+        Ok(unsafe { buffer.assume_init() })
+        //
+        // let mut value_bytes = vec![0; std::mem::size_of::<P>()];
+        // reader.read_exact(&mut value_bytes)?;
+        // let value: &P = bytemuck::checked::try_from_bytes(&value_bytes)
+        //     .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+        // Ok(*value)
     }
 }
 

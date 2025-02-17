@@ -1,6 +1,6 @@
 use itertools::Itertools;
 use proc_macro2::TokenStream;
-use proc_macro_error::abort;
+use proc_macro_error2::abort;
 use sha2::{Digest, Sha256};
 use std::str::FromStr;
 use syn::punctuated::Punctuated;
