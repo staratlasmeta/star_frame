@@ -29,10 +29,10 @@ pub(crate) fn unsized_type_enum_impl(
     item_enum: ItemEnum,
     unsized_args: UnsizedTypeArgs,
 ) -> TokenStream {
-    let context = UnsizedEnumContext::parse(item_enum);
+    let context = UnsizedEnumContext::parse(item_enum, unsized_args);
     let enum_struct = context.enum_struct();
     let discriminant_enum = context.discriminant_enum();
-    let owned_enum = context.owned_enum(&unsized_args);
+    let owned_enum = context.owned_enum();
     let meta_enum = context.meta_enum();
     let ref_wrapper_enum = context.ref_wrapper_enum();
     let variant_structs = context.variant_structs();
@@ -41,7 +41,7 @@ pub(crate) fn unsized_type_enum_impl(
     let enum_trait = context.unsized_enum_impl();
     let unsized_type_impl = context.unsized_type_impl();
     let ext_trait_impl = context.ext_trait_impl();
-    let idl_impl = context.idl_impl(&unsized_args);
+    let idl_impl = context.idl_impl();
 
     quote! {
         #enum_struct
@@ -76,10 +76,11 @@ pub struct UnsizedEnumContext {
     variant_struct_idents: Vec<Ident>,
     variant_struct_types: Vec<Type>,
     init_idents: Vec<Ident>,
+    args: UnsizedTypeArgs,
 }
 
 impl UnsizedEnumContext {
-    fn parse(item_enum: ItemEnum) -> Self {
+    fn parse(item_enum: ItemEnum, args: UnsizedTypeArgs) -> Self {
         restrict_attributes(&item_enum, &["default_init", "doc"]);
         let (_, ty_generics, _) = item_enum.generics.split_for_impl();
         let enum_ident = item_enum.ident.clone();
@@ -90,6 +91,14 @@ impl UnsizedEnumContext {
         let meta_type = parse_quote!(#meta_ident #ty_generics);
         let owned_ident = format_ident!("{enum_ident}Owned");
         let owned_type = parse_quote!(#owned_ident #ty_generics);
+
+        if !args.sized_attributes.attributes.is_empty() {
+            abort!(
+                args.sized_attributes,
+                "Unsized enums may not have `sized_attriubtes`"
+            );
+        }
+
         let variant_types = item_enum
             .variants
             .iter()
@@ -152,6 +161,7 @@ impl UnsizedEnumContext {
             init_idents,
             variant_struct_idents,
             variant_struct_types,
+            args,
         }
     }
 
@@ -215,9 +225,9 @@ impl UnsizedEnumContext {
         }
     }
 
-    fn owned_enum(&self, args: &UnsizedTypeArgs) -> ItemEnum {
+    fn owned_enum(&self) -> ItemEnum {
         Paths!(prelude, debug);
-        UnsizedEnumContext!(self => owned_ident, variant_idents, variant_types, variant_docs);
+        UnsizedEnumContext!(self => owned_ident, variant_idents, variant_types, variant_docs, args);
         let additional_owned = args.owned_attributes.attributes.iter();
         let (impl_gen, _, wc) = self.split_for_impl();
 
@@ -547,7 +557,7 @@ impl UnsizedEnumContext {
         }
     }
 
-    fn idl_impl(&self, args: &UnsizedTypeArgs) -> TokenStream {
-        account_impl(&self.item_enum.clone().into(), args)
+    fn idl_impl(&self) -> TokenStream {
+        account_impl(&self.item_enum.clone().into(), &self.args)
     }
 }

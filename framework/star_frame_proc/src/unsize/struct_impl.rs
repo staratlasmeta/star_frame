@@ -40,7 +40,8 @@ pub(crate) fn unsized_type_struct_impl(
     item_struct: ItemStruct,
     unsized_args: UnsizedTypeArgs,
 ) -> TokenStream {
-    let context = UnsizedStructContext::parse(item_struct, &unsized_args);
+    let context = UnsizedStructContext::parse(item_struct, unsized_args);
+
     // println!("After context!");
     let main_struct = context.main_struct();
     // println!("After main_struct!");
@@ -50,7 +51,7 @@ pub(crate) fn unsized_type_struct_impl(
     // println!("After ref_struct!");
     let meta_struct = context.meta_struct();
     // println!("After meta_struct!");
-    let owned_struct = context.owned_struct(&unsized_args);
+    let owned_struct = context.owned_struct();
     // println!("After owned_struct!");
     let sized_struct = context.sized_struct();
     // println!("After sized_struct!");
@@ -70,8 +71,7 @@ pub(crate) fn unsized_type_struct_impl(
     // println!("After init_struct_impl!");
     let extension_impl = context.extension_impl();
     // println!("After extension_impl!");
-
-    let account_impl = account::account_impl(&context.account_item_struct.into(), &unsized_args);
+    let account_impl = account::account_impl(&context.account_item_struct.into(), &context.args);
 
     quote! {
         #main_struct
@@ -116,10 +116,11 @@ pub struct UnsizedStructContext {
     sized_field_types: Vec<Type>,
     unsized_field_idents: Vec<Ident>,
     unsized_field_types: Vec<Type>,
+    args: UnsizedTypeArgs,
 }
 
 impl UnsizedStructContext {
-    fn parse(mut item_struct: ItemStruct, args: &UnsizedTypeArgs) -> Self {
+    fn parse(mut item_struct: ItemStruct, args: UnsizedTypeArgs) -> Self {
         let unsized_start =
             strip_inner_attributes(&mut item_struct, "unsized_start").collect::<Vec<_>>();
         reject_attributes(
@@ -130,10 +131,11 @@ impl UnsizedStructContext {
         let account_item_struct = item_struct.clone();
         strip_inner_attributes(&mut item_struct, &Paths::default().type_to_idl_args_ident)
             .for_each(drop);
-        restrict_attributes(&item_struct, &["unsized_start", "type_to_idl", "doc"]);
+
         if unsized_start.is_empty() {
             abort!(item_struct, "No `unsized_start` attribute found");
         }
+        restrict_attributes(&item_struct, &["unsized_start", "type_to_idl", "doc"]);
         if unsized_start.len() > 1 {
             abort!(
                 unsized_start[1].attribute,
@@ -220,6 +222,7 @@ impl UnsizedStructContext {
             sized_field_types,
             unsized_field_idents,
             unsized_field_types,
+            args,
         }
     }
 
@@ -278,18 +281,16 @@ impl UnsizedStructContext {
         }
     }
 
-    fn owned_struct(&self, args: &UnsizedTypeArgs) -> ItemStruct {
+    fn owned_struct(&self) -> ItemStruct {
         Paths!(prelude, debug);
         UnsizedStructContext!(self => vis, owned_ident, owned_fields);
-        let additional_attributes = args.owned_attributes.attributes.iter();
+        let additional_attributes = self.args.owned_attributes.attributes.iter();
 
         let (impl_gen, _, where_clause) = self.split_for_impl();
 
         parse_quote! {
+            #(#[#additional_attributes])*
             #[#prelude::derivative(#debug)]
-            #(
-                #[#additional_attributes]
-            )*
             #vis struct #owned_ident #impl_gen #where_clause {
                 #(#owned_fields,)*
             }
@@ -300,12 +301,14 @@ impl UnsizedStructContext {
         Paths!(prelude, debug, bytemuck, copy, clone, partial_eq, eq);
         UnsizedStructContext!(self => vis, sized_ident, sized_fields);
         some_or_return!(sized_ident);
+        let additional_attributes = self.args.sized_attributes.attributes.iter();
 
         let sized_bytemuck_derives = self.generics().params.is_empty().then_some(
             quote!(#bytemuck::CheckedBitPattern, #bytemuck::NoUninit, #bytemuck::Zeroable),
         );
         let (impl_gen, _, where_clause) = self.split_for_impl();
         let sized_struct: ItemStruct = parse_quote! {
+            #(#[#additional_attributes])*
             #[#prelude::derivative(#copy, #clone, #debug, #partial_eq, #eq)]
             #[derive(#prelude::Align1, #sized_bytemuck_derives)]
             #[repr(C, packed)]
