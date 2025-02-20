@@ -163,17 +163,25 @@ fn new_generic_inner<G: GetGenerics>(generics: &G, extra_idents: &[Ident]) -> Id
         .const_params()
         .map(|c| c.ident.clone())
         .collect::<Vec<_>>();
-    let mut new_generic = "A".to_string();
-    while type_idents
-        .iter()
-        .chain(const_idents.iter())
-        .chain(extra_idents.iter())
-        .map(ToString::to_string)
-        .any(|g| g == new_generic)
-    {
-        new_generic.push('_');
+    new_ident(
+        "A",
+        type_idents
+            .iter()
+            .chain(const_idents.iter())
+            .chain(extra_idents.iter()),
+    )
+}
+
+pub fn new_ident<'s, 'i>(
+    ident_start: &'s str,
+    existing: impl IntoIterator<Item = &'i Ident>,
+) -> Ident {
+    let mut new_ident = ident_start.to_string();
+    let existing = existing.into_iter().map(|i| i.to_string()).collect_vec();
+    while existing.iter().any(|g| g == &new_ident) {
+        new_ident.push('_');
     }
-    format_ident!("{new_generic}")
+    Ident::new(&new_ident, Span::call_site())
 }
 
 pub fn new_generic<G: GetGenerics>(generics: &G) -> Ident {

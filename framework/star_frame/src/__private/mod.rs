@@ -13,7 +13,7 @@ pub mod macro_prelude {
         Instruction, InstructionDiscriminant, InstructionSet, StarFrameInstruction,
     };
     pub use crate::program::StarFrameProgram;
-    pub use crate::sighash;
+
     pub use crate::syscalls::{SyscallAccountCache, SyscallInvoke};
     pub use crate::unsize::{
         AsBytes, AsMutBytes, DefaultInit, FromBytesReturn, RefBytes, RefBytesMut, RefDeref,
@@ -22,6 +22,7 @@ pub mod macro_prelude {
         {CombinedExt, CombinedRef, CombinedUnsized, RefWrapperT, RefWrapperU},
     };
     pub use crate::Result;
+    pub use star_frame_proc::{derivative, sighash};
 
     #[cfg(all(feature = "idl", not(target_os = "solana")))]
     pub use crate::{

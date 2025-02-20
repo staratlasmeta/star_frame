@@ -40,6 +40,8 @@ pub struct UnsizedTypeArgs {
     pub program_account: bool,
     #[argument(presence)]
     pub skip_idl: bool,
+    #[argument(presence)]
+    pub skip_phantom_generics: bool,
     pub program: Option<Type>,
     pub seeds: Option<Type>,
     pub discriminant: Option<Expr>,
