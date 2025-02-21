@@ -58,4 +58,8 @@ where
     pub fn mutable(&mut self) -> Result<RefWrapper<&mut Vec<u8>, T::RefData>> {
         T::from_bytes(&mut self.bytes).map(|r| r.ref_wrapper)
     }
+
+    pub fn owned(&self) -> Result<T::Owned> {
+        T::owned(self.immut()?)
+    }
 }
