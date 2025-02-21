@@ -238,7 +238,7 @@ where
             let bytes = sup.as_mut_bytes()?;
             let start_ptr = addr_of_mut!(bytes[old_t_len]);
             let end_ptr = addr_of_mut!(bytes[new_byte_len]);
-            unsafe { sol_memmove(start_ptr, end_ptr, byte_len) }
+            unsafe { sol_memmove(end_ptr, start_ptr, byte_len) }
             unsafe { sup.resize(new_byte_len + byte_len, r.0)? }
         }
 
