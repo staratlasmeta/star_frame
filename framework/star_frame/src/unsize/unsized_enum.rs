@@ -15,7 +15,7 @@ pub trait UnsizedEnum: UnsizedType {
     #[inline]
     fn discriminant_from_bytes<S: AsBytes>(super_ref: &S) -> anyhow::Result<&Self::Discriminant> {
         Ok(try_from_bytes(
-            &super_ref.as_bytes()?[..size_of::<Self::Discriminant>()],
+            &AsBytes::as_bytes(super_ref)?[..size_of::<Self::Discriminant>()],
         )?)
     }
 
@@ -118,25 +118,25 @@ pub unsafe trait UnsizedEnumVariant: Sized + Default {
         Self::InnerType: UnsizedInit<I>,
     {
         unsafe {
-            let current_meta = *r.r();
-            let sup = r.sup_mut();
-            sup.resize(
+            let current_meta = *RefWrapperTypes::r(&r);
+            let sup = RefWrapperMutExt::sup_mut(&mut r);
+            Resize::resize(
+                sup,
                 size_of::<<Self::UnsizedEnum as UnsizedEnum>::Discriminant>()
                     + <Self::InnerType as UnsizedInit<I>>::INIT_BYTES,
                 current_meta,
             )?;
-            sup.as_mut_bytes()?[..size_of::<<Self::UnsizedEnum as UnsizedEnum>::Discriminant>()]
+            AsMutBytes::as_mut_bytes(sup)?
+                [..size_of::<<Self::UnsizedEnum as UnsizedEnum>::Discriminant>()]
                 .copy_from_slice(bytes_of(&Self::DISCRIMINANT));
         }
         let (mut r, m) = unsafe {
             <Self::InnerType as UnsizedInit<I>>::init(RefWrapper::new(r, Self::default()), init)?
         };
         unsafe {
-            r.sup_mut()
-                .sup_mut()
-                .sup_mut()
-                .set_meta(Self::new_meta(m))?;
-            *r.sup_mut().sup_mut().r_mut() = Self::new_meta(m);
+            let sup2 = RefWrapperMutExt::sup_mut(RefWrapperMutExt::sup_mut(&mut r));
+            Resize::set_meta(RefWrapperMutExt::sup_mut(sup2), Self::new_meta(m))?;
+            *RefWrapperMutExt::r_mut(sup2) = Self::new_meta(m);
         }
         Ok(r)
     }
@@ -151,7 +151,8 @@ pub unsafe trait UnsizedEnumVariant: Sized + Default {
         S: AsMutBytes,
         Self::InnerType: UnsizedInit<I>,
     {
-        super_ref.as_mut_bytes()?[..size_of::<<Self::UnsizedEnum as UnsizedEnum>::Discriminant>()]
+        unsafe { AsMutBytes::as_mut_bytes(&mut super_ref) }?
+            [..size_of::<<Self::UnsizedEnum as UnsizedEnum>::Discriminant>()]
             .copy_from_slice(bytes_of(&Self::DISCRIMINANT));
         let (_, ref_meta) = unsafe {
             <Self::InnerType as UnsizedInit<I>>::init(
@@ -179,12 +180,12 @@ where
         new_meta: <T::InnerType as UnsizedType>::RefMeta,
     ) -> anyhow::Result<()> {
         let meta = T::new_meta(new_meta);
-        *unsafe { wrapper.sup_mut().r_mut() } = meta;
+        *unsafe { RefWrapperMutExt::r_mut(RefWrapperMutExt::sup_mut(wrapper)) } = meta;
+        let new_byte_len =
+            size_of::<<T::UnsizedEnum as UnsizedEnum>::Discriminant>() + new_byte_len;
         unsafe {
-            wrapper.sup_mut().sup_mut().resize(
-                size_of::<<T::UnsizedEnum as UnsizedEnum>::Discriminant>() + new_byte_len,
-                meta,
-            )
+            let sups = RefWrapperMutExt::sup_mut(RefWrapperMutExt::sup_mut(wrapper));
+            Resize::resize(sups, new_byte_len, meta)
         }
     }
 
@@ -194,8 +195,9 @@ where
     ) -> anyhow::Result<()> {
         unsafe {
             let meta = T::new_meta(new_meta);
-            *wrapper.sup_mut().r_mut() = meta;
-            wrapper.sup_mut().sup_mut().set_meta(meta)
+            let sup = RefWrapperMutExt::sup_mut(wrapper);
+            *RefWrapperMutExt::r_mut(sup) = meta;
+            Resize::set_meta(RefWrapperMutExt::sup_mut(sup), meta)
         }
     }
 }
@@ -207,7 +209,7 @@ where
     S::Super: AsBytes,
 {
     fn bytes(wrapper: &RefWrapper<S, Self>) -> anyhow::Result<&[u8]> {
-        let mut bytes = wrapper.sup().sup().as_bytes()?;
+        let mut bytes = AsBytes::as_bytes(RefWrapperTypes::sup(RefWrapperTypes::sup(wrapper)))?;
         bytes.advance(size_of::<<T::UnsizedEnum as UnsizedEnum>::Discriminant>());
         Ok(bytes)
     }
@@ -220,7 +222,8 @@ where
     S::Super: AsMutBytes,
 {
     fn bytes_mut(wrapper: &mut RefWrapper<S, Self>) -> anyhow::Result<&mut [u8]> {
-        let mut bytes = unsafe { wrapper.sup_mut().sup_mut() }.as_mut_bytes()?;
+        let sup_muts = unsafe { RefWrapperMutExt::sup_mut(RefWrapperMutExt::sup_mut(wrapper)) };
+        let mut bytes = unsafe { AsMutBytes::as_mut_bytes(sup_muts) }?;
         bytes.advance(size_of::<<T::UnsizedEnum as UnsizedEnum>::Discriminant>());
         Ok(bytes)
     }

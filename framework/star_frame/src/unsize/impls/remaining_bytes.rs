@@ -17,7 +17,7 @@ unsafe impl UnsizedType for RemainingBytes {
     fn from_bytes<S: AsBytes>(
         super_ref: S,
     ) -> anyhow::Result<FromBytesReturn<S, Self::RefData, Self::RefMeta>> {
-        let bytes = super_ref.as_bytes()?;
+        let bytes = AsBytes::as_bytes(&super_ref)?;
         Ok(FromBytesReturn {
             meta: (),
             bytes_used: bytes.len(),
@@ -42,7 +42,7 @@ where
     fn deref(wrapper: &RefWrapper<S, Self>) -> &Self::Target {
         // sup is the underlying bytes. They have already been advanced to only cover this type (and potentially adjacent types if they existed)
         // because bytes just consumes the rest of the bytes, we just take as bytes
-        wrapper.sup().as_bytes().expect("Invalid Bytes")
+        AsBytes::as_bytes(RefWrapper::sup(wrapper)).expect("Invalid Bytes")
     }
 }
 
@@ -51,8 +51,7 @@ where
     S: AsMutBytes,
 {
     fn deref_mut(wrapper: &mut RefWrapper<S, Self>) -> &mut Self::Target {
-        unsafe { wrapper.sup_mut() }
-            .as_mut_bytes()
+        unsafe { AsMutBytes::as_mut_bytes(RefWrapperMutExt::sup_mut(wrapper)) }
             .expect("Invalid bytes")
     }
 }

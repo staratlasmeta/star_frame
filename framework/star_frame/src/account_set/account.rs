@@ -268,8 +268,8 @@ pub struct AccountInfoRef<'a> {
     pub(crate) r: Ref<'a, [u8]>,
 }
 unsafe impl<'a> AsBytes for AccountInfoRef<'a> {
-    fn as_bytes(&self) -> Result<&[u8]> {
-        Ok(self.r.as_ref())
+    fn as_bytes(s: &Self) -> Result<&[u8]> {
+        Ok(s.r.as_ref())
     }
 }
 impl<'a> Clone for AccountInfoRef<'a> {
@@ -288,34 +288,34 @@ pub struct AccountInfoRefMut<'a, 'info, P: StarFrameProgram> {
     pub(crate) phantom: PhantomData<fn() -> P>,
 }
 unsafe impl<'a, 'info, P: StarFrameProgram> AsBytes for AccountInfoRefMut<'a, 'info, P> {
-    fn as_bytes(&self) -> Result<&[u8]> {
-        let mut bytes = &**self.r;
+    fn as_bytes(s: &Self) -> Result<&[u8]> {
+        let mut bytes = &**s.r;
         bytes.try_advance(size_of::<P::AccountDiscriminant>())?;
         Ok(bytes)
     }
 }
 unsafe impl<'a, 'info, P: StarFrameProgram> AsMutBytes for AccountInfoRefMut<'a, 'info, P> {
-    fn as_mut_bytes(&mut self) -> Result<&mut [u8]> {
-        let mut bytes = &mut **self.r;
+    unsafe fn as_mut_bytes(s: &mut Self) -> Result<&mut [u8]> {
+        let mut bytes = &mut **s.r;
         bytes.try_advance(size_of::<P::AccountDiscriminant>())?;
         Ok(bytes)
     }
 }
 unsafe impl<'a, 'info, P: StarFrameProgram, M> Resize<M> for AccountInfoRefMut<'a, 'info, P> {
-    unsafe fn resize(&mut self, new_byte_len: usize, _new_meta: M) -> Result<()> {
-        let original_data_len = unsafe { self.account_info.original_data_len() };
+    unsafe fn resize(s: &mut Self, new_byte_len: usize, _new_meta: M) -> Result<()> {
+        let original_data_len = unsafe { s.account_info.original_data_len() };
         unsafe {
             account_info_realloc(
                 new_byte_len + size_of::<P::AccountDiscriminant>(),
                 true,
-                &mut self.r,
+                &mut s.r,
                 original_data_len,
             )
             .map_err(Into::into)
         }
     }
 
-    unsafe fn set_meta(&mut self, _new_meta: M) -> Result<()> {
+    unsafe fn set_meta(_s: &mut Self, _new_meta: M) -> Result<()> {
         Ok(())
     }
 }

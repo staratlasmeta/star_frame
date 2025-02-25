@@ -64,8 +64,8 @@ where
 {
     #[inline]
     fn bytes(wrapper: &RefWrapper<S, Self>) -> Result<&[u8]> {
-        let mut bytes = wrapper.sup().as_bytes()?;
-        bytes.try_advance(wrapper.r().0)?;
+        let mut bytes = AsBytes::as_bytes(RefWrapperTypes::sup(wrapper))?;
+        bytes.try_advance(RefWrapperTypes::r(&wrapper).0)?;
         Ok(bytes)
     }
 }
@@ -75,8 +75,8 @@ where
 {
     #[inline]
     fn bytes_mut(wrapper: &mut RefWrapper<S, Self>) -> Result<&mut [u8]> {
-        let (sup, r) = unsafe { wrapper.s_r_mut() };
-        let mut bytes = sup.as_mut_bytes()?;
+        let (sup, r) = unsafe { RefWrapperMutExt::s_r_mut(wrapper) };
+        let mut bytes = unsafe { AsMutBytes::as_mut_bytes(sup) }?;
         bytes.try_advance(r.0)?;
         Ok(bytes)
     }

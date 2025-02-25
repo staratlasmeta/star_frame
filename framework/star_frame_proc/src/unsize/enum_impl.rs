@@ -412,7 +412,7 @@ impl UnsizedEnumContext {
                 fn discriminant<#s: #prelude::AsBytes>(
                     r: &impl #prelude::RefWrapperTypes<Super = #s, Ref = Self::RefData>,
                 ) -> Self::Discriminant {
-                    match r.r() {
+                    match #prelude::RefWrapperTypes::r(&r) {
                         #(
                             #meta_ident::#variant_idents(_) => Self::Discriminant::#variant_idents,
                         )*
@@ -539,7 +539,7 @@ impl UnsizedEnumContext {
 
             impl #impl_trait_impl_gen #ext_trait_ident #ty_gen for #self_gen #where_clause {
                 fn get(self) -> #result<#ref_wrapper_ident #ref_wrapper_ty_gen> {
-                    match *self.r() {
+                    match *#prelude::RefWrapperTypes::r(&self) {
                         #(
                             #meta_ident::#variant_idents(m) => Ok(
                                 #ref_wrapper_ident::#variant_idents(unsafe {

@@ -268,7 +268,7 @@ where
     fn from_bytes<S: AsBytes>(
         bytes: S,
     ) -> Result<FromBytesReturn<S, Self::RefData, Self::RefMeta>> {
-        let mut bytes_slice = bytes.as_bytes()?;
+        let mut bytes_slice = AsBytes::as_bytes(&bytes)?;
         let len_l = from_bytes::<PackedValue<L>>(bytes_slice.try_advance(size_of::<L>())?);
         let len = len_l
             .to_usize()
@@ -302,7 +302,7 @@ where
         mut super_ref: S,
         _arg: DefaultInit,
     ) -> Result<(RefWrapper<S, Self::RefData>, Self::RefMeta)> {
-        let bytes = super_ref.as_mut_bytes()?;
+        let bytes = unsafe { AsMutBytes::as_mut_bytes(&mut super_ref) }?;
         bytes[0..size_of::<L>()].copy_from_slice(bytes_of(&L::zeroed()));
         Ok((
             unsafe { RefWrapper::new(super_ref, ListRef(PhantomData)) },
@@ -337,7 +337,7 @@ where
         mut super_ref: S,
         array: &[T; N],
     ) -> Result<(RefWrapper<S, Self::RefData>, Self::RefMeta)> {
-        let bytes = super_ref.as_mut_bytes()?;
+        let bytes = unsafe { AsMutBytes::as_mut_bytes(&mut super_ref) }?;
         let len_bytes = L::from_usize(N).with_context(|| {
             format!(
                 "Init array length larger than max size of List length {}",
@@ -365,7 +365,8 @@ where
     type Target = List<T, L>;
 
     fn deref(wrapper: &RefWrapper<S, Self>) -> &Self::Target {
-        let bytes = wrapper.sup().as_bytes().expect("Invalid bytes");
+        let sup_ref = RefWrapperTypes::sup(wrapper);
+        let bytes = AsBytes::as_bytes(sup_ref).expect("Invalid bytes");
         unsafe { &*ptr::from_raw_parts(bytes.as_ptr().cast(), bytes.len() - size_of::<L>()) }
     }
 }
@@ -376,7 +377,10 @@ where
     L: ListLength,
 {
     fn deref_mut(wrapper: &mut RefWrapper<S, Self>) -> &mut Self::Target {
-        let bytes = unsafe { wrapper.sup_mut().as_mut_bytes().expect("Invalid bytes") };
+        let bytes = unsafe {
+            let sup_mut = RefWrapperMutExt::sup_mut(wrapper);
+            AsMutBytes::as_mut_bytes(sup_mut).expect("Invalid bytes")
+        };
         unsafe {
             &mut *ptr::from_raw_parts_mut(bytes.as_mut_ptr().cast(), bytes.len() - size_of::<L>())
         }
@@ -386,6 +390,10 @@ where
 pub trait ListExt: DerefMut<Target = List<Self::Item, Self::Len>> {
     type Item: CheckedBitPattern + NoUninit + Align1;
     type Len: ListLength;
+
+    fn get_mut(&mut self, index: usize) -> Option<&mut Self::Item> {
+        Some(self.index_mut(index))
+    }
 
     fn push(&mut self, item: Self::Item) -> Result<()> {
         self.push_all(once(item))
@@ -445,7 +453,7 @@ where
         let new_len_l = L::from_usize(new_len)
             .ok_or_else(|| anyhow::anyhow!("Could not convert list size {new_len} to L"))?;
         let new_byte_len = size_of::<L>() + size_of::<T>() * new_len;
-        unsafe { self.sup_mut().resize(new_byte_len, ())? }
+        unsafe { Resize::resize(RefWrapperMutExt::sup_mut(self), new_byte_len, ())? }
         self.len = new_len_l.into();
 
         let start_byte_index = index * size_of::<T>();
@@ -505,7 +513,7 @@ where
             .ok_or_else(|| anyhow::anyhow!("Could not convert list size {new_len} to L"))?;
         let new_byte_len = size_of::<L>() + size_of::<T>() * new_len;
 
-        unsafe { self.sup_mut().resize(new_byte_len, ())? }
+        unsafe { Resize::resize(RefWrapperMutExt::sup_mut(self), new_byte_len, ())? }
 
         self.len = new_len_l.into();
 

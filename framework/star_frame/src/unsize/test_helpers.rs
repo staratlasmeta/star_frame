@@ -32,6 +32,18 @@ impl<T: ?Sized> TestByteSet<T> {
         }
         Ok(Self::from_bytes(bytes))
     }
+
+    /// Creates a new [`TestByteSet`] by initializing the type with an arg from [`UnsizedInit`].
+    pub fn new_default() -> Result<Self>
+    where
+        T: UnsizedInit<DefaultInit>,
+    {
+        let mut bytes = vec![0; T::INIT_BYTES];
+        unsafe {
+            T::init(&mut bytes, DefaultInit)?;
+        }
+        Ok(Self::from_bytes(bytes))
+    }
 }
 
 impl<T> TestByteSet<T>

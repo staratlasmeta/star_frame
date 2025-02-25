@@ -21,7 +21,7 @@ where
     fn from_bytes<S: AsBytes>(
         bytes: S,
     ) -> Result<FromBytesReturn<S, Self::RefData, Self::RefMeta>> {
-        try_from_bytes::<Self>(bytes.as_bytes()?.try_advance(size_of::<T>())?)?;
+        try_from_bytes::<Self>(AsBytes::as_bytes(&bytes)?.try_advance(size_of::<T>())?)?;
         Ok(FromBytesReturn {
             bytes_used: size_of::<T>(),
             meta: (),
@@ -48,9 +48,7 @@ where
 
     fn deref(wrapper: &RefWrapper<S, Self>) -> &Self::Target {
         unsafe {
-            &*wrapper
-                .sup()
-                .as_bytes()
+            &*AsBytes::as_bytes(RefWrapperTypes::sup(wrapper))
                 .expect("Invalid bytes")
                 .as_ptr()
                 .cast()
@@ -65,9 +63,7 @@ where
 {
     fn deref_mut(wrapper: &mut RefWrapper<S, Self>) -> &mut Self::Target {
         unsafe {
-            &mut *wrapper
-                .sup_mut()
-                .as_mut_bytes()
+            &mut *AsMutBytes::as_mut_bytes(RefWrapperMutExt::sup_mut(wrapper))
                 .expect("Invalid bytes")
                 .as_mut_ptr()
                 .cast()
@@ -85,8 +81,7 @@ where
         mut super_ref: S,
         arg: T,
     ) -> Result<(RefWrapper<S, Self::RefData>, Self::RefMeta)> {
-        super_ref
-            .as_mut_bytes()?
+        unsafe { AsMutBytes::as_mut_bytes(&mut super_ref) }?
             .try_advance(size_of::<T>())?
             .copy_from_slice(bytes_of(&arg));
         Ok((
@@ -119,8 +114,7 @@ where
         mut super_ref: S,
         _arg: DefaultInit,
     ) -> Result<(RefWrapper<S, Self::RefData>, Self::RefMeta)> {
-        super_ref
-            .as_mut_bytes()?
+        unsafe { AsMutBytes::as_mut_bytes(&mut super_ref) }?
             .try_advance(size_of::<T>())?
             .copy_from_slice(bytes_of(&T::default_init()));
         Ok((

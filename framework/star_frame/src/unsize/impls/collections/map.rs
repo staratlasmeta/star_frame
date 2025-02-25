@@ -56,12 +56,13 @@ where
     V: UnsizedGenerics,
     L: ListLength,
 {
-    pub fn capacity(&self) -> Result<usize> {
-        Ok(self.list()?.len())
+    pub fn capacity(&self) -> usize {
+        let list = unsafe { self.cast_inner() };
+        list.len()
     }
 
     pub fn insert(&mut self, key: K, value: V) -> Result<Option<V>> {
-        let mut list = self.list()?;
+        let list = unsafe { self.cast_inner_mut() };
         match list.binary_search_by(|probe| { probe.key }.cmp(&key)) {
             Ok(existing_index) => {
                 let old = core::mem::replace(&mut list[existing_index].value, value);
@@ -74,26 +75,30 @@ where
         }
     }
 
+    pub fn get(&self, key: &K) -> Option<&V> {
+        let list = unsafe { self.cast_inner() };
+        match list.binary_search_by(|probe| { probe.key }.cmp(key)) {
+            Ok(existing_index) => Some(&list[existing_index].value),
+            Err(_) => None,
+        }
+    }
+
+    pub fn get_mut(&mut self, key: &K) -> Option<&mut V> {
+        let list = unsafe { self.cast_inner_mut() };
+        match list.binary_search_by(|probe| { probe.key }.cmp(key)) {
+            Ok(existing_index) => Some(&mut list[existing_index].value),
+            Err(_) => None,
+        }
+    }
+
     pub fn remove(&mut self, key: &K) -> Result<Option<V>> {
-        let mut list = self.list()?;
-        match list.binary_search_by(|probe| { probe.key }.cmp(&key)) {
+        let list = unsafe { self.cast_inner_mut() };
+        match list.binary_search_by(|probe| { probe.key }.cmp(key)) {
             Ok(existing_index) => {
                 let to_return = list[existing_index].value;
                 list.remove(existing_index)?;
                 Ok(Some(to_return))
             }
-            Err(_) => Ok(None),
-        }
-    }
-
-    pub fn get_copied(&self, key: &K) -> Result<Option<V>> {
-        self.get_with_fn(key, |v| *v)
-    }
-
-    pub fn get_with_fn<R>(&self, key: &K, func: impl FnOnce(&V) -> R) -> Result<Option<R>> {
-        let list = self.list()?;
-        match list.binary_search_by(|probe| { probe.key }.cmp(key)) {
-            Ok(existing_index) => Ok(Some(func(&list[existing_index].value))),
             Err(_) => Ok(None),
         }
     }

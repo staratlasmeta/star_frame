@@ -16,8 +16,9 @@ where
     V: UnsizedGenerics + Ord,
     L: ListLength,
 {
-    pub fn capacity(&self) -> Result<usize> {
-        Ok(self.list()?.len())
+    pub fn capacity(&self) -> usize {
+        let list = unsafe { self.cast_inner() };
+        list.len()
     }
 
     pub fn insert(&mut self, value: V) -> Result<usize> {
@@ -42,8 +43,15 @@ where
         }
     }
 
-    pub fn contains(&self, value: &V) -> Result<bool> {
-        Ok(self.list()?.binary_search(value).is_ok())
+    pub fn clear(&mut self) -> Result<()> {
+        let mut list = self.list()?;
+        list.remove_range(..)?;
+        Ok(())
+    }
+
+    pub fn contains(&self, value: &V) -> bool {
+        let list = unsafe { self.cast_inner() };
+        list.binary_search(value).is_ok()
     }
 }
 

@@ -71,7 +71,10 @@ pub(crate) fn unsized_type_struct_impl(
     // println!("After init_struct_impl!");
     let extension_impl = context.extension_impl();
     // println!("After extension_impl!");
+    let cast_ext_impl = context.cast_impl();
+    // println!("After cast_ext_impl!");
     let account_impl = account::account_impl(&context.account_item_struct.into(), &context.args);
+    // println!("After account_impl!");
 
     quote! {
         #main_struct
@@ -88,6 +91,7 @@ pub(crate) fn unsized_type_struct_impl(
         #default_init_impl
         #init_struct_impl
         #extension_impl
+        #cast_ext_impl
         #account_impl
     }
 }
@@ -267,14 +271,13 @@ impl UnsizedStructContext {
         }
     }
 
-    fn meta_struct(&self) -> ItemStruct {
-        Paths!(prelude, debug, copy, clone);
+    fn meta_struct(&self) -> ItemType {
+        Paths!(prelude);
         UnsizedStructContext!(self => vis, meta_ident, inner_type);
-        let (generics, wc) = self.split_for_declaration();
+        let generics = self.generics();
         parse_quote! {
-            #[#prelude::derivative(#debug, #copy, #clone)]
-            #[repr(transparent)]
-            #vis struct #meta_ident #generics (<#inner_type as #prelude::UnsizedType>::RefMeta) #wc;
+            #[allow(type_alias_bounds)]
+            #vis type #meta_ident #generics = <#inner_type as #prelude::UnsizedType>::RefMeta;
         }
     }
 
@@ -415,8 +418,7 @@ impl UnsizedStructContext {
             {
                 type Target = #sized_type;
                 fn deref(wrapper: &#prelude::RefWrapper<#s, Self>) -> &Self::Target {
-                    use #prelude::RefWrapperTypes;
-                    let bytes = wrapper.sup().as_bytes().expect("Invalid bytes");
+                    let bytes = #prelude::AsBytes::as_bytes(#prelude::RefWrapperTypes::sup(wrapper)).expect("Invalid bytes");
                     let bytes = &bytes[..#size_of::<#sized_type>()];
                     #checked::from_bytes::<#sized_type>(bytes)
                 }
@@ -425,9 +427,7 @@ impl UnsizedStructContext {
             impl #as_mut_bytes_impl #prelude::RefDerefMut<#s> for #ref_type #as_mut_bytes_where
             {
                 fn deref_mut(wrapper: &mut #prelude::RefWrapper<#s, Self>) -> &mut Self::Target {
-                    use #prelude::RefWrapperMutExt;
-                    let bytes = unsafe { wrapper.sup_mut() }
-                        .as_mut_bytes()
+                    let bytes = unsafe { #prelude::AsMutBytes::as_mut_bytes(#prelude::RefWrapperMutExt::sup_mut(wrapper)) }
                         .expect("Invalid bytes");
                     let bytes = &mut bytes[..#size_of::<#sized_type>()];
                     #checked::from_bytes_mut::<#sized_type>(bytes)
@@ -454,16 +454,14 @@ impl UnsizedStructContext {
             unsafe impl #as_bytes_impl #prelude::RefBytes<#s> for #ref_type #as_bytes_where
             {
                 fn bytes(wrapper: &#prelude::RefWrapper<#s, Self>) -> #result<&[u8]> {
-                    use #prelude::{RefWrapperTypes, AsBytes};
-                    wrapper.sup().as_bytes()
+                    #prelude::AsBytes::as_bytes(#prelude::RefWrapperTypes::sup(wrapper))
                 }
             }
 
             unsafe impl #as_mut_bytes_impl #prelude::RefBytesMut<#s> for #ref_type #as_mut_bytes_where
             {
                 fn bytes_mut(wrapper: &mut #prelude::RefWrapper<#s, Self>) -> #result<&mut [u8]> {
-                    use #prelude::{RefWrapperMutExt, AsMutBytes};
-                    unsafe { wrapper.sup_mut().as_mut_bytes() }
+                    unsafe { #prelude::AsMutBytes::as_mut_bytes(#prelude::RefWrapperMutExt::sup_mut(wrapper)) }
                 }
             }
         }
@@ -471,10 +469,10 @@ impl UnsizedStructContext {
 
     fn ref_resize_impl(&self) -> TokenStream {
         Paths!(prelude, result);
-        UnsizedStructContext!(self => inner_type, ref_type, meta_ident, item_struct, meta_type);
+        UnsizedStructContext!(self => ref_type, item_struct, meta_type);
         let combine_resize = if item_struct.fields.len() > 1 {
             quote! {
-                wrapper.r_mut().0 = #prelude::CombinedRef::new(new_meta);
+                #prelude::RefWrapperMutExt::r_mut(wrapper).0 = #prelude::CombinedRef::new(new_meta);
             }
         } else {
             quote!()
@@ -487,30 +485,27 @@ impl UnsizedStructContext {
         let (ref_resize_impl_gen, _, ref_resize_where) = ref_resize_generics.split_for_impl();
 
         quote! {
-            unsafe impl #ref_resize_impl_gen #prelude::RefResize<#s, <#inner_type as #prelude::UnsizedType>::RefMeta> for #ref_type #ref_resize_where
+            unsafe impl #ref_resize_impl_gen #prelude::RefResize<#s, #meta_type> for #ref_type #ref_resize_where
             {
                 unsafe fn resize(
                     wrapper: &mut #prelude::RefWrapper<#s, Self>,
                     new_byte_len: usize,
-                    new_meta: <#inner_type as #prelude::UnsizedType>::RefMeta,
+                    new_meta: #meta_type,
                 ) -> #result<()> {
-                    use #prelude::RefWrapperMutExt;
                     unsafe {
                         #combine_resize
-                        wrapper
-                            .sup_mut()
-                            .resize(new_byte_len, #meta_ident(new_meta))
+                        #prelude::Resize::resize(#prelude::RefWrapperMutExt::sup_mut(wrapper), new_byte_len, new_meta)
                     }
                 }
 
                 unsafe fn set_meta(
                     wrapper: &mut #prelude::RefWrapper<#s, Self>,
-                    new_meta: <#inner_type as #prelude::UnsizedType>::RefMeta,
+                    new_meta: #meta_type,
                 ) -> #result<()> {
                     use #prelude::RefWrapperMutExt;
                     unsafe {
                         #combine_resize
-                        wrapper.sup_mut().set_meta(#meta_ident(new_meta))
+                        #prelude::Resize::set_meta(#prelude::RefWrapperMutExt::sup_mut(wrapper), new_meta)
                     }
                 }
             }
@@ -519,7 +514,7 @@ impl UnsizedStructContext {
 
     fn unsized_type_impl(&self) -> TokenStream {
         Paths!(prelude, result);
-        UnsizedStructContext!(self => inner_type, ref_type, meta_ident, unsized_field_idents,
+        UnsizedStructContext!(self => inner_type, ref_type, unsized_field_idents,
             sized_field_idents, struct_type, meta_type, owned_type, ref_ident, owned_ident, sized_ident,
             owned_fields
         );
@@ -555,7 +550,6 @@ impl UnsizedStructContext {
                         Ok(
                             <#inner_type as #prelude::UnsizedType>::from_bytes(super_ref)?
                                 .map_ref(|_, r| #ref_ident(r))
-                                .map_meta(#meta_ident)
                         )
                     }
                 }
@@ -566,15 +560,14 @@ impl UnsizedStructContext {
                 ) -> #result<#prelude::FromBytesReturn<#s, Self::RefData, Self::RefMeta>> {
                     Ok(
                         unsafe {
-                            <#inner_type as #prelude::UnsizedType>::from_bytes_and_meta(super_ref, meta.0)?
+                            <#inner_type as #prelude::UnsizedType>::from_bytes_and_meta(super_ref, meta)?
                                 .map_ref(|_, r| #ref_ident(r))
-                                .map_meta(#meta_ident)
                         }
                     )
                 }
 
                 fn owned<#s: #prelude::AsBytes>(r: #prelude::RefWrapper<#s, Self::RefData>) -> #result <Self::Owned> {
-                    let #combined_names = <#inner_type as #prelude::UnsizedType>::owned(unsafe { r.wrap_r(|_, r| r.0) })?;
+                    let #combined_names = <#inner_type as #prelude::UnsizedType>::owned(unsafe { #prelude::RefWrapper::wrap_r(r, |_, r| r.0) })?;
                     Ok(#owned_ident {
                         #(#owned_field_idents),*
                     })
@@ -585,7 +578,7 @@ impl UnsizedStructContext {
 
     fn unsized_init_default_impl(&self) -> TokenStream {
         Paths!(prelude, result);
-        UnsizedStructContext!(self => inner_type, meta_ident, ref_ident, struct_type);
+        UnsizedStructContext!(self => inner_type, ref_ident, struct_type);
         let s = new_generic(self.generics());
         let init_zeroed_generics = self.generics().combine::<BetterGenerics>(
             &parse_quote!([where #inner_type: #prelude::UnsizedInit<#prelude::DefaultInit>]),
@@ -601,7 +594,7 @@ impl UnsizedStructContext {
                 ) -> #result<(#prelude::RefWrapper<#s, Self::RefData>, Self::RefMeta)> {
                     unsafe {
                         let (r, m) = <#inner_type as #prelude::UnsizedInit<#prelude::DefaultInit>>::init(super_ref, arg)?;
-                        Ok((r.wrap_r(|_, r| #ref_ident(r)), #meta_ident(m)))
+                        Ok((#prelude::RefWrapper::wrap_r(r, |_, r| #ref_ident(r)), m))
                     }
                 }
             }
@@ -610,7 +603,7 @@ impl UnsizedStructContext {
 
     fn unsized_init_struct_impl(&self) -> TokenStream {
         Paths!(prelude, result, copy, clone, debug);
-        UnsizedStructContext!(self => vis, unsized_fields, inner_type, meta_ident, ref_ident, sized_field_idents,
+        UnsizedStructContext!(self => vis, unsized_fields, inner_type, ref_ident, sized_field_idents,
             struct_type, unsized_field_idents, struct_ident, sized_ident);
 
         let init_struct_ident = format_ident!("{struct_ident}Init");
@@ -686,7 +679,7 @@ impl UnsizedStructContext {
                             super_ref,
                             #field_accesses,
                         )?;
-                        Ok((r.wrap_r(|_, r| #ref_ident(r)), #meta_ident(m)))
+                        Ok((#prelude::RefWrapper::wrap_r(r, |_, r| #ref_ident(r)), m))
                     }
                 }
             }
@@ -708,16 +701,16 @@ impl UnsizedStructContext {
         let pub_extension_ident = format_ident!("{}PubExt", struct_ident);
         let priv_extension_ident = format_ident!("{}Ext", struct_ident);
 
-        let r = quote!(__R);
+        let s = new_generic(self.generics());
         let extension_type_generics = type_generic_idents(self.generics());
         let combined_extension_type_generics = quote!(#(#extension_type_generics),*);
-        let all_extension_type_generics = quote!(#r, #combined_extension_type_generics);
+        let all_extension_type_generics = quote!(#s, #combined_extension_type_generics);
 
         let root_ident = format_ident!("{struct_ident}Root");
         let root_type = quote!(#root_ident<#all_extension_type_generics>);
 
         let root_inner_type =
-            quote!(#prelude::RefWrapper<#r, <#inner_type as #prelude::UnsizedType>::RefData>);
+            quote!(#prelude::RefWrapper<#s, <#inner_type as #prelude::UnsizedType>::RefData>);
         let root_type_def = sized_type
             .as_ref()
             .map(|sized_type| {
@@ -736,7 +729,7 @@ impl UnsizedStructContext {
                     abort!(field.vis, "Unsized fields must be `pub` or private")
                 }
             });
-        let ext_generics: BetterGenerics = parse_quote! { [<#r> where #r: #prelude::RefWrapperTypes<Ref = #ref_type> + #prelude::AsBytes] };
+        let ext_generics: BetterGenerics = parse_quote! { [<#s> where #s: #prelude::RefWrapperTypes<Ref = #ref_type> + #prelude::AsBytes] };
 
         let ext_generics = self.generics().combine(&ext_generics);
 
@@ -784,10 +777,10 @@ impl UnsizedStructContext {
                     )*
                 }
 
-                impl #ext_impl_generics #extension_ident #ty_gen for #r #ext_where {
+                impl #ext_impl_generics #extension_ident #ty_gen for #s #ext_where {
                     #(
                         fn #field_idents(self) -> #result<#unsized_ext_idents<Self, #combined_extension_type_generics>> {
-                            let r = self.r().0;
+                            let r = #prelude::RefWrapperTypes::r(&self).0;
                             let res = unsafe { #prelude::RefWrapper::new(self, r) } #root_method #path_methods;
                             Ok(res)
                         }
@@ -810,6 +803,47 @@ impl UnsizedStructContext {
             #vis type #root_type = #root_type_def;
             #pub_trait
             #priv_trait
+        }
+    }
+
+    fn cast_impl(&self) -> TokenStream {
+        Paths!(prelude);
+        UnsizedStructContext!(self =>
+            struct_ident,
+            inner_type,
+            ref_type,
+        );
+
+        let s = new_generic(self.generics());
+        let generics = self
+            .generics()
+            .combine::<BetterGenerics>(&parse_quote!([<#s>]));
+        let cast_ext = format_ident!("{}CastExt", struct_ident);
+        let (impl_gen, ty_gen, where_clause) = generics.split_for_impl();
+
+        let inner_ref = quote!(<#inner_type as #prelude::UnsizedType>::RefData);
+        quote! {
+            trait #cast_ext #impl_gen #where_clause {
+                /// # Safety:
+                /// todo: figure out safety
+                unsafe fn cast_inner(&self) -> &#prelude::RefWrapper<#s, #inner_ref>;
+
+                /// # Safety:
+                /// todo: figure out safety
+                unsafe fn cast_inner_mut(&mut self) -> &mut #prelude::RefWrapper<#s, #inner_ref>;
+            }
+
+            impl #impl_gen #cast_ext #ty_gen for #prelude::RefWrapper<#s, #ref_type> #where_clause {
+                unsafe fn cast_inner(&self) -> &#prelude::RefWrapper<#s, #inner_ref> {
+                    unsafe { #prelude::RefWrapper::cast_r(self) }
+                }
+
+                unsafe fn cast_inner_mut(
+                    &mut self,
+                ) -> &mut #prelude::RefWrapper<#s, #inner_ref> {
+                    unsafe { #prelude::RefWrapper::cast_r_mut(self) }
+                }
+            }
         }
     }
 }
