@@ -230,6 +230,13 @@ impl UnsizedStructContext {
         &self.item_struct.generics
     }
 
+    fn split_for_declaration(&self) -> (&Generics, Option<&syn::WhereClause>) {
+        (
+            &self.item_struct.generics,
+            self.item_struct.generics.where_clause.as_ref(),
+        )
+    }
+
     fn split_for_impl(&self) -> (ImplGenerics, TypeGenerics, Option<&syn::WhereClause>) {
         self.item_struct.generics.split_for_impl()
     }
@@ -237,47 +244,48 @@ impl UnsizedStructContext {
     fn main_struct(&self) -> ItemStruct {
         Paths!(prelude, debug);
         UnsizedStructContext!(self => vis, struct_ident, inner_type);
-        let (impl_gen, _, where_clause) = self.split_for_impl();
+
+        let (generics, wc) = self.split_for_declaration();
         parse_quote! {
             #[#prelude::derivative(#debug)]
             #[derive(#prelude::Align1)]
             #[repr(transparent)]
-            #vis struct #struct_ident #impl_gen (#inner_type) #where_clause;
+            #vis struct #struct_ident #generics (#inner_type) #wc;
         }
     }
 
     fn ref_struct(&self) -> ItemStruct {
         Paths!(prelude, copy, clone, debug);
         UnsizedStructContext!(self => vis, ref_ident, inner_type);
-        let (impl_gen, _, where_clause) = self.split_for_impl();
+        let (generics, wc) = self.split_for_declaration();
 
         parse_quote! {
             #[#prelude::derivative(#debug)]
             #[derive(#copy, #clone)]
             #[repr(transparent)]
-            #vis struct #ref_ident #impl_gen (<#inner_type as #prelude::UnsizedType>::RefData) #where_clause;
+            #vis struct #ref_ident #generics (<#inner_type as #prelude::UnsizedType>::RefData) #wc;
         }
     }
 
     fn meta_struct(&self) -> ItemStruct {
         Paths!(prelude, debug, copy, clone);
         UnsizedStructContext!(self => vis, meta_ident, inner_type);
-        let (impl_gen, _, where_clause) = self.split_for_impl();
+        let (generics, wc) = self.split_for_declaration();
         parse_quote! {
             #[#prelude::derivative(#debug, #copy, #clone)]
             #[repr(transparent)]
-            #vis struct #meta_ident #impl_gen (<#inner_type as #prelude::UnsizedType>::RefMeta) #where_clause;
+            #vis struct #meta_ident #generics (<#inner_type as #prelude::UnsizedType>::RefMeta) #wc;
         }
     }
 
     fn inner_type(&self) -> ItemType {
         UnsizedStructContext!(self => vis, inner_ident, sized_type, unsized_field_types);
-        let (impl_gen, ..) = self.split_for_impl();
+        let gen = self.generics();
         let combined_inner =
             combine_with_sized(sized_type.clone(), unsized_field_types, combine_unsized);
         parse_quote! {
             #[allow(type_alias_bounds)]
-            #vis type #inner_ident #impl_gen = #combined_inner;
+            #vis type #inner_ident #gen = #combined_inner;
         }
     }
 
@@ -286,12 +294,12 @@ impl UnsizedStructContext {
         UnsizedStructContext!(self => vis, owned_ident, owned_fields);
         let additional_attributes = self.args.owned_attributes.attributes.iter();
 
-        let (impl_gen, _, where_clause) = self.split_for_impl();
+        let (gen, where_clause) = self.split_for_declaration();
 
         parse_quote! {
             #(#[#additional_attributes])*
             #[#prelude::derivative(#debug)]
-            #vis struct #owned_ident #impl_gen #where_clause {
+            #vis struct #owned_ident #gen #where_clause {
                 #(#owned_fields,)*
             }
         }
@@ -306,7 +314,7 @@ impl UnsizedStructContext {
         let sized_bytemuck_derives = self.generics().params.is_empty().then_some(
             quote!(#bytemuck::CheckedBitPattern, #bytemuck::NoUninit, #bytemuck::Zeroable),
         );
-        let (impl_gen, _, where_clause) = self.split_for_impl();
+        let (impl_gen, where_clause) = self.split_for_declaration();
         let sized_struct: ItemStruct = parse_quote! {
             #(#[#additional_attributes])*
             #[#prelude::derivative(#copy, #clone, #debug, #partial_eq, #eq)]
@@ -327,6 +335,7 @@ impl UnsizedStructContext {
             return None;
         }
         let (impl_generics, type_generics, where_clause) = self.split_for_impl();
+        let struct_generics = self.generics();
 
         let bit_ident = format_ident!("{}Bits", sized_ident);
         let bit_field_types = sized_field_types
@@ -361,7 +370,7 @@ impl UnsizedStructContext {
 
             #[#prelude::derivative(#debug, #copy, #clone)]
             #[repr(C, packed)]
-            #vis struct #bit_ident #impl_generics #where_clause {
+            #vis struct #bit_ident #struct_generics #where_clause {
                 #(#vis #sized_field_idents: #bit_field_types),*
             }
 

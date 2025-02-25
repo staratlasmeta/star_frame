@@ -62,6 +62,7 @@ pub(crate) fn unsized_type_enum_impl(
 
 pub struct UnsizedEnumContext {
     item_enum: ItemEnum,
+    generics: Generics,
     enum_ident: Ident,
     enum_type: Type,
     discriminant_ident: Ident,
@@ -146,6 +147,7 @@ impl UnsizedEnumContext {
             .collect_vec();
 
         Self {
+            generics: item_enum.generics.clone(),
             item_enum,
             enum_ident,
             enum_type,
@@ -175,8 +177,9 @@ impl UnsizedEnumContext {
 
     fn enum_struct(&self) -> ItemStruct {
         Paths!(prelude, derivative, debug, default, clone, copy);
-        UnsizedEnumContext!(self => enum_ident, item_enum);
-        let (impl_gen, _, wc) = self.split_for_impl();
+        UnsizedEnumContext!(self => enum_ident, generics, item_enum);
+
+        let wc = &generics.where_clause;
         let phantom_generics_type = phantom_generics_type(item_enum);
 
         let phantom_generics: Option<TokenStream> = phantom_generics_type.map(|ty| quote!((#ty)));
@@ -188,7 +191,7 @@ impl UnsizedEnumContext {
             #[repr(C)]
             #[derive(#prelude::Align1, #derivative)]
             #derivative_attr
-            pub struct #enum_ident #impl_gen #phantom_generics #wc;
+            pub struct #enum_ident #generics #phantom_generics #wc;
         }
     }
 
@@ -227,14 +230,14 @@ impl UnsizedEnumContext {
 
     fn owned_enum(&self) -> ItemEnum {
         Paths!(prelude, debug);
-        UnsizedEnumContext!(self => owned_ident, variant_idents, variant_types, variant_docs, args);
+        UnsizedEnumContext!(self => owned_ident, variant_idents, variant_types, variant_docs, args, generics);
         let additional_owned = args.owned_attributes.attributes.iter();
-        let (impl_gen, _, wc) = self.split_for_impl();
+        let wc = &generics.where_clause;
 
         parse_quote! {
             #[derive(#debug)]
             #(#[#additional_owned])*
-            pub enum #owned_ident #impl_gen #wc {
+            pub enum #owned_ident #generics #wc {
                 #(
                     #(#variant_docs)*
                     #variant_idents(<#variant_types as #prelude::UnsizedType>::Owned)
@@ -245,11 +248,11 @@ impl UnsizedEnumContext {
 
     fn meta_enum(&self) -> ItemEnum {
         Paths! {prelude, debug, copy, clone}
-        UnsizedEnumContext! {self => meta_ident, variant_idents, variant_types, variant_docs}
-        let (impl_gen, _, wc) = self.split_for_impl();
+        UnsizedEnumContext! {self => meta_ident, variant_idents, variant_types, variant_docs, generics}
+        let wc = &generics.where_clause;
         parse_quote! {
             #[derive(#debug, #copy, #clone)]
-            pub enum #meta_ident #impl_gen #wc {
+            pub enum #meta_ident #generics #wc {
                 #(
                     #(#variant_docs)*
                     #variant_idents(<#variant_types as #prelude::UnsizedType>::RefMeta)
@@ -264,11 +267,11 @@ impl UnsizedEnumContext {
         let mut generics = self.generics();
         let new_generic = new_generic(&generics);
         generics.params.insert(0, parse_quote!(#new_generic));
+        let wc = &generics.where_clause;
 
-        let (impl_gen, _, where_clause) = generics.split_for_impl();
         parse_quote! {
             #[derive(#debug, #copy, #clone)]
-            pub enum #ref_wrapper_ident #impl_gen #where_clause {
+            pub enum #ref_wrapper_ident #generics #wc {
                 #(
                     #(#variant_docs)*
                     #variant_idents(#prelude::UnsizedEnumVariantRef<#new_generic, #variant_struct_types>)
@@ -279,7 +282,8 @@ impl UnsizedEnumContext {
 
     fn variant_structs(&self) -> TokenStream {
         Paths!(derivative, prelude, debug, default, clone, copy);
-        UnsizedEnumContext!(self => variant_types, meta_ident, variant_idents, item_enum, enum_type, variant_struct_idents, variant_struct_types, discriminant_ident);
+        UnsizedEnumContext!(self => variant_types, meta_ident, variant_idents, item_enum, enum_type, variant_struct_idents,
+            generics, variant_struct_types, discriminant_ident);
 
         let derivative_attr =
             make_derivative_attribute::<bool>(parse_quote!(#debug, #default, #clone, #copy), &[]);
@@ -290,7 +294,7 @@ impl UnsizedEnumContext {
             #(
                 #[derive(#derivative)]
                 #derivative_attr
-                pub struct #variant_struct_idents #impl_gen (#phantom_generics_type);
+                pub struct #variant_struct_idents #generics (#phantom_generics_type);
 
                 #[automatically_derived]
                 unsafe impl #impl_gen #prelude::UnsizedEnumVariant for #variant_struct_types #where_clause {
