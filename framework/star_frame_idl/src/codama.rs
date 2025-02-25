@@ -12,10 +12,11 @@ use codama_nodes::{
     DefinedTypeLinkNode, DefinedTypeNode, DiscriminatorNode, Docs, EnumEmptyVariantTypeNode,
     EnumTupleVariantTypeNode, EnumTypeNode, EnumVariantTypeNode, FieldDiscriminatorNode,
     FixedSizeTypeNode, InstructionAccountNode, InstructionNode, InstructionRemainingAccountsNode,
-    InstructionRemainingAccountsNodeValue, NumberFormat, NumberTypeNode, OptionTypeNode,
-    PdaLinkNode, PdaNode, PdaSeedNode, PdaSeedValueNode, PdaValueNode, ProgramLinkNode,
-    PublicKeyTypeNode, PublicKeyValueNode, SizePrefixTypeNode, StringTypeNode, StructFieldTypeNode,
-    StructTypeNode, TupleTypeNode, TypeNode, TypeNodeTrait, VariablePdaSeedNode,
+    InstructionRemainingAccountsNodeValue, MapTypeNode, NumberFormat, NumberTypeNode,
+    OptionTypeNode, PdaLinkNode, PdaNode, PdaSeedNode, PdaSeedValueNode, PdaValueNode,
+    ProgramLinkNode, PublicKeyTypeNode, PublicKeyValueNode, SetTypeNode, SizePrefixTypeNode,
+    StringTypeNode, StructFieldTypeNode, StructTypeNode, TupleTypeNode, TypeNode, TypeNodeTrait,
+    VariablePdaSeedNode,
 };
 use itertools::Itertools;
 
@@ -507,6 +508,24 @@ impl TryToCodama<TypeNode> for IdlTypeDef {
                 size: size.try_to_codama(idl_def, _context)?.as_number()?.into(),
             }
             .into_type_node(),
+            IdlTypeDef::Set { len_ty, item_ty } => {
+                let len_ty = len_ty.try_to_codama(idl_def, _context)?.as_number()?;
+                SetTypeNode::prefixed(item_ty.try_to_codama(idl_def, _context)?, len_ty)
+                    .into_type_node()
+            }
+            IdlTypeDef::Map {
+                len_ty,
+                key_ty,
+                value_ty,
+            } => {
+                let len_ty = len_ty.try_to_codama(idl_def, _context)?.as_number()?;
+                MapTypeNode::prefixed(
+                    key_ty.try_to_codama(idl_def, _context)?,
+                    value_ty.try_to_codama(idl_def, _context)?,
+                    len_ty,
+                )
+                .into_type_node()
+            }
             IdlTypeDef::Generic(_) => bail!("Generic types are not supported in Codama"),
         };
         Ok(node)

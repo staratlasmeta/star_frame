@@ -291,6 +291,9 @@ impl TryToAnchor<anchor::IdlTypeDefTy> for IdlTypeDef {
                 let variants = convert_variants_to_anchor(variants, size, idl_definition)?;
                 anchor::IdlTypeDefTy::Enum { variants }
             }
+
+            // todo: stop supporting anchor idl conversions
+            _ => unimplemented!("Unsupported type: {:?}", self),
         };
         Ok(type_def)
     }
