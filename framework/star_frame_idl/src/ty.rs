@@ -67,6 +67,15 @@ pub enum IdlTypeDef {
         len_ty: Box<IdlTypeDef>,
         item_ty: Box<IdlTypeDef>,
     },
+    Set {
+        len_ty: Box<IdlTypeDef>,
+        item_ty: Box<IdlTypeDef>,
+    },
+    Map {
+        len_ty: Box<IdlTypeDef>,
+        key_ty: Box<IdlTypeDef>,
+        value_ty: Box<IdlTypeDef>,
+    },
     Array(Box<IdlTypeDef>, usize),
     Struct(Vec<IdlStructField>),
     Enum {

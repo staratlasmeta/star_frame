@@ -83,7 +83,7 @@ where
         mut super_ref: S,
         (t_arg, u_arg): (TA, UA),
     ) -> Result<(RefWrapper<S, Self::RefData>, Self::RefMeta)> {
-        let mut bytes = super_ref.as_mut_bytes()?;
+        let mut bytes = unsafe { AsMutBytes::as_mut_bytes(&mut super_ref) }?;
         let (_, t_meta) = unsafe { T::init(bytes.try_advance(T::INIT_BYTES)?, t_arg)? };
         let (_, u_meta) = unsafe { U::init(bytes.try_advance(U::INIT_BYTES)?, u_arg)? };
         let meta = CombinedUnsizedRefMeta {
@@ -187,8 +187,8 @@ where
     U: ?Sized + UnsizedType,
 {
     fn bytes(wrapper: &RefWrapper<S, Self>) -> Result<&[u8]> {
-        let (sup, r) = wrapper.sup().s_r();
-        let mut bytes = sup.as_bytes()?;
+        let (sup, r) = RefWrapperTypes::s_r(RefWrapperTypes::sup(wrapper));
+        let mut bytes = AsBytes::as_bytes(sup)?;
         bytes
             .try_advance(T::IsUnsized::len(r.t_len))
             .map_err(Into::into)
@@ -202,8 +202,8 @@ where
     U: ?Sized + UnsizedType,
 {
     fn bytes_mut(wrapper: &mut RefWrapper<S, Self>) -> Result<&mut [u8]> {
-        let (sup, r) = unsafe { wrapper.sup_mut().s_r_mut() };
-        let mut bytes = sup.as_mut_bytes()?;
+        let (sup, r) = unsafe { RefWrapperMutExt::s_r_mut(RefWrapperMutExt::sup_mut(wrapper)) };
+        let mut bytes = unsafe { AsMutBytes::as_mut_bytes(sup)? };
         bytes
             .try_advance(T::IsUnsized::len(r.t_len))
             .map_err(Into::into)
@@ -223,30 +223,30 @@ where
         new_byte_len: usize,
         new_meta: T::RefMeta,
     ) -> Result<()> {
-        let (sup, r) = unsafe { wrapper.sup_mut().s_r_mut() };
+        let (sup, r) = unsafe { RefWrapperMutExt::s_r_mut(RefWrapperMutExt::sup_mut(wrapper)) };
         let old_t_len = T::IsUnsized::len(r.t_len);
         r.t_meta = new_meta;
         r.t_len = T::IsUnsized::from_len(new_byte_len);
         let byte_len = U::IsUnsized::len(r.u_len);
         if new_byte_len > old_t_len {
-            unsafe { sup.resize(new_byte_len + byte_len, r.0)? }
-            let bytes = sup.as_mut_bytes()?;
+            unsafe { Resize::resize(sup, new_byte_len + byte_len, r.0)? }
+            let bytes = unsafe { AsMutBytes::as_mut_bytes(sup) }?;
             let start_ptr = addr_of_mut!(bytes[old_t_len]);
             let end_ptr = addr_of_mut!(bytes[new_byte_len]);
             unsafe { sol_memmove(end_ptr, start_ptr, byte_len) }
         } else {
-            let bytes = sup.as_mut_bytes()?;
+            let bytes = unsafe { AsMutBytes::as_mut_bytes(sup) }?;
             let start_ptr = addr_of_mut!(bytes[old_t_len]);
             let end_ptr = addr_of_mut!(bytes[new_byte_len]);
             unsafe { sol_memmove(end_ptr, start_ptr, byte_len) }
-            unsafe { sup.resize(new_byte_len + byte_len, r.0)? }
+            unsafe { Resize::resize(sup, new_byte_len + byte_len, r.0)? }
         }
 
         Ok(())
     }
 
     unsafe fn set_meta(wrapper: &mut RefWrapper<S, Self>, new_meta: T::RefMeta) -> Result<()> {
-        unsafe { wrapper.sup_mut().r_mut().t_meta = new_meta };
+        unsafe { RefWrapperMutExt::r_mut(RefWrapperMutExt::sup_mut(wrapper)).t_meta = new_meta };
         Ok(())
     }
 }
@@ -259,8 +259,8 @@ where
     U: ?Sized + UnsizedType,
 {
     fn bytes(wrapper: &RefWrapper<S, Self>) -> Result<&[u8]> {
-        let (sup, r) = wrapper.sup().s_r();
-        let mut bytes = sup.as_bytes()?;
+        let (sup, r) = RefWrapperTypes::s_r(RefWrapperTypes::sup(wrapper));
+        let mut bytes = AsBytes::as_bytes(sup)?;
         bytes.try_advance(T::IsUnsized::len(r.t_len))?;
         Ok(bytes)
     }
@@ -273,8 +273,8 @@ where
     U: ?Sized + UnsizedType,
 {
     fn bytes_mut(wrapper: &mut RefWrapper<S, Self>) -> Result<&mut [u8]> {
-        let (sup, r) = unsafe { wrapper.sup_mut().s_r_mut() };
-        let mut bytes = sup.as_mut_bytes()?;
+        let (sup, r) = unsafe { RefWrapperMutExt::s_r_mut(RefWrapperMutExt::sup_mut(wrapper)) };
+        let mut bytes = unsafe { AsMutBytes::as_mut_bytes(sup) }?;
         bytes.try_advance(T::IsUnsized::len(r.t_len))?;
         Ok(bytes)
     }
@@ -293,15 +293,15 @@ where
         new_byte_len: usize,
         new_meta: U::RefMeta,
     ) -> Result<()> {
-        let (sup, r) = unsafe { wrapper.sup_mut().s_r_mut() };
+        let (sup, r) = unsafe { RefWrapperMutExt::s_r_mut(RefWrapperMutExt::sup_mut(wrapper)) };
         r.u_meta = new_meta;
         r.u_len = U::IsUnsized::from_len(new_byte_len);
-        unsafe { sup.resize(T::IsUnsized::len(r.t_len) + new_byte_len, r.0)? }
+        unsafe { Resize::resize(sup, T::IsUnsized::len(r.t_len) + new_byte_len, r.0)? }
         Ok(())
     }
 
     unsafe fn set_meta(wrapper: &mut RefWrapper<S, Self>, new_meta: U::RefMeta) -> Result<()> {
-        unsafe { wrapper.sup_mut().r_mut().u_meta = new_meta };
+        unsafe { RefWrapperMutExt::r_mut(RefWrapperMutExt::sup_mut(wrapper)).u_meta = new_meta };
         Ok(())
     }
 }
@@ -330,13 +330,13 @@ where
     type U = U;
 
     fn t(self) -> Result<RefWrapperT<Self, Self::T, Self::U>> {
-        let t_meta = self.r().t_meta;
+        let t_meta = RefWrapperTypes::r(&self).t_meta;
         unsafe { T::from_bytes_and_meta(RefWrapper::new(self, CombinedTRef::default()), t_meta) }
             .map(|r| r.ref_wrapper)
     }
 
     fn u(self) -> Result<RefWrapperU<Self, Self::T, Self::U>> {
-        let u_meta = self.r().u_meta;
+        let u_meta = RefWrapperTypes::r(&self).u_meta;
         unsafe { U::from_bytes_and_meta(RefWrapper::new(self, CombinedURef::default()), u_meta) }
             .map(|r| r.ref_wrapper)
     }

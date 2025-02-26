@@ -201,14 +201,6 @@ pub fn make_derivative_attribute<T: ToTokens>(
     parse_quote!(#[derivative(#(#bounds),*)])
 }
 
-pub fn add_derivative_attributes(
-    struct_item: &mut ItemStruct,
-    traits: Punctuated<Path, Token![,]>,
-) {
-    let attributes = make_derivative_attribute(traits, &get_field_types(struct_item).collect_vec());
-    struct_item.attrs.push(attributes);
-}
-
 pub fn get_field_types(fields: &impl FieldIter) -> impl Iterator<Item = &Type> {
     fields.field_iter().map(|field| &field.ty)
 }

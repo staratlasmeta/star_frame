@@ -1,6 +1,7 @@
 #![allow(clippy::let_and_return)]
 mod account_set;
 mod align1;
+mod derivative;
 mod get_seeds;
 mod hash;
 mod idl;
@@ -12,9 +13,12 @@ mod unsize;
 mod util;
 
 use proc_macro_error2::proc_macro_error;
+use quote::ToTokens;
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
-use syn::{parse_macro_input, DeriveInput, Item, ItemEnum, ItemImpl, LitStr};
+use syn::{
+    parse_macro_input, DeriveInput, Item, ItemEnum, ItemImpl, ItemStruct, LitStr, Path, Token,
+};
 
 #[proc_macro_error]
 #[proc_macro_derive(
@@ -262,6 +266,20 @@ pub fn unsized_impl(
     item: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
     let out = unsize::unsized_impl_impl(parse_macro_input!(item as ItemImpl), args.into());
+    out.into()
+}
+
+#[proc_macro_error]
+#[proc_macro_attribute]
+pub fn derivative(
+    args: proc_macro::TokenStream,
+    item: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
+    let out = derivative::derivative_impl(
+        parse_macro_input!(item as ItemStruct),
+        parse_macro_input!(args with Punctuated::<Path, Token![,]>::parse_terminated),
+    )
+    .to_token_stream();
     out.into()
 }
 

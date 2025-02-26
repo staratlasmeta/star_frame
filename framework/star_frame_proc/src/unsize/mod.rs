@@ -3,6 +3,7 @@ use easy_proc::ArgumentList;
 use itertools::Itertools;
 use proc_macro2::TokenStream;
 use proc_macro_error2::abort;
+use quote::ToTokens;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::token::Bracket;
@@ -18,6 +19,13 @@ pub use impl_impl::*;
 pub struct UnsizedAttributeMetas {
     _bracket: Bracket,
     attributes: Punctuated<Meta, Token![,]>,
+}
+
+impl ToTokens for UnsizedAttributeMetas {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self._bracket
+            .surround(tokens, |tokens| self.attributes.to_tokens(tokens));
+    }
 }
 
 impl Parse for UnsizedAttributeMetas {
@@ -36,10 +44,14 @@ impl Parse for UnsizedAttributeMetas {
 pub struct UnsizedTypeArgs {
     #[argument(default)]
     pub owned_attributes: UnsizedAttributeMetas,
+    #[argument(default)]
+    pub sized_attributes: UnsizedAttributeMetas,
     #[argument(presence)]
     pub program_account: bool,
     #[argument(presence)]
     pub skip_idl: bool,
+    #[argument(presence)]
+    pub skip_phantom_generics: bool,
     pub program: Option<Type>,
     pub seeds: Option<Type>,
     pub discriminant: Option<Expr>,
