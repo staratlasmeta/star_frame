@@ -118,7 +118,6 @@ pub fn derive_get_seeds_impl(input: DeriveInput) -> TokenStream {
 
             quote! {
                 #[cfg(all(feature = "idl", not(target_os = "solana")))]
-                #[automatically_derived]
                 #[derive(Debug, Clone)]
                 pub struct #find_seeds_ident #type_generics #where_clause {
                     #(#find_fields),*

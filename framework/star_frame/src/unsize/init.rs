@@ -1,12 +1,6 @@
-use crate::prelude::*;
-use crate::unsize::ref_wrapper::{AsMutBytes, RefWrapper};
-
-/// The return type of [`UnsizedInit::init`].
-/// Index `0` is the ref wrapper for the new type, index `1` is the meta.
-pub type UnsizedInitReturn<S, U> = (
-    RefWrapper<S, <U as UnsizedType>::RefData>,
-    <U as UnsizedType>::RefMeta,
-);
+use super::UnsizedType;
+use crate::Result;
+use bytemuck::Zeroable;
 
 /// An [`UnsizedType`] that can be initialized with an `InitArg`. Must have a statically known size
 /// (for arg type) at initialization.
@@ -16,8 +10,20 @@ pub trait UnsizedInit<InitArg>: UnsizedType {
 
     /// # Safety
     /// `super_ref` must have [`UnsizedInit::INIT_BYTES`] zeroed bytes.
-    unsafe fn init<S: AsMutBytes>(super_ref: S, arg: InitArg)
-        -> Result<UnsizedInitReturn<S, Self>>;
+    unsafe fn init(bytes: &mut &mut [u8], arg: InitArg) -> Result<()>;
+}
+
+pub trait DefaultInitable {
+    fn default_init() -> Self;
+}
+
+impl<T> DefaultInitable for T
+where
+    T: Zeroable,
+{
+    fn default_init() -> Self {
+        T::zeroed()
+    }
 }
 
 /// Argument for initializing a type to a default value

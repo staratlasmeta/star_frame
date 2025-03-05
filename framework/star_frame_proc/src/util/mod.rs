@@ -19,6 +19,7 @@ use syn::token::{Brace, Paren};
 use syn::{
     parse_quote, Attribute, Data, DataStruct, DataUnion, DeriveInput, Expr, ExprLit, Field, Fields,
     FieldsNamed, FieldsUnnamed, ItemStruct, Lit, Meta, MetaNameValue, Path, Token, Type, Variant,
+    Visibility,
 };
 
 pub fn get_crate_name() -> TokenStream {
@@ -203,6 +204,10 @@ pub fn make_derivative_attribute<T: ToTokens>(
 
 pub fn get_field_types(fields: &impl FieldIter) -> impl Iterator<Item = &Type> {
     fields.field_iter().map(|field| &field.ty)
+}
+
+pub fn get_field_vis(fields: &impl FieldIter) -> impl Iterator<Item = &Visibility> {
+    fields.field_iter().map(|field| &field.vis)
 }
 
 pub fn get_field_idents(fields: &impl FieldIter) -> impl Iterator<Item = &Ident> {

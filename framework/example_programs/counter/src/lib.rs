@@ -14,6 +14,17 @@ pub struct CounterAccount {
     pub signer: Pubkey,
     pub count: u64,
     pub bump: u8,
+    pub data: CounterAccountData,
+}
+
+#[derive(Align1, Pod, Zeroable, Default, Copy, Clone, Debug, Eq, PartialEq, TypeToIdl)]
+#[repr(C, packed)]
+pub struct CounterAccountData {
+    pub version: u8,
+    pub owner: Pubkey,
+    pub signer: Pubkey,
+    pub count: u64,
+    pub bump: u8,
 }
 
 #[derive(AccountSet, Deref, DerefMut, Debug)]
@@ -61,12 +72,13 @@ impl StarFrameInstruction for CreateCounterIx {
         start_at: Self::RunArg<'_>,
         _syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<Self::ReturnType> {
-        *account_set.counter.data_mut()? = CounterAccount {
+        **account_set.counter.data_mut()? = CounterAccount {
             version: 0,
             signer: *account_set.owner.key(),
             owner: *account_set.owner.key(),
             bump: account_set.counter.access_seeds().bump,
             count: start_at.unwrap_or(0),
+            data: Default::default(),
         };
 
         Ok(())
@@ -212,6 +224,7 @@ mod tests {
         let idl = StarFrameDeclaredProgram::program_to_idl()?;
         let codama_idl: ProgramNode = idl.try_into()?;
         let idl_json = codama_idl.to_json()?;
+        std::fs::write("idl.json", &idl_json)?;
         println!("{idl_json}");
         Ok(())
     }
@@ -265,6 +278,7 @@ mod tests {
             signer: account_key.pubkey(),
             count: 2,
             bump,
+            data: Default::default(),
         };
         let acc = banks_client.get_account(counter_account).await?.unwrap();
         assert_eq!(expected, *try_from_bytes(&acc.data[8..])?);

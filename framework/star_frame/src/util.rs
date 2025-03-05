@@ -1,10 +1,5 @@
 use crate::prelude::*;
-use crate::unsize::{
-    AsBytes, AsMutBytes, RefBytes, RefBytesMut, RefWrapper, RefWrapperMutExt, RefWrapperTypes,
-};
-use advance::Advance;
 use std::cell::{Ref, RefMut};
-use std::fmt::Debug;
 use std::mem::size_of;
 
 /// Similar to [`Ref::map`], but the closure can return an error.
@@ -52,33 +47,6 @@ pub const fn compare_strings(a: &str, b: &str) -> bool {
             break false;
         }
         index += 1;
-    }
-}
-
-/// A ref that offsets bytes by a given amount.
-#[derive(Debug, Copy, Clone)]
-pub struct OffsetRef(pub usize);
-unsafe impl<S> RefBytes<S> for OffsetRef
-where
-    S: AsBytes,
-{
-    #[inline]
-    fn bytes(wrapper: &RefWrapper<S, Self>) -> Result<&[u8]> {
-        let mut bytes = AsBytes::as_bytes(RefWrapperTypes::sup(wrapper))?;
-        bytes.try_advance(RefWrapperTypes::r(&wrapper).0)?;
-        Ok(bytes)
-    }
-}
-unsafe impl<S> RefBytesMut<S> for OffsetRef
-where
-    S: AsMutBytes,
-{
-    #[inline]
-    fn bytes_mut(wrapper: &mut RefWrapper<S, Self>) -> Result<&mut [u8]> {
-        let (sup, r) = unsafe { RefWrapperMutExt::s_r_mut(wrapper) };
-        let mut bytes = unsafe { AsMutBytes::as_mut_bytes(sup) }?;
-        bytes.try_advance(r.0)?;
-        Ok(bytes)
     }
 }
 

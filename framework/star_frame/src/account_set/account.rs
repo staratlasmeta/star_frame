@@ -1,16 +1,13 @@
 use crate::prelude::*;
-use crate::util::*;
+use crate::unsize::init::DefaultInit;
+use crate::unsize::UnsizedType;
 use advance::Advance;
 use anyhow::{bail, Context};
 use bytemuck::{bytes_of, from_bytes};
-use derivative::Derivative;
-use solana_program::entrypoint::MAX_PERMITTED_DATA_INCREASE;
 use solana_program::program_memory::sol_memset;
 pub use star_frame_proc::ProgramAccount;
-use std::cell::{Ref, RefMut};
 use std::marker::PhantomData;
 use std::mem::size_of;
-use std::slice::from_raw_parts_mut;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
 pub struct NormalizeRent<T>(pub T);
@@ -139,32 +136,15 @@ where
     }
 
     #[inline]
-    pub fn data<'a>(&'a self) -> Result<RefWrapper<AccountInfoRef<'a>, T::RefData>> {
-        let r: Ref<'a, _> = self.info_data_bytes()?;
-        Self::check_discriminant(&r)?;
-        let r = try_map_ref(r, |bytes| {
-            let bytes = &mut &*bytes;
-            bytes.try_advance(size_of::<
-                <T::OwnerProgram as StarFrameProgram>::AccountDiscriminant,
-            >())?;
-            Result::<_>::Ok(*bytes)
-        })?;
-        let account_info_ref = AccountInfoRef { r };
-        T::from_bytes(account_info_ref).map(|ret| ret.ref_wrapper)
+    pub fn data(&self) -> Result<SharedWrapper<'_, 'info, T::Ref<'_>>> {
+        unsafe { SharedWrapper::<T>::new(&self.info) }
     }
 
     #[inline]
-    pub fn data_mut<'a>(
-        &'a mut self,
-    ) -> Result<RefWrapper<AccountInfoRefMut<'a, 'info, T::OwnerProgram>, T::RefData>> {
-        let r: RefMut<'a, _> = self.info_data_bytes_mut()?;
-        Self::check_discriminant(&r)?;
-        let account_info_ref_mut = AccountInfoRefMut {
-            account_info: &self.info,
-            r,
-            phantom: PhantomData,
-        };
-        T::from_bytes(account_info_ref_mut).map(|ret| ret.ref_wrapper)
+    pub fn data_mut(
+        &self,
+    ) -> Result<ExclusiveWrapper<'_, 'info, T::Mut<'_>, T, AccountInfo<'info>>> {
+        unsafe { ExclusiveWrapper::new(&self.info) }
     }
 }
 
@@ -252,112 +232,13 @@ where
                     <T::OwnerProgram as StarFrameProgram>::AccountDiscriminant,
                 >())?
                 .copy_from_slice(bytes_of(&T::DISCRIMINANT));
-            let data_bytes = data_bytes.try_advance(T::INIT_BYTES)?;
+            let mut data_bytes = data_bytes.try_advance(T::INIT_BYTES)?;
             sol_memset(data_bytes, 0, data_bytes.len());
             unsafe {
-                T::init(data_bytes, arg)?;
+                T::init(&mut data_bytes, arg)?;
             }
         }
 
         Ok(())
     }
-}
-
-#[derive(Debug)]
-pub struct AccountInfoRef<'a> {
-    pub(crate) r: Ref<'a, [u8]>,
-}
-unsafe impl<'a> AsBytes for AccountInfoRef<'a> {
-    fn as_bytes(s: &Self) -> Result<&[u8]> {
-        Ok(s.r.as_ref())
-    }
-}
-impl<'a> Clone for AccountInfoRef<'a> {
-    fn clone(&self) -> Self {
-        Self {
-            r: Ref::clone(&self.r),
-        }
-    }
-}
-
-#[derive(Derivative)]
-#[derivative(Debug(bound = ""))]
-pub struct AccountInfoRefMut<'a, 'info, P: StarFrameProgram> {
-    pub(crate) account_info: &'a AccountInfo<'info>,
-    pub(crate) r: RefMut<'a, &'info mut [u8]>,
-    pub(crate) phantom: PhantomData<fn() -> P>,
-}
-unsafe impl<'a, 'info, P: StarFrameProgram> AsBytes for AccountInfoRefMut<'a, 'info, P> {
-    fn as_bytes(s: &Self) -> Result<&[u8]> {
-        let mut bytes = &**s.r;
-        bytes.try_advance(size_of::<P::AccountDiscriminant>())?;
-        Ok(bytes)
-    }
-}
-unsafe impl<'a, 'info, P: StarFrameProgram> AsMutBytes for AccountInfoRefMut<'a, 'info, P> {
-    unsafe fn as_mut_bytes(s: &mut Self) -> Result<&mut [u8]> {
-        let mut bytes = &mut **s.r;
-        bytes.try_advance(size_of::<P::AccountDiscriminant>())?;
-        Ok(bytes)
-    }
-}
-unsafe impl<'a, 'info, P: StarFrameProgram, M> Resize<M> for AccountInfoRefMut<'a, 'info, P> {
-    unsafe fn resize(s: &mut Self, new_byte_len: usize, _new_meta: M) -> Result<()> {
-        let original_data_len = unsafe { s.account_info.original_data_len() };
-        unsafe {
-            account_info_realloc(
-                new_byte_len + size_of::<P::AccountDiscriminant>(),
-                true,
-                &mut s.r,
-                original_data_len,
-            )
-            .map_err(Into::into)
-        }
-    }
-
-    unsafe fn set_meta(_s: &mut Self, _new_meta: M) -> Result<()> {
-        Ok(())
-    }
-}
-/// Copied code from solana
-unsafe fn account_info_realloc(
-    new_len: usize,
-    zero_init: bool,
-    data: &mut RefMut<&mut [u8]>,
-    original_data_len: usize,
-) -> Result<(), ProgramError> {
-    let old_len = data.len();
-
-    // Return early if length hasn't changed
-    if new_len == old_len {
-        return Ok(());
-    }
-
-    // Return early if the length increase from the original serialized data
-    // length is too large and would result in an out of bounds allocation.
-    if new_len.saturating_sub(original_data_len) > MAX_PERMITTED_DATA_INCREASE {
-        return Err(ProgramError::InvalidRealloc);
-    }
-
-    // realloc
-    #[allow(clippy::cast_ptr_alignment)]
-    unsafe {
-        let data_ptr = data.as_mut_ptr();
-
-        // First set new length in the serialized data
-
-        *(data_ptr.offset(-8).cast::<u64>()) = new_len as u64;
-
-        // Then recreate the local slice with the new length
-        **data = from_raw_parts_mut(data_ptr, new_len);
-    }
-
-    if zero_init {
-        let len_increase = new_len.saturating_sub(old_len);
-        if len_increase > 0 {
-            sol_memset(&mut data[old_len..], 0, len_increase);
-        }
-    }
-
-    Ok(())
 }

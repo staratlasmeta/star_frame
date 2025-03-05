@@ -24,7 +24,7 @@ pub struct InstructionSetFieldArgs {
 }
 
 pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
-    let info_lifetime = new_lifetime(&item);
+    let info_lifetime = new_lifetime(&item, None);
     let (impl_generics, ty_generics, where_clause) = &item.generics.split_for_impl();
     let ident = &item.ident;
 
