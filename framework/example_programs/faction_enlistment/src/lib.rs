@@ -250,7 +250,6 @@ mod tests {
                 processor!(FactionEnlistment::processor),
             )
         };
-        program_test.add_program("token", Token::ID, processor!(Token::processor));
 
         let mut test_context = program_test.start_with_context().await;
         let (player_account, (faction_account, bump)) = loop {
