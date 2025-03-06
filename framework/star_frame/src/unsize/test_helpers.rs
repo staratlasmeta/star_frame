@@ -1,3 +1,4 @@
+#![allow(unused)]
 use crate::unsize::init::{DefaultInit, UnsizedInit};
 use crate::unsize::wrapper::{ExclusiveWrapper, SharedWrapper, UnsizedTypeDataAccess};
 use crate::unsize::UnsizedType;
@@ -27,7 +28,7 @@ impl<'info> UnsizedTypeDataAccess<'info> for TestAccountInfo<'info> {
         self.original_data_len
     }
 
-    unsafe fn realloc(&self, new_len: usize, data: &mut RefMut<&'info mut [u8]>) {
+    unsafe fn realloc(&self, new_len: usize, data: &mut &'info mut [u8]) {
         assert!(
             new_len <= self.original_data_len + MAX_PERMITTED_DATA_INCREASE,
             "data too large"
@@ -36,7 +37,7 @@ impl<'info> UnsizedTypeDataAccess<'info> for TestAccountInfo<'info> {
         let ptr = data.as_mut_ptr();
         let slice = slice_from_raw_parts_mut(ptr, new_len);
         unsafe {
-            **data = &mut *slice;
+            *data = &mut *slice;
         }
     }
 
@@ -46,7 +47,6 @@ impl<'info> UnsizedTypeDataAccess<'info> for TestAccountInfo<'info> {
 }
 
 /// A way to test [`UnsizedType`] types. Uses a [`TestAccountInfo`] internally.
-#[allow(unused)]
 #[derive(Debug)]
 pub struct TestByteSet<'a, T: ?Sized> {
     test_account: &'a TestAccountInfo<'a>,

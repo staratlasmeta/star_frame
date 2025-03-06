@@ -7,21 +7,23 @@ use crate::unsize::{AsShared, ResizeOperation};
 use crate::util::uninit_array_bytes;
 use crate::Result;
 use advance::Advance;
-use anyhow::Context;
+use anyhow::{bail, Context};
 use bytemuck::{bytes_of, checked, from_bytes, CheckedBitPattern, NoUninit, Pod};
 use bytemuck::{cast_slice, cast_slice_mut};
 use num_traits::{FromPrimitive, ToPrimitive, Zero};
 use std::any::type_name;
+use std::borrow::Borrow;
 use std::marker::PhantomData;
 use std::mem::size_of;
 use std::ops::{Deref, DerefMut, RangeBounds};
-use std::ptr;
+use std::ptr::{slice_from_raw_parts, slice_from_raw_parts_mut};
+use std::{iter, ptr};
 
 /// A marker trait for types that can be used as the length of a [`List<T> `].
 pub trait ListLength: Pod + ToPrimitive + FromPrimitive {}
 impl<T> ListLength for T where T: Pod + ToPrimitive + FromPrimitive {}
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug)]
 #[repr(C)]
 pub struct List<T, L = u32>
 where
@@ -149,7 +151,7 @@ where
     L: ListLength,
     T: CheckedBitPattern + NoUninit + Align1,
 {
-    type Shared<'b> = ListRef<'b, T, L> where Self: 'a + 'b;
+    type Shared<'b> = ListRef<'b, T, L> where Self: 'a, Self: 'b;
 
     fn as_shared(&'a self) -> Self::Shared<'a> {
         ListRef(self.0, PhantomData)
@@ -164,10 +166,6 @@ where
     type Ref<'a> = ListRef<'a, T, L>;
     type Mut<'a> = ListMut<'a, T, L>;
     type Owned = Vec<T>;
-
-    fn owned_from_ref(r: Self::Ref<'_>) -> Result<Self::Owned> {
-        Ok(checked::try_cast_slice(&r.data)?.to_vec())
-    }
 
     fn get_ref<'a>(data: &mut &'a [u8]) -> Result<Self::Ref<'a>> {
         let ptr = data.as_ptr();
@@ -184,17 +182,43 @@ where
     }
 
     fn get_mut<'a>(data: &mut &'a mut [u8]) -> Result<Self::Mut<'a>> {
+        // let data_ptr = data.as_mut_ptr();
+        // let len = data.len();
+        // let length_bytes = unsafe {
+        //     let amount = size_of::<L>();
+        //     let len = data.len();
+        //     let ptr = data.as_mut_ptr();
+        //     *data = &mut *slice_from_raw_parts_mut(ptr.add(amount), len - amount);
+        //     &mut *slice_from_raw_parts_mut(ptr, amount)
+        // };
         let length_bytes = data.try_advance(size_of::<L>())?;
         let len_l = from_bytes::<PackedValue<L>>(length_bytes);
         let length = len_l
             .to_usize()
             .ok_or_else(|| anyhow::anyhow!("Could not convert list size to usize"))?;
-        let ptr = length_bytes.as_mut_ptr();
-        data.advance(size_of::<T>() * length);
+        // unsafe {
+        //     let amount = size_of::<T>() * length;
+        //     let len = data.len();
+        //     let ptr = data.as_mut_ptr();
+        //     *data = &mut *slice_from_raw_parts_mut(ptr.add(amount), len - amount);
+        //     &mut *slice_from_raw_parts_mut(ptr, amount)
+        // };
+        // Advance::advance(data, size_of::<T>() * length);
+        let new_data = data.try_advance(size_of::<T>() * length)?;
+        let total_advanced = size_of::<T>() * length;
         Ok(ListMut(
-            unsafe { &mut *ptr::from_raw_parts_mut(ptr.cast(), size_of::<T>() * length) },
+            unsafe {
+                &mut *ptr::from_raw_parts_mut(
+                    length_bytes.as_mut_ptr().cast(),
+                    size_of::<T>() * length,
+                )
+            },
             PhantomData,
         ))
+    }
+
+    fn owned_from_ref(r: Self::Ref<'_>) -> Result<Self::Owned> {
+        Ok(checked::try_cast_slice(&r.data)?.to_vec())
     }
 
     unsafe fn resize_notification(data: &mut &mut [u8], _operation: ResizeOperation) -> Result<()> {
@@ -208,21 +232,36 @@ where
     }
 }
 
-pub trait ListExclusive<T, L> {
-    fn push_all<I>(&mut self, values: I) -> Result<()>
+pub trait ListExclusive<'a, T, L>: DerefMut<Target = ListMut<'a, T, L>>
+where
+    L: ListLength,
+    T: Align1 + NoUninit + CheckedBitPattern,
+{
+    fn insert(&mut self, index: usize, item: T) -> Result<()> {
+        self.insert_all(index, iter::once(item))
+    }
+    fn insert_all<I>(&mut self, index: usize, items: I) -> Result<()>
+    where
+        I: IntoIterator,
+        I::IntoIter: ExactSizeIterator,
+        I::Item: Borrow<T>;
+    fn push_all<I>(&mut self, items: I) -> Result<()>
     where
         I: IntoIterator<Item = T>,
-        I::IntoIter: ExactSizeIterator;
-    fn push(&mut self, value: T) -> Result<()> {
-        self.push_all(std::iter::once(value))
+        I::IntoIter: ExactSizeIterator,
+    {
+        self.insert_all(self.len(), items)
     }
-    fn remove_range(&mut self, indexes: impl RangeBounds<usize>) -> Result<()>;
+    fn push(&mut self, item: T) -> Result<()> {
+        self.insert(self.len(), item)
+    }
+    fn remove_range(&mut self, range: impl RangeBounds<usize>) -> Result<()>;
     fn remove(&mut self, index: usize) -> Result<()> {
         self.remove_range(index..=index)
     }
 }
 
-impl<'a, 'info, T, O, A, L> ListExclusive<T, L>
+impl<'a, 'info, T, O: ?Sized, A, L> ListExclusive<'a, T, L>
     for ExclusiveWrapper<'a, 'info, <List<T, L> as UnsizedType>::Mut<'a>, O, A>
 where
     T: Align1 + NoUninit + CheckedBitPattern,
@@ -230,18 +269,22 @@ where
     O: UnsizedType,
     A: UnsizedTypeDataAccess<'info>,
 {
-    fn push_all<I>(&mut self, values: I) -> Result<()>
+    fn insert_all<I>(&mut self, index: usize, items: I) -> Result<()>
     where
-        I: IntoIterator<Item = T>,
+        I: IntoIterator,
         I::IntoIter: ExactSizeIterator,
+        I::Item: Borrow<T>,
     {
         let list: &mut List<T, L> = self;
-        let iter = values.into_iter();
+        let iter = items.into_iter();
         let to_add = iter.len();
         let old_len = list.len();
+        if index > old_len {
+            bail!("Index {index} is out of bounds for list of length {old_len}",);
+        }
         let new_len = L::from_usize(old_len + to_add).context("Failed to convert new len to L")?;
         unsafe {
-            let end_ptr = list.data.as_mut_ptr().add(old_len).cast();
+            let end_ptr = list.data.as_mut_ptr().add(index).cast();
             ExclusiveWrapper::add_bytes(self, end_ptr, size_of::<T>() * to_add, |l| {
                 l.len = PackedValue(new_len);
                 Ok(())
@@ -249,12 +292,13 @@ where
             ExclusiveWrapper::set_inner(self, |list| {
                 list.0 = &mut *ptr::from_raw_parts_mut(
                     list.0.cast::<()>(),
-                    (list.len() + to_add) * size_of::<T>(),
+                    (old_len + to_add) * size_of::<T>(),
                 );
             });
         }
-        for (index, value) in iter.enumerate() {
-            self.data[index * size_of::<T>()..][..size_of::<T>()].copy_from_slice(bytes_of(&value));
+        for (i, value) in iter.enumerate() {
+            self.data[index + i * size_of::<T>()..][..size_of::<T>()]
+                .copy_from_slice(bytes_of(value.borrow()));
         }
         Ok(())
     }
@@ -339,5 +383,26 @@ where
 
     unsafe fn init(bytes: &mut &mut [u8], array: [T; N]) -> Result<()> {
         unsafe { <Self as UnsizedInit<&[T; N]>>::init(bytes, &array) }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::unsize::test_helpers::TestByteSet;
+    use pretty_assertions::assert_eq;
+
+    #[test]
+    fn test_list() -> Result<()> {
+        let byte_array = [1, 2, 3, 4, 5];
+        let mut vec = byte_array.to_vec();
+        let test_bytes = TestByteSet::<List<u8>>::new(&byte_array)?;
+        let mut bytes = test_bytes.data_mut()?;
+        bytes.push_all([10, 11, 12])?;
+        vec.extend_from_slice(&[10, 11, 12]);
+        let list_bytes = &***bytes;
+        println!("{:?}", list_bytes);
+        assert_eq!(list_bytes, vec.as_slice());
+        Ok(())
     }
 }

@@ -8,6 +8,7 @@ use advance::Advance;
 use derive_more::{Deref, DerefMut};
 use std::cmp::Ordering;
 use std::marker::PhantomData;
+use std::mem::size_of;
 use std::ops::{Deref, DerefMut};
 use std::ptr;
 
@@ -52,10 +53,6 @@ unsafe impl UnsizedType for RemainingBytes {
     type Mut<'a> = RemainingBytesMut<'a>;
     type Owned = Vec<u8>;
 
-    fn owned_from_ref(r: Self::Ref<'_>) -> Result<Self::Owned> {
-        Ok(r.to_vec())
-    }
-
     fn get_ref<'a>(data: &mut &'a [u8]) -> Result<Self::Ref<'a>> {
         let remaining_bytes = data.advance(data.len());
         let ptr = remaining_bytes.as_ptr();
@@ -74,18 +71,22 @@ unsafe impl UnsizedType for RemainingBytes {
         ))
     }
 
+    fn owned_from_ref(r: Self::Ref<'_>) -> Result<Self::Owned> {
+        Ok(r.to_vec())
+    }
+
     unsafe fn resize_notification(data: &mut &mut [u8], _operation: ResizeOperation) -> Result<()> {
         data.advance(data.len());
         Ok(())
     }
 }
 
-pub trait RemainingBytesExclusive<T, L> {
+pub trait RemainingBytesExclusive {
     fn set_len(&mut self, len: usize) -> Result<()>;
 }
 
-impl<'a, 'info, O, A> RemainingBytesExclusive<O, A>
-    for ExclusiveWrapper<'a, 'info, <RemainingBytes as UnsizedType>::Mut<'a>, O, A>
+impl<'a, 'info, O: ?Sized, A> RemainingBytesExclusive
+    for ExclusiveWrapper<'a, 'info, RemainingBytesMut<'a>, O, A>
 where
     O: UnsizedType,
     A: UnsizedTypeDataAccess<'info>,
@@ -97,20 +98,22 @@ where
                 let bytes: &mut [u8] = self;
                 unsafe {
                     let end_ptr = bytes.as_mut_ptr().add(self.len()).cast();
-                    ExclusiveWrapper::add_bytes(self, end_ptr, bytes_to_add, |r| Ok(()))?;
+                    ExclusiveWrapper::add_bytes(self, end_ptr, bytes_to_add, |_r| Ok(()))?;
                 }
-                Ok(())
             }
-            Ordering::Equal => Ok(()),
-            Ordering::Greater => {
-                unsafe {
-                    let start_ptr = self.as_ptr().add(len).cast();
-                    let end_ptr = self.as_ptr().add(len).cast();
-                    ExclusiveWrapper::remove_bytes(self, start_ptr..end_ptr, |r| Ok(()))?;
-                }
-                Ok(())
-            }
+            Ordering::Equal => return Ok(()),
+            Ordering::Greater => unsafe {
+                let start_ptr = self.as_ptr().add(len).cast();
+                let end_ptr = self.as_ptr().add(self.len()).cast();
+                ExclusiveWrapper::remove_bytes(self, start_ptr..end_ptr, |_r| Ok(()))?;
+            },
+        };
+        unsafe {
+            ExclusiveWrapper::set_inner(self, |bytes| {
+                bytes.0 = &mut *ptr::from_raw_parts_mut(bytes.0.cast::<()>(), len);
+            });
         }
+        Ok(())
     }
 }
 
@@ -136,5 +139,22 @@ impl<const N: usize> UnsizedInit<[u8; N]> for RemainingBytes {
 
     unsafe fn init(bytes: &mut &mut [u8], array: [u8; N]) -> Result<()> {
         unsafe { <Self as UnsizedInit<&[u8; N]>>::init(bytes, &array) }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::unsize::test_helpers::TestByteSet;
+
+    #[test]
+    fn test_remaining_bytes() -> Result<()> {
+        let byte_array = [1, 2, 3, 4, 5];
+        let test_bytes = TestByteSet::<RemainingBytes>::new(&byte_array)?;
+        let mut bytes = test_bytes.data_mut()?;
+        // assert_eq!(***bytes, byte_array);
+        bytes.set_len(3)?;
+        println!("{:?}", &**bytes);
+        Ok(())
     }
 }

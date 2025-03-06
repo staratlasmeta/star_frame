@@ -1,7 +1,5 @@
-use crate::__resize_notification_checked;
 use crate::prelude::*;
 use crate::unsize::test_helpers::TestByteSet;
-use crate::unsize::ResizeOperation;
 use pretty_assertions::assert_eq;
 use star_frame_proc::derivative;
 
@@ -19,7 +17,7 @@ pub struct TestStruct {
 )]
 pub struct SingleUnsized {
     #[unsized_start]
-    pub unsized1: List<PackedValue<u16>>,
+    pub unsized1: List<u8>,
 }
 //
 // #[unsized_impl]
@@ -34,14 +32,16 @@ pub struct SingleUnsized {
 #[test]
 fn test_single_unsized() -> Result<()> {
     TestByteSet::<SingleUnsized>::new(DefaultInit)?;
-    let r = &mut TestByteSet::<SingleUnsized>::new(SingleUnsizedInit {
-        unsized1: [1.into()],
-    })?;
+    let r = &mut TestByteSet::<SingleUnsized>::new(SingleUnsizedInit { unsized1: [1, 2] })?;
+    r.data_mut()?.unsized1_exclusive().push(3)?;
+    r.data_mut()?
+        .unsized1_exclusive()
+        .insert_all(1, [10, 9, 8])?;
     let owned = SingleUnsized::owned_from_ref(*r.data_ref()?)?;
     assert_eq!(
         owned,
         SingleUnsizedOwned {
-            unsized1: vec![1.into()]
+            unsized1: vec![1, 10, 9, 8, 2, 3]
         }
     );
     Ok(())
@@ -92,24 +92,17 @@ fn test_many_unsized() -> Result<()> {
             sized2: 2,
         },
         unsized1: [1.into()],
-        unsized2: SingleUnsizedInit {
-            unsized1: [2.into()],
-        },
+        unsized2: SingleUnsizedInit { unsized1: [2] },
         unsized3: 3,
         unsized4: [TestStruct { val1: 4, val2: 5 }],
         unsized5: [TestStruct { val1: 6, val2: 7 }],
     })?;
 
-    let thingy = r.data_mut()?;
-    // thingy.foo()?;
-
     let expected = ManyUnsizedOwned {
         sized1: 1,
         sized2: 2,
-        unsized1: vec![1.into(), 2.into()],
-        unsized2: SingleUnsizedOwned {
-            unsized1: vec![2.into()],
-        },
+        unsized1: vec![1.into()],
+        unsized2: SingleUnsizedOwned { unsized1: vec![2] },
         unsized3: 3,
         unsized4: vec![TestStruct { val1: 4, val2: 5 }],
         unsized5: vec![TestStruct { val1: 6, val2: 7 }],

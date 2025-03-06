@@ -6,12 +6,13 @@ use solana_program::program_memory::sol_memmove;
 use std::cell::{Ref, RefCell, RefMut};
 use std::collections::Bound;
 use std::marker::PhantomData;
+use std::mem::transmute;
 use std::ops::{Deref, DerefMut, RangeBounds};
 use std::slice::from_raw_parts_mut;
 
 pub trait UnsizedTypeDataAccess<'info> {
     unsafe fn original_data_len(&self) -> usize;
-    unsafe fn realloc(&self, new_len: usize, data: &mut RefMut<&'info mut [u8]>);
+    unsafe fn realloc(&self, new_len: usize, data: &mut &'info mut [u8]);
     fn data(&self) -> &RefCell<&'info mut [u8]>;
 }
 
@@ -20,7 +21,7 @@ impl<'info> UnsizedTypeDataAccess<'info> for AccountInfo<'info> {
         unsafe { self.original_data_len() }
     }
 
-    unsafe fn realloc(&self, new_len: usize, data: &mut RefMut<&'info mut [u8]>) {
+    unsafe fn realloc(&self, new_len: usize, data: &mut &'info mut [u8]) {
         let data_ptr = data.as_mut_ptr();
 
         // First set new length in the serialized data
@@ -33,7 +34,7 @@ impl<'info> UnsizedTypeDataAccess<'info> for AccountInfo<'info> {
 
         // Then recreate the local slice with the new length
         unsafe {
-            **data = from_raw_parts_mut(data_ptr, new_len);
+            *data = from_raw_parts_mut(data_ptr, new_len);
         }
     }
 
@@ -84,20 +85,30 @@ impl<T> Deref for SharedWrapper<'_, '_, T> {
 #[derive(Debug)]
 pub struct ExclusiveWrapper<'a, 'info, T, O: ?Sized, A> {
     underlying_data: &'a A,
-    r: RefMut<'a, &'info mut [u8]>,
-    phantom_o: PhantomData<fn() -> O>,
+    r: RefMut<'a, *mut [u8]>,
+    phantom_o: PhantomData<fn() -> &'info O>,
     data: T,
+}
+
+unsafe fn change_ref<'info, 'a>(the_ref: &'a mut &'info mut [u8]) -> &'a mut *mut [u8] {
+    unsafe { &mut *std::ptr::from_mut::<&'info mut [u8]>(the_ref).cast::<*mut [u8]>() }
+}
+
+unsafe fn change_ref_back<'info, 'a>(the_ptr: &'a mut *mut [u8]) -> &'a mut &'info mut [u8] {
+    unsafe { &mut *std::ptr::from_mut::<*mut [u8]>(the_ptr).cast::<&'info mut [u8]>() }
 }
 
 impl<'a, 'info, O, A> ExclusiveWrapper<'a, 'info, O::Mut<'_>, O, A>
 where
+    'info: 'a,
     O: UnsizedType + ?Sized,
     A: UnsizedTypeDataAccess<'info>,
 {
     pub unsafe fn new(underlying_data: &'a A) -> Result<Self> {
-        let mut r = underlying_data.data().borrow_mut();
-        let ptr = *RefMut::deref_mut(&mut r) as *mut [u8];
-        let data = O::get_mut(&mut unsafe { &mut *ptr })?;
+        let mut r = RefMut::map(underlying_data.data().borrow_mut(), |r| unsafe {
+            change_ref(r)
+        });
+        let data = O::get_mut(unsafe { &mut &mut **r })?;
         Ok(Self {
             underlying_data,
             r,
@@ -107,7 +118,7 @@ where
     }
 }
 
-impl<'a, 'info, T, O: UnsizedType, A: UnsizedTypeDataAccess<'info>>
+impl<'a, 'info, T, O: UnsizedType + ?Sized, A: UnsizedTypeDataAccess<'info>>
     ExclusiveWrapper<'a, 'info, T, O, A>
 {
     // TODO: Maybe can not be unsafe, but maybe not?
@@ -135,7 +146,7 @@ impl<'a, 'info, T, O: UnsizedType, A: UnsizedTypeDataAccess<'info>>
         amount: usize,
         after_add: impl FnOnce(&mut T) -> Result<()>,
     ) -> Result<()> {
-        let data = &mut r.r;
+        let data = unsafe { change_ref_back(&mut r.r) };
         let old_ptr = data.as_ptr();
         let old_len = data.len();
 
@@ -173,7 +184,7 @@ impl<'a, 'info, T, O: UnsizedType, A: UnsizedTypeDataAccess<'info>>
 
         unsafe {
             <O as UnsizedType>::resize_notification(
-                &mut &mut r.r[..],
+                &mut &mut data[..],
                 ResizeOperation::Add { start, amount },
             )?;
         }
@@ -186,7 +197,7 @@ impl<'a, 'info, T, O: UnsizedType, A: UnsizedTypeDataAccess<'info>>
         range: impl RangeBounds<*const ()>,
         after_remove: impl FnOnce(&mut T) -> Result<()>,
     ) -> Result<()> {
-        let data = &mut r.r;
+        let data = unsafe { change_ref_back(&mut r.r) };
         let old_len = data.len();
 
         let start = match range.start_bound() {
@@ -242,7 +253,7 @@ impl<'a, 'info, T, O: UnsizedType, A: UnsizedTypeDataAccess<'info>>
 
         unsafe {
             <O as UnsizedType>::resize_notification(
-                &mut &mut r.r[..],
+                &mut &mut data[..],
                 ResizeOperation::Remove {
                     start: start.cast(),
                     end: end.cast(),
