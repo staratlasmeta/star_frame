@@ -13,10 +13,10 @@ use bytemuck::{cast_slice, cast_slice_mut};
 use num_traits::{FromPrimitive, ToPrimitive, Zero};
 use std::any::type_name;
 use std::borrow::Borrow;
+use std::cmp::Ordering;
 use std::marker::PhantomData;
 use std::mem::size_of;
-use std::ops::{Deref, DerefMut, RangeBounds};
-use std::ptr::{slice_from_raw_parts, slice_from_raw_parts_mut};
+use std::ops::{Deref, DerefMut, Index, IndexMut, RangeBounds};
 use std::{iter, ptr};
 
 /// A marker trait for types that can be used as the length of a [`List<T> `].
@@ -32,7 +32,7 @@ where
 {
     len: PackedValue<L>,
     phantom_t: PhantomData<fn() -> T>,
-    data: [u8],
+    bytes: [u8],
 }
 
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
@@ -70,10 +70,86 @@ where
     }
 
     pub fn is_empty(&self) -> bool {
-        self.len
-            .to_usize()
-            .expect("Could not convert list size to usize")
-            == 0
+        self.bytes.is_empty()
+    }
+
+    pub fn get(&self, index: usize) -> Option<&T> {
+        if index < self.len() {
+            Some(&self[index])
+        } else {
+            None
+        }
+    }
+
+    pub fn get_mut(&mut self, index: usize) -> Option<&mut T> {
+        if index < self.len() {
+            Some(&mut self[index])
+        } else {
+            None
+        }
+    }
+
+    pub fn as_slice(&self) -> &[T]
+    where
+        T: Pod,
+    {
+        cast_slice(&self.bytes)
+    }
+
+    pub fn as_mut_slice(&mut self) -> &mut [T]
+    where
+        T: Pod,
+    {
+        cast_slice_mut(&mut self.bytes)
+    }
+
+    pub fn as_checked_slice(&self) -> Result<&[T]> {
+        checked::try_cast_slice(&self.bytes).map_err(Into::into)
+    }
+
+    pub fn as_checked_mut_slice(&mut self) -> Result<&mut [T]> {
+        checked::try_cast_slice_mut(&mut self.bytes).map_err(Into::into)
+    }
+
+    /// See [`<[T]>::binary_search`]
+    pub fn binary_search(&self, x: &T) -> std::result::Result<usize, usize>
+    where
+        T: Ord,
+    {
+        Self::binary_search_by(self, |p| p.cmp(x))
+    }
+
+    /// See [`<[T]>::binary_search_by`]
+    /// ```
+    /// # use star_frame::unsize::{impls::List, TestByteSet};
+    /// let bytes: TestByteSet<List<u8>> = TestByteSet::new(&[0, 1, 1, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55]).unwrap();
+    /// let s = bytes.data_mut().unwrap();
+    /// let seek = 13;
+    /// assert_eq!(s.binary_search_by(|probe| probe.cmp(&seek)), Ok(9));
+    /// let seek = 4;
+    /// assert_eq!(s.binary_search_by(|probe| probe.cmp(&seek)), Err(7));
+    /// let seek = 100;
+    /// assert_eq!(s.binary_search_by(|probe| probe.cmp(&seek)), Err(13));
+    /// let seek = 1;
+    /// let r = s.binary_search_by(|probe| probe.cmp(&seek));
+    /// assert!(match r { Ok(1..=4) => true, _ => false, });
+    /// ```
+    pub fn binary_search_by<F>(&self, mut f: F) -> Result<usize, usize>
+    where
+        F: FnMut(&T) -> Ordering,
+    {
+        let size = self.len();
+        let mut left = 0;
+        let mut right = size;
+        while left < right {
+            let mid = (left + right) / 2;
+            match f(&self[mid]) {
+                Ordering::Less => left = mid + 1,
+                Ordering::Equal => return Ok(mid),
+                Ordering::Greater => right = mid,
+            }
+        }
+        Err(left)
     }
 }
 
@@ -85,7 +161,7 @@ where
     type Target = [T];
 
     fn deref(&self) -> &Self::Target {
-        cast_slice(&self.data)
+        cast_slice(&self.bytes)
     }
 }
 impl<T, L> DerefMut for List<T, L>
@@ -94,7 +170,7 @@ where
     T: Pod + Align1,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        cast_slice_mut(&mut self.data)
+        cast_slice_mut(&mut self.bytes)
     }
 }
 unsafe impl<T, L> Align1 for List<T, L>
@@ -102,6 +178,71 @@ where
     T: Align1 + CheckedBitPattern + NoUninit,
     L: ListLength,
 {
+}
+
+impl<T, L> Index<usize> for List<T, L>
+where
+    T: CheckedBitPattern + NoUninit + Align1,
+    L: ListLength,
+{
+    type Output = T;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        checked::try_from_bytes(&self.bytes[index * size_of::<T>()..][..size_of::<T>()])
+            .expect("Invalid data for index")
+    }
+}
+impl<T, L> IndexMut<usize> for List<T, L>
+where
+    T: CheckedBitPattern + NoUninit + Align1,
+    L: ListLength,
+{
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        checked::try_from_bytes_mut(&mut self.bytes[index * size_of::<T>()..][..size_of::<T>()])
+            .expect("Invalid data for index")
+    }
+}
+
+fn get_bounds<T, L>(list: &List<T, L>, range: impl RangeBounds<usize>) -> (usize, usize)
+where
+    T: CheckedBitPattern + NoUninit + Align1,
+    L: ListLength,
+{
+    let start = match range.start_bound() {
+        std::ops::Bound::Included(&start) => start * size_of::<T>(),
+        std::ops::Bound::Excluded(&start) => (start + 1) * size_of::<T>(),
+        std::ops::Bound::Unbounded => 0,
+    };
+    let end = match range.end_bound() {
+        std::ops::Bound::Included(&end) => (end + 1) * size_of::<T>(),
+        std::ops::Bound::Excluded(&end) => end * size_of::<T>(),
+        std::ops::Bound::Unbounded => list.len.to_usize().expect("Invalid length") * size_of::<T>(),
+    };
+    (start, end)
+}
+impl<T, L, R> Index<(R,)> for List<T, L>
+where
+    T: CheckedBitPattern + NoUninit + Align1,
+    L: ListLength,
+    R: RangeBounds<usize>,
+{
+    type Output = [T];
+
+    fn index(&self, index: (R,)) -> &Self::Output {
+        let (start, end) = get_bounds(self, index.0);
+        checked::try_cast_slice(&self.bytes[start..end]).expect("Invalid data for range")
+    }
+}
+impl<T, L, R> IndexMut<(R,)> for List<T, L>
+where
+    T: CheckedBitPattern + NoUninit + Align1,
+    L: ListLength,
+    R: RangeBounds<usize>,
+{
+    fn index_mut(&mut self, index: (R,)) -> &mut Self::Output {
+        let (start, end) = get_bounds(self, index.0);
+        checked::try_cast_slice_mut(&mut self.bytes[start..end]).expect("Invalid data for range")
+    }
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -182,30 +323,12 @@ where
     }
 
     fn get_mut<'a>(data: &mut &'a mut [u8]) -> Result<Self::Mut<'a>> {
-        // let data_ptr = data.as_mut_ptr();
-        // let len = data.len();
-        // let length_bytes = unsafe {
-        //     let amount = size_of::<L>();
-        //     let len = data.len();
-        //     let ptr = data.as_mut_ptr();
-        //     *data = &mut *slice_from_raw_parts_mut(ptr.add(amount), len - amount);
-        //     &mut *slice_from_raw_parts_mut(ptr, amount)
-        // };
         let length_bytes = data.try_advance(size_of::<L>())?;
         let len_l = from_bytes::<PackedValue<L>>(length_bytes);
         let length = len_l
             .to_usize()
             .ok_or_else(|| anyhow::anyhow!("Could not convert list size to usize"))?;
-        // unsafe {
-        //     let amount = size_of::<T>() * length;
-        //     let len = data.len();
-        //     let ptr = data.as_mut_ptr();
-        //     *data = &mut *slice_from_raw_parts_mut(ptr.add(amount), len - amount);
-        //     &mut *slice_from_raw_parts_mut(ptr, amount)
-        // };
-        // Advance::advance(data, size_of::<T>() * length);
-        let new_data = data.try_advance(size_of::<T>() * length)?;
-        let total_advanced = size_of::<T>() * length;
+        data.try_advance(size_of::<T>() * length)?;
         Ok(ListMut(
             unsafe {
                 &mut *ptr::from_raw_parts_mut(
@@ -218,7 +341,7 @@ where
     }
 
     fn owned_from_ref(r: Self::Ref<'_>) -> Result<Self::Owned> {
-        Ok(checked::try_cast_slice(&r.data)?.to_vec())
+        Ok(checked::try_cast_slice(&r.bytes)?.to_vec())
     }
 
     unsafe fn resize_notification(data: &mut &mut [u8], _operation: ResizeOperation) -> Result<()> {
@@ -284,7 +407,7 @@ where
         }
         let new_len = L::from_usize(old_len + to_add).context("Failed to convert new len to L")?;
         unsafe {
-            let end_ptr = list.data.as_mut_ptr().add(index).cast();
+            let end_ptr = list.bytes.as_mut_ptr().add(index).cast();
             ExclusiveWrapper::add_bytes(self, end_ptr, size_of::<T>() * to_add, |l| {
                 l.len = PackedValue(new_len);
                 Ok(())
@@ -297,7 +420,7 @@ where
             });
         }
         for (i, value) in iter.enumerate() {
-            self.data[index + i * size_of::<T>()..][..size_of::<T>()]
+            self.bytes[index + i * size_of::<T>()..][..size_of::<T>()]
                 .copy_from_slice(bytes_of(value.borrow()));
         }
         Ok(())
@@ -323,8 +446,8 @@ where
         let new_len = old_len - to_remove;
 
         unsafe {
-            let start_ptr = self.data.as_ptr().add(start).cast();
-            let end_ptr = self.data.as_ptr().add(end).cast();
+            let start_ptr = self.bytes.as_ptr().add(start).cast();
+            let end_ptr = self.bytes.as_ptr().add(end).cast();
             ExclusiveWrapper::remove_bytes(self, start_ptr..end_ptr, |l| {
                 l.len = PackedValue(
                     L::from_usize(new_len).context("Failed to convert new list len to L")?,

@@ -1,5 +1,6 @@
 #![allow(unused)]
 use crate::unsize::init::{DefaultInit, UnsizedInit};
+// use crate::unsize::wrapper::exclusive_passer::ExclusiveWrapperPasser;
 use crate::unsize::wrapper::{ExclusiveWrapper, SharedWrapper, UnsizedTypeDataAccess};
 use crate::unsize::UnsizedType;
 use crate::Result;
@@ -24,11 +25,7 @@ impl<'info> TestAccountInfo<'info> {
 }
 
 impl<'info> UnsizedTypeDataAccess<'info> for TestAccountInfo<'info> {
-    unsafe fn original_data_len(&self) -> usize {
-        self.original_data_len
-    }
-
-    unsafe fn realloc(&self, new_len: usize, data: &mut &'info mut [u8]) {
+    unsafe fn realloc(&self, new_len: usize, data: &mut &'info mut [u8]) -> Result<()> {
         assert!(
             new_len <= self.original_data_len + MAX_PERMITTED_DATA_INCREASE,
             "data too large"
@@ -39,6 +36,7 @@ impl<'info> UnsizedTypeDataAccess<'info> for TestAccountInfo<'info> {
         unsafe {
             *data = &mut *slice;
         }
+        Ok(())
     }
 
     fn data(&self) -> &RefCell<&'info mut [u8]> {

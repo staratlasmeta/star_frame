@@ -13,9 +13,8 @@ pub use crate::instruction::*;
 pub use crate::unsize::{
     impls::*,
     init::{DefaultInit, UnsizedInit},
-    unsized_type,
     wrapper::{ExclusiveWrapper, SharedWrapper, UnsizedTypeDataAccess},
-    AsShared, UnsizedType,
+    AsShared, UnsizedType, {unsized_impl, unsized_type},
 };
 
 pub use crate::align1::Align1;

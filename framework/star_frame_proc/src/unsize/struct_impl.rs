@@ -281,8 +281,10 @@ impl UnsizedStructContext {
         Paths!(prelude, copy, clone, debug);
         UnsizedStructContext!(self => vis, ref_ident, with_sized_vis, with_sized_idents, with_sized_types, rm_lt);
         let (generics, wc) = self.split_for_declaration(true);
+        let transparent = (with_sized_idents.len() == 1).then(|| quote!(#[repr(transparent)]));
         parse_quote! {
             #[#prelude::derivative(#debug, #copy, #clone)]
+            #transparent
             #vis struct #ref_ident #generics #wc {
                 #(
                     #with_sized_vis #with_sized_idents: <#with_sized_types as #prelude::UnsizedType>::Ref<#rm_lt>,
@@ -295,9 +297,11 @@ impl UnsizedStructContext {
         Paths!(prelude, debug);
         UnsizedStructContext!(self => vis, mut_ident, rm_lt, with_sized_vis, with_sized_idents, with_sized_types);
         let (generics, wc) = self.split_for_declaration(true);
+        let transparent = (with_sized_idents.len() == 1).then(|| quote!(#[repr(transparent)]));
 
         parse_quote! {
             #[#prelude::derivative(#debug)]
+            #transparent
             #vis struct #mut_ident #generics #wc {
                 #(
                     #with_sized_vis #with_sized_idents: <#with_sized_types as #prelude::UnsizedType>::Mut<#rm_lt>,

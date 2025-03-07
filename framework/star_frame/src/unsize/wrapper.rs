@@ -1,27 +1,29 @@
 use super::{ResizeOperation, UnsizedType};
 use crate::Result;
+use anyhow::ensure;
 use solana_program::account_info::AccountInfo;
 use solana_program::entrypoint::MAX_PERMITTED_DATA_INCREASE;
 use solana_program::program_memory::sol_memmove;
 use std::cell::{Ref, RefCell, RefMut};
 use std::collections::Bound;
 use std::marker::PhantomData;
-use std::mem::transmute;
 use std::ops::{Deref, DerefMut, RangeBounds};
 use std::slice::from_raw_parts_mut;
 
 pub trait UnsizedTypeDataAccess<'info> {
-    unsafe fn original_data_len(&self) -> usize;
-    unsafe fn realloc(&self, new_len: usize, data: &mut &'info mut [u8]);
+    unsafe fn realloc(&self, new_len: usize, data: &mut &'info mut [u8]) -> Result<()>;
     fn data(&self) -> &RefCell<&'info mut [u8]>;
 }
 
 impl<'info> UnsizedTypeDataAccess<'info> for AccountInfo<'info> {
-    unsafe fn original_data_len(&self) -> usize {
-        unsafe { self.original_data_len() }
-    }
-
-    unsafe fn realloc(&self, new_len: usize, data: &mut &'info mut [u8]) {
+    unsafe fn realloc(&self, new_len: usize, data: &mut &'info mut [u8]) -> Result<()> {
+        // Return early if the length increase from the original serialized data
+        // length is too large and would result in an out of bounds allocation.
+        let original_data_len = unsafe { self.original_data_len() };
+        ensure!(
+            new_len.saturating_sub(original_data_len) <= MAX_PERMITTED_DATA_INCREASE,
+            "Tried to realloc data to {new_len}. An increase over {MAX_PERMITTED_DATA_INCREASE} is not permitted",
+        );
         let data_ptr = data.as_mut_ptr();
 
         // First set new length in the serialized data
@@ -34,8 +36,9 @@ impl<'info> UnsizedTypeDataAccess<'info> for AccountInfo<'info> {
 
         // Then recreate the local slice with the new length
         unsafe {
-            *data = from_raw_parts_mut(data_ptr, new_len);
+            *data = from_raw_parts_mut(data.as_mut_ptr(), new_len);
         }
+        Ok(())
     }
 
     fn data(&self) -> &RefCell<&'info mut [u8]> {
@@ -82,20 +85,20 @@ impl<T> Deref for SharedWrapper<'_, '_, T> {
     }
 }
 
-#[derive(Debug)]
-pub struct ExclusiveWrapper<'a, 'info, T, O: ?Sized, A> {
-    underlying_data: &'a A,
-    r: RefMut<'a, *mut [u8]>,
-    phantom_o: PhantomData<fn() -> &'info O>,
-    data: T,
-}
-
 unsafe fn change_ref<'info, 'a>(the_ref: &'a mut &'info mut [u8]) -> &'a mut *mut [u8] {
     unsafe { &mut *std::ptr::from_mut::<&'info mut [u8]>(the_ref).cast::<*mut [u8]>() }
 }
 
 unsafe fn change_ref_back<'info, 'a>(the_ptr: &'a mut *mut [u8]) -> &'a mut &'info mut [u8] {
     unsafe { &mut *std::ptr::from_mut::<*mut [u8]>(the_ptr).cast::<&'info mut [u8]>() }
+}
+
+#[derive(Debug)]
+pub struct ExclusiveWrapper<'a, 'info, T, O: ?Sized, A> {
+    underlying_data: &'a A,
+    r: RefMut<'a, *mut [u8]>,
+    phantom_o: PhantomData<fn() -> &'info O>,
+    data: T,
 }
 
 impl<'a, 'info, O, A> ExclusiveWrapper<'a, 'info, O::Mut<'_>, O, A>
@@ -150,8 +153,8 @@ impl<'a, 'info, T, O: UnsizedType + ?Sized, A: UnsizedTypeDataAccess<'info>>
         let old_ptr = data.as_ptr();
         let old_len = data.len();
 
-        assert!(start as usize >= data.as_ptr() as usize);
-        assert!(start as usize <= data.as_ptr() as usize + old_len);
+        ensure!(start as usize >= data.as_ptr() as usize);
+        ensure!(start as usize <= data.as_ptr() as usize + old_len);
 
         // Return early if length hasn't changed
         if amount == 0 {
@@ -159,16 +162,8 @@ impl<'a, 'info, T, O: UnsizedType + ?Sized, A: UnsizedTypeDataAccess<'info>>
         }
         let new_len = old_len + amount;
 
-        // Return early if the length increase from the original serialized data
-        // length is too large and would result in an out of bounds allocation.
-        let original_data_len = unsafe { r.underlying_data.original_data_len() };
-        assert!(
-            new_len.saturating_sub(original_data_len) <= MAX_PERMITTED_DATA_INCREASE,
-            "Invalid realloc"
-        );
-
         // realloc
-        unsafe { r.underlying_data.realloc(new_len, data) }
+        unsafe { r.underlying_data.realloc(new_len, data) }?;
 
         if start as usize != old_ptr as usize + old_len {
             unsafe {
@@ -202,13 +197,13 @@ impl<'a, 'info, T, O: UnsizedType + ?Sized, A: UnsizedTypeDataAccess<'info>>
 
         let start = match range.start_bound() {
             Bound::Included(start) => {
-                assert!(*start as usize >= data.as_ptr() as usize);
-                assert!(*start as usize <= data.as_ptr() as usize + old_len);
+                ensure!(*start as usize >= data.as_ptr() as usize);
+                ensure!(*start as usize <= data.as_ptr() as usize + old_len);
                 start.cast::<u8>()
             }
             Bound::Excluded(start) => {
-                assert!(*start as usize >= data.as_ptr() as usize);
-                assert!(*start as usize <= data.as_ptr() as usize + old_len);
+                ensure!(*start as usize >= data.as_ptr() as usize);
+                ensure!(*start as usize <= data.as_ptr() as usize + old_len);
                 unsafe { start.cast::<u8>().add(1) }
             }
             Bound::Unbounded => data.as_ptr(),
@@ -216,13 +211,13 @@ impl<'a, 'info, T, O: UnsizedType + ?Sized, A: UnsizedTypeDataAccess<'info>>
 
         let end = match range.end_bound() {
             Bound::Included(end) => {
-                assert!(*end as usize >= start as usize);
-                assert!((*end as usize) < data.as_ptr() as usize + old_len);
+                ensure!(*end as usize >= start as usize);
+                ensure!((*end as usize) < data.as_ptr() as usize + old_len);
                 unsafe { end.cast::<u8>().add(1) }
             }
             Bound::Excluded(end) => {
-                assert!(*end as usize >= start as usize);
-                assert!(*end as usize <= data.as_ptr() as usize + old_len);
+                ensure!(*end as usize >= start as usize);
+                ensure!(*end as usize <= data.as_ptr() as usize + old_len);
                 end.cast::<u8>()
             }
             Bound::Unbounded => unsafe { data.as_ptr().add(old_len) },
@@ -246,7 +241,7 @@ impl<'a, 'info, T, O: UnsizedType + ?Sized, A: UnsizedTypeDataAccess<'info>>
         let new_len = old_len - amount;
         // realloc
         unsafe {
-            r.underlying_data.realloc(new_len, data);
+            r.underlying_data.realloc(new_len, data)?;
         }
 
         after_remove(&mut r.data)?;

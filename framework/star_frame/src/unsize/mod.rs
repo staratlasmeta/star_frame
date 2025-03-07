@@ -5,8 +5,10 @@ mod test_helpers;
 #[cfg(test)]
 mod tests;
 pub mod wrapper;
+#[cfg(feature = "test_helpers")]
+pub use test_helpers::*;
 
-pub use star_frame_proc::unsized_type;
+pub use star_frame_proc::{unsized_impl, unsized_type};
 
 use crate::Result;
 

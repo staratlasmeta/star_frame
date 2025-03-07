@@ -1,13 +1,62 @@
 use crate::prelude::*;
 use crate::unsize::test_helpers::TestByteSet;
+use crate::unsize::tests::test::many_unsized::{ManyUnsized, ManyUnsizedOwned};
 use pretty_assertions::assert_eq;
-use star_frame_proc::derivative;
+use star_frame::unsize::tests::test::many_unsized::ManyUnsizedExclusivePub;
+use star_frame_proc::{derivative, unsized_impl};
 
 #[derive(Debug, Copy, Clone, Pod, Zeroable, Align1, PartialEq, Eq, TypeToIdl)]
 #[repr(C, packed)]
 pub struct TestStruct {
     pub val1: u32,
     pub val2: u64,
+}
+
+impl unsized2::SingleUnsized2Ref<'_, u8, u8> {
+    // fn first(&self) -> Option<&u8> {
+    //     self.unsized1.first()
+    // }
+}
+
+mod unsized2 {
+    use super::*;
+
+    #[unsized_type(
+        owned_attributes = [
+            derive(PartialEq, Eq, Clone)
+        ],
+        skip_idl
+    )]
+    pub struct SingleUnsized2<T: UnsizedGenerics, U: UnsizedGenerics> {
+        #[unsized_start]
+        pub unsized1: List<T>,
+        pub unsized2: List<U>,
+    }
+}
+
+#[unsized_impl]
+impl<T> unsized2::SingleUnsized2<T, u8>
+where
+    T: UnsizedGenerics,
+{
+    fn foo(&self) -> Result<u16> {
+        self.unsized1.get(1);
+        Ok(*self.unsized2.get(0).unwrap() as u16)
+    }
+}
+
+trait SingleUnsized2ExclusivePub<T> {
+    fn foo(self) -> Result<u16>;
+}
+
+impl<'a, 'info, T, O, A> SingleUnsized2ExclusivePub<T>
+    for ExclusiveWrapper<'a, 'info, unsized2::SingleUnsized2Mut<'a, T, u8>, O, A>
+where
+    T: UnsizedGenerics,
+{
+    fn foo(self) -> Result<u16> {
+        todo!()
+    }
 }
 
 #[unsized_type(
@@ -19,57 +68,65 @@ pub struct SingleUnsized {
     #[unsized_start]
     pub unsized1: List<u8>,
 }
-//
-// #[unsized_impl]
-// impl SingleUnsized {
-//     fn foo(&mut self) -> Result<u16> {
-//         let list = &mut self.unsized1()?;
-//         list.push(2u16.into())?;
-//         Ok(10)
-//     }
+
+// impl SingleUnsizedMut<'_, u8> {
+//     fn first_mut(&mut self) -> Option<&mut u8> {
+//         let first = &*self.as_shared();
+//         (*self.as_shared()).first()
+//         self.unsized1.first_mut()
+// todo!()
+// }
 // }
 
-#[test]
-fn test_single_unsized() -> Result<()> {
-    TestByteSet::<SingleUnsized>::new(DefaultInit)?;
-    let r = &mut TestByteSet::<SingleUnsized>::new(SingleUnsizedInit { unsized1: [1, 2] })?;
-    r.data_mut()?.unsized1_exclusive().push(3)?;
-    r.data_mut()?
-        .unsized1_exclusive()
-        .insert_all(1, [10, 9, 8])?;
-    let owned = SingleUnsized::owned_from_ref(*r.data_ref()?)?;
-    assert_eq!(
-        owned,
-        SingleUnsizedOwned {
-            unsized1: vec![1, 10, 9, 8, 2, 3]
-        }
-    );
-    Ok(())
+trait SingleUnsizedMutImpl {}
+
+trait SingleUnsizedExclusiveImpl {}
+//
+
+// #[test]
+// fn test_single_unsized() -> Result<()> {
+//     TestByteSet::<SingleUnsized>::new(DefaultInit)?;
+//     let r = TestByteSet::<SingleUnsized>::new(SingleUnsizedInit { unsized1: [1, 2] })?;
+//     r.data_mut()?.unsized1_exclusive().push(3)?;
+//     r.data_mut()?
+//         .unsized1_exclusive()
+//         .insert_all(1, [10, 9, 8])?;
+//     let owned = SingleUnsized::owned_from_ref(*r.data_ref()?)?;
+//     r.data_ref()?.first()
+//     assert_eq!(
+//         owned,
+//         SingleUnsizedOwned {
+//             unsized1: vec![1, 10, 9, 8, 2, 3]
+//         }
+//     );
+//     Ok(())
+// }
+mod many_unsized {
+    use super::*;
+    #[unsized_type(owned_attributes = [derive(PartialEq, Eq, Clone)])]
+    pub struct ManyUnsized {
+        pub sized1: u8,
+        pub sized2: u8,
+        #[unsized_start]
+        pub unsized1: List<PackedValue<u16>>,
+        pub unsized2: SingleUnsized,
+        pub unsized3: u8,
+        pub unsized4: List<TestStruct>,
+        pub unsized5: List<TestStruct>,
+    }
 }
 
-#[unsized_type(owned_attributes = [derive(PartialEq, Eq, Clone)])]
-pub struct ManyUnsized {
-    pub sized1: u8,
-    pub sized2: u8,
-    #[unsized_start]
-    pub unsized1: List<PackedValue<u16>>,
-    unsized2: SingleUnsized,
-    pub unsized3: u8,
-    pub unsized4: List<TestStruct>,
-    unsized5: List<TestStruct>,
+#[unsized_impl]
+impl many_unsized::ManyUnsized {
+    // fn foo(&mut self) -> Result<u16> {
+    //     let list = &mut self.unsized1()?;
+    //     list.push(2u16.into())?;
+    //     Ok(10)
+    // }
+    pub fn bar(&self) -> Result<()> {
+        Ok(())
+    }
 }
-//
-// #[unsized_impl]
-// impl ManyUnsized {
-//     fn foo(&mut self) -> Result<u16> {
-//         let list = &mut self.unsized1()?;
-//         list.push(2u16.into())?;
-//         Ok(10)
-//     }
-//     pub fn bar(&self) -> Result<()> {
-//         Ok(())
-//     }
-// }
 //
 // #[unsized_impl(tag = "1")]
 // impl ManyUnsized {
@@ -85,9 +142,9 @@ pub struct ManyUnsized {
 
 #[test]
 fn test_many_unsized() -> Result<()> {
-    TestByteSet::<ManyUnsized>::new(DefaultInit)?;
-    let r = TestByteSet::<ManyUnsized>::new(ManyUnsizedInit {
-        sized: ManyUnsizedSized {
+    TestByteSet::<many_unsized::ManyUnsized>::new(DefaultInit)?;
+    let mut r = TestByteSet::<many_unsized::ManyUnsized>::new(many_unsized::ManyUnsizedInit {
+        sized: many_unsized::ManyUnsizedSized {
             sized1: 1,
             sized2: 2,
         },
@@ -97,6 +154,12 @@ fn test_many_unsized() -> Result<()> {
         unsized4: [TestStruct { val1: 4, val2: 5 }],
         unsized5: [TestStruct { val1: 6, val2: 7 }],
     })?;
+
+    // let mut mut_r = r.data_passer()?;
+    // let unsized1 = unsafe {
+    //     ExclusiveWrapperPasser::map_pass(&mut mut_r, |x| &mut x.as_mut().map(|x| &mut x.unsized1))
+    // };
+    // mut_r.unsized1_exclusive().push(mut_r.sized1)?;
 
     let expected = ManyUnsizedOwned {
         sized1: 1,

@@ -8,7 +8,6 @@ use advance::Advance;
 use derive_more::{Deref, DerefMut};
 use std::cmp::Ordering;
 use std::marker::PhantomData;
-use std::mem::size_of;
 use std::ops::{Deref, DerefMut};
 use std::ptr;
 

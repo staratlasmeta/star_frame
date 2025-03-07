@@ -4,14 +4,10 @@ use crate::unsize::UnsizedType;
 use advance::Advance;
 use anyhow::{bail, Context};
 use bytemuck::{bytes_of, from_bytes};
-use derivative::Derivative;
-use solana_program::entrypoint::MAX_PERMITTED_DATA_INCREASE;
 use solana_program::program_memory::sol_memset;
 pub use star_frame_proc::ProgramAccount;
-use std::cell::{Ref, RefMut};
 use std::marker::PhantomData;
 use std::mem::size_of;
-use std::slice::from_raw_parts_mut;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
 pub struct NormalizeRent<T>(pub T);

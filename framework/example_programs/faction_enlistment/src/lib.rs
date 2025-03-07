@@ -40,7 +40,8 @@ pub struct SomeUnsized {
 
 #[derive(StarFrameProgram)]
 #[program(
-    instruction_set = FactionEnlistmentInstructionSet
+    instruction_set = FactionEnlistmentInstructionSet,
+    account_discriminant = ()
 )]
 #[cfg_attr(
     feature = "prod",
@@ -99,6 +100,10 @@ impl StarFrameInstruction for ProcessEnlistPlayerIx {
             bump,
             _padding: [0; 5],
         };
+        player_faction_account_data
+            .some_fields_exclusive()
+            .unsized2_exclusive()
+            .push(5)?;
         // player_faction_account_data.some_fields()?.foo()?;
         // account_set
         //     .player_faction_account
@@ -151,7 +156,7 @@ pub struct ProcessEnlistPlayer<'info> {
 // )]
 // #[repr(C, packed)]
 // #[program_account(seeds = PlayerFactionAccountSeeds)]
-#[unsized_type(program_account, seeds = PlayerFactionAccountSeeds, owned_attributes = [derive(PartialEq, Eq, Clone)])]
+#[unsized_type(program_account, seeds = PlayerFactionAccountSeeds, owned_attributes = [derive(PartialEq, Eq, Clone)], discriminant = ())]
 pub struct PlayerFactionData {
     pub owner: Pubkey,
     pub enlisted_at_timestamp: i64,
@@ -163,7 +168,7 @@ pub struct PlayerFactionData {
     some_fields: SomeFields,
 }
 
-#[unsized_type(program_account, seeds = PlayerFactionAccountSeeds, owned_attributes = [derive(PartialEq, Eq, Clone)])]
+#[unsized_type(program_account, seeds = PlayerFactionAccountSeeds, owned_attributes = [derive(PartialEq, Eq, Clone)], discriminant = ())]
 pub struct PlayerFactionData2 {
     pub owner: Pubkey,
     pub enlisted_at_timestamp: i64,
@@ -234,7 +239,7 @@ mod tests {
 
     #[tokio::test]
     async fn banks_test() -> Result<()> {
-        let mut program_test = if option_env!("USE_BIN").is_some() {
+        let program_test = if option_env!("USE_BIN").is_some() {
             let target_dir = std::env::current_dir()?
                 .join("../../../target/deploy")
                 .canonicalize()?;
@@ -324,9 +329,9 @@ mod tests {
         };
 
         let faction_info = banks_client.get_account(faction_account).await?.unwrap();
-        assert_eq!(faction_info.data[0..8], PlayerFactionData::DISCRIMINANT);
+        // assert_eq!(faction_info.data[0..8], PlayerFactionData::DISCRIMINANT);
         let new_faction: PlayerFactionDataOwned =
-            PlayerFactionData::owned(&mut &faction_info.data[8..])?;
+            PlayerFactionData::owned(&mut &faction_info.data[..])?;
         assert_eq!(expected_faction_account, new_faction);
         Ok(())
     }
