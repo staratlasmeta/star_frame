@@ -1,6 +1,6 @@
 use crate::align1::Align1;
 use crate::unsize::init::{DefaultInit, UnsizedInit};
-use crate::unsize::wrapper::{ExclusiveWrapper, UnsizedTypeDataAccess};
+use crate::unsize::wrapper::{ExclusiveWrapper, ExclusiveWrapperBorrowed, UnsizedTypeDataAccess};
 use crate::unsize::UnsizedType;
 use crate::unsize::{AsShared, ResizeOperation};
 use crate::Result;
@@ -78,14 +78,31 @@ unsafe impl UnsizedType for RemainingBytes {
         data.advance(data.len());
         Ok(())
     }
+    unsafe fn adjust_ptr_notification(
+        the_mut: &mut Self::Mut<'_>,
+        operation: ResizeOperation,
+    ) -> Result<()> {
+        let self_ptr = the_mut.0;
+        if !operation.start().gt(&self_ptr.cast_const().cast::<()>()) {
+            match operation {
+                ResizeOperation::Add { .. } => {
+                    the_mut.0 = unsafe { self_ptr.byte_add(operation.amount()) };
+                }
+                ResizeOperation::Remove { .. } => {
+                    the_mut.0 = unsafe { self_ptr.byte_sub(operation.amount()) };
+                }
+            }
+        }
+        Ok(())
+    }
 }
 
 pub trait RemainingBytesExclusive {
     fn set_len(&mut self, len: usize) -> Result<()>;
 }
 
-impl<'a, 'info, O: ?Sized, A> RemainingBytesExclusive
-    for ExclusiveWrapper<'a, 'info, RemainingBytesMut<'a>, O, A>
+impl<'b, 'a, 'info, O: ?Sized, A> RemainingBytesExclusive
+    for ExclusiveWrapperBorrowed<'b, 'a, 'info, RemainingBytesMut<'a>, O, A>
 where
     O: UnsizedType,
     A: UnsizedTypeDataAccess<'info>,
@@ -97,18 +114,18 @@ where
                 let bytes: &mut [u8] = self;
                 unsafe {
                     let end_ptr = bytes.as_mut_ptr().add(self.len()).cast();
-                    ExclusiveWrapper::add_bytes(self, end_ptr, bytes_to_add, |_r| Ok(()))?;
+                    ExclusiveWrapperBorrowed::add_bytes(self, end_ptr, bytes_to_add, |_r| Ok(()))?;
                 }
             }
             Ordering::Equal => return Ok(()),
             Ordering::Greater => unsafe {
                 let start_ptr = self.as_ptr().add(len).cast();
                 let end_ptr = self.as_ptr().add(self.len()).cast();
-                ExclusiveWrapper::remove_bytes(self, start_ptr..end_ptr, |_r| Ok(()))?;
+                ExclusiveWrapperBorrowed::remove_bytes(self, start_ptr..end_ptr, |_r| Ok(()))?;
             },
         };
         unsafe {
-            ExclusiveWrapper::set_inner(self, |bytes| {
+            ExclusiveWrapperBorrowed::set_inner(self, |bytes| {
                 bytes.0 = &mut *ptr::from_raw_parts_mut(bytes.0.cast::<()>(), len);
             });
         }
@@ -152,7 +169,7 @@ mod tests {
         let test_bytes = TestByteSet::<RemainingBytes>::new(&byte_array)?;
         let mut bytes = test_bytes.data_mut()?;
         // assert_eq!(***bytes, byte_array);
-        bytes.set_len(3)?;
+        bytes.as_borrowed().set_len(3)?;
         println!("{:?}", &**bytes);
         Ok(())
     }

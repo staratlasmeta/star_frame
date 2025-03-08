@@ -1,13 +1,13 @@
 use crate::align1::Align1;
 use crate::data_types::PackedValue;
 use crate::unsize::init::{DefaultInit, UnsizedInit};
-use crate::unsize::wrapper::{ExclusiveWrapper, UnsizedTypeDataAccess};
+use crate::unsize::wrapper::{ExclusiveWrapper, ExclusiveWrapperBorrowed, UnsizedTypeDataAccess};
 use crate::unsize::UnsizedType;
 use crate::unsize::{AsShared, ResizeOperation};
 use crate::util::uninit_array_bytes;
 use crate::Result;
 use advance::Advance;
-use anyhow::{bail, Context};
+use anyhow::{bail, ensure, Context};
 use bytemuck::{bytes_of, checked, from_bytes, CheckedBitPattern, NoUninit, Pod};
 use bytemuck::{cast_slice, cast_slice_mut};
 use num_traits::{FromPrimitive, ToPrimitive, Zero};
@@ -267,6 +267,7 @@ pub struct ListMut<'a, T, L>(*mut List<T, L>, PhantomData<&'a ()>)
 where
     L: ListLength,
     T: CheckedBitPattern + NoUninit + Align1;
+
 impl<'a, T, L> Deref for ListMut<'a, T, L>
 where
     L: ListLength,
@@ -353,6 +354,24 @@ where
         data.advance(size_of::<T>() * length);
         Ok(())
     }
+
+    unsafe fn adjust_ptr_notification(
+        the_mut: &mut Self::Mut<'_>,
+        operation: ResizeOperation,
+    ) -> Result<()> {
+        let self_ptr = the_mut.0;
+        if !operation.start().gt(&self_ptr.cast_const().cast::<()>()) {
+            match operation {
+                ResizeOperation::Add { .. } => {
+                    the_mut.0 = unsafe { self_ptr.byte_add(operation.amount()) };
+                }
+                ResizeOperation::Remove { .. } => {
+                    the_mut.0 = unsafe { self_ptr.byte_sub(operation.amount()) };
+                }
+            }
+        }
+        Ok(())
+    }
 }
 
 pub trait ListExclusive<'a, T, L>: DerefMut<Target = ListMut<'a, T, L>>
@@ -384,8 +403,8 @@ where
     }
 }
 
-impl<'a, 'info, T, O: ?Sized, A, L> ListExclusive<'a, T, L>
-    for ExclusiveWrapper<'a, 'info, <List<T, L> as UnsizedType>::Mut<'a>, O, A>
+impl<'b, 'a, 'info, T, O: ?Sized, A, L> ListExclusive<'a, T, L>
+    for ExclusiveWrapperBorrowed<'b, 'a, 'info, <List<T, L> as UnsizedType>::Mut<'a>, O, A>
 where
     T: Align1 + NoUninit + CheckedBitPattern,
     L: ListLength,
@@ -406,13 +425,14 @@ where
             bail!("Index {index} is out of bounds for list of length {old_len}",);
         }
         let new_len = L::from_usize(old_len + to_add).context("Failed to convert new len to L")?;
+        let byte_index = index * size_of::<T>();
         unsafe {
-            let end_ptr = list.bytes.as_mut_ptr().add(index).cast();
-            ExclusiveWrapper::add_bytes(self, end_ptr, size_of::<T>() * to_add, |l| {
+            let end_ptr = list.bytes.as_mut_ptr().add(byte_index).cast();
+            ExclusiveWrapperBorrowed::add_bytes(self, end_ptr, size_of::<T>() * to_add, |l| {
                 l.len = PackedValue(new_len);
                 Ok(())
             })?;
-            ExclusiveWrapper::set_inner(self, |list| {
+            ExclusiveWrapperBorrowed::set_inner(self, |list| {
                 list.0 = &mut *ptr::from_raw_parts_mut(
                     list.0.cast::<()>(),
                     (old_len + to_add) * size_of::<T>(),
@@ -420,7 +440,7 @@ where
             });
         }
         for (i, value) in iter.enumerate() {
-            self.bytes[index + i * size_of::<T>()..][..size_of::<T>()]
+            self.bytes[byte_index + i * size_of::<T>()..][..size_of::<T>()]
                 .copy_from_slice(bytes_of(value.borrow()));
         }
         Ok(())
@@ -446,15 +466,15 @@ where
         let new_len = old_len - to_remove;
 
         unsafe {
-            let start_ptr = self.bytes.as_ptr().add(start).cast();
-            let end_ptr = self.bytes.as_ptr().add(end).cast();
-            ExclusiveWrapper::remove_bytes(self, start_ptr..end_ptr, |l| {
+            let start_ptr = self.bytes.as_ptr().add(start * size_of::<T>()).cast();
+            let end_ptr = self.bytes.as_ptr().add(end * size_of::<T>()).cast();
+            ExclusiveWrapperBorrowed::remove_bytes(self, start_ptr..end_ptr, |l| {
                 l.len = PackedValue(
                     L::from_usize(new_len).context("Failed to convert new list len to L")?,
                 );
                 Ok(())
             })?;
-            ExclusiveWrapper::set_inner(self, |list| {
+            ExclusiveWrapperBorrowed::set_inner(self, |list| {
                 list.0 =
                     &mut *ptr::from_raw_parts_mut(list.0.cast::<()>(), new_len * size_of::<T>());
             });
@@ -521,7 +541,7 @@ mod tests {
         let mut vec = byte_array.to_vec();
         let test_bytes = TestByteSet::<List<u8>>::new(&byte_array)?;
         let mut bytes = test_bytes.data_mut()?;
-        bytes.push_all([10, 11, 12])?;
+        bytes.as_borrowed().push_all([10, 11, 12])?;
         vec.extend_from_slice(&[10, 11, 12]);
         let list_bytes = &***bytes;
         println!("{:?}", list_bytes);

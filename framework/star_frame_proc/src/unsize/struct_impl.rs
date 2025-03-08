@@ -542,6 +542,14 @@ impl UnsizedStructContext {
                         r, operation -> #(#unsized_field_types),*
                     }
                 }
+
+                unsafe fn adjust_ptr_notification(
+                    the_mut: &mut Self::Mut<'_>,
+                    operation: #prelude::ResizeOperation,
+                ) -> #result<()> {
+                    #(<#with_sized_types as #prelude::UnsizedType>::adjust_ptr_notification(&mut the_mut.#with_sized_idents, operation)?;)*
+                    Ok(())
+                }
             }
         }
     }
@@ -628,11 +636,13 @@ impl UnsizedStructContext {
         Paths!(prelude);
         UnsizedStructContext!(self => struct_ident, unsized_fields, rm_lt, struct_type);
         let info = new_lifetime(&self.generics, Some("info"));
+        let b = new_lifetime(&self.generics, Some("b"));
+        let s = new_lifetime(&self.generics, Some("s"));
         let [o, a] = new_generics(&self.generics);
         let ext_trait_generics = self
             .ref_mut_generics
             .combine::<BetterGenerics>(&parse_quote!([
-                <#info, #o, #a> where
+                <#b, #info, #o, #a> where
                     #o: #prelude::UnsizedType,
                     #a: #prelude::UnsizedTypeDataAccess<#info>
             ]));
@@ -650,7 +660,7 @@ impl UnsizedStructContext {
                 }
             });
 
-        let impl_for = quote!(#prelude::ExclusiveWrapper<#rm_lt, #info, <#struct_type as #prelude::UnsizedType>::Mut<#rm_lt>, #o, #a>);
+        let impl_for = quote!(#prelude::ExclusiveWrapperBorrowed<#b, #rm_lt, #info, <#struct_type as #prelude::UnsizedType>::Mut<#rm_lt>, #o, #a>);
 
         let make_ext_trait = |vis: &Visibility, fields: Vec<&Field>, extension_ident: &Ident| {
             let field_idents = get_field_idents(&fields).collect_vec();
@@ -663,14 +673,14 @@ impl UnsizedStructContext {
                 #vis trait #extension_ident #impl_gen #wc
                 {
                     #(
-                        fn #field_fn_idents(self) -> #prelude::ExclusiveWrapper<#rm_lt, #info, <#field_types as #prelude::UnsizedType>::Mut<#rm_lt>, #o, #a>;
+                        fn #field_fn_idents<#s>(&#s mut self) -> #prelude::ExclusiveWrapperBorrowed<#s, #rm_lt, #info, <#field_types as #prelude::UnsizedType>::Mut<#rm_lt>, #o, #a>;
                     )*
                 }
 
                 impl #impl_gen #extension_ident #ty_gen for #impl_for #wc {
                     #(
-                        fn #field_fn_idents(self) -> #prelude::ExclusiveWrapper<#rm_lt, #info, <#field_types as #prelude::UnsizedType>::Mut<#rm_lt>, #o, #a> {
-                            unsafe { #prelude::ExclusiveWrapper::map(self, |x| x.#field_idents) }
+                        fn #field_fn_idents<#s>(&#s mut self) -> #prelude::ExclusiveWrapperBorrowed<#s, #rm_lt, #info, <#field_types as #prelude::UnsizedType>::Mut<#rm_lt>, #o, #a> {
+                            unsafe { #prelude::ExclusiveWrapperBorrowed::map_ref(self, |x| &mut x.#field_idents) }
                         }
                     )*
                 }

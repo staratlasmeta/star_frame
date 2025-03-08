@@ -21,7 +21,9 @@ pub trait AsShared<'a> {
 }
 
 impl<'a, T: ?Sized> AsShared<'a> for &'_ mut T {
-    type Shared<'b> = &'b T where Self: 'a + 'b;
+    type Shared<'b> = &'b T
+    where
+        Self: 'a + 'b;
 
     fn as_shared(&'a self) -> Self::Shared<'a> {
         self
@@ -46,6 +48,13 @@ pub unsafe trait UnsizedType: 'static {
     /// No resize operations should be performed on the data.
     #[allow(unused_variables)]
     unsafe fn resize_notification(data: &mut &mut [u8], operation: ResizeOperation) -> Result<()>;
+    /// # Safety
+    /// No resize operations should be performed on the data.
+    #[allow(unused_variables)]
+    unsafe fn adjust_ptr_notification(
+        the_mut: &mut Self::Mut<'_>,
+        operation: ResizeOperation,
+    ) -> Result<()>;
 }
 
 /// Helper macro to call `resize_notification` on all types in a tuple. This should mainly only
@@ -80,6 +89,14 @@ impl ResizeOperation {
     pub fn start(&self) -> *const () {
         match self {
             ResizeOperation::Remove { start, .. } | ResizeOperation::Add { start, .. } => *start,
+        }
+    }
+
+    #[must_use]
+    pub fn amount(&self) -> usize {
+        match self {
+            ResizeOperation::Add { amount, .. } => *amount,
+            ResizeOperation::Remove { start, end } => *end as usize - *start as usize,
         }
     }
 }

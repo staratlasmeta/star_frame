@@ -94,6 +94,23 @@ where
         data.advance(size_of::<T>());
         Ok(())
     }
+    unsafe fn adjust_ptr_notification(
+        the_mut: &mut Self::Mut<'_>,
+        operation: ResizeOperation,
+    ) -> Result<()> {
+        let self_ptr = the_mut.0;
+        if !operation.start().gt(&self_ptr.cast_const().cast::<()>()) {
+            match operation {
+                ResizeOperation::Add { .. } => {
+                    the_mut.0 = unsafe { self_ptr.byte_add(operation.amount()) };
+                }
+                ResizeOperation::Remove { .. } => {
+                    the_mut.0 = unsafe { self_ptr.byte_sub(operation.amount()) };
+                }
+            }
+        }
+        Ok(())
+    }
 }
 
 impl<T> UnsizedInit<T> for T

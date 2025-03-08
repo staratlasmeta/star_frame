@@ -2,8 +2,65 @@ use crate::prelude::*;
 use crate::unsize::test_helpers::TestByteSet;
 use crate::unsize::tests::test::many_unsized::{ManyUnsized, ManyUnsizedOwned};
 use pretty_assertions::assert_eq;
-use star_frame::unsize::tests::test::many_unsized::ManyUnsizedExclusivePub;
 use star_frame_proc::{derivative, unsized_impl};
+
+#[unsized_type(owned_attributes = [derive(PartialEq, Eq, Clone)])]
+pub struct UnsizedTest {
+    #[unsized_start]
+    pub unsized1: List<PackedValue<u16>, u8>,
+    pub unsized2: List<PackedValue<u16>, u8>,
+    pub unsized3: UnsizedTest3,
+}
+
+#[unsized_type(owned_attributes = [derive(PartialEq, Eq, Clone)])]
+pub struct UnsizedTest3 {
+    #[unsized_start]
+    pub unsized3: List<PackedValue<u16>, u8>,
+}
+
+#[test]
+fn test_unsized_simple() -> Result<()> {
+    TestByteSet::<UnsizedTest>::new(DefaultInit)?;
+    let r = TestByteSet::<UnsizedTest>::new(UnsizedTestInit {
+        unsized1: [100, 101, 102].map(Into::into),
+        unsized2: [200, 201, 202].map(Into::into),
+        unsized3: UnsizedTest3Init {
+            unsized3: [150, 151, 152].map(Into::into),
+        },
+    })?;
+
+    let mut data_mut = r.data_mut()?;
+    let mut banana = data_mut.as_borrowed();
+    banana.unsized1_exclusive().push(103.into())?;
+    assert_eq!(&**banana.unsized1, [100, 101, 102, 103]);
+    assert_eq!(&**banana.unsized2, [200, 201, 202]);
+    assert_eq!(&**banana.unsized3.unsized3, [150, 151, 152]);
+    banana.unsized2_exclusive().push(203.into())?;
+    assert_eq!(&**banana.unsized1, [100, 101, 102, 103]);
+    assert_eq!(&**banana.unsized2, [200, 201, 202, 203]);
+    assert_eq!(&**banana.unsized3.unsized3, [150, 151, 152]);
+
+    banana
+        .unsized3_exclusive()
+        .unsized3_exclusive()
+        .push(153.into())?;
+    assert_eq!(&**banana.unsized1, [100, 101, 102, 103]);
+    assert_eq!(&**banana.unsized2, [200, 201, 202, 203]);
+    assert_eq!(&**banana.unsized3.unsized3, [150, 151, 152, 153]);
+
+    drop(data_mut);
+
+    let expected = UnsizedTestOwned {
+        unsized1: [100, 101, 102, 103].map(Into::into).to_vec(),
+        unsized2: [200, 201, 202, 203].map(Into::into).to_vec(),
+        unsized3: UnsizedTest3Owned {
+            unsized3: [150, 151, 152, 153].map(Into::into).to_vec(),
+        },
+    };
+    let owned = UnsizedTest::owned_from_ref(*r.data_ref()?)?;
+    assert_eq!(owned, expected);
+    Ok(())
+}
 
 #[derive(Debug, Copy, Clone, Pod, Zeroable, Align1, PartialEq, Eq, TypeToIdl)]
 #[repr(C, packed)]
@@ -109,8 +166,8 @@ mod many_unsized {
         pub sized2: u8,
         #[unsized_start]
         pub unsized1: List<PackedValue<u16>>,
-        pub unsized2: SingleUnsized,
         pub unsized3: u8,
+        pub unsized2: SingleUnsized,
         pub unsized4: List<TestStruct>,
         pub unsized5: List<TestStruct>,
     }
@@ -155,7 +212,26 @@ fn test_many_unsized() -> Result<()> {
         unsized5: [TestStruct { val1: 6, val2: 7 }],
     })?;
 
-    // let mut mut_r = r.data_passer()?;
+    // unsafe {
+    //     let mut mut_r = r.data_mut()?;
+    //     let mut borrowed_r = mut_r.as_borrowed();
+    //     {
+    //         let unsized2 = ExclusiveWrapperBorrowed::map_ref(&mut borrowed_r, |a| &mut a.unsized2)
+    //             .map_ref(|a| &mut a.unsized1);
+    //         drop(unsized2);
+    //         let mut borrowed_r = mut_r.as_borrowed();
+    //         let unsized2 = ExclusiveWrapperBorrowed::map_ref(&mut borrowed_r, |a| &mut a.unsized1);
+    //     }
+    //
+    //     let mut unsized1 = &mut_r.unsized1;
+    //     // borrowed.push(TestStruct { val1: 8, val2: 9 })?;
+    //
+    //     let first = mut_r.unsized4.first();
+    //     println!("first: {:?}", first);
+    //     println!("unsized_5: {:?}", &**mut_r.unsized5);
+    //     drop(mut_r)
+    // }
+
     // let unsized1 = unsafe {
     //     ExclusiveWrapperPasser::map_pass(&mut mut_r, |x| &mut x.as_mut().map(|x| &mut x.unsized1))
     // };
@@ -168,7 +244,10 @@ fn test_many_unsized() -> Result<()> {
         unsized2: SingleUnsizedOwned { unsized1: vec![2] },
         unsized3: 3,
         unsized4: vec![TestStruct { val1: 4, val2: 5 }],
-        unsized5: vec![TestStruct { val1: 6, val2: 7 }],
+        unsized5: vec![
+            TestStruct { val1: 6, val2: 7 },
+            TestStruct { val1: 8, val2: 9 },
+        ],
     };
     let owned = ManyUnsized::owned_from_ref(*r.data_ref()?)?;
     assert_eq!(owned, expected);

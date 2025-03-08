@@ -85,20 +85,12 @@ impl<T> Deref for SharedWrapper<'_, '_, T> {
     }
 }
 
-unsafe fn change_ref<'info, 'a>(the_ref: &'a mut &'info mut [u8]) -> &'a mut *mut [u8] {
+pub(crate) unsafe fn change_ref<'info, 'a>(the_ref: &'a mut &'info mut [u8]) -> &'a mut *mut [u8] {
     unsafe { &mut *std::ptr::from_mut::<&'info mut [u8]>(the_ref).cast::<*mut [u8]>() }
 }
 
 unsafe fn change_ref_back<'info, 'a>(the_ptr: &'a mut *mut [u8]) -> &'a mut &'info mut [u8] {
     unsafe { &mut *std::ptr::from_mut::<*mut [u8]>(the_ptr).cast::<&'info mut [u8]>() }
-}
-
-#[derive(Debug)]
-pub struct ExclusiveWrapper<'a, 'info, T, O: ?Sized, A> {
-    underlying_data: &'a A,
-    r: RefMut<'a, *mut [u8]>,
-    phantom_o: PhantomData<fn() -> &'info O>,
-    data: T,
 }
 
 impl<'a, 'info, O, A> ExclusiveWrapper<'a, 'info, O::Mut<'_>, O, A>
@@ -121,15 +113,87 @@ where
     }
 }
 
-impl<'a, 'info, T, O: UnsizedType + ?Sized, A: UnsizedTypeDataAccess<'info>>
-    ExclusiveWrapper<'a, 'info, T, O, A>
+#[derive(Debug)]
+pub struct ExclusiveWrapper<'a, 'info, T, O: ?Sized, A> {
+    underlying_data: &'a A,
+    r: RefMut<'a, *mut [u8]>,
+    phantom_o: PhantomData<fn() -> &'info O>,
+    data: T,
+}
+
+impl<T, O: ?Sized, A> Deref for ExclusiveWrapper<'_, '_, T, O, A> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.data
+    }
+}
+
+impl<T, O: ?Sized, A> DerefMut for ExclusiveWrapper<'_, '_, T, O, A> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.data
+    }
+}
+
+impl<'b, 'a, 'c, 'info, O: UnsizedType + ?Sized, A: UnsizedTypeDataAccess<'info>>
+    ExclusiveWrapper<'a, 'info, <O as UnsizedType>::Mut<'a>, O, A>
+where
+    'b: 'c,
 {
-    // TODO: Maybe can not be unsafe, but maybe not?
-    /// # Safety
-    /// TODO
-    pub unsafe fn map<U>(r: Self, f: impl FnOnce(T) -> U) -> ExclusiveWrapper<'a, 'info, U, O, A> {
-        ExclusiveWrapper {
+    pub fn as_borrowed(
+        &'b mut self,
+    ) -> ExclusiveWrapperBorrowed<'c, 'a, 'info, <O as UnsizedType>::Mut<'a>, O, A> {
+        ExclusiveWrapperBorrowed {
+            underlying_data: &self.underlying_data,
+            r: &mut self.r,
+            outer_data: &mut self.data as *mut _,
+            data: &mut self.data,
+            phantom_o: PhantomData,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct ExclusiveWrapperBorrowed<'b, 'a, 'info, T, O: ?Sized, A>
+where
+    O: UnsizedType,
+{
+    underlying_data: &'b &'a A,
+    r: &'b mut RefMut<'a, *mut [u8]>,
+    outer_data: *mut <O as UnsizedType>::Mut<'a>,
+    phantom_o: PhantomData<fn() -> &'info O>,
+    data: &'b mut T,
+}
+
+impl<T, O: ?Sized, A> Deref for ExclusiveWrapperBorrowed<'_, '_, '_, T, O, A>
+where
+    O: UnsizedType,
+{
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        self.data
+    }
+}
+impl<T, O: ?Sized, A> DerefMut for ExclusiveWrapperBorrowed<'_, '_, '_, T, O, A>
+where
+    O: UnsizedType,
+{
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.data
+    }
+}
+
+impl<'b, 'a, 'info, T, O: UnsizedType + ?Sized, A: UnsizedTypeDataAccess<'info>>
+    ExclusiveWrapperBorrowed<'b, 'a, 'info, T, O, A>
+{
+    pub unsafe fn map_ref<'c, U>(
+        r: &'c mut Self,
+        f: impl FnOnce(&'c mut T) -> &'c mut U,
+    ) -> ExclusiveWrapperBorrowed<'c, 'a, 'info, U, O, A> {
+        ExclusiveWrapperBorrowed {
             underlying_data: r.underlying_data,
+            outer_data: r.outer_data,
             r: r.r,
             data: f(r.data),
             phantom_o: PhantomData,
@@ -139,7 +203,7 @@ impl<'a, 'info, T, O: UnsizedType + ?Sized, A: UnsizedTypeDataAccess<'info>>
     /// # Safety
     /// TODO
     pub unsafe fn set_inner<U>(r: &mut Self, f: impl FnOnce(&mut T) -> U) -> U {
-        f(&mut r.data)
+        f(r.data)
     }
     /// # Safety
     /// TODO
@@ -149,7 +213,7 @@ impl<'a, 'info, T, O: UnsizedType + ?Sized, A: UnsizedTypeDataAccess<'info>>
         amount: usize,
         after_add: impl FnOnce(&mut T) -> Result<()>,
     ) -> Result<()> {
-        let data = unsafe { change_ref_back(&mut r.r) };
+        let data = unsafe { change_ref_back(r.r) };
         let old_ptr = data.as_ptr();
         let old_len = data.len();
 
@@ -175,7 +239,12 @@ impl<'a, 'info, T, O: UnsizedType + ?Sized, A: UnsizedTypeDataAccess<'info>>
             }
         }
 
-        after_add(&mut r.data)?;
+        after_add(r.data)?;
+
+        let resize_operation = ResizeOperation::Add { start, amount };
+        unsafe {
+            <O as UnsizedType>::adjust_ptr_notification(&mut *r.outer_data, resize_operation)
+        }?;
 
         unsafe {
             <O as UnsizedType>::resize_notification(
@@ -192,7 +261,7 @@ impl<'a, 'info, T, O: UnsizedType + ?Sized, A: UnsizedTypeDataAccess<'info>>
         range: impl RangeBounds<*const ()>,
         after_remove: impl FnOnce(&mut T) -> Result<()>,
     ) -> Result<()> {
-        let data = unsafe { change_ref_back(&mut r.r) };
+        let data = unsafe { change_ref_back(r.r) };
         let old_len = data.len();
 
         let start = match range.start_bound() {
@@ -246,6 +315,13 @@ impl<'a, 'info, T, O: UnsizedType + ?Sized, A: UnsizedTypeDataAccess<'info>>
 
         after_remove(&mut r.data)?;
 
+        let resize_operation = ResizeOperation::Remove {
+            start: start.cast(),
+            end: end.cast(),
+        };
+        unsafe {
+            <O as UnsizedType>::adjust_ptr_notification(&mut *r.outer_data, resize_operation)
+        }?;
         unsafe {
             <O as UnsizedType>::resize_notification(
                 &mut &mut data[..],
@@ -256,17 +332,5 @@ impl<'a, 'info, T, O: UnsizedType + ?Sized, A: UnsizedTypeDataAccess<'info>>
             )?;
         }
         Ok(())
-    }
-}
-impl<T, O: ?Sized, A> Deref for ExclusiveWrapper<'_, '_, T, O, A> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        &self.data
-    }
-}
-impl<T, O: ?Sized, A> DerefMut for ExclusiveWrapper<'_, '_, T, O, A> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.data
     }
 }
