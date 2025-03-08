@@ -1,6 +1,6 @@
 use crate::unsize::{account, UnsizedTypeArgs};
 use crate::util::{
-    generate_fields_are_trait, get_field_idents, get_field_types, get_field_vis, new_generics,
+    generate_fields_are_trait, get_field_idents, get_field_types, get_field_vis, new_generic,
     new_ident, new_lifetime, phantom_generics_ident, phantom_generics_type, reject_attributes,
     restrict_attributes, strip_inner_attributes, BetterGenerics, CombineGenerics, Paths,
 };
@@ -638,12 +638,13 @@ impl UnsizedStructContext {
         let info = new_lifetime(&self.generics, Some("info"));
         let b = new_lifetime(&self.generics, Some("b"));
         let s = new_lifetime(&self.generics, Some("s"));
-        let [o, a] = new_generics(&self.generics);
+        let o = new_generic(&self.generics, Some("O"));
+        let a = new_generic(&self.generics, Some("A"));
         let ext_trait_generics = self
             .ref_mut_generics
             .combine::<BetterGenerics>(&parse_quote!([
                 <#b, #info, #o, #a> where
-                    #o: #prelude::UnsizedType,
+                    #o: #prelude::UnsizedType + ?Sized,
                     #a: #prelude::UnsizedTypeDataAccess<#info>
             ]));
 
@@ -665,6 +666,10 @@ impl UnsizedStructContext {
         let make_ext_trait = |vis: &Visibility, fields: Vec<&Field>, extension_ident: &Ident| {
             let field_idents = get_field_idents(&fields).collect_vec();
             let field_types = get_field_types(&fields).collect_vec();
+            // let field_fn_idents = field_idents
+            //     .iter()
+            //     .map(|ident| new_ident(&format!("{ident}_exclusive"), field_idents.iter().copied()))
+            //     .collect_vec();
             quote! {
                 #vis trait #extension_ident #impl_gen #wc
                 {

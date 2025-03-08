@@ -57,23 +57,26 @@ where
     V: UnsizedGenerics,
     L: ListLength,
 {
-    #[must_use] pub fn len(&self) -> usize {
+    #[must_use]
+    pub fn len(&self) -> usize {
         self.list.len()
     }
 
-    #[must_use] pub fn is_empty(&self) -> bool {
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
         self.list.is_empty()
     }
 
-    pub fn insert(self, key: K, value: V) -> Result<Option<V>> {
-        let list = self.list_exclusive();
-        match list.binary_search_by(|probe| { probe.key }.cmp(&key)) {
+    #[exclusive]
+    pub fn insert(&mut self, key: K, value: V) -> Result<Option<V>> {
+        match self.list.binary_search_by(|probe| { probe.key }.cmp(&key)) {
             Ok(existing_index) => {
-                let old = core::mem::replace(&mut list[existing_index].value, value);
+                let old = core::mem::replace(&mut self.list[existing_index].value, value);
                 Ok(Some(old))
             }
             Err(insertion_index) => {
-                list.insert(insertion_index, ListItemSized { key, value })?;
+                self.list()
+                    .insert(insertion_index, ListItemSized { key, value })?;
                 Ok(None)
             }
         }
@@ -95,12 +98,12 @@ where
         }
     }
 
-    pub fn remove(self, key: &K) -> Result<Option<V>> {
-        let list = self.list_exclusive();
-        match list.binary_search_by(|probe| { probe.key }.cmp(key)) {
+    #[exclusive]
+    pub fn remove(&mut self, key: &K) -> Result<Option<V>> {
+        match self.list.binary_search_by(|probe| { probe.key }.cmp(key)) {
             Ok(existing_index) => {
-                let to_return = list[existing_index].value;
-                list.remove(existing_index)?;
+                let to_return = self.list[existing_index].value;
+                self.list().remove(existing_index)?;
                 Ok(Some(to_return))
             }
             Err(_) => Ok(None),

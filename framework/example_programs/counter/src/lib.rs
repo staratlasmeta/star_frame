@@ -6,7 +6,7 @@ use star_frame::prelude::*;
 use star_frame::solana_program::pubkey::Pubkey;
 
 #[derive(Align1, Pod, Zeroable, Default, Copy, Clone, Debug, Eq, PartialEq, ProgramAccount)]
-#[program_account(seeds = CounterAccountSeeds)]
+#[program_account(seeds = CounterAccountSeeds, discriminant = ())]
 #[repr(C, packed)]
 pub struct CounterAccount {
     pub version: u8,
@@ -206,6 +206,7 @@ pub enum CounterInstructionSet {
 #[program(
     instruction_set = CounterInstructionSet,
     id = "Coux9zxTFKZpRdFpE4F7Fs5RZ6FdaURdckwS61BUTMG",
+    account_discriminant = ()
 )]
 pub struct CounterProgram;
 
@@ -217,6 +218,7 @@ mod tests {
     use solana_program_test::*;
     use solana_sdk::signature::{Keypair, Signer};
     use solana_sdk::transaction::Transaction;
+    use std::mem::size_of;
 
     #[cfg(feature = "idl")]
     #[test]
@@ -281,7 +283,12 @@ mod tests {
             data: Default::default(),
         };
         let acc = banks_client.get_account(counter_account).await?.unwrap();
-        assert_eq!(expected, *try_from_bytes(&acc.data[8..])?);
+        assert_eq!(
+            expected,
+            *try_from_bytes(
+                &acc.data[size_of::<<CounterProgram as StarFrameProgram>::AccountDiscriminant>()..]
+            )?
+        );
 
         // Update a counter signer
         let instruction2 = CounterProgram::instruction(
@@ -296,7 +303,9 @@ mod tests {
         transaction2.sign(&[&payer, &account_key], recent_blockhash);
         banks_client.process_transaction(transaction2).await?;
         let acc2 = banks_client.get_account(counter_account).await?.unwrap();
-        let acc2_data: CounterAccount = *try_from_bytes(&acc2.data[8..])?;
+        let acc2_data: CounterAccount = *try_from_bytes(
+            &acc2.data[size_of::<<CounterProgram as StarFrameProgram>::AccountDiscriminant>()..],
+        )?;
         assert_eq!(acc2_data.signer, account_key2.pubkey());
 
         // Update count
@@ -326,7 +335,9 @@ mod tests {
         transaction3.sign(&[&payer, &account_key], recent_blockhash);
         banks_client.process_transaction(transaction3).await?;
         let acc3 = banks_client.get_account(counter_account).await?.unwrap();
-        let acc3_data: CounterAccount = *try_from_bytes(&acc3.data[8..])?;
+        let acc3_data: CounterAccount = *try_from_bytes(
+            &acc3.data[size_of::<<CounterProgram as StarFrameProgram>::AccountDiscriminant>()..],
+        )?;
         let old_count = acc2_data.count;
         let new_count = acc3_data.count;
         assert_eq!(new_count, old_count + 7 - 4);

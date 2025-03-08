@@ -196,7 +196,7 @@ pub(super) fn derive_account_set_impl_struct(
         let (info_sg_impl, _, _) = info_sg_impl.split_for_impl();
 
         let mut info_gen_sg = info_sg.clone();
-        let new_generic = new_generic(&info_gen_sg);
+        let new_generic = new_generic(&info_gen_sg, None);
 
         info_gen_sg.params.push(parse_quote! {
             #new_generic
