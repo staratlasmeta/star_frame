@@ -11,6 +11,8 @@ use std::ops::{Deref, DerefMut, RangeBounds};
 use std::slice::from_raw_parts_mut;
 
 pub trait UnsizedTypeDataAccess<'info> {
+    /// # Safety
+    /// todo
     unsafe fn realloc(&self, new_len: usize, data: &mut &'info mut [u8]) -> Result<()>;
     fn data(&self) -> &RefCell<&'info mut [u8]>;
 }
@@ -56,6 +58,8 @@ impl<'a, 'info, O> SharedWrapper<'a, 'info, O>
 where
     O: UnsizedType + ?Sized,
 {
+    /// # Safety
+    /// todo
     pub unsafe fn new(
         underlying_data: &'a impl UnsizedTypeDataAccess<'info>,
     ) -> Result<SharedWrapper<'a, 'info, O::Ref<'a>>> {
@@ -99,6 +103,8 @@ where
     O: UnsizedType + ?Sized,
     A: UnsizedTypeDataAccess<'info>,
 {
+    /// # Safety
+    /// todo
     pub unsafe fn new(underlying_data: &'a A) -> Result<Self> {
         let mut r = RefMut::map(underlying_data.data().borrow_mut(), |r| unsafe {
             change_ref(r)
@@ -140,13 +146,13 @@ impl<'b, 'a, 'c, 'info, O: UnsizedType + ?Sized, A: UnsizedTypeDataAccess<'info>
 where
     'b: 'c,
 {
-    pub fn as_borrowed(
+    pub fn exclusive(
         &'b mut self,
     ) -> ExclusiveWrapperBorrowed<'c, 'a, 'info, <O as UnsizedType>::Mut<'a>, O, A> {
         ExclusiveWrapperBorrowed {
             underlying_data: &self.underlying_data,
             r: &mut self.r,
-            outer_data: &mut self.data as *mut _,
+            outer_data: std::ptr::from_mut(&mut self.data),
             data: &mut self.data,
             phantom_o: PhantomData,
         }
@@ -187,6 +193,8 @@ where
 impl<'b, 'a, 'info, T, O: UnsizedType + ?Sized, A: UnsizedTypeDataAccess<'info>>
     ExclusiveWrapperBorrowed<'b, 'a, 'info, T, O, A>
 {
+    /// # Safety
+    /// todo
     pub unsafe fn map_ref<'c, U>(
         r: &'c mut Self,
         f: impl FnOnce(&'c mut T) -> &'c mut U,
@@ -313,7 +321,7 @@ impl<'b, 'a, 'info, T, O: UnsizedType + ?Sized, A: UnsizedTypeDataAccess<'info>>
             r.underlying_data.realloc(new_len, data)?;
         }
 
-        after_remove(&mut r.data)?;
+        after_remove(r.data)?;
 
         let resize_operation = ResizeOperation::Remove {
             start: start.cast(),

@@ -1,7 +1,6 @@
 use crate::prelude::*;
 use bytemuck::AnyBitPattern;
 use star_frame_proc::unsized_impl;
-use std::collections::HashMap;
 
 #[star_frame_proc::derivative(Copy, Clone, Debug, PartialEq, Eq)]
 #[derive(Align1)]
@@ -58,11 +57,11 @@ where
     V: UnsizedGenerics,
     L: ListLength,
 {
-    pub fn len(&self) -> usize {
+    #[must_use] pub fn len(&self) -> usize {
         self.list.len()
     }
 
-    pub fn is_empty(&self) -> bool {
+    #[must_use] pub fn is_empty(&self) -> bool {
         self.list.is_empty()
     }
 

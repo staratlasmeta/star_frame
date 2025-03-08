@@ -101,9 +101,9 @@ impl StarFrameInstruction for ProcessEnlistPlayerIx {
             _padding: [0; 5],
         };
         player_faction_account_data
-            .as_borrowed()
-            .some_fields_exclusive()
-            .unsized2_exclusive()
+            .exclusive()
+            .some_fields()
+            .unsized2()
             .push(5)?;
         // player_faction_account_data.some_fields()?.foo()?;
         // account_set

@@ -1,11 +1,14 @@
 #![allow(unused)]
 use crate::unsize::init::{DefaultInit, UnsizedInit};
-use crate::unsize::wrapper::{ExclusiveWrapper, SharedWrapper, UnsizedTypeDataAccess};
+use crate::unsize::wrapper::{
+    ExclusiveWrapper, ExclusiveWrapperBorrowed, SharedWrapper, UnsizedTypeDataAccess,
+};
 use crate::unsize::UnsizedType;
 use crate::Result;
 use solana_program::entrypoint::MAX_PERMITTED_DATA_INCREASE;
 use std::cell::{RefCell, RefMut};
 use std::marker::PhantomData;
+use std::mem::MaybeUninit;
 use std::ptr::slice_from_raw_parts_mut;
 use std::slice::from_raw_parts_mut;
 
@@ -47,6 +50,9 @@ impl<'info> UnsizedTypeDataAccess<'info> for TestAccountInfo<'info> {
 pub struct TestByteSet<'a, T: ?Sized + UnsizedType> {
     test_account: &'a TestAccountInfo<'a>,
     phantom_t: PhantomData<T>,
+    // exclusive_wrapper:
+    //     MaybeUninit<ExclusiveWrapper<'a, 'a, <T as UnsizedType>::Mut<'a>, T, TestAccountInfo<'a>>>,
+    // is_initialized: bool,
 }
 
 impl<'a, T> TestByteSet<'a, T>
@@ -69,6 +75,8 @@ where
         Ok(Self {
             test_account,
             phantom_t: PhantomData,
+            // exclusive_wrapper: MaybeUninit::uninit(),
+            // is_initialized: false,
         })
     }
 
@@ -85,6 +93,22 @@ where
     }
 
     pub fn data_mut(&self) -> Result<ExclusiveWrapper<'a, '_, T::Mut<'_>, T, TestAccountInfo<'_>>> {
+        // let exclusive_wrapper = unsafe { ExclusiveWrapper::new(self.test_account) }?;
+        // self.exclusive_wrapper.write(exclusive_wrapper);
         unsafe { ExclusiveWrapper::new(self.test_account) }
     }
+
+    // pub fn data_mut(
+    //     &mut self,
+    // ) -> Result<
+    //     ExclusiveWrapperBorrowed<'a, 'a, 'a, <T as UnsizedType>::Mut<'a>, T, TestAccountInfo<'a>>,
+    // > {
+    //     if self.is_initialized {
+    //         unsafe { self.exclusive_wrapper.assume_init_drop() };
+    //     }
+    //     let exclusive_wrapper = unsafe { ExclusiveWrapper::new(self.test_account) }?;
+    //     self.exclusive_wrapper.write(exclusive_wrapper);
+    //     self.is_initialized = true;
+    //     unsafe { Ok((*self.exclusive_wrapper.as_mut_ptr()).exclusive()) }
+    // }
 }

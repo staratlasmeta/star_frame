@@ -16,11 +16,11 @@ where
     V: UnsizedGenerics + Ord,
     L: ListLength,
 {
-    pub fn len(&self) -> usize {
+    #[must_use] pub fn len(&self) -> usize {
         self.list.len()
     }
 
-    pub fn is_empty(&self) -> bool {
+    #[must_use] pub fn is_empty(&self) -> bool {
         self.list.is_empty()
     }
 

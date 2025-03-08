@@ -665,21 +665,17 @@ impl UnsizedStructContext {
         let make_ext_trait = |vis: &Visibility, fields: Vec<&Field>, extension_ident: &Ident| {
             let field_idents = get_field_idents(&fields).collect_vec();
             let field_types = get_field_types(&fields).collect_vec();
-            let field_fn_idents = field_idents
-                .iter()
-                .map(|ident| new_ident(&format!("{ident}_exclusive"), field_idents.iter().copied()))
-                .collect_vec();
             quote! {
                 #vis trait #extension_ident #impl_gen #wc
                 {
                     #(
-                        fn #field_fn_idents<#s>(&#s mut self) -> #prelude::ExclusiveWrapperBorrowed<#s, #rm_lt, #info, <#field_types as #prelude::UnsizedType>::Mut<#rm_lt>, #o, #a>;
+                        fn #field_idents<#s>(&#s mut self) -> #prelude::ExclusiveWrapperBorrowed<#s, #rm_lt, #info, <#field_types as #prelude::UnsizedType>::Mut<#rm_lt>, #o, #a>;
                     )*
                 }
 
                 impl #impl_gen #extension_ident #ty_gen for #impl_for #wc {
                     #(
-                        fn #field_fn_idents<#s>(&#s mut self) -> #prelude::ExclusiveWrapperBorrowed<#s, #rm_lt, #info, <#field_types as #prelude::UnsizedType>::Mut<#rm_lt>, #o, #a> {
+                        fn #field_idents<#s>(&#s mut self) -> #prelude::ExclusiveWrapperBorrowed<#s, #rm_lt, #info, <#field_types as #prelude::UnsizedType>::Mut<#rm_lt>, #o, #a> {
                             unsafe { #prelude::ExclusiveWrapperBorrowed::map_ref(self, |x| &mut x.#field_idents) }
                         }
                     )*

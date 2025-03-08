@@ -1,18 +1,16 @@
-use crate::util::{BetterGenerics, CombineGenerics, Paths};
 use easy_proc::ArgumentList;
-use heck::ToUpperCamelCase;
 use itertools::Itertools;
 use proc_macro2::{Ident, TokenStream};
 use proc_macro_error2::{abort, OptionExt};
-use quote::{format_ident, quote, ToTokens};
+use quote::{format_ident, quote};
 use syn::{
-    parse_quote, AngleBracketedGenericArguments, FnArg, ImplItem, ImplItemFn, ItemImpl, LitStr,
-    PathArguments, PathSegment, Type, TypePath,
+    parse_quote, AngleBracketedGenericArguments, FnArg, ImplItem, ItemImpl, LitStr, PathArguments,
+    PathSegment, Type,
 };
 
 #[derive(ArgumentList)]
 pub struct UnsizedImplArgs {
-    tag: Option<LitStr>,
+    _tag: Option<LitStr>,
     ref_ident: Option<Ident>,
     mut_ident: Option<Ident>,
 }
@@ -20,11 +18,11 @@ pub struct UnsizedImplArgs {
 pub fn unsized_impl_impl(item: ItemImpl, args: TokenStream) -> TokenStream {
     let args: UnsizedImplArgs =
         UnsizedImplArgs::parse_arguments(&parse_quote!(#[unsized_impl(#args)]));
-    let tag_str = args
-        .tag
-        .map(|tag| tag.value().to_upper_camel_case())
-        .unwrap_or_default();
-    Paths!(prelude);
+    // let tag_str = args
+    //     .tag
+    //     .map(|tag| tag.value().to_upper_camel_case())
+    //     .unwrap_or_default();
+    // Paths!(prelude);
     if let Some(trait_) = item.trait_ {
         abort!(
             trait_.1,
@@ -65,10 +63,8 @@ pub fn unsized_impl_impl(item: ItemImpl, args: TokenStream) -> TokenStream {
 
     let self_ident = self_segment.ident.clone();
 
-    let pub_exclusive_impl = format_ident!("{self_ident}ExtensionPub{tag_str}");
-    let priv_exclusive_impl = format_ident!("{self_ident}Extension{tag_str}");
-
-    // let angle_bracketed = self_segment.arguments
+    // let pub_exclusive_impl = format_ident!("{self_ident}ExtensionPub{tag_str}");
+    // let priv_exclusive_impl = format_ident!("{self_ident}Extension{tag_str}");
 
     let angle_bracketed_self = match &self_segment.arguments {
         PathArguments::None => AngleBracketedGenericArguments {

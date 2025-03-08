@@ -1,13 +1,13 @@
 use crate::align1::Align1;
 use crate::data_types::PackedValue;
 use crate::unsize::init::{DefaultInit, UnsizedInit};
-use crate::unsize::wrapper::{ExclusiveWrapper, ExclusiveWrapperBorrowed, UnsizedTypeDataAccess};
+use crate::unsize::wrapper::{ExclusiveWrapperBorrowed, UnsizedTypeDataAccess};
 use crate::unsize::UnsizedType;
 use crate::unsize::{AsShared, ResizeOperation};
 use crate::util::uninit_array_bytes;
 use crate::Result;
 use advance::Advance;
-use anyhow::{bail, ensure, Context};
+use anyhow::{bail, Context};
 use bytemuck::{bytes_of, checked, from_bytes, CheckedBitPattern, NoUninit, Pod};
 use bytemuck::{cast_slice, cast_slice_mut};
 use num_traits::{FromPrimitive, ToPrimitive, Zero};
@@ -541,10 +541,10 @@ mod tests {
         let mut vec = byte_array.to_vec();
         let test_bytes = TestByteSet::<List<u8>>::new(&byte_array)?;
         let mut bytes = test_bytes.data_mut()?;
-        bytes.as_borrowed().push_all([10, 11, 12])?;
+        bytes.exclusive().push_all([10, 11, 12])?;
         vec.extend_from_slice(&[10, 11, 12]);
         let list_bytes = &***bytes;
-        println!("{:?}", list_bytes);
+        println!("{list_bytes:?}");
         assert_eq!(list_bytes, vec.as_slice());
         Ok(())
     }

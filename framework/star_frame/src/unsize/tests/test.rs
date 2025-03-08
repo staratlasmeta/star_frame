@@ -30,20 +30,17 @@ fn test_unsized_simple() -> Result<()> {
     })?;
 
     let mut data_mut = r.data_mut()?;
-    let mut banana = data_mut.as_borrowed();
-    banana.unsized1_exclusive().push(103.into())?;
+    let mut banana = data_mut.exclusive();
+    banana.unsized1().push(103.into())?;
     assert_eq!(&**banana.unsized1, [100, 101, 102, 103]);
     assert_eq!(&**banana.unsized2, [200, 201, 202]);
     assert_eq!(&**banana.unsized3.unsized3, [150, 151, 152]);
-    banana.unsized2_exclusive().push(203.into())?;
+    banana.unsized2().push(203.into())?;
     assert_eq!(&**banana.unsized1, [100, 101, 102, 103]);
     assert_eq!(&**banana.unsized2, [200, 201, 202, 203]);
     assert_eq!(&**banana.unsized3.unsized3, [150, 151, 152]);
 
-    banana
-        .unsized3_exclusive()
-        .unsized3_exclusive()
-        .push(153.into())?;
+    banana.unsized3().unsized3().push(153.into())?;
     assert_eq!(&**banana.unsized1, [100, 101, 102, 103]);
     assert_eq!(&**banana.unsized2, [200, 201, 202, 203]);
     assert_eq!(&**banana.unsized3.unsized3, [150, 151, 152, 153]);
@@ -96,25 +93,25 @@ impl<T> unsized2::SingleUnsized2<T, u8>
 where
     T: UnsizedGenerics,
 {
-    fn foo(&self) -> Result<u16> {
-        self.unsized1.get(1);
-        Ok(*self.unsized2.get(0).unwrap() as u16)
-    }
+    // fn foo(&self) -> Option<&u8> {
+    //     self.unsized1.get(1);
+    //     self.unsized2.get(0)
+    // }
 }
 
-trait SingleUnsized2ExclusivePub<T> {
-    fn foo(self) -> Result<u16>;
-}
+// trait SingleUnsized2ExclusivePub<T> {
+//     fn foo(self) -> Result<u16>;
+// }
 
-impl<'a, 'info, T, O, A> SingleUnsized2ExclusivePub<T>
-    for ExclusiveWrapper<'a, 'info, unsized2::SingleUnsized2Mut<'a, T, u8>, O, A>
-where
-    T: UnsizedGenerics,
-{
-    fn foo(self) -> Result<u16> {
-        todo!()
-    }
-}
+// impl<'a, 'info, T, O, A> SingleUnsized2ExclusivePub<T>
+//     for ExclusiveWrapper<'a, 'info, unsized2::SingleUnsized2Mut<'a, T, u8>, O, A>
+// where
+//     T: UnsizedGenerics,
+// {
+//     fn foo(self) -> Result<u16> {
+//         todo!()
+//     }
+// }
 
 #[unsized_type(
     owned_attributes = [
@@ -135,9 +132,9 @@ pub struct SingleUnsized {
 // }
 // }
 
-trait SingleUnsizedMutImpl {}
+// trait SingleUnsizedMutImpl {}
 
-trait SingleUnsizedExclusiveImpl {}
+// trait SingleUnsizedExclusiveImpl {}
 //
 
 // #[test]
@@ -180,9 +177,7 @@ impl many_unsized::ManyUnsized {
     //     list.push(2u16.into())?;
     //     Ok(10)
     // }
-    pub fn bar(&self) -> Result<()> {
-        Ok(())
-    }
+    // pub fn bar(&self) {}
 }
 //
 // #[unsized_impl(tag = "1")]
@@ -200,7 +195,7 @@ impl many_unsized::ManyUnsized {
 #[test]
 fn test_many_unsized() -> Result<()> {
     TestByteSet::<many_unsized::ManyUnsized>::new(DefaultInit)?;
-    let mut r = TestByteSet::<many_unsized::ManyUnsized>::new(many_unsized::ManyUnsizedInit {
+    let r = TestByteSet::<many_unsized::ManyUnsized>::new(many_unsized::ManyUnsizedInit {
         sized: many_unsized::ManyUnsizedSized {
             sized1: 1,
             sized2: 2,
