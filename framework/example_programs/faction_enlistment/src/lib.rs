@@ -100,17 +100,9 @@ impl StarFrameInstruction for ProcessEnlistPlayerIx {
             bump,
             _padding: [0; 5],
         };
-        player_faction_account_data
-            .some_fields_exclusive()
-            .unsized2_exclusive()
-            .push(5)?;
-        // player_faction_account_data.some_fields()?.foo()?;
-        // account_set
-        //     .player_faction_account
-        //     .data_mut()?
-        //     .some_fields()?
-        //     .bar()?;
-
+        let mut exclusive = player_faction_account_data.exclusive();
+        exclusive.some_fields().unsized2().push(5)?;
+        exclusive.some_fields.sized1 = 10;
         Ok(())
     }
 }
@@ -218,6 +210,7 @@ pub struct PlayerFactionAccountSeeds {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pretty_assertions::assert_eq;
     use solana_program_test::{processor, ProgramTest};
     use solana_sdk::account::Account;
     use solana_sdk::clock::Clock;

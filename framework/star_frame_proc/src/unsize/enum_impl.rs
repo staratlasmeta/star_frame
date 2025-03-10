@@ -265,7 +265,7 @@ impl UnsizedEnumContext {
         Paths!(prelude, debug, copy, clone);
         UnsizedEnumContext!(self => ref_wrapper_ident, variant_idents, variant_struct_types, variant_docs);
         let mut generics = self.generics();
-        let new_generic = new_generic(&generics);
+        let new_generic = new_generic(&generics, None);
         generics.params.insert(0, parse_quote!(#new_generic));
         let wc = &generics.where_clause;
 
@@ -337,7 +337,7 @@ impl UnsizedEnumContext {
             .push(parse_quote!(#inner_type: #prelude::UnsizedInit<#init_type>));
         let (impl_gen, _, where_clause) = self.split_for_impl();
 
-        let s_gen = new_generic(&generics);
+        let s_gen = new_generic(&generics, None);
         quote! {
             #[automatically_derived]
             impl #impl_gen #prelude::UnsizedInit<#init_type> for #enum_type #where_clause {
@@ -360,7 +360,7 @@ impl UnsizedEnumContext {
         let init_struct_generic = format_ident!("InitStruct");
 
         let mut generics = self.generics();
-        let init_gen = new_generic(&generics);
+        let init_gen = new_generic(&generics, None);
         generics.params.push(parse_quote!(#init_gen));
         let init_where_clauses = variant_types
             .iter()
@@ -374,7 +374,7 @@ impl UnsizedEnumContext {
             })
             .collect_vec();
 
-        let s_gen = new_generic(&generics);
+        let s_gen = new_generic(&generics, None);
 
         let (impl_gen, ..) = generics.split_for_impl();
 
@@ -402,7 +402,7 @@ impl UnsizedEnumContext {
         Paths!(prelude);
         UnsizedEnumContext!(self => enum_type, variant_idents, meta_ident, discriminant_ident);
         let (impl_gen, _, where_clause) = self.split_for_impl();
-        let s = new_generic(&self.item_enum);
+        let s = new_generic(&self.item_enum, None);
         quote! {
             #[allow(clippy::ignored_unit_patterns)]
             #[automatically_derived]
@@ -429,7 +429,7 @@ impl UnsizedEnumContext {
             variant_struct_types, ref_wrapper_ident, owned_ident
         }
         let (impl_gen, _, where_clause) = self.split_for_impl();
-        let s = new_generic(&self.item_enum);
+        let s = new_generic(&self.item_enum, None);
 
         quote! {
             #[automatically_derived]
@@ -509,7 +509,7 @@ impl UnsizedEnumContext {
         ]));
 
         let (impl_gen, ty_gen, where_clause) = generics.split_for_impl();
-        let [init_gen, self_gen] = new_generics(&generics);
+        let [init_gen, self_gen] = new_generics(&generics, None);
 
         let impl_trait_gen = generics.combine::<BetterGenerics>(&parse_quote!([<#self_gen>]));
         let impl_trait_impl_gen = impl_trait_gen.split_for_impl().0;

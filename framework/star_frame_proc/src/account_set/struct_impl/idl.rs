@@ -138,7 +138,7 @@ pub(super) fn idls(
                         .extend(extra_where_clause.predicates);
                 }
             } else if let Some(single_set_field) = single_set_field {
-                let generic_arg = new_generic(main_generics);
+                let generic_arg = new_generic(main_generics, None);
                 default_idl_arg = syn::parse_quote!(arg);
                 idl_type = syn::parse_quote!(#generic_arg);
                 generics.params.push(syn::parse_quote!(#generic_arg));

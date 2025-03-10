@@ -8,9 +8,8 @@ pub mod wrapper;
 #[cfg(feature = "test_helpers")]
 pub use test_helpers::*;
 
-pub use star_frame_proc::{unsized_impl, unsized_type};
-
 use crate::Result;
+pub use star_frame_proc::{unsized_impl, unsized_type};
 
 pub trait AsShared<'a> {
     type Shared<'b>
@@ -21,7 +20,9 @@ pub trait AsShared<'a> {
 }
 
 impl<'a, T: ?Sized> AsShared<'a> for &'_ mut T {
-    type Shared<'b> = &'b T where Self: 'a + 'b;
+    type Shared<'b> = &'b T
+    where
+        Self: 'a + 'b;
 
     fn as_shared(&'a self) -> Self::Shared<'a> {
         self
@@ -35,6 +36,10 @@ pub unsafe trait UnsizedType: 'static {
     type Mut<'a>: AsShared<'a, Shared<'a> = Self::Ref<'a>>;
     type Owned;
 
+    /// This const should be true if there are no Zero-sized types in Self,
+    /// false if a single ZST is at the end of Self, and panic if there is a ZST in the middle.
+    const ZST_STATUS: bool;
+
     fn get_ref<'a>(data: &mut &'a [u8]) -> Result<Self::Ref<'a>>;
     fn get_mut<'a>(data: &mut &'a mut [u8]) -> Result<Self::Mut<'a>>;
     fn owned(data: &mut &[u8]) -> Result<Self::Owned> {
@@ -45,7 +50,11 @@ pub unsafe trait UnsizedType: 'static {
     /// # Safety
     /// No resize operations should be performed on the data.
     #[allow(unused_variables)]
-    unsafe fn resize_notification(data: &mut &mut [u8], operation: ResizeOperation) -> Result<()>;
+    unsafe fn resize_notification(
+        self_mut: &mut Self::Mut<'_>,
+        source_ptr: *const (),
+        change: isize,
+    ) -> Result<()>;
 }
 
 /// Helper macro to call `resize_notification` on all types in a tuple. This should mainly only
@@ -63,23 +72,55 @@ macro_rules! __resize_notification_checked {
     };
 }
 
-#[derive(Copy, Clone, Debug)]
-pub enum ResizeOperation {
-    Add {
-        start: *const (),
-        amount: usize,
-    },
-    /// `start` is inclusive, `end` is exclusive.
-    Remove {
-        start: *const (),
-        end: *const (),
-    },
-}
-impl ResizeOperation {
-    #[must_use]
-    pub fn start(&self) -> *const () {
-        match self {
-            ResizeOperation::Remove { start, .. } | ResizeOperation::Add { start, .. } => *start,
-        }
-    }
-}
+// todo: convert these tests to TryBuild
+/// # Test ZST on sized
+/// ```compile_fail
+/// use star_frame::prelude::*;
+/// use star_frame::unsize::TestByteSet;
+/// #[unsized_type(skip_idl)]
+/// struct SizedZst {
+///     field1: (),
+///     #[unsized_start]
+///     list: List<u8>,
+/// }
+/// let test_bytes = TestByteSet::<SizedZst>::new_default().unwrap();
+/// let data_mut = test_bytes.data_mut().unwrap();
+/// ```
+///
+/// # Test ZST at end
+/// ```
+/// use star_frame::prelude::*;
+/// use star_frame::unsize::TestByteSet;
+/// #[unsized_type(skip_idl)]
+/// struct ZstAtEnd {
+///     field1: u8,
+///     #[unsized_start]
+///     remaining: RemainingBytes,
+/// }
+/// let test_bytes = TestByteSet::<ZstAtEnd>::new_default().unwrap();
+/// let data_mut = test_bytes.data_mut().unwrap();
+/// ```
+///
+/// # Test nested ZST
+/// ```compile_fail
+/// use star_frame::prelude::*;
+/// use star_frame::unsize::TestByteSet;
+/// #[unsized_type(skip_idl)]
+/// struct ZstAtEnd {
+///     field1: u8,
+///     #[unsized_start]
+///     remaining: RemainingBytes,
+/// }
+///
+/// #[unsized_type(skip_idl)]
+/// struct NestedZst {
+///     field1: u8,
+///     #[unsized_start]
+///     zst_in_middle: ZstAtEnd,
+///     list: List<u8>
+/// }
+/// let test_bytes = TestByteSet::<NestedZst>::new_default().unwrap();
+/// let data_mut = test_bytes.data_mut().unwrap();
+/// ```
+#[cfg(doctest)]
+struct TestUnsizedZst;

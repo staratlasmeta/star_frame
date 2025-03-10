@@ -1,12 +1,14 @@
 #![allow(unused)]
 use crate::unsize::init::{DefaultInit, UnsizedInit};
-use crate::unsize::wrapper::{ExclusiveWrapper, SharedWrapper, UnsizedTypeDataAccess};
+use crate::unsize::wrapper::{ExclusiveWrapper, MutWrapper, SharedWrapper, UnsizedTypeDataAccess};
 use crate::unsize::UnsizedType;
 use crate::Result;
 use solana_program::entrypoint::MAX_PERMITTED_DATA_INCREASE;
 use std::cell::{RefCell, RefMut};
 use std::marker::PhantomData;
+use std::mem::MaybeUninit;
 use std::ptr::slice_from_raw_parts_mut;
+use std::slice::from_raw_parts_mut;
 
 #[derive(Debug)]
 pub struct TestAccountInfo<'info> {
@@ -30,10 +32,8 @@ impl<'info> UnsizedTypeDataAccess<'info> for TestAccountInfo<'info> {
             "data too large"
         );
 
-        let ptr = data.as_mut_ptr();
-        let slice = slice_from_raw_parts_mut(ptr, new_len);
         unsafe {
-            *data = &mut *slice;
+            *data = from_raw_parts_mut(data.as_mut_ptr(), new_len);
         }
         Ok(())
     }
@@ -45,9 +45,12 @@ impl<'info> UnsizedTypeDataAccess<'info> for TestAccountInfo<'info> {
 
 /// A way to test [`UnsizedType`] types. Uses a [`TestAccountInfo`] internally.
 #[derive(Debug)]
-pub struct TestByteSet<'a, T: ?Sized> {
+pub struct TestByteSet<'a, T: ?Sized + UnsizedType> {
     test_account: &'a TestAccountInfo<'a>,
     phantom_t: PhantomData<T>,
+    // exclusive_wrapper:
+    //     MaybeUninit<ExclusiveWrapper<'a, 'a, <T as UnsizedType>::Mut<'a>, T, TestAccountInfo<'a>>>,
+    // is_initialized: bool,
 }
 
 impl<'a, T> TestByteSet<'a, T>
@@ -70,6 +73,8 @@ where
         Ok(Self {
             test_account,
             phantom_t: PhantomData,
+            // exclusive_wrapper: MaybeUninit::uninit(),
+            // is_initialized: false,
         })
     }
 
@@ -85,7 +90,7 @@ where
         unsafe { SharedWrapper::<T>::new(self.test_account) }
     }
 
-    pub fn data_mut(&self) -> Result<ExclusiveWrapper<'a, '_, T::Mut<'_>, T, TestAccountInfo<'_>>> {
-        unsafe { ExclusiveWrapper::new(self.test_account) }
+    pub fn data_mut(&self) -> Result<MutWrapper<'a, '_, T::Mut<'_>, T, TestAccountInfo<'_>>> {
+        unsafe { MutWrapper::new(self.test_account) }
     }
 }

@@ -141,10 +141,8 @@ where
     }
 
     #[inline]
-    pub fn data_mut(
-        &self,
-    ) -> Result<ExclusiveWrapper<'_, 'info, T::Mut<'_>, T, AccountInfo<'info>>> {
-        unsafe { ExclusiveWrapper::new(&self.info) }
+    pub fn data_mut(&self) -> Result<MutWrapper<'_, 'info, T::Mut<'_>, T, AccountInfo<'info>>> {
+        unsafe { MutWrapper::new(&self.info) }
     }
 }
 

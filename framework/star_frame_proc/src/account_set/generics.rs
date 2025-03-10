@@ -26,7 +26,7 @@ pub fn account_set_generics(generics: Generics) -> AccountSetGenerics {
             LifetimeParam::new(Lifetime::new("'info", Span::call_site()))
         })
         .clone();
-    let function_generic_type = new_generic(&generics);
+    let function_generic_type = new_generic(&generics, None);
     let mut decode_lifetimes = lifetimes.clone();
     let mut add_decode = false;
     let decode_lifetime = decode_lifetimes

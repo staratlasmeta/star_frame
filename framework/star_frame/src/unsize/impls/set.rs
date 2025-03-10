@@ -16,39 +16,41 @@ where
     V: UnsizedGenerics + Ord,
     L: ListLength,
 {
+    #[must_use]
     pub fn len(&self) -> usize {
         self.list.len()
     }
 
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.list.is_empty()
     }
 
-    pub fn insert(self, value: V) -> Result<usize> {
-        let mut list = self.list()?;
-        match list.binary_search(&value) {
+    #[exclusive]
+    pub fn insert(&mut self, value: V) -> Result<usize> {
+        match self.list.binary_search(&value) {
             Ok(existing_index) => Ok(existing_index),
             Err(insertion_index) => {
-                list.insert(insertion_index, value)?;
+                self.list().insert(insertion_index, value)?;
                 Ok(insertion_index)
             }
         }
     }
 
-    pub fn remove(self, value: &V) -> Result<bool> {
-        let mut list = self.list_exclusive();
-        match list.binary_search(value) {
+    #[exclusive]
+    pub fn remove(&mut self, value: &V) -> Result<bool> {
+        match self.list.binary_search(value) {
             Ok(existing_index) => {
-                list.remove(existing_index)?;
+                self.list().remove(existing_index)?;
                 Ok(true)
             }
             Err(_) => Ok(false),
         }
     }
 
-    pub fn clear(self) -> Result<()> {
-        let mut list = self.list_exclusive();
-        list.remove_range(..)?;
+    #[exclusive]
+    pub fn clear(&mut self) -> Result<()> {
+        self.list().remove_range(..)?;
         Ok(())
     }
 

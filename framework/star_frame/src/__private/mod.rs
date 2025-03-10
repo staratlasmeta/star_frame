@@ -18,8 +18,8 @@ pub mod macro_prelude {
     pub use crate::syscalls::{SyscallAccountCache, SyscallInvoke};
     pub use crate::unsize::{
         init::{DefaultInit, UnsizedInit},
-        wrapper::{ExclusiveWrapper, SharedWrapper, UnsizedTypeDataAccess},
-        AsShared, ResizeOperation, UnsizedType,
+        wrapper::{ExclusiveWrapper, MutWrapper, SharedWrapper, UnsizedTypeDataAccess},
+        AsShared, UnsizedType,
     };
     pub use crate::Result;
     pub use star_frame_proc::{derivative, sighash};

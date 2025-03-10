@@ -1,10 +1,11 @@
 use crate::align1::Align1;
 use crate::unsize::init::{DefaultInit, UnsizedInit};
 use crate::unsize::wrapper::{ExclusiveWrapper, UnsizedTypeDataAccess};
+use crate::unsize::AsShared;
 use crate::unsize::UnsizedType;
-use crate::unsize::{AsShared, ResizeOperation};
 use crate::Result;
 use advance::Advance;
+use anyhow::bail;
 use derive_more::{Deref, DerefMut};
 use std::cmp::Ordering;
 use std::marker::PhantomData;
@@ -51,6 +52,7 @@ unsafe impl UnsizedType for RemainingBytes {
     type Ref<'a> = RemainingBytesRef<'a>;
     type Mut<'a> = RemainingBytesMut<'a>;
     type Owned = Vec<u8>;
+    const ZST_STATUS: bool = false;
 
     fn get_ref<'a>(data: &mut &'a [u8]) -> Result<Self::Ref<'a>> {
         let remaining_bytes = data.advance(data.len());
@@ -74,8 +76,19 @@ unsafe impl UnsizedType for RemainingBytes {
         Ok(r.to_vec())
     }
 
-    unsafe fn resize_notification(data: &mut &mut [u8], _operation: ResizeOperation) -> Result<()> {
-        data.advance(data.len());
+    unsafe fn resize_notification(
+        self_mut: &mut Self::Mut<'_>,
+        source_ptr: *const (),
+        change: isize,
+    ) -> Result<()> {
+        let self_ptr = self_mut.0;
+        match source_ptr.cmp(&self_ptr.cast_const().cast()) {
+            Ordering::Less => self_mut.0 = unsafe { self_ptr.byte_offset(change) },
+            Ordering::Equal => {}
+            Ordering::Greater => {
+                bail!("Resize occurred after RemainingBytes, which shouldn't be possible")
+            }
+        }
         Ok(())
     }
 }
@@ -84,28 +97,39 @@ pub trait RemainingBytesExclusive {
     fn set_len(&mut self, len: usize) -> Result<()>;
 }
 
-impl<'a, 'info, O: ?Sized, A> RemainingBytesExclusive
-    for ExclusiveWrapper<'a, 'info, RemainingBytesMut<'a>, O, A>
+impl<'b, 'a, 'info, O: ?Sized, A> RemainingBytesExclusive
+    for ExclusiveWrapper<'b, 'a, 'info, RemainingBytesMut<'a>, O, A>
 where
     O: UnsizedType,
     A: UnsizedTypeDataAccess<'info>,
 {
     fn set_len(&mut self, len: usize) -> Result<()> {
+        let self_len = self.len();
         match self.len().cmp(&len) {
             Ordering::Less => {
-                let bytes_to_add = len - self.len();
-                let bytes: &mut [u8] = self;
+                let bytes_to_add = len - self_len;
+                let (source_ptr, end_ptr) = {
+                    let source_ptr = self.0.cast_const().cast::<()>();
+                    let end_ptr = unsafe { source_ptr.byte_add(self_len) };
+                    (source_ptr, end_ptr)
+                };
                 unsafe {
-                    let end_ptr = bytes.as_mut_ptr().add(self.len()).cast();
-                    ExclusiveWrapper::add_bytes(self, end_ptr, bytes_to_add, |_r| Ok(()))?;
+                    ExclusiveWrapper::add_bytes(self, source_ptr, end_ptr, bytes_to_add, |_r| {
+                        Ok(())
+                    })?;
                 }
             }
             Ordering::Equal => return Ok(()),
-            Ordering::Greater => unsafe {
-                let start_ptr = self.as_ptr().add(len).cast();
-                let end_ptr = self.as_ptr().add(self.len()).cast();
-                ExclusiveWrapper::remove_bytes(self, start_ptr..end_ptr, |_r| Ok(()))?;
-            },
+            Ordering::Greater => {
+                let source_ptr = self.0.cast_const().cast::<()>();
+                let start_ptr = unsafe { source_ptr.byte_add(len) };
+                let end_ptr = unsafe { source_ptr.byte_add(self_len) };
+                unsafe {
+                    ExclusiveWrapper::remove_bytes(self, source_ptr, start_ptr..end_ptr, |_r| {
+                        Ok(())
+                    })?;
+                }
+            }
         };
         unsafe {
             ExclusiveWrapper::set_inner(self, |bytes| {
@@ -151,8 +175,7 @@ mod tests {
         let byte_array = [1, 2, 3, 4, 5];
         let test_bytes = TestByteSet::<RemainingBytes>::new(&byte_array)?;
         let mut bytes = test_bytes.data_mut()?;
-        // assert_eq!(***bytes, byte_array);
-        bytes.set_len(3)?;
+        bytes.exclusive().set_len(3)?;
         println!("{:?}", &**bytes);
         Ok(())
     }

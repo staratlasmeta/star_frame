@@ -1,6 +1,6 @@
 use crate::unsize::init::{DefaultInit, DefaultInitable, UnsizedInit};
+use crate::unsize::AsShared;
 use crate::unsize::UnsizedType;
-use crate::unsize::{AsShared, ResizeOperation};
 use crate::{align1::Align1, Result};
 use advance::Advance;
 use anyhow::Context;
@@ -70,6 +70,7 @@ where
     type Ref<'a> = CheckedRef<'a, T>;
     type Mut<'a> = CheckedMut<'a, T>;
     type Owned = Self;
+    const ZST_STATUS: bool = { size_of::<T>() != 0 };
 
     fn get_ref<'a>(data: &mut &'a [u8]) -> Result<Self::Ref<'a>> {
         try_from_bytes(data.advance(size_of::<T>()))
@@ -90,8 +91,15 @@ where
     }
 
     #[inline]
-    unsafe fn resize_notification(data: &mut &mut [u8], _operation: ResizeOperation) -> Result<()> {
-        data.advance(size_of::<T>());
+    unsafe fn resize_notification(
+        self_mut: &mut Self::Mut<'_>,
+        source_ptr: *const (),
+        change: isize,
+    ) -> Result<()> {
+        let self_ptr = self_mut.0;
+        if source_ptr < self_ptr.cast_const().cast() {
+            self_mut.0 = unsafe { self_ptr.byte_offset(change) };
+        }
         Ok(())
     }
 }
