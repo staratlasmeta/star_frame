@@ -1,6 +1,6 @@
 use crate::align1::Align1;
 use crate::unsize::init::{DefaultInit, UnsizedInit};
-use crate::unsize::wrapper::{ExclusiveWrapperBorrowed, UnsizedTypeDataAccess};
+use crate::unsize::wrapper::{ExclusiveWrapper, UnsizedTypeDataAccess};
 use crate::unsize::UnsizedType;
 use crate::unsize::{AsShared, ResizeOperation};
 use crate::Result;
@@ -102,7 +102,7 @@ pub trait RemainingBytesExclusive {
 }
 
 impl<'b, 'a, 'info, O: ?Sized, A> RemainingBytesExclusive
-    for ExclusiveWrapperBorrowed<'b, 'a, 'info, RemainingBytesMut<'a>, O, A>
+    for ExclusiveWrapper<'b, 'a, 'info, RemainingBytesMut<'a>, O, A>
 where
     O: UnsizedType,
     A: UnsizedTypeDataAccess<'info>,
@@ -114,18 +114,18 @@ where
                 let bytes: &mut [u8] = self;
                 unsafe {
                     let end_ptr = bytes.as_mut_ptr().add(self.len()).cast();
-                    ExclusiveWrapperBorrowed::add_bytes(self, end_ptr, bytes_to_add, |_r| Ok(()))?;
+                    ExclusiveWrapper::add_bytes(self, end_ptr, bytes_to_add, |_r| Ok(()))?;
                 }
             }
             Ordering::Equal => return Ok(()),
             Ordering::Greater => unsafe {
                 let start_ptr = self.as_ptr().add(len).cast();
                 let end_ptr = self.as_ptr().add(self.len()).cast();
-                ExclusiveWrapperBorrowed::remove_bytes(self, start_ptr..end_ptr, |_r| Ok(()))?;
+                ExclusiveWrapper::remove_bytes(self, start_ptr..end_ptr, |_r| Ok(()))?;
             },
         };
         unsafe {
-            ExclusiveWrapperBorrowed::set_inner(self, |bytes| {
+            ExclusiveWrapper::set_inner(self, |bytes| {
                 bytes.0 = &mut *ptr::from_raw_parts_mut(bytes.0.cast::<()>(), len);
             });
         }

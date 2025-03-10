@@ -207,7 +207,7 @@ pub fn unsized_impl_impl(item: ItemImpl, args: TokenStream) -> TokenStream {
                 #(#decls;)*
             }
 
-            impl #impl_gen #trait_ident #ty_gen for #prelude::ExclusiveWrapperBorrowed<#b_lt, #a_lt, #info_lt, #mut_ty_a, #o, #a>
+            impl #impl_gen #trait_ident #ty_gen for #prelude::ExclusiveWrapper<#b_lt, #a_lt, #info_lt, #mut_ty_a, #o, #a>
                 #where_clause
             {
                 #(#funcs)*

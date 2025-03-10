@@ -18,9 +18,7 @@ pub mod macro_prelude {
     pub use crate::syscalls::{SyscallAccountCache, SyscallInvoke};
     pub use crate::unsize::{
         init::{DefaultInit, UnsizedInit},
-        wrapper::{
-            ExclusiveWrapper, ExclusiveWrapperBorrowed, SharedWrapper, UnsizedTypeDataAccess,
-        },
+        wrapper::{ExclusiveWrapper, MutWrapper, SharedWrapper, UnsizedTypeDataAccess},
         AsShared, ResizeOperation, UnsizedType,
     };
     pub use crate::Result;

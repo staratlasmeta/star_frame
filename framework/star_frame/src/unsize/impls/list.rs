@@ -1,7 +1,7 @@
 use crate::align1::Align1;
 use crate::data_types::PackedValue;
 use crate::unsize::init::{DefaultInit, UnsizedInit};
-use crate::unsize::wrapper::{ExclusiveWrapperBorrowed, UnsizedTypeDataAccess};
+use crate::unsize::wrapper::{ExclusiveWrapper, UnsizedTypeDataAccess};
 use crate::unsize::UnsizedType;
 use crate::unsize::{AsShared, ResizeOperation};
 use crate::util::uninit_array_bytes;
@@ -404,7 +404,7 @@ where
 }
 
 impl<'b, 'a, 'info, T, O: ?Sized, A, L> ListExclusive<'a, T, L>
-    for ExclusiveWrapperBorrowed<'b, 'a, 'info, <List<T, L> as UnsizedType>::Mut<'a>, O, A>
+    for ExclusiveWrapper<'b, 'a, 'info, <List<T, L> as UnsizedType>::Mut<'a>, O, A>
 where
     T: Align1 + NoUninit + CheckedBitPattern,
     L: ListLength,
@@ -428,11 +428,11 @@ where
         let byte_index = index * size_of::<T>();
         unsafe {
             let end_ptr = list.bytes.as_mut_ptr().add(byte_index).cast();
-            ExclusiveWrapperBorrowed::add_bytes(self, end_ptr, size_of::<T>() * to_add, |l| {
+            ExclusiveWrapper::add_bytes(self, end_ptr, size_of::<T>() * to_add, |l| {
                 l.len = PackedValue(new_len);
                 Ok(())
             })?;
-            ExclusiveWrapperBorrowed::set_inner(self, |list| {
+            ExclusiveWrapper::set_inner(self, |list| {
                 list.0 = &mut *ptr::from_raw_parts_mut(
                     list.0.cast::<()>(),
                     (old_len + to_add) * size_of::<T>(),
@@ -468,13 +468,13 @@ where
         unsafe {
             let start_ptr = self.bytes.as_ptr().add(start * size_of::<T>()).cast();
             let end_ptr = self.bytes.as_ptr().add(end * size_of::<T>()).cast();
-            ExclusiveWrapperBorrowed::remove_bytes(self, start_ptr..end_ptr, |l| {
+            ExclusiveWrapper::remove_bytes(self, start_ptr..end_ptr, |l| {
                 l.len = PackedValue(
                     L::from_usize(new_len).context("Failed to convert new list len to L")?,
                 );
                 Ok(())
             })?;
-            ExclusiveWrapperBorrowed::set_inner(self, |list| {
+            ExclusiveWrapper::set_inner(self, |list| {
                 list.0 =
                     &mut *ptr::from_raw_parts_mut(list.0.cast::<()>(), new_len * size_of::<T>());
             });

@@ -1,8 +1,6 @@
 #![allow(unused)]
 use crate::unsize::init::{DefaultInit, UnsizedInit};
-use crate::unsize::wrapper::{
-    ExclusiveWrapper, ExclusiveWrapperBorrowed, SharedWrapper, UnsizedTypeDataAccess,
-};
+use crate::unsize::wrapper::{ExclusiveWrapper, MutWrapper, SharedWrapper, UnsizedTypeDataAccess};
 use crate::unsize::UnsizedType;
 use crate::Result;
 use solana_program::entrypoint::MAX_PERMITTED_DATA_INCREASE;
@@ -92,23 +90,7 @@ where
         unsafe { SharedWrapper::<T>::new(self.test_account) }
     }
 
-    pub fn data_mut(&self) -> Result<ExclusiveWrapper<'a, '_, T::Mut<'_>, T, TestAccountInfo<'_>>> {
-        // let exclusive_wrapper = unsafe { ExclusiveWrapper::new(self.test_account) }?;
-        // self.exclusive_wrapper.write(exclusive_wrapper);
-        unsafe { ExclusiveWrapper::new(self.test_account) }
+    pub fn data_mut(&self) -> Result<MutWrapper<'a, '_, T::Mut<'_>, T, TestAccountInfo<'_>>> {
+        unsafe { MutWrapper::new(self.test_account) }
     }
-
-    // pub fn data_mut(
-    //     &mut self,
-    // ) -> Result<
-    //     ExclusiveWrapperBorrowed<'a, 'a, 'a, <T as UnsizedType>::Mut<'a>, T, TestAccountInfo<'a>>,
-    // > {
-    //     if self.is_initialized {
-    //         unsafe { self.exclusive_wrapper.assume_init_drop() };
-    //     }
-    //     let exclusive_wrapper = unsafe { ExclusiveWrapper::new(self.test_account) }?;
-    //     self.exclusive_wrapper.write(exclusive_wrapper);
-    //     self.is_initialized = true;
-    //     unsafe { Ok((*self.exclusive_wrapper.as_mut_ptr()).exclusive()) }
-    // }
 }

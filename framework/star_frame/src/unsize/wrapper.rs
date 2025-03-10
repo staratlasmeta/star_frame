@@ -97,7 +97,7 @@ unsafe fn change_ref_back<'info, 'a>(the_ptr: &'a mut *mut [u8]) -> &'a mut &'in
     unsafe { &mut *std::ptr::from_mut::<*mut [u8]>(the_ptr).cast::<&'info mut [u8]>() }
 }
 
-impl<'a, 'info, O, A> ExclusiveWrapper<'a, 'info, O::Mut<'_>, O, A>
+impl<'a, 'info, O, A> MutWrapper<'a, 'info, O::Mut<'_>, O, A>
 where
     'info: 'a,
     O: UnsizedType + ?Sized,
@@ -120,14 +120,14 @@ where
 }
 
 #[derive(Debug)]
-pub struct ExclusiveWrapper<'a, 'info, T, O: ?Sized, A> {
+pub struct MutWrapper<'a, 'info, T, O: ?Sized, A> {
     underlying_data: &'a A,
     r: RefMut<'a, *mut [u8]>,
     phantom_o: PhantomData<fn() -> &'info O>,
     data: T,
 }
 
-impl<T, O: ?Sized, A> Deref for ExclusiveWrapper<'_, '_, T, O, A> {
+impl<T, O: ?Sized, A> Deref for MutWrapper<'_, '_, T, O, A> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -135,21 +135,21 @@ impl<T, O: ?Sized, A> Deref for ExclusiveWrapper<'_, '_, T, O, A> {
     }
 }
 
-impl<T, O: ?Sized, A> DerefMut for ExclusiveWrapper<'_, '_, T, O, A> {
+impl<T, O: ?Sized, A> DerefMut for MutWrapper<'_, '_, T, O, A> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.data
     }
 }
 
 impl<'b, 'a, 'c, 'info, O: UnsizedType + ?Sized, A: UnsizedTypeDataAccess<'info>>
-    ExclusiveWrapper<'a, 'info, <O as UnsizedType>::Mut<'a>, O, A>
+    MutWrapper<'a, 'info, <O as UnsizedType>::Mut<'a>, O, A>
 where
     'b: 'c,
 {
     pub fn exclusive(
         &'b mut self,
-    ) -> ExclusiveWrapperBorrowed<'c, 'a, 'info, <O as UnsizedType>::Mut<'a>, O, A> {
-        ExclusiveWrapperBorrowed {
+    ) -> ExclusiveWrapper<'c, 'a, 'info, <O as UnsizedType>::Mut<'a>, O, A> {
+        ExclusiveWrapper {
             underlying_data: &self.underlying_data,
             r: &mut self.r,
             outer_data: std::ptr::from_mut(&mut self.data),
@@ -160,7 +160,7 @@ where
 }
 
 #[derive(Debug)]
-pub struct ExclusiveWrapperBorrowed<'b, 'a, 'info, T, O: ?Sized, A>
+pub struct ExclusiveWrapper<'b, 'a, 'info, T, O: ?Sized, A>
 where
     O: UnsizedType,
 {
@@ -171,7 +171,7 @@ where
     data: &'b mut T,
 }
 
-impl<T, O: ?Sized, A> Deref for ExclusiveWrapperBorrowed<'_, '_, '_, T, O, A>
+impl<T, O: ?Sized, A> Deref for ExclusiveWrapper<'_, '_, '_, T, O, A>
 where
     O: UnsizedType,
 {
@@ -181,7 +181,7 @@ where
         self.data
     }
 }
-impl<T, O: ?Sized, A> DerefMut for ExclusiveWrapperBorrowed<'_, '_, '_, T, O, A>
+impl<T, O: ?Sized, A> DerefMut for ExclusiveWrapper<'_, '_, '_, T, O, A>
 where
     O: UnsizedType,
 {
@@ -191,15 +191,15 @@ where
 }
 
 impl<'b, 'a, 'info, T, O: UnsizedType + ?Sized, A: UnsizedTypeDataAccess<'info>>
-    ExclusiveWrapperBorrowed<'b, 'a, 'info, T, O, A>
+    ExclusiveWrapper<'b, 'a, 'info, T, O, A>
 {
     /// # Safety
     /// todo
     pub unsafe fn map_ref<'c, U>(
         r: &'c mut Self,
         f: impl FnOnce(&'c mut T) -> &'c mut U,
-    ) -> ExclusiveWrapperBorrowed<'c, 'a, 'info, U, O, A> {
-        ExclusiveWrapperBorrowed {
+    ) -> ExclusiveWrapper<'c, 'a, 'info, U, O, A> {
+        ExclusiveWrapper {
             underlying_data: r.underlying_data,
             outer_data: r.outer_data,
             r: r.r,
