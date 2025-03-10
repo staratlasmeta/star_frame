@@ -72,6 +72,8 @@ macro_rules! __resize_notification_checked {
     };
 }
 
+// todo: convert these tests to TryBuild
+/// # Test ZST on sized
 /// ```compile_fail
 /// use star_frame::prelude::*;
 /// use star_frame::unsize::TestByteSet;
@@ -84,5 +86,41 @@ macro_rules! __resize_notification_checked {
 /// let test_bytes = TestByteSet::<SizedZst>::new_default().unwrap();
 /// let data_mut = test_bytes.data_mut().unwrap();
 /// ```
+///
+/// # Test ZST at end
+/// ```
+/// use star_frame::prelude::*;
+/// use star_frame::unsize::TestByteSet;
+/// #[unsized_type(skip_idl)]
+/// struct ZstAtEnd {
+///     field1: u8,
+///     #[unsized_start]
+///     remaining: RemainingBytes,
+/// }
+/// let test_bytes = TestByteSet::<ZstAtEnd>::new_default().unwrap();
+/// let data_mut = test_bytes.data_mut().unwrap();
+/// ```
+///
+/// # Test nested ZST
+/// ```compile_fail
+/// use star_frame::prelude::*;
+/// use star_frame::unsize::TestByteSet;
+/// #[unsized_type(skip_idl)]
+/// struct ZstAtEnd {
+///     field1: u8,
+///     #[unsized_start]
+///     remaining: RemainingBytes,
+/// }
+///
+/// #[unsized_type(skip_idl)]
+/// struct NestedZst {
+///     field1: u8,
+///     #[unsized_start]
+///     zst_in_middle: ZstAtEnd,
+///     list: List<u8>
+/// }
+/// let test_bytes = TestByteSet::<NestedZst>::new_default().unwrap();
+/// let data_mut = test_bytes.data_mut().unwrap();
+/// ```
 #[cfg(doctest)]
-struct TestZstCompileFail;
+struct TestUnsizedZst;
