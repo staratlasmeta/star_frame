@@ -57,7 +57,7 @@ pub struct Paths {
     pub instruction_to_idl_args_ident: Ident,
     pub get_seeds_ident: Ident,
 
-    pub advance: TokenStream,
+    pub advancer: TokenStream,
 
     // bytemuck
     pub bytemuck: TokenStream,
@@ -129,7 +129,7 @@ impl Default for Paths {
             single_account_set_ident: format_ident!("single_account_set"),
             instruction_set_args_ident: format_ident!("ix_set"),
             get_seeds_ident: format_ident!("get_seeds"),
-            advance: quote! { #crate_name::advance::Advance},
+            advancer: quote! { #crate_name::advancer::Advance},
 
             // bytemuck
             bytemuck: quote! { #crate_name::bytemuck },

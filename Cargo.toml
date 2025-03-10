@@ -1,10 +1,12 @@
 [workspace]
 resolver = "2"
 members = [
-    "advance",
-    "framework/star_*",
-    "framework/example_programs/faction_enlistment",
-    "framework/example_programs/counter"
+    "star_frame",
+    "star_frame_cli",
+    "star_frame_idl",
+    "star_frame_proc",
+    "star_frame_spl",
+    "example_programs/*",
 ]
 
 [workspace.package]
@@ -15,15 +17,13 @@ rust-version = "1.79.0"
 
 [workspace.dependencies]
 # Keep the version in sync with the workspace.package.version
-star_frame = { path = "framework/star_frame", registry = "star-atlas", version = "0.0.3" }
-star_frame_idl = { path = "framework/star_frame_idl", registry = "star-atlas", version = "0.0.3" }
-star_frame_proc = { path = "framework/star_frame_proc", registry = "star-atlas", version = "0.0.3" }
-star_frame_spl = { path = "framework/star_frame_spl", registry = "star-atlas", version = "0.0.3" }
-
-# Advance has its own version. It won't be part of the workspace forever.
-advance = { path = "advance", package = "advance_temp", registry = "star-atlas", features = ["solana"], version = "0.0.1" }
+star_frame = { path = "star_frame", registry = "star-atlas", version = "0.0.3" }
+star_frame_idl = { path = "star_frame_idl", registry = "star-atlas", version = "0.0.3" }
+star_frame_proc = { path = "star_frame_proc", registry = "star-atlas", version = "0.0.3" }
+star_frame_spl = { path = "star_frame_spl", registry = "star-atlas", version = "0.0.3" }
 
 # Non workspace crates
+advancer = { registry = "star-atlas", version = "0.0.1" }
 anchor-lang-idl-spec = "0.1.0"
 anyhow = "1.0.75"
 array-init = "2.1.0"

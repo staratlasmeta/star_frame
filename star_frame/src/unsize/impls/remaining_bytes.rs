@@ -4,7 +4,7 @@ use crate::unsize::wrapper::{ExclusiveWrapper, UnsizedTypeDataAccess};
 use crate::unsize::AsShared;
 use crate::unsize::UnsizedType;
 use crate::Result;
-use advance::Advance;
+use advancer::Advance;
 use anyhow::bail;
 use derive_more::{Deref, DerefMut};
 use std::cmp::Ordering;

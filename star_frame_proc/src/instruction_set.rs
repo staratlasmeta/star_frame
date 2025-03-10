@@ -30,7 +30,7 @@ pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
 
     let Paths {
         account_info,
-        advance,
+        advancer,
         bytemuck,
         anyhow_macro,
         instruction,
@@ -132,7 +132,7 @@ pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
                 syscalls: &mut impl #syscalls<#info_lifetime>,
             ) -> #result<()> {
                 let discriminant_bytes =
-                    #advance::try_advance(&mut ix_bytes, ::core::mem::size_of::<#discriminant_type>())?;
+                    #advancer::try_advance(&mut ix_bytes, ::core::mem::size_of::<#discriminant_type>())?;
                 let discriminant = *#bytemuck::try_from_bytes(discriminant_bytes)?;
                 #[deny(unreachable_patterns)]
                 match discriminant {

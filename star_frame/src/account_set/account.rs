@@ -1,7 +1,7 @@
 use crate::prelude::*;
 use crate::unsize::init::DefaultInit;
 use crate::unsize::UnsizedType;
-use advance::Advance;
+use advancer::Advance;
 use anyhow::{bail, Context};
 use bytemuck::{bytes_of, from_bytes};
 use solana_program::program_memory::sol_memset;

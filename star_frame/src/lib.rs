@@ -26,7 +26,7 @@
     clippy::non_canonical_partial_ord_impl
 )]
 
-pub extern crate advance;
+pub extern crate advancer;
 pub extern crate anyhow;
 pub extern crate borsh;
 pub extern crate bytemuck;
