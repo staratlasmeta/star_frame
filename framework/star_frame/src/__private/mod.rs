@@ -19,7 +19,7 @@ pub mod macro_prelude {
     pub use crate::unsize::{
         init::{DefaultInit, UnsizedInit},
         wrapper::{ExclusiveWrapper, MutWrapper, SharedWrapper, UnsizedTypeDataAccess},
-        AsShared, ResizeOperation, UnsizedType,
+        AsShared, UnsizedType,
     };
     pub use crate::Result;
     pub use star_frame_proc::{derivative, sighash};

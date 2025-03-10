@@ -1,4 +1,4 @@
-use super::{ResizeOperation, UnsizedType};
+use super::UnsizedType;
 use crate::Result;
 use anyhow::ensure;
 use solana_program::account_info::AccountInfo;
@@ -109,6 +109,9 @@ where
         let mut r = RefMut::map(underlying_data.data().borrow_mut(), |r| unsafe {
             change_ref(r)
         });
+        // ensure no ZSTs in middle of struct
+        let _ = O::ZST_STATUS;
+
         let data = O::get_mut(unsafe { &mut &mut **r })?;
         Ok(Self {
             underlying_data,
@@ -149,11 +152,13 @@ where
     pub fn exclusive(
         &'b mut self,
     ) -> ExclusiveWrapper<'c, 'a, 'info, <O as UnsizedType>::Mut<'a>, O, A> {
+        let outer_data = std::ptr::from_mut(&mut self.data);
+        let data = outer_data;
         ExclusiveWrapper {
             underlying_data: &self.underlying_data,
             r: &mut self.r,
-            outer_data: std::ptr::from_mut(&mut self.data),
-            data: &mut self.data,
+            outer_data,
+            data,
             phantom_o: PhantomData,
         }
     }
@@ -168,7 +173,7 @@ where
     r: &'b mut RefMut<'a, *mut [u8]>,
     outer_data: *mut <O as UnsizedType>::Mut<'a>,
     phantom_o: PhantomData<fn() -> &'info O>,
-    data: &'b mut T,
+    data: *mut T,
 }
 
 impl<T, O: ?Sized, A> Deref for ExclusiveWrapper<'_, '_, '_, T, O, A>
@@ -178,7 +183,7 @@ where
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        self.data
+        unsafe { &*self.data }
     }
 }
 impl<T, O: ?Sized, A> DerefMut for ExclusiveWrapper<'_, '_, '_, T, O, A>
@@ -186,7 +191,7 @@ where
     O: UnsizedType,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        self.data
+        unsafe { &mut *self.data }
     }
 }
 
@@ -197,13 +202,13 @@ impl<'b, 'a, 'info, T, O: UnsizedType + ?Sized, A: UnsizedTypeDataAccess<'info>>
     /// todo
     pub unsafe fn map_ref<'c, U>(
         r: &'c mut Self,
-        f: impl FnOnce(&'c mut T) -> &'c mut U,
+        f: impl FnOnce(&mut T) -> &mut U,
     ) -> ExclusiveWrapper<'c, 'a, 'info, U, O, A> {
         ExclusiveWrapper {
             underlying_data: r.underlying_data,
             outer_data: r.outer_data,
             r: r.r,
-            data: f(r.data),
+            data: f(unsafe { &mut *r.data }),
             phantom_o: PhantomData,
         }
     }
@@ -211,53 +216,52 @@ impl<'b, 'a, 'info, T, O: UnsizedType + ?Sized, A: UnsizedTypeDataAccess<'info>>
     /// # Safety
     /// TODO
     pub unsafe fn set_inner<U>(r: &mut Self, f: impl FnOnce(&mut T) -> U) -> U {
-        f(r.data)
+        f(unsafe { &mut *r.data })
     }
     /// # Safety
     /// TODO
     pub unsafe fn add_bytes(
         r: &mut Self,
+        source_ptr: *const (),
         start: *const (),
         amount: usize,
         after_add: impl FnOnce(&mut T) -> Result<()>,
     ) -> Result<()> {
-        let data = unsafe { change_ref_back(r.r) };
-        let old_ptr = data.as_ptr();
-        let old_len = data.len();
+        {
+            let data = unsafe { change_ref_back(r.r) };
+            let old_ptr = data.as_ptr();
+            let old_len = data.len();
 
-        ensure!(start as usize >= data.as_ptr() as usize);
-        ensure!(start as usize <= data.as_ptr() as usize + old_len);
+            ensure!(start as usize >= data.as_ptr() as usize);
+            ensure!(start as usize <= data.as_ptr() as usize + old_len);
 
-        // Return early if length hasn't changed
-        if amount == 0 {
-            return Ok(());
-        }
-        let new_len = old_len + amount;
+            // Return early if length hasn't changed
+            if amount == 0 {
+                return Ok(());
+            }
+            let new_len = old_len + amount;
 
-        // realloc
-        unsafe { r.underlying_data.realloc(new_len, data) }?;
+            // realloc
+            unsafe { r.underlying_data.realloc(new_len, data) }?;
 
-        if start as usize != old_ptr as usize + old_len {
-            unsafe {
-                sol_memmove(
-                    start.cast::<u8>().add(amount).cast_mut(),
-                    start.cast_mut().cast::<u8>(),
-                    old_len - (start as usize - data.as_ptr() as usize),
-                );
+            if start as usize != old_ptr as usize + old_len {
+                unsafe {
+                    sol_memmove(
+                        start.cast::<u8>().add(amount).cast_mut(),
+                        start.cast_mut().cast::<u8>(),
+                        old_len - (start as usize - data.as_ptr() as usize),
+                    );
+                }
             }
         }
 
-        after_add(r.data)?;
-
-        let resize_operation = ResizeOperation::Add { start, amount };
-        unsafe {
-            <O as UnsizedType>::adjust_ptr_notification(&mut *r.outer_data, resize_operation)
-        }?;
+        after_add(unsafe { &mut *r.data })?;
 
         unsafe {
             <O as UnsizedType>::resize_notification(
-                &mut &mut data[..],
-                ResizeOperation::Add { start, amount },
+                &mut *r.outer_data,
+                source_ptr,
+                amount.try_into()?,
             )?;
         }
         Ok(())
@@ -266,77 +270,73 @@ impl<'b, 'a, 'info, T, O: UnsizedType + ?Sized, A: UnsizedTypeDataAccess<'info>>
     /// TODO
     pub unsafe fn remove_bytes(
         r: &mut Self,
+        source_ptr: *const (),
         range: impl RangeBounds<*const ()>,
         after_remove: impl FnOnce(&mut T) -> Result<()>,
     ) -> Result<()> {
-        let data = unsafe { change_ref_back(r.r) };
-        let old_len = data.len();
+        let amount = {
+            let data = unsafe { change_ref_back(r.r) };
+            let old_len = data.len();
 
-        let start = match range.start_bound() {
-            Bound::Included(start) => {
-                ensure!(*start as usize >= data.as_ptr() as usize);
-                ensure!(*start as usize <= data.as_ptr() as usize + old_len);
-                start.cast::<u8>()
-            }
-            Bound::Excluded(start) => {
-                ensure!(*start as usize >= data.as_ptr() as usize);
-                ensure!(*start as usize <= data.as_ptr() as usize + old_len);
-                unsafe { start.cast::<u8>().add(1) }
-            }
-            Bound::Unbounded => data.as_ptr(),
-        };
+            let start = match range.start_bound() {
+                Bound::Included(start) => {
+                    ensure!(*start as usize >= data.as_ptr() as usize);
+                    ensure!(*start as usize <= data.as_ptr() as usize + old_len);
+                    start.cast::<u8>()
+                }
+                Bound::Excluded(start) => {
+                    ensure!(*start as usize >= data.as_ptr() as usize);
+                    ensure!(*start as usize <= data.as_ptr() as usize + old_len);
+                    unsafe { start.cast::<u8>().add(1) }
+                }
+                Bound::Unbounded => data.as_ptr(),
+            };
 
-        let end = match range.end_bound() {
-            Bound::Included(end) => {
-                ensure!(*end as usize >= start as usize);
-                ensure!((*end as usize) < data.as_ptr() as usize + old_len);
-                unsafe { end.cast::<u8>().add(1) }
-            }
-            Bound::Excluded(end) => {
-                ensure!(*end as usize >= start as usize);
-                ensure!(*end as usize <= data.as_ptr() as usize + old_len);
-                end.cast::<u8>()
-            }
-            Bound::Unbounded => unsafe { data.as_ptr().add(old_len) },
-        };
+            let end = match range.end_bound() {
+                Bound::Included(end) => {
+                    ensure!(*end as usize >= start as usize);
+                    ensure!((*end as usize) < data.as_ptr() as usize + old_len);
+                    unsafe { end.cast::<u8>().add(1) }
+                }
+                Bound::Excluded(end) => {
+                    ensure!(*end as usize >= start as usize);
+                    ensure!(*end as usize <= data.as_ptr() as usize + old_len);
+                    end.cast::<u8>()
+                }
+                Bound::Unbounded => unsafe { data.as_ptr().add(old_len) },
+            };
 
-        let amount = end as usize - start as usize;
-        if amount == 0 {
-            return Ok(());
-        }
+            let amount = end as usize - start as usize;
+            if amount == 0 {
+                return Ok(());
+            }
 
-        if end as usize != data.as_ptr() as usize + old_len {
+            if end as usize != data.as_ptr() as usize + old_len {
+                unsafe {
+                    sol_memmove(
+                        start.cast_mut(),
+                        end.cast_mut(),
+                        old_len - (end as usize - data.as_ptr() as usize),
+                    );
+                }
+            }
+
+            let new_len = old_len - amount;
+            // realloc
             unsafe {
-                sol_memmove(
-                    start.cast_mut(),
-                    end.cast_mut(),
-                    old_len - (end as usize - data.as_ptr() as usize),
-                );
+                r.underlying_data.realloc(new_len, data)?;
             }
-        }
 
-        let new_len = old_len - amount;
-        // realloc
-        unsafe {
-            r.underlying_data.realloc(new_len, data)?;
-        }
-
-        after_remove(r.data)?;
-
-        let resize_operation = ResizeOperation::Remove {
-            start: start.cast(),
-            end: end.cast(),
+            amount
         };
-        unsafe {
-            <O as UnsizedType>::adjust_ptr_notification(&mut *r.outer_data, resize_operation)
-        }?;
+
+        after_remove(unsafe { &mut *r.data })?;
+
         unsafe {
             <O as UnsizedType>::resize_notification(
-                &mut &mut data[..],
-                ResizeOperation::Remove {
-                    start: start.cast(),
-                    end: end.cast(),
-                },
+                &mut *r.outer_data,
+                source_ptr,
+                -amount.try_into()?,
             )?;
         }
         Ok(())

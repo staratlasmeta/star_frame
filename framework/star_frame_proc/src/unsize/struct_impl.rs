@@ -1,8 +1,9 @@
 use crate::unsize::{account, UnsizedTypeArgs};
 use crate::util::{
-    generate_fields_are_trait, get_field_idents, get_field_types, get_field_vis, new_generic,
-    new_ident, new_lifetime, phantom_generics_ident, phantom_generics_type, reject_attributes,
-    restrict_attributes, strip_inner_attributes, BetterGenerics, CombineGenerics, Paths,
+    generate_fields_are_trait, get_doc_attributes, get_field_idents, get_field_types,
+    get_field_vis, new_generic, new_ident, new_lifetime, phantom_generics_ident,
+    phantom_generics_type, reject_attributes, restrict_attributes, strip_inner_attributes,
+    BetterGenerics, CombineGenerics, Paths,
 };
 use heck::ToUpperCamelCase;
 use itertools::Itertools;
@@ -83,6 +84,7 @@ pub(crate) fn unsized_type_struct_impl(
 
 #[derive(Clone)]
 pub struct UnsizedStructContext {
+    item_struct: ItemStruct,
     vis: Visibility,
     struct_ident: Ident,
     struct_type: Type,
@@ -221,8 +223,11 @@ impl UnsizedStructContext {
             with_sized_vis.insert(0, Visibility::Inherited);
         });
 
+        let generics = item_struct.generics.clone();
+
         Self {
-            generics: item_struct.generics,
+            item_struct,
+            generics,
             vis,
             struct_ident,
             rm_lt: ref_mut_lifetime,
@@ -270,7 +275,9 @@ impl UnsizedStructContext {
 
         let (generics, wc) = self.split_for_declaration(false);
         let phantom_ty = phantom_generics_type(generics).map(|ty| quote!((#ty)));
+        let docs = get_doc_attributes(&self.item_struct.attrs);
         parse_quote! {
+            #(#docs)*
             #[#prelude::derivative(#debug)]
             #[derive(#prelude::Align1)]
             #vis struct #struct_ident #generics #phantom_ty #wc;
@@ -500,15 +507,19 @@ impl UnsizedStructContext {
     fn unsized_type_impl(&self) -> TokenStream {
         Paths!(prelude, result);
         UnsizedStructContext!(self => ref_type, sized_field_idents, struct_type, rm_lt, owned_type,
-            with_sized_types, ref_ident, with_sized_idents, sized_type, mut_type, mut_ident,
+            with_sized_types, ref_ident, with_sized_idents, mut_type, mut_ident,
             unsized_field_idents, unsized_field_types, struct_ident
         );
         let (impl_gen, _, where_clause) = self.generics.split_for_impl();
 
-        let sized_resize = sized_type.as_ref().map(|sized_type| {
-            quote! {
-                unsafe { <#sized_type as #prelude::UnsizedType>::resize_notification(r, operation) }?;
-            }
+        let (last_ty, all_but_last_ty) = with_sized_types
+            .split_last()
+            .expect("self should have fields");
+        let (_, all_but_last_idents) = with_sized_idents
+            .split_last()
+            .expect("self should have fields");
+        let zst_messages = all_but_last_idents.iter().map(|ident| {
+            format!("Zero-sized types are not allowed in the middle of UnsizedType structs. Found ZST at `{struct_ident}.{ident}`")
         });
 
         quote! {
@@ -516,6 +527,13 @@ impl UnsizedStructContext {
                 type Ref<#rm_lt> = #ref_type;
                 type Mut<#rm_lt> = #mut_type;
                 type Owned = #owned_type;
+
+                const ZST_STATUS: bool = {
+                    #(if <#all_but_last_ty as #prelude::UnsizedType>::ZST_STATUS == false {
+                        panic!(#zst_messages);
+                    })*
+                    <#last_ty as UnsizedType>::ZST_STATUS
+                };
 
                 fn get_ref<#rm_lt>(data: &mut &#rm_lt [u8]) -> #result<Self::Ref<#rm_lt>> {
                     Ok(#ref_ident {
@@ -536,18 +554,8 @@ impl UnsizedStructContext {
                     })
                 }
 
-                unsafe fn resize_notification(r: &mut &mut [u8], operation: #prelude::ResizeOperation) -> #result<()> {
-                    #sized_resize
-                    #prelude::__resize_notification_checked! {
-                        r, operation -> #(#unsized_field_types),*
-                    }
-                }
-
-                unsafe fn adjust_ptr_notification(
-                    the_mut: &mut Self::Mut<'_>,
-                    operation: #prelude::ResizeOperation,
-                ) -> #result<()> {
-                    #(<#with_sized_types as #prelude::UnsizedType>::adjust_ptr_notification(&mut the_mut.#with_sized_idents, operation)?;)*
+                unsafe fn resize_notification(self_mut: &mut Self::Mut<'_>, source_ptr: *const (), change: isize) -> #result<()> {
+                    #(<#with_sized_types as #prelude::UnsizedType>::resize_notification(&mut self_mut.#with_sized_idents, source_ptr, change)?;)*
                     Ok(())
                 }
             }

@@ -6,12 +6,12 @@ use crate::unsize::tests::test::many_unsized::{
 use pretty_assertions::assert_eq;
 use star_frame_proc::{derivative, unsized_impl};
 
-#[unsized_type(owned_attributes = [derive(PartialEq, Eq, Clone)])]
+#[unsized_type(owned_attributes = [derive(PartialEq, Eq, Clone)], skip_idl)]
 pub struct UnsizedTest {
     #[unsized_start]
     pub unsized1: List<PackedValue<u16>, u8>,
-    pub unsized2: List<PackedValue<u16>, u8>,
     pub unsized3: UnsizedTest3,
+    pub unsized2: List<PackedValue<u16>, u8>,
 }
 
 #[unsized_type(owned_attributes = [derive(PartialEq, Eq, Clone)])]
@@ -30,8 +30,8 @@ fn test_unsized_simple() -> Result<()> {
             unsized3: [150, 151, 152].map(Into::into),
         },
     })?;
-
     let mut data_mut = r.data_mut()?;
+
     let mut banana = data_mut.exclusive();
     banana.unsized1().push(103.into())?;
     assert_eq!(&**banana.unsized1, [100, 101, 102, 103]);
