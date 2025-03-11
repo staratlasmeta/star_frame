@@ -14,7 +14,6 @@ pub mod macro_prelude {
     };
     pub use crate::program::StarFrameProgram;
 
-    pub use crate::__resize_notification_checked;
     pub use crate::syscalls::{SyscallAccountCache, SyscallInvoke};
     pub use crate::unsize::{
         init::{DefaultInit, UnsizedInit},

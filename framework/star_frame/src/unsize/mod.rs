@@ -58,21 +58,6 @@ pub unsafe trait UnsizedType: 'static {
     ) -> Result<()>;
 }
 
-/// Helper macro to call `resize_notification` on all types in a tuple. This should mainly only
-/// be used within the [`unsized_type`] macro.
-#[doc(hidden)]
-#[macro_export]
-macro_rules! __resize_notification_checked {
-    ($r:ident, $operation:ident -> $($ty:ty),* $(,)?) => {
-        $(if $operation.start() > $r.as_ptr().cast() {
-            unsafe { <$ty as $crate::unsize::UnsizedType>::resize_notification($r, $operation) }?;
-        } else {
-            return $crate::anyhow::Ok(());
-        })*
-        return $crate::anyhow::Ok(());
-    };
-}
-
 // todo: convert these tests to TryBuild
 /// # Test ZST on sized
 /// ```compile_fail

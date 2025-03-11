@@ -519,7 +519,7 @@ impl UnsizedStructContext {
             .split_last()
             .expect("self should have fields");
         let zst_messages = all_but_last_idents.iter().map(|ident| {
-            format!("Zero-sized types are not allowed in the middle of UnsizedType structs.\n   |   Found ZST at `{struct_ident}.{ident}`")
+            format!("Zero-sized types are not allowed in the middle of UnsizedType structs.\n     Found ZST at `{struct_ident}.{ident}`")
         });
 
         quote! {
