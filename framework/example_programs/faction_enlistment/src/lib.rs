@@ -25,23 +25,24 @@ pub struct SomeUnsized {
     unsized2: List<u8>,
 }
 
-// #[unsized_impl(tag = "1")]
-// impl SomeFields {
-//     fn foo(&mut self) -> Result<()> {
-//         self.sized1 = 10;
-//         self.unsized2()?.push(5)?;
-//         Ok(())
-//     }
-//
-//     fn bar(&self) -> Result<u8> {
-//         Ok(self.sized1 + self.unsized1()?.unsized2()?.len() as u8)
-//     }
-// }
+#[unsized_impl(tag = "1")]
+impl SomeFields {
+    #[exclusive]
+    fn foo(&mut self) -> Result<()> {
+        self.sized1 = 10;
+        self.unsized2().push(5)?;
+        Ok(())
+    }
+
+    #[allow(unused)]
+    fn bar(&self) -> Result<u8> {
+        Ok(self.sized1 + self.unsized1.unsized2.len() as u8)
+    }
+}
 
 #[derive(StarFrameProgram)]
 #[program(
     instruction_set = FactionEnlistmentInstructionSet,
-    account_discriminant = ()
 )]
 #[cfg_attr(
     feature = "prod",
@@ -148,7 +149,7 @@ pub struct ProcessEnlistPlayer<'info> {
 // )]
 // #[repr(C, packed)]
 // #[program_account(seeds = PlayerFactionAccountSeeds)]
-#[unsized_type(program_account, seeds = PlayerFactionAccountSeeds, owned_attributes = [derive(PartialEq, Eq, Clone)], discriminant = ())]
+#[unsized_type(program_account, seeds = PlayerFactionAccountSeeds, owned_attributes = [derive(PartialEq, Eq, Clone)])]
 pub struct PlayerFactionData {
     pub owner: Pubkey,
     pub enlisted_at_timestamp: i64,
@@ -160,7 +161,7 @@ pub struct PlayerFactionData {
     some_fields: SomeFields,
 }
 
-#[unsized_type(program_account, seeds = PlayerFactionAccountSeeds, owned_attributes = [derive(PartialEq, Eq, Clone)], discriminant = ())]
+#[unsized_type(program_account, seeds = PlayerFactionAccountSeeds, owned_attributes = [derive(PartialEq, Eq, Clone)])]
 pub struct PlayerFactionData2 {
     pub owner: Pubkey,
     pub enlisted_at_timestamp: i64,
@@ -215,6 +216,7 @@ mod tests {
     use solana_sdk::account::Account;
     use solana_sdk::clock::Clock;
     use solana_sdk::signature::{Keypair, Signer};
+    use star_frame::client::{DeserializeAccount, SerializeAccount};
     use star_frame::solana_program::native_token::LAMPORTS_PER_SOL;
     use star_frame_spl::token::Token;
 
@@ -322,9 +324,27 @@ mod tests {
         };
 
         let faction_info = banks_client.get_account(faction_account).await?.unwrap();
-        // assert_eq!(faction_info.data[0..8], PlayerFactionData::DISCRIMINANT);
-        let new_faction: PlayerFactionDataOwned =
-            PlayerFactionData::owned(&mut &faction_info.data[..])?;
+        let new_faction = PlayerFactionData::deserialize_account(&faction_info.data)?;
+        let serialized_account = PlayerFactionData::serialize_account(PlayerFactionDataInit {
+            sized: PlayerFactionDataSized {
+                owner: player_account.pubkey(),
+                enlisted_at_timestamp: clock.unix_timestamp,
+                faction_id,
+                counter: Default::default(),
+                bump,
+                _padding: [0; 5],
+            },
+            some_fields: SomeFieldsInit {
+                sized: SomeFieldsSized {
+                    sized1: 10,
+                    sized2: 0,
+                },
+                unsized1: DefaultInit,
+                unsized2: [5],
+            },
+        })?;
+        assert_eq!(serialized_account, faction_info.data);
+
         assert_eq!(expected_faction_account, new_faction);
         Ok(())
     }

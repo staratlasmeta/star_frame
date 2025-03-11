@@ -1,7 +1,11 @@
-use crate::account_set::{GetSeeds, HasOwnerProgram, HasSeeds};
+use crate::account_set::{
+    discriminant::AccountDiscriminant, GetSeeds, HasOwnerProgram, HasSeeds, ProgramAccount,
+};
 use crate::instruction::{InstructionDiscriminant, InstructionSet, StarFrameInstruction};
+use crate::prelude::UnsizedInit;
 use crate::program::StarFrameProgram;
 use crate::syscalls::SyscallInvoke;
+use crate::unsize::UnsizedType;
 use crate::Result;
 use crate::SolanaInstruction;
 use borsh::{object_length, BorshSerialize};
@@ -154,3 +158,31 @@ pub trait FindProgramAddress: HasSeeds + HasOwnerProgram {
 }
 
 impl<T> FindProgramAddress for T where T: HasSeeds + HasOwnerProgram {}
+
+pub trait DeserializeAccount: UnsizedType + ProgramAccount {
+    fn deserialize_account(data: &[u8]) -> Result<Self::Owned>;
+}
+
+impl<T: UnsizedType + ProgramAccount> DeserializeAccount for T {
+    fn deserialize_account(data: &[u8]) -> Result<Self::Owned> {
+        let data = &mut &*data;
+        <AccountDiscriminant<T> as UnsizedType>::owned(data)
+    }
+}
+
+pub trait SerializeAccount<T> {
+    fn serialize_account(init_arg: T) -> Result<Vec<u8>>;
+}
+
+impl<T, I> SerializeAccount<I> for T
+where
+    T: UnsizedType + ProgramAccount,
+    AccountDiscriminant<Self>: UnsizedInit<I>,
+{
+    fn serialize_account(init_arg: I) -> Result<Vec<u8>> {
+        let mut bytes = vec![0u8; <AccountDiscriminant<T>>::INIT_BYTES];
+        let data = &mut &mut bytes[..];
+        unsafe { <AccountDiscriminant<Self>>::init(data, init_arg)? };
+        Ok(bytes)
+    }
+}

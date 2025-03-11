@@ -6,7 +6,7 @@ use star_frame::prelude::*;
 use star_frame::solana_program::pubkey::Pubkey;
 
 #[derive(Align1, Pod, Zeroable, Default, Copy, Clone, Debug, Eq, PartialEq, ProgramAccount)]
-#[program_account(seeds = CounterAccountSeeds, discriminant = ())]
+#[program_account(seeds = CounterAccountSeeds)]
 #[repr(C, packed)]
 pub struct CounterAccount {
     pub version: u8,
@@ -205,8 +205,7 @@ pub enum CounterInstructionSet {
 #[derive(StarFrameProgram)]
 #[program(
     instruction_set = CounterInstructionSet,
-    id = "Coux9zxTFKZpRdFpE4F7Fs5RZ6FdaURdckwS61BUTMG",
-    account_discriminant = ()
+    id = "Coux9zxTFKZpRdFpE4F7Fs5RZ6FdaURdckwS61BUTMG"
 )]
 pub struct CounterProgram;
 
@@ -218,6 +217,7 @@ mod tests {
     use solana_program_test::*;
     use solana_sdk::signature::{Keypair, Signer};
     use solana_sdk::transaction::Transaction;
+    use star_frame::client::DeserializeAccount;
     use std::mem::size_of;
 
     #[cfg(feature = "idl")]
@@ -303,9 +303,7 @@ mod tests {
         transaction2.sign(&[&payer, &account_key], recent_blockhash);
         banks_client.process_transaction(transaction2).await?;
         let acc2 = banks_client.get_account(counter_account).await?.unwrap();
-        let acc2_data: CounterAccount = *try_from_bytes(
-            &acc2.data[size_of::<<CounterProgram as StarFrameProgram>::AccountDiscriminant>()..],
-        )?;
+        let acc2_data: CounterAccount = CounterAccount::deserialize_account(&acc2.data)?;
         assert_eq!(acc2_data.signer, account_key2.pubkey());
 
         // Update count
@@ -335,9 +333,7 @@ mod tests {
         transaction3.sign(&[&payer, &account_key], recent_blockhash);
         banks_client.process_transaction(transaction3).await?;
         let acc3 = banks_client.get_account(counter_account).await?.unwrap();
-        let acc3_data: CounterAccount = *try_from_bytes(
-            &acc3.data[size_of::<<CounterProgram as StarFrameProgram>::AccountDiscriminant>()..],
-        )?;
+        let acc3_data: CounterAccount = CounterAccount::deserialize_account(&acc3.data)?;
         let old_count = acc2_data.count;
         let new_count = acc3_data.count;
         assert_eq!(new_count, old_count + 7 - 4);
