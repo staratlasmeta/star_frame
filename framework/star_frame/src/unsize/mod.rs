@@ -42,7 +42,8 @@ pub unsafe trait UnsizedType: 'static {
 
     fn get_ref<'a>(data: &mut &'a [u8]) -> Result<Self::Ref<'a>>;
     fn get_mut<'a>(data: &mut &'a mut [u8]) -> Result<Self::Mut<'a>>;
-    fn owned(data: &mut &[u8]) -> Result<Self::Owned> {
+    fn owned(mut data: &[u8]) -> Result<Self::Owned> {
+        let data = &mut data;
         Self::owned_from_ref(Self::get_ref(data)?)
     }
     fn owned_from_ref(r: Self::Ref<'_>) -> Result<Self::Owned>;

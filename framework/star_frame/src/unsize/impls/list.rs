@@ -7,7 +7,7 @@ use crate::unsize::UnsizedType;
 use crate::util::uninit_array_bytes;
 use crate::Result;
 use advance::Advance;
-use anyhow::{bail, Context};
+use anyhow::{bail, ensure, Context};
 use bytemuck::{bytes_of, checked, from_bytes, CheckedBitPattern, NoUninit, Pod};
 use bytemuck::{cast_slice, cast_slice_mut};
 use num_traits::{FromPrimitive, ToPrimitive, Zero};
@@ -445,8 +445,8 @@ where
             std::ops::Bound::Unbounded => self.len(),
         };
 
-        assert!(start <= end);
-        assert!(end <= self.len());
+        ensure!(start <= end);
+        ensure!(end <= self.len());
 
         let to_remove = end - start;
         let old_len = self.len();

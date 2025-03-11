@@ -171,7 +171,7 @@ pub mod discriminant {
             T::get_mut(data)
         }
 
-        fn owned(data: &mut &[u8]) -> Result<Self::Owned> {
+        fn owned(mut data: &[u8]) -> Result<Self::Owned> {
             data.try_advance(size_of::<OwnerProgramDiscriminant<T>>())?;
             T::owned(data)
         }

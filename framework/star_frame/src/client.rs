@@ -165,7 +165,6 @@ pub trait DeserializeAccount: UnsizedType + ProgramAccount {
 
 impl<T: UnsizedType + ProgramAccount> DeserializeAccount for T {
     fn deserialize_account(data: &[u8]) -> Result<Self::Owned> {
-        let data = &mut &*data;
         <AccountDiscriminant<T> as UnsizedType>::owned(data)
     }
 }
