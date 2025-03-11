@@ -33,11 +33,6 @@ impl SomeFields {
         self.unsized2().push(5)?;
         Ok(())
     }
-
-    #[allow(unused)]
-    fn bar(&self) -> Result<u8> {
-        Ok(self.sized1 + self.unsized1.unsized2.len() as u8)
-    }
 }
 
 #[derive(StarFrameProgram)]
@@ -102,8 +97,7 @@ impl StarFrameInstruction for ProcessEnlistPlayerIx {
             _padding: [0; 5],
         };
         let mut exclusive = player_faction_account_data.exclusive();
-        exclusive.some_fields().unsized2().push(5)?;
-        exclusive.some_fields.sized1 = 10;
+        exclusive.some_fields().foo()?;
         Ok(())
     }
 }
@@ -160,24 +154,6 @@ pub struct PlayerFactionData {
     #[unsized_start]
     some_fields: SomeFields,
 }
-
-#[unsized_type(program_account, seeds = PlayerFactionAccountSeeds, owned_attributes = [derive(PartialEq, Eq, Clone)])]
-pub struct PlayerFactionData2 {
-    pub owner: Pubkey,
-    pub enlisted_at_timestamp: i64,
-    pub faction_id: FactionId,
-    pub bump: u8,
-    pub _padding: [u64; 5],
-    #[unsized_start]
-    some_fields: SomeFields,
-}
-
-// #[unsized_type]
-// #[repr(u8)]
-// pub enum PlayerFactionDataAccount {
-//     V1(PlayerFactionData),
-//     V2(PlayerFactionData2),
-// }
 
 #[derive(
     Debug,
@@ -344,7 +320,6 @@ mod tests {
             },
         })?;
         assert_eq!(serialized_account, faction_info.data);
-
         assert_eq!(expected_faction_account, new_faction);
         Ok(())
     }

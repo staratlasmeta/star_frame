@@ -212,13 +212,11 @@ pub struct CounterProgram;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bytemuck::checked::try_from_bytes;
     use codama_nodes::{NodeTrait, ProgramNode};
     use solana_program_test::*;
     use solana_sdk::signature::{Keypair, Signer};
     use solana_sdk::transaction::Transaction;
     use star_frame::client::DeserializeAccount;
-    use std::mem::size_of;
 
     #[cfg(feature = "idl")]
     #[test]
@@ -283,12 +281,7 @@ mod tests {
             data: Default::default(),
         };
         let acc = banks_client.get_account(counter_account).await?.unwrap();
-        assert_eq!(
-            expected,
-            *try_from_bytes(
-                &acc.data[size_of::<<CounterProgram as StarFrameProgram>::AccountDiscriminant>()..]
-            )?
-        );
+        assert_eq!(expected, CounterAccount::deserialize_account(&acc.data)?);
 
         // Update a counter signer
         let instruction2 = CounterProgram::instruction(
