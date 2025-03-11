@@ -657,8 +657,8 @@ impl UnsizedStructContext {
             ]));
 
         let (impl_gen, ty_gen, wc) = ext_trait_generics.split_for_impl();
-        let pub_extension_ident = format_ident!("{}ExclusivePub", struct_ident);
-        let priv_extension_ident = format_ident!("{}Exclusive", struct_ident);
+        let pub_extension_ident = format_ident!("{}Exclusive", struct_ident);
+        let priv_extension_ident = format_ident!("{}ExclusivePrivate", struct_ident);
 
         let (pub_unsized_fields, priv_unsized_fields): (Vec<_>, Vec<_>) =
             unsized_fields.iter().partition(|field| match field.vis {

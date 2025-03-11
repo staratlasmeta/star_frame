@@ -30,6 +30,9 @@ pub trait HasOwnerProgram {
     type OwnerProgram: StarFrameProgram;
 }
 
+pub type OwnerProgramDiscriminant<T> =
+    <<T as HasOwnerProgram>::OwnerProgram as StarFrameProgram>::AccountDiscriminant;
+
 /// A marker trait that indicates the underlying type has seeds in it.
 pub trait HasSeeds {
     type Seeds: GetSeeds;

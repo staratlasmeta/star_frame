@@ -1,7 +1,7 @@
 use crate::prelude::*;
 use crate::unsize::test_helpers::TestByteSet;
 use crate::unsize::tests::test::many_unsized::{
-    ManyUnsized, ManyUnsizedExclusivePub, ManyUnsizedOwned,
+    ManyUnsized, ManyUnsizedExclusive, ManyUnsizedOwned,
 };
 use pretty_assertions::assert_eq;
 use star_frame_proc::{derivative, unsized_impl};

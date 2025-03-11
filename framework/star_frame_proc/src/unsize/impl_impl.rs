@@ -67,8 +67,8 @@ pub fn unsized_impl_impl(item: ItemImpl, args: TokenStream) -> TokenStream {
 
     let self_ident = self_segment.ident.clone();
 
-    let pub_exclusive_ident = format_ident!("{self_ident}ExtensionPub{tag_str}");
-    let priv_exclusive_ident = format_ident!("{self_ident}Extension{tag_str}");
+    let pub_exclusive_ident = format_ident!("{self_ident}ExclusiveImpl{tag_str}");
+    let priv_exclusive_ident = format_ident!("{self_ident}ExclusiveImplPrivate{tag_str}");
 
     let angle_bracketed_self = match &self_segment.arguments {
         PathArguments::None => AngleBracketedGenericArguments {
@@ -125,8 +125,8 @@ pub fn unsized_impl_impl(item: ItemImpl, args: TokenStream) -> TokenStream {
         );
     }
 
-    let mut exclusive_pub_fns = vec![];
-    let mut exclusive_fns = vec![];
+    let mut pub_exclusive_fns = vec![];
+    let mut priv_exclusive_fns = vec![];
     let mut mut_fns = vec![];
     let mut ref_fns = vec![];
     impl_fns.into_iter()
@@ -149,11 +149,11 @@ pub fn unsized_impl_impl(item: ItemImpl, args: TokenStream) -> TokenStream {
                     match item_fn.vis {
                         Visibility::Public(_) => {
                             item_fn.vis = Visibility::Inherited;
-                            exclusive_pub_fns.push(item_fn);
+                            pub_exclusive_fns.push(item_fn);
                         }
                         Visibility::Restricted(_) => abort!(item_fn.vis, "`exclusive` functions can only have pub or inherited visibilities"),
                         Visibility::Inherited => {
-                            exclusive_fns.push(item_fn);
+                            priv_exclusive_fns.push(item_fn);
                         }
                     }
                 } else {
@@ -178,8 +178,11 @@ pub fn unsized_impl_impl(item: ItemImpl, args: TokenStream) -> TokenStream {
         }
     };
 
-    let pub_decls = exclusive_pub_fns.iter().map(|item| &item.sig).collect_vec();
-    let priv_decls = exclusive_fns.iter().map(|item| &item.sig).collect_vec();
+    let pub_decls = pub_exclusive_fns.iter().map(|item| &item.sig).collect_vec();
+    let priv_decls = priv_exclusive_fns
+        .iter()
+        .map(|item| &item.sig)
+        .collect_vec();
 
     let b_lt = new_lifetime(&item.generics, Some("b"));
     let a_lt = new_lifetime(&item.generics, Some("a"));
@@ -214,20 +217,20 @@ pub fn unsized_impl_impl(item: ItemImpl, args: TokenStream) -> TokenStream {
             }
         }
     };
-    let pub_exclusive = (!exclusive_pub_fns.is_empty()).then(|| {
+    let pub_exclusive = (!pub_exclusive_fns.is_empty()).then(|| {
         make_exclusive(
             Visibility::Public(Default::default()),
             pub_exclusive_ident,
             &pub_decls,
-            &exclusive_pub_fns,
+            &pub_exclusive_fns,
         )
     });
-    let priv_exclusive = (!exclusive_fns.is_empty()).then(|| {
+    let priv_exclusive = (!priv_exclusive_fns.is_empty()).then(|| {
         make_exclusive(
             Visibility::Inherited,
             priv_exclusive_ident,
             &priv_decls,
-            &exclusive_fns,
+            &priv_exclusive_fns,
         )
     });
     quote! {
