@@ -30,8 +30,8 @@ checksum = "512761e0bb2578dd7380c6baaa0f4ce03e84f95e960231d1dec8bf4d7d6e2627"
 [[package]]
 name = "advancer"
 version = "0.0.1"
-source = "registry+ssh://git@ssh.shipyard.rs/star-atlas/crate-index.git"
-checksum = "f69eab1e499e1efead69c1f60e39b257b2fe5b722957a2ed46800dd9ea8d0808"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a3d9923474c4ffe067f57241144f3c11c4c7a7e060e8e8190f519d4ad0ac041b"
 dependencies = [
  "thiserror 2.0.3",
 ]

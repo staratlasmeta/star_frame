@@ -23,7 +23,7 @@ star_frame_proc = { path = "star_frame_proc", registry = "star-atlas", version =
 star_frame_spl = { path = "star_frame_spl", registry = "star-atlas", version = "0.0.3" }
 
 # Non workspace crates
-advancer = { registry = "star-atlas", version = "0.0.1" }
+advancer = "0.0.1"
 anchor-lang-idl-spec = "0.1.0"
 anyhow = "1.0.75"
 array-init = "2.1.0"
