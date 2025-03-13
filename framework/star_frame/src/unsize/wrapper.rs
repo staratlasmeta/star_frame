@@ -225,10 +225,10 @@ where
 
     /// # Safety
     /// TODO
-    pub unsafe fn set_inner(
+    pub unsafe fn set_inner<U>(
         wrapper: &mut Self,
-        f: impl FnOnce(&mut T) -> Result<()>,
-    ) -> Result<()> {
+        f: impl FnOnce(&mut T) -> Result<U>,
+    ) -> Result<U> {
         f(unsafe { &mut *wrapper.data })
     }
     /// # Safety
