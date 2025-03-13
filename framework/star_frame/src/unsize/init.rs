@@ -9,7 +9,7 @@ pub trait UnsizedInit<InitArg>: UnsizedType {
     const INIT_BYTES: usize;
 
     /// # Safety
-    /// `super_ref` must have [`UnsizedInit::INIT_BYTES`] zeroed bytes.
+    /// todo... The trait should probably be marked as unsafe, but the method is probably fine
     unsafe fn init(bytes: &mut &mut [u8], arg: InitArg) -> Result<()>;
 }
 
