@@ -1,7 +1,7 @@
 use crate::prelude::*;
 use crate::unsize::test_helpers::TestByteSet;
-use crate::unsize::tests::test::many_unsized::{
-    ManyUnsized, ManyUnsizedExclusive, ManyUnsizedOwned,
+use crate::unsize::tests::struct_test::many_unsized::{
+    ManyUnsized, ManyUnsizedExclusiveExt, ManyUnsizedOwned,
 };
 use pretty_assertions::assert_eq;
 use star_frame_proc::{derivative, unsized_impl};
@@ -18,6 +18,14 @@ pub struct UnsizedTest {
 pub struct UnsizedTest3 {
     #[unsized_start]
     pub unsized3: List<PackedValue<u16>, u8>,
+}
+
+#[unsized_impl]
+impl UnsizedTest3 {
+    #[exclusive]
+    fn foo<'c>(&'c mut self) -> ExclusiveWrapperT<'c, 'a, 'info, List<PackedValue<u16>, u8>, O, A> {
+        self.unsized3()
+    }
 }
 
 #[test]
