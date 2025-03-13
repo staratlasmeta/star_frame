@@ -146,11 +146,19 @@ impl CombineGenerics for Generics {
     }
 }
 
-pub fn new_ident<'s, 'i>(ident_start: &'s str, existing: impl Iterator<Item = &'i Ident>) -> Ident {
+pub fn new_ident<'s, 'i>(
+    ident_start: &'s str,
+    existing: impl Iterator<Item = &'i Ident>,
+    prepend: bool,
+) -> Ident {
     let mut new_ident = ident_start.to_string();
     let existing = existing.map(|i| i.to_string()).collect_vec();
     while existing.iter().any(|g| g == &new_ident) {
-        new_ident.push('_');
+        if prepend {
+            new_ident.insert(0, '_');
+        } else {
+            new_ident.push('_');
+        }
     }
     Ident::new(&new_ident, Span::call_site())
 }
@@ -160,7 +168,7 @@ pub fn new_lifetime<G: GetGenerics>(generics: &G, lifetime_str: Option<&str>) ->
         .get_generics()
         .lifetimes()
         .map(|l| &l.lifetime.ident);
-    let new_lifetime = new_ident(lifetime_str.unwrap_or("l"), existing);
+    let new_lifetime = new_ident(lifetime_str.unwrap_or("l"), existing, false);
     Lifetime::new(&format!("'{new_lifetime}"), Span::call_site())
 }
 
@@ -175,6 +183,7 @@ fn new_generic_inner<G: GetGenerics>(
     new_ident(
         generic_str,
         type_idents.chain(const_idents).chain(extra_idents.iter()),
+        false,
     )
 }
 

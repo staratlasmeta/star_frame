@@ -169,17 +169,23 @@ pub fn unsized_impl_impl(item: ItemImpl, args: TokenStream) -> TokenStream {
         });
 
     let (impl_gen, _, where_clause) = item.generics.split_for_impl();
-    let inherent_impls = quote! {
-        impl #impl_gen #ref_ty #where_clause {
-            #(#ref_fns)*
+    let ref_impls = (!ref_fns.is_empty()).then(|| {
+        quote! {
+            impl #impl_gen #ref_ty #where_clause {
+                #(#ref_fns)*
+            }
         }
-        impl #impl_gen #mut_ty #where_clause {
-            #(#mut_fns)*
+    });
+    let mut_impls = (!mut_fns.is_empty()).then(|| {
+        quote! {
+            impl #impl_gen #mut_ty #where_clause {
+                #(#mut_fns)*
+            }
         }
-    };
+    });
 
-    let pub_decls = pub_exclusive_fns.iter().map(|item| &item.sig).collect_vec();
-    let priv_decls = priv_exclusive_fns
+    let pub_signatures = pub_exclusive_fns.iter().map(|item| &item.sig).collect_vec();
+    let priv_signatures = priv_exclusive_fns
         .iter()
         .map(|item| &item.sig)
         .collect_vec();
@@ -202,12 +208,12 @@ pub fn unsized_impl_impl(item: ItemImpl, args: TokenStream) -> TokenStream {
 
     let make_exclusive = |vis: Visibility,
                           trait_ident: Ident,
-                          decls: &[&Signature],
+                          signatures: &[&Signature],
                           funcs: &[ImplItemFn]| {
         quote! {
             #vis trait #trait_ident #impl_gen #where_clause
             {
-                #(#decls;)*
+                #(#signatures;)*
             }
 
             impl #impl_gen #trait_ident #ty_gen for #prelude::ExclusiveWrapper<#b_lt, #a_lt, #info_lt, #mut_ty_a, #o, #a>
@@ -221,7 +227,7 @@ pub fn unsized_impl_impl(item: ItemImpl, args: TokenStream) -> TokenStream {
         make_exclusive(
             Visibility::Public(Default::default()),
             pub_exclusive_ident,
-            &pub_decls,
+            &pub_signatures,
             &pub_exclusive_fns,
         )
     });
@@ -229,12 +235,13 @@ pub fn unsized_impl_impl(item: ItemImpl, args: TokenStream) -> TokenStream {
         make_exclusive(
             Visibility::Inherited,
             priv_exclusive_ident,
-            &priv_decls,
+            &priv_signatures,
             &priv_exclusive_fns,
         )
     });
     quote! {
-        #inherent_impls
+        #ref_impls
+        #mut_impls
         #pub_exclusive
         #priv_exclusive
     }

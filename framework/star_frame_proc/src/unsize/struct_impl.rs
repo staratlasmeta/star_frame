@@ -198,7 +198,7 @@ impl UnsizedStructContext {
 
         let sized_field_ident = sized_ident
             .as_ref()
-            .map(|_| new_ident("sized", get_field_idents(&all_fields)));
+            .map(|_| new_ident("__sized", get_field_idents(&all_fields), true));
 
         let sized_field_idents = get_field_idents(&sized_fields).cloned().collect_vec();
         let sized_field_types = get_field_types(&sized_fields).cloned().collect_vec();
@@ -591,15 +591,30 @@ impl UnsizedStructContext {
 
     fn unsized_init_struct_impl(&self) -> TokenStream {
         Paths!(prelude, result, copy, clone, debug);
-        UnsizedStructContext!(self => vis, with_sized_idents, with_sized_types, with_sized_vis_pub
-            struct_type, struct_ident);
+        UnsizedStructContext!(self => vis, with_sized_types, with_sized_vis_pub, struct_type, struct_ident);
 
         let init_struct_ident = format_ident!("{struct_ident}Init");
+
+        let sized_field_ident = self
+            .sized_ident
+            .as_ref()
+            .map(|_| new_ident("sized", get_field_idents(&self.unsized_fields), false));
+
+        let sized_with_unsized_idents = sized_field_ident
+            .iter()
+            .chain(self.unsized_field_idents.iter())
+            .cloned()
+            .collect_vec();
 
         let init_generic_idents = self
             .with_sized_idents
             .iter()
-            .map(|ident| format_ident!("{}Init", ident.to_string().to_upper_camel_case()))
+            .map(|ident| {
+                format_ident!(
+                    "{struct_ident}Init{}",
+                    ident.to_string().to_upper_camel_case()
+                )
+            })
             .collect_vec();
 
         let init_generics: BetterGenerics = parse_quote!([
@@ -619,7 +634,7 @@ impl UnsizedStructContext {
         quote! {
             #[derive(#copy, #clone, #debug)]
             #vis struct #init_struct_ident #init_generics {
-                #(#with_sized_vis_pub #with_sized_idents: #init_generic_idents,)*
+                #(#with_sized_vis_pub #sized_with_unsized_idents: #init_generic_idents,)*
             }
 
             #[allow(trivial_bounds)]
@@ -632,7 +647,7 @@ impl UnsizedStructContext {
                     arg: #init_struct_type,
                 ) -> #result<()> {
                     #(
-                        unsafe { <#with_sized_types as #prelude::UnsizedInit<#init_generic_idents>>::init(bytes, arg.#with_sized_idents) }?;
+                        unsafe { <#with_sized_types as #prelude::UnsizedInit<#init_generic_idents>>::init(bytes, arg.#sized_with_unsized_idents) }?;
                     )*
                     Ok(())
                 }
@@ -645,7 +660,7 @@ impl UnsizedStructContext {
         UnsizedStructContext!(self => struct_ident, unsized_fields, rm_lt, struct_type);
         let info = new_lifetime(&self.generics, Some("info"));
         let b = new_lifetime(&self.generics, Some("b"));
-        let s = new_lifetime(&self.generics, Some("s"));
+        let c = new_lifetime(&self.generics, Some("c"));
         let o = new_generic(&self.generics, Some("O"));
         let a = new_generic(&self.generics, Some("A"));
         let ext_trait_generics = self
@@ -678,13 +693,13 @@ impl UnsizedStructContext {
                 #vis trait #extension_ident #impl_gen #wc
                 {
                     #(
-                        fn #field_idents<#s>(&#s mut self) -> #prelude::ExclusiveWrapper<#s, #rm_lt, #info, <#field_types as #prelude::UnsizedType>::Mut<#rm_lt>, #o, #a>;
+                        fn #field_idents<#c>(&#c mut self) -> #prelude::ExclusiveWrapper<#c, #rm_lt, #info, <#field_types as #prelude::UnsizedType>::Mut<#rm_lt>, #o, #a>;
                     )*
                 }
 
                 impl #impl_gen #extension_ident #ty_gen for #impl_for #wc {
                     #(
-                        fn #field_idents<#s>(&#s mut self) -> #prelude::ExclusiveWrapper<#s, #rm_lt, #info, <#field_types as #prelude::UnsizedType>::Mut<#rm_lt>, #o, #a> {
+                        fn #field_idents<#c>(&#c mut self) -> #prelude::ExclusiveWrapper<#c, #rm_lt, #info, <#field_types as #prelude::UnsizedType>::Mut<#rm_lt>, #o, #a> {
                             unsafe { #prelude::ExclusiveWrapper::map_ref(self, |x| &mut x.#field_idents) }
                         }
                     )*
