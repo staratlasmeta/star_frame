@@ -17,7 +17,10 @@ pub mod macro_prelude {
     pub use crate::syscalls::{SyscallAccountCache, SyscallInvoke};
     pub use crate::unsize::{
         init::{DefaultInit, UnsizedInit},
-        wrapper::{ExclusiveWrapper, MutWrapper, SharedWrapper, UnsizedTypeDataAccess},
+        wrapper::{
+            ExclusiveWrapper, ExclusiveWrapperT, MutWrapper, SharedWrapper, StartPointer,
+            UnsizedTypeDataAccess,
+        },
         AsShared, UnsizedType,
     };
     pub use crate::Result;
@@ -31,6 +34,9 @@ pub mod macro_prelude {
             InstructionSetToIdl, InstructionToIdl, ProgramToIdl, SeedsToIdl, TypeToIdl,
         },
     };
+
+    pub use advance::{Advance, AdvanceArray};
+    pub use anyhow::bail;
 
     pub use solana_program::{account_info::AccountInfo, instruction::AccountMeta, pubkey::Pubkey};
 

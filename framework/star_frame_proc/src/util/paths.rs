@@ -57,16 +57,12 @@ pub struct Paths {
     pub instruction_to_idl_args_ident: Ident,
     pub get_seeds_ident: Ident,
 
-    pub advance: TokenStream,
-
     // bytemuck
     pub bytemuck: TokenStream,
 
     // solana
     pub account_info: TokenStream,
     pub pubkey: TokenStream,
-    // anyhow
-    pub anyhow_macro: TokenStream,
 }
 
 macro_rules! paths_macro {
@@ -129,15 +125,12 @@ impl Default for Paths {
             single_account_set_ident: format_ident!("single_account_set"),
             instruction_set_args_ident: format_ident!("ix_set"),
             get_seeds_ident: format_ident!("get_seeds"),
-            advance: quote! { #crate_name::advance::Advance},
 
             // bytemuck
             bytemuck: quote! { #crate_name::bytemuck },
             // solana
             account_info: quote! { #prelude::AccountInfo },
             pubkey: quote! { #prelude::Pubkey },
-            // anyhow
-            anyhow_macro: quote! { #crate_name::anyhow::anyhow },
             prelude,
         }
     }

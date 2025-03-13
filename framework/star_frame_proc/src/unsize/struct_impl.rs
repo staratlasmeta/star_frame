@@ -404,9 +404,11 @@ impl UnsizedStructContext {
             #validate_fields_are_trait
 
             #[doc = #zeroable_safety]
+            #[automatically_derived]
             unsafe impl #impl_generics #bytemuck::Zeroable for #sized_ident #type_generics #where_clause {}
 
             #[doc = #no_uninit_safety]
+            #[automatically_derived]
             unsafe impl #impl_generics #bytemuck::NoUninit for #sized_ident #type_generics #where_clause {}
 
             #[#prelude::derivative(#debug, #copy, #clone)]
@@ -416,12 +418,15 @@ impl UnsizedStructContext {
             }
 
             #[doc = #zeroable_bit_safety]
+            #[automatically_derived]
             unsafe impl #impl_generics #bytemuck::Zeroable for #bit_ident #type_generics #where_clause {}
 
             #[doc = #any_bit_pattern_safety]
+            #[automatically_derived]
             unsafe impl #impl_generics #bytemuck::AnyBitPattern for #bit_ident #type_generics #where_clause {}
 
             #[doc = #checked_safety]
+            #[automatically_derived]
             unsafe impl #impl_generics #bytemuck::CheckedBitPattern for #sized_ident #type_generics #where_clause {
                 type Bits = #bit_ident #type_generics;
                 #[inline]
@@ -444,6 +449,7 @@ impl UnsizedStructContext {
         let (impl_gen, _, wc) = self.ref_mut_generics.split_for_impl();
 
         Some(quote! {
+            #[automatically_derived]
             impl #impl_gen #deref for #ref_type #wc {
                 type Target = #sized_type;
 
@@ -452,6 +458,7 @@ impl UnsizedStructContext {
                 }
             }
 
+            #[automatically_derived]
             impl #impl_gen #deref for #mut_type #wc {
                 type Target = #sized_type;
 
@@ -460,6 +467,7 @@ impl UnsizedStructContext {
                 }
             }
 
+            #[automatically_derived]
             impl #impl_gen #deref_mut for #mut_type #wc {
                 fn deref_mut(&mut self) -> &mut Self::Target {
                     &mut self.#sized_field_ident
@@ -490,6 +498,7 @@ impl UnsizedStructContext {
         let ref_ty_gen = ref_gen.split_for_impl().1;
 
         quote! {
+            #[automatically_derived]
             impl #impl_gen #prelude::AsShared<#as_shared_lt> for #mut_type #wc {
                 type Shared<#shared_lt> = #ref_ident #ref_ty_gen where Self: #shared_lt;
                 fn as_shared(&#as_shared_lt self) -> Self::Shared<#as_shared_lt> {
@@ -523,6 +532,7 @@ impl UnsizedStructContext {
         });
 
         quote! {
+            #[automatically_derived]
             unsafe impl #impl_gen #prelude::UnsizedType for #struct_type #where_clause {
                 type Ref<#rm_lt> = #ref_type;
                 type Mut<#rm_lt> = #mut_type;
@@ -655,20 +665,22 @@ impl UnsizedStructContext {
         }
     }
 
+    #[allow(non_snake_case)]
     fn extension_impl(&self) -> TokenStream {
         Paths!(prelude);
         UnsizedStructContext!(self => struct_ident, unsized_fields, rm_lt, struct_type);
         let info = new_lifetime(&self.generics, Some("info"));
         let b = new_lifetime(&self.generics, Some("b"));
         let c = new_lifetime(&self.generics, Some("c"));
-        let o = new_generic(&self.generics, Some("O"));
-        let a = new_generic(&self.generics, Some("A"));
+        let O = new_generic(&self.generics, Some("O"));
+        let A = new_generic(&self.generics, Some("A"));
+
         let ext_trait_generics = self
             .ref_mut_generics
             .combine::<BetterGenerics>(&parse_quote!([
-                <#b, #info, #o, #a> where
-                    #o: #prelude::UnsizedType + ?Sized,
-                    #a: #prelude::UnsizedTypeDataAccess<#info>
+                <#b, #info, #O, #A> where
+                    #O: #prelude::UnsizedType + ?Sized,
+                    #A: #prelude::UnsizedTypeDataAccess<#info>
             ]));
 
         let (impl_gen, ty_gen, wc) = ext_trait_generics.split_for_impl();
@@ -684,7 +696,7 @@ impl UnsizedStructContext {
                 }
             });
 
-        let impl_for = quote!(#prelude::ExclusiveWrapper<#b, #rm_lt, #info, <#struct_type as #prelude::UnsizedType>::Mut<#rm_lt>, #o, #a>);
+        let impl_for = quote!(#prelude::ExclusiveWrapper<#b, #rm_lt, #info, <#struct_type as #prelude::UnsizedType>::Mut<#rm_lt>, #O, #A>);
 
         let make_ext_trait = |vis: &Visibility, fields: Vec<&Field>, extension_ident: &Ident| {
             let field_idents = get_field_idents(&fields).collect_vec();
@@ -693,13 +705,14 @@ impl UnsizedStructContext {
                 #vis trait #extension_ident #impl_gen #wc
                 {
                     #(
-                        fn #field_idents<#c>(&#c mut self) -> #prelude::ExclusiveWrapper<#c, #rm_lt, #info, <#field_types as #prelude::UnsizedType>::Mut<#rm_lt>, #o, #a>;
+                        fn #field_idents<#c>(&#c mut self) -> #prelude::ExclusiveWrapper<#c, #rm_lt, #info, <#field_types as #prelude::UnsizedType>::Mut<#rm_lt>, #O, #A>;
                     )*
                 }
 
+                #[automatically_derived]
                 impl #impl_gen #extension_ident #ty_gen for #impl_for #wc {
                     #(
-                        fn #field_idents<#c>(&#c mut self) -> #prelude::ExclusiveWrapper<#c, #rm_lt, #info, <#field_types as #prelude::UnsizedType>::Mut<#rm_lt>, #o, #a> {
+                        fn #field_idents<#c>(&#c mut self) -> #prelude::ExclusiveWrapper<#c, #rm_lt, #info, <#field_types as #prelude::UnsizedType>::Mut<#rm_lt>, #O, #A> {
                             unsafe { #prelude::ExclusiveWrapper::map_ref(self, |x| &mut x.#field_idents) }
                         }
                     )*

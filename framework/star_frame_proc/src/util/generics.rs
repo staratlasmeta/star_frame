@@ -168,44 +168,16 @@ pub fn new_lifetime<G: GetGenerics>(generics: &G, lifetime_str: Option<&str>) ->
         .get_generics()
         .lifetimes()
         .map(|l| &l.lifetime.ident);
-    let new_lifetime = new_ident(lifetime_str.unwrap_or("l"), existing, false);
+    let new_lifetime = new_ident(lifetime_str.unwrap_or("a"), existing, false);
     Lifetime::new(&format!("'{new_lifetime}"), Span::call_site())
 }
 
-fn new_generic_inner<G: GetGenerics>(
-    generics: &G,
-    generic_str: &str,
-    extra_idents: &[Ident],
-) -> Ident {
+pub fn new_generic<G: GetGenerics>(generics: &G, generic_str: Option<&str>) -> Ident {
+    let generic_str = generic_str.unwrap_or("A");
     let generics = generics.get_generics();
     let type_idents = generics.type_params().map(|t| &t.ident);
     let const_idents = generics.const_params().map(|c| &c.ident);
-    new_ident(
-        generic_str,
-        type_idents.chain(const_idents).chain(extra_idents.iter()),
-        false,
-    )
-}
-
-pub fn new_generic<G: GetGenerics>(generics: &G, generic_str: Option<&str>) -> Ident {
-    new_generic_inner(generics, generic_str.unwrap_or("A"), &[])
-}
-
-pub fn new_generics<G: GetGenerics, const N: usize>(
-    generics: &G,
-    generic_str: Option<&str>,
-) -> [Ident; N] {
-    let mut idents = Vec::with_capacity(N);
-    for _ in 0..N {
-        idents.push(new_generic_inner(
-            generics,
-            generic_str.unwrap_or("A"),
-            &idents,
-        ));
-    }
-    idents
-        .try_into()
-        .expect("idents should be of the same length")
+    new_ident(generic_str, type_idents.chain(const_idents), false)
 }
 
 pub fn reject_generics(item: &impl GetGenerics, error: Option<&str>) {

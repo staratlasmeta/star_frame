@@ -24,23 +24,20 @@ pub struct InstructionSetFieldArgs {
 }
 
 pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
-    let info_lifetime = new_lifetime(&item, None);
-    let (impl_generics, ty_generics, where_clause) = &item.generics.split_for_impl();
-    let ident = &item.ident;
-
-    let Paths {
+    Paths!(
         account_info,
-        advance,
         bytemuck,
-        anyhow_macro,
         instruction,
         pubkey,
         result,
         syscalls,
         prelude,
         instruction_set_args_ident,
-        ..
-    } = Paths::default();
+    );
+    let info_lifetime = new_lifetime(&item, None);
+    let (impl_generics, ty_generics, where_clause) = &item.generics.split_for_impl();
+
+    let ident = &item.ident;
 
     let args = find_attr(&item.attrs, &instruction_set_args_ident)
         .map(InstructionSetStructArgs::parse_arguments)
@@ -132,7 +129,7 @@ pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
                 syscalls: &mut impl #syscalls<#info_lifetime>,
             ) -> #result<()> {
                 let discriminant_bytes =
-                    #advance::try_advance(&mut ix_bytes, ::core::mem::size_of::<#discriminant_type>())?;
+                    #prelude::Advance::try_advance(&mut ix_bytes, ::core::mem::size_of::<#discriminant_type>())?;
                 let discriminant = *#bytemuck::try_from_bytes(discriminant_bytes)?;
                 #[deny(unreachable_patterns)]
                 match discriminant {
@@ -142,7 +139,7 @@ pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
                             <#variant_tys as #instruction>::run_ix_from_raw(accounts, &mut data, syscalls)
                         }
                     )*
-                    x => Err(#anyhow_macro!("Invalid ix discriminant: {:?}", x)),
+                    x => #prelude::bail!("Invalid ix discriminant: {:?}", x),
                 }
             }
         }
