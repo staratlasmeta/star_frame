@@ -48,9 +48,6 @@ impl<'info> UnsizedTypeDataAccess<'info> for TestAccountInfo<'info> {
 pub struct TestByteSet<'a, T: ?Sized + UnsizedType> {
     test_account: &'a TestAccountInfo<'a>,
     phantom_t: PhantomData<T>,
-    // exclusive_wrapper:
-    //     MaybeUninit<ExclusiveWrapper<'a, 'a, <T as UnsizedType>::Mut<'a>, T, TestAccountInfo<'a>>>,
-    // is_initialized: bool,
 }
 
 impl<'a, T> TestByteSet<'a, T>
@@ -73,8 +70,6 @@ where
         Ok(Self {
             test_account,
             phantom_t: PhantomData,
-            // exclusive_wrapper: MaybeUninit::uninit(),
-            // is_initialized: false,
         })
     }
 
