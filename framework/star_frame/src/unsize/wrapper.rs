@@ -1,10 +1,14 @@
-use super::UnsizedType;
+use super::{AsShared, UnsizedType};
+use crate::prelude::UnsizedInit;
 use crate::Result;
+use advance::Advance;
 use anyhow::ensure;
+use derive_more::{Deref, DerefMut};
 use solana_program::account_info::AccountInfo;
 use solana_program::entrypoint::MAX_PERMITTED_DATA_INCREASE;
 use solana_program::program_memory::sol_memmove;
 use std::cell::{Ref, RefCell, RefMut};
+use std::cmp::Ordering;
 use std::collections::Bound;
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut, RangeBounds};
@@ -93,7 +97,9 @@ pub(crate) unsafe fn change_ref<'info, 'a>(the_ref: &'a mut &'info mut [u8]) -> 
     unsafe { &mut *std::ptr::from_mut::<&'info mut [u8]>(the_ref).cast::<*mut [u8]>() }
 }
 
-unsafe fn change_ref_back<'info, 'a>(the_ptr: &'a mut *mut [u8]) -> &'a mut &'info mut [u8] {
+pub(crate) unsafe fn change_ref_back<'info, 'a>(
+    the_ptr: &'a mut *mut [u8],
+) -> &'a mut &'info mut [u8] {
     unsafe { &mut *std::ptr::from_mut::<*mut [u8]>(the_ptr).cast::<&'info mut [u8]>() }
 }
 
@@ -144,14 +150,28 @@ impl<T, O: ?Sized, A> DerefMut for MutWrapper<'_, '_, T, O, A> {
     }
 }
 
-impl<'b, 'a, 'c, 'info, O: UnsizedType + ?Sized, A: UnsizedTypeDataAccess<'info>>
+#[derive(Debug)]
+pub struct ExclusiveWrapper<'b, 'a, 'info, T, O, A>
+where
+    O: UnsizedType + ?Sized,
+{
+    underlying_data: &'b &'a A,
+    r: &'b mut RefMut<'a, *mut [u8]>,
+    outer_data: *mut <O as UnsizedType>::Mut<'a>,
+    phantom_o: PhantomData<fn() -> &'info O>,
+    data: *mut T,
+}
+
+/// A convenience type where T is passed in as the [`UnsizedType`], instead of `UnsizedType::Mut`
+pub type ExclusiveWrapperT<'b, 'a, 'info, T, O, A> =
+    ExclusiveWrapper<'b, 'a, 'info, <T as UnsizedType>::Mut<'a>, O, A>;
+
+impl<'c, 'a, 'b, 'info, O: UnsizedType + ?Sized, A: UnsizedTypeDataAccess<'info>>
     MutWrapper<'a, 'info, <O as UnsizedType>::Mut<'a>, O, A>
 where
-    'b: 'c,
+    'c: 'b,
 {
-    pub fn exclusive(
-        &'b mut self,
-    ) -> ExclusiveWrapper<'c, 'a, 'info, <O as UnsizedType>::Mut<'a>, O, A> {
+    pub fn exclusive(&'c mut self) -> ExclusiveWrapperT<'b, 'a, 'info, O, O, A> {
         let outer_data = std::ptr::from_mut(&mut self.data);
         let data = outer_data;
         ExclusiveWrapper {
@@ -164,21 +184,9 @@ where
     }
 }
 
-#[derive(Debug)]
-pub struct ExclusiveWrapper<'b, 'a, 'info, T, O: ?Sized, A>
+impl<T, O, A> Deref for ExclusiveWrapper<'_, '_, '_, T, O, A>
 where
-    O: UnsizedType,
-{
-    underlying_data: &'b &'a A,
-    r: &'b mut RefMut<'a, *mut [u8]>,
-    outer_data: *mut <O as UnsizedType>::Mut<'a>,
-    phantom_o: PhantomData<fn() -> &'info O>,
-    data: *mut T,
-}
-
-impl<T, O: ?Sized, A> Deref for ExclusiveWrapper<'_, '_, '_, T, O, A>
-where
-    O: UnsizedType,
+    O: UnsizedType + ?Sized,
 {
     type Target = T;
 
@@ -186,49 +194,54 @@ where
         unsafe { &*self.data }
     }
 }
-impl<T, O: ?Sized, A> DerefMut for ExclusiveWrapper<'_, '_, '_, T, O, A>
+impl<T, O, A> DerefMut for ExclusiveWrapper<'_, '_, '_, T, O, A>
 where
-    O: UnsizedType,
+    O: UnsizedType + ?Sized,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         unsafe { &mut *self.data }
     }
 }
 
-impl<'b, 'a, 'info, T, O: UnsizedType + ?Sized, A: UnsizedTypeDataAccess<'info>>
-    ExclusiveWrapper<'b, 'a, 'info, T, O, A>
+impl<'b, 'a, 'info, T, O, A> ExclusiveWrapper<'b, 'a, 'info, T, O, A>
+where
+    O: UnsizedType + ?Sized,
+    A: UnsizedTypeDataAccess<'info>,
 {
     /// # Safety
     /// todo
     pub unsafe fn map_ref<'c, U>(
-        r: &'c mut Self,
+        wrapper: &'c mut Self,
         f: impl FnOnce(&mut T) -> &mut U,
     ) -> ExclusiveWrapper<'c, 'a, 'info, U, O, A> {
         ExclusiveWrapper {
-            underlying_data: r.underlying_data,
-            outer_data: r.outer_data,
-            r: r.r,
-            data: f(unsafe { &mut *r.data }),
+            underlying_data: wrapper.underlying_data,
+            outer_data: wrapper.outer_data,
+            r: wrapper.r,
+            data: f(unsafe { &mut *wrapper.data }),
             phantom_o: PhantomData,
         }
     }
 
     /// # Safety
     /// TODO
-    pub unsafe fn set_inner<U>(r: &mut Self, f: impl FnOnce(&mut T) -> U) -> U {
-        f(unsafe { &mut *r.data })
+    pub unsafe fn set_inner(
+        wrapper: &mut Self,
+        f: impl FnOnce(&mut T) -> Result<()>,
+    ) -> Result<()> {
+        f(unsafe { &mut *wrapper.data })
     }
     /// # Safety
     /// TODO
     pub unsafe fn add_bytes(
-        r: &mut Self,
+        wrapper: &mut Self,
         source_ptr: *const (),
         start: *const (),
         amount: usize,
         after_add: impl FnOnce(&mut T) -> Result<()>,
     ) -> Result<()> {
         {
-            let data = unsafe { change_ref_back(r.r) };
+            let data = unsafe { change_ref_back(wrapper.r) };
             let old_ptr = data.as_ptr();
             let old_len = data.len();
 
@@ -242,7 +255,7 @@ impl<'b, 'a, 'info, T, O: UnsizedType + ?Sized, A: UnsizedTypeDataAccess<'info>>
             let new_len = old_len + amount;
 
             // realloc
-            unsafe { r.underlying_data.realloc(new_len, data) }?;
+            unsafe { wrapper.underlying_data.realloc(new_len, data) }?;
 
             if start as usize != old_ptr as usize + old_len {
                 unsafe {
@@ -255,27 +268,28 @@ impl<'b, 'a, 'info, T, O: UnsizedType + ?Sized, A: UnsizedTypeDataAccess<'info>>
             }
         }
 
-        after_add(unsafe { &mut *r.data })?;
+        after_add(unsafe { &mut *wrapper.data })?;
 
         unsafe {
             <O as UnsizedType>::resize_notification(
-                &mut *r.outer_data,
+                &mut *wrapper.outer_data,
                 source_ptr,
                 amount.try_into()?,
             )?;
         }
         Ok(())
     }
+
     /// # Safety
     /// TODO
     pub unsafe fn remove_bytes(
-        r: &mut Self,
+        wrapper: &mut Self,
         source_ptr: *const (),
         range: impl RangeBounds<*const ()>,
         after_remove: impl FnOnce(&mut T) -> Result<()>,
     ) -> Result<()> {
         let amount = {
-            let data = unsafe { change_ref_back(r.r) };
+            let data = unsafe { change_ref_back(wrapper.r) };
             let old_len = data.len();
 
             let start = match range.start_bound() {
@@ -324,21 +338,127 @@ impl<'b, 'a, 'info, T, O: UnsizedType + ?Sized, A: UnsizedTypeDataAccess<'info>>
             let new_len = old_len - amount;
             // realloc
             unsafe {
-                r.underlying_data.realloc(new_len, data)?;
+                wrapper.underlying_data.realloc(new_len, data)?;
             }
 
             amount
         };
 
-        after_remove(unsafe { &mut *r.data })?;
+        after_remove(unsafe { &mut *wrapper.data })?;
 
         unsafe {
             <O as UnsizedType>::resize_notification(
-                &mut *r.outer_data,
+                &mut *wrapper.outer_data,
                 source_ptr,
                 -amount.try_into()?,
             )?;
         }
+        Ok(())
+    }
+
+    /// # Safety
+    /// TODO
+    pub unsafe fn compute_len<U>(wrapper: &mut Self, start_ptr: *const ()) -> Result<usize>
+    where
+        U: UnsizedType + ?Sized,
+    {
+        let start_usize = start_ptr as usize;
+        let mut data = &unsafe { change_ref_back(wrapper.r) }[..];
+        let data_usize = data.as_ptr() as usize;
+        let start_offset = start_usize - data_usize;
+        data.try_advance(start_offset)?;
+        U::get_ref(&mut data)?;
+        let end_usize = data.as_ptr() as usize;
+        Ok(end_usize - start_usize)
+    }
+}
+
+#[derive(Debug, Deref, DerefMut)]
+pub struct StartPointer<T> {
+    start: *const (),
+    #[deref]
+    #[deref_mut]
+    pub data: T,
+}
+
+impl<T> StartPointer<T> {
+    /// # Safety
+    /// todo
+    pub unsafe fn new(start: *const (), data: T) -> Self {
+        Self { start, data }
+    }
+
+    /// # Safety
+    /// todo
+    pub unsafe fn handle_resize_notification(s: &mut Self, source_ptr: *const (), change: isize) {
+        if source_ptr < s.start {
+            s.start = unsafe { s.start.byte_offset(change) };
+        }
+    }
+}
+
+impl<'l, 'as_shared, T> AsShared<'as_shared> for StartPointer<T>
+where
+    'l: 'as_shared,
+    T: 'l + AsShared<'as_shared>,
+{
+    type Shared<'shared> = T::Shared<'shared>
+    where
+        Self: 'shared;
+
+    fn as_shared(&'as_shared self) -> Self::Shared<'as_shared> {
+        self.data.as_shared()
+    }
+}
+
+impl<'a, 'info, O, A, T> ExclusiveWrapper<'_, 'a, 'info, StartPointer<T>, O, A>
+where
+    O: UnsizedType + ?Sized,
+    A: UnsizedTypeDataAccess<'info>,
+{
+    /// # Safety
+    /// todo
+    // todo: maybe rename this?
+    pub unsafe fn set_start_pointer_data<U, I>(wrapper: &mut Self, init_arg: I) -> Result<()>
+    where
+        U: UnsizedType<Mut<'a> = StartPointer<T>> + UnsizedInit<I>,
+    {
+        let current_len = unsafe { ExclusiveWrapper::compute_len::<U>(wrapper, wrapper.start)? };
+        let new_len = <U as UnsizedInit<I>>::INIT_BYTES;
+
+        match current_len.cmp(&new_len) {
+            Ordering::Less => {
+                unsafe {
+                    ExclusiveWrapper::add_bytes(
+                        wrapper,
+                        wrapper.start,
+                        wrapper.start,
+                        new_len - current_len,
+                        |_| Ok(()),
+                    )
+                }?;
+            }
+            Ordering::Equal => {}
+            Ordering::Greater => {
+                unsafe {
+                    ExclusiveWrapper::remove_bytes(
+                        wrapper,
+                        wrapper.start,
+                        wrapper.start..wrapper.start.byte_add(current_len - new_len),
+                        |_| Ok(()),
+                    )
+                }?;
+            }
+        }
+        unsafe {
+            ExclusiveWrapper::set_inner(wrapper, |data: &mut StartPointer<T>| {
+                let slice = from_raw_parts_mut(data.start.cast_mut().cast::<u8>(), new_len);
+                <U as UnsizedInit<I>>::init(&mut &mut slice[..], init_arg)?;
+                let new_data = U::get_mut(&mut &mut slice[..])?;
+                data.data = new_data.data;
+                Ok(())
+            })
+        }?;
         Ok(())
     }
 }
