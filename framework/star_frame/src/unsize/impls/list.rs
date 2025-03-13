@@ -1,16 +1,17 @@
 use crate::align1::Align1;
 use crate::data_types::PackedValue;
 use crate::unsize::init::{DefaultInit, UnsizedInit};
-use crate::unsize::wrapper::{ExclusiveWrapper, UnsizedTypeDataAccess};
+use crate::unsize::wrapper::ExclusiveWrapper;
 use crate::unsize::AsShared;
 use crate::unsize::UnsizedType;
 use crate::util::uninit_array_bytes;
 use crate::Result;
 use advance::Advance;
 use anyhow::{bail, ensure, Context};
-use bytemuck::{bytes_of, checked, from_bytes, CheckedBitPattern, NoUninit, Pod};
+use bytemuck::{bytes_of, checked, from_bytes, CheckedBitPattern, NoUninit, Pod, Zeroable};
 use bytemuck::{cast_slice, cast_slice_mut};
 use num_traits::{FromPrimitive, ToPrimitive, Zero};
+use star_frame_proc::unsized_impl;
 use std::any::type_name;
 use std::borrow::Borrow;
 use std::cmp::Ordering;
@@ -354,45 +355,32 @@ where
     }
 }
 
-pub trait ListExclusive<'a, T, L>: DerefMut<Target = ListMut<'a, T, L>>
+#[unsized_impl]
+impl<T, L> List<T, L>
 where
-    L: ListLength,
     T: Align1 + NoUninit + CheckedBitPattern,
+    L: ListLength,
 {
-    fn insert(&mut self, index: usize, item: T) -> Result<()> {
-        self.insert_all(index, iter::once(item))
+    #[exclusive]
+    pub fn push(&mut self, item: T) -> Result<()> {
+        let len = self.len();
+        self.insert(len, item)
     }
-    fn insert_all<I>(&mut self, index: usize, items: I) -> Result<()>
-    where
-        I: IntoIterator,
-        I::IntoIter: ExactSizeIterator,
-        I::Item: Borrow<T>;
-    fn push_all<I>(&mut self, items: I) -> Result<()>
+    #[exclusive]
+    pub fn push_all<I>(&mut self, items: I) -> Result<()>
     where
         I: IntoIterator<Item = T>,
         I::IntoIter: ExactSizeIterator,
     {
         self.insert_all(self.len(), items)
     }
-    fn push(&mut self, item: T) -> Result<()> {
-        let len = self.len();
-        self.insert(len, item)
+    #[exclusive]
+    pub fn insert(&mut self, index: usize, item: T) -> Result<()> {
+        self.insert_all(index, iter::once(item))
     }
-    fn remove_range(&mut self, range: impl RangeBounds<usize>) -> Result<()>;
-    fn remove(&mut self, index: usize) -> Result<()> {
-        self.remove_range(index..=index)
-    }
-}
 
-impl<'b, 'a, 'info, T, O: ?Sized, A, L> ListExclusive<'a, T, L>
-    for ExclusiveWrapper<'b, 'a, 'info, <List<T, L> as UnsizedType>::Mut<'a>, O, A>
-where
-    T: Align1 + NoUninit + CheckedBitPattern,
-    L: ListLength,
-    O: UnsizedType,
-    A: UnsizedTypeDataAccess<'info>,
-{
-    fn insert_all<I>(&mut self, index: usize, items: I) -> Result<()>
+    #[exclusive]
+    pub fn insert_all<I>(&mut self, index: usize, items: I) -> Result<()>
     where
         I: IntoIterator,
         I::IntoIter: ExactSizeIterator,
@@ -415,16 +403,20 @@ where
         };
 
         unsafe {
-            ExclusiveWrapper::add_bytes(self, source_ptr, end_ptr, size_of::<T>() * to_add, |l| {
-                l.len = PackedValue(new_len);
-                Ok(())
-            })?;
-            ExclusiveWrapper::set_inner(self, |list| {
-                list.0 = &mut *ptr::from_raw_parts_mut(
-                    list.0.cast::<()>(),
-                    (old_len + to_add) * size_of::<T>(),
-                );
-            });
+            ExclusiveWrapper::add_bytes(
+                self,
+                source_ptr,
+                end_ptr,
+                size_of::<T>() * to_add,
+                |list| {
+                    list.len = PackedValue(new_len);
+                    list.0 = &mut *ptr::from_raw_parts_mut(
+                        list.0.cast::<()>(),
+                        (old_len + to_add) * size_of::<T>(),
+                    );
+                    Ok(())
+                },
+            )?;
         }
         for (i, value) in iter.enumerate() {
             self.bytes[byte_index + i * size_of::<T>()..][..size_of::<T>()]
@@ -433,7 +425,13 @@ where
         Ok(())
     }
 
-    fn remove_range(&mut self, indexes: impl RangeBounds<usize>) -> Result<()> {
+    #[exclusive]
+    pub fn remove(&mut self, index: usize) -> Result<()> {
+        self.remove_range(index..=index)
+    }
+
+    #[exclusive]
+    pub fn remove_range(&mut self, indexes: impl RangeBounds<usize>) -> Result<()> {
         let start = match indexes.start_bound() {
             std::ops::Bound::Included(start) => *start,
             std::ops::Bound::Excluded(start) => start + 1,
@@ -456,16 +454,14 @@ where
         unsafe {
             let start_ptr = self.bytes.as_ptr().add(start * size_of::<T>()).cast();
             let end_ptr = self.bytes.as_ptr().add(end * size_of::<T>()).cast();
-            ExclusiveWrapper::remove_bytes(self, source_ptr, start_ptr..end_ptr, |l| {
-                l.len = PackedValue(
+            ExclusiveWrapper::remove_bytes(self, source_ptr, start_ptr..end_ptr, |list| {
+                list.len = PackedValue(
                     L::from_usize(new_len).context("Failed to convert new list len to L")?,
                 );
-                Ok(())
-            })?;
-            ExclusiveWrapper::set_inner(self, |list| {
                 list.0 =
                     &mut *ptr::from_raw_parts_mut(list.0.cast::<()>(), new_len * size_of::<T>());
-            });
+                Ok(())
+            })?;
         }
         Ok(())
     }
@@ -479,7 +475,9 @@ where
     const INIT_BYTES: usize = size_of::<L>();
 
     unsafe fn init(bytes: &mut &mut [u8], _arg: DefaultInit) -> Result<()> {
-        bytes.advance(<Self as UnsizedInit<DefaultInit>>::INIT_BYTES);
+        bytes
+            .advance(<Self as UnsizedInit<DefaultInit>>::INIT_BYTES)
+            .copy_from_slice(bytes_of(&<PackedValue<L>>::zeroed()));
         Ok(())
     }
 }

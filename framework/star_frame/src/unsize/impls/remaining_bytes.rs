@@ -1,12 +1,13 @@
 use crate::align1::Align1;
 use crate::unsize::init::{DefaultInit, UnsizedInit};
-use crate::unsize::wrapper::{ExclusiveWrapper, UnsizedTypeDataAccess};
+use crate::unsize::wrapper::ExclusiveWrapper;
 use crate::unsize::AsShared;
 use crate::unsize::UnsizedType;
 use crate::Result;
 use advance::Advance;
 use anyhow::bail;
 use derive_more::{Deref, DerefMut};
+use star_frame_proc::unsized_impl;
 use std::cmp::Ordering;
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
@@ -93,17 +94,10 @@ unsafe impl UnsizedType for RemainingBytes {
     }
 }
 
-pub trait RemainingBytesExclusive {
-    fn set_len(&mut self, len: usize) -> Result<()>;
-}
-
-impl<'b, 'a, 'info, O: ?Sized, A> RemainingBytesExclusive
-    for ExclusiveWrapper<'b, 'a, 'info, RemainingBytesMut<'a>, O, A>
-where
-    O: UnsizedType,
-    A: UnsizedTypeDataAccess<'info>,
-{
-    fn set_len(&mut self, len: usize) -> Result<()> {
+#[unsized_impl]
+impl RemainingBytes {
+    #[exclusive]
+    pub fn set_len(&mut self, len: usize) -> Result<()> {
         let self_len = self.len();
         match self.len().cmp(&len) {
             Ordering::Less => {
@@ -134,7 +128,8 @@ where
         unsafe {
             ExclusiveWrapper::set_inner(self, |bytes| {
                 bytes.0 = &mut *ptr::from_raw_parts_mut(bytes.0.cast::<()>(), len);
-            });
+                Ok(())
+            })?;
         }
         Ok(())
     }
