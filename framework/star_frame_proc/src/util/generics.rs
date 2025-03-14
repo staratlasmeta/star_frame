@@ -18,6 +18,13 @@ pub struct BetterGenerics {
     #[deref_mut]
     pub generics: Generics,
 }
+
+impl ToTokens for BetterGenerics {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        self.generics.to_tokens(tokens)
+    }
+}
+
 impl BetterGenerics {
     pub fn into_inner(self) -> Generics {
         self.generics
@@ -139,71 +146,38 @@ impl CombineGenerics for Generics {
     }
 }
 
-#[allow(dead_code)]
-pub fn new_lifetime<G: GetGenerics>(generics: &G) -> Lifetime {
-    let mut lifetime = "l".to_string();
-    while generics
-        .get_generics()
-        .lifetimes()
-        .map(|l| l.lifetime.ident.to_string())
-        .any(|l| l == lifetime)
-    {
-        lifetime.push('_');
-    }
-    Lifetime::new(&format!("'{lifetime}"), Span::call_site())
-}
-
-fn new_generic_inner<G: GetGenerics>(generics: &G, extra_idents: &[Ident]) -> Ident {
-    let generics = generics.get_generics();
-    let type_idents = generics
-        .type_params()
-        .map(|t| t.ident.clone())
-        .collect::<Vec<_>>();
-    let const_idents = generics
-        .const_params()
-        .map(|c| c.ident.clone())
-        .collect::<Vec<_>>();
-    new_ident(
-        "A",
-        type_idents
-            .iter()
-            .chain(const_idents.iter())
-            .chain(extra_idents.iter()),
-    )
-}
-
 pub fn new_ident<'s, 'i>(
     ident_start: &'s str,
-    existing: impl IntoIterator<Item = &'i Ident>,
+    existing: impl Iterator<Item = &'i Ident>,
+    prepend: bool,
 ) -> Ident {
     let mut new_ident = ident_start.to_string();
-    let existing = existing.into_iter().map(|i| i.to_string()).collect_vec();
+    let existing = existing.map(|i| i.to_string()).collect_vec();
     while existing.iter().any(|g| g == &new_ident) {
-        new_ident.push('_');
+        if prepend {
+            new_ident.insert(0, '_');
+        } else {
+            new_ident.push('_');
+        }
     }
     Ident::new(&new_ident, Span::call_site())
 }
 
-pub fn new_generic<G: GetGenerics>(generics: &G) -> Ident {
-    new_generic_inner(generics, &[])
-}
-
-pub fn new_generics<G: GetGenerics, const N: usize>(generics: &G) -> [Ident; N] {
-    let mut idents = Vec::with_capacity(N);
-    for _ in 0..N {
-        idents.push(new_generic_inner(generics, &idents));
-    }
-    idents
-        .try_into()
-        .expect("idents should be of the same length")
-}
-
-pub fn type_generic_idents<G: GetGenerics>(generics: &G) -> Vec<Ident> {
-    generics
+pub fn new_lifetime<G: GetGenerics>(generics: &G, lifetime_str: Option<&str>) -> Lifetime {
+    let existing = generics
         .get_generics()
-        .type_params()
-        .map(|p| p.ident.clone())
-        .collect()
+        .lifetimes()
+        .map(|l| &l.lifetime.ident);
+    let new_lifetime = new_ident(lifetime_str.unwrap_or("a"), existing, false);
+    Lifetime::new(&format!("'{new_lifetime}"), Span::call_site())
+}
+
+pub fn new_generic<G: GetGenerics>(generics: &G, generic_str: Option<&str>) -> Ident {
+    let generic_str = generic_str.unwrap_or("A");
+    let generics = generics.get_generics();
+    let type_idents = generics.type_params().map(|t| &t.ident);
+    let const_idents = generics.const_params().map(|c| &c.ident);
+    new_ident(generic_str, type_idents.chain(const_idents), false)
 }
 
 pub fn reject_generics(item: &impl GetGenerics, error: Option<&str>) {
@@ -218,7 +192,7 @@ pub fn phantom_generics_ident() -> Ident {
 }
 
 pub fn phantom_generics_type(item: &impl GetGenerics) -> Option<Type> {
-    let phantom_data = Paths::default().phantom_data;
+    Paths!(phantom_data, box_ty);
     let generics = item.get_generics();
     if generics.params.is_empty() {
         return None;
@@ -230,6 +204,6 @@ pub fn phantom_generics_type(item: &impl GetGenerics) -> Option<Type> {
     });
     let tys = type_params.chain(lifetime_tys).collect_vec();
     Some(parse_quote! {
-        #phantom_data<fn() -> (#(#tys),*)>
+        #phantom_data<fn() -> (#(#box_ty<#tys>),*)>
     })
 }

@@ -1,6 +1,6 @@
 use crate::prelude::*;
 
-#[unsized_type(skip_idl)]
+#[unsized_type(skip_idl, owned_attributes = [derive(Eq, PartialEq)])]
 pub struct Set<K, L = u32>
 where
     K: UnsizedGenerics + Ord,
@@ -16,42 +16,46 @@ where
     V: UnsizedGenerics + Ord,
     L: ListLength,
 {
-    pub fn capacity(&self) -> usize {
-        let list = unsafe { self.cast_inner() };
-        list.len()
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.list.len()
     }
 
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.list.is_empty()
+    }
+
+    #[exclusive]
     pub fn insert(&mut self, value: V) -> Result<usize> {
-        let mut list = self.list()?;
-        match list.binary_search(&value) {
+        match self.list.binary_search(&value) {
             Ok(existing_index) => Ok(existing_index),
             Err(insertion_index) => {
-                list.insert(insertion_index, value)?;
+                self.list().insert(insertion_index, value)?;
                 Ok(insertion_index)
             }
         }
     }
 
+    #[exclusive]
     pub fn remove(&mut self, value: &V) -> Result<bool> {
-        let mut list = self.list()?;
-        match list.binary_search(value) {
+        match self.list.binary_search(value) {
             Ok(existing_index) => {
-                list.remove(existing_index)?;
+                self.list().remove(existing_index)?;
                 Ok(true)
             }
             Err(_) => Ok(false),
         }
     }
 
+    #[exclusive]
     pub fn clear(&mut self) -> Result<()> {
-        let mut list = self.list()?;
-        list.remove_range(..)?;
+        self.list().remove_range(..)?;
         Ok(())
     }
 
     pub fn contains(&self, value: &V) -> bool {
-        let list = unsafe { self.cast_inner() };
-        list.binary_search(value).is_ok()
+        self.list.binary_search(value).is_ok()
     }
 }
 

@@ -196,7 +196,7 @@ pub(super) fn derive_account_set_impl_struct(
         let (info_sg_impl, _, _) = info_sg_impl.split_for_impl();
 
         let mut info_gen_sg = info_sg.clone();
-        let new_generic = new_generic(&info_gen_sg);
+        let new_generic = new_generic(&info_gen_sg, None);
 
         info_gen_sg.params.push(parse_quote! {
             #new_generic
@@ -407,14 +407,13 @@ pub(super) fn derive_account_set_impl_struct(
         let new_struct_ty_gen = new_struct_gen.split_for_impl().1;
 
 
-        let accounts_lifetime = new_lifetime(&cpi_gen);
+        let accounts_lifetime = new_lifetime(&cpi_gen, None);
 
         let (impl_gen, _, where_clause) = cpi_gen.split_for_impl();
 
         let struct_members = cpi_accounts_struct.fields.members();
 
         quote! {
-            #[automatically_derived]
             #[derive(Clone, Debug)]
             #cpi_accounts_struct
 
@@ -481,7 +480,6 @@ pub(super) fn derive_account_set_impl_struct(
         let (impl_gen, ty_gen, where_clause) = client_gen.split_for_impl();
 
         quote! {
-            #[automatically_derived]
             #[derive(Clone, Debug)]
             #client_accounts_struct
 

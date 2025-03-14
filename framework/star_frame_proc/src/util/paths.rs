@@ -57,17 +57,12 @@ pub struct Paths {
     pub instruction_to_idl_args_ident: Ident,
     pub get_seeds_ident: Ident,
 
-    pub advance: TokenStream,
-
     // bytemuck
-    pub checked: TokenStream,
     pub bytemuck: TokenStream,
 
     // solana
     pub account_info: TokenStream,
     pub pubkey: TokenStream,
-    // anyhow
-    pub anyhow_macro: TokenStream,
 }
 
 macro_rules! paths_macro {
@@ -84,10 +79,9 @@ pub(crate) use paths_macro as Paths;
 impl Default for Paths {
     fn default() -> Self {
         let crate_name = get_crate_name();
+        let prelude = quote! { #crate_name::__private::macro_prelude };
         Self {
             crate_name: crate_name.clone(),
-
-            prelude: quote! { #crate_name::__private::macro_prelude },
 
             // std
             box_ty: quote! { ::std::boxed::Box },
@@ -102,28 +96,22 @@ impl Default for Paths {
             phantom_data: quote! { ::core::marker::PhantomData },
             ptr: quote! { ::core::ptr },
             size_of: quote! { ::core::mem::size_of },
-
             // derivative
             derivative: quote! { #crate_name::derivative::Derivative },
-
             // account set
             account_set: quote! { #crate_name::account_set::AccountSet },
             account_set_decode: quote! { #crate_name::account_set::AccountSetDecode },
             account_set_validate: quote! { #crate_name::account_set::AccountSetValidate },
             account_set_cleanup: quote! { #crate_name::account_set::AccountSetCleanup },
-
             // syscalls
             syscalls: quote! { #crate_name::syscalls::Syscalls },
             syscall_invoke: quote! { #crate_name::syscalls::SyscallInvoke },
-
-            result: quote! { #crate_name::Result },
+            result: quote! { #prelude::Result },
 
             // instruction
             instruction: quote! { #crate_name::instruction::Instruction },
-
             // program
             declared_program_type: parse_quote! { crate::StarFrameDeclaredProgram },
-
             // idents
             account_set_ident: format_ident!("account_set"),
             decode_ident: format_ident!("decode"),
@@ -138,18 +126,12 @@ impl Default for Paths {
             instruction_set_args_ident: format_ident!("ix_set"),
             get_seeds_ident: format_ident!("get_seeds"),
 
-            advance: quote! { #crate_name::advance::Advance},
-
             // bytemuck
             bytemuck: quote! { #crate_name::bytemuck },
-            checked: quote! { #crate_name::bytemuck::checked },
-
             // solana
-            account_info: quote! { #crate_name::solana_program::account_info::AccountInfo },
-            pubkey: quote! { #crate_name::solana_program::pubkey::Pubkey },
-
-            // anyhow
-            anyhow_macro: quote! { #crate_name::anyhow::anyhow },
+            account_info: quote! { #prelude::AccountInfo },
+            pubkey: quote! { #prelude::Pubkey },
+            prelude,
         }
     }
 }

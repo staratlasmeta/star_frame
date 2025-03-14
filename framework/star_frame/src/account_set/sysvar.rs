@@ -21,8 +21,8 @@ impl<'info, T> Sysvar<'info, T>
 where
     T: SysvarTrait,
 {
-    pub fn from_account_info(info: &AccountInfo<'info>) -> Result<T> {
-        let sysvar = T::from_account_info(info)?;
+    pub fn deserialize(&self) -> Result<T> {
+        let sysvar = T::from_account_info(&self.info)?;
         Ok(sysvar)
     }
 }

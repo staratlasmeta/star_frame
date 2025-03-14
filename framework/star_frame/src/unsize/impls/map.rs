@@ -1,5 +1,6 @@
 use crate::prelude::*;
 use bytemuck::AnyBitPattern;
+use star_frame_proc::unsized_impl;
 
 #[star_frame_proc::derivative(Copy, Clone, Debug, PartialEq, Eq)]
 #[derive(Align1)]
@@ -38,7 +39,7 @@ unsafe impl<K: UnsizedGenerics, V: UnsizedGenerics> CheckedBitPattern for ListIt
     }
 }
 
-#[unsized_type(skip_idl)]
+#[unsized_type(skip_idl, owned_attributes = [derive(Eq, PartialEq)])]
 pub struct Map<K, V, L = u32>
 where
     K: UnsizedGenerics + Ord,
@@ -56,27 +57,33 @@ where
     V: UnsizedGenerics,
     L: ListLength,
 {
-    pub fn capacity(&self) -> usize {
-        let list = unsafe { self.cast_inner() };
-        list.len()
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.list.len()
     }
 
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.list.is_empty()
+    }
+
+    #[exclusive]
     pub fn insert(&mut self, key: K, value: V) -> Result<Option<V>> {
-        let list = unsafe { self.cast_inner_mut() };
-        match list.binary_search_by(|probe| { probe.key }.cmp(&key)) {
+        match self.list.binary_search_by(|probe| { probe.key }.cmp(&key)) {
             Ok(existing_index) => {
-                let old = core::mem::replace(&mut list[existing_index].value, value);
+                let old = core::mem::replace(&mut self.list[existing_index].value, value);
                 Ok(Some(old))
             }
             Err(insertion_index) => {
-                list.insert(insertion_index, ListItemSized { key, value })?;
+                self.list()
+                    .insert(insertion_index, ListItemSized { key, value })?;
                 Ok(None)
             }
         }
     }
 
     pub fn get(&self, key: &K) -> Option<&V> {
-        let list = unsafe { self.cast_inner() };
+        let list = &self.list;
         match list.binary_search_by(|probe| { probe.key }.cmp(key)) {
             Ok(existing_index) => Some(&list[existing_index].value),
             Err(_) => None,
@@ -84,19 +91,19 @@ where
     }
 
     pub fn get_mut(&mut self, key: &K) -> Option<&mut V> {
-        let list = unsafe { self.cast_inner_mut() };
+        let list = &mut self.list;
         match list.binary_search_by(|probe| { probe.key }.cmp(key)) {
             Ok(existing_index) => Some(&mut list[existing_index].value),
             Err(_) => None,
         }
     }
 
+    #[exclusive]
     pub fn remove(&mut self, key: &K) -> Result<Option<V>> {
-        let list = unsafe { self.cast_inner_mut() };
-        match list.binary_search_by(|probe| { probe.key }.cmp(key)) {
+        match self.list.binary_search_by(|probe| { probe.key }.cmp(key)) {
             Ok(existing_index) => {
-                let to_return = list[existing_index].value;
-                list.remove(existing_index)?;
+                let to_return = self.list[existing_index].value;
+                self.list().remove(existing_index)?;
                 Ok(Some(to_return))
             }
             Err(_) => Ok(None),

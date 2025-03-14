@@ -14,6 +14,17 @@ pub struct CounterAccount {
     pub signer: Pubkey,
     pub count: u64,
     pub bump: u8,
+    pub data: CounterAccountData,
+}
+
+#[derive(Align1, Pod, Zeroable, Default, Copy, Clone, Debug, Eq, PartialEq, TypeToIdl)]
+#[repr(C, packed)]
+pub struct CounterAccountData {
+    pub version: u8,
+    pub owner: Pubkey,
+    pub signer: Pubkey,
+    pub count: u64,
+    pub bump: u8,
 }
 
 #[derive(AccountSet, Deref, DerefMut, Debug)]
@@ -61,12 +72,13 @@ impl StarFrameInstruction for CreateCounterIx {
         start_at: Self::RunArg<'_>,
         _syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<Self::ReturnType> {
-        *account_set.counter.data_mut()? = CounterAccount {
+        **account_set.counter.data_mut()? = CounterAccount {
             version: 0,
             signer: *account_set.owner.key(),
             owner: *account_set.owner.key(),
             bump: account_set.counter.access_seeds().bump,
             count: start_at.unwrap_or(0),
+            data: Default::default(),
         };
 
         Ok(())
@@ -193,18 +205,18 @@ pub enum CounterInstructionSet {
 #[derive(StarFrameProgram)]
 #[program(
     instruction_set = CounterInstructionSet,
-    id = "Coux9zxTFKZpRdFpE4F7Fs5RZ6FdaURdckwS61BUTMG",
+    id = "Coux9zxTFKZpRdFpE4F7Fs5RZ6FdaURdckwS61BUTMG"
 )]
 pub struct CounterProgram;
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bytemuck::checked::try_from_bytes;
     use codama_nodes::{NodeTrait, ProgramNode};
     use solana_program_test::*;
     use solana_sdk::signature::{Keypair, Signer};
     use solana_sdk::transaction::Transaction;
+    use star_frame::client::DeserializeAccount;
 
     #[cfg(feature = "idl")]
     #[test]
@@ -212,6 +224,7 @@ mod tests {
         let idl = StarFrameDeclaredProgram::program_to_idl()?;
         let codama_idl: ProgramNode = idl.try_into()?;
         let idl_json = codama_idl.to_json()?;
+        std::fs::write("idl.json", &idl_json)?;
         println!("{idl_json}");
         Ok(())
     }
@@ -265,9 +278,10 @@ mod tests {
             signer: account_key.pubkey(),
             count: 2,
             bump,
+            data: Default::default(),
         };
         let acc = banks_client.get_account(counter_account).await?.unwrap();
-        assert_eq!(expected, *try_from_bytes(&acc.data[8..])?);
+        assert_eq!(expected, CounterAccount::deserialize_account(&acc.data)?);
 
         // Update a counter signer
         let instruction2 = CounterProgram::instruction(
@@ -282,7 +296,7 @@ mod tests {
         transaction2.sign(&[&payer, &account_key], recent_blockhash);
         banks_client.process_transaction(transaction2).await?;
         let acc2 = banks_client.get_account(counter_account).await?.unwrap();
-        let acc2_data: CounterAccount = *try_from_bytes(&acc2.data[8..])?;
+        let acc2_data: CounterAccount = CounterAccount::deserialize_account(&acc2.data)?;
         assert_eq!(acc2_data.signer, account_key2.pubkey());
 
         // Update count
@@ -312,7 +326,7 @@ mod tests {
         transaction3.sign(&[&payer, &account_key], recent_blockhash);
         banks_client.process_transaction(transaction3).await?;
         let acc3 = banks_client.get_account(counter_account).await?.unwrap();
-        let acc3_data: CounterAccount = *try_from_bytes(&acc3.data[8..])?;
+        let acc3_data: CounterAccount = CounterAccount::deserialize_account(&acc3.data)?;
         let old_count = acc2_data.count;
         let new_count = acc3_data.count;
         assert_eq!(new_count, old_count + 7 - 4);

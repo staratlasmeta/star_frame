@@ -10,8 +10,14 @@ pub use crate::util::borsh_bytemuck;
 
 pub use crate::instruction::*;
 
-// todo: curate this list
-pub use crate::unsize::*;
+pub use crate::unsize::{
+    impls::*,
+    init::{DefaultInit, UnsizedInit},
+    wrapper::{
+        ExclusiveWrapper, ExclusiveWrapperT, MutWrapper, SharedWrapper, UnsizedTypeDataAccess,
+    },
+    AsShared, UnsizedType, {unsized_impl, unsized_type},
+};
 
 pub use crate::align1::Align1;
 

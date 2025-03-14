@@ -1,36 +1,76 @@
-use crate::prelude::*;
-use crate::unsize::ref_wrapper::RefWrapper;
-use solana_program::program_memory::sol_memset;
+#![allow(unused)]
+use crate::unsize::init::{DefaultInit, UnsizedInit};
+use crate::unsize::wrapper::{ExclusiveWrapper, MutWrapper, SharedWrapper, UnsizedTypeDataAccess};
+use crate::unsize::UnsizedType;
+use crate::Result;
+use solana_program::entrypoint::MAX_PERMITTED_DATA_INCREASE;
+use std::cell::{RefCell, RefMut};
 use std::marker::PhantomData;
+use std::mem::MaybeUninit;
+use std::ptr::slice_from_raw_parts_mut;
+use std::slice::from_raw_parts_mut;
 
-/// A way to test [`UnsizedType`] types. Uses a [`Vec<u8>`] internally.
 #[derive(Debug)]
-pub struct TestByteSet<T: ?Sized> {
-    /// The data bytes.
-    pub bytes: Vec<u8>,
+pub struct TestAccountInfo<'info> {
+    original_data_len: usize,
+    data: RefCell<&'info mut [u8]>,
+}
+impl<'info> TestAccountInfo<'info> {
+    pub fn new(backing: &'info mut Vec<u8>, data_len: usize) -> Self {
+        backing.resize(data_len + MAX_PERMITTED_DATA_INCREASE, 0);
+        Self {
+            original_data_len: data_len,
+            data: RefCell::new(&mut backing[..data_len]),
+        }
+    }
+}
+
+impl<'info> UnsizedTypeDataAccess<'info> for TestAccountInfo<'info> {
+    unsafe fn realloc(&self, new_len: usize, data: &mut &'info mut [u8]) -> Result<()> {
+        assert!(
+            new_len <= self.original_data_len + MAX_PERMITTED_DATA_INCREASE,
+            "data too large"
+        );
+
+        unsafe {
+            *data = from_raw_parts_mut(data.as_mut_ptr(), new_len);
+        }
+        Ok(())
+    }
+
+    fn data(&self) -> &RefCell<&'info mut [u8]> {
+        &self.data
+    }
+}
+
+/// A way to test [`UnsizedType`] types. Uses a [`TestAccountInfo`] internally.
+#[derive(Debug)]
+pub struct TestByteSet<'a, T: ?Sized + UnsizedType> {
+    test_account: &'a TestAccountInfo<'a>,
     phantom_t: PhantomData<T>,
 }
 
-impl<T: ?Sized> TestByteSet<T> {
-    /// Creates a new [`TestByteSet`] from a given set of bytes. These are not validated.
-    #[must_use]
-    pub const fn from_bytes(bytes: Vec<u8>) -> Self {
-        Self {
-            bytes,
-            phantom_t: PhantomData,
-        }
-    }
-
+impl<'a, T> TestByteSet<'a, T>
+where
+    T: UnsizedType + ?Sized,
+{
     /// Creates a new [`TestByteSet`] by initializing the type with an arg from [`UnsizedInit`].
     pub fn new<A>(arg: A) -> Result<Self>
     where
         T: UnsizedInit<A>,
     {
-        let mut bytes = vec![0; T::INIT_BYTES];
-        unsafe {
-            T::init(&mut bytes, arg)?;
+        let data: &mut Vec<u8> = Box::leak(Box::default());
+        let test_account = Box::leak(Box::new(TestAccountInfo::new(data, T::INIT_BYTES)));
+        {
+            let mut data = &mut test_account.data().borrow_mut()[..];
+            unsafe {
+                T::init(&mut data, arg)?;
+            }
         }
-        Ok(Self::from_bytes(bytes))
+        Ok(Self {
+            test_account,
+            phantom_t: PhantomData,
+        })
     }
 
     /// Creates a new [`TestByteSet`] by initializing the type with an arg from [`UnsizedInit`].
@@ -38,40 +78,14 @@ impl<T: ?Sized> TestByteSet<T> {
     where
         T: UnsizedInit<DefaultInit>,
     {
-        let mut bytes = vec![0; T::INIT_BYTES];
-        unsafe {
-            T::init(&mut bytes, DefaultInit)?;
-        }
-        Ok(Self::from_bytes(bytes))
-    }
-}
-
-impl<T> TestByteSet<T>
-where
-    T: ?Sized + UnsizedType,
-{
-    /// Resets the test byte set by setting length to [`UnsizedInit::INIT_BYTES`], zeroing the
-    /// bytes, then calling [`UnsizedInit::init`] with `arg`.
-    pub fn re_init<A>(&mut self, arg: A) -> Result<RefWrapper<&mut Vec<u8>, T::RefData>>
-    where
-        T: UnsizedInit<A>,
-    {
-        self.bytes.resize(T::INIT_BYTES, 0);
-        sol_memset(&mut self.bytes, 0, T::INIT_BYTES);
-        unsafe { T::init(&mut self.bytes, arg).map(|r| r.0) }
+        Self::new(DefaultInit)
     }
 
-    /// Gets an immutable [`RefWrapper`].
-    pub fn immut(&self) -> Result<RefWrapper<&Vec<u8>, T::RefData>> {
-        T::from_bytes(&self.bytes).map(|r| r.ref_wrapper)
+    pub fn data_ref(&self) -> Result<SharedWrapper<'_, '_, T::Ref<'a>>> {
+        unsafe { SharedWrapper::<T>::new(self.test_account) }
     }
 
-    /// Gets a mutable [`RefWrapper`].
-    pub fn mutable(&mut self) -> Result<RefWrapper<&mut Vec<u8>, T::RefData>> {
-        T::from_bytes(&mut self.bytes).map(|r| r.ref_wrapper)
-    }
-
-    pub fn owned(&self) -> Result<T::Owned> {
-        T::owned(self.immut()?)
+    pub fn data_mut(&self) -> Result<MutWrapper<'a, '_, T::Mut<'_>, T, TestAccountInfo<'_>>> {
+        unsafe { MutWrapper::new(self.test_account) }
     }
 }

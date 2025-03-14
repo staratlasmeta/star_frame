@@ -17,12 +17,9 @@ pub struct ProgramAccountArgs {
 }
 
 pub fn program_account_impl(input: DeriveInput) -> TokenStream {
-    let Paths {
-        program_account_args_ident,
-        ..
-    } = &Paths::default();
+    Paths!(program_account_args_ident);
 
-    let args = find_attr(&input.attrs, program_account_args_ident)
+    let args = find_attr(&input.attrs, &program_account_args_ident)
         .map(ProgramAccountArgs::parse_arguments)
         .unwrap_or_default();
 
@@ -30,14 +27,14 @@ pub fn program_account_impl(input: DeriveInput) -> TokenStream {
 }
 
 pub fn program_account_impl_inner(input: DeriveInput, args: ProgramAccountArgs) -> TokenStream {
-    let Paths {
+    Paths!(
         prelude,
+        result,
         type_to_idl_args_ident,
-        declared_program_type,
-        ..
-    } = &Paths::default();
+        declared_program_type
+    );
 
-    reject_attributes(&input.attrs, type_to_idl_args_ident, None);
+    reject_attributes(&input.attrs, &type_to_idl_args_ident, None);
 
     let owner_program = args.program.unwrap_or(declared_program_type.clone());
     let ident = &input.ident;
@@ -90,7 +87,7 @@ pub fn program_account_impl_inner(input: DeriveInput, args: ProgramAccountArgs) 
             #[cfg(all(feature = "idl", not(target_os = "solana")))]
             #[automatically_derived]
             impl #impl_gen #prelude::AccountToIdl for #ident #ty_gen #where_clause {
-                fn account_to_idl(idl_definition: &mut #prelude::IdlDefinition) -> #prelude::Result<#prelude::IdlAccountId> {
+                fn account_to_idl(idl_definition: &mut #prelude::IdlDefinition) -> #result<#prelude::IdlAccountId> {
                     let source = #prelude::item_source::<Self>();
                     let type_def = <Self as #prelude::TypeToIdl>::type_to_idl(idl_definition)?;
                     let type_id = type_def.assert_defined()?.clone();

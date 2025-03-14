@@ -16,10 +16,12 @@ pub mod macro_prelude {
 
     pub use crate::syscalls::{SyscallAccountCache, SyscallInvoke};
     pub use crate::unsize::{
-        AsBytes, AsMutBytes, DefaultInit, FromBytesReturn, RefBytes, RefBytesMut, RefDeref,
-        RefDerefMut, RefResize, RefWrapper, RefWrapperMutExt, RefWrapperTypes, Resize, UnsizedEnum,
-        UnsizedEnumVariant, UnsizedEnumVariantRef, UnsizedInit, UnsizedInitReturn, UnsizedType,
-        {CombinedExt, CombinedRef, CombinedUnsized, RefWrapperT, RefWrapperU},
+        init::{DefaultInit, UnsizedInit},
+        wrapper::{
+            ExclusiveWrapper, ExclusiveWrapperT, MutWrapper, SharedWrapper, StartPointer,
+            UnsizedTypeDataAccess,
+        },
+        AsShared, UnsizedType,
     };
     pub use crate::Result;
     pub use star_frame_proc::{derivative, sighash};
@@ -32,6 +34,9 @@ pub mod macro_prelude {
             InstructionSetToIdl, InstructionToIdl, ProgramToIdl, SeedsToIdl, TypeToIdl,
         },
     };
+
+    pub use advance::{Advance, AdvanceArray};
+    pub use anyhow::bail;
 
     pub use solana_program::{account_info::AccountInfo, instruction::AccountMeta, pubkey::Pubkey};
 
