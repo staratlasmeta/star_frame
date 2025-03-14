@@ -135,7 +135,7 @@ impl RemainingBytes {
     }
 }
 
-impl UnsizedInit<DefaultInit> for RemainingBytes {
+unsafe impl UnsizedInit<DefaultInit> for RemainingBytes {
     const INIT_BYTES: usize = 0;
 
     unsafe fn init(_bytes: &mut &mut [u8], _arg: DefaultInit) -> Result<()> {
@@ -143,7 +143,7 @@ impl UnsizedInit<DefaultInit> for RemainingBytes {
     }
 }
 
-impl<const N: usize> UnsizedInit<&[u8; N]> for RemainingBytes {
+unsafe impl<const N: usize> UnsizedInit<&[u8; N]> for RemainingBytes {
     const INIT_BYTES: usize = N;
 
     unsafe fn init(bytes: &mut &mut [u8], array: &[u8; N]) -> Result<()> {
@@ -152,7 +152,7 @@ impl<const N: usize> UnsizedInit<&[u8; N]> for RemainingBytes {
     }
 }
 
-impl<const N: usize> UnsizedInit<[u8; N]> for RemainingBytes {
+unsafe impl<const N: usize> UnsizedInit<[u8; N]> for RemainingBytes {
     const INIT_BYTES: usize = <Self as UnsizedInit<&[u8; N]>>::INIT_BYTES;
 
     unsafe fn init(bytes: &mut &mut [u8], array: [u8; N]) -> Result<()> {

@@ -189,7 +189,7 @@ pub mod discriminant {
         }
     }
 
-    impl<T, I> UnsizedInit<I> for AccountDiscriminant<T>
+    unsafe impl<T, I> UnsizedInit<I> for AccountDiscriminant<T>
     where
         T: UnsizedType + ?Sized + ProgramAccount + UnsizedInit<I>,
     {

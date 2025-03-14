@@ -104,7 +104,7 @@ where
     }
 }
 
-impl<T> UnsizedInit<T> for T
+unsafe impl<T> UnsizedInit<T> for T
 where
     T: CheckedBitPattern + NoUninit + Align1,
 {
@@ -118,7 +118,7 @@ where
     }
 }
 
-impl<T> UnsizedInit<DefaultInit> for T
+unsafe impl<T> UnsizedInit<DefaultInit> for T
 where
     T: CheckedBitPattern + NoUninit + Align1 + DefaultInitable,
 {

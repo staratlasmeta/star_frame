@@ -237,18 +237,17 @@ impl UnsizedEnumContext {
 
     fn owned_enum(&self) -> ItemEnum {
         Paths!(prelude, debug);
-        UnsizedEnumContext!(self => owned_ident, variant_idents, variant_types, variant_docs, repr, args, discriminant_values, generics);
+        UnsizedEnumContext!(self => owned_ident, variant_idents, variant_types, variant_docs, args, generics);
         let additional_owned = args.owned_attributes.attributes.iter();
         let wc = &generics.where_clause;
 
         parse_quote! {
             #[derive(#debug)]
             #(#[#additional_owned])*
-            #repr
             pub enum #owned_ident #generics #wc {
                 #(
                     #(#variant_docs)*
-                    #variant_idents(<#variant_types as #prelude::UnsizedType>::Owned) #discriminant_values,
+                    #variant_idents(<#variant_types as #prelude::UnsizedType>::Owned),
                 )*
             }
         }
@@ -256,15 +255,14 @@ impl UnsizedEnumContext {
 
     fn ref_enum(&self) -> ItemEnum {
         Paths!(prelude, debug, copy, clone);
-        UnsizedEnumContext!(self => ref_ident, variant_idents, variant_types, variant_docs, rm_lt, discriminant_values, repr);
+        UnsizedEnumContext!(self => ref_ident, variant_idents, variant_types, variant_docs, rm_lt);
         let (generics, wc) = self.split_for_declaration(true);
         parse_quote! {
             #[derive(#debug, #copy, #clone)]
-            #repr
             pub enum #ref_ident #generics #wc {
                 #(
                     #(#variant_docs)*
-                    #variant_idents(<#variant_types as #prelude::UnsizedType>::Ref<#rm_lt>) #discriminant_values,
+                    #variant_idents(<#variant_types as #prelude::UnsizedType>::Ref<#rm_lt>),
                 )*
             }
         }
@@ -272,15 +270,14 @@ impl UnsizedEnumContext {
 
     fn mut_enum(&self) -> ItemEnum {
         Paths!(prelude, debug);
-        UnsizedEnumContext!(self => mut_ident, variant_idents, variant_types, variant_docs, rm_lt, repr, discriminant_values);
+        UnsizedEnumContext!(self => mut_ident, variant_idents, variant_types, variant_docs, rm_lt);
         let (generics, wc) = self.split_for_declaration(true);
         parse_quote! {
             #[derive(#debug)]
-            #repr
             pub enum #mut_ident #generics #wc {
                 #(
                     #(#variant_docs)*
-                    #variant_idents(<#variant_types as #prelude::UnsizedType>::Mut<#rm_lt>) #discriminant_values,
+                    #variant_idents(<#variant_types as #prelude::UnsizedType>::Mut<#rm_lt>),
                 )*
             }
         }
@@ -425,7 +422,7 @@ impl UnsizedEnumContext {
         quote! {
             #[allow(trivial_bounds)]
             #[automatically_derived]
-            impl #default_init_impl #unsized_init for #enum_type #default_init_where {
+            unsafe impl #default_init_impl #unsized_init for #enum_type #default_init_where {
                 const INIT_BYTES: usize = <#variant_type as #unsized_init>::INIT_BYTES + #size_of::<#discriminant_ident>();
 
                 unsafe fn init(
@@ -469,7 +466,7 @@ impl UnsizedEnumContext {
 
                 #[allow(trivial_bounds)]
                 #[automatically_derived]
-                impl #impl_gen #prelude::UnsizedInit<#init_idents<#init_generic>> for #enum_type #where_clauses {
+                unsafe impl #impl_gen #prelude::UnsizedInit<#init_idents<#init_generic>> for #enum_type #where_clauses {
                     const INIT_BYTES: usize = <#variant_types as #init_generic_trait>::INIT_BYTES + #size_of::<#discriminant_ident>();
 
                     unsafe fn init(
@@ -488,7 +485,7 @@ impl UnsizedEnumContext {
     #[allow(non_snake_case)]
     fn extension_impl(&self) -> TokenStream {
         Paths!(prelude, debug, result);
-        UnsizedEnumContext!(self => vis, enum_ident, repr, variant_idents, variant_types, rm_lt, mut_ident, init_idents, discriminant_values);
+        UnsizedEnumContext!(self => vis, enum_ident, variant_idents, variant_types, rm_lt, mut_ident, init_idents);
 
         // Create new lifetimes and generics for the extension trait
         let info = new_lifetime(&self.generics, Some("info"));
@@ -587,11 +584,10 @@ impl UnsizedEnumContext {
         // Generate the exclusive enum
         let exclusive_enum = quote! {
             #[derive(#debug)]
-            #repr
             #vis enum #exclusive_ident #impl_gen #wc
             {
                 #(
-                    #variant_idents(#prelude::ExclusiveWrapperT<#b, #rm_lt, #info, #variant_types, #O, #A>) #discriminant_values,
+                    #variant_idents(#prelude::ExclusiveWrapperT<#b, #rm_lt, #info, #variant_types, #O, #A>),
                 )*
             }
         };

@@ -467,7 +467,7 @@ where
     }
 }
 
-impl<T, L> UnsizedInit<DefaultInit> for List<T, L>
+unsafe impl<T, L> UnsizedInit<DefaultInit> for List<T, L>
 where
     L: ListLength,
     T: CheckedBitPattern + NoUninit + Align1,
@@ -482,7 +482,7 @@ where
     }
 }
 
-impl<const N: usize, T, L> UnsizedInit<&[T; N]> for List<T, L>
+unsafe impl<const N: usize, T, L> UnsizedInit<&[T; N]> for List<T, L>
 where
     L: ListLength + Zero,
     T: CheckedBitPattern + NoUninit + Align1,
@@ -503,7 +503,7 @@ where
     }
 }
 
-impl<const N: usize, T, L> UnsizedInit<[T; N]> for List<T, L>
+unsafe impl<const N: usize, T, L> UnsizedInit<[T; N]> for List<T, L>
 where
     L: ListLength + Zero,
     T: CheckedBitPattern + NoUninit + Align1,
