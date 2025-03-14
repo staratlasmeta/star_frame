@@ -1117,7 +1117,7 @@ checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
 
 [[package]]
 name = "counter"
-version = "0.0.3-beta"
+version = "0.0.3-beta.1"
 dependencies = [
  "borsh 1.5.3",
  "bytemuck",
@@ -5610,7 +5610,7 @@ checksum = "a8f112729512f8e442d81f95a8a7ddf2b7c6b8a1a6f509a95864142b30cab2d3"
 
 [[package]]
 name = "star_frame"
-version = "0.0.3-beta"
+version = "0.0.3-beta.1"
 dependencies = [
  "advance_temp",
  "anyhow",
@@ -5641,7 +5641,7 @@ dependencies = [
 
 [[package]]
 name = "star_frame_cli"
-version = "0.0.3-beta"
+version = "0.0.3-beta.1"
 dependencies = [
  "anyhow",
  "clap 4.3.24",
@@ -5650,7 +5650,7 @@ dependencies = [
 
 [[package]]
 name = "star_frame_idl"
-version = "0.0.3-beta"
+version = "0.0.3-beta.1"
 dependencies = [
  "anchor-lang-idl-spec",
  "anyhow",
@@ -5667,7 +5667,7 @@ dependencies = [
 
 [[package]]
 name = "star_frame_proc"
-version = "0.0.3-beta"
+version = "0.0.3-beta.1"
 dependencies = [
  "bs58 0.5.1",
  "daggy",
@@ -5687,7 +5687,7 @@ dependencies = [
 
 [[package]]
 name = "star_frame_spl"
-version = "0.0.3-beta"
+version = "0.0.3-beta.1"
 dependencies = [
  "borsh 1.5.3",
  "bytemuck",
