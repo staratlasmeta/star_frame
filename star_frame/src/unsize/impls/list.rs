@@ -6,7 +6,7 @@ use crate::unsize::AsShared;
 use crate::unsize::UnsizedType;
 use crate::util::uninit_array_bytes;
 use crate::Result;
-use advance::Advance;
+use advancer::Advance;
 use anyhow::{bail, ensure, Context};
 use bytemuck::{bytes_of, checked, from_bytes, CheckedBitPattern, NoUninit, Pod, Zeroable};
 use bytemuck::{cast_slice, cast_slice_mut};

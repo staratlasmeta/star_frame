@@ -3,7 +3,7 @@ use crate::client::{ClientAccountSet, CpiAccountSet};
 use crate::prelude::SyscallAccountCache;
 use crate::syscalls::SyscallInvoke;
 use crate::Result;
-use advance::AdvanceArray;
+use advancer::AdvanceArray;
 use solana_program::account_info::AccountInfo;
 use solana_program::instruction::AccountMeta;
 use solana_program::pubkey::Pubkey;

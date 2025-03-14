@@ -1,6 +1,6 @@
 use counter::CounterAccountData;
 use star_frame::account_set::Account;
-use star_frame::anyhow::bail;
+// use star_frame::anyhow::bail;
 use star_frame::borsh;
 use star_frame::borsh::{BorshDeserialize, BorshSerialize};
 use star_frame::prelude::*;
@@ -92,21 +92,29 @@ impl StarFrameInstruction for ProcessEnlistPlayerIx {
         let bump = account_set.player_faction_account.access_seeds().bump;
         let mut player_faction_account_data = account_set.player_faction_account.data_mut()?;
         let mut exclusive = player_faction_account_data.exclusive();
-        exclusive.set_v1(PlayerFactionDataInit {
-            sized: PlayerFactionDataSized {
-                owner: *account_set.player_account.key,
-                enlisted_at_timestamp: clock.unix_timestamp,
-                faction_id,
-                counter: Default::default(),
-                bump,
-                _padding: [0; 5],
-            },
-            some_fields: DefaultInit,
-        })?;
-        let PlayerFactionDataAccountExclusive::V1(data) = &mut exclusive.get() else {
-            bail!("Invalid exclusive state");
+        **exclusive = PlayerFactionDataSized {
+            owner: *account_set.player_account.key,
+            enlisted_at_timestamp: clock.unix_timestamp,
+            faction_id,
+            counter: Default::default(),
+            bump,
+            _padding: [0; 5],
         };
-        data.some_fields().foo()?;
+        // exclusive.set_v1(PlayerFactionDataInit {
+        //     sized: PlayerFactionDataSized {
+        //         owner: *account_set.player_account.key,
+        //         enlisted_at_timestamp: clock.unix_timestamp,
+        //         faction_id,
+        //         counter: Default::default(),
+        //         bump,
+        //         _padding: [0; 5],
+        //     },
+        //     some_fields: DefaultInit,
+        // })?;
+        // let PlayerFactionDataAccountExclusive::V1(data) = &mut exclusive.get() else {
+        //     bail!("Invalid exclusive state");
+        // };
+        exclusive.some_fields().foo()?;
         Ok(())
     }
 }
@@ -124,7 +132,7 @@ pub struct ProcessEnlistPlayer<'info> {
         })
     )]
     #[cleanup(arg = NormalizeRent(()))]
-    pub player_faction_account: Init<Seeded<Account<'info, PlayerFactionDataAccount>>>,
+    pub player_faction_account: Init<Seeded<Account<'info, PlayerFactionData>>>,
     /// The player account
     #[account_set(funder)]
     pub player_account: Mut<Signer<SystemAccount<'info>>>,
@@ -152,7 +160,8 @@ pub struct ProcessEnlistPlayer<'info> {
 // )]
 // #[repr(C, packed)]
 // #[program_account(seeds = PlayerFactionAccountSeeds)]
-#[unsized_type(program_account, seeds = PlayerFactionAccountSeeds, owned_attributes = [derive(PartialEq, Eq, Clone)])]
+#[unsized_type(program_account, seeds = PlayerFactionAccountSeeds, owned_attributes = [derive(PartialEq, Eq, Clone)]
+)]
 pub struct PlayerFactionData {
     pub owner: Pubkey,
     pub enlisted_at_timestamp: i64,
@@ -164,13 +173,13 @@ pub struct PlayerFactionData {
     some_fields: SomeFields,
 }
 
-#[unsized_type(program_account, seeds = PlayerFactionAccountSeeds, owned_attributes = [derive(PartialEq, Eq, Clone)])]
-#[repr(u8)]
-pub enum PlayerFactionDataAccount {
-    V1(PlayerFactionData),
-    #[default_init]
-    V2(PlayerFactionData),
-}
+// #[unsized_type(program_account, seeds = PlayerFactionAccountSeeds, owned_attributes = [derive(PartialEq, Eq, Clone)])]
+// #[repr(u8)]
+// pub enum PlayerFactionDataAccount {
+//     V1(PlayerFactionData),
+//     #[default_init]
+//     V2(PlayerFactionData),
+// }
 
 #[derive(
     Debug,
@@ -298,7 +307,8 @@ mod tests {
         println!("{:#?}", txn);
 
         let clock = banks_client.get_sysvar::<Clock>().await?;
-        let expected_faction_account = PlayerFactionDataAccountOwned::V1(PlayerFactionDataOwned {
+        // let expected_faction_account = PlayerFactionDataAccountOwned::V1(PlayerFactionDataOwned {
+        let expected_faction_account = PlayerFactionDataOwned {
             owner: player_account.pubkey(),
             enlisted_at_timestamp: clock.unix_timestamp,
             faction_id,
@@ -314,30 +324,29 @@ mod tests {
                 },
                 unsized2: vec![5],
             },
-        });
+        };
+        // });
 
         let faction_info = banks_client.get_account(faction_account).await?.unwrap();
-        let new_faction = PlayerFactionDataAccount::deserialize_account(&faction_info.data)?;
-        let serialized_account = PlayerFactionDataAccount::serialize_account(
-            PlayerFactionDataAccountInitV1(PlayerFactionDataInit {
-                sized: PlayerFactionDataSized {
-                    owner: player_account.pubkey(),
-                    enlisted_at_timestamp: clock.unix_timestamp,
-                    faction_id,
-                    counter: Default::default(),
-                    bump,
-                    _padding: [0; 5],
+        let new_faction = PlayerFactionData::deserialize_account(&faction_info.data)?;
+        let serialized_account = PlayerFactionData::serialize_account(PlayerFactionDataInit {
+            sized: PlayerFactionDataSized {
+                owner: player_account.pubkey(),
+                enlisted_at_timestamp: clock.unix_timestamp,
+                faction_id,
+                counter: Default::default(),
+                bump,
+                _padding: [0; 5],
+            },
+            some_fields: SomeFieldsInit {
+                sized: SomeFieldsSized {
+                    sized1: 10,
+                    sized2: 0,
                 },
-                some_fields: SomeFieldsInit {
-                    sized: SomeFieldsSized {
-                        sized1: 10,
-                        sized2: 0,
-                    },
-                    unsized1: DefaultInit,
-                    unsized2: [5],
-                },
-            }),
-        )?;
+                unsized1: DefaultInit,
+                unsized2: [5],
+            },
+        })?;
         assert_eq!(serialized_account, faction_info.data);
         assert_eq!(expected_faction_account, new_faction);
         Ok(())

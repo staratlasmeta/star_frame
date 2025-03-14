@@ -4,7 +4,7 @@ use crate::unsize::wrapper::ExclusiveWrapper;
 use crate::unsize::AsShared;
 use crate::unsize::UnsizedType;
 use crate::Result;
-use advance::Advance;
+use advancer::Advance;
 use anyhow::bail;
 use derive_more::{Deref, DerefMut};
 use star_frame_proc::unsized_impl;
@@ -14,13 +14,14 @@ use std::ops::{Deref, DerefMut};
 use std::ptr;
 
 #[derive(Debug, Deref, DerefMut, Align1)]
+#[repr(transparent)]
 pub struct RemainingBytes([u8]);
 
 #[derive(Copy, Clone, Debug)]
 pub struct RemainingBytesRef<'a>(*const RemainingBytes, PhantomData<&'a ()>);
 
 impl<'a> Deref for RemainingBytesRef<'a> {
-    type Target = RemainingBytes;
+    type Target = [u8];
 
     fn deref(&self) -> &Self::Target {
         unsafe { &*self.0 }
@@ -30,7 +31,7 @@ impl<'a> Deref for RemainingBytesRef<'a> {
 pub struct RemainingBytesMut<'a>(*mut RemainingBytes, PhantomData<&'a ()>);
 
 impl<'a> Deref for RemainingBytesMut<'a> {
-    type Target = RemainingBytes;
+    type Target = [u8];
 
     fn deref(&self) -> &Self::Target {
         unsafe { &*self.0 }

@@ -1,7 +1,7 @@
 use super::{AsShared, UnsizedType};
 use crate::prelude::UnsizedInit;
 use crate::Result;
-use advance::Advance;
+use advancer::Advance;
 use anyhow::ensure;
 use derive_more::{Deref, DerefMut};
 use solana_program::account_info::AccountInfo;
