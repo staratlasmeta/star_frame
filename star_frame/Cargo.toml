@@ -11,7 +11,7 @@ idl = ["star_frame_idl", "serde_json"]
 test_helpers = []
 
 [dependencies]
-advance = { workspace = true }
+advancer = { workspace = true }
 anyhow = { workspace = true }
 array-init = { workspace = true }
 borsh = { workspace = true }

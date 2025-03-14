@@ -28,10 +28,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "512761e0bb2578dd7380c6baaa0f4ce03e84f95e960231d1dec8bf4d7d6e2627"
 
 [[package]]
-name = "advance_temp"
+name = "advancer"
 version = "0.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a3d9923474c4ffe067f57241144f3c11c4c7a7e060e8e8190f519d4ad0ac041b"
 dependencies = [
- "solana-program",
  "thiserror 2.0.3",
 ]
 
@@ -5613,7 +5614,7 @@ checksum = "a8f112729512f8e442d81f95a8a7ddf2b7c6b8a1a6f509a95864142b30cab2d3"
 name = "star_frame"
 version = "0.0.3"
 dependencies = [
- "advance_temp",
+ "advancer",
  "anyhow",
  "array-init",
  "borsh 1.5.3",

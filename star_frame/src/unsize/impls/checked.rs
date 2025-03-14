@@ -2,7 +2,7 @@ use crate::unsize::init::{DefaultInit, DefaultInitable, UnsizedInit};
 use crate::unsize::AsShared;
 use crate::unsize::UnsizedType;
 use crate::{align1::Align1, Result};
-use advance::Advance;
+use advancer::Advance;
 use anyhow::Context;
 use bytemuck::{
     checked::{try_from_bytes, try_from_bytes_mut},

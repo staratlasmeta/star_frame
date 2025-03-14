@@ -1,7 +1,7 @@
 use crate::prelude::*;
 use crate::unsize::init::DefaultInit;
 use crate::unsize::UnsizedType;
-use advance::Advance;
+use advancer::Advance;
 use anyhow::{bail, Context};
 use bytemuck::{bytes_of, from_bytes};
 pub use star_frame_proc::ProgramAccount;

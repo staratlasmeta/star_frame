@@ -2,7 +2,7 @@ use crate::account_set::{AccountSetDecode, SingleAccountSet, SingleSetMeta};
 use crate::prelude::SyscallAccountCache;
 use crate::syscalls::SyscallInvoke;
 use crate::Result;
-use advance::AdvanceArray;
+use advancer::AdvanceArray;
 use anyhow::Context;
 use solana_program::account_info::AccountInfo;
 use solana_program::instruction::AccountMeta;
