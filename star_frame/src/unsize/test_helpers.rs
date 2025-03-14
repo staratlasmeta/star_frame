@@ -4,7 +4,7 @@ use crate::unsize::wrapper::{ExclusiveWrapper, MutWrapper, SharedWrapper, Unsize
 use crate::unsize::UnsizedType;
 use crate::Result;
 use solana_program::entrypoint::MAX_PERMITTED_DATA_INCREASE;
-use std::cell::{RefCell, RefMut};
+use std::cell::{Ref, RefCell, RefMut};
 use std::marker::PhantomData;
 use std::mem::MaybeUninit;
 use std::ptr::slice_from_raw_parts_mut;
@@ -37,9 +37,12 @@ impl<'info> UnsizedTypeDataAccess<'info> for TestAccountInfo<'info> {
         }
         Ok(())
     }
+    fn data_ref(&self) -> Result<Ref<&'info mut [u8]>> {
+        self.data.try_borrow().map_err(Into::into)
+    }
 
-    fn data(&self) -> &RefCell<&'info mut [u8]> {
-        &self.data
+    fn data_mut(&self) -> Result<RefMut<&'info mut [u8]>> {
+        self.data.try_borrow_mut().map_err(Into::into)
     }
 }
 
@@ -62,7 +65,7 @@ where
         let data: &mut Vec<u8> = Box::leak(Box::default());
         let test_account = Box::leak(Box::new(TestAccountInfo::new(data, T::INIT_BYTES)));
         {
-            let mut data = &mut test_account.data().borrow_mut()[..];
+            let mut data = &mut test_account.data_mut()?[..];
             unsafe {
                 T::init(&mut data, arg)?;
             }
