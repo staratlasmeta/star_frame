@@ -972,7 +972,7 @@ checksum = "cd7cc57abe963c6d3b9d8be5b06ba7c8957a930305ca90304f24ef040aa6f961"
 [[package]]
 name = "codama-errors"
 version = "0.3.0"
-source = "git+https://github.com/stegaBOB/codama-rs?branch=stegaBOB/fix/initial-pass#ae44afaeb1e7d8558f3162c6f918900a6a03a7c9"
+source = "git+https://github.com/stegaBOB/codama-rs?branch=stegaBOB/fix/pda-seed-value2#fce48f0fe4c4954709235d58caddf4d99e141859"
 dependencies = [
  "cargo_toml",
  "proc-macro2",
@@ -984,7 +984,7 @@ dependencies = [
 [[package]]
 name = "codama-nodes"
 version = "0.3.0"
-source = "git+https://github.com/stegaBOB/codama-rs?branch=stegaBOB/fix/initial-pass#ae44afaeb1e7d8558f3162c6f918900a6a03a7c9"
+source = "git+https://github.com/stegaBOB/codama-rs?branch=stegaBOB/fix/pda-seed-value2#fce48f0fe4c4954709235d58caddf4d99e141859"
 dependencies = [
  "codama-errors",
  "codama-nodes-derive",
@@ -996,7 +996,7 @@ dependencies = [
 [[package]]
 name = "codama-nodes-derive"
 version = "0.3.0"
-source = "git+https://github.com/stegaBOB/codama-rs?branch=stegaBOB/fix/initial-pass#ae44afaeb1e7d8558f3162c6f918900a6a03a7c9"
+source = "git+https://github.com/stegaBOB/codama-rs?branch=stegaBOB/fix/pda-seed-value2#fce48f0fe4c4954709235d58caddf4d99e141859"
 dependencies = [
  "codama-errors",
  "codama-syn-helpers",
@@ -1009,7 +1009,7 @@ dependencies = [
 [[package]]
 name = "codama-syn-helpers"
 version = "0.3.0"
-source = "git+https://github.com/stegaBOB/codama-rs?branch=stegaBOB/fix/initial-pass#ae44afaeb1e7d8558f3162c6f918900a6a03a7c9"
+source = "git+https://github.com/stegaBOB/codama-rs?branch=stegaBOB/fix/pda-seed-value2#fce48f0fe4c4954709235d58caddf4d99e141859"
 dependencies = [
  "codama-errors",
  "derive_more 1.0.0",
