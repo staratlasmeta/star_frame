@@ -40,6 +40,7 @@ where
 mod idl_impl {
     use super::*;
     use crate::idl::TypeToIdl;
+    use crate::prelude::System;
     use star_frame_idl::ty::IdlTypeDef;
     use star_frame_idl::IdlDefinition;
 
@@ -48,7 +49,7 @@ mod idl_impl {
         T: CheckedBitPattern + NoUninit + Align1 + TypeToIdl,
         L: ListLength + TypeToIdl,
     {
-        type AssociatedProgram = T::AssociatedProgram;
+        type AssociatedProgram = System;
         fn type_to_idl(idl_definition: &mut IdlDefinition) -> Result<IdlTypeDef> {
             let inner_type = T::type_to_idl(idl_definition)?;
             Ok(IdlTypeDef::List {

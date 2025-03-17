@@ -17,6 +17,12 @@ use std::ptr;
 #[repr(transparent)]
 pub struct RemainingBytes([u8]);
 
+#[cfg(all(feature = "idl", not(target_os = "solana")))]
+mod idl_impl {
+    use crate::idl::ty::impl_type_to_idl_for_primitive;
+    impl_type_to_idl_for_primitive!(super::RemainingBytes: RemainingBytes);
+}
+
 #[derive(Copy, Clone, Debug)]
 pub struct RemainingBytesRef<'a>(*const RemainingBytes, PhantomData<&'a ()>);
 

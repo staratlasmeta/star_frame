@@ -118,7 +118,7 @@ pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
     let ix_message = item
         .variants
         .iter()
-        .map(|v| format!("Instrution: {}", v.ident.to_string()))
+        .map(|v| format!("Instruction: {}", v.ident))
         .collect_vec();
 
     // todo: better error messages for getting the discriminant and invalid discriminants

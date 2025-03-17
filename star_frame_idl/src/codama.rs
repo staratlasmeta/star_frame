@@ -526,6 +526,9 @@ impl TryToCodama<TypeNode> for IdlTypeDef {
                 )
                 .into_type_node()
             }
+            IdlTypeDef::RemainingBytes => {
+                ArrayTypeNode::remainder(number(Num::U8)).into_type_node()
+            }
             IdlTypeDef::Generic(_) => bail!("Generic types are not supported in Codama"),
         };
         Ok(node)

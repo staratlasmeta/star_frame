@@ -8,7 +8,7 @@ use star_frame_idl::{CrateMetadata, IdlDefinition, IdlMetadata};
 pub use star_frame_proc::{InstructionToIdl, TypeToIdl};
 
 mod find_seeds;
-mod ty;
+pub mod ty;
 pub use find_seeds::*;
 
 pub trait InstructionSetToIdl: InstructionSet {
