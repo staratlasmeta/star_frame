@@ -13,10 +13,10 @@ use codama_nodes::{
     EnumTupleVariantTypeNode, EnumTypeNode, EnumVariantTypeNode, FieldDiscriminatorNode,
     FixedSizeTypeNode, InstructionAccountNode, InstructionNode, InstructionRemainingAccountsNode,
     InstructionRemainingAccountsNodeValue, MapTypeNode, NumberFormat, NumberTypeNode,
-    OptionTypeNode, PdaLinkNode, PdaNode, PdaSeedNode, PdaSeedValueNode, PdaValueNode,
-    ProgramLinkNode, PublicKeyTypeNode, PublicKeyValueNode, SetTypeNode, SizePrefixTypeNode,
-    StringTypeNode, StructFieldTypeNode, StructTypeNode, TupleTypeNode, TypeNode, TypeNodeTrait,
-    VariablePdaSeedNode,
+    OptionTypeNode, PdaLinkNode, PdaNode, PdaSeedNode, PdaSeedValueNode, PdaSeedValueValueNode,
+    PdaValueNode, ProgramLinkNode, PublicKeyTypeNode, PublicKeyValueNode, SetTypeNode,
+    SizePrefixTypeNode, StringTypeNode, StructFieldTypeNode, StructTypeNode, TupleTypeNode,
+    TypeNode, TypeNodeTrait, VariablePdaSeedNode,
 };
 use itertools::Itertools;
 
@@ -205,9 +205,9 @@ fn seeds_to_pda_value_node(seeds: &IdlFindSeeds, paths: &PathInfo) -> PdaValueNo
                 let account_path = paths.create_next(Some(account_path), index);
                 let lookup = PdaSeedValueNode {
                     name: name.into(),
-                    value: AccountValueNode {
-                        name: account_path.name(),
-                    }
+                    value: PdaSeedValueValueNode::Account(AccountValueNode::new(
+                        account_path.name(),
+                    ))
                     .into(),
                 };
                 (value, Some(lookup))

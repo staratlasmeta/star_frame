@@ -971,8 +971,8 @@ checksum = "cd7cc57abe963c6d3b9d8be5b06ba7c8957a930305ca90304f24ef040aa6f961"
 
 [[package]]
 name = "codama-errors"
-version = "0.1.0"
-source = "git+https://github.com/stegaBOB/codama-rs?branch=stegaBOB/fix/initial-pass#0225041592fd17359a8ce4bb51db465d39f35e7c"
+version = "0.3.0"
+source = "git+https://github.com/stegaBOB/codama-rs?branch=stegaBOB/fix/initial-pass#ae44afaeb1e7d8558f3162c6f918900a6a03a7c9"
 dependencies = [
  "cargo_toml",
  "proc-macro2",
@@ -983,8 +983,8 @@ dependencies = [
 
 [[package]]
 name = "codama-nodes"
-version = "0.1.0"
-source = "git+https://github.com/stegaBOB/codama-rs?branch=stegaBOB/fix/initial-pass#0225041592fd17359a8ce4bb51db465d39f35e7c"
+version = "0.3.0"
+source = "git+https://github.com/stegaBOB/codama-rs?branch=stegaBOB/fix/initial-pass#ae44afaeb1e7d8558f3162c6f918900a6a03a7c9"
 dependencies = [
  "codama-errors",
  "codama-nodes-derive",
@@ -995,8 +995,8 @@ dependencies = [
 
 [[package]]
 name = "codama-nodes-derive"
-version = "0.1.0"
-source = "git+https://github.com/stegaBOB/codama-rs?branch=stegaBOB/fix/initial-pass#0225041592fd17359a8ce4bb51db465d39f35e7c"
+version = "0.3.0"
+source = "git+https://github.com/stegaBOB/codama-rs?branch=stegaBOB/fix/initial-pass#ae44afaeb1e7d8558f3162c6f918900a6a03a7c9"
 dependencies = [
  "codama-errors",
  "codama-syn-helpers",
@@ -1008,8 +1008,8 @@ dependencies = [
 
 [[package]]
 name = "codama-syn-helpers"
-version = "0.1.0"
-source = "git+https://github.com/stegaBOB/codama-rs?branch=stegaBOB/fix/initial-pass#0225041592fd17359a8ce4bb51db465d39f35e7c"
+version = "0.3.0"
+source = "git+https://github.com/stegaBOB/codama-rs?branch=stegaBOB/fix/initial-pass#ae44afaeb1e7d8558f3162c6f918900a6a03a7c9"
 dependencies = [
  "codama-errors",
  "derive_more 1.0.0",
@@ -1118,7 +1118,7 @@ checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
 
 [[package]]
 name = "counter"
-version = "0.0.3-beta.1"
+version = "0.0.4"
 dependencies = [
  "borsh 1.5.3",
  "bytemuck",
@@ -5612,7 +5612,7 @@ checksum = "a8f112729512f8e442d81f95a8a7ddf2b7c6b8a1a6f509a95864142b30cab2d3"
 
 [[package]]
 name = "star_frame"
-version = "0.0.3-beta.1"
+version = "0.0.4"
 dependencies = [
  "advancer",
  "anyhow",
@@ -5643,7 +5643,7 @@ dependencies = [
 
 [[package]]
 name = "star_frame_cli"
-version = "0.0.3-beta.1"
+version = "0.0.4"
 dependencies = [
  "anyhow",
  "clap 4.3.24",
@@ -5652,7 +5652,7 @@ dependencies = [
 
 [[package]]
 name = "star_frame_idl"
-version = "0.0.3-beta.1"
+version = "0.0.4"
 dependencies = [
  "anchor-lang-idl-spec",
  "anyhow",
@@ -5669,7 +5669,7 @@ dependencies = [
 
 [[package]]
 name = "star_frame_proc"
-version = "0.0.3-beta.1"
+version = "0.0.4"
 dependencies = [
  "bs58 0.5.1",
  "daggy",
@@ -5689,7 +5689,7 @@ dependencies = [
 
 [[package]]
 name = "star_frame_spl"
-version = "0.0.3-beta.1"
+version = "0.0.4"
 dependencies = [
  "borsh 1.5.3",
  "bytemuck",
