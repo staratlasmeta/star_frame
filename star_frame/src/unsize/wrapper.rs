@@ -2,12 +2,13 @@ use super::{AsShared, UnsizedType};
 use crate::prelude::UnsizedInit;
 use crate::Result;
 use advancer::Advance;
-use anyhow::ensure;
+use anyhow::{ensure, Context};
 use derive_more::{Deref, DerefMut};
 use solana_program::account_info::AccountInfo;
 use solana_program::entrypoint::MAX_PERMITTED_DATA_INCREASE;
+use solana_program::program_error::ProgramError;
 use solana_program::program_memory::sol_memmove;
-use std::cell::{Ref, RefCell, RefMut};
+use std::cell::{Ref, RefMut};
 use std::cmp::Ordering;
 use std::collections::Bound;
 use std::marker::PhantomData;
@@ -18,7 +19,8 @@ pub trait UnsizedTypeDataAccess<'info> {
     /// # Safety
     /// todo
     unsafe fn realloc(&self, new_len: usize, data: &mut &'info mut [u8]) -> Result<()>;
-    fn data(&self) -> &RefCell<&'info mut [u8]>;
+    fn data_ref(&self) -> Result<Ref<&'info mut [u8]>>;
+    fn data_mut(&self) -> Result<RefMut<&'info mut [u8]>>;
 }
 
 impl<'info> UnsizedTypeDataAccess<'info> for AccountInfo<'info> {
@@ -47,8 +49,18 @@ impl<'info> UnsizedTypeDataAccess<'info> for AccountInfo<'info> {
         Ok(())
     }
 
-    fn data(&self) -> &RefCell<&'info mut [u8]> {
-        &self.data
+    fn data_ref(&self) -> Result<Ref<&'info mut [u8]>> {
+        self.data
+            .try_borrow()
+            .map_err(|_| ProgramError::AccountBorrowFailed)
+            .with_context(|| format!("Error borrowing data on account {}", self.key))
+    }
+
+    fn data_mut(&self) -> Result<RefMut<&'info mut [u8]>> {
+        self.data
+            .try_borrow_mut()
+            .map_err(|_| ProgramError::AccountBorrowFailed)
+            .with_context(|| format!("Error borrowing data on account {}", self.key))
     }
 }
 
@@ -67,7 +79,7 @@ where
     pub unsafe fn new(
         underlying_data: &'a impl UnsizedTypeDataAccess<'info>,
     ) -> Result<SharedWrapper<'a, 'info, O::Ref<'a>>> {
-        let data = underlying_data.data().borrow();
+        let data = underlying_data.data_ref()?;
         let ptr = *data as *const [u8];
         Ok(SharedWrapper {
             r: data,
@@ -112,9 +124,7 @@ where
     /// # Safety
     /// todo
     pub unsafe fn new(underlying_data: &'a A) -> Result<Self> {
-        let mut r = RefMut::map(underlying_data.data().borrow_mut(), |r| unsafe {
-            change_ref(r)
-        });
+        let mut r = RefMut::map(underlying_data.data_mut()?, |r| unsafe { change_ref(r) });
         // ensure no ZSTs in middle of struct
         let _ = O::ZST_STATUS;
 

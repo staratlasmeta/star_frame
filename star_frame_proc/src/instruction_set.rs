@@ -115,6 +115,11 @@ pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
             }
         }
     });
+    let ix_message = item
+        .variants
+        .iter()
+        .map(|v| format!("Instrution: {}", v.ident.to_string()))
+        .collect_vec();
 
     // todo: better error messages for getting the discriminant and invalid discriminants
     quote! {
@@ -135,6 +140,7 @@ pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
                 match discriminant {
                     #(
                         <#variant_tys as #prelude::InstructionDiscriminant<#ident #ty_generics>>::DISCRIMINANT => {
+                            #prelude::msg!(#ix_message);
                             let mut data = <#variant_tys as #instruction>::data_from_bytes(&mut ix_bytes)?;
                             <#variant_tys as #instruction>::run_ix_from_raw(accounts, &mut data, syscalls)
                         }

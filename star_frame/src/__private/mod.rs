@@ -38,7 +38,9 @@ pub mod macro_prelude {
     pub use advancer::{Advance, AdvanceArray};
     pub use anyhow::bail;
 
-    pub use solana_program::{account_info::AccountInfo, instruction::AccountMeta, pubkey::Pubkey};
+    pub use solana_program::{
+        account_info::AccountInfo, instruction::AccountMeta, msg, pubkey::Pubkey,
+    };
 
     #[cfg(all(feature = "idl", not(target_os = "solana")))]
     pub use star_frame_idl::{

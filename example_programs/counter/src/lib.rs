@@ -233,7 +233,7 @@ mod tests {
     async fn test_that_it_works() -> Result<()> {
         let program_test = if option_env!("USE_BIN").is_some() {
             let target_dir = std::env::current_dir()?
-                .join("../../../target/deploy")
+                .join("../../target/deploy")
                 .canonicalize()?;
             std::env::set_var(
                 "BPF_OUT_DIR",
