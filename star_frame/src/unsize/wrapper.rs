@@ -18,16 +18,16 @@ use std::slice::from_raw_parts_mut;
 pub trait UnsizedTypeDataAccess<'info> {
     /// # Safety
     /// todo
-    unsafe fn realloc(&self, new_len: usize, data: &mut &'info mut [u8]) -> Result<()>;
-    fn data_ref(&self) -> Result<Ref<&'info mut [u8]>>;
-    fn data_mut(&self) -> Result<RefMut<&'info mut [u8]>>;
+    unsafe fn realloc(this: &Self, new_len: usize, data: &mut &'info mut [u8]) -> Result<()>;
+    fn data_ref(this: &Self) -> Result<Ref<&'info mut [u8]>>;
+    fn data_mut(this: &Self) -> Result<RefMut<&'info mut [u8]>>;
 }
 
 impl<'info> UnsizedTypeDataAccess<'info> for AccountInfo<'info> {
-    unsafe fn realloc(&self, new_len: usize, data: &mut &'info mut [u8]) -> Result<()> {
+    unsafe fn realloc(this: &Self, new_len: usize, data: &mut &'info mut [u8]) -> Result<()> {
         // Return early if the length increase from the original serialized data
         // length is too large and would result in an out of bounds allocation.
-        let original_data_len = unsafe { self.original_data_len() };
+        let original_data_len = unsafe { this.original_data_len() };
         ensure!(
             new_len.saturating_sub(original_data_len) <= MAX_PERMITTED_DATA_INCREASE,
             "Tried to realloc data to {new_len}. An increase over {MAX_PERMITTED_DATA_INCREASE} is not permitted",
@@ -49,18 +49,18 @@ impl<'info> UnsizedTypeDataAccess<'info> for AccountInfo<'info> {
         Ok(())
     }
 
-    fn data_ref(&self) -> Result<Ref<&'info mut [u8]>> {
-        self.data
+    fn data_ref(this: &Self) -> Result<Ref<&'info mut [u8]>> {
+        this.data
             .try_borrow()
             .map_err(|_| ProgramError::AccountBorrowFailed)
-            .with_context(|| format!("Error borrowing data on account {}", self.key))
+            .with_context(|| format!("Error borrowing data on account {}", this.key))
     }
 
-    fn data_mut(&self) -> Result<RefMut<&'info mut [u8]>> {
-        self.data
+    fn data_mut(this: &Self) -> Result<RefMut<&'info mut [u8]>> {
+        this.data
             .try_borrow_mut()
             .map_err(|_| ProgramError::AccountBorrowFailed)
-            .with_context(|| format!("Error borrowing data on account {}", self.key))
+            .with_context(|| format!("Error borrowing data on account {}", this.key))
     }
 }
 
@@ -79,7 +79,7 @@ where
     pub unsafe fn new(
         underlying_data: &'a impl UnsizedTypeDataAccess<'info>,
     ) -> Result<SharedWrapper<'a, 'info, O::Ref<'a>>> {
-        let data = underlying_data.data_ref()?;
+        let data = UnsizedTypeDataAccess::data_ref(underlying_data)?;
         let ptr = *data as *const [u8];
         Ok(SharedWrapper {
             r: data,
@@ -124,7 +124,10 @@ where
     /// # Safety
     /// todo
     pub unsafe fn new(underlying_data: &'a A) -> Result<Self> {
-        let mut r = RefMut::map(underlying_data.data_mut()?, |r| unsafe { change_ref(r) });
+        let mut r = RefMut::map(
+            UnsizedTypeDataAccess::data_mut(underlying_data)?,
+            |r| unsafe { change_ref(r) },
+        );
         // ensure no ZSTs in middle of struct
         let _ = O::ZST_STATUS;
 
@@ -265,7 +268,7 @@ where
             let new_len = old_len + amount;
 
             // realloc
-            unsafe { wrapper.underlying_data.realloc(new_len, data) }?;
+            unsafe { UnsizedTypeDataAccess::realloc(*wrapper.underlying_data, new_len, data) }?;
 
             if start as usize != old_ptr as usize + old_len {
                 unsafe {
@@ -348,7 +351,7 @@ where
             let new_len = old_len - amount;
             // realloc
             unsafe {
-                wrapper.underlying_data.realloc(new_len, data)?;
+                UnsizedTypeDataAccess::realloc(*wrapper.underlying_data, new_len, data)?;
             }
 
             amount

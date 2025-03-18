@@ -1,6 +1,7 @@
 use crate::util;
 use crate::util::{
-    discriminant_vec, enum_discriminants, get_repr, reject_generics, IntegerRepr, Paths,
+    discriminant_vec, enum_discriminants, get_repr, ignore_cfg_module, reject_generics,
+    IntegerRepr, Paths,
 };
 use easy_proc::{find_attr, ArgumentList};
 use itertools::Itertools;
@@ -60,32 +61,36 @@ pub fn derive_type_to_idl_inner(input: &DeriveInput, args: TypeToIdlArgs) -> Tok
 
     let (impl_gen, ty_gen, where_clause) = input.generics.split_for_impl();
 
-    quote! {
-        #[cfg(all(feature = "idl", not(target_os = "solana")))]
-        #[automatically_derived]
-        impl #impl_gen #prelude::TypeToIdl for #ident #ty_gen #where_clause {
-            type AssociatedProgram = #associated_program;
-            fn type_to_idl(idl_definition: &mut #prelude::IdlDefinition) -> #result<#prelude::IdlTypeDef> {
-                let source = #prelude::item_source::<Self>();
-                let type_def = #type_def;
-                let idl_type = #prelude::IdlType {
-                    info: #prelude::ItemInfo {
-                        name: #ident_str.to_string(),
-                        description: #type_docs,
-                        source: source.clone(),
-                    },
-                    type_def,
-                    generics: vec![],
-                };
-                let namespace = idl_definition.add_type(idl_type, Self::AssociatedProgram::ID);
-                Ok(#prelude::IdlTypeDef::Defined(#prelude::IdlTypeId {
-                    namespace,
-                    source,
-                    provided_generics: vec![],
-                }))
-            }
-        }
-    }
+    ignore_cfg_module(
+        ident,
+        "_type_to_idl",
+        quote! {
+                #[cfg(all(feature = "idl", not(target_os = "solana")))]
+                #[automatically_derived]
+                impl #impl_gen #prelude::TypeToIdl for #ident #ty_gen #where_clause {
+                    type AssociatedProgram = #associated_program;
+                    fn type_to_idl(idl_definition: &mut #prelude::IdlDefinition) -> #result<#prelude::IdlTypeDef> {
+                        let source = #prelude::item_source::<Self>();
+                        let type_def = #type_def;
+                        let idl_type = #prelude::IdlType {
+                            info: #prelude::ItemInfo {
+                                name: #ident_str.to_string(),
+                                description: #type_docs,
+                                source: source.clone(),
+                            },
+                            type_def,
+                            generics: vec![],
+                        };
+                        let namespace = idl_definition.add_type(idl_type, Self::AssociatedProgram::ID);
+                        Ok(#prelude::IdlTypeDef::Defined(#prelude::IdlTypeId {
+                            namespace,
+                            source,
+                            provided_generics: vec![],
+                        }))
+                    }
+                }
+        },
+    )
 }
 
 fn idl_struct_type_def(fields: &Fields) -> TokenStream {

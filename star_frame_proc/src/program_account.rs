@@ -1,6 +1,6 @@
 use crate::hash::SIGHASH_ACCOUNT_NAMESPACE;
 use crate::idl::TypeToIdlArgs;
-use crate::util::{reject_attributes, Paths};
+use crate::util::{ignore_cfg_module, reject_attributes, Paths};
 use easy_proc::{find_attr, ArgumentList};
 use proc_macro2::TokenStream;
 use quote::quote;
@@ -81,9 +81,7 @@ pub fn program_account_impl_inner(input: DeriveInput, args: ProgramAccountArgs) 
             None => quote! { None },
         };
 
-        quote! {
-            #type_to_idl_impl
-
+        let account_to_idl_impl = ignore_cfg_module(ident, "_account_to_idl", quote! {
             #[cfg(all(feature = "idl", not(target_os = "solana")))]
             #[automatically_derived]
             impl #impl_gen #prelude::AccountToIdl for #ident #ty_gen #where_clause {
@@ -103,6 +101,11 @@ pub fn program_account_impl_inner(input: DeriveInput, args: ProgramAccountArgs) 
                     })
                 }
             }
+        });
+
+        quote! {
+            #type_to_idl_impl
+            #account_to_idl_impl
         }
     });
 

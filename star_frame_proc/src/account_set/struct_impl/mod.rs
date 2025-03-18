@@ -1,7 +1,7 @@
 use crate::account_set::generics::AccountSetGenerics;
 use crate::account_set::struct_impl::decode::DecodeFieldTy;
 use crate::account_set::{AccountSetStructArgs, SingleAccountSetFieldArgs, StrippedDeriveInput};
-use crate::util::{make_struct, new_generic, new_lifetime, Paths};
+use crate::util::{ignore_cfg_module, make_struct, new_generic, Paths};
 use easy_proc::{find_attr, ArgumentList};
 use itertools::Itertools;
 use proc_macro2::TokenStream;
@@ -379,7 +379,7 @@ pub(super) fn derive_account_set_impl_struct(
         let mut cpi_gen = other_generics.clone();
         let where_clause = cpi_gen.make_where_clause();
         let cpi_set = quote!(#prelude::CpiAccountSet<#info_lifetime>);
-        let cpi_accounts = quote!(Self::CpiAccounts<#info_lifetime>);
+        let cpi_accounts = quote!(Self::CpiAccounts);
 
         let new_fields: Vec<Field> = fields
             .iter()
@@ -394,7 +394,7 @@ pub(super) fn derive_account_set_impl_struct(
                 where_clause.predicates.push(parse_quote! {
                     #ty: #cpi_set
                 });
-                parse_quote!(#vis #ident #colon_token <#ty as #cpi_set>::CpiAccounts<#info_lifetime>)
+                parse_quote!(#vis #ident #colon_token <#ty as #cpi_set>::CpiAccounts)
             })
             .collect();
 
@@ -407,7 +407,6 @@ pub(super) fn derive_account_set_impl_struct(
         let new_struct_ty_gen = new_struct_gen.split_for_impl().1;
 
 
-        let accounts_lifetime = new_lifetime(&cpi_gen, None);
 
         let (impl_gen, _, where_clause) = cpi_gen.split_for_impl();
 
@@ -419,11 +418,11 @@ pub(super) fn derive_account_set_impl_struct(
 
             #[automatically_derived]
             impl #impl_gen #cpi_set for #ident #self_ty_gen #where_clause {
-                type CpiAccounts<#accounts_lifetime> = #cpi_accounts_ident #new_struct_ty_gen;
+                type CpiAccounts = #cpi_accounts_ident #new_struct_ty_gen;
                 const MIN_LEN: usize =  0#(+ <#field_type as #cpi_set>::MIN_LEN)*;
 
                 #[inline]
-                fn to_cpi_accounts(&self) -> Self::CpiAccounts<#info_lifetime> {
+                fn to_cpi_accounts(&self) -> Self::CpiAccounts {
                     Self::CpiAccounts {
                         #(#struct_members: #prelude::CpiAccountSet::to_cpi_accounts(&self.#struct_members),)*
                     }
@@ -608,6 +607,14 @@ pub(super) fn derive_account_set_impl_struct(
         }
     });
 
+    let idl_impls = ignore_cfg_module(
+        ident,
+        "_account_set_to_idl",
+        quote! {
+            #(#idls)*
+        },
+    );
+
     quote! {
         #account_set_impl
         #cpi_account_set_impl
@@ -616,7 +623,7 @@ pub(super) fn derive_account_set_impl_struct(
         #(#decodes)*
         #(#validates)*
         #(#cleanups)*
-        #(#idls)*
+        #idl_impls
 
         #single_account_set_impls
     }

@@ -4,6 +4,9 @@ index = "ssh://git@ssh.shipyard.rs/star-atlas/crate-index.git"
 [net]
 git-fetch-with-cli = true
 
+[registry]
+global-credential-providers = ["cargo:token"]
+
 ## Uncomment if on stable
 ## Make sure to gitignore this file if uncommented
 ## authenticated downloads

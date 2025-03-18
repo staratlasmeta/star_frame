@@ -1,6 +1,7 @@
 use crate::align1::Align1;
 use crate::data_types::PackedValue;
 use crate::unsize::init::{DefaultInit, UnsizedInit};
+use crate::unsize::unsized_impl;
 use crate::unsize::wrapper::ExclusiveWrapper;
 use crate::unsize::AsShared;
 use crate::unsize::UnsizedType;
@@ -11,7 +12,6 @@ use anyhow::{bail, ensure, Context};
 use bytemuck::{bytes_of, checked, from_bytes, CheckedBitPattern, NoUninit, Pod, Zeroable};
 use bytemuck::{cast_slice, cast_slice_mut};
 use num_traits::{FromPrimitive, ToPrimitive, Zero};
-use star_frame_proc::unsized_impl;
 use std::any::type_name;
 use std::borrow::Borrow;
 use std::cmp::Ordering;
@@ -321,7 +321,7 @@ where
             .ok_or_else(|| anyhow::anyhow!("Could not convert list size to usize"))?;
         data.advance(size_of::<T>() * length);
         Ok(ListRef(
-            unsafe { &*ptr::from_raw_parts(ptr.cast(), size_of::<T>() * length) },
+            unsafe { &*ptr::from_raw_parts(ptr.cast::<()>(), size_of::<T>() * length) },
             PhantomData,
         ))
     }
@@ -334,7 +334,10 @@ where
             .ok_or_else(|| anyhow::anyhow!("Could not convert list size to usize"))?;
         data.try_advance(size_of::<T>() * length)?;
         let list_ptr = ptr::from_mut(unsafe {
-            &mut *ptr::from_raw_parts_mut(length_bytes.as_mut_ptr().cast(), size_of::<T>() * length)
+            &mut *ptr::from_raw_parts_mut(
+                length_bytes.as_mut_ptr().cast::<()>(),
+                size_of::<T>() * length,
+            )
         });
         Ok(ListMut(list_ptr, PhantomData))
     }

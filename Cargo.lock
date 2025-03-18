@@ -971,7 +971,8 @@ checksum = "cd7cc57abe963c6d3b9d8be5b06ba7c8957a930305ca90304f24ef040aa6f961"
 [[package]]
 name = "codama-errors"
 version = "0.3.0"
-source = "git+https://github.com/stegaBOB/codama-rs?branch=stegaBOB/fix/pda-seed-value2#f99c00b972dfc51fb60f3b0fc974f459a0b984a1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1b16b7de0c3a4465bf98550473efd858dc4136b9f5381e132abe6ec93000e781"
 dependencies = [
  "cargo_toml",
  "proc-macro2",
@@ -983,7 +984,8 @@ dependencies = [
 [[package]]
 name = "codama-nodes"
 version = "0.3.0"
-source = "git+https://github.com/stegaBOB/codama-rs?branch=stegaBOB/fix/pda-seed-value2#f99c00b972dfc51fb60f3b0fc974f459a0b984a1"
+source = "registry+ssh://git@ssh.shipyard.rs/star-atlas/crate-index.git"
+checksum = "ae7014659edf4c8012b94bca5f7c7953334712e6c8808ca2fe465a40e30de168"
 dependencies = [
  "codama-errors",
  "codama-nodes-derive",
@@ -995,7 +997,8 @@ dependencies = [
 [[package]]
 name = "codama-nodes-derive"
 version = "0.3.0"
-source = "git+https://github.com/stegaBOB/codama-rs?branch=stegaBOB/fix/pda-seed-value2#f99c00b972dfc51fb60f3b0fc974f459a0b984a1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6f5ab15cb51a325a224dd92af7f8a96566f9380083ab4fd310a9eddc48ab5fa0"
 dependencies = [
  "codama-errors",
  "codama-syn-helpers",
@@ -1008,7 +1011,8 @@ dependencies = [
 [[package]]
 name = "codama-syn-helpers"
 version = "0.3.0"
-source = "git+https://github.com/stegaBOB/codama-rs?branch=stegaBOB/fix/pda-seed-value2#f99c00b972dfc51fb60f3b0fc974f459a0b984a1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0634beedaa2a5c80ba923ac7afdb1e5013ce655c853a150a670995f869168d5e"
 dependencies = [
  "codama-errors",
  "derive_more 1.0.0",

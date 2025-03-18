@@ -66,7 +66,7 @@ unsafe impl UnsizedType for RemainingBytes {
         let remaining_bytes = data.advance(data.len());
         let ptr = remaining_bytes.as_ptr();
         Ok(RemainingBytesRef(
-            unsafe { &*ptr::from_raw_parts(ptr.cast(), remaining_bytes.len()) },
+            unsafe { &*ptr::from_raw_parts(ptr.cast::<()>(), remaining_bytes.len()) },
             PhantomData,
         ))
     }
@@ -75,7 +75,7 @@ unsafe impl UnsizedType for RemainingBytes {
         let remaining_bytes = data.advance(data.len());
         let ptr = remaining_bytes.as_mut_ptr();
         Ok(RemainingBytesMut(
-            unsafe { &mut *ptr::from_raw_parts_mut(ptr.cast(), remaining_bytes.len()) },
+            unsafe { &mut *ptr::from_raw_parts_mut(ptr.cast::<()>(), remaining_bytes.len()) },
             PhantomData,
         ))
     }

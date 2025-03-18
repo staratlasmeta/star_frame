@@ -235,10 +235,13 @@ mod tests {
             let target_dir = std::env::current_dir()?
                 .join("../../target/deploy")
                 .canonicalize()?;
-            std::env::set_var(
-                "BPF_OUT_DIR",
-                target_dir.to_str().expect("Failed to convert path to str"),
-            );
+            #[allow(unused_unsafe)]
+            unsafe {
+                std::env::set_var(
+                    "BPF_OUT_DIR",
+                    target_dir.to_str().expect("Failed to convert path to str"),
+                );
+            }
             ProgramTest::new("counter", StarFrameDeclaredProgram::ID, None)
         } else {
             ProgramTest::new(

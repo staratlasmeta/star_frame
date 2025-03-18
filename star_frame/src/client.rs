@@ -16,18 +16,15 @@ use solana_program::pubkey::Pubkey;
 use std::fmt::Debug;
 
 pub trait CpiAccountSet<'info> {
-    type CpiAccounts<'a>: Debug + Clone;
+    type CpiAccounts: Debug + Clone;
     /// The minimum number of accounts this CPI might use
     const MIN_LEN: usize;
 
-    fn to_cpi_accounts(&self) -> Self::CpiAccounts<'info>;
-    fn extend_account_infos(
-        accounts: Self::CpiAccounts<'info>,
-        infos: &mut Vec<AccountInfo<'info>>,
-    );
+    fn to_cpi_accounts(&self) -> Self::CpiAccounts;
+    fn extend_account_infos(accounts: Self::CpiAccounts, infos: &mut Vec<AccountInfo<'info>>);
     fn extend_account_metas(
         program_id: &Pubkey,
-        accounts: &Self::CpiAccounts<'info>,
+        accounts: &Self::CpiAccounts,
         metas: &mut Vec<AccountMeta>,
     );
 }
@@ -78,7 +75,7 @@ impl<'info> CpiBuilder<'info> {
 }
 
 pub trait MakeCpi<'info>: StarFrameProgram {
-    fn cpi<I, A>(data: &I, accounts: A::CpiAccounts<'info>) -> Result<CpiBuilder<'info>>
+    fn cpi<I, A>(data: &I, accounts: A::CpiAccounts) -> Result<CpiBuilder<'info>>
     where
         I: StarFrameInstruction<Accounts<'static, 'static, 'info> = A>
             + InstructionDiscriminant<Self::InstructionSet>
@@ -92,11 +89,7 @@ pub trait MakeCpi<'info>: StarFrameProgram {
 impl<'info, T> MakeCpi<'info> for T where T: StarFrameProgram + ?Sized {}
 
 impl<'info> CpiBuilder<'info> {
-    pub fn new<S, I, A>(
-        program_id: Pubkey,
-        data: &I,
-        accounts: A::CpiAccounts<'info>,
-    ) -> Result<Self>
+    pub fn new<S, I, A>(program_id: Pubkey, data: &I, accounts: A::CpiAccounts) -> Result<Self>
     where
         S: InstructionSet,
         I: StarFrameInstruction<Accounts<'static, 'static, 'info> = A>

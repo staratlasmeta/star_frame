@@ -8,6 +8,7 @@ pub use repr::*;
 use std::borrow::Borrow;
 
 use easy_proc::find_attr;
+use heck::ToSnakeCase;
 use itertools::Itertools;
 use proc_macro2::{Ident, TokenStream};
 use proc_macro_crate::{crate_name, FoundCrate};
@@ -350,6 +351,18 @@ pub fn enum_discriminants<'a>(
 pub fn discriminant_vec(expr: &Expr, repr: IntegerRepr) -> TokenStream {
     let bytemuck = Paths::default().bytemuck;
     quote! { #bytemuck::bytes_of::<#repr>(&(#expr)).to_vec() }
+}
+
+pub fn ignore_cfg_module(ident: &Ident, suffix: &str, body: TokenStream) -> TokenStream {
+    let module_name = format_ident!("_{}{suffix}", ident.to_string().to_snake_case());
+    quote! {
+        #[allow(unexpected_cfgs)]
+        mod #module_name {
+            use super::*;
+            #body
+        }
+        pub use #module_name::*;
+    }
 }
 
 #[cfg(test)]
