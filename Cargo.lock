@@ -29,9 +29,9 @@ checksum = "512761e0bb2578dd7380c6baaa0f4ce03e84f95e960231d1dec8bf4d7d6e2627"
 
 [[package]]
 name = "advancer"
-version = "0.0.1"
+version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a3d9923474c4ffe067f57241144f3c11c4c7a7e060e8e8190f519d4ad0ac041b"
+checksum = "d9b098ecb3c27a4c4fb80027810ef8d9e89e672565abc85cd743512052be0977"
 dependencies = [
  "thiserror 2.0.12",
 ]
