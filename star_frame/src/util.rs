@@ -104,7 +104,7 @@ pub mod borsh_bytemuck {
     ) -> std::io::Result<P> {
         let mut buffer = MaybeUninit::<P>::uninit();
         let bytes =
-            unsafe { &mut *ptr::from_raw_parts_mut(buffer.as_mut_ptr().cast(), size_of::<P>()) };
+            unsafe { &mut *ptr::from_raw_parts_mut(buffer.as_mut_ptr(), size_of::<P>()) };
         reader.read_exact(bytes)?;
         bytemuck::checked::try_from_bytes::<P>(bytes)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;

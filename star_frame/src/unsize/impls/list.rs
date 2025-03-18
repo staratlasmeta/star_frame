@@ -320,7 +320,7 @@ where
             .ok_or_else(|| anyhow::anyhow!("Could not convert list size to usize"))?;
         data.advance(size_of::<T>() * length);
         Ok(ListRef(
-            unsafe { &*ptr::from_raw_parts(ptr.cast(), size_of::<T>() * length) },
+            unsafe { &*ptr::from_raw_parts(ptr, size_of::<T>() * length) },
             PhantomData,
         ))
     }
@@ -333,7 +333,7 @@ where
             .ok_or_else(|| anyhow::anyhow!("Could not convert list size to usize"))?;
         data.try_advance(size_of::<T>() * length)?;
         let list_ptr = ptr::from_mut(unsafe {
-            &mut *ptr::from_raw_parts_mut(length_bytes.as_mut_ptr().cast(), size_of::<T>() * length)
+            &mut *ptr::from_raw_parts_mut(length_bytes.as_mut_ptr(), size_of::<T>() * length)
         });
         Ok(ListMut(list_ptr, PhantomData))
     }

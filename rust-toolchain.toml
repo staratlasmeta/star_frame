@@ -2,6 +2,6 @@
 # Check https://rust-lang.github.io/rustup-components-history/x86_64-unknown-linux-gnu.html
 # for valid toolchains.
 # Older ones can be found at https://github.com/oxalica/rust-overlay/tree/master/manifests/nightly
-channel = "nightly-2024-04-28"
+channel = "nightly"
 components = ["rustfmt", "clippy"]
 profile = "minimal"
