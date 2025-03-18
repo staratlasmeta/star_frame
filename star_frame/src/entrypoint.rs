@@ -25,6 +25,7 @@ macro_rules! star_frame_entrypoint (
     ($program:ty) => {
         // todo: should this be public?
         #[doc(hidden)]
+        #[allow(unexpected_cfgs)]
         pub mod _entrypoint {
             use super::*;
             pub fn process_instruction<'info>(

@@ -1,4 +1,4 @@
-use crate::util::{get_docs, Paths};
+use crate::util::{get_docs, ignore_cfg_module, Paths};
 use easy_proc::{find_attr, ArgumentList};
 use proc_macro2::TokenStream;
 use proc_macro_error2::abort;
@@ -133,10 +133,10 @@ pub fn derive_get_seeds_impl(input: DeriveInput) -> TokenStream {
             }
         };
 
-        quote! {
+        ignore_cfg_module(ident, "_get_seeds_idl", quote! {
             #seeds_to_idl
             #find_seeds
-        }
+        })
     });
 
     let field_seeds = data_struct.fields.iter().map(|field| {

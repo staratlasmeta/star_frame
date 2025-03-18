@@ -7,7 +7,7 @@ use quote::quote;
 use syn::{parse_quote, Expr, Fields, FieldsUnnamed, ItemEnum, Type};
 
 use crate::hash::SIGHASH_GLOBAL_NAMESPACE;
-use crate::util::{enum_discriminants, get_repr, new_lifetime, Paths};
+use crate::util::{enum_discriminants, get_repr, ignore_cfg_module, new_lifetime, Paths};
 
 #[derive(Debug, ArgumentList, Clone, Default)]
 pub struct InstructionSetStructArgs {
@@ -95,7 +95,7 @@ pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
             })
             .unzip::<_, _, Vec<_>, Vec<_>>();
 
-        quote! {
+        ignore_cfg_module(ident, "_instruction_set_to_idl", quote! {
             #[cfg(all(feature = "idl", not(target_os = "solana")))]
             #[automatically_derived]
             impl #impl_generics #prelude::InstructionSetToIdl for #ident #ty_generics #where_clause {
@@ -113,7 +113,7 @@ pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
                     Ok(())
                 }
             }
-        }
+        })
     });
     let ix_message = item
         .variants

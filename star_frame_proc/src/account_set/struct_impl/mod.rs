@@ -1,7 +1,7 @@
 use crate::account_set::generics::AccountSetGenerics;
 use crate::account_set::struct_impl::decode::DecodeFieldTy;
 use crate::account_set::{AccountSetStructArgs, SingleAccountSetFieldArgs, StrippedDeriveInput};
-use crate::util::{make_struct, new_generic, new_lifetime, Paths};
+use crate::util::{ignore_cfg_module, make_struct, new_generic, Paths};
 use easy_proc::{find_attr, ArgumentList};
 use itertools::Itertools;
 use proc_macro2::TokenStream;
@@ -607,6 +607,14 @@ pub(super) fn derive_account_set_impl_struct(
         }
     });
 
+    let idl_impls = ignore_cfg_module(
+        ident,
+        "_account_set_to_idl",
+        quote! {
+            #(#idls)*
+        },
+    );
+
     quote! {
         #account_set_impl
         #cpi_account_set_impl
@@ -615,7 +623,7 @@ pub(super) fn derive_account_set_impl_struct(
         #(#decodes)*
         #(#validates)*
         #(#cleanups)*
-        #(#idls)*
+        #idl_impls
 
         #single_account_set_impls
     }

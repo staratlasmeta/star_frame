@@ -1,5 +1,5 @@
 use crate::util;
-use crate::util::{ensure_data_struct, reject_generics, Paths};
+use crate::util::{ensure_data_struct, ignore_cfg_module, reject_generics, Paths};
 use easy_proc::{find_attrs, ArgumentList};
 use proc_macro2::TokenStream;
 use proc_macro_error2::{abort, abort_call_site};
@@ -139,18 +139,22 @@ pub(crate) fn program_impl(input: DeriveInput) -> TokenStream {
 
     let idl_impl = (!skip_idl).then(|| {
         let docs = util::get_docs(&input.attrs);
-        quote! {
-            #[cfg(all(feature = "idl", not(target_os = "solana")))]
-            #[automatically_derived]
-            impl #prelude::ProgramToIdl for #ident {
-                fn crate_metadata() -> #prelude::CrateMetadata {
-                    #prelude::CrateMetadata {
-                        docs: #docs,
-                        ..#prelude::crate_metadata!()
+        ignore_cfg_module(
+            ident,
+            "_program_to_idl",
+            quote! {
+                #[cfg(all(feature = "idl", not(target_os = "solana")))]
+                #[automatically_derived]
+                impl #prelude::ProgramToIdl for #ident {
+                    fn crate_metadata() -> #prelude::CrateMetadata {
+                        #prelude::CrateMetadata {
+                            docs: #docs,
+                            ..#prelude::crate_metadata!()
+                        }
                     }
                 }
-            }
-        }
+            },
+        )
     });
 
     quote! {

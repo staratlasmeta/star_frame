@@ -1,3 +1,4 @@
+#![allow(unexpected_cfgs)]
 #[cfg(feature = "token")]
 pub mod associated_token;
 pub mod pod;

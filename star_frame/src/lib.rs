@@ -4,8 +4,6 @@
 #![feature(ptr_metadata)]
 #![feature(associated_type_defaults)]
 #![feature(trivial_bounds)]
-#![cfg_attr(not(rust_1_75), feature(pointer_byte_offsets))]
-#![cfg_attr(not(rust_1_76), feature(type_name_of_val))]
 #![warn(
     clippy::pedantic,
     missing_copy_implementations,
@@ -14,6 +12,7 @@
     // missing_docs
 )]
 #![allow(
+    unexpected_cfgs,
     clippy::non_canonical_clone_impl,
     clippy::default_trait_access,
     clippy::manual_string_new,
@@ -52,6 +51,7 @@ pub mod client;
 pub mod data_types;
 pub mod entrypoint;
 pub mod errors;
+
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
 pub mod idl;
 pub mod instruction;
