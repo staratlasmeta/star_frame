@@ -235,6 +235,7 @@ mod tests {
             let target_dir = std::env::current_dir()?
                 .join("../../target/deploy")
                 .canonicalize()?;
+            #[allow(unused_unsafe)]
             unsafe {
                 std::env::set_var(
                     "BPF_OUT_DIR",
