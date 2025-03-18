@@ -8,11 +8,11 @@ use star_frame_idl::IdlDefinition;
 
 macro_rules! impl_type_to_idl_for_primitive {
     (@impl $ty:ty: $ident:ident) => {
-        impl TypeToIdl for $ty {
-            type AssociatedProgram = System;
+        impl $crate::idl::TypeToIdl for $ty {
+            type AssociatedProgram = $crate::program::system_program::System;
 
-            fn type_to_idl(_idl_definition: &mut IdlDefinition) -> Result<IdlTypeDef> {
-                Ok(IdlTypeDef::$ident)
+            fn type_to_idl(_idl_definition: &mut $crate::star_frame_idl::IdlDefinition) -> $crate::Result<$crate::star_frame_idl::ty::IdlTypeDef> {
+                Ok($crate::star_frame_idl::ty::IdlTypeDef::$ident)
             }
         }
     };
@@ -20,6 +20,8 @@ macro_rules! impl_type_to_idl_for_primitive {
         $(impl_type_to_idl_for_primitive!(@impl $ty: $ident);)*
     };
 }
+
+pub(crate) use impl_type_to_idl_for_primitive;
 
 impl_type_to_idl_for_primitive!(
     PodBool: Bool,

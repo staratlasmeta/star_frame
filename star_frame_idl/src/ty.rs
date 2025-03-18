@@ -63,6 +63,7 @@ pub enum IdlTypeDef {
         frac: u8,
     },
     Option(Box<IdlTypeDef>),
+    RemainingBytes,
     List {
         len_ty: Box<IdlTypeDef>,
         item_ty: Box<IdlTypeDef>,

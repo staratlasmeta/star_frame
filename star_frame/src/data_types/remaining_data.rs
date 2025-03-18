@@ -10,6 +10,11 @@ use std::io::{Read, Write};
 #[repr(transparent)]
 pub struct RemainingData(Vec<u8>);
 
+#[cfg(all(feature = "idl", not(target_os = "solana")))]
+mod idl_impl {
+    use crate::idl::ty::impl_type_to_idl_for_primitive;
+    impl_type_to_idl_for_primitive!(super::RemainingData: RemainingBytes);
+}
 impl BorshDeserialize for RemainingData {
     fn deserialize_reader<R: Read>(reader: &mut R) -> std::io::Result<Self> {
         let mut data = vec![];
