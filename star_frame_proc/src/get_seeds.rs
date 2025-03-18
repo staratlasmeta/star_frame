@@ -112,6 +112,7 @@ pub fn derive_get_seeds_impl(input: DeriveInput) -> TokenStream {
             let find_fields = data_struct.fields.iter().map(|field| {
                 let mut field = field.clone();
                 let ty = &field.ty;
+                field.vis = parse_quote!(pub);
                 field.ty = parse_quote!(#prelude::FindSeed<#ty>);
                 field
             });
