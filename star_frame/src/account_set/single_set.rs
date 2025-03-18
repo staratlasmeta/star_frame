@@ -127,23 +127,20 @@ impl<'info, T> CpiAccountSet<'info> for T
 where
     T: SingleAccountSet<'info>,
 {
-    type CpiAccounts<'a> = AccountInfo<'info>;
+    type CpiAccounts = AccountInfo<'info>;
     const MIN_LEN: usize = 1;
     #[inline]
-    fn to_cpi_accounts(&self) -> Self::CpiAccounts<'info> {
+    fn to_cpi_accounts(&self) -> Self::CpiAccounts {
         self.account_info_cloned()
     }
     #[inline]
-    fn extend_account_infos(
-        account_info: Self::CpiAccounts<'info>,
-        infos: &mut Vec<AccountInfo<'info>>,
-    ) {
+    fn extend_account_infos(account_info: Self::CpiAccounts, infos: &mut Vec<AccountInfo<'info>>) {
         infos.push(account_info);
     }
     #[inline]
     fn extend_account_metas(
         _program_id: &Pubkey,
-        account_info: &Self::CpiAccounts<'info>,
+        account_info: &Self::CpiAccounts,
         metas: &mut Vec<AccountMeta>,
     ) {
         metas.push(AccountMeta {

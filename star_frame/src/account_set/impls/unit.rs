@@ -12,20 +12,16 @@ impl<'info> AccountSet<'info> for () {
 }
 
 impl<'info> CpiAccountSet<'info> for () {
-    type CpiAccounts<'a> = ();
+    type CpiAccounts = ();
     const MIN_LEN: usize = 0;
     #[inline]
-    fn to_cpi_accounts(&self) -> Self::CpiAccounts<'info> {}
+    fn to_cpi_accounts(&self) -> Self::CpiAccounts {}
     #[inline]
-    fn extend_account_infos(
-        _accounts: Self::CpiAccounts<'info>,
-        _infos: &mut Vec<AccountInfo<'info>>,
-    ) {
-    }
+    fn extend_account_infos(_accounts: Self::CpiAccounts, _infos: &mut Vec<AccountInfo<'info>>) {}
     #[inline]
     fn extend_account_metas(
         _program_id: &Pubkey,
-        _accounts: &Self::CpiAccounts<'info>,
+        _accounts: &Self::CpiAccounts,
         _metas: &mut Vec<AccountMeta>,
     ) {
     }

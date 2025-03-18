@@ -24,17 +24,14 @@ impl<'info, T> CpiAccountSet<'info> for Option<T>
 where
     T: CpiAccountSet<'info>,
 {
-    type CpiAccounts<'a> = Option<T::CpiAccounts<'info>>;
+    type CpiAccounts = Option<T::CpiAccounts>;
     const MIN_LEN: usize = 1;
     #[inline]
-    fn to_cpi_accounts(&self) -> Self::CpiAccounts<'info> {
+    fn to_cpi_accounts(&self) -> Self::CpiAccounts {
         self.as_ref().map(T::to_cpi_accounts)
     }
     #[inline]
-    fn extend_account_infos(
-        accounts: Self::CpiAccounts<'info>,
-        infos: &mut Vec<AccountInfo<'info>>,
-    ) {
+    fn extend_account_infos(accounts: Self::CpiAccounts, infos: &mut Vec<AccountInfo<'info>>) {
         if let Some(accounts) = accounts {
             T::extend_account_infos(accounts, infos);
         }
@@ -42,7 +39,7 @@ where
     #[inline]
     fn extend_account_metas(
         program_id: &Pubkey,
-        accounts: &Self::CpiAccounts<'info>,
+        accounts: &Self::CpiAccounts,
         metas: &mut Vec<AccountMeta>,
     ) {
         if let Some(accounts) = accounts {

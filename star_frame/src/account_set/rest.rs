@@ -26,23 +26,20 @@ impl<'info, T> CpiAccountSet<'info> for Rest<T>
 where
     T: CpiAccountSet<'info>,
 {
-    type CpiAccounts<'a> = Vec<T::CpiAccounts<'info>>;
+    type CpiAccounts = Vec<T::CpiAccounts>;
     const MIN_LEN: usize = 0;
     #[inline]
-    fn to_cpi_accounts(&self) -> Self::CpiAccounts<'info> {
+    fn to_cpi_accounts(&self) -> Self::CpiAccounts {
         CpiAccountSet::to_cpi_accounts(&self.0)
     }
     #[inline]
-    fn extend_account_infos(
-        accounts: Self::CpiAccounts<'info>,
-        infos: &mut Vec<AccountInfo<'info>>,
-    ) {
+    fn extend_account_infos(accounts: Self::CpiAccounts, infos: &mut Vec<AccountInfo<'info>>) {
         <Vec<T>>::extend_account_infos(accounts, infos);
     }
     #[inline]
     fn extend_account_metas(
         program_id: &Pubkey,
-        accounts: &Self::CpiAccounts<'info>,
+        accounts: &Self::CpiAccounts,
         metas: &mut Vec<AccountMeta>,
     ) {
         <Vec<T>>::extend_account_metas(program_id, accounts, metas);

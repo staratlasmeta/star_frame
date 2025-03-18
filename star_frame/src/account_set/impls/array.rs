@@ -20,17 +20,14 @@ impl<'info, A, const N: usize> CpiAccountSet<'info> for [A; N]
 where
     A: CpiAccountSet<'info>,
 {
-    type CpiAccounts<'a> = [A::CpiAccounts<'a>; N];
+    type CpiAccounts = [A::CpiAccounts; N];
     const MIN_LEN: usize = N * A::MIN_LEN;
     #[inline]
-    fn to_cpi_accounts(&self) -> Self::CpiAccounts<'info> {
+    fn to_cpi_accounts(&self) -> Self::CpiAccounts {
         self.each_ref().map(A::to_cpi_accounts)
     }
     #[inline]
-    fn extend_account_infos(
-        accounts: Self::CpiAccounts<'info>,
-        infos: &mut Vec<AccountInfo<'info>>,
-    ) {
+    fn extend_account_infos(accounts: Self::CpiAccounts, infos: &mut Vec<AccountInfo<'info>>) {
         for a in accounts {
             A::extend_account_infos(a, infos);
         }
@@ -38,7 +35,7 @@ where
     #[inline]
     fn extend_account_metas(
         program_id: &Pubkey,
-        accounts: &Self::CpiAccounts<'info>,
+        accounts: &Self::CpiAccounts,
         metas: &mut Vec<AccountMeta>,
     ) {
         for a in accounts {
