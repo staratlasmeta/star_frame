@@ -36,8 +36,6 @@ daggy = "0.8.0"
 derivative = "2.2.0"
 derive_more = { version = "1.0.0", features = ["full"] }
 easy_proc = "0.3.0"
-fixed = "=1.26.0"
-half = "2.4.0"
 heck = "0.5.0"
 itertools = "0.13.0"
 lazy_static = "1.4.0"
@@ -68,6 +66,13 @@ syn = { version = "2.0.40", features = ["extra-traits"] }
 tokio = "1.41.1"
 typenum = "1.17.0"
 ref-cast = "1.0"
+
+# locked versions
+base64ct = "<1.7.0"
+fixed = "<1.29.0"
+half = "<2.5.0"
+litemap = ">0.7.0,<0.7.5"
+zerofrom = "<0.1.6"
 
 [profile.release]
 overflow-checks = true
