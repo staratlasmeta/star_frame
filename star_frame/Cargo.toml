@@ -1,0 +1,50 @@
+[package]
+name = "star_frame"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+
+[features]
+cleanup_rent_warning = []
+idl = ["star_frame_idl", "serde_json"]
+test_helpers = []
+
+[dependencies]
+advancer = { workspace = true }
+anyhow = { workspace = true }
+array-init = { workspace = true }
+borsh = { workspace = true }
+bytemuck = { workspace = true }
+derivative = { workspace = true }
+derive_more = { workspace = true }
+fixed = { workspace = true }
+itertools = { workspace = true }
+num-traits = { workspace = true }
+paste = { workspace = true }
+solana-program = { workspace = true }
+star_frame_proc = { workspace = true }
+static_assertions = { workspace = true }
+typenum = { workspace = true }
+ref-cast.workspace = true
+
+# feature = idl
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true, optional = true }
+star_frame_idl = { workspace = true, optional = true }
+
+# locked versions
+base64ct.workspace = true
+half.workspace = true
+litemap.workspace = true
+zerofrom.workspace = true
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }
+lazy_static = { workspace = true }
+strum = { workspace = true, features = ["derive"] }
+rand = "0.8.5"
+
+[build-dependencies]
+rustc_version = { workspace = true }
+
