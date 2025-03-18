@@ -35,6 +35,7 @@ star_frame_idl = { workspace = true, optional = true }
 
 # locked versions
 base64ct.workspace = true
+bytemuck_derive.workspace = true
 half.workspace = true
 litemap.workspace = true
 zerofrom.workspace = true
