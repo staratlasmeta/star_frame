@@ -26,9 +26,9 @@ impl<'info> TestAccountInfo<'info> {
 }
 
 impl<'info> UnsizedTypeDataAccess<'info> for TestAccountInfo<'info> {
-    unsafe fn realloc(&self, new_len: usize, data: &mut &'info mut [u8]) -> Result<()> {
+    unsafe fn realloc(this: &Self, new_len: usize, data: &mut &'info mut [u8]) -> Result<()> {
         assert!(
-            new_len <= self.original_data_len + MAX_PERMITTED_DATA_INCREASE,
+            new_len <= this.original_data_len + MAX_PERMITTED_DATA_INCREASE,
             "data too large"
         );
 
@@ -37,12 +37,12 @@ impl<'info> UnsizedTypeDataAccess<'info> for TestAccountInfo<'info> {
         }
         Ok(())
     }
-    fn data_ref(&self) -> Result<Ref<&'info mut [u8]>> {
-        self.data.try_borrow().map_err(Into::into)
+    fn data_ref(this: &Self) -> Result<Ref<&'info mut [u8]>> {
+        this.data.try_borrow().map_err(Into::into)
     }
 
-    fn data_mut(&self) -> Result<RefMut<&'info mut [u8]>> {
-        self.data.try_borrow_mut().map_err(Into::into)
+    fn data_mut(this: &Self) -> Result<RefMut<&'info mut [u8]>> {
+        this.data.try_borrow_mut().map_err(Into::into)
     }
 }
 
@@ -65,7 +65,7 @@ where
         let data: &mut Vec<u8> = Box::leak(Box::default());
         let test_account = Box::leak(Box::new(TestAccountInfo::new(data, T::INIT_BYTES)));
         {
-            let mut data = &mut test_account.data_mut()?[..];
+            let mut data = &mut UnsizedTypeDataAccess::data_mut(test_account)?[..];
             unsafe {
                 T::init(&mut data, arg)?;
             }
