@@ -6,17 +6,17 @@ members = [
 ]
 
 [workspace.package]
-version = "0.0.3"
+version = "0.0.5"
 edition = "2021"
 publish = ["star-atlas"]
 rust-version = "1.79.0"
 
 [workspace.dependencies]
 # Keep the version in sync with the workspace.package.version
-star_frame = { path = "star_frame", registry = "star-atlas", version = "0.0.3" }
-star_frame_idl = { path = "star_frame_idl", registry = "star-atlas", version = "0.0.3" }
-star_frame_proc = { path = "star_frame_proc", registry = "star-atlas", version = "0.0.3" }
-star_frame_spl = { path = "star_frame_spl", registry = "star-atlas", version = "0.0.3" }
+star_frame = { path = "star_frame", registry = "star-atlas", version = "0.0.5" }
+star_frame_idl = { path = "star_frame_idl", registry = "star-atlas", version = "0.0.5" }
+star_frame_proc = { path = "star_frame_proc", registry = "star-atlas", version = "0.0.5" }
+star_frame_spl = { path = "star_frame_spl", registry = "star-atlas", version = "0.0.5" }
 
 
 # Non workspace crates
