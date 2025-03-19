@@ -24,5 +24,8 @@ solana-program = { workspace = true }
 semver = { workspace = true }
 itertools = { workspace = true }
 
+# locked versions
+bytemuck_derive.workspace = true
+
 [dev-dependencies]
 rand = { workspace = true }

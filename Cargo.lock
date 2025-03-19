@@ -5674,6 +5674,7 @@ version = "0.0.5"
 dependencies = [
  "anchor-lang-idl-spec",
  "anyhow",
+ "bytemuck_derive",
  "codama-nodes",
  "derivative",
  "derive_more 2.0.1",
