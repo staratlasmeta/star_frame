@@ -120,6 +120,7 @@ impl UnsizedListOffset for PackedValue<u32> {
 
 type PackedU32 = PackedValue<u32>;
 impl PackedU32 {
+    #[inline]
     fn usize(self) -> usize {
         self.0 as usize
     }
@@ -466,14 +467,14 @@ where
         unsafe {
             ExclusiveWrapper::try_map_ref(self, |data| {
                 let offset = data.offset_list[index].as_list_offset();
+                let end_index = data
+                    .offset_list
+                    .get(index + 1)
+                    .map_or(data.unsized_size.usize(), UnsizedListOffset::as_list_offset);
+
                 let unsized_data_slice/* '1 */ =
                     slice::from_raw_parts_mut(data.unsized_data_ptr, data.unsized_size.usize());
-                let ended_offset = offset
-                    + data
-                        .offset_list
-                        .get(index + 1)
-                        .map_or(data.unsized_size.usize(), UnsizedListOffset::as_list_offset);
-                let t = T::get_mut(&mut &mut unsized_data_slice[offset..][..ended_offset])?;
+                let t = T::get_mut(&mut &mut unsized_data_slice[offset..end_index])?;
                 data.inner_exclusive = Some(t);
                 Ok(data.inner_exclusive.as_mut().unwrap())
             })
