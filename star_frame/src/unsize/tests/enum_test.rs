@@ -168,7 +168,7 @@ fn unsized_enum_test() -> Result<()> {
     }
     compare_with_owned(&owned, &exclusive)?;
 
-    let new_owned = EnumTestStruct::owned_from_ref(exclusive.as_shared())?;
+    let new_owned = EnumTestStruct::owned_from_ref(EnumTestStruct::mut_as_ref(&exclusive))?;
     compare_with_owned(&new_owned, &exclusive)?;
     ensure!(owned == new_owned);
     Ok(())

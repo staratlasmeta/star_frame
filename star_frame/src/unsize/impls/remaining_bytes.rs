@@ -1,7 +1,6 @@
 use crate::align1::Align1;
 use crate::unsize::init::{DefaultInit, UnsizedInit};
 use crate::unsize::wrapper::ExclusiveWrapper;
-use crate::unsize::AsShared;
 use crate::unsize::UnsizedType;
 use crate::Result;
 use advancer::Advance;
@@ -48,19 +47,16 @@ impl<'a> DerefMut for RemainingBytesMut<'a> {
         unsafe { &mut *self.0 }
     }
 }
-impl<'a> AsShared<'a> for RemainingBytesMut<'_> {
-    type Shared<'b> = RemainingBytesRef<'b> where Self: 'a + 'b;
-
-    fn as_shared(&'a self) -> RemainingBytesRef<'a> {
-        RemainingBytesRef(self.0.cast_const(), PhantomData)
-    }
-}
 
 unsafe impl UnsizedType for RemainingBytes {
     type Ref<'a> = RemainingBytesRef<'a>;
     type Mut<'a> = RemainingBytesMut<'a>;
     type Owned = Vec<u8>;
     const ZST_STATUS: bool = false;
+
+    fn mut_as_ref<'a>(m: &'a Self::Mut<'_>) -> Self::Ref<'a> {
+        RemainingBytesRef(m.0, PhantomData)
+    }
 
     fn get_ref<'a>(data: &mut &'a [u8]) -> Result<Self::Ref<'a>> {
         let remaining_bytes = data.advance(data.len());
@@ -101,7 +97,7 @@ unsafe impl UnsizedType for RemainingBytes {
     }
 }
 
-#[unsized_impl]
+#[unsized_impl(inherent)]
 impl RemainingBytes {
     #[exclusive]
     pub fn set_len(&mut self, len: usize) -> Result<()> {

@@ -1,9 +1,8 @@
 use crate::align1::Align1;
 use crate::data_types::PackedValue;
+use crate::prelude::UnsizedTypeDataAccess;
 use crate::unsize::init::{DefaultInit, UnsizedInit};
-use crate::unsize::unsized_impl;
 use crate::unsize::wrapper::ExclusiveWrapper;
-use crate::unsize::AsShared;
 use crate::unsize::UnsizedType;
 use crate::util::uninit_array_bytes;
 use crate::Result;
@@ -290,17 +289,6 @@ where
         unsafe { &mut *self.0 }
     }
 }
-impl<'a, T, L> AsShared<'a> for ListMut<'_, T, L>
-where
-    L: ListLength,
-    T: CheckedBitPattern + NoUninit + Align1,
-{
-    type Shared<'b> = ListRef<'b, T, L> where Self: 'a, Self: 'b;
-
-    fn as_shared(&'a self) -> Self::Shared<'a> {
-        ListRef(self.0, PhantomData)
-    }
-}
 
 unsafe impl<T, L> UnsizedType for List<T, L>
 where
@@ -312,6 +300,10 @@ where
     type Owned = Vec<T>;
     const ZST_STATUS: bool = { size_of::<L>() != 0 };
 
+    fn mut_as_ref<'a>(m: &'a Self::Mut<'_>) -> Self::Ref<'a> {
+        ListRef(m.0, PhantomData)
+    }
+
     fn get_ref<'a>(data: &mut &'a [u8]) -> Result<Self::Ref<'a>> {
         let ptr = data.as_ptr();
         let length_bytes = data.try_advance(size_of::<L>())?;
@@ -319,7 +311,7 @@ where
         let length = len_l
             .to_usize()
             .ok_or_else(|| anyhow::anyhow!("Could not convert list size to usize"))?;
-        data.advance(size_of::<T>() * length);
+        data.try_advance(size_of::<T>() * length)?;
         Ok(ListRef(
             unsafe { &*ptr::from_raw_parts(ptr.cast::<()>(), size_of::<T>() * length) },
             PhantomData,
@@ -359,18 +351,18 @@ where
     }
 }
 
-#[unsized_impl]
-impl<T, L> List<T, L>
+impl<'parent, 'ptr, 'top, 'info, T, L, O, A>
+    ExclusiveWrapper<'parent, 'top, 'info, ListMut<'ptr, T, L>, O, A>
 where
+    O: UnsizedType + ?Sized,
+    A: UnsizedTypeDataAccess<'info>,
     T: Align1 + NoUninit + CheckedBitPattern,
     L: ListLength,
 {
-    #[exclusive]
     pub fn push(&mut self, item: T) -> Result<()> {
         let len = self.len();
         self.insert(len, item)
     }
-    #[exclusive]
     pub fn push_all<I>(&mut self, items: I) -> Result<()>
     where
         I: IntoIterator<Item = T>,
@@ -378,12 +370,10 @@ where
     {
         self.insert_all(self.len(), items)
     }
-    #[exclusive]
     pub fn insert(&mut self, index: usize, item: T) -> Result<()> {
         self.insert_all(index, iter::once(item))
     }
 
-    #[exclusive]
     pub fn insert_all<I>(&mut self, index: usize, items: I) -> Result<()>
     where
         I: IntoIterator,
@@ -421,20 +411,19 @@ where
                     Ok(())
                 },
             )?;
-        }
+        };
         for (i, value) in iter.enumerate() {
-            self.bytes[byte_index + i * size_of::<T>()..][..size_of::<T>()]
+            let bytes = &mut self.bytes;
+            bytes[byte_index + i * size_of::<T>()..][..size_of::<T>()]
                 .copy_from_slice(bytes_of(value.borrow()));
         }
         Ok(())
     }
 
-    #[exclusive]
     pub fn remove(&mut self, index: usize) -> Result<()> {
         self.remove_range(index..=index)
     }
 
-    #[exclusive]
     pub fn remove_range(&mut self, indexes: impl RangeBounds<usize>) -> Result<()> {
         let start = match indexes.start_bound() {
             std::ops::Bound::Included(start) => *start,
@@ -466,7 +455,7 @@ where
                     &mut *ptr::from_raw_parts_mut(list.0.cast::<()>(), new_len * size_of::<T>());
                 Ok(())
             })?;
-        }
+        };
         Ok(())
     }
 }
@@ -531,6 +520,7 @@ mod tests {
         let mut vec = byte_array.to_vec();
         let test_bytes = TestByteSet::<List<u8>>::new(&byte_array)?;
         let mut bytes = test_bytes.data_mut()?;
+        let _ = bytes.exclusive();
         bytes.exclusive().push_all([10, 11, 12])?;
         vec.extend_from_slice(&[10, 11, 12]);
         let list_bytes = &***bytes;

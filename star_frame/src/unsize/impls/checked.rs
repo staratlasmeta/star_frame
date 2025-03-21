@@ -1,5 +1,4 @@
 use crate::unsize::init::{DefaultInit, DefaultInitable, UnsizedInit};
-use crate::unsize::AsShared;
 use crate::unsize::UnsizedType;
 use crate::{align1::Align1, Result};
 use advancer::Advance;
@@ -20,6 +19,7 @@ impl<T> UnsizedGenerics for T where T: CheckedBitPattern + Align1 + NoUninit + Z
 pub struct CheckedRef<'a, T>(*const T, PhantomData<&'a ()>)
 where
     T: CheckedBitPattern + NoUninit + Align1;
+
 impl<'a, T> Deref for CheckedRef<'a, T>
 where
     T: CheckedBitPattern + NoUninit + Align1,
@@ -52,16 +52,6 @@ where
         unsafe { &mut *self.0 }
     }
 }
-impl<'a, T> AsShared<'a> for CheckedMut<'_, T>
-where
-    T: CheckedBitPattern + NoUninit + Align1,
-{
-    type Shared<'b> = CheckedRef<'b, T> where Self: 'a + 'b;
-
-    fn as_shared(&'a self) -> Self::Shared<'a> {
-        CheckedRef(self.0, PhantomData)
-    }
-}
 
 unsafe impl<T> UnsizedType for T
 where
@@ -71,6 +61,10 @@ where
     type Mut<'a> = CheckedMut<'a, T>;
     type Owned = Self;
     const ZST_STATUS: bool = { size_of::<T>() != 0 };
+
+    fn mut_as_ref<'a>(m: &'a Self::Mut<'_>) -> Self::Ref<'a> {
+        CheckedRef(m.0, m.1)
+    }
 
     fn get_ref<'a>(data: &mut &'a [u8]) -> Result<Self::Ref<'a>> {
         try_from_bytes(data.advance(size_of::<T>()))

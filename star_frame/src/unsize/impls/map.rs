@@ -1,6 +1,8 @@
 use crate::prelude::*;
 use bytemuck::AnyBitPattern;
 use star_frame_proc::unsized_impl;
+use std::collections::HashMap;
+use std::hash::Hash;
 
 #[star_frame_proc::derivative(Copy, Clone, Debug, PartialEq, Eq)]
 #[derive(Align1)]
@@ -39,10 +41,23 @@ unsafe impl<K: UnsizedGenerics, V: UnsizedGenerics> CheckedBitPattern for ListIt
     }
 }
 
-#[unsized_type(skip_idl, owned_attributes = [derive(Eq, PartialEq)])]
+fn map_owned_from_ref<K, V, L>(r: MapRef<'_, K, V, L>) -> Result<HashMap<K, V>>
+where
+    K: UnsizedGenerics + Ord + Hash,
+    V: UnsizedGenerics,
+    L: ListLength,
+{
+    let mut map = HashMap::new();
+    for ListItemSized { key, value } in r.list.as_checked_slice()?.iter().copied() {
+        map.insert(key, value);
+    }
+    Ok(map)
+}
+
+#[unsized_type(skip_idl, owned_type = HashMap<K, V>, owned_from_ref = map_owned_from_ref::<K, V, L>)]
 pub struct Map<K, V, L = u32>
 where
-    K: UnsizedGenerics + Ord,
+    K: UnsizedGenerics + Ord + Hash,
     V: UnsizedGenerics,
     L: ListLength,
 {
@@ -53,7 +68,7 @@ where
 #[unsized_impl]
 impl<K, V, L> Map<K, V, L>
 where
-    K: UnsizedGenerics + Ord,
+    K: UnsizedGenerics + Ord + Hash,
     V: UnsizedGenerics,
     L: ListLength,
 {
@@ -119,7 +134,7 @@ mod idl_impl {
     use star_frame_idl::IdlDefinition;
     impl<K, V, L> TypeToIdl for Map<K, V, L>
     where
-        K: UnsizedGenerics + TypeToIdl + Ord,
+        K: UnsizedGenerics + TypeToIdl + Ord + Hash,
         V: UnsizedGenerics + TypeToIdl,
         L: ListLength + TypeToIdl,
     {

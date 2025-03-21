@@ -1,5 +1,8 @@
 use crate::prelude::*;
 use crate::unsize::test_helpers::TestByteSet;
+// use crate::unsize::tests::struct_test::many_unsized::{
+//     ManyUnsized, ManyUnsizedExclusiveExt, ManyUnsizedOwned,
+// };
 use crate::unsize::tests::struct_test::many_unsized::{
     ManyUnsized, ManyUnsizedExclusiveExt, ManyUnsizedOwned,
 };
@@ -23,7 +26,9 @@ pub struct UnsizedTest3 {
 #[unsized_impl]
 impl UnsizedTest3 {
     #[exclusive]
-    fn foo<'c>(&'c mut self) -> ExclusiveWrapperT<'c, 'a, 'info, List<PackedValue<u16>, u8>, O, A> {
+    fn foo<'child>(
+        &'child mut self,
+    ) -> ExclusiveWrapperT<'child, 'ptr, 'top, 'info, List<PackedValue<u16>, u8>, O, A> {
         self.unsized3()
     }
 }

@@ -7,7 +7,7 @@ use quote::ToTokens;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::token::Bracket;
-use syn::{bracketed, parse_quote, Attribute, Expr, Item, Meta, Token, Type};
+use syn::{bracketed, parse_quote, Attribute, Expr, Item, Meta, Path, Token, Type};
 
 mod account;
 mod enum_impl;
@@ -44,6 +44,8 @@ impl Parse for UnsizedAttributeMetas {
 pub struct UnsizedTypeArgs {
     #[argument(default)]
     pub owned_attributes: UnsizedAttributeMetas,
+    pub owned_type: Option<Type>,
+    pub owned_from_ref: Option<Path>,
     #[argument(default)]
     pub sized_attributes: UnsizedAttributeMetas,
     #[argument(presence)]
@@ -55,6 +57,25 @@ pub struct UnsizedTypeArgs {
     pub program: Option<Type>,
     pub seeds: Option<Type>,
     pub discriminant: Option<Expr>,
+}
+
+impl UnsizedTypeArgs {
+    pub fn validate(&self) {
+        if let Some(owned_type) = &self.owned_type {
+            if !self.owned_attributes.attributes.is_empty() {
+                abort!(
+                    owned_type,
+                    "owned_attributes cannot be used with a custom owned_type"
+                )
+            }
+            if self.owned_from_ref.is_none() {
+                abort!(
+                    owned_type,
+                    "owned_from_ref must be specified when using a custom owned_type"
+                )
+            }
+        }
+    }
 }
 
 pub fn reject_non_ty_gen(item: &impl GetGenerics) {
@@ -74,6 +95,7 @@ pub fn reject_non_ty_gen(item: &impl GetGenerics) {
 pub fn unsized_type_impl(item: Item, args: TokenStream) -> TokenStream {
     let args_attr: Attribute = parse_quote!(#[unsized_type(#args)]);
     let unsized_args = UnsizedTypeArgs::parse_arguments(&args_attr);
+    unsized_args.validate();
     match item {
         Item::Struct(struct_item) => {
             reject_non_ty_gen(&struct_item);
