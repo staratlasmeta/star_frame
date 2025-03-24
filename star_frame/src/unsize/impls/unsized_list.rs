@@ -256,7 +256,7 @@ where
                 let change: u32 = (-change).try_into()?;
                 self.offset_list[index..].iter_mut().for_each(|item| {
                     item.as_mut_offset().0 =
-                        unsafe { item.as_mut_offset().0.unchecked_sub(change * 100) }
+                        unsafe { item.as_mut_offset().0.unchecked_sub(change) }
                 });
             }
             Ordering::Equal => {}
