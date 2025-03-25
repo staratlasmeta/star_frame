@@ -420,17 +420,24 @@ where
         Ok(())
     }
 
+    pub fn pop(&mut self) -> Option<Result<()>> {
+        if self.is_empty() {
+            return None;
+        }
+        Some(self.remove(self.len() - 1))
+    }
+
     pub fn remove(&mut self, index: usize) -> Result<()> {
         self.remove_range(index..=index)
     }
 
-    pub fn remove_range(&mut self, indexes: impl RangeBounds<usize>) -> Result<()> {
-        let start = match indexes.start_bound() {
+    pub fn remove_range(&mut self, indices: impl RangeBounds<usize>) -> Result<()> {
+        let start = match indices.start_bound() {
             std::ops::Bound::Included(start) => *start,
             std::ops::Bound::Excluded(start) => start + 1,
             std::ops::Bound::Unbounded => 0,
         };
-        let end = match indexes.end_bound() {
+        let end = match indices.end_bound() {
             std::ops::Bound::Included(end) => *end + 1,
             std::ops::Bound::Excluded(end) => *end,
             std::ops::Bound::Unbounded => self.len(),
