@@ -64,16 +64,19 @@ where
     T: CheckedBitPattern + NoUninit + Align1,
     L: ListLength,
 {
+    #[inline]
     pub fn len(&self) -> usize {
         self.len
             .to_usize()
             .expect("Could not convert list size to usize")
     }
 
+    #[inline]
     pub fn is_empty(&self) -> bool {
         self.bytes.is_empty()
     }
 
+    #[inline]
     pub fn get(&self, index: usize) -> Option<&T> {
         if index < self.len() {
             Some(&self[index])
@@ -82,6 +85,7 @@ where
         }
     }
 
+    #[inline]
     pub fn get_mut(&mut self, index: usize) -> Option<&mut T> {
         if index < self.len() {
             Some(&mut self[index])
@@ -90,6 +94,7 @@ where
         }
     }
 
+    #[inline]
     pub fn as_slice(&self) -> &[T]
     where
         T: Pod,
@@ -97,6 +102,7 @@ where
         cast_slice(&self.bytes)
     }
 
+    #[inline]
     pub fn as_mut_slice(&mut self) -> &mut [T]
     where
         T: Pod,
@@ -104,10 +110,12 @@ where
         cast_slice_mut(&mut self.bytes)
     }
 
+    #[inline]
     pub fn as_checked_slice(&self) -> Result<&[T]> {
         checked::try_cast_slice(&self.bytes).map_err(Into::into)
     }
 
+    #[inline]
     pub fn as_checked_mut_slice(&mut self) -> Result<&mut [T]> {
         checked::try_cast_slice_mut(&mut self.bytes).map_err(Into::into)
     }
@@ -359,10 +367,12 @@ where
     T: Align1 + NoUninit + CheckedBitPattern,
     L: ListLength,
 {
+    #[inline]
     pub fn push(&mut self, item: T) -> Result<()> {
         let len = self.len();
         self.insert(len, item)
     }
+    #[inline]
     pub fn push_all<I>(&mut self, items: I) -> Result<()>
     where
         I: IntoIterator<Item = T>,
@@ -370,6 +380,7 @@ where
     {
         self.insert_all(self.len(), items)
     }
+    #[inline]
     pub fn insert(&mut self, index: usize, item: T) -> Result<()> {
         self.insert_all(index, iter::once(item))
     }
@@ -420,6 +431,7 @@ where
         Ok(())
     }
 
+    #[inline]
     pub fn pop(&mut self) -> Option<Result<()>> {
         if self.is_empty() {
             return None;
@@ -427,6 +439,7 @@ where
         Some(self.remove(self.len() - 1))
     }
 
+    #[inline]
     pub fn remove(&mut self, index: usize) -> Result<()> {
         self.remove_range(index..=index)
     }
@@ -510,6 +523,7 @@ where
 {
     const INIT_BYTES: usize = <Self as UnsizedInit<&[T; N]>>::INIT_BYTES;
 
+    #[inline]
     unsafe fn init(bytes: &mut &mut [u8], array: [T; N]) -> Result<()> {
         unsafe { <Self as UnsizedInit<&[T; N]>>::init(bytes, &array) }
     }
