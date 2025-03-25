@@ -1,0 +1,52 @@
+name: build-lint-test
+
+on:
+  merge_group:
+  pull_request:
+    branches: ['main']
+    types: [synchronize, opened, reopened]
+
+jobs:
+  build:
+    runs-on:
+      group: star-atlas-large-runners
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/install-binaries
+        with:
+          ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
+          private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+          build: 'true'
+
+  lint:
+    runs-on:
+      group: star-atlas-large-runners
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/install-binaries
+        with:
+          ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
+          private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+      - run: cargo clippy --all-targets --all-features
+
+  fmt:
+    runs-on:
+      group: star-atlas-large-runners
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/install-binaries
+        with:
+          ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
+          private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+      - run: cargo fmt --check
+
+  test:
+    runs-on:
+      group: star-atlas-large-runners
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/install-binaries
+        with:
+          ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
+          private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+      - run: cargo test --all-features
