@@ -15,6 +15,7 @@ pub struct UnsizedTest {
     pub unsized1: List<PackedValue<u16>, u8>,
     pub unsized3: UnsizedTest3,
     pub unsized2: List<PackedValue<u16>, u8>,
+    pub map: Map<u8, PackedValue<u16>>,
 }
 
 #[unsized_type(owned_attributes = [derive(PartialEq, Eq, Clone)])]
@@ -42,6 +43,7 @@ fn test_unsized_simple() -> Result<()> {
         unsized3: UnsizedTest3Init {
             unsized3: [150, 151, 152].map(Into::into),
         },
+        map: DefaultInit,
     })?;
     let mut data_mut = r.data_mut()?;
 
@@ -59,6 +61,9 @@ fn test_unsized_simple() -> Result<()> {
     assert_eq!(&**banana.unsized1, [100, 101, 102, 103]);
     assert_eq!(&**banana.unsized2, [200, 201, 202, 203]);
     assert_eq!(&**banana.unsized3.unsized3, [150, 151, 152, 153]);
+    for (key, value) in &mut banana.map {
+        println!("{key:?}: {value:?}");
+    }
 
     drop(data_mut);
 
@@ -68,6 +73,7 @@ fn test_unsized_simple() -> Result<()> {
         unsized3: UnsizedTest3Owned {
             unsized3: [150, 151, 152, 153].map(Into::into).to_vec(),
         },
+        map: Default::default(),
     };
     let owned = UnsizedTest::owned_from_ref(*r.data_ref()?)?;
     assert_eq!(owned, expected);
