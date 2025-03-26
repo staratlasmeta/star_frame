@@ -67,14 +67,14 @@ where
     }
 
     fn get_ref<'a>(data: &mut &'a [u8]) -> Result<Self::Ref<'a>> {
-        try_from_bytes(data.advance(size_of::<T>()))
+        try_from_bytes(data.try_advance(size_of::<T>())?)
             .map(std::ptr::from_ref)
             .map(|r| CheckedRef(r, PhantomData))
             .context("Invalid data for type")
     }
 
     fn get_mut<'a>(data: &mut &'a mut [u8]) -> Result<Self::Mut<'a>> {
-        try_from_bytes_mut(data.advance(size_of::<T>()))
+        try_from_bytes_mut(data.try_advance(size_of::<T>())?)
             .map(std::ptr::from_mut)
             .map(|r| CheckedMut(r, PhantomData))
             .context("Invalid data for type")

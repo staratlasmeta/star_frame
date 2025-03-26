@@ -59,7 +59,7 @@ unsafe impl UnsizedType for RemainingBytes {
     }
 
     fn get_ref<'a>(data: &mut &'a [u8]) -> Result<Self::Ref<'a>> {
-        let remaining_bytes = data.advance(data.len());
+        let remaining_bytes = data.try_advance(data.len())?;
         let ptr = remaining_bytes.as_ptr();
         Ok(RemainingBytesRef(
             unsafe { &*ptr::from_raw_parts(ptr.cast::<()>(), remaining_bytes.len()) },
@@ -68,7 +68,7 @@ unsafe impl UnsizedType for RemainingBytes {
     }
 
     fn get_mut<'a>(data: &mut &'a mut [u8]) -> Result<Self::Mut<'a>> {
-        let remaining_bytes = data.advance(data.len());
+        let remaining_bytes = data.try_advance(data.len())?;
         let ptr = remaining_bytes.as_mut_ptr();
         Ok(RemainingBytesMut(
             unsafe { &mut *ptr::from_raw_parts_mut(ptr.cast::<()>(), remaining_bytes.len()) },
@@ -150,7 +150,7 @@ unsafe impl<const N: usize> UnsizedInit<&[u8; N]> for RemainingBytes {
     const INIT_BYTES: usize = N;
 
     unsafe fn init(bytes: &mut &mut [u8], array: &[u8; N]) -> Result<()> {
-        bytes.advance(N).copy_from_slice(array);
+        bytes.try_advance(N)?.copy_from_slice(array);
         Ok(())
     }
 }

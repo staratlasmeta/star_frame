@@ -489,7 +489,7 @@ where
 
     unsafe fn init(bytes: &mut &mut [u8], _arg: DefaultInit) -> Result<()> {
         bytes
-            .advance(<Self as UnsizedInit<DefaultInit>>::INIT_BYTES)
+            .try_advance(<Self as UnsizedInit<DefaultInit>>::INIT_BYTES)?
             .copy_from_slice(bytes_of(&<PackedValue<L>>::zeroed()));
         Ok(())
     }
@@ -509,7 +509,7 @@ where
                 type_name::<L>()
             )
         })?;
-        let array_bytes = bytes.advance(<Self as UnsizedInit<&[T; N]>>::INIT_BYTES);
+        let array_bytes = bytes.try_advance(<Self as UnsizedInit<&[T; N]>>::INIT_BYTES)?;
         array_bytes[0..size_of::<L>()].copy_from_slice(bytes_of(&len_bytes));
         array_bytes[size_of::<L>()..].copy_from_slice(uninit_array_bytes(array));
         Ok(())
