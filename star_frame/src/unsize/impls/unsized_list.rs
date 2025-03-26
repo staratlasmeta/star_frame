@@ -87,7 +87,7 @@ mod idl_impl {
 
     impl<T, C> TypeToIdl for UnsizedList<T, C>
     where
-        T: UnsizedType + TypeToIdl,
+        T: UnsizedType + ?Sized + TypeToIdl,
         C: UnsizedListOffset + TypeToIdl,
     {
         type AssociatedProgram = System;
