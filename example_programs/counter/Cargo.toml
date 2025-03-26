@@ -12,6 +12,7 @@ name = "counter"
 default = ["idl"]
 no-entrypoint = []
 idl = ["star_frame/idl"]
+locked-versions = ["star_frame/locked-versions"]
 
 [dependencies]
 borsh = { workspace = true }
