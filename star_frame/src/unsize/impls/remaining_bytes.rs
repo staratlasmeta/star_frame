@@ -1,6 +1,7 @@
 use crate::align1::Align1;
 use crate::unsize::init::{DefaultInit, UnsizedInit};
 use crate::unsize::wrapper::ExclusiveWrapper;
+use crate::unsize::FromOwned;
 use crate::unsize::UnsizedType;
 use crate::Result;
 use advancer::Advance;
@@ -94,6 +95,17 @@ unsafe impl UnsizedType for RemainingBytes {
             }
         }
         Ok(())
+    }
+}
+
+impl FromOwned for RemainingBytes {
+    fn byte_size(owned: &Self::Owned) -> usize {
+        owned.len()
+    }
+
+    fn from_owned(owned: Self::Owned, out: &mut [u8]) -> Result<usize> {
+        out.copy_from_slice(&owned);
+        Ok(owned.len())
     }
 }
 

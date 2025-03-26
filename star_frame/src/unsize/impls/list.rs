@@ -4,6 +4,7 @@ use crate::prelude::UnsizedTypeDataAccess;
 use crate::unsize::init::{DefaultInit, UnsizedInit};
 use crate::unsize::wrapper::ExclusiveWrapper;
 use crate::unsize::UnsizedType;
+use crate::unsize::{unsized_impl, FromOwned};
 use crate::util::uninit_array_bytes;
 use crate::Result;
 use advancer::Advance;
@@ -374,6 +375,28 @@ where
             self_mut.0 = unsafe { self_ptr.byte_offset(change) };
         }
         Ok(())
+    }
+}
+
+impl<T, L> FromOwned for List<T, L>
+where
+    L: ListLength,
+    T: Align1 + CheckedBitPattern + NoUninit,
+{
+    fn byte_size(owned: &Self::Owned) -> usize {
+        size_of::<L>() + size_of::<T>() * owned.len()
+    }
+
+    fn from_owned(owned: Self::Owned, out: &mut [u8]) -> Result<usize> {
+        out[..size_of::<L>()].copy_from_slice(bytes_of(&L::from_usize(owned.len()).unwrap()));
+        let mut offset = size_of::<L>();
+
+        for item in &owned {
+            out[offset..][..size_of::<T>()].copy_from_slice(bytes_of(item));
+            offset += size_of::<T>();
+        }
+
+        Ok(size_of::<L>() + size_of::<T>() * owned.len())
     }
 }
 

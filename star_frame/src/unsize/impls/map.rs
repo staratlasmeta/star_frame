@@ -1,4 +1,5 @@
 use crate::prelude::*;
+use crate::unsize::FromOwned;
 use bytemuck::AnyBitPattern;
 use star_frame_proc::unsized_impl;
 use std::collections::BTreeMap;
@@ -342,6 +343,20 @@ where
     type IntoIter = MapIterMut<'a, K, V, L>;
     fn into_iter(self) -> Self::IntoIter {
         self.iter_mut()
+    }
+}
+impl<K, V, L> FromOwned for Map<K, V, L>
+where
+    K: UnsizedGenerics + Ord,
+    V: UnsizedGenerics,
+    L: ListLength,
+{
+    fn byte_size(owned: &Self::Owned) -> usize {
+        List::<ListItemSized<K, V>, L>::byte_size(&owned.list)
+    }
+
+    fn from_owned(owned: Self::Owned, out: &mut [u8]) -> Result<usize> {
+        List::<ListItemSized<K, V>, L>::from_owned(owned.list, out)
     }
 }
 
