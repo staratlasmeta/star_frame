@@ -68,6 +68,11 @@ pub enum IdlTypeDef {
         len_ty: Box<IdlTypeDef>,
         item_ty: Box<IdlTypeDef>,
     },
+    UnsizedList {
+        len_ty: Box<IdlTypeDef>,
+        offset_ty: Box<IdlTypeDef>,
+        item_ty: Box<IdlTypeDef>,
+    },
     Set {
         len_ty: Box<IdlTypeDef>,
         item_ty: Box<IdlTypeDef>,

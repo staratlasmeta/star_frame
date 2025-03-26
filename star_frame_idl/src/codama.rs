@@ -468,8 +468,7 @@ impl TryToCodama<TypeNode> for IdlTypeDef {
             IdlTypeDef::String => SizePrefixTypeNode::<TypeNode>::new(
                 StringTypeNode::utf8(),
                 NumberTypeNode::le(Num::U32),
-            )
-            .into_type_node(),
+            ).into_type_node(),
             IdlTypeDef::Pubkey => PublicKeyTypeNode {}.into_type_node(),
             IdlTypeDef::FixedPoint { ty, .. } => ty.try_to_codama(idl_def, _context)?,
             IdlTypeDef::Option(e) => {
@@ -498,16 +497,14 @@ impl TryToCodama<TypeNode> for IdlTypeDef {
                         })
                     })
                     .try_collect()?,
-            )
-            .into_type_node(),
+            ).into_type_node(),
             IdlTypeDef::Enum { variants, size } => EnumTypeNode {
                 variants: variants
                     .iter()
                     .map(|variant| variant.try_to_codama(idl_def, _context))
                     .try_collect()?,
                 size: size.try_to_codama(idl_def, _context)?.as_number()?.into(),
-            }
-            .into_type_node(),
+            }.into_type_node(),
             IdlTypeDef::Set { len_ty, item_ty } => {
                 let len_ty = len_ty.try_to_codama(idl_def, _context)?.as_number()?;
                 SetTypeNode::prefixed(item_ty.try_to_codama(idl_def, _context)?, len_ty)
@@ -523,12 +520,38 @@ impl TryToCodama<TypeNode> for IdlTypeDef {
                     key_ty.try_to_codama(idl_def, _context)?,
                     value_ty.try_to_codama(idl_def, _context)?,
                     len_ty,
-                )
-                .into_type_node()
+                ).into_type_node()
             }
             IdlTypeDef::RemainingBytes => {
                 ArrayTypeNode::remainder(number(Num::U8)).into_type_node()
             }
+            IdlTypeDef::UnsizedList {
+                len_ty,
+                offset_ty,
+                item_ty,
+            } => StructTypeNode::new(vec![
+                StructFieldTypeNode {
+                    name: "unsized_len".into(),
+                    default_value_strategy: Some(DefaultValueStrategy::Omitted),
+                    docs: vec!["The total size of the unsized bytes in the list".into()].into(),
+                    r#type: len_ty.try_to_codama(idl_def, _context)?,
+                    default_value: None,
+                },
+                StructFieldTypeNode {
+                    name: "offset_list".into(),
+                    default_value_strategy: Some(DefaultValueStrategy::Omitted),
+                    docs: vec!["The list of items containing offsets, and potentially extra metadata, for the start of each element in the unsized list".into()].into(),
+                    r#type: IdlTypeDef::List { item_ty: offset_ty.clone(), len_ty: len_ty.clone() }.try_to_codama(idl_def, _context)?,
+                    default_value: None,
+                },
+                StructFieldTypeNode {
+                    name: "unsized_list".into(),
+                    default_value_strategy: Some(DefaultValueStrategy::Omitted),
+                    docs: vec!["The list of byte offsets for the start of each element in the unsized list".into()].into(),
+                    r#type: IdlTypeDef::List { item_ty: item_ty.clone(), len_ty: len_ty.clone() }.try_to_codama(idl_def, _context)?,
+                    default_value: None,
+                },
+            ]).into_type_node(),
             IdlTypeDef::Generic(_) => bail!("Generic types are not supported in Codama"),
         };
         Ok(node)
