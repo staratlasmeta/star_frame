@@ -58,6 +58,13 @@ pub unsafe trait UnsizedType: 'static {
     ) -> Result<()>;
 }
 
+pub trait FromOwned: UnsizedType {
+    fn byte_size(owned: &Self::Owned) -> usize;
+
+    /// Returns the number of bytes written. Errors if the buffer is too small (< `byte_size`).
+    fn from_owned(owned: Self::Owned, out: &mut [u8]) -> Result<usize>;
+}
+
 // todo: convert these tests to TryBuild
 /// # Test ZST on sized
 /// ```compile_fail
