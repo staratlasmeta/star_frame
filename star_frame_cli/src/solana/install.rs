@@ -45,15 +45,6 @@ impl HandleCommand for SolanaInstallArgs {
                         }
                     }
                 }
-                let mut install_solana_command: Command;
-                #[cfg(any(target_os = "linux", target_os = "macos"))]
-                {
-                    install_solana_command = Command::new("sh");
-                    install_solana_command.arg("-c").arg(format!(
-                        "$(curl -sSfL https://release.solana.com/v{}/install)",
-                        self.version
-                    ));
-                }
                 #[cfg(target_os = "windows")]
                 {
                     return Err(anyhow!("Windows is not supported for install"));
@@ -62,18 +53,27 @@ impl HandleCommand for SolanaInstallArgs {
                 {
                     return Err(anyhow!("Unsupported OS for install"));
                 }
-                println!("Running command {:?}", install_solana_command);
-                let status = install_solana_command
-                    .status()
-                    .map_err(|e| anyhow!("Failed to install solana tools: {}", e))?;
-                if status.success() {
-                    println!("Successfully installed solana version {}", &self.version);
-                } else {
-                    return Err(anyhow!("Failed to install solana tools"));
+                #[cfg(any(target_os = "linux", target_os = "macos"))]
+                {
+                    let mut install_solana_command: Command;
+                    install_solana_command = Command::new("sh");
+                    install_solana_command.arg("-c").arg(format!(
+                        "$(curl -sSfL https://release.solana.com/v{}/install)",
+                        self.version
+                    ));
+                    println!("Running command {:?}", install_solana_command);
+                    let status = install_solana_command
+                        .status()
+                        .map_err(|e| anyhow!("Failed to install solana tools: {}", e))?;
+                    if status.success() {
+                        println!("Successfully installed solana version {}", &self.version);
+                    } else {
+                        return Err(anyhow!("Failed to install solana tools"));
+                    }
+                    command().status().map_err(|e| {
+                        anyhow!("Failed to run `solana-install` after install: {}", e)
+                    })?
                 }
-                command()
-                    .status()
-                    .map_err(|e| anyhow!("Failed to run `solana-install` after install: {}", e))?
             }
         };
 
