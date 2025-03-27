@@ -957,11 +957,10 @@ where
             .get_unsized_range(self.index)
             .expect("Index is in bounds");
 
-        let data = unsafe {
-            slice::from_raw_parts(self.list.unsized_data_ptr(), self.list.unsized_size.usize())
+        let mut item_data = unsafe {
+            slice::from_raw_parts(self.list.unsized_data_ptr().byte_add(start), end - start)
         };
         let offset = self.list.offset_list[self.index];
-        let mut item_data = &data[start..end];
         self.index += 1;
         Some(T::get_ref(&mut item_data).map(|item| (item, offset)))
     }
@@ -988,13 +987,12 @@ where
             .get_unsized_range(self.index)
             .expect("Index is in bounds");
 
-        let data = unsafe {
+        let mut item_data = unsafe {
             slice::from_raw_parts_mut(
-                self.list.unsized_data_ptr_mut(),
-                self.list.unsized_size.usize(),
+                self.list.unsized_data_ptr_mut().byte_add(start),
+                end - start,
             )
         };
-        let mut item_data = &mut data[start..end];
         let offset = self.list.offset_list[self.index];
         self.index += 1;
         Some(T::get_mut(&mut item_data).map(|item| (item, offset)))
@@ -1088,15 +1086,33 @@ mod tests {
         #[unsized_start]
         list: List<u8>,
     }
-    #[test]
-    fn unsized_list_crud() -> Result<()> {
-        // TODO: finish these
-        // let byte_arrays = [[100u8, 101, 102], [200, 201, 202]];
-        // let test_bytes = TestByteSet::<UnsizedList<List<u8>>>::new(byte_arrays)?;
-        // let mut owned = vec![vec![100u8, 101, 102], vec![200, 201, 202]];
-        // let mut bytes = test_bytes.data_mut()?;
 
-        // owned.push(vec![50]);
+    #[test]
+    fn list_iters() -> Result<()> {
+        type TestList = UnsizedList<List<u8>>;
+        let byte_arrays = [[100u8, 101, 102], [150, 151, 152], [200, 201, 202]];
+        let test_bytes = TestByteSet::<TestList>::new(byte_arrays)?;
+        let mut owned = byte_arrays.map(|array| array.to_vec()).to_vec();
+        let mut unsized_lists = test_bytes.data_mut()?;
+        for (list, owned_list) in unsized_lists.iter_mut().zip(owned.iter_mut()) {
+            let mut list = list?;
+            assert_eq!(&**list, owned_list);
+            for (item, owned_item) in list.iter_mut().zip(owned_list.iter_mut()) {
+                *item += 1;
+                *owned_item += 1;
+            }
+            for (item, owned_item) in list.iter().zip(owned_list.iter()) {
+                assert_eq!(item, owned_item);
+            }
+            assert_eq!(&**list, owned_list);
+        }
+
+        for (list, owned_list) in unsized_lists.iter().zip(owned.iter()) {
+            let list = list?;
+            assert_eq!(&**list, owned_list);
+        }
+        let to_owned = TestList::owned_from_ref(TestList::mut_as_ref(&unsized_lists))?;
+        assert_eq!(to_owned, owned);
         Ok(())
     }
 
