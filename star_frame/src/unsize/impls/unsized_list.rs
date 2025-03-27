@@ -16,6 +16,7 @@ use itertools::Itertools;
 use num_traits::ToPrimitive;
 use solana_program::program_memory::sol_memmove;
 use std::cmp::Ordering;
+use std::iter::FusedIterator;
 use std::marker::PhantomData;
 use std::mem::size_of;
 use std::ops::{Deref, DerefMut, RangeBounds};
@@ -72,7 +73,7 @@ where
     phantom_t: PhantomData<fn() -> T>,
     unsized_size: PackedU32,
     len: PackedU32,
-    offset_list: [C],
+    pub(super) offset_list: [C],
     // copy of len
     // bytes of unsized data
 }
@@ -114,6 +115,24 @@ where
     #[inline]
     pub fn is_empty(&self) -> bool {
         self.len.0 == 0
+    }
+
+    #[inline]
+    unsafe fn unsized_bytes(&self) -> &[u8] {
+        unsafe { slice::from_raw_parts(self.unsized_data_ptr(), self.unsized_size.usize()) }
+    }
+    #[inline]
+    unsafe fn unsized_bytes_mut(&mut self) -> &mut [u8] {
+        unsafe { slice::from_raw_parts_mut(self.unsized_data_ptr_mut(), self.unsized_size.usize()) }
+    }
+
+    fn unsized_list_len(&mut self) -> &mut PackedU32 {
+        let unsized_len_ptr = unsafe {
+            self.unsized_data_ptr_mut()
+                .byte_sub(U32_SIZE)
+                .cast::<PackedU32>()
+        };
+        unsafe { &mut *unsized_len_ptr }
     }
 
     fn adjust_offsets(&mut self, start_index: usize, change: isize) -> Result<()> {
@@ -163,6 +182,22 @@ where
         Ok(())
     }
 
+    fn adjust_offsets_from_ptr(&mut self, source_ptr: *const (), change: isize) -> Result<()> {
+        if self.offset_list.is_empty() {
+            return Ok(());
+        }
+        let adjusted_source =
+            unsafe { source_ptr.byte_sub(self.unsized_data_ptr() as usize) } as usize;
+        let start_index = match self
+            .offset_list
+            .binary_search_by(|offset| offset.to_usize_offset().cmp(&adjusted_source))
+        {
+            Ok(index) => index + 1,
+            Err(index) => index,
+        };
+        self.adjust_offsets(start_index, change)
+    }
+
     #[must_use]
     #[inline]
     pub fn total_byte_size(&self) -> usize {
@@ -177,7 +212,26 @@ where
         )
     }
 
-    #[inline]
+    unsafe fn unsized_data_ptr(&self) -> *const u8 {
+        unsafe {
+            self.offset_list
+                .as_ptr()
+                .add(self.len())
+                .byte_add(U32_SIZE)
+                .cast()
+        }
+    }
+
+    unsafe fn unsized_data_ptr_mut(&mut self) -> *mut u8 {
+        unsafe {
+            self.offset_list
+                .as_mut_ptr()
+                .add(self.len())
+                .byte_add(U32_SIZE)
+                .cast()
+        }
+    }
+
     fn get_unsized_range(&self, index: usize) -> Option<(usize, usize)> {
         let start_index = self.offset_list.get(index)?;
         let start_bound = start_index.to_usize_offset();
@@ -186,103 +240,6 @@ where
             UnsizedListOffset::to_usize_offset,
         );
         Some((start_bound, end_bound))
-    }
-}
-
-#[derive(Derivative)]
-#[derivative(Copy(bound = ""), Clone(bound = ""))]
-#[derive(Debug)]
-pub struct UnsizedListRef<'a, T, C>
-where
-    T: UnsizedType + ?Sized,
-    C: UnsizedListOffset,
-{
-    list_ptr: *const UnsizedList<T, C>,
-    unsized_data_ptr: *const u8,
-    phantom: PhantomData<&'a ()>,
-}
-
-impl<'a, T, C> Deref for UnsizedListRef<'a, T, C>
-where
-    T: UnsizedType + ?Sized,
-    C: UnsizedListOffset,
-{
-    type Target = UnsizedList<T, C>;
-
-    fn deref(&self) -> &Self::Target {
-        unsafe { &*self.list_ptr }
-    }
-}
-
-#[derive(Debug)]
-pub struct UnsizedListMut<'a, T, C>
-where
-    T: UnsizedType + ?Sized,
-    C: UnsizedListOffset,
-{
-    list_ptr: *mut UnsizedList<T, C>,
-    unsized_data_ptr: *mut u8, // should be 'a
-    inner_exclusive: Option<T::Mut<'a>>,
-    phantom: PhantomData<&'a ()>,
-}
-
-impl<'a, T, C> Deref for UnsizedListMut<'a, T, C>
-where
-    T: UnsizedType + ?Sized,
-    C: UnsizedListOffset,
-{
-    type Target = UnsizedList<T, C>;
-
-    fn deref(&self) -> &Self::Target {
-        unsafe { &*self.list_ptr }
-    }
-}
-
-impl<'a, T, C> DerefMut for UnsizedListMut<'a, T, C>
-where
-    T: UnsizedType + ?Sized,
-    C: UnsizedListOffset,
-{
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        unsafe { &mut *self.list_ptr }
-    }
-}
-
-#[unsized_impl(inherent)]
-impl<T, C> UnsizedList<T, C>
-where
-    T: UnsizedType + ?Sized,
-    C: UnsizedListOffset,
-{
-    #[inline]
-    unsafe fn unsized_bytes(&self) -> &[u8] {
-        unsafe { slice::from_raw_parts(self.unsized_data_ptr, self.unsized_size.usize()) }
-    }
-    #[inline]
-    unsafe fn unsized_bytes_mut(&mut self) -> &mut [u8] {
-        unsafe { slice::from_raw_parts_mut(self.unsized_data_ptr, self.unsized_size.usize()) }
-    }
-
-    fn unsized_list_len(&mut self) -> &mut PackedU32 {
-        let unsized_len_ptr =
-            unsafe { self.unsized_data_ptr.byte_sub(U32_SIZE).cast::<PackedU32>() };
-        unsafe { &mut *unsized_len_ptr }
-    }
-
-    fn adjust_offsets_from_ptr(&mut self, source_ptr: *const (), change: isize) -> Result<()> {
-        if self.offset_list.is_empty() {
-            return Ok(());
-        }
-        let adjusted_source =
-            unsafe { source_ptr.byte_sub(self.unsized_data_ptr as usize) } as usize;
-        let start_index = match self
-            .offset_list
-            .binary_search_by(|offset| offset.to_usize_offset().cmp(&adjusted_source))
-        {
-            Ok(index) => index + 1,
-            Err(index) => index,
-        };
-        self.adjust_offsets(start_index, change)
     }
 
     #[must_use]
@@ -339,6 +296,90 @@ where
     pub fn index_mut(&mut self, index: usize) -> Result<T::Mut<'_>> {
         self.get_mut(index).context("Index out of bounds")?
     }
+
+    pub(super) fn iter_with_offsets(&self) -> UnsizedListWithOffsetIter<'_, T, C> {
+        UnsizedListWithOffsetIter {
+            list: self,
+            index: 0,
+        }
+    }
+
+    pub(super) fn iter_with_offsets_mut(&mut self) -> UnsizedListWithOffsetIterMut<'_, T, C> {
+        UnsizedListWithOffsetIterMut {
+            list: self,
+            index: 0,
+        }
+    }
+
+    #[inline]
+    pub fn iter(&self) -> UnsizedListIter<'_, T, C> {
+        UnsizedListIter {
+            iter: self.iter_with_offsets(),
+        }
+    }
+    #[inline]
+    pub fn iter_mut(&mut self) -> UnsizedListIterMut<'_, T, C> {
+        UnsizedListIterMut {
+            iter: self.iter_with_offsets_mut(),
+        }
+    }
+}
+
+#[derive(Derivative)]
+#[derivative(Copy(bound = ""), Clone(bound = ""))]
+#[derive(Debug)]
+pub struct UnsizedListRef<'a, T, C>
+where
+    T: UnsizedType + ?Sized,
+    C: UnsizedListOffset,
+{
+    list_ptr: *const UnsizedList<T, C>,
+    phantom: PhantomData<&'a ()>,
+}
+
+impl<'a, T, C> Deref for UnsizedListRef<'a, T, C>
+where
+    T: UnsizedType + ?Sized,
+    C: UnsizedListOffset,
+{
+    type Target = UnsizedList<T, C>;
+
+    fn deref(&self) -> &Self::Target {
+        unsafe { &*self.list_ptr }
+    }
+}
+
+#[derive(Debug)]
+pub struct UnsizedListMut<'a, T, C>
+where
+    T: UnsizedType + ?Sized,
+    C: UnsizedListOffset,
+{
+    list_ptr: *mut UnsizedList<T, C>,
+    inner_exclusive: Option<T::Mut<'a>>,
+    phantom: PhantomData<&'a ()>,
+}
+
+impl<'a, T, C> Deref for UnsizedListMut<'a, T, C>
+where
+    T: UnsizedType + ?Sized,
+    C: UnsizedListOffset,
+{
+    type Target = UnsizedList<T, C>;
+
+    fn deref(&self) -> &Self::Target {
+        unsafe { &*self.list_ptr }
+    }
+}
+
+impl<'a, T, C> DerefMut for UnsizedListMut<'a, T, C>
+where
+    T: UnsizedType + ?Sized,
+    C: UnsizedListOffset,
+{
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        unsafe { &mut *self.list_ptr }
+    }
 }
 
 unsafe impl<T, C> UnsizedType for UnsizedList<T, C>
@@ -360,7 +401,6 @@ where
     fn mut_as_ref<'a>(m: &'a Self::Mut<'_>) -> Self::Ref<'a> {
         UnsizedListRef {
             list_ptr: m.list_ptr,
-            unsized_data_ptr: m.unsized_data_ptr,
             phantom: Default::default(),
         }
     }
@@ -378,11 +418,10 @@ where
 
         let _length_copy = data.try_advance(U32_SIZE)?;
 
-        let unsized_data = data.try_advance(unsized_size)?;
+        let _unsized_data = data.try_advance(unsized_size)?;
 
         Ok(UnsizedListRef {
             list_ptr: unsafe { &*ptr::from_raw_parts(ptr.cast::<()>(), length) },
-            unsized_data_ptr: unsized_data.as_ptr(),
             phantom: PhantomData,
         })
     }
@@ -400,11 +439,10 @@ where
 
         let _length_copy = data.try_advance(U32_SIZE)?;
 
-        let unsized_data = data.try_advance(unsized_size)?;
+        let _unsized_data = data.try_advance(unsized_size)?;
 
         Ok(UnsizedListMut {
             list_ptr: unsafe { &mut *ptr::from_raw_parts_mut(ptr.cast::<()>(), length) },
-            unsized_data_ptr: unsized_data.as_mut_ptr(),
             inner_exclusive: None,
             phantom: PhantomData,
         })
@@ -429,7 +467,6 @@ where
         if source_ptr < self_ptr.cast_const().cast() {
             // the change happened before me
             self_mut.list_ptr = unsafe { self_ptr.byte_offset(change) };
-            self_mut.unsized_data_ptr = unsafe { self_mut.unsized_data_ptr.byte_offset(change) };
             // I was not exclusively borrowed at the time, so it's not possible to be currently borrowing an inner element
             self_mut.inner_exclusive = None;
         } else if source_ptr == self_ptr.cast_const().cast() {
@@ -487,7 +524,7 @@ where
         Some(unsafe {
             ExclusiveWrapper::try_map_ref(self, |data| {
                 let unsized_data_slice/* '1 */ =
-                    slice::from_raw_parts_mut(data.unsized_data_ptr, data.unsized_size.usize());
+                    slice::from_raw_parts_mut(data.unsized_data_ptr_mut(), data.unsized_size.usize());
                 let t = T::get_mut(&mut &mut unsized_data_slice[start..end])?;
                 data.inner_exclusive = Some(t);
                 Ok(data.inner_exclusive.as_mut().unwrap())
@@ -607,12 +644,8 @@ where
                 bail!("Index out of bounds");
             }
             let offset = self.get_offset(index);
-            let start_ptr = unsafe { self.unsized_data_ptr.byte_add(offset) };
-            (
-                self.list_ptr.cast_const().cast(),
-                start_ptr.cast_const().cast(),
-                offset,
-            )
+            let start_ptr = unsafe { self.unsized_data_ptr().byte_add(offset) };
+            (self.list_ptr.cast_const().cast(), start_ptr.cast(), offset)
         };
 
         let to_add = items.len();
@@ -623,7 +656,6 @@ where
                 {
                     list.list_ptr =
                         ptr::from_raw_parts_mut(list.list_ptr.cast::<()>(), list.len() + to_add);
-                    list.unsized_data_ptr = list.unsized_data_ptr.byte_add(size_of::<C>() * to_add);
                 }
                 {
                     // We have added bytes at the unsized list insertion index. We now need
@@ -649,7 +681,7 @@ where
                 }
                 {
                     let mut new_data = slice::from_raw_parts_mut(
-                        list.unsized_data_ptr.byte_add(insertion_offset),
+                        list.unsized_data_ptr_mut().byte_add(insertion_offset),
                         T::INIT_BYTES * to_add,
                     );
 
@@ -697,7 +729,7 @@ where
 
         let (start_offset, offset_of_start_ptr, end_offset) = {
             let start_offset = self.get_offset(start);
-            let offset_of_start_ptr = unsafe { self.unsized_data_ptr.byte_add(start_offset) };
+            let offset_of_start_ptr = unsafe { self.unsized_data_ptr().byte_add(start_offset) };
             let end_offset = self.get_offset(end);
             (start_offset, offset_of_start_ptr, end_offset)
         };
@@ -718,12 +750,9 @@ where
         {
             // we shifted all the unsized bytes to be removed up by the offset chunk to remove, so the start pointer of
             // bytes to remove has to be shifted too
-            let remove_start = unsafe { offset_of_start_ptr.byte_sub(size_of::<C>() * to_remove) }
-                .cast_const()
-                .cast::<()>();
-            let remove_end = unsafe { self.unsized_data_ptr.byte_add(end_offset) }
-                .cast_const()
-                .cast::<()>();
+            let remove_start =
+                unsafe { offset_of_start_ptr.byte_sub(size_of::<C>() * to_remove) }.cast::<()>();
+            let remove_end = unsafe { self.unsized_data_ptr().byte_add(end_offset) }.cast::<()>();
             let source_ptr = self.list_ptr.cast_const().cast::<()>();
             unsafe {
                 ExclusiveWrapper::remove_bytes(
@@ -736,8 +765,6 @@ where
                                 list.list_ptr.cast::<()>(),
                                 list.len() - to_remove,
                             );
-                            list.unsized_data_ptr =
-                                list.unsized_data_ptr.byte_sub(size_of::<C>() * to_remove);
                         }
                         {
                             let new_len = u32::try_from(list.len() - to_remove)?;
@@ -851,6 +878,200 @@ where
         Ok(())
     }
 }
+
+impl<'a, T, C> IntoIterator for &'a UnsizedList<T, C>
+where
+    T: UnsizedType + ?Sized,
+    C: UnsizedListOffset,
+{
+    type Item = Result<T::Ref<'a>>;
+    type IntoIter = UnsizedListIter<'a, T, C>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl<'a, T, C> IntoIterator for &'a mut UnsizedList<T, C>
+where
+    T: UnsizedType + ?Sized,
+    C: UnsizedListOffset,
+{
+    type Item = Result<T::Mut<'a>>;
+    type IntoIter = UnsizedListIterMut<'a, T, C>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter_mut()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct UnsizedListWithOffsetIter<'a, T, C>
+where
+    T: UnsizedType + ?Sized,
+    C: UnsizedListOffset,
+{
+    list: &'a UnsizedList<T, C>,
+    index: usize,
+}
+
+#[derive(Debug)]
+pub struct UnsizedListWithOffsetIterMut<'a, T, C>
+where
+    T: UnsizedType + ?Sized,
+    C: UnsizedListOffset,
+{
+    list: &'a mut UnsizedList<T, C>,
+    index: usize,
+}
+
+#[derive(Debug, Clone)]
+pub struct UnsizedListIter<'a, T, C>
+where
+    T: UnsizedType + ?Sized,
+    C: UnsizedListOffset,
+{
+    iter: UnsizedListWithOffsetIter<'a, T, C>,
+}
+
+#[derive(Debug)]
+pub struct UnsizedListIterMut<'a, T, C>
+where
+    T: UnsizedType + ?Sized,
+    C: UnsizedListOffset,
+{
+    iter: UnsizedListWithOffsetIterMut<'a, T, C>,
+}
+
+impl<'a, T, C> Iterator for UnsizedListWithOffsetIter<'a, T, C>
+where
+    T: UnsizedType + ?Sized,
+    C: UnsizedListOffset,
+{
+    type Item = Result<(T::Ref<'a>, C)>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index >= self.list.len() {
+            return None;
+        }
+        let (start, end) = self
+            .list
+            .get_unsized_range(self.index)
+            .expect("Index is in bounds");
+
+        let data = unsafe {
+            slice::from_raw_parts(self.list.unsized_data_ptr(), self.list.unsized_size.usize())
+        };
+        let offset = self.list.offset_list[self.index];
+        let mut item_data = &data[start..end];
+        self.index += 1;
+        Some(T::get_ref(&mut item_data).map(|item| (item, offset)))
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.list.len() - self.index;
+        (len, Some(len))
+    }
+}
+
+impl<'a, T, C> Iterator for UnsizedListWithOffsetIterMut<'a, T, C>
+where
+    T: UnsizedType + ?Sized,
+    C: UnsizedListOffset,
+{
+    type Item = Result<(T::Mut<'a>, C)>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index >= self.list.len() {
+            return None;
+        }
+        let (start, end) = self
+            .list
+            .get_unsized_range(self.index)
+            .expect("Index is in bounds");
+
+        let data = unsafe {
+            slice::from_raw_parts_mut(
+                self.list.unsized_data_ptr_mut(),
+                self.list.unsized_size.usize(),
+            )
+        };
+        let mut item_data = &mut data[start..end];
+        let offset = self.list.offset_list[self.index];
+        self.index += 1;
+        Some(T::get_mut(&mut item_data).map(|item| (item, offset)))
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.list.len() - self.index;
+        (len, Some(len))
+    }
+}
+
+macro_rules! fused_iter {
+    ($name:ident) => {
+        impl<'a, T, C> FusedIterator for $name<'a, T, C>
+        where
+            T: UnsizedType + ?Sized,
+            C: UnsizedListOffset,
+        {
+        }
+    };
+}
+
+macro_rules! base_iter_impls {
+    ($($name:ident),*) => {
+        $(
+            impl<'a, T, C> ExactSizeIterator for $name<'a, T, C>
+            where
+                T: UnsizedType + ?Sized,
+                C: UnsizedListOffset,
+            {
+                fn len(&self) -> usize {
+                    self.list.len() - self.index
+                }
+            }
+
+            fused_iter!($name);
+        )*
+    }
+}
+
+base_iter_impls!(UnsizedListWithOffsetIter, UnsizedListWithOffsetIterMut);
+
+macro_rules! iter_impls {
+    ($($name:ident: $item:ty),*) => {
+        $(
+            impl<'a, T, C> Iterator for $name<'a, T, C>
+            where
+                T: UnsizedType + ?Sized,
+                C: UnsizedListOffset,
+            {
+                type Item = Result<$item>;
+
+                fn next(&mut self) -> Option<Self::Item> {
+                    self.iter.next().map(|item| item.map(|item| item.0))
+                }
+
+                fn size_hint(&self) -> (usize, Option<usize>) {
+                    self.iter.size_hint()
+                }
+            }
+
+            impl<'a, T, C> ExactSizeIterator for $name<'a, T, C>
+            where
+                T: UnsizedType + ?Sized,
+                C: UnsizedListOffset,
+            {
+                fn len(&self) -> usize {
+                    self.iter.len()
+                }
+            }
+
+            fused_iter!($name);
+        )*
+    }
+}
+
+iter_impls!(UnsizedListIter: T::Ref<'a>, UnsizedListIterMut: T::Mut<'a>);
 
 #[cfg(test)]
 mod tests {
