@@ -1,4 +1,7 @@
 use crate::prelude::*;
+use star_frame_proc::derivative;
+use std::iter::FusedIterator;
+use std::ptr;
 
 #[derive(Align1, Zeroable, Debug, Copy, Clone)]
 #[repr(C)]
@@ -42,14 +45,55 @@ where
     }
 }
 
-#[unsized_type(skip_idl)]
-pub struct UnsizedMap<K: Pod + Ord + Align1, V: UnsizedType + ?Sized> {
+#[star_frame_proc::derivative(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
+pub struct UnsizedMapOwned<K, V>
+where
+    K: Pod + Ord + Align1,
+    V: UnsizedType + ?Sized,
+{
+    list: Vec<(K, V::Owned)>,
+}
+
+fn unsized_map_owned_from_ref<K, V>(r: UnsizedMapRef<'_, K, V>) -> Result<UnsizedMapOwned<K, V>>
+where
+    K: Pod + Ord + Align1,
+    V: UnsizedType + ?Sized,
+{
+    let mut owned = UnsizedMapOwned::default();
+    for result in r.list.iter_with_offsets() {
+        let (item, ord_offset) = result?;
+        let owned_item = V::owned_from_ref(item)?;
+        owned.list.push((ord_offset.key, owned_item));
+    }
+    Ok(owned)
+}
+
+#[unsized_type(skip_idl, owned_type = UnsizedMapOwned<K, V>, owned_from_ref = unsized_map_owned_from_ref::<K, V>)]
+pub struct UnsizedMap<K, V>
+where
+    K: Pod + Ord + Align1,
+    V: UnsizedType + ?Sized,
+{
     #[unsized_start]
     list: UnsizedList<V, OrdOffset<K>>,
 }
 
+impl<K, V> Default for UnsizedMapOwned<K, V>
+where
+    K: Pod + Ord + Align1,
+    V: UnsizedType + ?Sized,
+{
+    fn default() -> Self {
+        Self { list: vec![] }
+    }
+}
+
 #[unsized_impl(inherent)]
-impl<K: Pod + Ord + Align1, V: UnsizedType + ?Sized> UnsizedMap<K, V> {
+impl<K, V> UnsizedMap<K, V>
+where
+    K: Pod + Ord + Align1,
+    V: UnsizedType + ?Sized,
+{
     #[inline]
     #[must_use]
     pub fn len(&self) -> usize {
@@ -61,7 +105,192 @@ impl<K: Pod + Ord + Align1, V: UnsizedType + ?Sized> UnsizedMap<K, V> {
     pub fn is_empty(&self) -> bool {
         self.list.is_empty()
     }
+
+    fn get_index(&self, key: &K) -> Result<usize, usize> {
+        self.list
+            .offset_list
+            .binary_search_by(|probe| { probe.key }.cmp(key))
+    }
+
+    pub fn get(&self, key: &K) -> Option<Result<V::Ref<'_>>> {
+        match self.get_index(key) {
+            Ok(existing_index) => self.list.get(existing_index),
+            Err(_) => None,
+        }
+    }
+
+    pub fn get_mut(&mut self, key: &K) -> Option<Result<V::Mut<'_>>> {
+        match self.get_index(key) {
+            Ok(existing_index) => self.list.get_mut(existing_index),
+            Err(_) => None,
+        }
+    }
+
+    #[exclusive]
+    pub fn get_exclusive<'child>(
+        &'child mut self,
+        key: &K,
+    ) -> Option<Result<ExclusiveWrapper<'child, 'top, 'info, V::Mut<'child>, O, A>>> {
+        let Ok(index) = self.get_index(key) else {
+            return None;
+        };
+        Some(unsafe {
+            ExclusiveWrapper::try_map_ref(self, |data| {
+                data.list
+                    .get_mut(index)
+                    .expect("index exists")
+                    .map(|mut t| ptr::from_mut(&mut t))
+            })
+        })
+    }
+
+    /// Inserts or modifies an item into the map, returning true if the item already existed, and false otherwise.
+    #[exclusive]
+    pub fn insert<I>(&mut self, key: K, value: I) -> Result<bool>
+    where
+        V: UnsizedInit<I>,
+    {
+        match self.get_index(&key) {
+            Ok(existing_index) => {
+                // TODO: optimize this by just modifying bytes to fit and then writing to them
+                self.list().remove(existing_index)?;
+                self.list().insert_with_offset(existing_index, value, key)?;
+                Ok(true)
+            }
+            Err(insertion_index) => {
+                self.list()
+                    .insert_with_offset(insertion_index, value, key)?;
+                Ok(false)
+            }
+        }
+    }
+
+    /// Removes an item from the map, returning true if the item existed, and false otherwise.
+    #[exclusive]
+    pub fn remove(&mut self, key: &K) -> Result<bool> {
+        match self.get_index(key) {
+            Ok(existing_index) => {
+                self.list().remove(existing_index)?;
+                Ok(true)
+            }
+            Err(_) => Ok(false),
+        }
+    }
+
+    #[exclusive]
+    pub fn clear(&mut self) -> Result<()> {
+        self.list().remove_range(..)?;
+        Ok(())
+    }
 }
+
+#[unsized_impl]
+impl<K, V> UnsizedMap<K, V>
+where
+    K: Pod + Ord + Align1,
+    V: UnsizedType + ?Sized,
+{
+    #[inline]
+    #[must_use]
+    pub fn iter(&self) -> UnsizedMapIter<'_, K, V> {
+        UnsizedMapIter {
+            iter: self.list.iter_with_offsets(),
+        }
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn iter_mut(&mut self) -> UnsizedMapIterMut<'_, K, V> {
+        UnsizedMapIterMut {
+            iter: self.list.iter_with_offsets_mut(),
+        }
+    }
+}
+
+impl<'a, 'ptr, K, V> IntoIterator for &'a UnsizedMapRef<'ptr, K, V>
+where
+    K: Pod + Ord + Align1,
+    V: UnsizedType + ?Sized,
+{
+    type Item = Result<(K, <V as UnsizedType>::Ref<'a>)>;
+    type IntoIter = UnsizedMapIter<'a, K, V>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl<'a, 'ptr, K, V> IntoIterator for &'a UnsizedMapMut<'ptr, K, V>
+where
+    K: Pod + Ord + Align1,
+    V: UnsizedType + ?Sized,
+{
+    type Item = Result<(K, <V as UnsizedType>::Ref<'a>)>;
+    type IntoIter = UnsizedMapIter<'a, K, V>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl<'a, 'ptr, K, V> IntoIterator for &'a mut UnsizedMapMut<'ptr, K, V>
+where
+    K: Pod + Ord + Align1,
+    V: UnsizedType + ?Sized,
+{
+    type Item = Result<(K, <V as UnsizedType>::Mut<'a>)>;
+    type IntoIter = UnsizedMapIterMut<'a, K, V>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter_mut()
+    }
+}
+
+macro_rules! map_iter {
+    ($name:ident $(: $extra_derive:path)?, $iter:ident, $item:ident)  => {
+        #[derive(Debug, $($extra_derive)*)]
+        pub struct $name<'a, K, V>
+        where
+            K: Pod + Ord + Align1,
+            V: UnsizedType + ?Sized,
+        {
+            iter: $iter<'a, V, OrdOffset<K>>,
+        }
+
+        impl<'a, K, V> Iterator for $name<'a, K, V>
+        where
+            K: Pod + Ord + Align1,
+            V: UnsizedType + ?Sized,
+        {
+            type Item = Result<(K, V::$item<'a>)>;
+
+            fn next(&mut self) -> Option<Self::Item> {
+                self.iter.next().map(|item| item.map(|(item, offset)| (offset.key, item)))
+            }
+
+            fn size_hint(&self) -> (usize, Option<usize>) {
+                self.iter.size_hint()
+            }
+        }
+
+        impl<K, V> ExactSizeIterator for $name<'_, K, V>
+        where
+            K: Pod + Ord + Align1,
+            V: UnsizedType + ?Sized,
+        {
+            fn len(&self) -> usize {
+                self.iter.len()
+            }
+        }
+
+        impl<K, V> FusedIterator for $name<'_, K, V>
+        where
+            K: Pod + Ord + Align1,
+            V: UnsizedType + ?Sized,
+        {
+        }
+    };
+}
+
+map_iter!(UnsizedMapIter: Clone, UnsizedListWithOffsetIter, Ref);
+map_iter!(UnsizedMapIterMut, UnsizedListWithOffsetIterMut, Mut);
 
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
 mod idl_impl {
