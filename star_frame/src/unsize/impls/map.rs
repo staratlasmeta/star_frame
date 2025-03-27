@@ -230,7 +230,7 @@ macro_rules! map_iter {
 }
 
 map_iter!(MapIter: Clone, ListIter, (&'a K, &'a V), this => |item| (&item.key, &item.value));
-map_iter!(MapIterMut, ListIterMut, (&'a mut K, &'a mut V), this => |item| (&mut item.key, &mut item.value));
+map_iter!(MapIterMut, ListIterMut, (&'a K, &'a mut V), this => |item| (&item.key, &mut item.value));
 map_iter!(MapKeys: Clone, ListIter, &'a K, this => |item| &item.key);
 map_iter!(MapValues: Clone, ListIter, &'a V, this => |item| &item.value);
 map_iter!(MapValuesMut, ListIterMut, &'a mut V, this => |item| &mut item.value);
@@ -267,7 +267,7 @@ where
     V: UnsizedGenerics,
     L: ListLength,
 {
-    type Item = (&'a mut K, &'a mut V);
+    type Item = (&'a K, &'a mut V);
     type IntoIter = MapIterMut<'a, K, V, L>;
     fn into_iter(self) -> Self::IntoIter {
         self.iter_mut()

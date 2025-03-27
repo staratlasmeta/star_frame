@@ -212,6 +212,7 @@ where
         )
     }
 
+    #[inline]
     unsafe fn unsized_data_ptr(&self) -> *const u8 {
         unsafe {
             self.offset_list
@@ -222,6 +223,7 @@ where
         }
     }
 
+    #[inline]
     unsafe fn unsized_data_ptr_mut(&mut self) -> *mut u8 {
         unsafe {
             self.offset_list
@@ -1094,8 +1096,8 @@ mod tests {
         let test_bytes = TestByteSet::<TestList>::new(byte_arrays)?;
         let mut owned = byte_arrays.map(|array| array.to_vec()).to_vec();
         let mut unsized_lists = test_bytes.data_mut()?;
-        for (list, owned_list) in unsized_lists.iter_mut().zip(owned.iter_mut()) {
-            let mut list = list?;
+        for (list, owned_list) in unsized_lists.iter_with_offsets_mut().zip(owned.iter_mut()) {
+            let (mut list, _) = list?;
             assert_eq!(&**list, owned_list);
             for (item, owned_item) in list.iter_mut().zip(owned_list.iter_mut()) {
                 *item += 1;
