@@ -1,5 +1,4 @@
 use crate::prelude::*;
-use advancer::Length;
 use bytemuck::AnyBitPattern;
 use star_frame_proc::unsized_impl;
 use std::collections::HashMap;
@@ -179,7 +178,7 @@ where
     }
 }
 
-macro_rules! make_map_iter {
+macro_rules! map_iter {
     ($name:ident $(: $extra_derive:path)?, $iter:ident, $item:ty, $next_arg:ident => $next:expr)  => {
         #[derive(Debug, $($extra_derive)*)]
         pub struct $name<'a, K, V, L>
@@ -230,11 +229,11 @@ macro_rules! make_map_iter {
     };
 }
 
-make_map_iter!(MapIter: Clone, ListIter, (&'a K, &'a V), this => |item| (&item.key, &item.value));
-make_map_iter!(MapIterMut, ListIterMut, (&'a mut K, &'a mut V), this => |item| (&mut item.key, &mut item.value));
-make_map_iter!(MapKeys: Clone, ListIter, &'a K, this => |item| &item.key);
-make_map_iter!(MapValues: Clone, ListIter, &'a V, this => |item| &item.value);
-make_map_iter!(MapValuesMut, ListIterMut, &'a mut V, this => |item| &mut item.value);
+map_iter!(MapIter: Clone, ListIter, (&'a K, &'a V), this => |item| (&item.key, &item.value));
+map_iter!(MapIterMut, ListIterMut, (&'a mut K, &'a mut V), this => |item| (&mut item.key, &mut item.value));
+map_iter!(MapKeys: Clone, ListIter, &'a K, this => |item| &item.key);
+map_iter!(MapValues: Clone, ListIter, &'a V, this => |item| &item.value);
+map_iter!(MapValuesMut, ListIterMut, &'a mut V, this => |item| &mut item.value);
 
 impl<'a, 'b, K, V, L> IntoIterator for &'a MapMut<'b, K, V, L>
 where

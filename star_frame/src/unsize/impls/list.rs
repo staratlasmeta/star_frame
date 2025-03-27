@@ -586,7 +586,7 @@ where
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let remaining = self.list.len().saturating_sub(self.index);
+        let remaining = self.list.len() - self.index;
         (remaining, Some(remaining))
     }
 }
@@ -596,7 +596,7 @@ where
     L: ListLength,
 {
     fn len(&self) -> usize {
-        self.list.len().saturating_sub(self.index)
+        self.list.len() - self.index
     }
 }
 
@@ -636,7 +636,7 @@ where
         let item_data = list_bytes.advance(size_of::<T>());
         let item = checked::from_bytes_mut(item_data);
 
-        self.remaining = self.remaining.saturating_sub(1);
+        self.remaining -= 1;
         self.list_bytes_ptr = list_bytes;
         Some(item)
     }
