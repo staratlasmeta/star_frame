@@ -41,8 +41,6 @@ pub(crate) fn unsized_type_struct_impl(
     // println!("After inner_struct!");
     let ref_struct = context.ref_struct();
     // println!("After ref_struct!");
-    // let as_shared_impl = context.as_shared_impl();
-    // println!("After as_shared_impl!");
     let mut_struct = context.mut_struct();
     // println!("After mut_struct!");
     let owned_struct = context
@@ -71,7 +69,6 @@ pub(crate) fn unsized_type_struct_impl(
     quote! {
         #main_struct
         #ref_struct
-        // #as_shared_impl
         #mut_struct
         #owned_struct
         #sized_struct
@@ -319,21 +316,6 @@ impl UnsizedStructContext {
             }
         }
     }
-
-    // fn as_shared_impl(&self) -> TokenStream {
-    //     Paths!(prelude);
-    //     UnsizedStructContext!(self => mut_type, struct_type);
-    //     let (impl_gen, _ty_gen, wc) = self.ref_mut_generics.split_for_impl();
-    //     quote! {
-    //         impl #impl_gen #mut_type #wc {
-    //             #[inline]
-    //             #[must_use]
-    //             pub fn as_shared(&self) -> <#struct_type as #prelude::UnsizedType>::Ref<'_> {
-    //                 <#struct_type as #prelude::UnsizedType>::mut_as_ref(self)
-    //             }
-    //         }
-    //     }
-    // }
 
     fn owned_struct(&self) -> ItemStruct {
         Paths!(prelude, debug);

@@ -38,7 +38,6 @@ pub(crate) fn unsized_type_enum_impl(
         .then(|| context.owned_enum());
     let ref_enum = context.ref_enum();
     let mut_enum = context.mut_enum();
-    // let as_shared_impl = context.as_shared_impl();
     let unsized_type_impl = context.unsized_type_impl();
     let unsized_init_default_impl = context.unsized_init_default_impl();
     let unsized_init_struct_impls = context.unsized_init_struct_impl();
@@ -51,7 +50,6 @@ pub(crate) fn unsized_type_enum_impl(
         #owned_enum
         #ref_enum
         #mut_enum
-        // #as_shared_impl
         #unsized_type_impl
         #unsized_init_default_impl
         #unsized_init_struct_impls
@@ -286,30 +284,6 @@ impl UnsizedEnumContext {
             }
         }
     }
-
-    // fn as_shared_impl(&self) -> TokenStream {
-    //     Paths!(prelude);
-    //     UnsizedEnumContext!(self => enum_type, mut_type, ref_ident, variant_types, mut_ident, variant_idents);
-    //
-    //     let (impl_gen, _, wc) = self.ref_mut_generics.split_for_impl();
-    //
-    //     quote! {
-    //         #[automatically_derived]
-    //         impl #impl_gen #mut_type #wc {
-    //             pub fn as_shared(&self) -> <#enum_type as #prelude::UnsizedType>::Ref<'_> {
-    //                 match self {
-    //                     #(
-    //                         #mut_ident::#variant_idents(inner) => {
-    //                             #ref_ident::#variant_idents(
-    //                                 <#variant_types as #prelude::UnsizedType>::mut_as_ref(inner)
-    //                             )
-    //                         }
-    //                     )*
-    //                 }
-    //             }
-    //         }
-    //     }
-    // }
 
     fn unsized_type_impl(&self) -> TokenStream {
         Paths!(prelude, result);
