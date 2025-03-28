@@ -26,7 +26,7 @@ use account_set::IdlAccountSet;
 use instruction::IdlInstruction;
 pub use semver::{Version, VersionReq};
 use serde::{Deserialize, Serialize};
-use solana_program::pubkey::Pubkey;
+use solana_pubkey::Pubkey;
 use std::any::type_name;
 use std::collections::HashMap;
 use std::fmt::Debug;

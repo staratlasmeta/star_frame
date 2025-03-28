@@ -18,8 +18,8 @@ star_frame_proc = { path = "star_frame_proc", registry = "star-atlas", version =
 star_frame_spl = { path = "star_frame_spl", registry = "star-atlas", version = "0.1.0" }
 
 
-# Non workspace crates
 advancer = "^0.1.0"
+# Non workspace crates
 anchor-lang-idl-spec = "^0.1.0"
 anyhow = "^1.0.75"
 array-init = "^2.1.0"
@@ -55,6 +55,7 @@ serde = { version = "^1.0.192", features = ["derive"] }
 serde_json = "^1.0.108"
 sha2 = "^0.10.8"
 solana-program = ">=2.1,<2.2"
+solana-pubkey = ">=2.1,<2.2"
 solana-program-test = ">=2.1,<2.2"
 solana-sdk = ">=2.1,<2.2"
 spl-associated-token-account = { version = "6.0.0", features = [
@@ -68,10 +69,10 @@ tokio = "^1.41.1"
 typenum = "^1.17.0"
 
 # locked versions
-base64ct = "<1.7.0"
 bytemuck_derive = "<1.8.1"
 fixed = "<1.29.0"
 half = "<2.5.0"
+# locked for solana_program_test
 litemap = ">0.7.0,<0.7.5"
 zerofrom = "<0.1.6"
 

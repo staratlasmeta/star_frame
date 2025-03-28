@@ -23,12 +23,9 @@ anyhow = { workspace = true }
 derivative = { workspace = true }
 derive_more = { workspace = true }
 serde = { workspace = true }
-solana-program = { workspace = true }
+solana-pubkey = { workspace = true }
 semver = { workspace = true }
 itertools = { workspace = true }
-
-# locked versions
-bytemuck_derive.workspace = true
 
 [dev-dependencies]
 rand = { workspace = true }

@@ -29,3 +29,7 @@ solana-program-test.workspace = true
 pretty_assertions.workspace = true
 solana-sdk.workspace = true
 tokio.workspace = true
+
+# Locked for solana_program_test
+litemap = { workspace = true }
+zerofrom = { workspace = true }
