@@ -5,40 +5,26 @@ mod test_helpers;
 #[cfg(test)]
 mod tests;
 pub mod wrapper;
+
 #[cfg(feature = "test_helpers")]
 pub use test_helpers::*;
 
 use crate::Result;
 pub use star_frame_proc::{unsized_impl, unsized_type};
 
-pub trait AsShared<'a> {
-    type Shared<'b>
-    where
-        Self: 'a + 'b;
-
-    fn as_shared(&'a self) -> Self::Shared<'a>;
-}
-
-impl<'a, T: ?Sized> AsShared<'a> for &'_ mut T {
-    type Shared<'b> = &'b T
-    where
-        Self: 'a + 'b;
-
-    fn as_shared(&'a self) -> Self::Shared<'a> {
-        self
-    }
-}
-
 /// # Safety
 /// TODO
 pub unsafe trait UnsizedType: 'static {
     type Ref<'a>;
-    type Mut<'a>: AsShared<'a, Shared<'a> = Self::Ref<'a>>;
+    type Mut<'a>;
+
     type Owned;
 
     /// This const should be true if there are no Zero-sized types in Self,
     /// false if a single ZST is at the end of Self, and panic if there is a ZST in the middle.
     const ZST_STATUS: bool;
+
+    fn mut_as_ref<'a>(m: &'a Self::Mut<'_>) -> Self::Ref<'a>;
 
     fn get_ref<'a>(data: &mut &'a [u8]) -> Result<Self::Ref<'a>>;
     fn get_mut<'a>(data: &mut &'a mut [u8]) -> Result<Self::Mut<'a>>;

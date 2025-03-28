@@ -161,6 +161,10 @@ pub mod discriminant {
         type Owned = T::Owned;
         const ZST_STATUS: bool = T::ZST_STATUS;
 
+        fn mut_as_ref<'a>(m: &'a Self::Mut<'_>) -> Self::Ref<'a> {
+            T::mut_as_ref(m)
+        }
+
         fn get_ref<'a>(data: &mut &'a [u8]) -> Result<Self::Ref<'a>> {
             data.try_advance(size_of::<OwnerProgramDiscriminant<T>>())?;
             T::get_ref(data)

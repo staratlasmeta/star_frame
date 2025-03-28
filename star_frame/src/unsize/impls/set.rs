@@ -10,7 +10,7 @@ where
     list: List<K, L>,
 }
 
-#[unsized_impl]
+#[unsized_impl(inherent)]
 impl<V, L> Set<V, L>
 where
     V: UnsizedGenerics + Ord,
@@ -19,6 +19,11 @@ where
     #[must_use]
     pub fn len(&self) -> usize {
         self.list.len()
+    }
+
+    #[must_use]
+    pub fn contains(&self, value: &V) -> bool {
+        self.list.binary_search(value).is_ok()
     }
 
     #[must_use]
@@ -52,10 +57,6 @@ where
     pub fn clear(&mut self) -> Result<()> {
         self.list().remove_range(..)?;
         Ok(())
-    }
-
-    pub fn contains(&self, value: &V) -> bool {
-        self.list.binary_search(value).is_ok()
     }
 }
 

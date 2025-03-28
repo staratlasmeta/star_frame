@@ -2,8 +2,8 @@
 // TODO: Expand docs
 
 #![feature(ptr_metadata)]
-#![feature(associated_type_defaults)]
 #![feature(trivial_bounds)]
+#![feature(is_sorted)]
 #![warn(
     clippy::pedantic,
     missing_copy_implementations,

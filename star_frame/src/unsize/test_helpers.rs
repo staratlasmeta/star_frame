@@ -84,11 +84,15 @@ where
         Self::new(DefaultInit)
     }
 
-    pub fn data_ref(&self) -> Result<SharedWrapper<'_, '_, T::Ref<'a>>> {
+    pub fn data_ref(&self) -> Result<SharedWrapper<'a, '_, T::Ref<'a>>> {
         unsafe { SharedWrapper::<T>::new(self.test_account) }
     }
 
-    pub fn data_mut(&self) -> Result<MutWrapper<'a, '_, T::Mut<'_>, T, TestAccountInfo<'_>>> {
+    pub fn data_mut(&self) -> Result<MutWrapper<'a, '_, T::Mut<'a>, T, TestAccountInfo<'_>>> {
         unsafe { MutWrapper::new(self.test_account) }
+    }
+
+    pub fn owned(&self) -> Result<T::Owned> {
+        T::owned(&self.test_account.data.try_borrow()?)
     }
 }

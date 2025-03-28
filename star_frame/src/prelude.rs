@@ -16,7 +16,7 @@ pub use crate::unsize::{
     wrapper::{
         ExclusiveWrapper, ExclusiveWrapperT, MutWrapper, SharedWrapper, UnsizedTypeDataAccess,
     },
-    AsShared, UnsizedType, {unsized_impl, unsized_type},
+    UnsizedType, {unsized_impl, unsized_type},
 };
 
 pub use crate::align1::Align1;

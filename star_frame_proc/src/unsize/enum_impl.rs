@@ -31,10 +31,13 @@ pub(crate) fn unsized_type_enum_impl(
     let context = UnsizedEnumContext::parse(item_enum, unsized_args);
     let enum_struct = context.enum_struct();
     let discriminant_enum = context.discriminant_enum();
-    let owned_enum = context.owned_enum();
+    let owned_enum = context
+        .args
+        .owned_type
+        .is_none()
+        .then(|| context.owned_enum());
     let ref_enum = context.ref_enum();
     let mut_enum = context.mut_enum();
-    let as_shared_impl = context.as_shared_impl();
     let unsized_type_impl = context.unsized_type_impl();
     let unsized_init_default_impl = context.unsized_init_default_impl();
     let unsized_init_struct_impls = context.unsized_init_struct_impl();
@@ -47,7 +50,6 @@ pub(crate) fn unsized_type_enum_impl(
         #owned_enum
         #ref_enum
         #mut_enum
-        #as_shared_impl
         #unsized_type_impl
         #unsized_init_default_impl
         #unsized_init_struct_impls
@@ -283,49 +285,9 @@ impl UnsizedEnumContext {
         }
     }
 
-    fn as_shared_impl(&self) -> TokenStream {
-        Paths!(prelude);
-        UnsizedEnumContext!(self => rm_lt, mut_type, ref_ident, variant_types, mut_ident, variant_idents);
-        let as_shared_lt = new_lifetime(&self.generics, Some("as_shared"));
-        let shared_lt = new_lifetime(&self.generics, Some("shared"));
-
-        let as_shared_generics =
-            self.ref_mut_generics
-                .combine::<BetterGenerics>(&parse_quote!([<#as_shared_lt> where
-                    #rm_lt: #as_shared_lt,
-                    #(<#variant_types as #prelude::UnsizedType>::Mut<#rm_lt>:
-                        #prelude::AsShared<#as_shared_lt, Shared<#as_shared_lt> = <#variant_types as #prelude::UnsizedType>::Ref<#as_shared_lt>>
-                    ),*
-                ]));
-        let (impl_gen, _, wc) = as_shared_generics.split_for_impl();
-
-        let ref_gen = self
-            .generics
-            .combine::<BetterGenerics>(&parse_quote!([<#shared_lt>]));
-        let ref_ty_gen = ref_gen.split_for_impl().1;
-
-        quote! {
-            #[automatically_derived]
-            impl #impl_gen #prelude::AsShared<#as_shared_lt> for #mut_type #wc {
-                type Shared<#shared_lt> = #ref_ident #ref_ty_gen where Self: #shared_lt;
-                fn as_shared(&#as_shared_lt self) -> Self::Shared<#as_shared_lt> {
-                    match self {
-                        #(
-                            #mut_ident::#variant_idents(inner) => {
-                                #ref_ident::#variant_idents(
-                                    <<#variant_types as #prelude::UnsizedType>::Mut<#rm_lt> as #prelude::AsShared>::as_shared(inner)
-                                )
-                            }
-                        )*
-                    }
-                }
-            }
-        }
-    }
-
     fn unsized_type_impl(&self) -> TokenStream {
         Paths!(prelude, result);
-        UnsizedEnumContext!(self => ref_type, rm_lt, owned_type,
+        UnsizedEnumContext!(self => ref_type, rm_lt,
             ref_ident, mut_type, mut_ident, enum_type, variant_types, integer_repr,
             discriminant_ident, variant_idents
         );
@@ -335,6 +297,22 @@ impl UnsizedEnumContext {
             .iter()
             .map(|var_ident| format_ident!("{}", var_ident.to_string().to_shouty_snake_case()))
             .collect_vec();
+
+        let owned_type = self.args.owned_type.as_ref().unwrap_or(&self.owned_type);
+        let owned_from_ref = self
+            .args
+            .owned_from_ref
+            .as_ref()
+            .map(|path| quote!(#path(r)))
+            .unwrap_or(quote! {
+                match r {
+                        #(
+                            #ref_ident::#variant_idents(inner) => Ok(#owned_type::#variant_idents(
+                                <#variant_types as #prelude::UnsizedType>::owned_from_ref(inner)?,
+                            )),
+                        )*
+                    }
+            });
 
         quote! {
             #[automatically_derived]
@@ -346,6 +324,18 @@ impl UnsizedEnumContext {
                 const ZST_STATUS: bool = {
                     true #(&& <#variant_types as #prelude::UnsizedType>::ZST_STATUS)*
                 };
+
+                fn mut_as_ref<#rm_lt>(m: &#rm_lt Self::Mut<'_>) -> Self::Ref<#rm_lt> {
+                    match &m.data {
+                        #(
+                            #mut_ident::#variant_idents(inner) => {
+                                #ref_ident::#variant_idents(
+                                    <#variant_types as #prelude::UnsizedType>::mut_as_ref(inner)
+                                )
+                            }
+                        )*
+                    }
+                }
 
                 fn get_ref<#rm_lt>(data: &mut &#rm_lt [u8]) -> #result<Self::Ref<#rm_lt>> {
                     #(const #discriminant_consts: #integer_repr = #discriminant_ident::#variant_idents as #integer_repr;)*
@@ -374,13 +364,7 @@ impl UnsizedEnumContext {
                 }
 
                 fn owned_from_ref(r: Self::Ref<'_>) -> #result<Self::Owned> {
-                    match r {
-                        #(
-                            #ref_ident::#variant_idents(inner) => Ok(#owned_type::#variant_idents(
-                                <#variant_types as #prelude::UnsizedType>::owned_from_ref(inner)?,
-                            )),
-                        )*
-                    }
+                    #owned_from_ref
                 }
 
                 unsafe fn resize_notification(self_mut: &mut Self::Mut<'_>, source_ptr: *const (), change: isize) -> #result<()> {
@@ -485,39 +469,44 @@ impl UnsizedEnumContext {
     #[allow(non_snake_case)]
     fn extension_impl(&self) -> TokenStream {
         Paths!(prelude, debug, result);
-        UnsizedEnumContext!(self => vis, enum_ident, variant_idents, variant_types, rm_lt, mut_ident, init_idents);
+        UnsizedEnumContext!(self => vis, enum_ident, variant_idents, variant_types, mut_ident, init_idents);
 
         // Create new lifetimes and generics for the extension trait
-        let info = new_lifetime(&self.generics, Some("info"));
-        let b = new_lifetime(&self.generics, Some("b"));
-        let c = new_lifetime(&self.generics, Some("c"));
+        let parent_lt = new_lifetime(&self.generics, Some("parent"));
+        let ptr_lt = new_lifetime(&self.generics, Some("ptr"));
+        let top_lt = new_lifetime(&self.generics, Some("top"));
+        let info_lt = new_lifetime(&self.generics, Some("info"));
+        let child_lt = new_lifetime(&self.generics, Some("child"));
 
         let O = new_generic(&self.generics, Some("O"));
         let Init = new_generic(&self.generics, Some("Init"));
         let A = new_generic(&self.generics, Some("A"));
 
-        let wc =
-            quote!(#O: #prelude::UnsizedType + ?Sized, #A: #prelude::UnsizedTypeDataAccess<#info>);
+        let wc = quote!(#O: #prelude::UnsizedType + ?Sized, #A: #prelude::UnsizedTypeDataAccess<#info_lt>);
+
+        let oa_gen = quote!(#O, #A);
+        let parent_before_gen = quote!(#parent_lt, #ptr_lt, #top_lt, #info_lt);
+        let child_before_gen = quote!(#child_lt, #ptr_lt, #top_lt, #info_lt);
+
         // Combine generics for the extension trait
         let ext_trait_generics = self.generics.combine::<BetterGenerics>(&parse_quote!([
-            <#b, #rm_lt, #info, #O, #A> where #wc
+            <#parent_before_gen, #oa_gen> where #wc
         ]));
 
         // Combine generics for the exclusive enum
         let ext_enum_return_generics = self.generics.combine::<BetterGenerics>(&parse_quote!([
-            <#c, #rm_lt, #info, #O, #A> where #wc
+            <#child_before_gen, #oa_gen> where #wc
         ]));
 
         let return_ty_gen = ext_enum_return_generics.split_for_impl().1;
 
         let (impl_gen, ty_gen, wc) = ext_trait_generics.split_for_impl();
 
-        // Create identifiers for the extension trait and exclusive enum
         let extension_ident = format_ident!("{enum_ident}ExclusiveExt");
         let exclusive_ident = format_ident!("{enum_ident}Exclusive");
 
-        // Type for the ExclusiveWrapperT that will implement the extension trait
-        let impl_for = quote!(#prelude::ExclusiveWrapperT<#b, #rm_lt, #info, #enum_ident, #O, #A>);
+        let impl_for =
+            quote!(#prelude::ExclusiveWrapperT<#parent_before_gen, #enum_ident, #oa_gen>);
 
         let setter_methods = self
             .variant_idents
@@ -529,11 +518,20 @@ impl UnsizedEnumContext {
         // so this is a workaround to avoid that.
         let enum_ident_stripped_span = format_ident!("{enum_ident}", span = Span::call_site());
 
-        // Generate the extension trait
+        let exclusive_enum = quote! {
+            #[derive(#debug)]
+            #vis enum #exclusive_ident #impl_gen #wc
+            {
+                #(
+                    #variant_idents(#prelude::ExclusiveWrapperT<#parent_before_gen, #variant_types, #oa_gen>),
+                )*
+            }
+        };
+
         let extension_trait = quote! {
             #vis trait #extension_ident #impl_gen #wc
             {
-                fn get<#c>(&#c mut self) -> #exclusive_ident #return_ty_gen;
+                fn get<#child_lt>(&#child_lt mut self) -> #exclusive_ident #return_ty_gen;
 
                 #(
                     fn #setter_methods<#Init>(&mut self, init: #Init) -> #result<()>
@@ -543,12 +541,11 @@ impl UnsizedEnumContext {
             }
         };
 
-        // Generate the implementation of the extension trait
         let extension_impl = quote! {
             #[automatically_derived]
             impl #impl_gen #extension_ident #ty_gen for #impl_for #wc
             {
-                fn get<#c>(&#c mut self) -> #exclusive_ident #return_ty_gen {
+                fn get<#child_lt>(&#child_lt mut self) -> #exclusive_ident #return_ty_gen {
                     match &***self {
                         #(
                             #mut_ident::#variant_idents(_) => {
@@ -577,17 +574,6 @@ impl UnsizedEnumContext {
                             )
                         }
                     }
-                )*
-            }
-        };
-
-        // Generate the exclusive enum
-        let exclusive_enum = quote! {
-            #[derive(#debug)]
-            #vis enum #exclusive_ident #impl_gen #wc
-            {
-                #(
-                    #variant_idents(#prelude::ExclusiveWrapperT<#b, #rm_lt, #info, #variant_types, #O, #A>),
                 )*
             }
         };

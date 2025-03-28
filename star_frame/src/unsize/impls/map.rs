@@ -1,9 +1,11 @@
 use crate::prelude::*;
 use bytemuck::AnyBitPattern;
 use star_frame_proc::unsized_impl;
+use std::collections::HashMap;
+use std::hash::Hash;
+use std::iter::FusedIterator;
 
-#[star_frame_proc::derivative(Copy, Clone, Debug, PartialEq, Eq)]
-#[derive(Align1)]
+#[derive(Align1, Copy, Clone, Debug, Default, PartialEq, Eq, Ord, PartialOrd, Hash)]
 #[repr(C)]
 pub struct ListItemSized<K: UnsizedGenerics, V: UnsizedGenerics> {
     pub key: K,
@@ -32,14 +34,13 @@ unsafe impl<K: UnsizedGenerics, V: UnsizedGenerics> AnyBitPattern for ListItemSi
 unsafe impl<K: UnsizedGenerics, V: UnsizedGenerics> CheckedBitPattern for ListItemSized<K, V> {
     type Bits = ListItemSizedBits<K, V>;
     #[inline]
-    #[allow(clippy::double_comparisons)]
     fn is_valid_bit_pattern(bits: &Self::Bits) -> bool {
         <K as CheckedBitPattern>::is_valid_bit_pattern(&{ bits.key })
             && <V as CheckedBitPattern>::is_valid_bit_pattern(&{ bits.value })
     }
 }
 
-#[unsized_type(skip_idl, owned_attributes = [derive(Eq, PartialEq)])]
+#[unsized_type(skip_idl, owned_attributes = [derive(Clone, Default, Eq, PartialEq, Ord, PartialOrd, Hash)])]
 pub struct Map<K, V, L = u32>
 where
     K: UnsizedGenerics + Ord,
@@ -50,7 +51,22 @@ where
     list: List<ListItemSized<K, V>, L>,
 }
 
-#[unsized_impl]
+impl<K, V, L> MapOwned<K, V, L>
+where
+    K: UnsizedGenerics + Ord + Hash,
+    V: UnsizedGenerics,
+    L: ListLength,
+{
+    #[must_use]
+    pub fn to_hash_map(&self) -> HashMap<K, V> {
+        self.list
+            .iter()
+            .map(|item| (item.key, item.value))
+            .collect()
+    }
+}
+
+#[unsized_impl(inherent)]
 impl<K, V, L> Map<K, V, L>
 where
     K: UnsizedGenerics + Ord,
@@ -58,13 +74,34 @@ where
     L: ListLength,
 {
     #[must_use]
+    #[inline]
     pub fn len(&self) -> usize {
         self.list.len()
     }
 
     #[must_use]
+    #[inline]
     pub fn is_empty(&self) -> bool {
         self.list.is_empty()
+    }
+
+    #[inline]
+    fn get_index(&self, key: &K) -> Result<usize, usize> {
+        self.list.binary_search_by(|probe| { probe.key }.cmp(key))
+    }
+
+    pub fn get(&self, key: &K) -> Option<&V> {
+        match self.get_index(key) {
+            Ok(existing_index) => Some(&self.list[existing_index].value),
+            Err(_) => None,
+        }
+    }
+
+    pub fn get_mut(&mut self, key: &K) -> Option<&mut V> {
+        match self.get_index(key) {
+            Ok(existing_index) => Some(&mut self.list[existing_index].value),
+            Err(_) => None,
+        }
     }
 
     #[exclusive]
@@ -82,22 +119,6 @@ where
         }
     }
 
-    pub fn get(&self, key: &K) -> Option<&V> {
-        let list = &self.list;
-        match list.binary_search_by(|probe| { probe.key }.cmp(key)) {
-            Ok(existing_index) => Some(&list[existing_index].value),
-            Err(_) => None,
-        }
-    }
-
-    pub fn get_mut(&mut self, key: &K) -> Option<&mut V> {
-        let list = &mut self.list;
-        match list.binary_search_by(|probe| { probe.key }.cmp(key)) {
-            Ok(existing_index) => Some(&mut list[existing_index].value),
-            Err(_) => None,
-        }
-    }
-
     #[exclusive]
     pub fn remove(&mut self, key: &K) -> Result<Option<V>> {
         match self.list.binary_search_by(|probe| { probe.key }.cmp(key)) {
@@ -108,6 +129,147 @@ where
             }
             Err(_) => Ok(None),
         }
+    }
+
+    #[exclusive]
+    pub fn clear(&mut self) -> Result<()> {
+        self.list().remove_range(..)
+    }
+
+    #[must_use]
+    #[inline]
+    pub fn iter(&self) -> MapIter<'_, K, V, L> {
+        MapIter {
+            iter: self.list.iter(),
+        }
+    }
+
+    #[must_use]
+    #[inline]
+    pub fn iter_mut(&mut self) -> MapIterMut<'_, K, V, L> {
+        MapIterMut {
+            iter: self.list.iter_mut(),
+        }
+    }
+
+    #[must_use]
+    #[inline]
+    pub fn keys(&self) -> MapKeys<'_, K, V, L> {
+        MapKeys {
+            iter: self.list.iter(),
+        }
+    }
+
+    #[must_use]
+    #[inline]
+    pub fn values(&self) -> MapValues<'_, K, V, L> {
+        MapValues {
+            iter: self.list.iter(),
+        }
+    }
+
+    #[must_use]
+    #[inline]
+    pub fn values_mut(&mut self) -> MapValuesMut<'_, K, V, L> {
+        MapValuesMut {
+            iter: self.list.iter_mut(),
+        }
+    }
+}
+
+macro_rules! map_iter {
+    ($name:ident $(: $extra_derive:path)?, $iter:ident, $item:ty, $next_arg:ident => $next:expr)  => {
+        #[derive(Debug, $($extra_derive)*)]
+        pub struct $name<'a, K, V, L>
+        where
+            K: UnsizedGenerics + Ord,
+            V: UnsizedGenerics,
+            L: ListLength,
+        {
+            iter: $iter<'a, ListItemSized<K, V>, L>,
+        }
+
+        impl<'a, K, V, L> Iterator for $name<'a, K, V, L>
+        where
+            K: UnsizedGenerics + Ord,
+            V: UnsizedGenerics,
+            L: ListLength,
+        {
+            type Item = $item;
+
+            fn next(&mut self) -> Option<Self::Item> {
+                let $next_arg = self;
+                $next_arg.iter.next().map($next)
+            }
+
+            fn size_hint(&self) -> (usize, Option<usize>) {
+                self.iter.size_hint()
+            }
+        }
+
+        impl<K, V, L> ExactSizeIterator for $name<'_, K, V, L>
+        where
+            K: UnsizedGenerics + Ord,
+            V: UnsizedGenerics,
+            L: ListLength,
+        {
+            fn len(&self) -> usize {
+                self.iter.len()
+            }
+        }
+
+        impl<K, V, L> FusedIterator for $name<'_, K, V, L>
+        where
+            K: UnsizedGenerics + Ord,
+            V: UnsizedGenerics,
+            L: ListLength,
+        {
+        }
+    };
+}
+
+map_iter!(MapIter: Clone, ListIter, (&'a K, &'a V), this => |item| (&item.key, &item.value));
+map_iter!(MapIterMut, ListIterMut, (&'a K, &'a mut V), this => |item| (&item.key, &mut item.value));
+map_iter!(MapKeys: Clone, ListIter, &'a K, this => |item| &item.key);
+map_iter!(MapValues: Clone, ListIter, &'a V, this => |item| &item.value);
+map_iter!(MapValuesMut, ListIterMut, &'a mut V, this => |item| &mut item.value);
+
+impl<'a, 'b, K, V, L> IntoIterator for &'a MapMut<'b, K, V, L>
+where
+    K: UnsizedGenerics + Ord,
+    V: UnsizedGenerics,
+    L: ListLength,
+{
+    type Item = (&'a K, &'a V);
+    type IntoIter = MapIter<'a, K, V, L>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl<'a, 'b, K, V, L> IntoIterator for &'a MapRef<'b, K, V, L>
+where
+    K: UnsizedGenerics + Ord,
+    V: UnsizedGenerics,
+    L: ListLength,
+{
+    type Item = (&'a K, &'a V);
+    type IntoIter = MapIter<'a, K, V, L>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl<'a, 'b, K, V, L> IntoIterator for &'a mut MapMut<'b, K, V, L>
+where
+    K: UnsizedGenerics + Ord,
+    V: UnsizedGenerics,
+    L: ListLength,
+{
+    type Item = (&'a K, &'a mut V);
+    type IntoIter = MapIterMut<'a, K, V, L>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter_mut()
     }
 }
 

@@ -1,9 +1,8 @@
 use crate::align1::Align1;
 use crate::data_types::PackedValue;
+use crate::prelude::UnsizedTypeDataAccess;
 use crate::unsize::init::{DefaultInit, UnsizedInit};
-use crate::unsize::unsized_impl;
 use crate::unsize::wrapper::ExclusiveWrapper;
-use crate::unsize::AsShared;
 use crate::unsize::UnsizedType;
 use crate::util::uninit_array_bytes;
 use crate::Result;
@@ -11,10 +10,12 @@ use advancer::Advance;
 use anyhow::{bail, ensure, Context};
 use bytemuck::{bytes_of, checked, from_bytes, CheckedBitPattern, NoUninit, Pod, Zeroable};
 use bytemuck::{cast_slice, cast_slice_mut};
+use itertools::Itertools;
 use num_traits::{FromPrimitive, ToPrimitive, Zero};
 use std::any::type_name;
 use std::borrow::Borrow;
 use std::cmp::Ordering;
+use std::iter::FusedIterator;
 use std::marker::PhantomData;
 use std::mem::size_of;
 use std::ops::{Deref, DerefMut, Index, IndexMut, RangeBounds};
@@ -65,16 +66,19 @@ where
     T: CheckedBitPattern + NoUninit + Align1,
     L: ListLength,
 {
+    #[inline]
     pub fn len(&self) -> usize {
         self.len
             .to_usize()
             .expect("Could not convert list size to usize")
     }
 
+    #[inline]
     pub fn is_empty(&self) -> bool {
         self.bytes.is_empty()
     }
 
+    #[inline]
     pub fn get(&self, index: usize) -> Option<&T> {
         if index < self.len() {
             Some(&self[index])
@@ -83,6 +87,7 @@ where
         }
     }
 
+    #[inline]
     pub fn get_mut(&mut self, index: usize) -> Option<&mut T> {
         if index < self.len() {
             Some(&mut self[index])
@@ -91,6 +96,7 @@ where
         }
     }
 
+    #[inline]
     pub fn as_slice(&self) -> &[T]
     where
         T: Pod,
@@ -98,6 +104,7 @@ where
         cast_slice(&self.bytes)
     }
 
+    #[inline]
     pub fn as_mut_slice(&mut self) -> &mut [T]
     where
         T: Pod,
@@ -105,12 +112,29 @@ where
         cast_slice_mut(&mut self.bytes)
     }
 
+    #[inline]
     pub fn as_checked_slice(&self) -> Result<&[T]> {
         checked::try_cast_slice(&self.bytes).map_err(Into::into)
     }
 
+    #[inline]
     pub fn as_checked_mut_slice(&mut self) -> Result<&mut [T]> {
         checked::try_cast_slice_mut(&mut self.bytes).map_err(Into::into)
+    }
+
+    pub fn iter(&self) -> ListIter<'_, T, L> {
+        ListIter {
+            list: self,
+            index: 0,
+        }
+    }
+
+    pub fn iter_mut(&mut self) -> ListIterMut<'_, T, L> {
+        ListIterMut {
+            list_bytes_ptr: &mut self.bytes,
+            remaining: self.len(),
+            phantom_data: Default::default(),
+        }
     }
 
     /// See [`<[T]>::binary_search`]
@@ -166,6 +190,7 @@ where
         cast_slice(&self.bytes)
     }
 }
+
 impl<T, L> DerefMut for List<T, L>
 where
     L: ListLength,
@@ -290,17 +315,6 @@ where
         unsafe { &mut *self.0 }
     }
 }
-impl<'a, T, L> AsShared<'a> for ListMut<'_, T, L>
-where
-    L: ListLength,
-    T: CheckedBitPattern + NoUninit + Align1,
-{
-    type Shared<'b> = ListRef<'b, T, L> where Self: 'a, Self: 'b;
-
-    fn as_shared(&'a self) -> Self::Shared<'a> {
-        ListRef(self.0, PhantomData)
-    }
-}
 
 unsafe impl<T, L> UnsizedType for List<T, L>
 where
@@ -312,6 +326,10 @@ where
     type Owned = Vec<T>;
     const ZST_STATUS: bool = { size_of::<L>() != 0 };
 
+    fn mut_as_ref<'a>(m: &'a Self::Mut<'_>) -> Self::Ref<'a> {
+        ListRef(m.0, PhantomData)
+    }
+
     fn get_ref<'a>(data: &mut &'a [u8]) -> Result<Self::Ref<'a>> {
         let ptr = data.as_ptr();
         let length_bytes = data.try_advance(size_of::<L>())?;
@@ -319,7 +337,7 @@ where
         let length = len_l
             .to_usize()
             .ok_or_else(|| anyhow::anyhow!("Could not convert list size to usize"))?;
-        data.advance(size_of::<T>() * length);
+        data.try_advance(size_of::<T>() * length)?;
         Ok(ListRef(
             unsafe { &*ptr::from_raw_parts(ptr.cast::<()>(), size_of::<T>() * length) },
             PhantomData,
@@ -359,18 +377,20 @@ where
     }
 }
 
-#[unsized_impl]
-impl<T, L> List<T, L>
+impl<'parent, 'ptr, 'top, 'info, T, L, O, A>
+    ExclusiveWrapper<'parent, 'top, 'info, ListMut<'ptr, T, L>, O, A>
 where
+    O: UnsizedType + ?Sized,
+    A: UnsizedTypeDataAccess<'info>,
     T: Align1 + NoUninit + CheckedBitPattern,
     L: ListLength,
 {
-    #[exclusive]
+    #[inline]
     pub fn push(&mut self, item: T) -> Result<()> {
         let len = self.len();
         self.insert(len, item)
     }
-    #[exclusive]
+    #[inline]
     pub fn push_all<I>(&mut self, items: I) -> Result<()>
     where
         I: IntoIterator<Item = T>,
@@ -378,12 +398,11 @@ where
     {
         self.insert_all(self.len(), items)
     }
-    #[exclusive]
+    #[inline]
     pub fn insert(&mut self, index: usize, item: T) -> Result<()> {
         self.insert_all(index, iter::once(item))
     }
 
-    #[exclusive]
     pub fn insert_all<I>(&mut self, index: usize, items: I) -> Result<()>
     where
         I: IntoIterator,
@@ -421,27 +440,36 @@ where
                     Ok(())
                 },
             )?;
-        }
-        for (i, value) in iter.enumerate() {
-            self.bytes[byte_index + i * size_of::<T>()..][..size_of::<T>()]
+        };
+        // zip_eq to ensure ExactSizeIterator is telling the truth
+        for ((i, value), _) in iter.enumerate().zip_eq(0..to_add) {
+            let bytes = &mut self.bytes;
+            bytes[byte_index + i * size_of::<T>()..][..size_of::<T>()]
                 .copy_from_slice(bytes_of(value.borrow()));
         }
         Ok(())
     }
 
-    #[exclusive]
+    #[inline]
+    pub fn pop(&mut self) -> Result<Option<()>> {
+        if self.len() == 0 {
+            return Ok(None);
+        }
+        self.remove(self.len() - 1).map(Some)
+    }
+
+    #[inline]
     pub fn remove(&mut self, index: usize) -> Result<()> {
         self.remove_range(index..=index)
     }
 
-    #[exclusive]
-    pub fn remove_range(&mut self, indexes: impl RangeBounds<usize>) -> Result<()> {
-        let start = match indexes.start_bound() {
+    pub fn remove_range(&mut self, indices: impl RangeBounds<usize>) -> Result<()> {
+        let start = match indices.start_bound() {
             std::ops::Bound::Included(start) => *start,
             std::ops::Bound::Excluded(start) => start + 1,
             std::ops::Bound::Unbounded => 0,
         };
-        let end = match indexes.end_bound() {
+        let end = match indices.end_bound() {
             std::ops::Bound::Included(end) => *end + 1,
             std::ops::Bound::Excluded(end) => *end,
             std::ops::Bound::Unbounded => self.len(),
@@ -466,7 +494,7 @@ where
                     &mut *ptr::from_raw_parts_mut(list.0.cast::<()>(), new_len * size_of::<T>());
                 Ok(())
             })?;
-        }
+        };
         Ok(())
     }
 }
@@ -480,7 +508,7 @@ where
 
     unsafe fn init(bytes: &mut &mut [u8], _arg: DefaultInit) -> Result<()> {
         bytes
-            .advance(<Self as UnsizedInit<DefaultInit>>::INIT_BYTES)
+            .try_advance(<Self as UnsizedInit<DefaultInit>>::INIT_BYTES)?
             .copy_from_slice(bytes_of(&<PackedValue<L>>::zeroed()));
         Ok(())
     }
@@ -500,7 +528,7 @@ where
                 type_name::<L>()
             )
         })?;
-        let array_bytes = bytes.advance(<Self as UnsizedInit<&[T; N]>>::INIT_BYTES);
+        let array_bytes = bytes.try_advance(<Self as UnsizedInit<&[T; N]>>::INIT_BYTES)?;
         array_bytes[0..size_of::<L>()].copy_from_slice(bytes_of(&len_bytes));
         array_bytes[size_of::<L>()..].copy_from_slice(uninit_array_bytes(array));
         Ok(())
@@ -514,8 +542,136 @@ where
 {
     const INIT_BYTES: usize = <Self as UnsizedInit<&[T; N]>>::INIT_BYTES;
 
+    #[inline]
     unsafe fn init(bytes: &mut &mut [u8], array: [T; N]) -> Result<()> {
         unsafe { <Self as UnsizedInit<&[T; N]>>::init(bytes, &array) }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ListIter<'a, T, L>
+where
+    T: CheckedBitPattern + NoUninit + Align1,
+    L: ListLength,
+{
+    list: &'a List<T, L>,
+    index: usize,
+}
+
+#[derive(Debug)]
+pub struct ListIterMut<'a, T, L>
+where
+    T: CheckedBitPattern + NoUninit + Align1,
+    L: ListLength,
+{
+    list_bytes_ptr: *mut [u8],
+    remaining: usize,
+    phantom_data: PhantomData<&'a mut (T, L)>,
+}
+
+impl<'a, T, L> Iterator for ListIter<'a, T, L>
+where
+    T: CheckedBitPattern + NoUninit + Align1,
+    L: ListLength,
+{
+    type Item = &'a T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index >= self.list.len() {
+            return None;
+        }
+        let item = &self.list[self.index];
+        self.index += 1;
+        Some(item)
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let remaining = self.list.len() - self.index;
+        (remaining, Some(remaining))
+    }
+}
+impl<T, L> ExactSizeIterator for ListIter<'_, T, L>
+where
+    T: CheckedBitPattern + NoUninit + Align1,
+    L: ListLength,
+{
+    fn len(&self) -> usize {
+        self.list.len() - self.index
+    }
+}
+
+impl<T, L> FusedIterator for ListIter<'_, T, L>
+where
+    T: CheckedBitPattern + NoUninit + Align1,
+    L: ListLength,
+{
+}
+
+impl<'a, T, L> IntoIterator for &'a List<T, L>
+where
+    T: CheckedBitPattern + NoUninit + Align1,
+    L: ListLength,
+{
+    type Item = &'a T;
+    type IntoIter = ListIter<'a, T, L>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl<'a, T, L> Iterator for ListIterMut<'a, T, L>
+where
+    T: CheckedBitPattern + NoUninit + Align1,
+    L: ListLength,
+{
+    type Item = &'a mut T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.remaining == 0 {
+            return None;
+        }
+
+        let mut list_bytes = unsafe { &mut *self.list_bytes_ptr };
+        let item_data = list_bytes.advance(size_of::<T>());
+        let item = checked::from_bytes_mut(item_data);
+
+        self.remaining -= 1;
+        self.list_bytes_ptr = list_bytes;
+        Some(item)
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.remaining, Some(self.remaining))
+    }
+}
+
+impl<T, L> ExactSizeIterator for ListIterMut<'_, T, L>
+where
+    T: CheckedBitPattern + NoUninit + Align1,
+    L: ListLength,
+{
+    fn len(&self) -> usize {
+        self.remaining
+    }
+}
+
+impl<T, L> FusedIterator for ListIterMut<'_, T, L>
+where
+    T: CheckedBitPattern + NoUninit + Align1,
+    L: ListLength,
+{
+}
+
+impl<'a, T, L> IntoIterator for &'a mut List<T, L>
+where
+    T: CheckedBitPattern + NoUninit + Align1,
+    L: ListLength,
+{
+    type Item = &'a mut T;
+    type IntoIter = ListIterMut<'a, T, L>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter_mut()
     }
 }
 
@@ -531,8 +687,15 @@ mod tests {
         let mut vec = byte_array.to_vec();
         let test_bytes = TestByteSet::<List<u8>>::new(&byte_array)?;
         let mut bytes = test_bytes.data_mut()?;
+        let _ = bytes.exclusive();
         bytes.exclusive().push_all([10, 11, 12])?;
         vec.extend_from_slice(&[10, 11, 12]);
+
+        for (list_item, owned_item) in bytes.iter_mut().zip_eq(vec.iter_mut()) {
+            *list_item += 1;
+            *owned_item += 1;
+        }
+
         let list_bytes = &***bytes;
         println!("{list_bytes:?}");
         assert_eq!(list_bytes, vec.as_slice());

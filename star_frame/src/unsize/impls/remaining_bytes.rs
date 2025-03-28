@@ -1,7 +1,6 @@
 use crate::align1::Align1;
 use crate::unsize::init::{DefaultInit, UnsizedInit};
 use crate::unsize::wrapper::ExclusiveWrapper;
-use crate::unsize::AsShared;
 use crate::unsize::UnsizedType;
 use crate::Result;
 use advancer::Advance;
@@ -48,13 +47,6 @@ impl<'a> DerefMut for RemainingBytesMut<'a> {
         unsafe { &mut *self.0 }
     }
 }
-impl<'a> AsShared<'a> for RemainingBytesMut<'_> {
-    type Shared<'b> = RemainingBytesRef<'b> where Self: 'a + 'b;
-
-    fn as_shared(&'a self) -> RemainingBytesRef<'a> {
-        RemainingBytesRef(self.0.cast_const(), PhantomData)
-    }
-}
 
 unsafe impl UnsizedType for RemainingBytes {
     type Ref<'a> = RemainingBytesRef<'a>;
@@ -62,8 +54,12 @@ unsafe impl UnsizedType for RemainingBytes {
     type Owned = Vec<u8>;
     const ZST_STATUS: bool = false;
 
+    fn mut_as_ref<'a>(m: &'a Self::Mut<'_>) -> Self::Ref<'a> {
+        RemainingBytesRef(m.0, PhantomData)
+    }
+
     fn get_ref<'a>(data: &mut &'a [u8]) -> Result<Self::Ref<'a>> {
-        let remaining_bytes = data.advance(data.len());
+        let remaining_bytes = data.try_advance(data.len())?;
         let ptr = remaining_bytes.as_ptr();
         Ok(RemainingBytesRef(
             unsafe { &*ptr::from_raw_parts(ptr.cast::<()>(), remaining_bytes.len()) },
@@ -72,7 +68,7 @@ unsafe impl UnsizedType for RemainingBytes {
     }
 
     fn get_mut<'a>(data: &mut &'a mut [u8]) -> Result<Self::Mut<'a>> {
-        let remaining_bytes = data.advance(data.len());
+        let remaining_bytes = data.try_advance(data.len())?;
         let ptr = remaining_bytes.as_mut_ptr();
         Ok(RemainingBytesMut(
             unsafe { &mut *ptr::from_raw_parts_mut(ptr.cast::<()>(), remaining_bytes.len()) },
@@ -101,7 +97,7 @@ unsafe impl UnsizedType for RemainingBytes {
     }
 }
 
-#[unsized_impl]
+#[unsized_impl(inherent)]
 impl RemainingBytes {
     #[exclusive]
     pub fn set_len(&mut self, len: usize) -> Result<()> {
@@ -154,7 +150,7 @@ unsafe impl<const N: usize> UnsizedInit<&[u8; N]> for RemainingBytes {
     const INIT_BYTES: usize = N;
 
     unsafe fn init(bytes: &mut &mut [u8], array: &[u8; N]) -> Result<()> {
-        bytes.advance(N).copy_from_slice(array);
+        bytes.try_advance(N)?.copy_from_slice(array);
         Ok(())
     }
 }

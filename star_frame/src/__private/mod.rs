@@ -21,7 +21,7 @@ pub mod macro_prelude {
             ExclusiveWrapper, ExclusiveWrapperT, MutWrapper, SharedWrapper, StartPointer,
             UnsizedTypeDataAccess,
         },
-        AsShared, UnsizedType,
+        UnsizedType,
     };
     pub use crate::Result;
     pub use star_frame_proc::{derivative, sighash};

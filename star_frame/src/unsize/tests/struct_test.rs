@@ -1,5 +1,8 @@
 use crate::prelude::*;
 use crate::unsize::test_helpers::TestByteSet;
+// use crate::unsize::tests::struct_test::many_unsized::{
+//     ManyUnsized, ManyUnsizedExclusiveExt, ManyUnsizedOwned,
+// };
 use crate::unsize::tests::struct_test::many_unsized::{
     ManyUnsized, ManyUnsizedExclusiveExt, ManyUnsizedOwned,
 };
@@ -12,6 +15,8 @@ pub struct UnsizedTest {
     pub unsized1: List<PackedValue<u16>, u8>,
     pub unsized3: UnsizedTest3,
     pub unsized2: List<PackedValue<u16>, u8>,
+    pub map: Map<u8, PackedValue<u16>>,
+    pub map2: UnsizedMap<u8, UnsizedTest3>,
 }
 
 #[unsized_type(owned_attributes = [derive(PartialEq, Eq, Clone)])]
@@ -23,7 +28,9 @@ pub struct UnsizedTest3 {
 #[unsized_impl]
 impl UnsizedTest3 {
     #[exclusive]
-    fn foo<'c>(&'c mut self) -> ExclusiveWrapperT<'c, 'a, 'info, List<PackedValue<u16>, u8>, O, A> {
+    fn foo<'child>(
+        &'child mut self,
+    ) -> ExclusiveWrapperT<'child, 'ptr, 'top, 'info, List<PackedValue<u16>, u8>, O, A> {
         self.unsized3()
     }
 }
@@ -37,6 +44,8 @@ fn test_unsized_simple() -> Result<()> {
         unsized3: UnsizedTest3Init {
             unsized3: [150, 151, 152].map(Into::into),
         },
+        map: DefaultInit,
+        map2: DefaultInit,
     })?;
     let mut data_mut = r.data_mut()?;
 
@@ -54,7 +63,21 @@ fn test_unsized_simple() -> Result<()> {
     assert_eq!(&**banana.unsized1, [100, 101, 102, 103]);
     assert_eq!(&**banana.unsized2, [200, 201, 202, 203]);
     assert_eq!(&**banana.unsized3.unsized3, [150, 151, 152, 153]);
+    for (key, value) in &mut banana.map {
+        println!("{key:?}: {value:?}");
+    }
 
+    let mut map2 = banana.map2();
+    let unsized3_arr = [1, 2, 3, 4, 5];
+    map2.insert(
+        1,
+        UnsizedTest3Init {
+            unsized3: unsized3_arr.map(Into::into),
+        },
+    )?;
+    let mut item = map2.get_exclusive(&1)?.expect("Item exsts");
+    assert_eq!(&**item.unsized3, unsized3_arr);
+    item.unsized3().push(6.into())?;
     drop(data_mut);
 
     let expected = UnsizedTestOwned {
@@ -62,6 +85,15 @@ fn test_unsized_simple() -> Result<()> {
         unsized2: [200, 201, 202, 203].map(Into::into).to_vec(),
         unsized3: UnsizedTest3Owned {
             unsized3: [150, 151, 152, 153].map(Into::into).to_vec(),
+        },
+        map: Default::default(),
+        map2: UnsizedMapOwned {
+            list: vec![(
+                1,
+                UnsizedTest3Owned {
+                    unsized3: [1, 2, 3, 4, 5, 6].map(Into::into).to_vec(),
+                },
+            )],
         },
     };
     let owned = UnsizedTest::owned_from_ref(*r.data_ref()?)?;
