@@ -4,7 +4,8 @@ on: pull_request_target
 
 jobs:
   auto-approve:
-    runs-on: ubuntu-latest
+    runs-on:
+      group: sa-runners
     permissions:
       pull-requests: write
     if: github.actor == 'dependabot[bot]'
