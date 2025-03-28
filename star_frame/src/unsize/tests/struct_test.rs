@@ -68,8 +68,16 @@ fn test_unsized_simple() -> Result<()> {
     }
 
     let mut map2 = banana.map2();
-    let mut res = map2.get_exclusive(&1).unwrap()?;
-    let _unsized3 = res.unsized3();
+    let unsized3_arr = [1, 2, 3, 4, 5];
+    map2.insert(
+        1,
+        UnsizedTest3Init {
+            unsized3: unsized3_arr.map(Into::into),
+        },
+    )?;
+    let mut item = map2.get_exclusive(&1).unwrap()?;
+    assert_eq!(&**item.unsized3, unsized3_arr);
+    item.unsized3().push(6.into())?;
     drop(data_mut);
 
     let expected = UnsizedTestOwned {
@@ -79,7 +87,14 @@ fn test_unsized_simple() -> Result<()> {
             unsized3: [150, 151, 152, 153].map(Into::into).to_vec(),
         },
         map: Default::default(),
-        map2: Default::default(),
+        map2: UnsizedMapOwned {
+            list: vec![(
+                1,
+                UnsizedTest3Owned {
+                    unsized3: [1, 2, 3, 4, 5, 6].map(Into::into).to_vec(),
+                },
+            )],
+        },
     };
     let owned = UnsizedTest::owned_from_ref(*r.data_ref()?)?;
     assert_eq!(owned, expected);

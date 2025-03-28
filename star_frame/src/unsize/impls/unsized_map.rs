@@ -1,7 +1,9 @@
 use crate::prelude::*;
+use crate::unsize::impls::unsized_list::unsized_list_exclusive;
 use star_frame_proc::derivative;
+use std::collections::HashMap;
+use std::hash::Hash;
 use std::iter::FusedIterator;
-use std::ptr;
 
 #[derive(Align1, Zeroable, Debug, Copy, Clone)]
 #[repr(C)]
@@ -51,7 +53,18 @@ where
     K: Pod + Ord + Align1,
     V: UnsizedType + ?Sized,
 {
-    list: Vec<(K, V::Owned)>,
+    pub list: Vec<(K, V::Owned)>,
+}
+
+impl<K, V> UnsizedMapOwned<K, V>
+where
+    K: Pod + Ord + Align1 + Hash,
+    V: UnsizedType + ?Sized,
+{
+    #[must_use]
+    pub fn into_hash_map(self) -> HashMap<K, V::Owned> {
+        self.list.into_iter().collect()
+    }
 }
 
 fn unsized_map_owned_from_ref<K, V>(r: UnsizedMapRef<'_, K, V>) -> Result<UnsizedMapOwned<K, V>>
@@ -68,7 +81,8 @@ where
     Ok(owned)
 }
 
-#[unsized_type(skip_idl, owned_type = UnsizedMapOwned<K, V>, owned_from_ref = unsized_map_owned_from_ref::<K, V>)]
+#[unsized_type(skip_idl, owned_type = UnsizedMapOwned<K, V>, owned_from_ref = unsized_map_owned_from_ref::<K, V>
+)]
 pub struct UnsizedMap<K, V>
 where
     K: Pod + Ord + Align1,
@@ -130,16 +144,17 @@ where
     pub fn get_exclusive<'child>(
         &'child mut self,
         key: &K,
-    ) -> Option<Result<ExclusiveWrapper<'child, 'top, 'info, V::Mut<'child>, O, A>>> {
+    ) -> Option<Result<ExclusiveWrapper<'child, 'top, 'info, V::Mut<'ptr>, O, A>>> {
         let Ok(index) = self.get_index(key) else {
             return None;
         };
         Some(unsafe {
             ExclusiveWrapper::try_map_ref(self, |data| {
-                data.list
-                    .get_mut(index)
-                    .expect("index exists")
-                    .map(|mut t| ptr::from_mut(&mut t))
+                let list = &mut data.list;
+
+                let (start, end) = list.get_unsized_range(index).expect("Index exists");
+
+                unsized_list_exclusive!(<V> list start..end)
             })
         })
     }

@@ -47,7 +47,8 @@ unsafe impl UnsizedListOffset for PackedValue<u32> {
 }
 impl PackedU32 {
     #[inline]
-    fn usize(self) -> usize {
+    #[must_use]
+    pub fn usize(self) -> usize {
         self.0 as usize
     }
 }
@@ -71,7 +72,7 @@ where
     C: UnsizedListOffset,
 {
     phantom_t: PhantomData<fn() -> T>,
-    unsized_size: PackedU32,
+    pub(super) unsized_size: PackedU32,
     len: PackedU32,
     pub(super) offset_list: [C],
     // copy of len
@@ -122,7 +123,7 @@ where
         unsafe { slice::from_raw_parts(self.unsized_data_ptr(), self.unsized_size.usize()) }
     }
     #[inline]
-    unsafe fn unsized_bytes_mut(&mut self) -> &mut [u8] {
+    pub(super) unsafe fn unsized_bytes_mut(&mut self) -> &mut [u8] {
         unsafe { slice::from_raw_parts_mut(self.unsized_data_ptr_mut(), self.unsized_size.usize()) }
     }
 
@@ -224,7 +225,7 @@ where
     }
 
     #[inline]
-    unsafe fn unsized_data_ptr_mut(&mut self) -> *mut u8 {
+    pub(crate) unsafe fn unsized_data_ptr_mut(&mut self) -> *mut u8 {
         unsafe {
             self.offset_list
                 .as_mut_ptr()
@@ -234,7 +235,7 @@ where
         }
     }
 
-    fn get_unsized_range(&self, index: usize) -> Option<(usize, usize)> {
+    pub(super) fn get_unsized_range(&self, index: usize) -> Option<(usize, usize)> {
         let start_index = self.offset_list.get(index)?;
         let start_bound = start_index.to_usize_offset();
         let end_bound = self.offset_list.get(index + 1).map_or(
@@ -358,7 +359,7 @@ where
     C: UnsizedListOffset,
 {
     list_ptr: *mut UnsizedList<T, C>,
-    inner_exclusive: Option<T::Mut<'a>>,
+    pub(super) inner_exclusive: Option<T::Mut<'a>>,
     phantom: PhantomData<&'a ()>,
 }
 
@@ -510,6 +511,20 @@ where
     }
 }
 
+macro_rules! unsized_list_exclusive {
+    (<$gen:ident> $data:ident $start:ident..$end:ident) => {
+        {
+            let unsized_data_slice/* '1 */ =
+                ::core::slice::from_raw_parts_mut($data.unsized_data_ptr_mut(), $data.unsized_size.usize());
+            let t = $gen::get_mut(&mut &mut unsized_data_slice[$start..$end])?;
+            $data.inner_exclusive = Some(t);
+            Ok($data.inner_exclusive.as_mut().unwrap())
+        }
+    };
+}
+
+pub(super) use unsized_list_exclusive;
+
 #[unsized_impl(inherent)]
 impl<T, C> UnsizedList<T, C>
 where
@@ -524,13 +539,7 @@ where
         let (start, end) = self.get_unsized_range(index)?;
         //todo: are these lifetimes correct?
         Some(unsafe {
-            ExclusiveWrapper::try_map_ref(self, |data| {
-                let unsized_data_slice/* '1 */ =
-                    slice::from_raw_parts_mut(data.unsized_data_ptr_mut(), data.unsized_size.usize());
-                let t = T::get_mut(&mut &mut unsized_data_slice[start..end])?;
-                data.inner_exclusive = Some(t);
-                Ok(data.inner_exclusive.as_mut().unwrap())
-            })
+            ExclusiveWrapper::try_map_ref(self, |data| unsized_list_exclusive!(<T> data start..end))
         })
     }
 

@@ -59,11 +59,10 @@ where
 {
     #[must_use]
     pub fn to_hash_map(&self) -> HashMap<K, V> {
-        let mut map = HashMap::with_capacity(self.list.len());
-        for ListItemSized { key, value } in self.list.iter().copied() {
-            map.insert(key, value);
-        }
-        map
+        self.list
+            .iter()
+            .map(|item| (item.key, item.value))
+            .collect()
     }
 }
 
