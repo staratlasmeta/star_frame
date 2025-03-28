@@ -245,46 +245,45 @@ where
         Some((start_bound, end_bound))
     }
 
-    #[must_use]
-    pub fn get(&self, index: usize) -> Option<Result<T::Ref<'_>>> {
-        let (start, end) = self.get_unsized_range(index)?;
+    pub fn get(&self, index: usize) -> Result<Option<T::Ref<'_>>> {
+        let Some((start, end)) = self.get_unsized_range(index) else {
+            return Ok(None);
+        };
         let unsized_bytes = unsafe { self.unsized_bytes() };
-        Some(T::get_ref(&mut &unsized_bytes[start..end]))
+        T::get_ref(&mut &unsized_bytes[start..end]).map(Some)
     }
 
-    #[must_use]
-    pub fn get_mut(&mut self, index: usize) -> Option<Result<T::Mut<'_>>> {
-        let (start, end) = self.get_unsized_range(index)?;
+    pub fn get_mut(&mut self, index: usize) -> Result<Option<T::Mut<'_>>> {
+        let Some((start, end)) = self.get_unsized_range(index) else {
+            return Ok(None);
+        };
         let unsized_bytes = unsafe { self.unsized_bytes_mut() };
-        Some(T::get_mut(&mut &mut unsized_bytes[start..end]))
+        T::get_mut(&mut &mut unsized_bytes[start..end]).map(Some)
     }
 
     #[inline]
-    #[must_use]
-    pub fn first(&self) -> Option<Result<T::Ref<'_>>> {
+    pub fn first(&self) -> Result<Option<T::Ref<'_>>> {
         self.get(0)
     }
 
     #[inline]
-    pub fn first_mut(&mut self) -> Option<Result<T::Mut<'_>>> {
+    pub fn first_mut(&mut self) -> Result<Option<T::Mut<'_>>> {
         self.get_mut(0)
     }
 
     #[inline]
-    #[must_use]
-    pub fn last(&self) -> Option<Result<T::Ref<'_>>> {
+    pub fn last(&self) -> Result<Option<T::Ref<'_>>> {
         if self.is_empty() {
-            None
+            Ok(None)
         } else {
             self.get(self.len() - 1)
         }
     }
 
     #[inline]
-    #[must_use]
-    pub fn last_mut(&mut self) -> Option<Result<T::Mut<'_>>> {
+    pub fn last_mut(&mut self) -> Result<Option<T::Mut<'_>>> {
         if self.is_empty() {
-            None
+            Ok(None)
         } else {
             self.get_mut(self.len() - 1)
         }
@@ -292,12 +291,14 @@ where
 
     #[inline]
     pub fn index(&self, index: usize) -> Result<T::Ref<'_>> {
-        self.get(index).context("Index out of bounds")?
+        self.get(index).transpose().context("Index out of bounds")?
     }
 
     #[inline]
     pub fn index_mut(&mut self, index: usize) -> Result<T::Mut<'_>> {
-        self.get_mut(index).context("Index out of bounds")?
+        self.get_mut(index)
+            .transpose()
+            .context("Index out of bounds")?
     }
 
     pub(super) fn iter_with_offsets(&self) -> UnsizedListWithOffsetIter<'_, T, C> {
@@ -535,12 +536,14 @@ where
     pub fn get_exclusive<'child>(
         &'child mut self,
         index: usize,
-    ) -> Option<Result<ExclusiveWrapper<'child, 'top, 'info, T::Mut<'ptr>, O, A>>> {
-        let (start, end) = self.get_unsized_range(index)?;
-        //todo: are these lifetimes correct?
-        Some(unsafe {
+    ) -> Result<Option<ExclusiveWrapper<'child, 'top, 'info, T::Mut<'ptr>, O, A>>> {
+        let Some((start, end)) = self.get_unsized_range(index) else {
+            return Ok(None);
+        };
+        unsafe {
             ExclusiveWrapper::try_map_ref(self, |data| unsized_list_exclusive!(<T> data start..end))
-        })
+        }
+        .map(Some)
     }
 
     #[exclusive]
@@ -549,14 +552,16 @@ where
         &'child mut self,
         index: usize,
     ) -> Result<ExclusiveWrapper<'child, 'top, 'info, T::Mut<'ptr>, O, A>> {
-        self.get_exclusive(index).context("Index out of bounds")?
+        self.get_exclusive(index)
+            .transpose()
+            .context("Index out of bounds")?
     }
 
     #[exclusive]
     #[inline]
     pub fn first_exclusive<'child>(
         &'child mut self,
-    ) -> Option<Result<ExclusiveWrapper<'child, 'top, 'info, T::Mut<'ptr>, O, A>>> {
+    ) -> Result<Option<ExclusiveWrapper<'child, 'top, 'info, T::Mut<'ptr>, O, A>>> {
         self.get_exclusive(0)
     }
 
@@ -564,9 +569,9 @@ where
     #[inline]
     pub fn last_exclusive<'child>(
         &'child mut self,
-    ) -> Option<Result<ExclusiveWrapper<'child, 'top, 'info, T::Mut<'ptr>, O, A>>> {
+    ) -> Result<Option<ExclusiveWrapper<'child, 'top, 'info, T::Mut<'ptr>, O, A>>> {
         if self.is_empty() {
-            None
+            Ok(None)
         } else {
             self.get_exclusive(self.len() - 1)
         }
@@ -712,11 +717,11 @@ where
         Ok(())
     }
 
-    pub fn pop(&mut self) -> Option<Result<()>> {
+    pub fn pop(&mut self) -> Result<Option<()>> {
         if self.len() == 0 {
-            return None;
+            return Ok(None);
         }
-        Some(self.remove(self.len() - 1))
+        Some(self.remove(self.len() - 1)).transpose()
     }
 
     pub fn remove(&mut self, index: usize) -> Result<()> {

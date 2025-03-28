@@ -75,7 +75,7 @@ fn test_unsized_simple() -> Result<()> {
             unsized3: unsized3_arr.map(Into::into),
         },
     )?;
-    let mut item = map2.get_exclusive(&1).unwrap()?;
+    let mut item = map2.get_exclusive(&1)?.expect("Item exsts");
     assert_eq!(&**item.unsized3, unsized3_arr);
     item.unsized3().push(6.into())?;
     drop(data_mut);

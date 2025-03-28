@@ -451,11 +451,11 @@ where
     }
 
     #[inline]
-    pub fn pop(&mut self) -> Option<Result<()>> {
-        if self.is_empty() {
-            return None;
+    pub fn pop(&mut self) -> Result<Option<()>> {
+        if self.len() == 0 {
+            return Ok(None);
         }
-        Some(self.remove(self.len() - 1))
+        self.remove(self.len() - 1).map(Some)
     }
 
     #[inline]

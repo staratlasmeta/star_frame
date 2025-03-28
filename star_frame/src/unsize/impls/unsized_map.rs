@@ -126,17 +126,17 @@ where
             .binary_search_by(|probe| { probe.key }.cmp(key))
     }
 
-    pub fn get(&self, key: &K) -> Option<Result<V::Ref<'_>>> {
+    pub fn get(&self, key: &K) -> Result<Option<V::Ref<'_>>> {
         match self.get_index(key) {
             Ok(existing_index) => self.list.get(existing_index),
-            Err(_) => None,
+            Err(_) => Ok(None),
         }
     }
 
-    pub fn get_mut(&mut self, key: &K) -> Option<Result<V::Mut<'_>>> {
+    pub fn get_mut(&mut self, key: &K) -> Result<Option<V::Mut<'_>>> {
         match self.get_index(key) {
             Ok(existing_index) => self.list.get_mut(existing_index),
-            Err(_) => None,
+            Err(_) => Ok(None),
         }
     }
 
@@ -144,19 +144,18 @@ where
     pub fn get_exclusive<'child>(
         &'child mut self,
         key: &K,
-    ) -> Option<Result<ExclusiveWrapper<'child, 'top, 'info, V::Mut<'ptr>, O, A>>> {
+    ) -> Result<Option<ExclusiveWrapper<'child, 'top, 'info, V::Mut<'ptr>, O, A>>> {
         let Ok(index) = self.get_index(key) else {
-            return None;
+            return Ok(None);
         };
-        Some(unsafe {
+        unsafe {
             ExclusiveWrapper::try_map_ref(self, |data| {
                 let list = &mut data.list;
-
                 let (start, end) = list.get_unsized_range(index).expect("Index exists");
-
                 unsized_list_exclusive!(<V> list start..end)
             })
-        })
+        }
+        .map(Some)
     }
 
     /// Inserts or modifies an item into the map, returning true if the item already existed, and false otherwise.
