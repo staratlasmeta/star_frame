@@ -27,4 +27,4 @@ sha2 = { workspace = true }
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }
-star_frame = { workspace = true, features = ["test_helpers", "idl"] }
+star_frame = { path = "../star_frame", features = ["test_helpers", "idl"] }
