@@ -1,8 +1,8 @@
 [package]
 name = "faction_enlistment"
-version = "0.1.0"
-description = "Created with Anchor"
-edition = "2021"
+version = "0.0.1"
+edition.workspace = true
+publish = false
 
 [lib]
 crate-type = ["cdylib", "lib"]
