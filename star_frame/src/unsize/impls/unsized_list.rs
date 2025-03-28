@@ -32,7 +32,7 @@ unsafe impl UnsizedListOffset for PackedValue<u32> {
         self.0 as usize
     }
     #[inline]
-    fn as_offset_mut(&mut self) -> &mut PackedU32 {
+    fn as_mut_offset(&mut self) -> &mut PackedU32 {
         self
     }
     #[inline]
@@ -59,7 +59,7 @@ pub unsafe trait UnsizedListOffset: Pod + Align1 {
     type ListOffsetInit;
     fn to_usize_offset(&self) -> usize;
     // TODO: this locks the offset type into a packed u32. Potentially consider making this more generic
-    fn as_offset_mut(&mut self) -> &mut PackedU32;
+    fn as_mut_offset(&mut self) -> &mut PackedU32;
     fn as_offset(&self) -> &PackedU32;
     fn from_usize_offset(offset: usize, init: Self::ListOffsetInit) -> Result<Self>;
 }
@@ -149,15 +149,15 @@ where
                 if let Some((first, rest)) = self.offset_list[start_index..].split_first_mut() {
                     let change: u32 = (-change).try_into()?;
                     // First item to change should be smallest, so this makes sure none of the offsets underflow
-                    first.as_offset_mut().0 = first
-                        .as_offset_mut()
+                    first.as_mut_offset().0 = first
+                        .as_mut_offset()
                         .0
                         .checked_sub(change)
                         .context("Failed to decrease bytes to first offset")?;
 
                     for item in rest.iter_mut() {
-                        item.as_offset_mut().0 =
-                            unsafe { item.as_offset_mut().0.unchecked_sub(change) }
+                        item.as_mut_offset().0 =
+                            unsafe { item.as_mut_offset().0.unchecked_sub(change) }
                     }
                 }
             }
@@ -166,15 +166,15 @@ where
                 if let Some((last, rest)) = self.offset_list[start_index..].split_last_mut() {
                     let change: u32 = change.try_into()?;
                     // Last item should be largest, so this makes sure none of the offsets overflow
-                    last.as_offset_mut().0 = last
-                        .as_offset_mut()
+                    last.as_mut_offset().0 = last
+                        .as_mut_offset()
                         .0
                         .checked_add(change)
                         .context("Failed to increase bytes to last offset")?;
 
                     for item in rest.iter_mut() {
-                        item.as_offset_mut().0 =
-                            unsafe { item.as_offset_mut().0.unchecked_add(change) }
+                        item.as_mut_offset().0 =
+                            unsafe { item.as_mut_offset().0.unchecked_add(change) }
                     }
                 }
             }

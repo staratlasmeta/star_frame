@@ -29,8 +29,8 @@ where
     }
 
     #[inline]
-    fn as_offset_mut(&mut self) -> &mut PackedValue<u32> {
-        self.offset.as_offset_mut()
+    fn as_mut_offset(&mut self) -> &mut PackedValue<u32> {
+        self.offset.as_mut_offset()
     }
 
     #[inline]
