@@ -1,9 +1,12 @@
 [package]
 name = "star_frame_proc"
+description = "Procedural macros for Star Frame"
 version.workspace = true
 edition.workspace = true
 publish.workspace = true
 rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
 
 [lib]
 proc-macro = true

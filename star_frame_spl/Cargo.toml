@@ -1,10 +1,12 @@
 [package]
 name = "star_frame_spl"
+description = "Star Frame clients and utilities for SPL programs"
 version.workspace = true
 edition.workspace = true
 publish.workspace = true
 rust-version.workspace = true
-
+license.workspace = true
+repository.workspace = true
 [features]
 # todo: are these default features okay?
 default = ["token"]

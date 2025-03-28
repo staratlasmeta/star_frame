@@ -1,9 +1,12 @@
 [package]
 name = "star_frame"
+description = "A high performance Solana framework for building fast, scalable, and secure smart contracts."
 version.workspace = true
 edition.workspace = true
 publish.workspace = true
 rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
 
 [features]
 cleanup_rent_warning = []
@@ -49,4 +52,3 @@ rand = { workspace = true }
 
 [build-dependencies]
 rustc_version = { workspace = true }
-

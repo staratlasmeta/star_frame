@@ -1,9 +1,12 @@
 [package]
 name = "star_frame_cli"
+description = "A CLI for managing Star Frame Solana programs"
 version.workspace = true
 edition.workspace = true
 publish.workspace = true
 rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
