@@ -4,6 +4,9 @@ version = "0.0.1"
 edition.workspace = true
 publish = false
 
+[package.metadata]
+release.release = false
+
 [lib]
 crate-type = ["cdylib", "lib"]
 name = "counter"
