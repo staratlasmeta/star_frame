@@ -9,7 +9,7 @@ on:
 jobs:
   build:
     runs-on:
-      group: star-atlas-large-runners
+      group: sa-runners
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/install-binaries
@@ -20,7 +20,7 @@ jobs:
 
   lint:
     runs-on:
-      group: star-atlas-large-runners
+      group: sa-runners
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/install-binaries
@@ -31,7 +31,7 @@ jobs:
 
   fmt:
     runs-on:
-      group: star-atlas-large-runners
+      group: sa-runners
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/install-binaries
@@ -42,7 +42,7 @@ jobs:
 
   test:
     runs-on:
-      group: star-atlas-large-runners
+      group: sa-runners
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/install-binaries
