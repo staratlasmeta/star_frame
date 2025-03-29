@@ -59,7 +59,7 @@ solana-pubkey = ">=2.1,<2.2"
 solana-program-test = ">=2.1,<2.2"
 solana-sdk = ">=2.1,<2.2"
 spl-associated-token-account = { version = "6.0.0", features = [
-    "no_entrypoint",
+    "no-entrypoint",
 ] }
 spl-token = { version = "7.0.0", features = ["no-entrypoint"] }
 static_assertions = "^1.1.0"
