@@ -12,7 +12,7 @@ repository.workspace = true
 cleanup_rent_warning = []
 idl = ["star_frame_idl", "serde_json"]
 test_helpers = []
-locked-versions = ["bytemuck_derive", "half"]
+locked_versions = ["bytemuck_derive", "half"]
 
 [dependencies]
 advancer = { workspace = true }
