@@ -354,6 +354,9 @@ pub fn discriminant_vec(expr: &Expr, repr: IntegerRepr) -> TokenStream {
 }
 
 pub fn ignore_cfg_module(ident: &Ident, suffix: &str, body: TokenStream) -> TokenStream {
+    if body.is_empty() {
+        return TokenStream::new();
+    }
     let module_name = format_ident!("_{}{suffix}", ident.to_string().to_snake_case());
     quote! {
         #[allow(unexpected_cfgs)]

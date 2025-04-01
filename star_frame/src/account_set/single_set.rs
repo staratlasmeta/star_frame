@@ -1,6 +1,6 @@
 use crate::account_set::{AccountSet, HasOwnerProgram, SignedAccount, WritableAccount};
 use crate::anyhow::Result;
-use crate::client::{ClientAccountSet, MakeCpi};
+use crate::client::MakeCpi;
 use crate::prelude::{StarFrameProgram, SyscallInvoke, System};
 use crate::program::system_program;
 use crate::syscalls::SyscallCore;
@@ -9,7 +9,6 @@ use solana_program::account_info::AccountInfo;
 use solana_program::instruction::AccountMeta;
 use solana_program::program_error::ProgramError;
 use solana_program::pubkey::Pubkey;
-use star_frame::client::CpiAccountSet;
 use std::cell::{Ref, RefMut};
 use std::cmp::Ordering;
 use std::mem::size_of;
@@ -120,54 +119,6 @@ pub trait SingleAccountSet<'info>: AccountSet<'info> {
         'info: 'a,
     {
         self.account_info().info_data_bytes_mut()
-    }
-}
-
-impl<'info, T> CpiAccountSet<'info> for T
-where
-    T: SingleAccountSet<'info>,
-{
-    type CpiAccounts = AccountInfo<'info>;
-    const MIN_LEN: usize = 1;
-    #[inline]
-    fn to_cpi_accounts(&self) -> Self::CpiAccounts {
-        self.account_info_cloned()
-    }
-    #[inline]
-    fn extend_account_infos(account_info: Self::CpiAccounts, infos: &mut Vec<AccountInfo<'info>>) {
-        infos.push(account_info);
-    }
-    #[inline]
-    fn extend_account_metas(
-        _program_id: &Pubkey,
-        account_info: &Self::CpiAccounts,
-        metas: &mut Vec<AccountMeta>,
-    ) {
-        metas.push(AccountMeta {
-            pubkey: *account_info.key,
-            is_signer: T::META.signer,
-            is_writable: T::META.writable,
-        });
-    }
-}
-
-impl<'info, T> ClientAccountSet for T
-where
-    T: SingleAccountSet<'info>,
-{
-    type ClientAccounts = Pubkey;
-    const MIN_LEN: usize = 1;
-    #[inline]
-    fn extend_account_metas(
-        _program_id: &Pubkey,
-        accounts: &Self::ClientAccounts,
-        metas: &mut Vec<AccountMeta>,
-    ) {
-        metas.push(AccountMeta {
-            pubkey: *accounts,
-            is_signer: T::META.signer,
-            is_writable: T::META.writable,
-        });
     }
 }
 

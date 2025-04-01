@@ -238,6 +238,50 @@ pub(super) fn derive_account_set_impl_struct(
                     <#field_ty as #prelude::SingleAccountSet<#info_lifetime>>::account_info(&self.#field_name)
                 }
             }
+
+            #[automatically_derived]
+            impl #info_sg_impl #prelude::CpiAccountSet<#info_lifetime> for #ident #ty_generics #single_where {
+                type CpiAccounts = #prelude::AccountInfo<'info>;
+                const MIN_LEN: usize = 1;
+                #[inline]
+                fn to_cpi_accounts(&self) -> Self::CpiAccounts {
+                    self.account_info_cloned()
+                }
+                #[inline]
+                fn extend_account_infos(account_info: Self::CpiAccounts, infos: &mut Vec<#prelude::AccountInfo<'info>>) {
+                    infos.push(account_info);
+                }
+                #[inline]
+                fn extend_account_metas(
+                    _program_id: &#prelude::Pubkey,
+                    account_info: &Self::CpiAccounts,
+                    metas: &mut Vec<#prelude::AccountMeta>,
+                ) {
+                    metas.push(#prelude::AccountMeta {
+                        pubkey: *account_info.key,
+                        is_signer: <Self as #prelude::SingleAccountSet<#info_lifetime>>::META.signer,
+                        is_writable: <Self as #prelude::SingleAccountSet<#info_lifetime>>::META.writable,
+                    });
+                }
+            }
+
+            #[automatically_derived]
+            impl #info_sg_impl #prelude::ClientAccountSet for #ident #ty_generics #single_where {
+                type ClientAccounts = #prelude::Pubkey;
+                const MIN_LEN: usize = 1;
+                #[inline]
+                fn extend_account_metas(
+                    _program_id: &#prelude::Pubkey,
+                    accounts: &Self::ClientAccounts,
+                    metas: &mut Vec<#prelude::AccountMeta>,
+                ) {
+                    metas.push(#prelude::AccountMeta {
+                        pubkey: *accounts,
+                        is_signer: <Self as #prelude::SingleAccountSet<#info_lifetime>>::META.signer,
+                        is_writable: <Self as #prelude::SingleAccountSet<#info_lifetime>>::META.writable,
+                    });
+                }
+            }
         };
 
         let signed_account = args.skip_signed_account.not().then(|| {
@@ -405,7 +449,6 @@ pub(super) fn derive_account_set_impl_struct(
         };
         let cpi_accounts_struct = make_struct(&cpi_accounts_ident, &new_fields, new_struct_gen);
         let new_struct_ty_gen = new_struct_gen.split_for_impl().1;
-
 
 
         let (impl_gen, _, where_clause) = cpi_gen.split_for_impl();
