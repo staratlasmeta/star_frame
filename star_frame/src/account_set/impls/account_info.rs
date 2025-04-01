@@ -1,5 +1,6 @@
 use crate::account_set::{AccountSetDecode, SingleAccountSet, SingleSetMeta};
-use crate::prelude::SyscallAccountCache;
+use crate::client::ClientAccountSet;
+use crate::prelude::{CpiAccountSet, SyscallAccountCache};
 use crate::syscalls::SyscallInvoke;
 use crate::Result;
 use advancer::AdvanceArray;
@@ -71,6 +72,75 @@ impl<'info> SingleAccountSet<'info> for AccountInfo<'info> {
             .with_context(|| format!("Error borrowing mut data on account {}", self.key))
     }
 }
+
+impl<'a, 'info> ClientAccountSet for &'a AccountInfo<'info> {
+    type ClientAccounts = Pubkey;
+    const MIN_LEN: usize = 1;
+
+    fn extend_account_metas(
+        _program_id: &Pubkey,
+        accounts: &Self::ClientAccounts,
+        metas: &mut Vec<AccountMeta>,
+    ) {
+        metas.push(AccountMeta::new(*accounts, false));
+    }
+}
+
+impl<'info> ClientAccountSet for AccountInfo<'info> {
+    type ClientAccounts = Pubkey;
+    const MIN_LEN: usize = 1;
+
+    fn extend_account_metas(
+        _program_id: &Pubkey,
+        accounts: &Self::ClientAccounts,
+        metas: &mut Vec<AccountMeta>,
+    ) {
+        metas.push(AccountMeta::new(*accounts, false));
+    }
+}
+
+impl<'a, 'info> CpiAccountSet<'info> for &'a AccountInfo<'info> {
+    type CpiAccounts = AccountInfo<'info>;
+    const MIN_LEN: usize = 1;
+
+    fn to_cpi_accounts(&self) -> Self::CpiAccounts {
+        self.account_info_cloned()
+    }
+
+    fn extend_account_infos(accounts: Self::CpiAccounts, infos: &mut Vec<AccountInfo<'info>>) {
+        infos.push(accounts);
+    }
+
+    fn extend_account_metas(
+        _program_id: &Pubkey,
+        accounts: &Self::CpiAccounts,
+        metas: &mut Vec<AccountMeta>,
+    ) {
+        metas.push(AccountMeta::new(*accounts.key, false));
+    }
+}
+
+impl<'info> CpiAccountSet<'info> for AccountInfo<'info> {
+    type CpiAccounts = AccountInfo<'info>;
+    const MIN_LEN: usize = 1;
+
+    fn to_cpi_accounts(&self) -> Self::CpiAccounts {
+        self.account_info_cloned()
+    }
+
+    fn extend_account_infos(accounts: Self::CpiAccounts, infos: &mut Vec<AccountInfo<'info>>) {
+        infos.push(accounts);
+    }
+
+    fn extend_account_metas(
+        _program_id: &Pubkey,
+        accounts: &Self::CpiAccounts,
+        metas: &mut Vec<AccountMeta>,
+    ) {
+        metas.push(AccountMeta::new(*accounts.key, false));
+    }
+}
+
 impl<'__a, 'info> SingleAccountSet<'info> for &'__a AccountInfo<'info> {
     const META: SingleSetMeta = SingleSetMeta::default();
     #[inline]
