@@ -82,7 +82,11 @@ impl<'a, 'info> ClientAccountSet for &'a AccountInfo<'info> {
         accounts: &Self::ClientAccounts,
         metas: &mut Vec<AccountMeta>,
     ) {
-        metas.push(AccountMeta::new(*accounts, false));
+        metas.push(AccountMeta {
+            pubkey: *accounts,
+            is_signer: false,
+            is_writable: false,
+        });
     }
 }
 
@@ -95,7 +99,11 @@ impl<'info> ClientAccountSet for AccountInfo<'info> {
         accounts: &Self::ClientAccounts,
         metas: &mut Vec<AccountMeta>,
     ) {
-        metas.push(AccountMeta::new(*accounts, false));
+        metas.push(AccountMeta {
+            pubkey: *accounts,
+            is_signer: false,
+            is_writable: false,
+        });
     }
 }
 
@@ -116,7 +124,11 @@ impl<'a, 'info> CpiAccountSet<'info> for &'a AccountInfo<'info> {
         accounts: &Self::CpiAccounts,
         metas: &mut Vec<AccountMeta>,
     ) {
-        metas.push(AccountMeta::new(*accounts.key, false));
+        metas.push(AccountMeta {
+            pubkey: *accounts.key,
+            is_signer: false,
+            is_writable: false,
+        });
     }
 }
 
@@ -137,7 +149,11 @@ impl<'info> CpiAccountSet<'info> for AccountInfo<'info> {
         accounts: &Self::CpiAccounts,
         metas: &mut Vec<AccountMeta>,
     ) {
-        metas.push(AccountMeta::new(*accounts.key, false));
+        metas.push(AccountMeta {
+            pubkey: *accounts.key,
+            is_signer: false,
+            is_writable: false,
+        });
     }
 }
 

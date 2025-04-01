@@ -117,9 +117,6 @@ mod idl_impl {
     use star_frame_idl::account_set::IdlAccountSetDef;
     use star_frame_idl::IdlDefinition;
 
-    // todo: figure out our optionals for IDLs. Thinking we should remove our separate decode
-    //  strategies and just use the program id method. This would make using option much simpler on
-    //  arg side and be more in line with how the rest of the ecosystem handles optionals.
     impl<'info, T, Arg> AccountSetToIdl<'info, Arg> for Box<T>
     where
         T: AccountSetToIdl<'info, Arg>,
