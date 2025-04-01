@@ -6,7 +6,7 @@ use crate::{IdlGeneric, ItemInfo};
 use crate::{ItemDescription, ItemSource};
 use anyhow::bail;
 use serde::{Deserialize, Serialize};
-use solana_program::pubkey::Pubkey;
+use solana_pubkey::Pubkey;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct IdlAccountSetId {

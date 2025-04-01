@@ -35,7 +35,7 @@ macro_rules! star_frame_entrypoint (
             ) -> $crate::solana_program::entrypoint::ProgramResult {
                 <$program as $crate::program::StarFrameProgram>::processor(program_id, accounts, instruction_data)
             }
-            #[cfg(not(feature = "no-entrypoint"))]
+            #[cfg(not(any(feature = "no-entrypoint", feature = "no_entrypoint")))]
             $crate::solana_program::entrypoint!(process_instruction);
         }
     };

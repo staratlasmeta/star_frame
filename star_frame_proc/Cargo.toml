@@ -1,9 +1,12 @@
 [package]
 name = "star_frame_proc"
+description = "Procedural macros for Star Frame"
 version.workspace = true
 edition.workspace = true
 publish.workspace = true
 rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
 
 [lib]
 proc-macro = true
@@ -27,4 +30,4 @@ sha2 = { workspace = true }
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }
-star_frame = { workspace = true, features = ["test_helpers", "idl"] }
+star_frame = { path = "../star_frame", features = ["test_helpers", "idl"] }

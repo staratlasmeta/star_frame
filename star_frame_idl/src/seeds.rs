@@ -3,7 +3,7 @@ use crate::ty::IdlTypeDef;
 use crate::ItemDescription;
 use derive_more::{Deref, DerefMut};
 use serde::{Deserialize, Serialize};
-use solana_program::pubkey::Pubkey;
+use solana_pubkey::Pubkey;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, Default)]
 pub struct IdlFindSeeds {

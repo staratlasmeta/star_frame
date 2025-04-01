@@ -4,7 +4,7 @@ use crate::{
 use crate::{IdlGeneric, ItemInfo};
 use anyhow::{bail, Context};
 use serde::{Deserialize, Serialize};
-use solana_program::pubkey::Pubkey;
+use solana_pubkey::Pubkey;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct IdlType {

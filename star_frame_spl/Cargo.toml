@@ -1,10 +1,12 @@
 [package]
 name = "star_frame_spl"
+description = "Star Frame clients and utilities for SPL programs"
 version.workspace = true
 edition.workspace = true
 publish.workspace = true
 rust-version.workspace = true
-
+license.workspace = true
+repository.workspace = true
 [features]
 # todo: are these default features okay?
 default = ["token"]
@@ -15,6 +17,11 @@ idl = ["star_frame/idl"]
 star_frame.workspace = true
 borsh.workspace = true
 bytemuck.workspace = true
+
+# locked versions
+half.workspace = true
+fixed.workspace = true
+bytemuck_derive.workspace = true
 
 [dev-dependencies]
 spl-associated-token-account.workspace = true

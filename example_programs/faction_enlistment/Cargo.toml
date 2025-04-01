@@ -1,8 +1,11 @@
 [package]
 name = "faction_enlistment"
-version = "0.1.0"
-description = "Created with Anchor"
-edition = "2021"
+version = "0.0.1"
+edition.workspace = true
+publish = false
+
+[package.metadata]
+release.release = false
 
 [lib]
 crate-type = ["cdylib", "lib"]
@@ -10,15 +13,15 @@ name = "faction_enlistment"
 
 [features]
 prod = []
-no-entrypoint = []
-cpi = ["no-entrypoint"]
+no_entrypoint = []
+cpi = ["no_entrypoint"]
 idl = ["star_frame/idl", "star_frame_spl/idl"]
-locked-versions = ["star_frame/locked-versions"]
+locked_versions = ["star_frame/locked_versions"]
 
 [dependencies]
 star_frame = { workspace = true }
 star_frame_spl.workspace = true
-counter = { path = "../counter", features = ["no-entrypoint"] }
+counter = { path = "../counter", features = ["no_entrypoint"] }
 bytemuck.workspace = true
 
 [dev-dependencies]
@@ -26,3 +29,7 @@ solana-program-test.workspace = true
 pretty_assertions.workspace = true
 solana-sdk.workspace = true
 tokio.workspace = true
+
+# Locked for solana_program_test
+litemap = { workspace = true }
+zerofrom = { workspace = true }

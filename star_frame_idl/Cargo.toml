@@ -1,9 +1,12 @@
 [package]
 name = "star_frame_idl"
+description = "IDL definitions for Star Frame"
 version.workspace = true
 edition.workspace = true
 publish.workspace = true
 rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
 
 [features]
 default = ["anchor", "codama"]
@@ -20,12 +23,9 @@ anyhow = { workspace = true }
 derivative = { workspace = true }
 derive_more = { workspace = true }
 serde = { workspace = true }
-solana-program = { workspace = true }
+solana-pubkey = { workspace = true }
 semver = { workspace = true }
 itertools = { workspace = true }
-
-# locked versions
-bytemuck_derive.workspace = true
 
 [dev-dependencies]
 rand = { workspace = true }
