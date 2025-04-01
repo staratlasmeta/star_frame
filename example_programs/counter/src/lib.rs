@@ -212,7 +212,6 @@ pub struct CounterProgram;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use codama_nodes::{NodeTrait, ProgramNode};
     use solana_program_test::*;
     use solana_sdk::signature::{Keypair, Signer};
     use solana_sdk::transaction::Transaction;
@@ -221,6 +220,7 @@ mod tests {
     #[cfg(feature = "idl")]
     #[test]
     fn generate_idl() -> Result<()> {
+        use codama_nodes::{NodeTrait, ProgramNode};
         let idl = StarFrameDeclaredProgram::program_to_idl()?;
         let codama_idl: ProgramNode = idl.try_into()?;
         let idl_json = codama_idl.to_json()?;
