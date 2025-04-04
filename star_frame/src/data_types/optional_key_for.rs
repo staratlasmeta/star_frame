@@ -57,6 +57,12 @@ impl<T: ?Sized> OptionalKeyFor<T> {
         }
     }
 
+    /// Pulls out the contained pubkey.
+    #[must_use]
+    pub fn as_inner(&self) -> &Pubkey {
+        &self.pubkey
+    }
+
     /// Sets the contained pubkey.
     pub fn set_pubkey_direct(&mut self, pubkey: Option<Pubkey>) {
         self.pubkey = pubkey.unwrap_or_else(solana_program::system_program::id);
