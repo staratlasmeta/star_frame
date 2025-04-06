@@ -1,4 +1,4 @@
-use super::UnsizedType;
+use super::{AsShared, UnsizedType};
 use crate::prelude::UnsizedInit;
 use crate::Result;
 use advancer::Advance;
@@ -410,6 +410,16 @@ pub struct StartPointer<T> {
     #[deref]
     #[deref_mut]
     pub data: T,
+}
+
+impl<'a, T> AsShared<'a> for StartPointer<T>
+where
+    T: AsShared<'a>,
+{
+    type Ref = T::Ref;
+    fn as_shared(&'a self) -> Self::Ref {
+        self.data.as_shared()
+    }
 }
 
 impl<T> StartPointer<T> {

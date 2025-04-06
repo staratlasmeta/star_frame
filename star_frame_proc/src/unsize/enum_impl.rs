@@ -38,6 +38,7 @@ pub(crate) fn unsized_type_enum_impl(
         .then(|| context.owned_enum());
     let ref_enum = context.ref_enum();
     let mut_enum = context.mut_enum();
+    let as_shared_impl = context.as_shared_impl();
     let unsized_type_impl = context.unsized_type_impl();
     let unsized_init_default_impl = context.unsized_init_default_impl();
     let unsized_init_struct_impls = context.unsized_init_struct_impl();
@@ -50,6 +51,7 @@ pub(crate) fn unsized_type_enum_impl(
         #owned_enum
         #ref_enum
         #mut_enum
+        #as_shared_impl
         #unsized_type_impl
         #unsized_init_default_impl
         #unsized_init_struct_impls
@@ -292,6 +294,24 @@ impl UnsizedEnumContext {
                     #(#variant_docs)*
                     #variant_idents(<#variant_types as #prelude::UnsizedType>::Mut<#rm_lt>),
                 )*
+            }
+        }
+    }
+
+    fn as_shared_impl(&self) -> TokenStream {
+        Paths!(prelude);
+        UnsizedEnumContext!(self => ref_type, rm_lt, ref_ident, mut_type, mut_ident, variant_types, variant_idents);
+        let (impl_gen, _, where_clause) = self.ref_mut_generics.split_for_impl();
+
+        quote! {
+            #[automatically_derived]
+            impl #impl_gen #prelude::AsShared<#rm_lt> for #mut_type #where_clause {
+                type Ref = #ref_type;
+                fn as_shared(&#rm_lt self) -> Self::Ref {
+                    match self {
+                        #(#mut_ident::#variant_idents(inner) => #ref_ident::#variant_idents(<#variant_types as #prelude::UnsizedType>::mut_as_ref(inner)),)*
+                    }
+                }
             }
         }
     }

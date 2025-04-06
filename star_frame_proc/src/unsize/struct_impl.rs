@@ -57,6 +57,8 @@ pub(crate) fn unsized_type_struct_impl(
     // println!("After sized_bytemuck_derives!");
     let ref_mut_derefs = context.ref_mut_derefs();
     // println!("After ref_mut_derefs!");
+    let as_shared_impl = context.as_shared_impl();
+    // println!("After as_shared_impl!");
     let unsized_type_impl = context.unsized_type_impl();
     // println!("After unsized_type_impl!");
     let default_init_impl = context.unsized_init_default_impl();
@@ -77,6 +79,7 @@ pub(crate) fn unsized_type_struct_impl(
         #sized_additional_derives
         #sized_bytemuck_derives
         #ref_mut_derefs
+        #as_shared_impl
         #unsized_type_impl
         #default_init_impl
         #init_struct_impl
@@ -569,6 +572,25 @@ impl UnsizedStructContext {
                 }
             }
         })
+    }
+
+    fn as_shared_impl(&self) -> TokenStream {
+        Paths!(prelude);
+        UnsizedStructContext!(self => with_sized_idents, with_sized_types, mut_type, rm_lt, ref_type, ref_ident);
+
+        let (impl_gen, _, where_clause) = self.ref_mut_generics.split_for_impl();
+
+        quote! {
+            #[automatically_derived]
+            impl #impl_gen #prelude::AsShared<'a> for #mut_type #where_clause {
+                type Ref = #ref_type;
+                fn as_shared(&#rm_lt self) -> Self::Ref {
+                    #ref_ident {
+                        #(#with_sized_idents: <#with_sized_types as #prelude::UnsizedType>::mut_as_ref(&self.#with_sized_idents),)*
+                    }
+                }
+            }
+        }
     }
 
     fn unsized_type_impl(&self) -> TokenStream {

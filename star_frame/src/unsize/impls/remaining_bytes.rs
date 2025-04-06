@@ -1,8 +1,7 @@
 use crate::align1::Align1;
 use crate::unsize::init::{DefaultInit, UnsizedInit};
 use crate::unsize::wrapper::ExclusiveWrapper;
-use crate::unsize::FromOwned;
-use crate::unsize::UnsizedType;
+use crate::unsize::{AsShared, FromOwned, UnsizedType};
 use crate::Result;
 use advancer::Advance;
 use anyhow::bail;
@@ -46,6 +45,13 @@ impl<'a> Deref for RemainingBytesMut<'a> {
 impl<'a> DerefMut for RemainingBytesMut<'a> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         unsafe { &mut *self.0 }
+    }
+}
+
+impl<'a> AsShared<'a> for RemainingBytesMut<'a> {
+    type Ref = RemainingBytesRef<'a>;
+    fn as_shared(&'a self) -> Self::Ref {
+        RemainingBytes::mut_as_ref(self)
     }
 }
 

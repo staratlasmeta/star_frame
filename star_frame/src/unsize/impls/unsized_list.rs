@@ -5,6 +5,7 @@ use crate::unsize::init::{DefaultInit, UnsizedInit};
 use crate::unsize::unsized_impl;
 use crate::unsize::wrapper::ExclusiveWrapper;
 use crate::unsize::UnsizedType;
+use crate::unsize::{unsized_impl, AsShared};
 use crate::Result;
 use advancer::{Advance, AdvanceArray};
 use anyhow::{bail, ensure, Context};
@@ -380,6 +381,17 @@ where
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         unsafe { &mut *self.list_ptr }
+    }
+}
+
+impl<'a, T, C> AsShared<'a> for UnsizedListMut<'a, T, C>
+where
+    T: UnsizedType + ?Sized,
+    C: UnsizedListOffset,
+{
+    type Ref = UnsizedListRef<'a, T, C>;
+    fn as_shared(&'a self) -> Self::Ref {
+        UnsizedList::mut_as_ref(self)
     }
 }
 

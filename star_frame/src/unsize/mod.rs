@@ -12,11 +12,18 @@ pub use test_helpers::*;
 use crate::Result;
 pub use star_frame_proc::{unsized_impl, unsized_type};
 
+pub trait AsShared<'a> {
+    type Ref;
+    fn as_shared(&'a self) -> Self::Ref;
+}
+
+pub type UnsizedTypeMut<'a, T> = <T as UnsizedType>::Mut<'a>;
+
 /// # Safety
 /// TODO
 pub unsafe trait UnsizedType: 'static {
     type Ref<'a>;
-    type Mut<'a>;
+    type Mut<'a>: AsShared<'a, Ref = Self::Ref<'a>>;
 
     type Owned;
 

@@ -1,6 +1,5 @@
 use crate::unsize::init::{DefaultInit, DefaultInitable, UnsizedInit};
-use crate::unsize::FromOwned;
-use crate::unsize::UnsizedType;
+use crate::unsize::{AsShared, FromOwned, UnsizedType};
 use crate::{align1::Align1, Result};
 use advancer::Advance;
 use anyhow::Context;
@@ -51,6 +50,16 @@ where
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         unsafe { &mut *self.0 }
+    }
+}
+
+impl<'a, T> AsShared<'a> for CheckedMut<'a, T>
+where
+    T: CheckedBitPattern + NoUninit + Align1,
+{
+    type Ref = CheckedRef<'a, T>;
+    fn as_shared(&'a self) -> Self::Ref {
+        T::mut_as_ref(self)
     }
 }
 

@@ -3,8 +3,7 @@ use crate::data_types::PackedValue;
 use crate::prelude::UnsizedTypeDataAccess;
 use crate::unsize::init::{DefaultInit, UnsizedInit};
 use crate::unsize::wrapper::ExclusiveWrapper;
-use crate::unsize::FromOwned;
-use crate::unsize::UnsizedType;
+use crate::unsize::{AsShared, FromOwned, UnsizedType};
 use crate::util::uninit_array_bytes;
 use crate::Result;
 use advancer::Advance;
@@ -314,6 +313,17 @@ where
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         unsafe { &mut *self.0 }
+    }
+}
+
+impl<'a, T, L> AsShared<'a> for ListMut<'a, T, L>
+where
+    L: ListLength,
+    T: CheckedBitPattern + NoUninit + Align1,
+{
+    type Ref = ListRef<'a, T, L>;
+    fn as_shared(&'a self) -> Self::Ref {
+        List::mut_as_ref(self)
     }
 }
 
