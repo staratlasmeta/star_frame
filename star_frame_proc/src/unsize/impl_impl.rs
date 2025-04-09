@@ -181,21 +181,19 @@ pub fn unsized_impl_impl(item: ItemImpl, args: TokenStream) -> TokenStream {
     let parent_lt = new_lifetime(&item.generics, Some("parent"));
     let top_lt = new_lifetime(&item.generics, Some("top"));
     let info_lt = new_lifetime(&item.generics, Some("info"));
-    #[allow(non_snake_case)]
-    let O = new_generic(&item.generics, Some("O"));
-    #[allow(non_snake_case)]
-    let A = new_generic(&item.generics, Some("A"));
+    let o = new_generic(&item.generics, Some("O"));
+    let a = new_generic(&item.generics, Some("A"));
 
     let exclusive_trait_generics = item.generics.combine::<BetterGenerics>(&parse_quote!([
-        <#parent_lt, #ptr_lt, #top_lt, #info_lt, #O, #A> where
-            #O: #prelude::UnsizedType + ?Sized,
-            #A: #prelude::UnsizedTypeDataAccess<#info_lt>
+        <#parent_lt, #ptr_lt, #top_lt, #info_lt, #o, #a> where
+            #o: #prelude::UnsizedType + ?Sized,
+            #a: #prelude::UnsizedTypeDataAccess<#info_lt>
     ]));
     let (impl_gen, ty_gen, where_clause) = exclusive_trait_generics.split_for_impl();
-    let impl_for = quote!(#prelude::ExclusiveWrapperT<#parent_lt, #ptr_lt, #top_lt, #info_lt, #self_ty, #O, #A>);
+    let impl_for = quote!(#prelude::ExclusiveWrapperT<#parent_lt, #ptr_lt, #top_lt, #info_lt, #self_ty, #o, #a>);
     // need to directly use mut ty so params aren't unconstrained
     let impl_for_inherent =
-        quote!(#prelude::ExclusiveWrapper<#parent_lt, #top_lt, #info_lt, #mut_ty, #O, #A>);
+        quote!(#prelude::ExclusiveWrapper<#parent_lt, #top_lt, #info_lt, #mut_ty, #o, #a>);
 
     let exclusive_impls = if impl_args.inherent {
         let found_crate = crate_name("star_frame").expect("Could not find `star_frame`");

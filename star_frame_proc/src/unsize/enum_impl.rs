@@ -477,7 +477,6 @@ impl UnsizedEnumContext {
         }
     }
 
-    #[allow(non_snake_case)]
     fn extension_impl(&self) -> TokenStream {
         Paths!(prelude, debug, result);
         UnsizedEnumContext!(self => vis, enum_ident, variant_idents, variant_types, mut_ident, init_idents);
@@ -489,13 +488,13 @@ impl UnsizedEnumContext {
         let info_lt = new_lifetime(&self.generics, Some("info"));
         let child_lt = new_lifetime(&self.generics, Some("child"));
 
-        let O = new_generic(&self.generics, Some("O"));
-        let Init = new_generic(&self.generics, Some("Init"));
-        let A = new_generic(&self.generics, Some("A"));
+        let o = new_generic(&self.generics, Some("O"));
+        let init = new_generic(&self.generics, Some("Init"));
+        let a = new_generic(&self.generics, Some("A"));
 
-        let wc = quote!(#O: #prelude::UnsizedType + ?Sized, #A: #prelude::UnsizedTypeDataAccess<#info_lt>);
+        let wc = quote!(#o: #prelude::UnsizedType + ?Sized, #a: #prelude::UnsizedTypeDataAccess<#info_lt>);
 
-        let oa_gen = quote!(#O, #A);
+        let oa_gen = quote!(#o, #a);
         let parent_before_gen = quote!(#parent_lt, #ptr_lt, #top_lt, #info_lt);
         let child_before_gen = quote!(#child_lt, #ptr_lt, #top_lt, #info_lt);
 
@@ -545,9 +544,9 @@ impl UnsizedEnumContext {
                 fn get<#child_lt>(&#child_lt mut self) -> #exclusive_ident #return_ty_gen;
 
                 #(
-                    fn #setter_methods<#Init>(&mut self, init: #Init) -> #result<()>
+                    fn #setter_methods<#init>(&mut self, init: #init) -> #result<()>
                     where
-                        #enum_ident: #prelude::UnsizedInit<#init_idents<#Init>>;
+                        #enum_ident: #prelude::UnsizedInit<#init_idents<#init>>;
                 )*
             }
         };
@@ -574,9 +573,9 @@ impl UnsizedEnumContext {
                 }
 
                 #(
-                    fn #setter_methods<Init>(&mut self, init: #Init) -> #result<()>
+                    fn #setter_methods<Init>(&mut self, init: #init) -> #result<()>
                     where
-                        #enum_ident: #prelude::UnsizedInit<#init_idents<#Init>>,
+                        #enum_ident: #prelude::UnsizedInit<#init_idents<#init>>,
                     {
                         unsafe {
                             #prelude::ExclusiveWrapper::set_start_pointer_data::<#enum_ident_stripped_span, _>(
