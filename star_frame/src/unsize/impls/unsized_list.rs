@@ -2,7 +2,6 @@ use crate::align1::Align1;
 use crate::data_types::PackedValue;
 use crate::prelude::UnsizedTypeDataAccess;
 use crate::unsize::init::{DefaultInit, UnsizedInit};
-use crate::unsize::unsized_impl;
 use crate::unsize::wrapper::ExclusiveWrapper;
 use crate::unsize::UnsizedType;
 use crate::unsize::{unsized_impl, AsShared};
