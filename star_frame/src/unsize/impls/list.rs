@@ -273,7 +273,7 @@ where
 }
 
 #[derive(Copy, Clone, Debug)]
-pub struct ListRef<'a, T, L>(*const List<T, L>, PhantomData<&'a ()>)
+pub struct ListRef<'a, T, L = u32>(*const List<T, L>, PhantomData<&'a ()>)
 where
     L: ListLength,
     T: CheckedBitPattern + NoUninit + Align1;
@@ -290,7 +290,7 @@ where
     }
 }
 #[derive(Debug)]
-pub struct ListMut<'a, T, L>(*mut List<T, L>, PhantomData<&'a ()>)
+pub struct ListMut<'a, T, L = u32>(*mut List<T, L>, PhantomData<&'a ()>)
 where
     L: ListLength,
     T: CheckedBitPattern + NoUninit + Align1;
