@@ -52,6 +52,7 @@ where
     Ok(ix_data)
 }
 
+#[must_use = "Did you forget to invoke the builder?"]
 #[derive(Debug, Clone)]
 pub struct CpiBuilder<'info> {
     pub instruction: SolanaInstruction,
