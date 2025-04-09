@@ -1,7 +1,6 @@
 use crate::prelude::*;
 use crate::unsize::impls::unsized_list::unsized_list_exclusive;
-use std::collections::HashMap;
-use std::hash::Hash;
+use std::collections::BTreeMap;
 use std::iter::FusedIterator;
 
 #[derive(Align1, Zeroable, Debug, Copy, Clone)]
@@ -46,6 +45,9 @@ where
     }
 }
 
+/// The [`UnsizedType::Owned`] variant of [`UnsizedMap`].
+/// It is generally easier to create an initial [`BTreeMap`] or iterator of [`(K, V::Owned)`] and convert to this
+/// type vs working on it directly.
 #[derive(derive_where::DeriveWhere)]
 #[derive_where(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd; Vec<(K, V::Owned)>)]
 pub struct UnsizedMapOwned<K, V>
@@ -53,17 +55,79 @@ where
     K: Pod + Ord + Align1,
     V: UnsizedType + ?Sized,
 {
-    pub list: Vec<(K, V::Owned)>,
+    list: Vec<(K, V::Owned)>,
+}
+
+impl<K, V> From<BTreeMap<K, V::Owned>> for UnsizedMapOwned<K, V>
+where
+    K: Pod + Ord + Align1,
+    V: UnsizedType + ?Sized,
+{
+    fn from(btree_map: BTreeMap<K, V::Owned>) -> Self {
+        btree_map.into_iter().collect()
+    }
+}
+impl<K, V> FromIterator<(K, V::Owned)> for UnsizedMapOwned<K, V>
+where
+    K: Pod + Ord + Align1,
+    V: UnsizedType + ?Sized,
+{
+    fn from_iter<I: IntoIterator<Item = (K, V::Owned)>>(iter: I) -> Self {
+        let mut map = Self::new();
+        for (key, value) in iter {
+            map.insert(key, value);
+        }
+        map
+    }
 }
 
 impl<K, V> UnsizedMapOwned<K, V>
 where
-    K: Pod + Ord + Align1 + Hash,
+    K: Pod + Ord + Align1,
     V: UnsizedType + ?Sized,
 {
-    #[must_use]
-    pub fn into_hash_map(self) -> HashMap<K, V::Owned> {
+    pub fn to_btree_map(self) -> BTreeMap<K, V::Owned> {
         self.list.into_iter().collect()
+    }
+
+    pub fn new() -> Self {
+        Self { list: vec![] }
+    }
+
+    pub fn len(&self) -> usize {
+        self.list.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.list.is_empty()
+    }
+
+    pub fn insert(&mut self, key: K, value: V::Owned) -> Option<V::Owned> {
+        match self.list.binary_search_by(|probe| probe.0.cmp(&key)) {
+            Ok(existing_index) => {
+                let old = core::mem::replace(&mut self.list[existing_index].1, value);
+                Some(old)
+            }
+            Err(insertion_point) => {
+                self.list.insert(insertion_point, (key, value));
+                None
+            }
+        }
+    }
+
+    pub fn remove(&mut self, key: &K) -> Option<V::Owned> {
+        match self.list.binary_search_by(|probe| probe.0.cmp(&key)) {
+            Ok(existing_index) => Some(self.list.remove(existing_index).1),
+            Err(_) => None,
+        }
+    }
+
+    pub fn clear(&mut self) {
+        self.list.clear();
+    }
+
+    pub fn as_inner(&self) -> &Vec<(K, V::Owned)> {
+        &self.list
     }
 }
 
