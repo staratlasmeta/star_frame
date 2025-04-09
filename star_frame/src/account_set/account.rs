@@ -148,6 +148,8 @@ where
 }
 
 pub mod discriminant {
+    use crate::unsize::FromOwned;
+
     use super::*;
     #[derive(Debug)]
     pub struct AccountDiscriminant<T: UnsizedType + ProgramAccount + ?Sized>(T);
@@ -193,6 +195,20 @@ pub mod discriminant {
         }
     }
 
+    impl<T> FromOwned for AccountDiscriminant<T>
+    where
+        T: ProgramAccount + UnsizedType + FromOwned + ?Sized,
+    {
+        fn byte_size(owned: &T::Owned) -> usize {
+            T::byte_size(owned) + size_of::<OwnerProgramDiscriminant<T>>()
+        }
+
+        fn from_owned(owned: T::Owned, mut out: &mut [u8]) -> Result<usize> {
+            out.try_advance(size_of::<OwnerProgramDiscriminant<T>>())?;
+            out.copy_from_slice(bytes_of(&T::DISCRIMINANT));
+            T::from_owned(owned, out)
+        }
+    }
     unsafe impl<T, I> UnsizedInit<I> for AccountDiscriminant<T>
     where
         T: UnsizedType + ?Sized + ProgramAccount + UnsizedInit<I>,
