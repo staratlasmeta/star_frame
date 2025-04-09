@@ -1,6 +1,6 @@
 use crate::prelude::*;
 use crate::unsize::test_helpers::TestByteSet;
-use crate::unsize::TestAccountInfo;
+use crate::unsize::TestUnderlyingData;
 use anyhow::{bail, ensure};
 
 #[unsized_type(skip_idl)]
@@ -43,7 +43,7 @@ pub enum UnsizedEnumTest {
 
 fn compare_with_owned(
     owned: &EnumTestStructOwned,
-    exclusive: &ExclusiveWrapperT<EnumTestStruct, EnumTestStruct, TestAccountInfo>,
+    exclusive: &ExclusiveWrapperT<EnumTestStruct, EnumTestStruct, TestUnderlyingData>,
 ) -> Result<()> {
     assert_eq!(**exclusive.list_before, owned.list_before);
     assert_eq!(**exclusive.list_after, owned.list_after);
