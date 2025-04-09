@@ -1,3 +1,5 @@
+use std::collections::BTreeSet;
+
 use crate::prelude::*;
 use crate::unsize::FromOwned;
 
@@ -9,6 +11,87 @@ where
 {
     #[unsized_start]
     list: List<K, L>,
+}
+
+impl<K, L> From<BTreeSet<K>> for SetOwned<K, L>
+where
+    K: UnsizedGenerics + Ord,
+    L: ListLength,
+{
+    fn from(btree_set: BTreeSet<K>) -> Self {
+        let mut set = Self::new();
+        for key in btree_set {
+            set.insert(key);
+        }
+        set
+    }
+}
+
+impl<K, L> FromIterator<K> for SetOwned<K, L>
+where
+    K: UnsizedGenerics + Ord,
+    L: ListLength,
+{
+    fn from_iter<I: IntoIterator<Item = K>>(iter: I) -> Self {
+        let mut set = Self::new();
+        for key in iter {
+            set.insert(key);
+        }
+        set
+    }
+}
+
+impl<K, L> SetOwned<K, L>
+where
+    K: UnsizedGenerics + Ord,
+    L: ListLength,
+{
+    pub fn to_btree_set(self) -> BTreeSet<K> {
+        self.list.into_iter().collect()
+    }
+
+    pub fn new() -> Self {
+        Self { list: vec![] }
+    }
+
+    pub fn len(&self) -> usize {
+        self.list.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.list.is_empty()
+    }
+
+    pub fn insert(&mut self, key: K) -> Option<K> {
+        match self.list.binary_search(&key) {
+            Ok(existing_index) => {
+                let old = core::mem::replace(&mut self.list[existing_index], key);
+                Some(old)
+            }
+            Err(insertion_index) => {
+                self.list.insert(insertion_index, key);
+                None
+            }
+        }
+    }
+
+    pub fn remove(&mut self, key: &K) -> Option<K> {
+        match self.list.binary_search(key) {
+            Ok(existing_index) => {
+                let old = self.list.remove(existing_index);
+                Some(old)
+            }
+            Err(_) => None,
+        }
+    }
+
+    pub fn clear(&mut self) {
+        self.list.clear();
+    }
+
+    pub fn as_inner(&self) -> &Vec<K> {
+        &self.list
+    }
 }
 
 impl<K, L> FromOwned for Set<K, L>
