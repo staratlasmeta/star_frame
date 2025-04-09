@@ -13,7 +13,7 @@ use itertools::Itertools;
 use proc_macro2::{Ident, TokenStream};
 use proc_macro_crate::{crate_name, FoundCrate};
 use proc_macro_error2::abort;
-use quote::{format_ident, quote, ToTokens};
+use quote::{format_ident, quote};
 use std::fmt::Debug;
 use syn::punctuated::Punctuated;
 use syn::token::{Brace, Paren};
@@ -178,29 +178,6 @@ pub fn restrict_attributes(attributes: &impl EnumerableAttributes, allowed_attri
             }
         }
     });
-}
-
-fn last_path_segment(path: &Path) -> Ident {
-    path.segments
-        .last()
-        .map(|last| last.ident.clone())
-        .unwrap_or_else(|| abort!(path, "Path has no segments!"))
-}
-
-pub fn make_derivative_attribute<T: ToTokens>(
-    traits: Punctuated<Path, Token![,]>,
-    types: &[T],
-) -> Attribute {
-    let bounds = traits
-        .iter()
-        .map(|t| {
-            let path_ident = last_path_segment(t);
-            let derivitive_bounds = types.iter().map(|ty| quote!(#ty: #t)).collect::<Vec<_>>();
-            let derivative_bounds = format!("{}", quote!(#(#derivitive_bounds),*));
-            quote!(#path_ident(bound = #derivative_bounds))
-        })
-        .collect_vec();
-    parse_quote!(#[derivative(#(#bounds),*)])
 }
 
 pub fn get_field_types(fields: &impl FieldIter) -> impl Iterator<Item = &Type> {

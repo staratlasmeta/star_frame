@@ -1,28 +1,17 @@
 #![allow(clippy::extra_unused_type_parameters)]
 use bytemuck::{Pod, Zeroable};
-use derivative::Derivative;
+use derive_where::derive_where;
 use num_traits::real::Real;
 use num_traits::Pow;
 use serde::{Deserialize, Serialize};
 use star_frame_proc::Align1;
-use std::fmt::Debug;
-use std::hash::Hash;
 use std::marker::PhantomData;
 use std::ops::{Add, AddAssign, Div, Mul, Rem, Sub, SubAssign};
 use typenum::{IsEqual, Mod, True, Unsigned, P2, Z0};
 
 /// A value within a unit system.
-#[derive(Derivative, Serialize, Deserialize, Align1)]
-#[derivative(
-    Copy(bound = "T: Copy"),
-    Clone(bound = "T: Clone"),
-    Debug(bound = "T: Debug"),
-    PartialEq(bound = "T: PartialEq"),
-    Eq(bound = "T: Eq"),
-    PartialOrd(bound = "T: PartialOrd"),
-    Ord(bound = "T: Ord"),
-    Hash(bound = "T: Hash")
-)]
+#[derive(Serialize, Deserialize, Align1)]
+#[derive_where(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash; T)]
 #[serde(bound(serialize = "T: Serialize", deserialize = "T: Deserialize<'de>"))]
 #[repr(transparent)]
 pub struct UnitVal<T, Unit> {
@@ -221,18 +210,12 @@ macro_rules! create_unit_system {
 
     ($vis:vis struct $ident:ident<$($unit:ident),* $(,)?>) => {
         #[derive(
-            $crate::derivative::Derivative,
             $crate::serde::Serialize,
             $crate::serde::Deserialize,
             $crate::align1::Align1,
         )]
         #[serde(bound = "")]
-        #[derivative(
-            Default(bound = ""),
-            Debug(bound = ""),
-            PartialEq(bound = ""),
-            Eq(bound = ""),
-        )]
+        #[$crate::derive_where::derive_where(Default, Debug, PartialEq, Eq)]
         #[repr(transparent)]
         $vis struct $ident<$($unit,)*>(::std::marker::PhantomData<($($unit,)*)>);
         impl<$($unit,)*> Copy for $ident<$($unit,)*> {}

@@ -30,8 +30,6 @@ pub struct Paths {
 
     pub size_of: TokenStream,
 
-    // derivative
-    pub derivative: TokenStream,
     // account set
     pub account_set: TokenStream,
     pub account_set_decode: TokenStream,
@@ -96,8 +94,6 @@ impl Default for Paths {
             phantom_data: quote! { ::core::marker::PhantomData },
             ptr: quote! { ::core::ptr },
             size_of: quote! { ::core::mem::size_of },
-            // derivative
-            derivative: quote! { #crate_name::derivative::Derivative },
             // account set
             account_set: quote! { #crate_name::account_set::AccountSet },
             account_set_decode: quote! { #crate_name::account_set::AccountSetDecode },

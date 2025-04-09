@@ -7,9 +7,9 @@ use crate::unsize::tests::struct_test::many_unsized::{
     ManyUnsized, ManyUnsizedExclusiveExt, ManyUnsizedOwned,
 };
 use pretty_assertions::assert_eq;
-use star_frame_proc::{derivative, unsized_impl};
+use star_frame_proc::unsized_impl;
 
-#[unsized_type(owned_attributes = [derive(PartialEq, Eq, Clone)], skip_idl)]
+#[unsized_type(skip_idl)]
 pub struct UnsizedTest {
     #[unsized_start]
     pub unsized1: List<PackedValue<u16>, u8>,
@@ -19,7 +19,7 @@ pub struct UnsizedTest {
     pub map2: UnsizedMap<u8, UnsizedTest3>,
 }
 
-#[unsized_type(owned_attributes = [derive(PartialEq, Eq, Clone)])]
+#[unsized_type]
 pub struct UnsizedTest3 {
     #[unsized_start]
     pub unsized3: List<PackedValue<u16>, u8>,
@@ -108,11 +108,7 @@ pub struct TestStruct {
     pub val2: u64,
 }
 
-#[unsized_type(
-    owned_attributes = [
-        derive(PartialEq, Eq, Clone)
-    ]
-)]
+#[unsized_type]
 pub struct SingleUnsized {
     #[unsized_start]
     pub unsized1: List<u8>,
@@ -136,7 +132,7 @@ fn test_single_unsized() -> Result<()> {
 
 mod many_unsized {
     use super::*;
-    #[unsized_type(owned_attributes = [derive(PartialEq, Eq, Clone)])]
+    #[unsized_type()]
     pub struct ManyUnsized {
         pub sized1: u8,
         pub sized2: u8,
@@ -202,7 +198,7 @@ fn test_many_unsized() -> Result<()> {
     Ok(())
 }
 
-#[unsized_type(owned_attributes = [derive(PartialEq, Eq, Clone)])]
+#[unsized_type()]
 pub struct SingleUnsizedWithSized {
     pub sized1: bool,
     #[unsized_start]
@@ -227,7 +223,7 @@ fn test_single_unsized_with_sized() -> Result<()> {
     Ok(())
 }
 
-#[unsized_type(owned_attributes = [derive(PartialEq, Eq, Clone)])]
+#[unsized_type()]
 pub struct SizedAndUnsized {
     pub sized1: bool,
     pub sized2: PackedValue<u16>,
@@ -269,7 +265,7 @@ fn test_sized_and_unsized() -> Result<()> {
     Ok(())
 }
 
-#[unsized_type(owned_attributes = [derive(PartialEq, Eq, Clone)], skip_idl, skip_phantom_generics)]
+#[unsized_type(skip_idl, skip_phantom_generics)]
 pub struct WithSizedGenerics<A: UnsizedGenerics, B>
 where
     B: UnsizedGenerics,
@@ -305,7 +301,7 @@ fn test_with_sized_generics() -> Result<()> {
     Ok(())
 }
 
-#[unsized_type(owned_attributes = [derive(PartialEq, Eq, Clone)], skip_idl)]
+#[unsized_type(skip_idl)]
 pub struct WithUnsizedGenerics<A: UnsizedGenerics, B>
 where
     B: UnsizedGenerics,
@@ -341,7 +337,7 @@ fn test_with_unsized_generics() -> Result<()> {
     Ok(())
 }
 
-#[unsized_type(owned_attributes = [derive(PartialEq, Eq, Clone)], skip_idl)]
+#[unsized_type(skip_idl)]
 pub struct WithOnlyUnsizedGenerics<A: UnsizedGenerics, B: UnsizedType>
 where
     B::Owned: PartialEq + Eq + Clone,
@@ -371,7 +367,7 @@ fn test_with_only_unsized_generics() -> Result<()> {
     Ok(())
 }
 
-#[unsized_type(owned_attributes = [derive(PartialEq, Eq, Clone)], skip_idl)]
+#[unsized_type(skip_idl)]
 pub struct WithSizedAndUnsizedGenerics<A: UnsizedGenerics, B, C>
 where
     B: UnsizedType<Owned: Clone + PartialEq + Eq> + ?Sized,

@@ -11,7 +11,6 @@ use anyhow::{bail, ensure, Context};
 use bytemuck::cast_slice_mut;
 use bytemuck::{bytes_of, from_bytes, Pod, Zeroable};
 use core::slice;
-use derivative::Derivative;
 use itertools::Itertools;
 use num_traits::ToPrimitive;
 use solana_program::program_memory::sol_memmove;
@@ -21,7 +20,6 @@ use std::marker::PhantomData;
 use std::mem::size_of;
 use std::ops::{Deref, DerefMut, RangeBounds};
 use std::{iter, ptr};
-// todo: move to UnsizedMap
 
 type PackedU32 = PackedValue<u32>;
 
@@ -329,9 +327,8 @@ where
     }
 }
 
-#[derive(Derivative)]
-#[derivative(Copy(bound = ""), Clone(bound = ""))]
-#[derive(Debug)]
+#[derive(derive_where::DeriveWhere)]
+#[derive_where(Copy, Clone, Debug)]
 pub struct UnsizedListRef<'a, T, C>
 where
     T: UnsizedType + ?Sized,

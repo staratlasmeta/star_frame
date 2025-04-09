@@ -34,7 +34,7 @@ bytemuck = { version = "^1.22.0", features = [
 clap = { version = "^4.3", features = ["derive"] }
 codama-nodes = { version = "^0.3.0", registry = "star-atlas" }
 daggy = "^0.8.0"
-derivative = "^2.2.0"
+derive-where = { version = "1.2.7", features = ["nightly"] }
 derive_more = { version = "^2.0.1", features = ["full"] }
 easy_proc = "^0.4.0"
 heck = "^0.5.0"

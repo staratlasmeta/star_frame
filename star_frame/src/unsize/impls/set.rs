@@ -1,6 +1,6 @@
 use crate::prelude::*;
 
-#[unsized_type(skip_idl, owned_attributes = [derive(Eq, PartialEq)])]
+#[unsized_type(skip_idl)]
 pub struct Set<K, L = u32>
 where
     K: UnsizedGenerics + Ord,

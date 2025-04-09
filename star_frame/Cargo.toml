@@ -20,7 +20,7 @@ anyhow = { workspace = true }
 array-init = { workspace = true }
 borsh = { workspace = true }
 bytemuck = { workspace = true }
-derivative = { workspace = true }
+derive-where = { workspace = true }
 derive_more = { workspace = true }
 fixed = { workspace = true }
 itertools = { workspace = true }

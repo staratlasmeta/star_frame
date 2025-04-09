@@ -20,7 +20,6 @@ anchor-lang-idl-spec = { workspace = true, optional = true }
 codama-nodes = { workspace = true, optional = true }
 hex = { workspace = true, optional = true }
 anyhow = { workspace = true }
-derivative = { workspace = true }
 derive_more = { workspace = true }
 serde = { workspace = true }
 solana-pubkey = { workspace = true }

@@ -2,30 +2,29 @@ use crate::prelude::*;
 use crate::unsize::test_helpers::TestByteSet;
 use crate::unsize::TestAccountInfo;
 use anyhow::{bail, ensure};
-use star_frame_proc::derivative;
 
-#[unsized_type(owned_attributes = [derive(PartialEq, Eq, Clone)], skip_idl)]
+#[unsized_type(skip_idl)]
 pub struct Unsized1 {
     pub sized: u8,
     #[unsized_start]
     pub list: List<u8, u8>,
 }
 
-#[unsized_type(owned_attributes = [derive(PartialEq, Eq, Clone)], skip_idl)]
+#[unsized_type(skip_idl)]
 pub struct Unsized2 {
     pub sized: PackedValue<u16>,
     #[unsized_start]
     pub list: List<PackedValue<u16>, u8>,
 }
 
-#[unsized_type(owned_attributes = [derive(PartialEq, Eq, Clone)], skip_idl)]
+#[unsized_type(skip_idl)]
 pub struct Unsized3 {
     pub sized: PackedValue<u32>,
     #[unsized_start]
     pub unsized1: Unsized2,
 }
 
-#[unsized_type(owned_attributes = [derive(PartialEq, Eq, Clone)], skip_idl)]
+#[unsized_type(skip_idl)]
 pub struct EnumTestStruct {
     #[unsized_start]
     pub list_before: List<u8>,
@@ -33,7 +32,7 @@ pub struct EnumTestStruct {
     pub list_after: List<u8>,
 }
 
-#[unsized_type(owned_attributes = [derive(PartialEq, Eq, Clone)], skip_idl)]
+#[unsized_type(skip_idl)]
 #[repr(u8)]
 pub enum UnsizedEnumTest {
     #[default_init]

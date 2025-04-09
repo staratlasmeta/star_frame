@@ -208,7 +208,7 @@ impl UnsizedEnumContext {
     }
 
     fn enum_struct(&self) -> ItemStruct {
-        Paths!(prelude, debug, default, clone, copy);
+        Paths!(prelude, debug);
         UnsizedEnumContext!(self => enum_ident, generics, vis);
 
         let wc = &generics.where_clause;
@@ -216,10 +216,18 @@ impl UnsizedEnumContext {
 
         let phantom_generics: Option<TokenStream> = phantom_generics_type.map(|ty| quote!((#ty)));
 
+        let derives = if phantom_generics.is_some() {
+            quote! {
+                #[derive(#prelude::DeriveWhere)]
+                #[derive_where(Debug)]
+            }
+        } else {
+            quote!(#[derive(#debug)])
+        };
+
         parse_quote! {
             #[repr(C)]
-            #[derive(#prelude::Align1)]
-            #[#prelude::derivative(#debug, #default, #copy, #clone)]
+            #derives
             #vis struct #enum_ident #generics #phantom_generics #wc;
         }
     }
@@ -238,14 +246,15 @@ impl UnsizedEnumContext {
     }
 
     fn owned_enum(&self) -> ItemEnum {
-        Paths!(prelude, debug);
+        Paths!(prelude);
         UnsizedEnumContext!(self => owned_ident, variant_idents, variant_types, variant_docs, args, generics);
         let additional_owned = args.owned_attributes.attributes.iter();
         let wc = &generics.where_clause;
 
         parse_quote! {
-            #[derive(#debug)]
             #(#[#additional_owned])*
+            #[derive(#prelude::DeriveWhere)]
+            #[derive_where(Debug, Copy, Clone, Eq, Hash, Ord, PartialEq, PartialOrd; #(<#variant_types as #prelude::UnsizedType>::Owned,)*)]
             pub enum #owned_ident #generics #wc {
                 #(
                     #(#variant_docs)*
@@ -256,11 +265,12 @@ impl UnsizedEnumContext {
     }
 
     fn ref_enum(&self) -> ItemEnum {
-        Paths!(prelude, debug, copy, clone);
+        Paths!(prelude);
         UnsizedEnumContext!(self => ref_ident, variant_idents, variant_types, variant_docs, rm_lt);
         let (generics, wc) = self.split_for_declaration(true);
         parse_quote! {
-            #[derive(#debug, #copy, #clone)]
+            #[derive(#prelude::DeriveWhere)]
+            #[derive_where(Debug, Copy, Clone; #(<#variant_types as #prelude::UnsizedType>::Ref<#rm_lt>,)*)]
             pub enum #ref_ident #generics #wc {
                 #(
                     #(#variant_docs)*
@@ -271,11 +281,12 @@ impl UnsizedEnumContext {
     }
 
     fn mut_enum(&self) -> ItemEnum {
-        Paths!(prelude, debug);
+        Paths!(prelude);
         UnsizedEnumContext!(self => mut_ident, variant_idents, variant_types, variant_docs, rm_lt);
         let (generics, wc) = self.split_for_declaration(true);
         parse_quote! {
-            #[derive(#debug)]
+            #[derive(#prelude::DeriveWhere)]
+            #[derive_where(Debug; #(<#variant_types as #prelude::UnsizedType>::Mut<#rm_lt>,)*)]
             pub enum #mut_ident #generics #wc {
                 #(
                     #(#variant_docs)*

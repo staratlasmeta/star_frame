@@ -1,6 +1,5 @@
 use crate::prelude::*;
 use crate::unsize::impls::unsized_list::unsized_list_exclusive;
-use star_frame_proc::derivative;
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::iter::FusedIterator;
@@ -47,7 +46,8 @@ where
     }
 }
 
-#[star_frame_proc::derivative(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(derive_where::DeriveWhere)]
+#[derive_where(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd; Vec<(K, V::Owned)>)]
 pub struct UnsizedMapOwned<K, V>
 where
     K: Pod + Ord + Align1,
@@ -81,8 +81,7 @@ where
     Ok(owned)
 }
 
-#[unsized_type(skip_idl, owned_type = UnsizedMapOwned<K, V>, owned_from_ref = unsized_map_owned_from_ref::<K, V>
-)]
+#[unsized_type(skip_idl, owned_type = UnsizedMapOwned<K, V>, owned_from_ref = unsized_map_owned_from_ref::<K, V>)]
 pub struct UnsizedMap<K, V>
 where
     K: Pod + Ord + Align1,

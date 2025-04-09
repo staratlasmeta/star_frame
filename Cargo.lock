@@ -1289,6 +1289,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "derive-where"
+version = "1.2.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "62d671cc41a825ebabc75757b62d3d168c577f9149b2d49ece1dad1f72119d25"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.100",
+]
+
+[[package]]
 name = "derive_more"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6490,7 +6501,7 @@ dependencies = [
  "borsh 1.5.7",
  "bytemuck",
  "bytemuck_derive",
- "derivative",
+ "derive-where",
  "derive_more 2.0.1",
  "fixed",
  "half",
@@ -6528,7 +6539,6 @@ dependencies = [
  "anchor-lang-idl-spec",
  "anyhow",
  "codama-nodes",
- "derivative",
  "derive_more 2.0.1",
  "hex",
  "itertools 0.14.0",

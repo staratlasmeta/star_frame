@@ -23,8 +23,8 @@ const _: fn() = || {
 };
 unsafe impl<K: UnsizedGenerics, V: UnsizedGenerics> Zeroable for ListItemSized<K, V> {}
 unsafe impl<K: UnsizedGenerics, V: UnsizedGenerics> NoUninit for ListItemSized<K, V> {}
-#[star_frame_proc::derivative(Debug, Copy, Clone)]
-#[repr(C, packed)]
+#[derive_where::derive_where(Debug, Copy, Clone; <K as CheckedBitPattern>::Bits, <V as CheckedBitPattern>::Bits)]
+#[repr(C)]
 pub struct ListItemSizedBits<K: UnsizedGenerics, V: UnsizedGenerics> {
     pub key: <K as CheckedBitPattern>::Bits,
     pub value: <V as CheckedBitPattern>::Bits,
@@ -40,7 +40,7 @@ unsafe impl<K: UnsizedGenerics, V: UnsizedGenerics> CheckedBitPattern for ListIt
     }
 }
 
-#[unsized_type(skip_idl, owned_attributes = [derive(Clone, Default, Eq, PartialEq, Ord, PartialOrd, Hash)])]
+#[unsized_type(skip_idl)]
 pub struct Map<K, V, L = u32>
 where
     K: UnsizedGenerics + Ord,
