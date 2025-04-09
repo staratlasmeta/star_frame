@@ -95,4 +95,8 @@ where
     pub fn owned(&self) -> Result<T::Owned> {
         T::owned(&self.test_account.data.try_borrow()?)
     }
+
+    pub fn underlying_data(&self) -> Result<Vec<u8>> {
+        Ok(self.test_account.data.try_borrow()?.to_vec())
+    }
 }
