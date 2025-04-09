@@ -87,14 +87,12 @@ fn test_unsized_simple() -> Result<()> {
             unsized3: [150, 151, 152, 153].map(Into::into).to_vec(),
         },
         map: Default::default(),
-        map2: UnsizedMapOwned {
-            list: vec![(
-                1,
-                UnsizedTest3Owned {
-                    unsized3: [1, 2, 3, 4, 5, 6].map(Into::into).to_vec(),
-                },
-            )],
-        },
+        map2: UnsizedMapOwned::from_iter(std::iter::once((
+            1,
+            UnsizedTest3Owned {
+                unsized3: [1, 2, 3, 4, 5, 6].map(Into::into).to_vec(),
+            },
+        ))),
     };
     let owned = UnsizedTest::owned_from_ref(*r.data_ref()?)?;
     assert_eq!(owned, expected);
