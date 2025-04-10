@@ -108,7 +108,7 @@ where
     }
 }
 
-impl<T> FromOwned for T
+unsafe impl<T> FromOwned for T
 where
     T: CheckedBitPattern + NoUninit + Align1,
 {
@@ -116,8 +116,10 @@ where
         size_of::<T>()
     }
 
-    fn from_owned(owned: Self::Owned, out: &mut [u8]) -> Result<usize> {
-        out[..size_of::<T>()].copy_from_slice(bytemuck::bytes_of(&owned));
+    fn from_owned(owned: Self::Owned, bytes: &mut &mut [u8]) -> Result<usize> {
+        bytes
+            .try_advance(size_of::<T>())?
+            .copy_from_slice(bytemuck::bytes_of(&owned));
         Ok(size_of::<T>())
     }
 }

@@ -388,7 +388,7 @@ where
     }
 }
 
-impl<T, L> FromOwned for List<T, L>
+unsafe impl<T, L> FromOwned for List<T, L>
 where
     L: ListLength,
     T: Align1 + CheckedBitPattern + NoUninit,
@@ -397,16 +397,18 @@ where
         size_of::<L>() + size_of::<T>() * owned.len()
     }
 
-    fn from_owned(owned: Self::Owned, out: &mut [u8]) -> Result<usize> {
-        out[..size_of::<L>()].copy_from_slice(bytes_of(&L::from_usize(owned.len()).unwrap()));
-        let mut offset = size_of::<L>();
+    fn from_owned(owned: Self::Owned, bytes: &mut &mut [u8]) -> Result<usize> {
+        bytes
+            .try_advance(size_of::<L>())?
+            .copy_from_slice(bytes_of(&L::from_usize(owned.len()).unwrap()));
 
         for item in &owned {
-            out[offset..][..size_of::<T>()].copy_from_slice(bytes_of(item));
-            offset += size_of::<T>();
+            bytes
+                .try_advance(size_of::<T>())?
+                .copy_from_slice(bytes_of(item));
         }
 
-        Ok(size_of::<L>() + size_of::<T>() * owned.len())
+        Ok(Self::byte_size(&owned))
     }
 }
 
@@ -718,7 +720,7 @@ mod tests {
     fn test_list() -> Result<()> {
         let byte_array = [1, 2, 3, 4, 5];
         let mut vec = byte_array.to_vec();
-        let test_bytes = TestByteSet::<List<u8>>::new(&byte_array)?;
+        let test_bytes = TestByteSet::<List<u8>>::new(byte_array.to_vec())?;
         let mut bytes = test_bytes.data_mut()?;
         let _ = bytes.exclusive();
         bytes.exclusive().push_all([10, 11, 12])?;

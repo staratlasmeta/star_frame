@@ -21,7 +21,7 @@ pub mod macro_prelude {
             ExclusiveWrapper, ExclusiveWrapperT, MutWrapper, SharedWrapper, StartPointer,
             UnsizedTypeDataAccess,
         },
-        AsShared, UnsizedType,
+        AsShared, FromOwned, UnsizedType,
     };
 
     pub use crate::Result;

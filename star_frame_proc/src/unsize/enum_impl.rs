@@ -39,6 +39,7 @@ pub(crate) fn unsized_type_enum_impl(
     let ref_enum = context.ref_enum();
     let mut_enum = context.mut_enum();
     let as_shared_impl = context.as_shared_impl();
+    let from_owned_impl = context.from_owned_impl();
     let unsized_type_impl = context.unsized_type_impl();
     let unsized_init_default_impl = context.unsized_init_default_impl();
     let unsized_init_struct_impls = context.unsized_init_struct_impl();
@@ -52,6 +53,7 @@ pub(crate) fn unsized_type_enum_impl(
         #ref_enum
         #mut_enum
         #as_shared_impl
+        #from_owned_impl
         #unsized_type_impl
         #unsized_init_default_impl
         #unsized_init_struct_impls
@@ -314,6 +316,46 @@ impl UnsizedEnumContext {
                 }
             }
         }
+    }
+
+    fn from_owned_impl(&self) -> Option<TokenStream> {
+        if self.args.owned_type.is_some() {
+            return None;
+        }
+        Paths!(prelude, result, size_of, bytemuck);
+        UnsizedEnumContext!(self => enum_type, variant_types, variant_idents, integer_repr, owned_type,discriminant_ident);
+
+        let from_owned_generics = self.generics.combine::<BetterGenerics>(&parse_quote!([
+            where #(#variant_types: #prelude::FromOwned),*
+        ]));
+
+        let (impl_gen, _, where_clause) = from_owned_generics.split_for_impl();
+
+        Some(quote! {
+            #[automatically_derived]
+            unsafe impl #impl_gen #prelude::FromOwned for #enum_type #where_clause {
+                #[inline]
+                fn byte_size(owned: &Self::Owned) -> usize {
+                    let variant_size = match owned {
+                        #(#owned_type::#variant_idents(inner) => <#variant_types as #prelude::FromOwned>::byte_size(inner),)*
+                    };
+                    #size_of::<#discriminant_ident>() + variant_size
+                }
+
+                #[inline]
+                fn from_owned(owned: Self::Owned, bytes: &mut &mut [u8]) -> #result<usize> {
+                    let variant_bytes = #prelude::Advance::try_advance(bytes, #size_of::<#discriminant_ident>())?;
+                    let (variant_size, discriminant) = match owned {
+                        #(#owned_type::#variant_idents(inner) => (
+                            <#variant_types as #prelude::FromOwned>::from_owned(inner, bytes)?,
+                            #discriminant_ident::#variant_idents,
+                        ),)*
+                    };
+                    variant_bytes.copy_from_slice(#bytemuck::bytes_of(&(discriminant as #integer_repr)));
+                    Ok(#size_of::<#discriminant_ident>() + variant_size)
+                }
+            }
+        })
     }
 
     fn unsized_type_impl(&self) -> TokenStream {

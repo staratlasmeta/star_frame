@@ -3,8 +3,8 @@ use crate::data_types::PackedValue;
 use crate::prelude::UnsizedTypeDataAccess;
 use crate::unsize::init::{DefaultInit, UnsizedInit};
 use crate::unsize::wrapper::ExclusiveWrapper;
-use crate::unsize::UnsizedType;
 use crate::unsize::{unsized_impl, AsShared};
+use crate::unsize::{FromOwned, UnsizedType};
 use crate::Result;
 use advancer::{Advance, AdvanceArray};
 use anyhow::{bail, ensure, Context};
@@ -75,6 +75,52 @@ where
     pub(super) offset_list: [C],
     // copy of len
     // bytes of unsized data
+}
+
+unsafe impl<T, C> FromOwned for UnsizedList<T, C>
+where
+    T: UnsizedType + FromOwned + ?Sized,
+    C: UnsizedListOffset<ListOffsetInit = ()>,
+{
+    fn byte_size(owned: &Self::Owned) -> usize {
+        U32_SIZE + // unsized size
+        U32_SIZE + // len
+        owned.len() * size_of::<C>() + // offset list
+        U32_SIZE + // copy of len
+        owned.iter().fold(0, |acc, item| acc + <T as FromOwned>::byte_size(item))
+    }
+
+    fn from_owned(owned: Self::Owned, bytes: &mut &mut [u8]) -> Result<usize> {
+        let owned_len = owned.len();
+        let owned_len_bytes = u32::try_from(owned_len)?.to_le_bytes();
+        let unsized_size_bytes = bytes.try_advance_array::<U32_SIZE>()?;
+
+        let len_bytes = bytes.try_advance_array::<U32_SIZE>()?;
+        *len_bytes = owned_len_bytes;
+
+        let offset_list_bytes = bytes.try_advance(owned_len * size_of::<C>())?;
+        let offset_array = bytemuck::try_cast_slice_mut::<_, C>(offset_list_bytes)?;
+
+        let copy_of_len_bytes = bytes.try_advance_array::<U32_SIZE>()?;
+        *copy_of_len_bytes = owned_len_bytes;
+
+        let mut unsized_bytes_written = 0;
+        let unsized_offsets = owned
+            .into_iter()
+            .map(|item| {
+                let offset = unsized_bytes_written;
+                unsized_bytes_written += T::from_owned(item, bytes)?;
+                Ok(offset)
+            })
+            .collect::<Result<Vec<_>>>()?;
+        *unsized_size_bytes = u32::try_from(unsized_bytes_written)?.to_le_bytes();
+
+        for (offset_item, amount) in offset_array.iter_mut().zip(unsized_offsets) {
+            *offset_item = C::from_usize_offset(amount, ())?;
+        }
+
+        Ok(U32_SIZE * 3 + owned_len * size_of::<C>() + unsized_bytes_written)
+    }
 }
 
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
@@ -1156,7 +1202,7 @@ mod tests {
     fn list_iters() -> Result<()> {
         type TestList = UnsizedList<List<u8>>;
         let byte_arrays = [[100u8, 101, 102], [150, 151, 152], [200, 201, 202]];
-        let test_bytes = TestByteSet::<TestList>::new(byte_arrays)?;
+        let test_bytes = TestByteSet::<TestList>::new_from_init(byte_arrays)?;
         let mut owned = byte_arrays.map(|array| array.to_vec()).to_vec();
         let mut unsized_lists = test_bytes.data_mut()?;
         for (list, owned_list) in unsized_lists.iter_with_offsets_mut().zip(owned.iter_mut()) {
@@ -1184,7 +1230,7 @@ mod tests {
     #[test]
     fn test_list_insert() -> Result<()> {
         let byte_arrays = [[100u8, 101, 102], [200, 201, 202]];
-        let test_bytes = TestByteSet::<UnsizedList<List<u8, u8>>>::new(byte_arrays)?;
+        let test_bytes = TestByteSet::<UnsizedList<List<u8, u8>>>::new_from_init(byte_arrays)?;
         let mut owned = vec![vec![100u8, 101, 102], vec![200, 201, 202]];
         let mut bytes = test_bytes.data_mut()?;
         let mut exclusive = bytes.exclusive();
@@ -1210,7 +1256,8 @@ mod tests {
             [[100u8, 101, 102], [10u8, 20u8, 30]],
         ];
         // let mut vec = byte_array.to_vec();
-        let test_bytes = TestByteSet::<UnsizedList<UnsizedList<List<u8, u8>>>>::new(byte_array)?;
+        let test_bytes =
+            TestByteSet::<UnsizedList<UnsizedList<List<u8, u8>>>>::new_from_init(byte_array)?;
         let mut bytes = test_bytes.data_mut()?;
         let mut exclusive = bytes.exclusive();
         let mut first_list = exclusive.index_mut(0)?;

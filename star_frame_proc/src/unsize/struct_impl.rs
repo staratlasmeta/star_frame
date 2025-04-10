@@ -59,6 +59,8 @@ pub(crate) fn unsized_type_struct_impl(
     // println!("After ref_mut_derefs!");
     let as_shared_impl = context.as_shared_impl();
     // println!("After as_shared_impl!");
+    let from_owned_impl = context.from_owned_impl();
+    // println!("After from_owned_impl!");
     let unsized_type_impl = context.unsized_type_impl();
     // println!("After unsized_type_impl!");
     let default_init_impl = context.unsized_init_default_impl();
@@ -80,6 +82,7 @@ pub(crate) fn unsized_type_struct_impl(
         #sized_bytemuck_derives
         #ref_mut_derefs
         #as_shared_impl
+        #from_owned_impl
         #unsized_type_impl
         #default_init_impl
         #init_struct_impl
@@ -591,6 +594,61 @@ impl UnsizedStructContext {
                 }
             }
         }
+    }
+
+    fn from_owned_impl(&self) -> Option<TokenStream> {
+        if self.args.owned_type.is_some() {
+            return None;
+        }
+        Paths!(prelude, default);
+        UnsizedStructContext!(self => struct_type, sized_field_idents, unsized_field_types, unsized_field_idents, sized_type);
+
+        let from_owned_generics = self.generics.combine::<BetterGenerics>(
+            &parse_quote!([where #(#unsized_field_types: #prelude::FromOwned),*]),
+        );
+
+        let (impl_gen, _, where_clause) = from_owned_generics.split_for_impl();
+
+        let sized_struct = self.sized_ident.as_ref().map(|ident| {
+            let phantom_generic = self.phantom_generic_ident.iter();
+            quote!(#ident {
+                #(#sized_field_idents: owned.#sized_field_idents,)*
+                #(#phantom_generic: #default::default())*
+            })
+        });
+
+        let sized_byte_size = sized_struct.as_ref().map(|sized_struct| {
+            quote! {
+                let sized_struct: #sized_type = #sized_struct;
+                <#sized_type as #prelude::FromOwned>::byte_size(&sized_struct) +
+            }
+        });
+
+        let sized_from_owned = sized_struct.as_ref().map(|sized_struct| {
+            quote! {
+                let sized_struct: #sized_type = #sized_struct;
+                <#sized_type as #prelude::FromOwned>::from_owned(sized_struct, bytes)? +
+            }
+        });
+
+        Some(quote! {
+            #[automatically_derived]
+            unsafe impl #impl_gen #prelude::FromOwned for #struct_type #where_clause {
+                #[inline]
+                fn byte_size(owned: &Self::Owned) -> usize {
+                    #sized_byte_size
+                    #(<#unsized_field_types as #prelude::FromOwned>::byte_size(&owned.#unsized_field_idents) +)* 0
+                }
+
+                #[inline]
+                fn from_owned(owned: Self::Owned, bytes: &mut &mut [u8]) -> Result<usize> {
+                    let size = {
+                        #sized_from_owned #(<#unsized_field_types as #prelude::FromOwned>::from_owned(owned.#unsized_field_idents, bytes)? +)* 0
+                    };
+                    Ok(size)
+                }
+            }
+        })
     }
 
     fn unsized_type_impl(&self) -> TokenStream {

@@ -195,7 +195,7 @@ pub mod discriminant {
         }
     }
 
-    impl<T> FromOwned for AccountDiscriminant<T>
+    unsafe impl<T> FromOwned for AccountDiscriminant<T>
     where
         T: ProgramAccount + UnsizedType + FromOwned + ?Sized,
     {
@@ -203,10 +203,11 @@ pub mod discriminant {
             T::byte_size(owned) + size_of::<OwnerProgramDiscriminant<T>>()
         }
 
-        fn from_owned(owned: T::Owned, mut out: &mut [u8]) -> Result<usize> {
-            out.try_advance(size_of::<OwnerProgramDiscriminant<T>>())?;
-            out.copy_from_slice(bytes_of(&T::DISCRIMINANT));
-            T::from_owned(owned, out)
+        fn from_owned(owned: T::Owned, bytes: &mut &mut [u8]) -> Result<usize> {
+            bytes
+                .try_advance(size_of::<OwnerProgramDiscriminant<T>>())?
+                .copy_from_slice(bytes_of(&T::DISCRIMINANT));
+            T::from_owned(owned, bytes).map(|size| size + size_of::<OwnerProgramDiscriminant<T>>())
         }
     }
     unsafe impl<T, I> UnsizedInit<I> for AccountDiscriminant<T>

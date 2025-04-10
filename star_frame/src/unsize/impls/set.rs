@@ -1,7 +1,6 @@
 use std::collections::BTreeSet;
 
 use crate::prelude::*;
-use crate::unsize::FromOwned;
 
 #[unsized_type(skip_idl)]
 pub struct Set<K, L = u32>
@@ -91,20 +90,6 @@ where
 
     pub fn as_inner(&self) -> &Vec<K> {
         &self.list
-    }
-}
-
-impl<K, L> FromOwned for Set<K, L>
-where
-    K: UnsizedGenerics + Ord,
-    L: ListLength,
-{
-    fn byte_size(owned: &Self::Owned) -> usize {
-        List::<K, L>::byte_size(&owned.list)
-    }
-
-    fn from_owned(owned: Self::Owned, out: &mut [u8]) -> Result<usize> {
-        List::<K, L>::from_owned(owned.list, out)
     }
 }
 

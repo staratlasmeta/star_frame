@@ -168,7 +168,7 @@ pub trait SerializeType: UnsizedType {
     {
         let byte_size = Self::byte_size(&owned);
         let mut bytes = vec![0u8; byte_size];
-        Self::from_owned(owned, &mut bytes)?;
+        Self::from_owned(owned, &mut bytes.as_mut_slice())?;
         Ok(bytes)
     }
 

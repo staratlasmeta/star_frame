@@ -76,7 +76,7 @@ fn compare_with_owned(
 
 #[test]
 fn unsized_enum_test() -> Result<()> {
-    let bytes = TestByteSet::<EnumTestStruct>::new(DefaultInit)?;
+    let bytes = TestByteSet::<EnumTestStruct>::new_default()?;
     let mut owned = EnumTestStructOwned {
         list_before: vec![],
         enum_test: UnsizedEnumTestOwned::Unsized1(Unsized1Owned {

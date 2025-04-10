@@ -10,6 +10,8 @@ use std::mem::MaybeUninit;
 use std::ptr::slice_from_raw_parts_mut;
 use std::slice::from_raw_parts_mut;
 
+use super::FromOwned;
+
 #[derive(Debug)]
 pub struct TestUnderlyingData<'info> {
     original_data_len: usize,
@@ -57,17 +59,14 @@ impl<'a, T> TestByteSet<'a, T>
 where
     T: UnsizedType + ?Sized,
 {
-    /// Creates a new [`TestByteSet`] by initializing the type with an arg from [`UnsizedInit`].
-    pub fn new<A>(arg: A) -> Result<Self>
-    where
-        T: UnsizedInit<A>,
-    {
+    #[must_use]
+    fn initialize(size: usize, init: impl FnOnce(&mut &mut [u8]) -> Result<()>) -> Result<Self> {
         let data: &mut Vec<u8> = Box::leak(Box::default());
-        let test_account = Box::leak(Box::new(TestUnderlyingData::new(data, T::INIT_BYTES)));
+        let test_account = Box::leak(Box::new(TestUnderlyingData::new(data, size)));
         {
             let mut data = &mut UnsizedTypeDataAccess::data_mut(test_account)?[..];
             unsafe {
-                T::init(&mut data, arg)?;
+                init(&mut data)?;
             }
         }
         Ok(Self {
@@ -76,12 +75,30 @@ where
         })
     }
 
+    /// Creates a new [`TestByteSet`] from the owned value
+    pub fn new(owned: T::Owned) -> Result<Self>
+    where
+        T: FromOwned,
+    {
+        Self::initialize(T::byte_size(&owned), |data| {
+            T::from_owned(owned, data).map(|_| ())
+        })
+    }
+
     /// Creates a new [`TestByteSet`] by initializing the type with an arg from [`UnsizedInit`].
+    pub fn new_from_init<A>(arg: A) -> Result<Self>
+    where
+        T: UnsizedInit<A>,
+    {
+        Self::initialize(T::INIT_BYTES, |data| unsafe { T::init(data, arg) })
+    }
+
+    /// Creates a new [`TestByteSet`] using the default initializer.
     pub fn new_default() -> Result<Self>
     where
         T: UnsizedInit<DefaultInit>,
     {
-        Self::new(DefaultInit)
+        Self::new_from_init(DefaultInit)
     }
 
     pub fn data_ref(&self) -> Result<SharedWrapper<'a, '_, T::Ref<'a>>> {

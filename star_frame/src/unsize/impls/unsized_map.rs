@@ -49,7 +49,7 @@ where
 /// It is generally easier to create an initial [`BTreeMap`] or iterator of [`(K, V::Owned)`] and convert to this
 /// type vs working on it directly.
 #[derive(derive_where::DeriveWhere)]
-#[derive_where(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd; Vec<(K, V::Owned)>)]
+#[derive_where(Debug, Default, Copy, Clone, Eq, PartialEq, Ord, PartialOrd; Vec<(K, V::Owned)>)]
 pub struct UnsizedMapOwned<K, V>
 where
     K: Pod + Ord + Align1,
@@ -155,13 +155,17 @@ where
     list: UnsizedList<V, OrdOffset<K>>,
 }
 
-impl<K, V> Default for UnsizedMapOwned<K, V>
+unsafe impl<K, V> FromOwned for UnsizedMap<K, V>
 where
     K: Pod + Ord + Align1,
     V: UnsizedType + ?Sized,
 {
-    fn default() -> Self {
-        Self { list: vec![] }
+    fn byte_size(owned: &Self::Owned) -> usize {
+        todo!()
+    }
+
+    fn from_owned(owned: Self::Owned, bytes: &mut &mut [u8]) -> Result<usize> {
+        todo!()
     }
 }
 

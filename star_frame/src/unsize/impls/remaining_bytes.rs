@@ -104,13 +104,13 @@ unsafe impl UnsizedType for RemainingBytes {
     }
 }
 
-impl FromOwned for RemainingBytes {
+unsafe impl FromOwned for RemainingBytes {
     fn byte_size(owned: &Self::Owned) -> usize {
         owned.len()
     }
 
-    fn from_owned(owned: Self::Owned, out: &mut [u8]) -> Result<usize> {
-        out.copy_from_slice(&owned);
+    fn from_owned(owned: Self::Owned, bytes: &mut &mut [u8]) -> Result<usize> {
+        bytes.try_advance(owned.len())?.copy_from_slice(&owned);
         Ok(owned.len())
     }
 }
@@ -189,7 +189,7 @@ mod tests {
     #[test]
     fn test_remaining_bytes() -> Result<()> {
         let byte_array = [1, 2, 3, 4, 5];
-        let test_bytes = TestByteSet::<RemainingBytes>::new(&byte_array)?;
+        let test_bytes = TestByteSet::<RemainingBytes>::new_from_init(&byte_array)?;
         let mut bytes = test_bytes.data_mut()?;
         bytes.exclusive().set_len(3)?;
         println!("{:?}", &**bytes);
