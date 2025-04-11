@@ -57,7 +57,7 @@ pub trait Instruction {
 
 /// Helper type for the return of [`StarFrameInstruction::split_to_args`].
 #[derive_where::derive_where(
-    Default, Debug; 
+    Default, Debug;
     <T as StarFrameInstruction>::DecodeArg<'a>,
     <T as StarFrameInstruction>::ValidateArg<'a>,
     <T as StarFrameInstruction>::RunArg<'a>,
