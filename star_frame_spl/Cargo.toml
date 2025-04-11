@@ -21,7 +21,6 @@ bytemuck.workspace = true
 # locked versions
 half.workspace = true
 fixed.workspace = true
-bytemuck_derive.workspace = true
 
 [dev-dependencies]
 spl-associated-token-account.workspace = true

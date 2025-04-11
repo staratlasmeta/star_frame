@@ -193,7 +193,7 @@ pub trait DeserializeAccount: UnsizedType + ProgramAccount {
 
 impl<T: UnsizedType + ProgramAccount + ?Sized> DeserializeAccount for T {}
 
-pub trait SerializeAccount<I>: UnsizedType + ProgramAccount {
+pub trait SerializeAccount: UnsizedType + ProgramAccount {
     #[inline]
     fn serialize_account(owned: Self::Owned) -> Result<Vec<u8>>
     where
@@ -203,7 +203,7 @@ pub trait SerializeAccount<I>: UnsizedType + ProgramAccount {
     }
 
     #[inline]
-    fn serialize_account_from_init(init_arg: I) -> Result<Vec<u8>>
+    fn serialize_account_from_init<I>(init_arg: I) -> Result<Vec<u8>>
     where
         AccountDiscriminant<Self>: UnsizedInit<I>,
     {
@@ -211,4 +211,4 @@ pub trait SerializeAccount<I>: UnsizedType + ProgramAccount {
     }
 }
 
-impl<T, I> SerializeAccount<I> for T where T: UnsizedType + ProgramAccount + ?Sized {}
+impl<T> SerializeAccount for T where T: UnsizedType + ProgramAccount + ?Sized {}
