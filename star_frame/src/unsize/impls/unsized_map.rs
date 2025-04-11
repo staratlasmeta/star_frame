@@ -86,18 +86,22 @@ where
     K: Pod + Ord + Align1,
     V: UnsizedType + ?Sized,
 {
+    #[must_use]
     pub fn to_btree_map(self) -> BTreeMap<K, V::Owned> {
         self.list.into_iter().collect()
     }
 
+    #[must_use]
     pub fn new() -> Self {
         Self { list: vec![] }
     }
 
+    #[must_use]
     pub fn len(&self) -> usize {
         self.list.len()
     }
 
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.list.is_empty()
     }
@@ -116,7 +120,7 @@ where
     }
 
     pub fn remove(&mut self, key: &K) -> Option<V::Owned> {
-        match self.list.binary_search_by(|probe| probe.0.cmp(&key)) {
+        match self.list.binary_search_by(|probe| probe.0.cmp(key)) {
             Ok(existing_index) => Some(self.list.remove(existing_index).1),
             Err(_) => None,
         }
@@ -126,6 +130,7 @@ where
         self.list.clear();
     }
 
+    #[must_use]
     pub fn as_inner(&self) -> &Vec<(K, V::Owned)> {
         &self.list
     }
@@ -158,17 +163,19 @@ where
 unsafe impl<K, V> FromOwned for UnsizedMap<K, V>
 where
     K: Pod + Ord + Align1,
-    V: UnsizedType + ?Sized,
+    V: UnsizedType + FromOwned + ?Sized,
 {
     fn byte_size(owned: &Self::Owned) -> usize {
-        todo!()
+        UnsizedList::<V, OrdOffset<K>>::from_owned_byte_size(owned.list.iter().map(|(_, v)| v))
     }
 
     fn from_owned(owned: Self::Owned, bytes: &mut &mut [u8]) -> Result<usize> {
-        todo!()
+        UnsizedList::<V, OrdOffset<K>>::from_owned_from_iter(
+            owned.list.into_iter().map(|(k, v)| (v, k)),
+            bytes,
+        )
     }
 }
-
 #[unsized_impl(inherent)]
 impl<K, V> UnsizedMap<K, V>
 where
@@ -441,5 +448,33 @@ mod idl_impl {
         fn type_to_idl(idl_definition: &mut IdlDefinition) -> Result<IdlTypeDef> {
             <UnsizedList<V, OrdOffset<K>>>::type_to_idl(idl_definition)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::unsize::TestByteSet;
+
+    #[test]
+    fn test_from_owned() -> Result<()> {
+        type MyMap = UnsizedMap<Pubkey, List<Pubkey>>;
+        let owned: <MyMap as UnsizedType>::Owned = [
+            (Pubkey::new_unique(), vec![Pubkey::new_unique()]),
+            (
+                Pubkey::new_unique(),
+                vec![
+                    Pubkey::new_unique(),
+                    Pubkey::new_unique(),
+                    Pubkey::new_unique(),
+                ],
+            ),
+            (Pubkey::new_unique(), vec![Pubkey::new_unique()]),
+        ]
+        .into_iter()
+        .collect();
+        let test_bytes = TestByteSet::<MyMap>::new(owned.clone())?;
+        assert_eq!(test_bytes.owned()?, owned);
+        Ok(())
     }
 }

@@ -59,7 +59,6 @@ impl<'a, T> TestByteSet<'a, T>
 where
     T: UnsizedType + ?Sized,
 {
-    #[must_use]
     fn initialize(size: usize, init: impl FnOnce(&mut &mut [u8]) -> Result<()>) -> Result<Self> {
         let data: &mut Vec<u8> = Box::leak(Box::default());
         let test_account = Box::leak(Box::new(TestUnderlyingData::new(data, size)));

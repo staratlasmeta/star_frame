@@ -14,6 +14,7 @@ use core::slice;
 use itertools::Itertools;
 use num_traits::ToPrimitive;
 use solana_program::program_memory::sol_memmove;
+use std::borrow::Borrow;
 use std::cmp::Ordering;
 use std::iter::FusedIterator;
 use std::marker::PhantomData;
@@ -50,7 +51,7 @@ impl PackedU32 {
         self.0 as usize
     }
 }
-const U32_SIZE: usize = size_of::<u32>();
+pub(super) const U32_SIZE: usize = size_of::<u32>();
 /// # Safety
 /// The offset provided in [`Self::from_usize_offset`] must be the same value returned by the getter methods.
 pub unsafe trait UnsizedListOffset: Pod + Align1 {
@@ -77,20 +78,32 @@ where
     // bytes of unsized data
 }
 
-unsafe impl<T, C> FromOwned for UnsizedList<T, C>
+impl<T, C> UnsizedList<T, C>
 where
     T: UnsizedType + FromOwned + ?Sized,
-    C: UnsizedListOffset<ListOffsetInit = ()>,
+    C: UnsizedListOffset,
 {
-    fn byte_size(owned: &Self::Owned) -> usize {
+    pub(super) fn from_owned_byte_size<I>(items: I) -> usize
+    where
+        I: IntoIterator,
+        I::IntoIter: ExactSizeIterator,
+        I::Item: Borrow<T::Owned>,
+    {
+        let items = items.into_iter();
+        let len = items.len();
         U32_SIZE + // unsized size
-        U32_SIZE + // len
-        owned.len() * size_of::<C>() + // offset list
+            U32_SIZE + // len
+        len * size_of::<C>() + // offset list
         U32_SIZE + // copy of len
-        owned.iter().fold(0, |acc, item| acc + <T as FromOwned>::byte_size(item))
+        items.zip_eq(0..len).fold(0, |acc, (item,_)| acc + <T as FromOwned>::byte_size(item.borrow()))
     }
 
-    fn from_owned(owned: Self::Owned, bytes: &mut &mut [u8]) -> Result<usize> {
+    pub(super) fn from_owned_from_iter<I>(items: I, bytes: &mut &mut [u8]) -> Result<usize>
+    where
+        I: IntoIterator<Item = (T::Owned, C::ListOffsetInit)>,
+        I::IntoIter: ExactSizeIterator,
+    {
+        let owned = items.into_iter();
         let owned_len = owned.len();
         let owned_len_bytes = u32::try_from(owned_len)?.to_le_bytes();
         let unsized_size_bytes = bytes.try_advance_array::<U32_SIZE>()?;
@@ -105,21 +118,31 @@ where
         *copy_of_len_bytes = owned_len_bytes;
 
         let mut unsized_bytes_written = 0;
-        let unsized_offsets = owned
-            .into_iter()
-            .map(|item| {
-                let offset = unsized_bytes_written;
+        owned
+            .zip_eq(offset_array.iter_mut())
+            .try_for_each(|((item, init), offset_item)| {
+                *offset_item = C::from_usize_offset(unsized_bytes_written, init)?;
                 unsized_bytes_written += T::from_owned(item, bytes)?;
-                Ok(offset)
-            })
-            .collect::<Result<Vec<_>>>()?;
+                anyhow::Ok(())
+            })?;
+
         *unsized_size_bytes = u32::try_from(unsized_bytes_written)?.to_le_bytes();
 
-        for (offset_item, amount) in offset_array.iter_mut().zip(unsized_offsets) {
-            *offset_item = C::from_usize_offset(amount, ())?;
-        }
-
         Ok(U32_SIZE * 3 + owned_len * size_of::<C>() + unsized_bytes_written)
+    }
+}
+
+unsafe impl<T, C> FromOwned for UnsizedList<T, C>
+where
+    T: UnsizedType + FromOwned + ?Sized,
+    C: UnsizedListOffset<ListOffsetInit = ()>,
+{
+    fn byte_size(owned: &Self::Owned) -> usize {
+        Self::from_owned_byte_size(owned.iter())
+    }
+
+    fn from_owned(owned: Self::Owned, bytes: &mut &mut [u8]) -> Result<usize> {
+        Self::from_owned_from_iter(owned.into_iter().map(|item| (item, ())), bytes)
     }
 }
 
@@ -1295,6 +1318,17 @@ mod tests {
         // let list_bytes = &***bytes;
         // println!("{list_bytes:?}");
         // assert_eq!(list_bytes, vec.as_slice());
+        Ok(())
+    }
+
+    #[test]
+    fn test_from_owned() -> Result<()> {
+        let owned = vec![
+            vec![<PackedValue<u32>>::from(1), 2.into(), 3.into()],
+            vec![4.into(), 5.into()],
+        ];
+        let test_bytes = TestByteSet::<UnsizedList<List<PackedValue<u32>>>>::new(owned.clone())?;
+        assert_eq!(test_bytes.owned()?, owned);
         Ok(())
     }
 }

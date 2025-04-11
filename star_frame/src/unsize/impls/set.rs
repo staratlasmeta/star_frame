@@ -45,18 +45,22 @@ where
     K: UnsizedGenerics + Ord,
     L: ListLength,
 {
+    #[must_use]
     pub fn to_btree_set(self) -> BTreeSet<K> {
         self.list.into_iter().collect()
     }
 
+    #[must_use]
     pub fn new() -> Self {
         Self { list: vec![] }
     }
 
+    #[must_use]
     pub fn len(&self) -> usize {
         self.list.len()
     }
 
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.list.is_empty()
     }
@@ -88,6 +92,7 @@ where
         self.list.clear();
     }
 
+    #[must_use]
     pub fn as_inner(&self) -> &Vec<K> {
         &self.list
     }

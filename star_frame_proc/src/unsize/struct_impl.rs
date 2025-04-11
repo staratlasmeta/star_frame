@@ -596,6 +596,7 @@ impl UnsizedStructContext {
         }
     }
 
+    #[allow(clippy::wrong_self_convention)]
     fn from_owned_impl(&self) -> Option<TokenStream> {
         if self.args.owned_type.is_some() {
             return None;

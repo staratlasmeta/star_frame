@@ -51,6 +51,8 @@ pub unsafe trait UnsizedType: 'static {
     ) -> Result<()>;
 }
 
+/// # Safety
+/// The `from_owned` function must create a valid `Self` from the `owned` value.
 pub unsafe trait FromOwned: UnsizedType {
     fn byte_size(owned: &Self::Owned) -> usize;
 
