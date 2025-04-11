@@ -148,7 +148,7 @@ where
     /// See [`<[T]>::binary_search_by`]
     /// ```
     /// # use star_frame::unsize::{impls::List, TestByteSet};
-    /// let bytes: TestByteSet<List<u8>> = TestByteSet::new(&[0, 1, 1, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55]).unwrap();
+    /// let bytes: TestByteSet<List<u8>> = TestByteSet::new([0, 1, 1, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55].to_vec()).unwrap();
     /// let s = bytes.data_mut().unwrap();
     /// let seek = 13;
     /// assert_eq!(s.binary_search_by(|probe| probe.cmp(&seek)), Ok(9));
