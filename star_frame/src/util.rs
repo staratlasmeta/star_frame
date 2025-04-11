@@ -94,15 +94,32 @@ pub mod borsh_bytemuck {
         let bytes = bytemuck::bytes_of(value);
         writer.write_all(bytes)
     }
-    // todo: figure out if theres a way to make this more optimized. If we could
-    //  create just an array [0u8; std::mem::size_of::<P>()], that would probably match
-    //  borsh or exceed borsh. If we really need this, we can use the unstable `generic_const_exprs`
-    //  feature.
-    #[deprecated = "try using `BorshDeserialize` directly. This is much less efficient."]
+
+    /// Custom `deserialize_with` override for [`borsh::BorshDeserialize`] that uses [`bytemuck`] to deserialize.
+    /// This is intended for packed structs that are probably used in account data.
+    ///
+    /// # Example
+    /// ```
+    /// use borsh::BorshDeserialize;
+    /// use star_frame::prelude::*;
+    ///
+    /// #[derive(Align1, NoUninit, Copy, Clone, CheckedBitPattern)]
+    /// #[repr(C, packed)]
+    /// pub struct SomePackedThing {
+    ///     pub a: u32,
+    ///     pub b: u64,
+    /// }
+    ///
+    /// #[derive(BorshDeserialize)]
+    /// pub struct SomeBorshThing {
+    ///     #[borsh(deserialize_with = "borsh_bytemuck::deserialize")]
+    ///     pub packed_thing: SomePackedThing,
+    /// }
+    /// ```
     pub fn deserialize<R: Read, P: NoUninit + CheckedBitPattern + Align1>(
         reader: &mut R,
     ) -> std::io::Result<P> {
-        let mut buffer = MaybeUninit::<P>::uninit();
+        let mut buffer = MaybeUninit::<P>::zeroed();
         let bytes = unsafe {
             &mut *ptr::from_raw_parts_mut(buffer.as_mut_ptr().cast::<()>(), size_of::<P>())
         };
@@ -110,12 +127,6 @@ pub mod borsh_bytemuck {
         bytemuck::checked::try_from_bytes::<P>(bytes)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
         Ok(unsafe { buffer.assume_init() })
-        //
-        // let mut value_bytes = vec![0; std::mem::size_of::<P>()];
-        // reader.read_exact(&mut value_bytes)?;
-        // let value: &P = bytemuck::checked::try_from_bytes(&value_bytes)
-        //     .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
-        // Ok(*value)
     }
 }
 
