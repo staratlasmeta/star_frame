@@ -63,14 +63,14 @@ pub trait Instruction {
     <T as StarFrameInstruction>::RunArg<'a>,
     <T as StarFrameInstruction>::CleanupArg<'a>
 )]
-pub struct IxArgs<'a, T: StarFrameInstruction + ?Sized> {
+pub struct IxArgs<'a, T: StarFrameInstruction> {
     pub decode: <T as StarFrameInstruction>::DecodeArg<'a>,
     pub validate: <T as StarFrameInstruction>::ValidateArg<'a>,
     pub run: <T as StarFrameInstruction>::RunArg<'a>,
     pub cleanup: <T as StarFrameInstruction>::CleanupArg<'a>,
 }
 
-impl<'a, T: StarFrameInstruction + ?Sized> IxArgs<'a, T> {
+impl<'a, T: StarFrameInstruction> IxArgs<'a, T> {
     pub fn decode<D>(decode: D) -> Self
     where
         T: StarFrameInstruction<
@@ -189,7 +189,7 @@ pub trait StarFrameInstruction: BorshDeserialize {
 
 impl<T> Instruction for T
 where
-    T: ?Sized + StarFrameInstruction,
+    T: StarFrameInstruction,
 {
     type SelfData<'a> = T;
 

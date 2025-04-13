@@ -109,7 +109,7 @@ pub(super) fn idls(
         .iter()
         .map(|field| util::get_docs(&field.attrs))
         .collect();
-    let is_tuple_struct = fields.first().map_or(false, |f| f.ident.is_none());
+    let is_tuple_struct = fields.first().is_some_and(|f| f.ident.is_none());
     let field_path: Vec<Expr> = field_name
         .iter()
         .map(|field_name| {

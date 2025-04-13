@@ -319,7 +319,7 @@ where
     }
 }
 
-impl<'a, 'ptr, K, V> IntoIterator for &'a UnsizedMapRef<'ptr, K, V>
+impl<'a, K, V> IntoIterator for &'a UnsizedMapRef<'_, K, V>
 where
     K: Pod + Ord + Align1,
     V: UnsizedType + ?Sized,
@@ -331,7 +331,7 @@ where
     }
 }
 
-impl<'a, 'ptr, K, V> IntoIterator for &'a UnsizedMapMut<'ptr, K, V>
+impl<'a, K, V> IntoIterator for &'a UnsizedMapMut<'_, K, V>
 where
     K: Pod + Ord + Align1,
     V: UnsizedType + ?Sized,
@@ -343,7 +343,7 @@ where
     }
 }
 
-impl<'a, 'ptr, K, V> IntoIterator for &'a mut UnsizedMapMut<'ptr, K, V>
+impl<'a, K, V> IntoIterator for &'a mut UnsizedMapMut<'_, K, V>
 where
     K: Pod + Ord + Align1,
     V: UnsizedType + ?Sized,

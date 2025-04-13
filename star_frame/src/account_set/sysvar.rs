@@ -17,7 +17,7 @@ where
     phantom_t: PhantomData<fn() -> T>,
 }
 
-impl<'info, T> Sysvar<'info, T>
+impl<T> Sysvar<'_, T>
 where
     T: SysvarTrait,
 {

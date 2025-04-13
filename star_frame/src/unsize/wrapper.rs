@@ -218,7 +218,7 @@ where
     }
 }
 
-impl<'parent, 'top, 'info, T, O, A> ExclusiveWrapper<'parent, 'top, 'info, T, O, A>
+impl<'top, 'info, T, O, A> ExclusiveWrapper<'_, 'top, 'info, T, O, A>
 where
     O: UnsizedType + ?Sized,
     A: UnsizedTypeDataAccess<'info>,
@@ -438,8 +438,8 @@ impl<T> StartPointer<T> {
     }
 }
 
-impl<'parent, 'ptr, 'top, 'info, O, A, T>
-    ExclusiveWrapper<'parent, 'top, 'info, StartPointer<T>, O, A>
+impl<'ptr, 'info, O, A, T>
+    ExclusiveWrapper<'_, '_, 'info, StartPointer<T>, O, A>
 where
     O: UnsizedType + ?Sized,
     A: UnsizedTypeDataAccess<'info>,

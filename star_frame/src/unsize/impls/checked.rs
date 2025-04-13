@@ -20,7 +20,7 @@ pub struct CheckedRef<'a, T>(*const T, PhantomData<&'a ()>)
 where
     T: CheckedBitPattern + NoUninit + Align1;
 
-impl<'a, T> Deref for CheckedRef<'a, T>
+impl<T> Deref for CheckedRef<'_, T>
 where
     T: CheckedBitPattern + NoUninit + Align1,
 {
@@ -34,7 +34,7 @@ where
 pub struct CheckedMut<'a, T>(*mut T, PhantomData<&'a ()>)
 where
     T: CheckedBitPattern + NoUninit + Align1;
-impl<'a, T> Deref for CheckedMut<'a, T>
+impl<T> Deref for CheckedMut<'_, T>
 where
     T: CheckedBitPattern + NoUninit + Align1,
 {
@@ -44,7 +44,7 @@ where
         unsafe { &*self.0 }
     }
 }
-impl<'a, T> DerefMut for CheckedMut<'a, T>
+impl<T> DerefMut for CheckedMut<'_, T>
 where
     T: CheckedBitPattern + NoUninit + Align1,
 {

@@ -42,7 +42,7 @@ pub struct MintData {
     pub freeze_authority: PodOption<Pubkey>,
 }
 
-impl<'info> MintAccount<'info> {
+impl MintAccount<'_> {
     /// See [`spl_token::state::Mint::LEN`].
     /// ```
     /// # use star_frame::solana_program::program_pack::Pack;
@@ -156,7 +156,7 @@ impl<'a> From<InitMint<'a>> for ValidateMint<'a> {
     }
 }
 
-impl<'info, 'a> CanInitAccount<'info, InitMint<'a>> for MintAccount<'info> {
+impl<'info> CanInitAccount<'info, InitMint<'_>> for MintAccount<'info> {
     fn init_account<const IF_NEEDED: bool>(
         &mut self,
         arg: InitMint,
@@ -170,7 +170,7 @@ impl<'info, 'a> CanInitAccount<'info, InitMint<'a>> for MintAccount<'info> {
     }
 }
 
-impl<'info, 'a, Funder> CanInitAccount<'info, (InitMint<'a>, &Funder)> for MintAccount<'info>
+impl<'info, Funder> CanInitAccount<'info, (InitMint<'_>, &Funder)> for MintAccount<'info>
 where
     Funder: SignedAccount<'info> + WritableAccount<'info>,
 {
@@ -259,7 +259,7 @@ pub struct TokenAccountData {
     pub close_authority: PodOption<Pubkey>,
 }
 
-impl<'info> TokenAccount<'info> {
+impl TokenAccount<'_> {
     /// See [`spl_token::state::Account::LEN`].
     /// ```
     /// # use star_frame::solana_program::program_pack::Pack;
@@ -343,7 +343,7 @@ where
     }
 }
 
-impl<'info, 'a, MintInfo> CanInitAccount<'info, InitToken<'a, MintInfo>> for TokenAccount<'info>
+impl<'info, MintInfo> CanInitAccount<'info, InitToken<'_, MintInfo>> for TokenAccount<'info>
 where
     MintInfo: SingleAccountSet<'info>,
 {
@@ -360,7 +360,7 @@ where
     }
 }
 
-impl<'info, 'a, MintInfo, Funder> CanInitAccount<'info, (InitToken<'a, MintInfo>, &Funder)>
+impl<'info, MintInfo, Funder> CanInitAccount<'info, (InitToken<'_, MintInfo>, &Funder)>
     for TokenAccount<'info>
 where
     Funder: SignedAccount<'info> + WritableAccount<'info>,

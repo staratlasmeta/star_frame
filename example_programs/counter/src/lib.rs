@@ -96,7 +96,7 @@ pub struct UpdateCounterSignerAccounts<'info> {
     pub counter: Mut<Account<'info, CounterAccount>>,
 }
 
-impl<'info> UpdateCounterSignerAccounts<'info> {
+impl UpdateCounterSignerAccounts<'_> {
     fn validate(&self) -> Result<()> {
         if *self.signer.key() != self.counter.data()?.signer {
             bail!("Incorrect signer");
@@ -142,7 +142,7 @@ pub struct CountAccounts<'info> {
     pub counter: Mut<Account<'info, CounterAccount>>,
 }
 
-impl<'info> CountAccounts<'info> {
+impl CountAccounts<'_> {
     fn validate(&self) -> Result<()> {
         if *self.owner.key() != self.counter.data()?.owner {
             bail!("Incorrect owner");

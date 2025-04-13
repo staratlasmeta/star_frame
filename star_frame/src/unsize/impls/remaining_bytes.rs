@@ -25,7 +25,7 @@ mod idl_impl {
 #[derive(Copy, Clone, Debug)]
 pub struct RemainingBytesRef<'a>(*const RemainingBytes, PhantomData<&'a ()>);
 
-impl<'a> Deref for RemainingBytesRef<'a> {
+impl Deref for RemainingBytesRef<'_> {
     type Target = [u8];
 
     fn deref(&self) -> &Self::Target {
@@ -35,14 +35,14 @@ impl<'a> Deref for RemainingBytesRef<'a> {
 #[derive(Debug)]
 pub struct RemainingBytesMut<'a>(*mut RemainingBytes, PhantomData<&'a ()>);
 
-impl<'a> Deref for RemainingBytesMut<'a> {
+impl Deref for RemainingBytesMut<'_> {
     type Target = [u8];
 
     fn deref(&self) -> &Self::Target {
         unsafe { &*self.0 }
     }
 }
-impl<'a> DerefMut for RemainingBytesMut<'a> {
+impl DerefMut for RemainingBytesMut<'_> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         unsafe { &mut *self.0 }
     }

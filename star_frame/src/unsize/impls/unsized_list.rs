@@ -407,7 +407,7 @@ where
     phantom: PhantomData<&'a ()>,
 }
 
-impl<'a, T, C> Deref for UnsizedListRef<'a, T, C>
+impl<T, C> Deref for UnsizedListRef<'_, T, C>
 where
     T: UnsizedType + ?Sized,
     C: UnsizedListOffset,
@@ -430,7 +430,7 @@ where
     phantom: PhantomData<&'a ()>,
 }
 
-impl<'a, T, C> Deref for UnsizedListMut<'a, T, C>
+impl<T, C> Deref for UnsizedListMut<'_, T, C>
 where
     T: UnsizedType + ?Sized,
     C: UnsizedListOffset,
@@ -442,7 +442,7 @@ where
     }
 }
 
-impl<'a, T, C> DerefMut for UnsizedListMut<'a, T, C>
+impl<T, C> DerefMut for UnsizedListMut<'_, T, C>
 where
     T: UnsizedType + ?Sized,
     C: UnsizedListOffset,

@@ -279,7 +279,7 @@ where
     L: ListLength,
     T: CheckedBitPattern + NoUninit + Align1;
 
-impl<'a, T, L> Deref for ListRef<'a, T, L>
+impl<T, L> Deref for ListRef<'_, T, L>
 where
     L: ListLength,
     T: CheckedBitPattern + NoUninit + Align1,
@@ -296,7 +296,7 @@ where
     L: ListLength,
     T: CheckedBitPattern + NoUninit + Align1;
 
-impl<'a, T, L> Deref for ListMut<'a, T, L>
+impl<T, L> Deref for ListMut<'_, T, L>
 where
     L: ListLength,
     T: CheckedBitPattern + NoUninit + Align1,
@@ -307,7 +307,7 @@ where
         unsafe { &*self.0 }
     }
 }
-impl<'a, T, L> DerefMut for ListMut<'a, T, L>
+impl<T, L> DerefMut for ListMut<'_, T, L>
 where
     L: ListLength,
     T: CheckedBitPattern + NoUninit + Align1,

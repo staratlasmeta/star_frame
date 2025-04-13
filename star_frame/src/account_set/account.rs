@@ -226,15 +226,15 @@ pub mod discriminant {
 }
 use discriminant::AccountDiscriminant;
 
-impl<'info, T: ProgramAccount + UnsizedType + ?Sized> HasProgramAccount for Account<'info, T> {
+impl<T: ProgramAccount + UnsizedType + ?Sized> HasProgramAccount for Account<'_, T> {
     type ProgramAccount = T;
 }
 
-impl<'info, T: ProgramAccount + UnsizedType + ?Sized> HasOwnerProgram for Account<'info, T> {
+impl<T: ProgramAccount + UnsizedType + ?Sized> HasOwnerProgram for Account<'_, T> {
     type OwnerProgram = T::OwnerProgram;
 }
 
-impl<'info, T: ProgramAccount + UnsizedType + ?Sized> HasSeeds for Account<'info, T>
+impl<T: ProgramAccount + UnsizedType + ?Sized> HasSeeds for Account<'_, T>
 where
     T: HasSeeds,
 {
