@@ -26,6 +26,3 @@ solana-program-test = { workspace = true }
 codama-nodes.workspace = true
 solana-sdk = { workspace = true }
 tokio = { workspace = true }
-# Locked for solana_program_test
-litemap = { workspace = true }
-zerofrom = { workspace = true }

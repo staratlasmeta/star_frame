@@ -12,7 +12,7 @@ repository.workspace = true
 cleanup_rent_warning = []
 idl = ["star_frame_idl", "serde_json"]
 test_helpers = []
-locked_versions = ["half"]
+locked_versions = []
 
 [dependencies]
 advancer = { workspace = true }
@@ -37,9 +37,6 @@ ptr_meta.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, optional = true }
 star_frame_idl = { workspace = true, optional = true }
-
-# locked versions
-half = { workspace = true, optional = true }
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }

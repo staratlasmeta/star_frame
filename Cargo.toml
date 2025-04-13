@@ -1,5 +1,5 @@
 [workspace]
-resolver = "2"
+resolver = "3"
 members = ["star_*", "example_programs/*"]
 
 [workspace.package]
@@ -37,6 +37,7 @@ daggy = "^0.8.0"
 derive-where = { git = "https://github.com/stegaBOB/derive-where", branch = "stegaBOB/feat/for-lifetimes", version = "1.2.7" }
 derive_more = { version = "^2.0.1", features = ["full"] }
 easy_proc = "^0.4.0"
+fixed = "1.28.0"
 heck = "^0.5.0"
 itertools = "^0.14.0"
 lazy_static = "^1.4.0"
@@ -69,12 +70,6 @@ tokio = "^1.41.1"
 typenum = "^1.17.0"
 ptr_meta = "0.3.0"
 
-# locked versions
-fixed = "<1.29.0"
-half = "<2.5.0"
-# locked for solana_program_test
-litemap = ">0.7.0,<0.7.5"
-zerofrom = "<0.1.6"
 
 [profile.release]
 overflow-checks = true
