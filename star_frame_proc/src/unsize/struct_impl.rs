@@ -343,11 +343,12 @@ impl UnsizedStructContext {
         let (gen, where_clause) = self.split_for_declaration(false);
 
         let owned_types = get_field_types(owned_fields).collect_vec();
+        let lt = new_lifetime(&self.generics, None);
 
         parse_quote! {
             #(#[#additional_attributes])*
             #[derive(#prelude::DeriveWhere)]
-            #[derive_where(Debug, Copy, Clone, Default, Eq, Hash, Ord, PartialEq, PartialOrd; #(#owned_types,)*)]
+            #[derive_where(Debug, Copy, Clone, Default, Eq, Hash, Ord, PartialEq, PartialOrd; #(for<#lt> #owned_types,)*)]
             #vis struct #owned_ident #gen #where_clause {
                 #(#owned_fields,)*
             }
@@ -393,19 +394,21 @@ impl UnsizedStructContext {
         }
         let (impl_generics, type_generics, _) = self.generics.split_for_impl();
 
-        let copy_gen = self
-            .generics
-            .combine::<BetterGenerics>(&parse_quote!([where #(#sized_field_types: #copy),*]));
+        let lt = new_lifetime(&self.generics, None);
+
+        let copy_gen = self.generics.combine::<BetterGenerics>(
+            &parse_quote!([where #(for<#lt> #sized_field_types: #copy,)*]),
+        );
         let copy_wc = copy_gen.split_for_impl().2;
 
-        let debug_gen = self
-            .generics
-            .combine::<BetterGenerics>(&parse_quote!([where #(#sized_field_types: #debug),*]));
+        let debug_gen = self.generics.combine::<BetterGenerics>(
+            &parse_quote!([where #(for<#lt> #sized_field_types: #debug,)*]),
+        );
         let debug_wc: Option<&syn::WhereClause> = debug_gen.split_for_impl().2;
 
-        let partial_eq_gen = self
-            .generics
-            .combine::<BetterGenerics>(&parse_quote!([where #(#sized_field_types: #partial_eq),*]));
+        let partial_eq_gen = self.generics.combine::<BetterGenerics>(
+            &parse_quote!([where #(for<#lt> #sized_field_types: #partial_eq,)*]),
+        );
         let partial_eq_wc = partial_eq_gen.split_for_impl().2;
 
         Some(quote! {

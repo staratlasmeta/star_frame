@@ -12,6 +12,8 @@ use bytemuck::{bytes_of, checked, from_bytes, CheckedBitPattern, NoUninit, Pod, 
 use bytemuck::{cast_slice, cast_slice_mut};
 use itertools::Itertools;
 use num_traits::{FromPrimitive, ToPrimitive, Zero};
+use ptr_meta::Pointee;
+use star_frame_proc::unsized_impl;
 use std::any::type_name;
 use std::borrow::Borrow;
 use std::cmp::Ordering;
@@ -25,7 +27,7 @@ use std::{iter, ptr};
 pub trait ListLength: Pod + ToPrimitive + FromPrimitive {}
 impl<T> ListLength for T where T: Pod + ToPrimitive + FromPrimitive {}
 
-#[derive(Debug)]
+#[derive(Debug, Pointee)]
 #[repr(C)]
 pub struct List<T, L = u32>
 where
@@ -350,7 +352,7 @@ where
             .ok_or_else(|| anyhow::anyhow!("Could not convert list size to usize"))?;
         data.try_advance(size_of::<T>() * length)?;
         Ok(ListRef(
-            unsafe { &*ptr::from_raw_parts(ptr.cast::<()>(), size_of::<T>() * length) },
+            unsafe { &*ptr_meta::from_raw_parts(ptr.cast::<()>(), size_of::<T>() * length) },
             PhantomData,
         ))
     }
@@ -363,7 +365,7 @@ where
             .ok_or_else(|| anyhow::anyhow!("Could not convert list size to usize"))?;
         data.try_advance(size_of::<T>() * length)?;
         let list_ptr = ptr::from_mut(unsafe {
-            &mut *ptr::from_raw_parts_mut(
+            &mut *ptr_meta::from_raw_parts_mut(
                 length_bytes.as_mut_ptr().cast::<()>(),
                 size_of::<T>() * length,
             )
@@ -412,20 +414,20 @@ where
     }
 }
 
-impl<'parent, 'ptr, 'top, 'info, T, L, O, A>
-    ExclusiveWrapper<'parent, 'top, 'info, ListMut<'ptr, T, L>, O, A>
+#[unsized_impl(inherent)]
+impl<T, L> List<T, L>
 where
-    O: UnsizedType + ?Sized,
-    A: UnsizedTypeDataAccess<'info>,
     T: Align1 + NoUninit + CheckedBitPattern,
     L: ListLength,
 {
     #[inline]
+    #[exclusive]
     pub fn push(&mut self, item: T) -> Result<()> {
         let len = self.len();
         self.insert(len, item)
     }
     #[inline]
+    #[exclusive]
     pub fn push_all<I>(&mut self, items: I) -> Result<()>
     where
         I: IntoIterator<Item = T>,
@@ -434,10 +436,12 @@ where
         self.insert_all(self.len(), items)
     }
     #[inline]
+    #[exclusive]
     pub fn insert(&mut self, index: usize, item: T) -> Result<()> {
         self.insert_all(index, iter::once(item))
     }
 
+    #[exclusive]
     pub fn insert_all<I>(&mut self, index: usize, items: I) -> Result<()>
     where
         I: IntoIterator,
@@ -468,7 +472,7 @@ where
                 size_of::<T>() * to_add,
                 |list| {
                     list.len = PackedValue(new_len);
-                    list.0 = &mut *ptr::from_raw_parts_mut(
+                    list.0 = &mut *ptr_meta::from_raw_parts_mut(
                         list.0.cast::<()>(),
                         (old_len + to_add) * size_of::<T>(),
                     );
@@ -486,6 +490,7 @@ where
     }
 
     #[inline]
+    #[exclusive]
     pub fn pop(&mut self) -> Result<Option<()>> {
         if self.len() == 0 {
             return Ok(None);
@@ -494,10 +499,12 @@ where
     }
 
     #[inline]
+    #[exclusive]
     pub fn remove(&mut self, index: usize) -> Result<()> {
         self.remove_range(index..=index)
     }
 
+    #[exclusive]
     pub fn remove_range(&mut self, indices: impl RangeBounds<usize>) -> Result<()> {
         let start = match indices.start_bound() {
             std::ops::Bound::Included(start) => *start,
@@ -525,8 +532,10 @@ where
                 list.len = PackedValue(
                     L::from_usize(new_len).context("Failed to convert new list len to L")?,
                 );
-                list.0 =
-                    &mut *ptr::from_raw_parts_mut(list.0.cast::<()>(), new_len * size_of::<T>());
+                list.0 = &mut *ptr_meta::from_raw_parts_mut(
+                    list.0.cast::<()>(),
+                    new_len * size_of::<T>(),
+                );
                 Ok(())
             })?;
         };

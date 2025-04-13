@@ -1291,8 +1291,7 @@ dependencies = [
 [[package]]
 name = "derive-where"
 version = "1.2.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "62d671cc41a825ebabc75757b62d3d168c577f9149b2d49ece1dad1f72119d25"
+source = "git+https://github.com/stegaBOB/derive-where?branch=stegaBOB/feat/for-lifetimes#e9563a810143dcdc69b00c888493d7c9f6cdedfc"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3297,6 +3296,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a31971752e70b8b2686d7e46ec17fb38dad4051d94024c88df49b667caea9c84"
 dependencies = [
  "unicode-ident",
+]
+
+[[package]]
+name = "ptr_meta"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fe9e76f66d3f9606f44e45598d155cb13ecf09f4a28199e48daf8c8fc937ea90"
+dependencies = [
+ "ptr_meta_derive",
+]
+
+[[package]]
+name = "ptr_meta_derive"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ca414edb151b4c8d125c12566ab0d74dc9cdba36fb80eb7b848c15f495fd32d1"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.100",
 ]
 
 [[package]]
@@ -6510,6 +6529,7 @@ dependencies = [
  "num-traits",
  "paste",
  "pretty_assertions",
+ "ptr_meta",
  "rand 0.8.5",
  "ref-cast",
  "rustc_version",

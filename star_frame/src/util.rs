@@ -64,7 +64,6 @@ pub mod borsh_bytemuck {
     use bytemuck::{CheckedBitPattern, NoUninit};
     use std::io::{Read, Write};
     use std::mem::{size_of, MaybeUninit};
-    use std::ptr;
 
     /// Custom `serialize_with` override for [`borsh::BorshSerialize`] that uses [`bytemuck`] to serialize.
     /// This is intended for packed structs that are probably used in account data.
@@ -121,7 +120,7 @@ pub mod borsh_bytemuck {
     ) -> std::io::Result<P> {
         let mut buffer = MaybeUninit::<P>::zeroed();
         let bytes = unsafe {
-            &mut *ptr::from_raw_parts_mut(buffer.as_mut_ptr().cast::<()>(), size_of::<P>())
+            &mut *ptr_meta::from_raw_parts_mut(buffer.as_mut_ptr().cast::<()>(), size_of::<P>())
         };
         reader.read_exact(bytes)?;
         bytemuck::checked::try_from_bytes::<P>(bytes)

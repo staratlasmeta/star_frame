@@ -6,13 +6,13 @@ use crate::Result;
 use advancer::Advance;
 use anyhow::bail;
 use derive_more::{Deref, DerefMut};
+use ptr_meta::Pointee;
 use star_frame_proc::unsized_impl;
 use std::cmp::Ordering;
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
-use std::ptr;
 
-#[derive(Debug, Deref, DerefMut, Align1)]
+#[derive(Debug, Deref, DerefMut, Align1, Pointee)]
 #[repr(transparent)]
 pub struct RemainingBytes([u8]);
 
@@ -69,7 +69,7 @@ unsafe impl UnsizedType for RemainingBytes {
         let remaining_bytes = data.try_advance(data.len())?;
         let ptr = remaining_bytes.as_ptr();
         Ok(RemainingBytesRef(
-            unsafe { &*ptr::from_raw_parts(ptr.cast::<()>(), remaining_bytes.len()) },
+            unsafe { &*ptr_meta::from_raw_parts(ptr.cast::<()>(), remaining_bytes.len()) },
             PhantomData,
         ))
     }
@@ -78,7 +78,7 @@ unsafe impl UnsizedType for RemainingBytes {
         let remaining_bytes = data.try_advance(data.len())?;
         let ptr = remaining_bytes.as_mut_ptr();
         Ok(RemainingBytesMut(
-            unsafe { &mut *ptr::from_raw_parts_mut(ptr.cast::<()>(), remaining_bytes.len()) },
+            unsafe { &mut *ptr_meta::from_raw_parts_mut(ptr.cast::<()>(), remaining_bytes.len()) },
             PhantomData,
         ))
     }
@@ -148,7 +148,7 @@ impl RemainingBytes {
         };
         unsafe {
             ExclusiveWrapper::set_inner(self, |bytes| {
-                bytes.0 = &mut *ptr::from_raw_parts_mut(bytes.0.cast::<()>(), len);
+                bytes.0 = &mut *ptr_meta::from_raw_parts_mut(bytes.0.cast::<()>(), len);
                 Ok(())
             })?;
         }

@@ -55,8 +55,4 @@ pub mod macro_prelude {
     };
 
     pub use derive_where::DeriveWhere;
-
-    #[doc(hidden)]
-    #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
-    pub struct DeriveWhereWrapper<T>(T);
 }

@@ -254,11 +254,12 @@ impl UnsizedEnumContext {
         UnsizedEnumContext!(self => owned_ident, variant_idents, variant_types, variant_docs, args, generics);
         let additional_owned = args.owned_attributes.attributes.iter();
         let wc = &generics.where_clause;
+        let lt = new_lifetime(generics, None);
 
         parse_quote! {
             #(#[#additional_owned])*
             #[derive(#prelude::DeriveWhere)]
-            #[derive_where(Debug, Copy, Clone, Eq, Hash, Ord, PartialEq, PartialOrd; #(<#variant_types as #prelude::UnsizedType>::Owned,)*)]
+            #[derive_where(Debug, Copy, Clone, Eq, Hash, Ord, PartialEq, PartialOrd; #(for<#lt> <#variant_types as #prelude::UnsizedType>::Owned,)*)]
             pub enum #owned_ident #generics #wc {
                 #(
                     #(#variant_docs)*

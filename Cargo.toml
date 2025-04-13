@@ -33,7 +33,8 @@ bytemuck = { version = "^1.22.0", features = [
 clap = { version = "^4.3", features = ["derive"] }
 codama-nodes = { version = "^0.3.0", registry = "star-atlas" }
 daggy = "^0.8.0"
-derive-where = { version = "1.2.7", features = ["nightly"] }
+# todo: update this when upstreamed
+derive-where = { git = "https://github.com/stegaBOB/derive-where", branch = "stegaBOB/feat/for-lifetimes", version = "1.2.7" }
 derive_more = { version = "^2.0.1", features = ["full"] }
 easy_proc = "^0.4.0"
 heck = "^0.5.0"
@@ -66,6 +67,7 @@ strum = { version = "^0.26.2", features = ["derive"] }
 syn = { version = "^2.0.40", features = ["extra-traits"] }
 tokio = "^1.41.1"
 typenum = "^1.17.0"
+ptr_meta = "0.3.0"
 
 # locked versions
 fixed = "<1.29.0"
