@@ -5,6 +5,7 @@ use crate::unsize::{AsShared, FromOwned, UnsizedType};
 use crate::Result;
 use advancer::Advance;
 use anyhow::bail;
+use anyhow::Context;
 use derive_more::{Deref, DerefMut};
 use ptr_meta::Pointee;
 use star_frame_proc::unsized_impl;
@@ -66,7 +67,12 @@ unsafe impl UnsizedType for RemainingBytes {
     }
 
     fn get_ref<'a>(data: &mut &'a [u8]) -> Result<Self::Ref<'a>> {
-        let remaining_bytes = data.try_advance(data.len())?;
+        let remaining_bytes = data.try_advance(data.len()).with_context(|| {
+            format!(
+                "Failed to read remaining {} bytes for RemainingBytes",
+                data.len()
+            )
+        })?;
         let ptr = remaining_bytes.as_ptr();
         Ok(RemainingBytesRef(
             unsafe { &*ptr_meta::from_raw_parts(ptr.cast::<()>(), remaining_bytes.len()) },
@@ -75,7 +81,12 @@ unsafe impl UnsizedType for RemainingBytes {
     }
 
     fn get_mut<'a>(data: &mut &'a mut [u8]) -> Result<Self::Mut<'a>> {
-        let remaining_bytes = data.try_advance(data.len())?;
+        let remaining_bytes = data.try_advance(data.len()).with_context(|| {
+            format!(
+                "Failed to read remaining mutable {} bytes for RemainingBytes",
+                data.len()
+            )
+        })?;
         let ptr = remaining_bytes.as_mut_ptr();
         Ok(RemainingBytesMut(
             unsafe { &mut *ptr_meta::from_raw_parts_mut(ptr.cast::<()>(), remaining_bytes.len()) },
@@ -168,7 +179,12 @@ unsafe impl<const N: usize> UnsizedInit<&[u8; N]> for RemainingBytes {
     const INIT_BYTES: usize = N;
 
     unsafe fn init(bytes: &mut &mut [u8], array: &[u8; N]) -> Result<()> {
-        bytes.try_advance(N)?.copy_from_slice(array);
+        bytes
+            .try_advance(N)
+            .with_context(|| {
+                format!("Failed to advance {N} bytes for RemainingBytes reference initialization")
+            })?
+            .copy_from_slice(array);
         Ok(())
     }
 }
@@ -177,7 +193,13 @@ unsafe impl<const N: usize> UnsizedInit<[u8; N]> for RemainingBytes {
     const INIT_BYTES: usize = <Self as UnsizedInit<&[u8; N]>>::INIT_BYTES;
 
     unsafe fn init(bytes: &mut &mut [u8], array: [u8; N]) -> Result<()> {
-        unsafe { <Self as UnsizedInit<&[u8; N]>>::init(bytes, &array) }
+        bytes
+            .try_advance(N)
+            .with_context(|| {
+                format!("Failed to advance {N} bytes for RemainingBytes initialization")
+            })?
+            .copy_from_slice(&array);
+        Ok(())
     }
 }
 

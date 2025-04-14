@@ -5,7 +5,6 @@ use crate::Result;
 use anyhow::bail;
 use solana_program::account_info::AccountInfo;
 use solana_program::instruction::AccountMeta;
-use solana_program::program_error::ProgramError;
 use solana_program::pubkey::Pubkey;
 
 impl<'info, T> AccountSet<'info> for Vec<T>
@@ -216,7 +215,11 @@ where
         sys_calls: &mut impl SyscallInvoke<'info>,
     ) -> Result<()> {
         if validate_input.len() < self.len() {
-            bail!(ProgramError::InvalidAccountData);
+            bail!(
+                "Invalid account data: validate input length {} is less than required length {}",
+                validate_input.len(),
+                self.len()
+            );
         }
 
         for (account, input) in self.iter_mut().zip(validate_input) {
@@ -236,7 +239,11 @@ where
         sys_calls: &mut impl SyscallInvoke<'info>,
     ) -> Result<()> {
         if validate_input.len() != self.len() {
-            bail!(ProgramError::InvalidAccountData);
+            bail!(
+                "Invalid account data: validate input length {} does not match required length {}",
+                validate_input.len(),
+                self.len()
+            );
         }
 
         for (account, input) in self.iter_mut().zip(validate_input) {
@@ -256,7 +263,7 @@ where
         sys_calls: &mut impl SyscallInvoke<'info>,
     ) -> Result<()> {
         if validate_input.len() != self.len() {
-            bail!(ProgramError::InvalidAccountData);
+            bail!("Invalid account data");
         }
 
         for (account, input) in self.iter_mut().zip(validate_input) {
@@ -308,7 +315,11 @@ where
         sys_calls: &mut impl SyscallInvoke<'info>,
     ) -> Result<()> {
         if cleanup_input.len() < self.len() {
-            bail!(ProgramError::InvalidAccountData);
+            bail!(
+                "Invalid account data: cleanup input length {} is less than required length {}",
+                cleanup_input.len(),
+                self.len()
+            );
         }
 
         for (account, input) in self.iter_mut().zip(cleanup_input) {
@@ -328,7 +339,11 @@ where
         sys_calls: &mut impl SyscallInvoke<'info>,
     ) -> Result<()> {
         if cleanup_input.len() != self.len() {
-            bail!(ProgramError::InvalidAccountData);
+            bail!(
+                "Invalid account data: cleanup input length {} does not match required length {}",
+                cleanup_input.len(),
+                self.len()
+            );
         }
 
         for (account, input) in self.iter_mut().zip(cleanup_input) {
@@ -348,7 +363,7 @@ where
         sys_calls: &mut impl SyscallInvoke<'info>,
     ) -> Result<()> {
         if cleanup_input.len() != self.len() {
-            bail!(ProgramError::InvalidAccountData);
+            bail!("Invalid account data");
         }
 
         for (account, input) in self.iter_mut().zip(cleanup_input) {

@@ -4,9 +4,25 @@ use crate::unsize::UnsizedType;
 use advancer::Advance;
 use anyhow::{bail, Context};
 use bytemuck::{bytes_of, from_bytes};
+use derive_more::{Deref, DerefMut};
 pub use star_frame_proc::ProgramAccount;
 use std::marker::PhantomData;
 use std::mem::size_of;
+
+pub trait AccountValidate<ValidateArg>: UnsizedType {
+    fn validate(self_ref: &Self::Ref<'_>, arg: ValidateArg) -> Result<()>;
+}
+#[derive(AccountSet, Debug, Deref, DerefMut)]
+#[validate(generics = [<ValidateArg> where T: AccountValidate<ValidateArg>], arg = ValidateArg, extra_validation = T::validate(&*self.account.data()?, arg))]
+#[idl(generics = [<A> where T: AccountToIdl, Account<'info, T>: AccountSetToIdl<'info, A>], arg = A)]
+pub struct ValidatedAccount<'info, T>
+where
+    T: ProgramAccount + UnsizedType + ?Sized,
+{
+    #[single_account_set]
+    #[idl(arg = arg)]
+    account: Account<'info, T>,
+}
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
 pub struct NormalizeRent<T>(pub T);
@@ -115,7 +131,12 @@ where
     #[inline]
     pub fn validate(&self) -> Result<()> {
         if self.owner() != &T::OwnerProgram::ID {
-            bail!(ProgramError::IllegalOwner);
+            bail!(
+                "Account {} owner {} does not match expected program ID {}",
+                self.key(),
+                self.owner(),
+                T::OwnerProgram::ID
+            );
         }
         let data = self.info_data_bytes()?;
         if data.len() < size_of::<OwnerProgramDiscriminant<T>>()
@@ -123,7 +144,11 @@ where
                 &data[..size_of::<OwnerProgramDiscriminant<T>>()],
             ) != &PackedValue(T::DISCRIMINANT)
         {
-            bail!(ProgramError::InvalidAccountData)
+            bail!(
+                "Account {} data does not match expected discriminant for program {}",
+                self.key(),
+                T::OwnerProgram::ID
+            )
         }
         Ok(())
     }
@@ -170,17 +195,35 @@ pub mod discriminant {
         }
 
         fn get_ref<'a>(data: &mut &'a [u8]) -> Result<Self::Ref<'a>> {
-            data.try_advance(size_of::<OwnerProgramDiscriminant<T>>())?;
+            data.try_advance(size_of::<OwnerProgramDiscriminant<T>>())
+                .with_context(|| {
+                    format!(
+                        "Failed to advance past discriminant of size {}",
+                        size_of::<OwnerProgramDiscriminant<T>>()
+                    )
+                })?;
             T::get_ref(data)
         }
 
         fn get_mut<'a>(data: &mut &'a mut [u8]) -> Result<Self::Mut<'a>> {
-            data.try_advance(size_of::<OwnerProgramDiscriminant<T>>())?;
+            data.try_advance(size_of::<OwnerProgramDiscriminant<T>>())
+                .with_context(|| {
+                    format!(
+                        "Failed to advance past discriminant of size {}",
+                        size_of::<OwnerProgramDiscriminant<T>>()
+                    )
+                })?;
             T::get_mut(data)
         }
 
         fn owned(mut data: &[u8]) -> Result<Self::Owned> {
-            data.try_advance(size_of::<OwnerProgramDiscriminant<T>>())?;
+            data.try_advance(size_of::<OwnerProgramDiscriminant<T>>())
+                .with_context(|| {
+                    format!(
+                        "Failed to advance past discriminant of size {}",
+                        size_of::<OwnerProgramDiscriminant<T>>()
+                    )
+                })?;
             T::owned(data)
         }
 
@@ -207,7 +250,13 @@ pub mod discriminant {
 
         fn from_owned(owned: T::Owned, bytes: &mut &mut [u8]) -> Result<usize> {
             bytes
-                .try_advance(size_of::<OwnerProgramDiscriminant<T>>())?
+                .try_advance(size_of::<OwnerProgramDiscriminant<T>>())
+                .with_context(|| {
+                    format!(
+                        "Failed to advance past discriminant during initialization of {}",
+                        std::any::type_name::<T>()
+                    )
+                })?
                 .copy_from_slice(bytes_of(&T::DISCRIMINANT));
             T::from_owned(owned, bytes).map(|size| size + size_of::<OwnerProgramDiscriminant<T>>())
         }
@@ -220,7 +269,13 @@ pub mod discriminant {
 
         unsafe fn init(bytes: &mut &mut [u8], arg: I) -> Result<()> {
             bytes
-                .try_advance(size_of::<OwnerProgramDiscriminant<T>>())?
+                .try_advance(size_of::<OwnerProgramDiscriminant<T>>())
+                .with_context(|| {
+                    format!(
+                        "Failed to advance past discriminant during initialization of {}",
+                        std::any::type_name::<T>()
+                    )
+                })?
                 .copy_from_slice(bytes_of(&T::DISCRIMINANT));
             unsafe { T::init(bytes, arg) }
         }

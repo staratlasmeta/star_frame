@@ -739,8 +739,7 @@ impl UnsizedStructContext {
             #[allow(trivial_bounds)]
             #[automatically_derived]
             unsafe impl #default_init_impl #unsized_init for #struct_type #default_init_where {
-                const INIT_BYTES: usize = #(<#with_sized_types as #unsized_init>::INIT_BYTES)+*;
-
+                const INIT_BYTES: usize = 0 #(+ <#with_sized_types as #unsized_init>::INIT_BYTES)*;
                 unsafe fn init(
                     bytes: &mut &mut [u8],
                     arg: #prelude::DefaultInit,
@@ -805,7 +804,7 @@ impl UnsizedStructContext {
             #[allow(trivial_bounds)]
             #[automatically_derived]
             unsafe impl #init_impl_impl_generics #prelude::UnsizedInit<#init_struct_type> for #struct_type #init_impl_where_clause {
-                const INIT_BYTES: usize = #(<#with_sized_types as #prelude::UnsizedInit<#init_generic_idents>>::INIT_BYTES)+*;
+                const INIT_BYTES: usize = 0 #(+ <#with_sized_types as #prelude::UnsizedInit<#init_generic_idents>>::INIT_BYTES)*;
 
                 unsafe fn init(
                     bytes: &mut &mut [u8],

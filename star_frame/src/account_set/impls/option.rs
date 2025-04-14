@@ -3,7 +3,7 @@ use crate::client::{ClientAccountSet, CpiAccountSet};
 use crate::prelude::SyscallAccountCache;
 use crate::syscalls::SyscallInvoke;
 use crate::Result;
-use advancer::AdvanceArray;
+use advancer::Advance;
 use solana_program::account_info::AccountInfo;
 use solana_program::instruction::AccountMeta;
 use solana_program::pubkey::Pubkey;
@@ -82,7 +82,9 @@ where
         if accounts.is_empty() {
             Ok(None)
         } else if accounts[0].key == syscalls.current_program_id() {
-            let _program: &[_; 1] = accounts.try_advance_array()?;
+            let _program = accounts
+                .try_advance(1)
+                .expect("There is at least one account skip Option<None>");
             Ok(None)
         } else {
             // SAFETY: This function is unsafe too

@@ -414,26 +414,30 @@ impl UnsizedEnumContext {
 
                 fn get_ref<#rm_lt>(data: &mut &#rm_lt [u8]) -> #result<Self::Ref<#rm_lt>> {
                     #(const #discriminant_consts: #integer_repr = #discriminant_ident::#variant_idents as #integer_repr;)*
-                    let repr: #integer_repr = <#integer_repr>::from_le_bytes(*#prelude::AdvanceArray::try_advance_array(data)?);
+                    let maybe_repr_bytes = #prelude::AdvanceArray::try_advance_array(data);
+                    let repr_bytes = #prelude::anyhow::Context::with_context(maybe_repr_bytes, || format!("Not enough bytes to get enum discriminant of {}", #prelude::type_name::<#enum_type>()))?;
+                    let repr: #integer_repr = <#integer_repr>::from_le_bytes(*repr_bytes);
                     match repr {
                         #(
                             #discriminant_consts =>
                                 Ok(#ref_ident::#variant_idents(<#variant_types as #prelude::UnsizedType>::get_ref(data)?)),
                         )*
-                        _ => #prelude::bail!("Invalid enum discriminant"),
+                        _ => #prelude::bail!("Invalid enum discriminant for {}", #prelude::type_name::<#enum_type>()),
                     }
                 }
 
                 fn get_mut<#rm_lt>(data: &mut &#rm_lt mut [u8]) -> #result<Self::Mut<#rm_lt>> {
                     #(const #discriminant_consts: #integer_repr = #discriminant_ident::#variant_idents as #integer_repr;)*
                     let start_ptr = data.as_mut_ptr().cast_const().cast::<()>();
-                    let repr: #integer_repr = <#integer_repr>::from_le_bytes(*#prelude::AdvanceArray::try_advance_array(data)?);
+                    let maybe_repr_bytes = #prelude::AdvanceArray::try_advance_array(data);
+                    let repr_bytes = #prelude::anyhow::Context::with_context(maybe_repr_bytes, || format!("Not enough bytes to get enum discriminant of {}", #prelude::type_name::<#enum_type>()))?;
+                    let repr: #integer_repr = <#integer_repr>::from_le_bytes(*repr_bytes);
                     let res = match repr {
                         #(
                             #discriminant_consts =>
                                 #mut_ident::#variant_idents(<#variant_types as #prelude::UnsizedType>::get_mut(data)?),
                         )*
-                        _ => #prelude::bail!("Invalid enum discriminant"),
+                        _ => #prelude::bail!("Invalid enum discriminant for {}", #prelude::type_name::<#enum_type>()),
                     };
                     Ok(unsafe { #prelude::StartPointer::new(start_ptr, res) })
                 }

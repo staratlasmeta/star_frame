@@ -23,8 +23,6 @@ use std::cell::Ref;
 pub struct MintAccount<'info> {
     #[single_account_set(skip_can_init_account, skip_has_owner_program)]
     info: AccountInfo<'info>,
-    #[account_set(skip = false)]
-    validated: bool,
 }
 
 impl HasOwnerProgram for MintAccount<'_> {
@@ -53,35 +51,43 @@ impl MintAccount<'_> {
     pub const LEN: usize = 82;
 
     #[inline]
-    pub fn validate(&mut self) -> Result<()> {
-        if self.validated {
-            return Ok(());
-        }
+    pub fn validate(&self) -> Result<()> {
         // // todo: maybe relax this check to allow token22
         if self.owner() != &Token::ID {
-            bail!(ProgramError::InvalidAccountOwner);
+            bail!(
+                "MintAccount owner {} does not match expected Token program ID {}",
+                self.owner(),
+                Token::ID
+            );
         }
         if self.info_data_bytes()?.len() != Self::LEN {
-            bail!(ProgramError::InvalidAccountData);
+            bail!(
+                "MintAccount {} has invalid data length {}, expected {}",
+                self.key(),
+                self.info_data_bytes()?.len(),
+                Self::LEN
+            );
         }
-        // set validate before checking state to allow us to call .data()
-        self.validated = true;
         // check initialized
-        if !self.data()?.is_initialized {
-            bail!(ProgramError::UninitializedAccount);
+        if !self.data_unchecked()?.is_initialized {
+            bail!("MintAccount {} is not initialized", self.key());
         }
         Ok(())
     }
 
     #[inline]
-    pub fn data(&self) -> Result<Ref<MintData>> {
-        if !self.validated {
-            return Err(ProgramError::InvalidAccountData)
-                .context("Called `.data()` on MintAccount before validation");
-        }
+    pub fn data_unchecked(&self) -> Result<Ref<MintData>> {
         Ok(try_map_ref(self.info_data_bytes()?, |data| {
             bytemuck::checked::try_from_bytes::<MintData>(data)
         })?)
+    }
+
+    #[inline]
+    pub fn data(&self) -> Result<Ref<MintData>> {
+        if self.is_writable() {
+            self.validate()?;
+        }
+        self.data_unchecked()
     }
 
     #[inline]
@@ -89,23 +95,41 @@ impl MintAccount<'_> {
         let data = self.data()?;
         if let Some(decimals) = validate_mint.decimals {
             if data.decimals != decimals {
-                bail!(ProgramError::InvalidArgument);
+                bail!(
+                    "MintAccount {} has decimals {}, expected {}",
+                    self.key(),
+                    data.decimals,
+                    decimals
+                );
             }
         }
         if let Some(authority) = validate_mint.authority {
             if data.mint_authority != PodOption::some(*authority) {
-                bail!(ProgramError::InvalidArgument);
+                bail!(
+                    "MintAccount {} has mint authority {:?}, expected {:?}",
+                    self.key(),
+                    data.mint_authority,
+                    authority
+                );
             }
         }
         match validate_mint.freeze_authority {
             FreezeAuthority::None => {
                 if data.freeze_authority.is_some() {
-                    bail!(ProgramError::InvalidArgument);
+                    bail!(
+                        "MintAccount {} has a freeze authority but expected none",
+                        self.key()
+                    );
                 }
             }
             FreezeAuthority::Some(authority) => {
                 if data.freeze_authority != PodOption::some(*authority) {
-                    bail!(ProgramError::InvalidArgument);
+                    bail!(
+                        "MintAccount {} has freeze authority {:?}, expected {:?}",
+                        self.key(),
+                        data.freeze_authority,
+                        authority
+                    );
                 }
             }
             _ => {}
@@ -222,8 +246,6 @@ where
 pub struct TokenAccount<'info> {
     #[single_account_set(skip_can_init_account, skip_has_owner_program)]
     info: AccountInfo<'info>,
-    #[account_set(skip = false)]
-    validated: bool,
 }
 
 impl HasOwnerProgram for TokenAccount<'_> {
@@ -270,34 +292,43 @@ impl TokenAccount<'_> {
     pub const LEN: usize = 165;
 
     #[inline]
-    pub fn validate(&mut self) -> Result<()> {
-        if self.validated {
-            return Ok(());
-        }
+    pub fn validate(&self) -> Result<()> {
         // todo: maybe relax this check to allow token22
         if self.owner() != &Token::ID {
-            bail!(ProgramError::InvalidAccountOwner);
+            bail!(
+                "TokenAccount owner {} does not match expected Token program ID {}",
+                self.owner(),
+                Token::ID
+            );
         }
         if self.info_data_bytes()?.len() != Self::LEN {
-            bail!(ProgramError::InvalidAccountData);
+            bail!(
+                "TokenAccount {} has invalid data length {}, expected {}",
+                self.key(),
+                self.info_data_bytes()?.len(),
+                Self::LEN
+            );
         }
         // set validate before checking state to allow us to call .data()
-        self.validated = true;
-        if self.data()?.state == AccountState::Uninitialized {
-            bail!(ProgramError::UninitializedAccount);
+        if self.data_unchecked()?.state == AccountState::Uninitialized {
+            bail!("TokenAccount {} is not initialized", self.key());
         }
         Ok(())
     }
 
     #[inline]
-    pub fn data(&self) -> Result<Ref<TokenAccountData>> {
-        if !self.validated {
-            return Err(ProgramError::InvalidAccountData)
-                .context("Called `.data()` on TokenAccount before validation");
-        }
+    pub fn data_unchecked(&self) -> Result<Ref<TokenAccountData>> {
         Ok(try_map_ref(self.info_data_bytes()?, |data| {
             bytemuck::checked::try_from_bytes::<TokenAccountData>(data)
         })?)
+    }
+
+    #[inline]
+    pub fn data(&self) -> Result<Ref<TokenAccountData>> {
+        if self.is_writable() {
+            self.validate()?;
+        }
+        self.data_unchecked()
     }
 
     #[inline]
@@ -305,12 +336,22 @@ impl TokenAccount<'_> {
         let data = self.data()?;
         if let Some(mint) = validate_token.mint {
             if data.mint != *mint {
-                bail!(ProgramError::InvalidAccountData);
+                bail!(
+                    "TokenAccount {} has mint {}, expected {}",
+                    self.key(),
+                    data.mint,
+                    mint
+                );
             }
         }
         if let Some(owner) = validate_token.owner {
             if data.owner != *owner {
-                bail!(ProgramError::InvalidAccountData);
+                bail!(
+                    "TokenAccount {} has owner {}, expected {}",
+                    self.key(),
+                    data.owner,
+                    owner
+                );
             }
         }
         Ok(())
@@ -428,10 +469,7 @@ mod tests {
             false,
             0,
         );
-        let mut mint = MintAccount {
-            info,
-            validated: false,
-        };
+        let mint = MintAccount { info };
         mint.validate()?;
         mint.validate_mint(ValidateMint {
             decimals: Some(data.decimals),
@@ -479,10 +517,7 @@ mod tests {
             false,
             0,
         );
-        let mut account = TokenAccount {
-            info,
-            validated: false,
-        };
+        let account = TokenAccount { info };
         account.validate()?;
         account.validate_token(ValidateToken {
             mint: Some(&data.mint),

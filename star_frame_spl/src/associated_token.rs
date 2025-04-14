@@ -216,7 +216,12 @@ impl AssociatedTokenAccount<'_> {
         let expected_address =
             AssociatedToken::find_address(validate_ata.wallet, validate_ata.mint);
         if self.key() != &expected_address {
-            bail!(ProgramError::InvalidAccountData);
+            bail!(
+                "Account {} is not the associated token account for wallet {} and mint {}",
+                self.key(),
+                validate_ata.wallet,
+                validate_ata.mint
+            );
         }
         Ok(())
     }

@@ -106,15 +106,38 @@ where
         let owned = items.into_iter();
         let owned_len = owned.len();
         let owned_len_bytes = u32::try_from(owned_len)?.to_le_bytes();
-        let unsized_size_bytes = bytes.try_advance_array::<U32_SIZE>()?;
+        let unsized_size_bytes = bytes.try_advance_array::<U32_SIZE>().with_context(|| {
+            format!(
+                "Failed to read unsized size bytes for {} FromOwned",
+                std::any::type_name::<Self>()
+            )
+        })?;
 
-        let len_bytes = bytes.try_advance_array::<U32_SIZE>()?;
+        let len_bytes = bytes.try_advance_array::<U32_SIZE>().with_context(|| {
+            format!(
+                "Failed to read len bytes for {} FromOwned",
+                std::any::type_name::<Self>()
+            )
+        })?;
         *len_bytes = owned_len_bytes;
 
-        let offset_list_bytes = bytes.try_advance(owned_len * size_of::<C>())?;
+        let offset_list_bytes =
+            bytes
+                .try_advance(owned_len * size_of::<C>())
+                .with_context(|| {
+                    format!(
+                        "Failed to read offset list bytes for {} FromOwned",
+                        std::any::type_name::<Self>()
+                    )
+                })?;
         let offset_array = bytemuck::try_cast_slice_mut::<_, C>(offset_list_bytes)?;
 
-        let copy_of_len_bytes = bytes.try_advance_array::<U32_SIZE>()?;
+        let copy_of_len_bytes = bytes.try_advance_array::<U32_SIZE>().with_context(|| {
+            format!(
+                "Failed to read copy of len bytes for {} FromOwned",
+                std::any::type_name::<Self>()
+            )
+        })?;
         *copy_of_len_bytes = owned_len_bytes;
 
         let mut unsized_bytes_written = 0;
@@ -489,17 +512,49 @@ where
     fn get_ref<'a>(data: &mut &'a [u8]) -> Result<Self::Ref<'a>> {
         let ptr = data.as_ptr();
 
-        let unsized_size_bytes = data.try_advance_array::<U32_SIZE>()?;
+        let unsized_size_bytes = data.try_advance_array::<U32_SIZE>().with_context(|| {
+            format!(
+                "Failed to read unsized size bytes for UnsizedList<{}, {}>",
+                std::any::type_name::<T>(),
+                std::any::type_name::<C>()
+            )
+        })?;
         let unsized_size = u32::from_le_bytes(*unsized_size_bytes) as usize;
 
-        let length_bytes = data.try_advance(U32_SIZE)?;
+        let length_bytes = data.try_advance(U32_SIZE).with_context(|| {
+            format!(
+                "Failed to read length bytes for UnsizedList<{}, {}>",
+                std::any::type_name::<T>(),
+                std::any::type_name::<C>()
+            )
+        })?;
         let length = from_bytes::<PackedValue<u32>>(length_bytes).usize();
 
-        let _offset_list = data.try_advance(length * U32_SIZE)?;
+        let _offset_list = data.try_advance(length * U32_SIZE).with_context(|| {
+            format!(
+                "Failed to read offset list of length {} for UnsizedList<{}, {}>",
+                length,
+                std::any::type_name::<T>(),
+                std::any::type_name::<C>()
+            )
+        })?;
 
-        let _length_copy = data.try_advance(U32_SIZE)?;
+        let _length_copy = data.try_advance(U32_SIZE).with_context(|| {
+            format!(
+                "Failed to read length copy for UnsizedList<{}, {}>",
+                std::any::type_name::<T>(),
+                std::any::type_name::<C>()
+            )
+        })?;
 
-        let _unsized_data = data.try_advance(unsized_size)?;
+        let _unsized_data = data.try_advance(unsized_size).with_context(|| {
+            format!(
+                "Failed to read unsized data of size {} for UnsizedList<{}, {}>",
+                unsized_size,
+                std::any::type_name::<T>(),
+                std::any::type_name::<C>()
+            )
+        })?;
 
         Ok(UnsizedListRef {
             list_ptr: unsafe { &*ptr_meta::from_raw_parts(ptr.cast::<()>(), length) },
@@ -510,17 +565,49 @@ where
     fn get_mut<'a>(data: &mut &'a mut [u8]) -> Result<Self::Mut<'a>> {
         let ptr = data.as_mut_ptr();
 
-        let unsized_size_bytes = data.try_advance_array::<U32_SIZE>()?;
+        let unsized_size_bytes = data.try_advance_array::<U32_SIZE>().with_context(|| {
+            format!(
+                "Failed to read unsized size bytes for UnsizedList<{}, {}>",
+                std::any::type_name::<T>(),
+                std::any::type_name::<C>()
+            )
+        })?;
         let unsized_size = u32::from_le_bytes(*unsized_size_bytes) as usize;
 
-        let length_bytes = data.try_advance(U32_SIZE)?;
+        let length_bytes = data.try_advance(U32_SIZE).with_context(|| {
+            format!(
+                "Failed to read length bytes for UnsizedList<{}, {}>",
+                std::any::type_name::<T>(),
+                std::any::type_name::<C>()
+            )
+        })?;
         let length = from_bytes::<PackedValue<u32>>(length_bytes).usize();
 
-        let _offset_list = data.try_advance(length * U32_SIZE)?;
+        let _offset_list = data.try_advance(length * U32_SIZE).with_context(|| {
+            format!(
+                "Failed to read offset list of length {} for UnsizedList<{}, {}>",
+                length,
+                std::any::type_name::<T>(),
+                std::any::type_name::<C>()
+            )
+        })?;
 
-        let _length_copy = data.try_advance(U32_SIZE)?;
+        let _length_copy = data.try_advance(U32_SIZE).with_context(|| {
+            format!(
+                "Failed to read length copy for UnsizedList<{}, {}>",
+                std::any::type_name::<T>(),
+                std::any::type_name::<C>()
+            )
+        })?;
 
-        let _unsized_data = data.try_advance(unsized_size)?;
+        let _unsized_data = data.try_advance(unsized_size).with_context(|| {
+            format!(
+                "Failed to read unsized data of size {} for UnsizedList<{}, {}>",
+                unsized_size,
+                std::any::type_name::<T>(),
+                std::any::type_name::<C>()
+            )
+        })?;
 
         Ok(UnsizedListMut {
             list_ptr: unsafe { &mut *ptr_meta::from_raw_parts_mut(ptr.cast::<()>(), length) },
@@ -898,10 +985,24 @@ where
     const INIT_BYTES: usize = U32_SIZE * 3;
 
     unsafe fn init(bytes: &mut &mut [u8], _init: DefaultInit) -> Result<()> {
-        let unsized_size_bytes = bytes.try_advance_array::<U32_SIZE>()?;
+        let unsized_size_bytes = bytes.try_advance_array::<U32_SIZE>().with_context(|| {
+            format!(
+                "Failed to read unsized size bytes during initialization of UnsizedList<{}, {}>",
+                std::any::type_name::<T>(),
+                std::any::type_name::<C>()
+            )
+        })?;
         unsized_size_bytes.copy_from_slice(&<[u8; U32_SIZE]>::zeroed());
 
-        let both_len_bytes = bytes.try_advance_array::<{ U32_SIZE * 2 }>()?;
+        let both_len_bytes = bytes
+            .try_advance_array::<{ U32_SIZE * 2 }>()
+            .with_context(|| {
+                format!(
+                    "Failed to read both length bytes during initialization of UnsizedList<{}, {}>",
+                    std::any::type_name::<T>(),
+                    std::any::type_name::<C>()
+                )
+            })?;
         both_len_bytes.copy_from_slice(&<[u8; U32_SIZE * 2]>::zeroed());
         Ok(())
     }
@@ -924,13 +1025,19 @@ where
         *unsized_size_bytes = unsized_len.to_le_bytes();
 
         let len_l: u32 = N.to_u32().context("N must be less than u32::MAX")?;
-        let len_bytes = bytes.try_advance(U32_SIZE)?;
+        let len_bytes = bytes.try_advance(U32_SIZE)
+            .with_context(|| format!("Failed to advance {} bytes for length in list header initialization of UnsizedList<{}, {}>", 
+                U32_SIZE, std::any::type_name::<T>(), std::any::type_name::<C>()))?;
         len_bytes.copy_from_slice(bytes_of(&len_l));
 
-        let offset_slice_bytes = bytes.try_advance(N * size_of::<C>())?;
+        let offset_slice_bytes = bytes.try_advance(N * size_of::<C>())
+            .with_context(|| format!("Failed to advance {} bytes for offset slice in list header initialization of UnsizedList<{}, {}>", 
+                N * size_of::<C>(), std::any::type_name::<T>(), std::any::type_name::<C>()))?;
         let offset_slice: &mut [C] = cast_slice_mut(offset_slice_bytes);
 
-        let offset_len_bytes = bytes.try_advance(U32_SIZE)?;
+        let offset_len_bytes = bytes.try_advance(U32_SIZE)
+            .with_context(|| format!("Failed to advance {} bytes for offset length in list header initialization of UnsizedList<{}, {}>", 
+                U32_SIZE, std::any::type_name::<T>(), std::any::type_name::<C>()))?;
         offset_len_bytes.copy_from_slice(bytes_of(&len_l));
 
         Ok(offset_slice.try_into()?)

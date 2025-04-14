@@ -37,7 +37,9 @@ pub mod macro_prelude {
     };
 
     pub use advancer::{Advance, AdvanceArray};
-    pub use anyhow::bail;
+    pub use anyhow::{self, bail};
+
+    pub use core::any::type_name;
 
     pub use solana_program::{
         account_info::AccountInfo, instruction::AccountMeta, msg, pubkey::Pubkey,
