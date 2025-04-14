@@ -15,7 +15,7 @@ name = "faction_enlistment"
 prod = []
 no_entrypoint = []
 cpi = ["no_entrypoint"]
-idl = ["star_frame/idl", "star_frame_spl/idl"]
+idl = ["star_frame/idl", "star_frame_spl/idl", "counter/idl"]
 locked_versions = ["star_frame/locked_versions"]
 
 [dependencies]

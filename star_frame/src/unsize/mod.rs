@@ -12,11 +12,18 @@ pub use test_helpers::*;
 use crate::Result;
 pub use star_frame_proc::{unsized_impl, unsized_type};
 
+pub trait AsShared<'a> {
+    type Ref;
+    fn as_shared(&'a self) -> Self::Ref;
+}
+
+pub type UnsizedTypeMut<'a, T> = <T as UnsizedType>::Mut<'a>;
+
 /// # Safety
 /// TODO
 pub unsafe trait UnsizedType: 'static {
     type Ref<'a>;
-    type Mut<'a>;
+    type Mut<'a>: AsShared<'a, Ref = Self::Ref<'a>>;
 
     type Owned;
 
@@ -44,9 +51,20 @@ pub unsafe trait UnsizedType: 'static {
     ) -> Result<()>;
 }
 
+/// # Safety
+/// The `from_owned` function must create a valid `Self` from the `owned` value.
+pub unsafe trait FromOwned: UnsizedType {
+    fn byte_size(owned: &Self::Owned) -> usize;
+
+    /// Writes to and advances the buffer, returning the number of bytes advanced.
+    /// Errors if the buffer is too small (< `byte_size`).
+    fn from_owned(owned: Self::Owned, bytes: &mut &mut [u8]) -> Result<usize>;
+}
+
 // todo: convert these tests to TryBuild
 /// # Test ZST on sized
 /// ```compile_fail
+/// #![feature(trivial_bounds)]
 /// use star_frame::prelude::*;
 /// use star_frame::unsize::TestByteSet;
 /// #[unsized_type(skip_idl)]
@@ -61,6 +79,7 @@ pub unsafe trait UnsizedType: 'static {
 ///
 /// # Test ZST at end
 /// ```
+/// #![feature(trivial_bounds)]
 /// use star_frame::prelude::*;
 /// use star_frame::unsize::TestByteSet;
 /// #[unsized_type(skip_idl)]
@@ -75,6 +94,7 @@ pub unsafe trait UnsizedType: 'static {
 ///
 /// # Test nested ZST
 /// ```compile_fail
+/// #![feature(trivial_bounds)]
 /// use star_frame::prelude::*;
 /// use star_frame::unsize::TestByteSet;
 /// #[unsized_type(skip_idl)]

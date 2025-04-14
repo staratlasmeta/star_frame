@@ -1,22 +1,14 @@
 use bytemuck::{AnyBitPattern, CheckedBitPattern, NoUninit, Pod, Zeroable};
-use derivative::Derivative;
 use derive_more::From;
 use num_traits::{FromPrimitive, ToPrimitive};
 use star_frame::align1::Align1;
-use std::fmt::Debug;
 
 /// Packs a given `T` to be align 1.
 #[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Align1, Pod, Zeroable, Derivative, From, Default)]
-#[derivative(
-    Debug(bound = "T: Debug + Copy"),
-    Copy,
-    Clone(bound = "T: Copy"),
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord
+#[derive(
+    Copy, Clone, Debug, Align1, Pod, PartialEq, Eq, PartialOrd, Ord, Zeroable, From, Default,
 )]
+// #[derive_where(Debug; T: std::fmt::Debug + Copy)]
 #[repr(C, packed)]
 pub struct PackedValue<T>(pub T);
 impl<T> FromPrimitive for PackedValue<T>
@@ -154,16 +146,7 @@ macro_rules! packed_eq {
 packed_eq!(PackedValue, PackedValueChecked);
 
 /// Equivalent to [`PackedValue`] but [`CheckedBitPattern`] instead of [`Pod`].
-#[derive(Align1, Derivative, From, Default)]
-#[derivative(
-    Debug(bound = "T: Debug + Copy"),
-    Copy,
-    Clone(bound = "T: Copy"),
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord
-)]
+#[derive(Align1, From, Default, Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(C, packed)]
 pub struct PackedValueChecked<T>(pub T);
 unsafe impl<T> CheckedBitPattern for PackedValueChecked<T>

@@ -2,7 +2,6 @@ use crate::prelude::*;
 use crate::syscalls::{SyscallInvoke, Syscalls};
 use borsh::{to_vec, BorshDeserialize, BorshSerialize};
 use bytemuck::{bytes_of, Pod};
-use derivative::Derivative;
 use solana_program::account_info::AccountInfo;
 use solana_program::pubkey::Pubkey;
 pub use star_frame_proc::{InstructionSet, InstructionToIdl};
@@ -57,16 +56,12 @@ pub trait Instruction {
 }
 
 /// Helper type for the return of [`StarFrameInstruction::split_to_args`].
-#[derive(Derivative)]
-#[derivative(
-    Debug(bound = "<T as StarFrameInstruction>::DecodeArg<'a>: Debug,
-            <T as StarFrameInstruction>::ValidateArg<'a>: Debug,
-            <T as StarFrameInstruction>::RunArg<'a>: Debug,
-            <T as StarFrameInstruction>::CleanupArg<'a>: Debug"),
-    Default(bound = "<T as StarFrameInstruction>::DecodeArg<'a>: Default,
-            <T as StarFrameInstruction>::ValidateArg<'a>: Default,
-            <T as StarFrameInstruction>::RunArg<'a>: Default,
-            <T as StarFrameInstruction>::CleanupArg<'a>: Default")
+#[derive_where::derive_where(
+    Default, Debug;
+    <T as StarFrameInstruction>::DecodeArg<'a>,
+    <T as StarFrameInstruction>::ValidateArg<'a>,
+    <T as StarFrameInstruction>::RunArg<'a>,
+    <T as StarFrameInstruction>::CleanupArg<'a>
 )]
 pub struct IxArgs<'a, T: StarFrameInstruction + ?Sized> {
     pub decode: <T as StarFrameInstruction>::DecodeArg<'a>,

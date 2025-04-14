@@ -25,8 +25,7 @@ star_frame = { workspace = true }
 solana-program-test = { workspace = true }
 codama-nodes.workspace = true
 solana-sdk = { workspace = true }
-tokio = "1.39.1"
-
+tokio = { workspace = true }
 # Locked for solana_program_test
 litemap = { workspace = true }
 zerofrom = { workspace = true }

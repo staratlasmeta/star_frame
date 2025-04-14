@@ -5,7 +5,7 @@ use crate::instruction::{InstructionDiscriminant, InstructionSet, StarFrameInstr
 use crate::prelude::UnsizedInit;
 use crate::program::StarFrameProgram;
 use crate::syscalls::SyscallInvoke;
-use crate::unsize::UnsizedType;
+use crate::unsize::{FromOwned, UnsizedType};
 use crate::Result;
 use crate::SolanaInstruction;
 use borsh::{object_length, BorshSerialize};
@@ -52,6 +52,7 @@ where
     Ok(ix_data)
 }
 
+#[must_use = "Did you forget to invoke the builder?"]
 #[derive(Debug, Clone)]
 pub struct CpiBuilder<'info> {
     pub instruction: SolanaInstruction,
@@ -152,29 +153,62 @@ pub trait FindProgramAddress: HasSeeds + HasOwnerProgram {
 
 impl<T> FindProgramAddress for T where T: HasSeeds + HasOwnerProgram {}
 
-pub trait DeserializeAccount: UnsizedType + ProgramAccount {
-    fn deserialize_account(data: &[u8]) -> Result<Self::Owned>;
-}
-
-impl<T: UnsizedType + ProgramAccount> DeserializeAccount for T {
-    fn deserialize_account(data: &[u8]) -> Result<Self::Owned> {
-        <AccountDiscriminant<T> as UnsizedType>::owned(data)
+pub trait DeserializeType: UnsizedType {
+    fn deserialize_type(data: &[u8]) -> Result<Self::Owned> {
+        Self::owned(data)
     }
 }
 
-pub trait SerializeAccount<T> {
-    fn serialize_account(init_arg: T) -> Result<Vec<u8>>;
-}
+impl<T: UnsizedType + ?Sized> DeserializeType for T {}
 
-impl<T, I> SerializeAccount<I> for T
-where
-    T: UnsizedType + ProgramAccount,
-    AccountDiscriminant<Self>: UnsizedInit<I>,
-{
-    fn serialize_account(init_arg: I) -> Result<Vec<u8>> {
-        let mut bytes = vec![0u8; <AccountDiscriminant<T>>::INIT_BYTES];
+pub trait SerializeType: UnsizedType {
+    fn serialize_type(owned: Self::Owned) -> Result<Vec<u8>>
+    where
+        Self: FromOwned,
+    {
+        let byte_size = Self::byte_size(&owned);
+        let mut bytes = vec![0u8; byte_size];
+        Self::from_owned(owned, &mut bytes.as_mut_slice())?;
+        Ok(bytes)
+    }
+
+    fn serialize_type_from_init<I>(init_arg: I) -> Result<Vec<u8>>
+    where
+        Self: UnsizedInit<I>,
+    {
+        let mut bytes = vec![0u8; <Self as UnsizedInit<I>>::INIT_BYTES];
         let data = &mut &mut bytes[..];
-        unsafe { <AccountDiscriminant<Self>>::init(data, init_arg)? };
+        unsafe { <Self as UnsizedInit<I>>::init(data, init_arg)? };
         Ok(bytes)
     }
 }
+
+impl<T: UnsizedType + ?Sized> SerializeType for T {}
+
+pub trait DeserializeAccount: UnsizedType + ProgramAccount {
+    fn deserialize_account(data: &[u8]) -> Result<Self::Owned> {
+        <AccountDiscriminant<Self> as DeserializeType>::deserialize_type(data)
+    }
+}
+
+impl<T: UnsizedType + ProgramAccount + ?Sized> DeserializeAccount for T {}
+
+pub trait SerializeAccount: UnsizedType + ProgramAccount {
+    #[inline]
+    fn serialize_account(owned: Self::Owned) -> Result<Vec<u8>>
+    where
+        Self: FromOwned,
+    {
+        <AccountDiscriminant<Self> as SerializeType>::serialize_type(owned)
+    }
+
+    #[inline]
+    fn serialize_account_from_init<I>(init_arg: I) -> Result<Vec<u8>>
+    where
+        AccountDiscriminant<Self>: UnsizedInit<I>,
+    {
+        <AccountDiscriminant<Self> as SerializeType>::serialize_type_from_init(init_arg)
+    }
+}
+
+impl<T> SerializeAccount for T where T: UnsizedType + ProgramAccount + ?Sized {}

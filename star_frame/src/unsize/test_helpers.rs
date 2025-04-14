@@ -10,12 +10,14 @@ use std::mem::MaybeUninit;
 use std::ptr::slice_from_raw_parts_mut;
 use std::slice::from_raw_parts_mut;
 
+use super::FromOwned;
+
 #[derive(Debug)]
-pub struct TestAccountInfo<'info> {
+pub struct TestUnderlyingData<'info> {
     original_data_len: usize,
     data: RefCell<&'info mut [u8]>,
 }
-impl<'info> TestAccountInfo<'info> {
+impl<'info> TestUnderlyingData<'info> {
     pub fn new(backing: &'info mut Vec<u8>, data_len: usize) -> Self {
         backing.resize(data_len + MAX_PERMITTED_DATA_INCREASE, 0);
         Self {
@@ -25,7 +27,7 @@ impl<'info> TestAccountInfo<'info> {
     }
 }
 
-impl<'info> UnsizedTypeDataAccess<'info> for TestAccountInfo<'info> {
+impl<'info> UnsizedTypeDataAccess<'info> for TestUnderlyingData<'info> {
     unsafe fn realloc(this: &Self, new_len: usize, data: &mut &'info mut [u8]) -> Result<()> {
         assert!(
             new_len <= this.original_data_len + MAX_PERMITTED_DATA_INCREASE,
@@ -46,10 +48,10 @@ impl<'info> UnsizedTypeDataAccess<'info> for TestAccountInfo<'info> {
     }
 }
 
-/// A way to test [`UnsizedType`] types. Uses a [`TestAccountInfo`] internally.
+/// A way to test [`UnsizedType`] types. Uses a [`TestUnderlyingData`] internally.
 #[derive(Debug)]
 pub struct TestByteSet<'a, T: ?Sized + UnsizedType> {
-    test_account: &'a TestAccountInfo<'a>,
+    test_data: &'a TestUnderlyingData<'a>,
     phantom_t: PhantomData<T>,
 }
 
@@ -57,42 +59,60 @@ impl<'a, T> TestByteSet<'a, T>
 where
     T: UnsizedType + ?Sized,
 {
-    /// Creates a new [`TestByteSet`] by initializing the type with an arg from [`UnsizedInit`].
-    pub fn new<A>(arg: A) -> Result<Self>
-    where
-        T: UnsizedInit<A>,
-    {
+    fn initialize(size: usize, init: impl FnOnce(&mut &mut [u8]) -> Result<()>) -> Result<Self> {
         let data: &mut Vec<u8> = Box::leak(Box::default());
-        let test_account = Box::leak(Box::new(TestAccountInfo::new(data, T::INIT_BYTES)));
+        let test_account = Box::leak(Box::new(TestUnderlyingData::new(data, size)));
         {
             let mut data = &mut UnsizedTypeDataAccess::data_mut(test_account)?[..];
             unsafe {
-                T::init(&mut data, arg)?;
+                init(&mut data)?;
             }
         }
         Ok(Self {
-            test_account,
+            test_data: test_account,
             phantom_t: PhantomData,
         })
     }
 
+    /// Creates a new [`TestByteSet`] from the owned value
+    pub fn new(owned: T::Owned) -> Result<Self>
+    where
+        T: FromOwned,
+    {
+        Self::initialize(T::byte_size(&owned), |data| {
+            T::from_owned(owned, data).map(|_| ())
+        })
+    }
+
     /// Creates a new [`TestByteSet`] by initializing the type with an arg from [`UnsizedInit`].
+    pub fn new_from_init<A>(arg: A) -> Result<Self>
+    where
+        T: UnsizedInit<A>,
+    {
+        Self::initialize(T::INIT_BYTES, |data| unsafe { T::init(data, arg) })
+    }
+
+    /// Creates a new [`TestByteSet`] using the default initializer.
     pub fn new_default() -> Result<Self>
     where
         T: UnsizedInit<DefaultInit>,
     {
-        Self::new(DefaultInit)
+        Self::new_from_init(DefaultInit)
     }
 
     pub fn data_ref(&self) -> Result<SharedWrapper<'a, '_, T::Ref<'a>>> {
-        unsafe { SharedWrapper::<T>::new(self.test_account) }
+        unsafe { SharedWrapper::<T>::new(self.test_data) }
     }
 
-    pub fn data_mut(&self) -> Result<MutWrapper<'a, '_, T::Mut<'a>, T, TestAccountInfo<'_>>> {
-        unsafe { MutWrapper::new(self.test_account) }
+    pub fn data_mut(&self) -> Result<MutWrapper<'a, '_, T::Mut<'a>, T, TestUnderlyingData<'_>>> {
+        unsafe { MutWrapper::new(self.test_data) }
     }
 
     pub fn owned(&self) -> Result<T::Owned> {
-        T::owned(&self.test_account.data.try_borrow()?)
+        T::owned(&self.test_data.data.try_borrow()?)
+    }
+
+    pub fn underlying_data(&self) -> Result<Vec<u8>> {
+        Ok(self.test_data.data.try_borrow()?.to_vec())
     }
 }

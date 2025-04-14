@@ -1,7 +1,7 @@
 use crate::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 use bytemuck::{cast, cast_mut, cast_ref};
-use derivative::Derivative;
+use derive_where::DeriveWhere;
 use std::fmt::{Display, Formatter};
 use std::marker::PhantomData;
 
@@ -18,17 +18,8 @@ pub trait GetOptionalKeyFor<T: ?Sized> {
 }
 
 /// A key for an account type
-#[derive(Derivative, BorshDeserialize, BorshSerialize, Align1)]
-#[derivative(
-    Debug(bound = ""),
-    Clone(bound = ""),
-    Copy(bound = ""),
-    Hash(bound = ""),
-    PartialEq(bound = ""),
-    Eq(bound = ""),
-    PartialOrd(bound = ""),
-    Ord(bound = "")
-)]
+#[derive(BorshDeserialize, BorshSerialize, Align1, DeriveWhere)]
+#[derive_where(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(transparent)]
 pub struct OptionalKeyFor<T: ?Sized> {
     pubkey: Pubkey,
@@ -64,6 +55,12 @@ impl<T: ?Sized> OptionalKeyFor<T> {
         } else {
             Some(&self.pubkey)
         }
+    }
+
+    /// Pulls out the contained pubkey.
+    #[must_use]
+    pub fn as_inner(&self) -> &Pubkey {
+        &self.pubkey
     }
 
     /// Sets the contained pubkey.

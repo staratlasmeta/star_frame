@@ -1,3 +1,4 @@
+#![feature(trivial_bounds)]
 use counter::CounterAccountData;
 use star_frame::account_set::Account;
 // use star_frame::anyhow::bail;
@@ -12,7 +13,7 @@ use star_frame::prelude::*;
 //     token::{MintAccount, Token},
 // };
 
-#[unsized_type(owned_attributes = [derive(PartialEq, Eq, Clone)])]
+#[unsized_type]
 pub struct SomeFields {
     sized1: u8,
     sized2: u8,
@@ -21,7 +22,7 @@ pub struct SomeFields {
     unsized2: List<u8>,
 }
 
-#[unsized_type(owned_attributes = [derive(PartialEq, Eq, Clone)])]
+#[unsized_type]
 pub struct SomeUnsized {
     #[unsized_start]
     unsized1: List<u8>,
@@ -38,17 +39,16 @@ impl SomeFields {
     }
 }
 
+#[cfg(feature = "prod")]
+const CFG_ID: Pubkey = pubkey!("FLisTRH6dJnCK8AzTfenGJgHBPMHoat9XRc65Qpk7Yuc");
+
+#[cfg(not(feature = "prod"))]
+const CFG_ID: Pubkey = pubkey!("FLisTRH6dJnCK8AzTfenGJgHBPMHoat9XRc65Qpk7Yuc");
+
 #[derive(StarFrameProgram)]
 #[program(
     instruction_set = FactionEnlistmentInstructionSet,
-)]
-#[cfg_attr(
-    feature = "prod",
-    program(id = "FLisTRH6dJnCK8AzTfenGJgHBPMHoat9XRc65Qpk7Yuc")
-)]
-#[cfg_attr(
-    not(feature = "prod"),
-    program(id = "FLisTRH6dJnCK8AzTfenGJgHBPMHoat9XRc65Qpk7Yuc")
+    id = CFG_ID
 )]
 pub struct FactionEnlistment;
 
@@ -160,8 +160,7 @@ pub struct ProcessEnlistPlayer<'info> {
 // )]
 // #[repr(C, packed)]
 // #[program_account(seeds = PlayerFactionAccountSeeds)]
-#[unsized_type(program_account, seeds = PlayerFactionAccountSeeds, owned_attributes = [derive(PartialEq, Eq, Clone)]
-)]
+#[unsized_type(program_account, seeds = PlayerFactionAccountSeeds)]
 pub struct PlayerFactionData {
     pub owner: Pubkey,
     pub enlisted_at_timestamp: i64,
@@ -332,22 +331,18 @@ mod tests {
 
         let faction_info = banks_client.get_account(faction_account).await?.unwrap();
         let new_faction = PlayerFactionData::deserialize_account(&faction_info.data)?;
-        let serialized_account = PlayerFactionData::serialize_account(PlayerFactionDataInit {
-            sized: PlayerFactionDataSized {
-                owner: player_account.pubkey(),
-                enlisted_at_timestamp: clock.unix_timestamp,
-                faction_id,
-                counter: Default::default(),
-                bump,
-                _padding: [0; 5],
-            },
-            some_fields: SomeFieldsInit {
-                sized: SomeFieldsSized {
-                    sized1: 10,
-                    sized2: 0,
-                },
-                unsized1: DefaultInit,
-                unsized2: [5],
+        let serialized_account = PlayerFactionData::serialize_account(PlayerFactionDataOwned {
+            owner: player_account.pubkey(),
+            enlisted_at_timestamp: clock.unix_timestamp,
+            faction_id,
+            counter: Default::default(),
+            bump,
+            _padding: [0; 5],
+            some_fields: SomeFieldsOwned {
+                sized1: 10,
+                sized2: 0,
+                unsized1: Default::default(),
+                unsized2: vec![5],
             },
         })?;
         assert_eq!(serialized_account, faction_info.data);

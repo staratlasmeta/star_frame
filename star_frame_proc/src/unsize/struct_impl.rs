@@ -51,10 +51,16 @@ pub(crate) fn unsized_type_struct_impl(
     // println!("After owned_struct!");
     let sized_struct = context.sized_struct();
     // println!("After sized_struct!");
+    let sized_additional_derives = context.sized_additional_derives();
+    // println!("After sized_additional_derives!");
     let sized_bytemuck_derives = context.sized_bytemuck_derives();
     // println!("After sized_bytemuck_derives!");
     let ref_mut_derefs = context.ref_mut_derefs();
     // println!("After ref_mut_derefs!");
+    let as_shared_impl = context.as_shared_impl();
+    // println!("After as_shared_impl!");
+    let from_owned_impl = context.from_owned_impl();
+    // println!("After from_owned_impl!");
     let unsized_type_impl = context.unsized_type_impl();
     // println!("After unsized_type_impl!");
     let default_init_impl = context.unsized_init_default_impl();
@@ -72,8 +78,11 @@ pub(crate) fn unsized_type_struct_impl(
         #mut_struct
         #owned_struct
         #sized_struct
+        #sized_additional_derives
         #sized_bytemuck_derives
         #ref_mut_derefs
+        #as_shared_impl
+        #from_owned_impl
         #unsized_type_impl
         #default_init_impl
         #init_struct_impl
@@ -276,21 +285,29 @@ impl UnsizedStructContext {
         let (generics, wc) = self.split_for_declaration(false);
         let phantom_ty = phantom_generics_type(generics).map(|ty| quote!((#ty)));
         let docs = get_doc_attributes(&self.item_struct.attrs);
+        let derives = if phantom_ty.is_some() {
+            quote! {
+                #[derive(#prelude::DeriveWhere)]
+                #[derive_where(Debug)]
+            }
+        } else {
+            quote!(#[derive(#debug)])
+        };
         parse_quote! {
             #(#docs)*
-            #[#prelude::derivative(#debug)]
-            #[derive(#prelude::Align1)]
+            #derives
             #vis struct #struct_ident #generics #phantom_ty #wc;
         }
     }
 
     fn ref_struct(&self) -> ItemStruct {
-        Paths!(prelude, copy, clone, debug);
+        Paths!(prelude);
         UnsizedStructContext!(self => vis, ref_ident, with_sized_vis, with_sized_idents, with_sized_types, rm_lt);
         let (generics, wc) = self.split_for_declaration(true);
         let transparent = (with_sized_idents.len() == 1).then(|| quote!(#[repr(transparent)]));
         parse_quote! {
-            #[#prelude::derivative(#debug, #copy, #clone)]
+            #[derive(#prelude::DeriveWhere)]
+            #[derive_where(Debug, Copy, Clone; #(<#with_sized_types as #prelude::UnsizedType>::Ref<#rm_lt>,)*)]
             #transparent
             #vis struct #ref_ident #generics #wc {
                 #(
@@ -301,13 +318,14 @@ impl UnsizedStructContext {
     }
 
     fn mut_struct(&self) -> ItemStruct {
-        Paths!(prelude, debug);
+        Paths!(prelude);
         UnsizedStructContext!(self => vis, mut_ident, rm_lt, with_sized_vis, with_sized_idents, with_sized_types);
         let (generics, wc) = self.split_for_declaration(true);
         let transparent = (with_sized_idents.len() == 1).then(|| quote!(#[repr(transparent)]));
 
         parse_quote! {
-            #[#prelude::derivative(#debug)]
+            #[derive(#prelude::DeriveWhere)]
+            #[derive_where(Debug; #(<#with_sized_types as #prelude::UnsizedType>::Mut<#rm_lt>,)*)]
             #transparent
             #vis struct #mut_ident #generics #wc {
                 #(
@@ -318,15 +336,18 @@ impl UnsizedStructContext {
     }
 
     fn owned_struct(&self) -> ItemStruct {
-        Paths!(prelude, debug);
+        Paths!(prelude);
         UnsizedStructContext!(self => vis, owned_ident, owned_fields);
         let additional_attributes = self.args.owned_attributes.attributes.iter();
 
         let (gen, where_clause) = self.split_for_declaration(false);
 
+        let owned_types = get_field_types(owned_fields).collect_vec();
+
         parse_quote! {
             #(#[#additional_attributes])*
-            #[#prelude::derivative(#debug)]
+            #[derive(#prelude::DeriveWhere)]
+            #[derive_where(Debug, Copy, Clone, Default, Eq, Hash, Ord, PartialEq, PartialOrd; #(#owned_types,)*)]
             #vis struct #owned_ident #gen #where_clause {
                 #(#owned_fields,)*
             }
@@ -340,7 +361,7 @@ impl UnsizedStructContext {
         let additional_attributes = self.args.sized_attributes.attributes.iter();
 
         let sized_bytemuck_derives = self.generics.params.is_empty().then(
-            || quote!(#bytemuck::CheckedBitPattern, #bytemuck::NoUninit, #bytemuck::Zeroable),
+            || quote!(#copy, #clone, #debug, #partial_eq, #eq, #bytemuck::CheckedBitPattern, #bytemuck::NoUninit, #bytemuck::Zeroable),
         );
         let (impl_gen, where_clause) = self.split_for_declaration(false);
         let phantom_field = phantom_generic_ident.as_ref().map(|ident| {
@@ -351,7 +372,7 @@ impl UnsizedStructContext {
         });
         let sized_struct: ItemStruct = parse_quote! {
             #(#[#additional_attributes])*
-            #[#prelude::derivative(#copy, #clone, #debug, #partial_eq, #eq)]
+            // #[#prelude::derivative(#copy, #clone, #debug, #partial_eq, #eq)]
             #[derive(#prelude::Align1, #sized_bytemuck_derives)]
             #[repr(C, packed)]
             #vis struct #sized_ident #impl_gen #where_clause {
@@ -362,8 +383,60 @@ impl UnsizedStructContext {
         Some(sized_struct)
     }
 
+    // TODO: remove once derive_where adds support for packed structs
+    fn sized_additional_derives(&self) -> Option<TokenStream> {
+        Paths!(debug, copy, clone, partial_eq, eq);
+        UnsizedStructContext!(self => sized_ident, sized_field_idents, sized_field_types);
+        some_or_return!(sized_ident);
+        if self.generics.params.is_empty() {
+            return None;
+        }
+        let (impl_generics, type_generics, _) = self.generics.split_for_impl();
+
+        let copy_gen = self
+            .generics
+            .combine::<BetterGenerics>(&parse_quote!([where #(#sized_field_types: #copy),*]));
+        let copy_wc = copy_gen.split_for_impl().2;
+
+        let debug_gen = self
+            .generics
+            .combine::<BetterGenerics>(&parse_quote!([where #(#sized_field_types: #debug),*]));
+        let debug_wc: Option<&syn::WhereClause> = debug_gen.split_for_impl().2;
+
+        let partial_eq_gen = self
+            .generics
+            .combine::<BetterGenerics>(&parse_quote!([where #(#sized_field_types: #partial_eq),*]));
+        let partial_eq_wc = partial_eq_gen.split_for_impl().2;
+
+        Some(quote! {
+            impl #impl_generics #copy for #sized_ident #type_generics #copy_wc {}
+            impl #impl_generics #clone for #sized_ident #type_generics #copy_wc {
+                fn clone(&self) -> Self {
+                    *self
+                }
+            }
+            impl #impl_generics #debug for #sized_ident #type_generics #debug_wc {
+                fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+                    f.debug_struct(stringify!(#sized_ident))
+                        #(.field(stringify!(#sized_field_idents), &{ self.#sized_field_idents }))*
+                        .finish()
+                }
+            }
+
+            impl #impl_generics #partial_eq for #sized_ident #type_generics #partial_eq_wc {
+                fn eq(&self, other: &Self) -> bool {
+                    #({self.#sized_field_idents}.eq(&{other.#sized_field_idents}) &&)*
+                    true
+                }
+            }
+
+            impl #impl_generics #eq for #sized_ident #type_generics #partial_eq_wc { }
+
+        })
+    }
+
     fn sized_bytemuck_derives(&self) -> Option<TokenStream> {
-        Paths!(prelude, bytemuck, debug, copy, clone);
+        Paths!(bytemuck, debug, copy, clone);
         UnsizedStructContext!(self => vis, sized_fields, sized_ident, sized_field_idents, sized_field_types, phantom_generic_type, phantom_generic_ident);
         some_or_return!(sized_ident);
         if self.generics.params.is_empty() {
@@ -403,6 +476,16 @@ impl UnsizedStructContext {
             "# Safety\nThis is safe because all fields in [`Self::Bits`] are [`{bytemuck_print}::CheckedBitPattern::Bits`] and share the same repr. The checks are correctly (hopefully) and automatically generated by the macro."
         );
 
+        let copy_bit_gen = self
+            .generics
+            .combine::<BetterGenerics>(&parse_quote!([where #(#bit_field_types: #copy),*]));
+        let copy_bit_wc = copy_bit_gen.split_for_impl().2;
+
+        let debug_bit_gen = self
+            .generics
+            .combine::<BetterGenerics>(&parse_quote!([where #(#bit_field_types: #debug),*]));
+        let debug_bit_wc: Option<&syn::WhereClause> = debug_bit_gen.split_for_impl().2;
+
         Some(quote! {
             #validate_fields_are_trait
 
@@ -414,12 +497,26 @@ impl UnsizedStructContext {
             #[automatically_derived]
             unsafe impl #impl_generics #bytemuck::NoUninit for #sized_ident #type_generics #where_clause {}
 
-            #[#prelude::derivative(#debug, #copy, #clone)]
             #[repr(C, packed)]
             #[allow(clippy::pub_underscore_fields)]
             #vis struct #bit_ident #struct_generics #where_clause {
                 #(#vis #sized_field_idents: #bit_field_types),*
             }
+
+            impl #impl_generics #copy for #bit_ident #type_generics #copy_bit_wc {}
+            impl #impl_generics #clone for #bit_ident #type_generics #copy_bit_wc {
+                fn clone(&self) -> Self {
+                    *self
+                }
+            }
+            impl #impl_generics #debug for #bit_ident #type_generics #debug_bit_wc {
+                fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+                    f.debug_struct(stringify!(#bit_ident))
+                        #(.field(stringify!(#sized_field_idents), &{ self.#sized_field_idents }))*
+                        .finish()
+                }
+            }
+
 
             #[doc = #zeroable_bit_safety]
             #[automatically_derived]
@@ -475,6 +572,81 @@ impl UnsizedStructContext {
             impl #impl_gen #deref_mut for #mut_type #wc {
                 fn deref_mut(&mut self) -> &mut Self::Target {
                     &mut self.#sized_field_ident
+                }
+            }
+        })
+    }
+
+    fn as_shared_impl(&self) -> TokenStream {
+        Paths!(prelude);
+        UnsizedStructContext!(self => with_sized_idents, with_sized_types, mut_type, rm_lt, ref_type, ref_ident);
+
+        let (impl_gen, _, where_clause) = self.ref_mut_generics.split_for_impl();
+
+        quote! {
+            #[automatically_derived]
+            impl #impl_gen #prelude::AsShared<'a> for #mut_type #where_clause {
+                type Ref = #ref_type;
+                fn as_shared(&#rm_lt self) -> Self::Ref {
+                    #ref_ident {
+                        #(#with_sized_idents: <#with_sized_types as #prelude::UnsizedType>::mut_as_ref(&self.#with_sized_idents),)*
+                    }
+                }
+            }
+        }
+    }
+
+    #[allow(clippy::wrong_self_convention)]
+    fn from_owned_impl(&self) -> Option<TokenStream> {
+        if self.args.owned_type.is_some() {
+            return None;
+        }
+        Paths!(prelude, default);
+        UnsizedStructContext!(self => struct_type, sized_field_idents, unsized_field_types, unsized_field_idents, sized_type);
+
+        let from_owned_generics = self.generics.combine::<BetterGenerics>(
+            &parse_quote!([where #(#unsized_field_types: #prelude::FromOwned),*]),
+        );
+
+        let (impl_gen, _, where_clause) = from_owned_generics.split_for_impl();
+
+        let sized_struct = self.sized_ident.as_ref().map(|ident| {
+            let phantom_generic = self.phantom_generic_ident.iter();
+            quote!(#ident {
+                #(#sized_field_idents: owned.#sized_field_idents,)*
+                #(#phantom_generic: #default::default())*
+            })
+        });
+
+        let sized_byte_size = sized_struct.as_ref().map(|sized_struct| {
+            quote! {
+                let sized_struct: #sized_type = #sized_struct;
+                <#sized_type as #prelude::FromOwned>::byte_size(&sized_struct) +
+            }
+        });
+
+        let sized_from_owned = sized_struct.as_ref().map(|sized_struct| {
+            quote! {
+                let sized_struct: #sized_type = #sized_struct;
+                <#sized_type as #prelude::FromOwned>::from_owned(sized_struct, bytes)? +
+            }
+        });
+
+        Some(quote! {
+            #[automatically_derived]
+            unsafe impl #impl_gen #prelude::FromOwned for #struct_type #where_clause {
+                #[inline]
+                fn byte_size(owned: &Self::Owned) -> usize {
+                    #sized_byte_size
+                    #(<#unsized_field_types as #prelude::FromOwned>::byte_size(&owned.#unsized_field_idents) +)* 0
+                }
+
+                #[inline]
+                fn from_owned(owned: Self::Owned, bytes: &mut &mut [u8]) -> Result<usize> {
+                    let size = {
+                        #sized_from_owned #(<#unsized_field_types as #prelude::FromOwned>::from_owned(owned.#unsized_field_idents, bytes)? +)* 0
+                    };
+                    Ok(size)
                 }
             }
         })
@@ -645,7 +817,6 @@ impl UnsizedStructContext {
         }
     }
 
-    #[allow(non_snake_case)]
     fn extension_impl(&self) -> TokenStream {
         Paths!(prelude);
         UnsizedStructContext!(self => struct_ident, unsized_fields, struct_type);
@@ -654,15 +825,15 @@ impl UnsizedStructContext {
         let top_lt = new_lifetime(&self.generics, Some("top"));
         let parent_lt = new_lifetime(&self.generics, Some("parent"));
         let child = new_lifetime(&self.generics, Some("child"));
-        let O = new_generic(&self.generics, Some("O"));
-        let A = new_generic(&self.generics, Some("A"));
+        let o = new_generic(&self.generics, Some("O"));
+        let a = new_generic(&self.generics, Some("A"));
 
         let ext_trait_generics = self
             .ref_mut_generics
             .combine::<BetterGenerics>(&parse_quote!([
-                <#parent_lt, #ptr_lt, #top_lt, #info_lt, #O, #A> where
-                    #O: #prelude::UnsizedType + ?Sized,
-                    #A: #prelude::UnsizedTypeDataAccess<#info_lt>
+                <#parent_lt, #ptr_lt, #top_lt, #info_lt, #o, #a> where
+                    #o: #prelude::UnsizedType + ?Sized,
+                    #a: #prelude::UnsizedTypeDataAccess<#info_lt>
             ]));
 
         let (impl_gen, ty_gen, wc) = ext_trait_generics.split_for_impl();
@@ -678,7 +849,7 @@ impl UnsizedStructContext {
                 }
             });
 
-        let impl_for = quote!(#prelude::ExclusiveWrapperT<#parent_lt, #ptr_lt, #top_lt, #info_lt, #struct_type, #O, #A>);
+        let impl_for = quote!(#prelude::ExclusiveWrapperT<#parent_lt, #ptr_lt, #top_lt, #info_lt, #struct_type, #o, #a>);
 
         let make_ext_trait = |vis: &Visibility, fields: Vec<&Field>, extension_ident: &Ident| {
             let field_idents = get_field_idents(&fields).collect_vec();
@@ -687,14 +858,14 @@ impl UnsizedStructContext {
                 #vis trait #extension_ident #impl_gen #wc
                 {
                     #(
-                        fn #field_idents<#child>(&#child mut self) -> #prelude::ExclusiveWrapperT<#child, #ptr_lt, #top_lt, #info_lt, #field_types, #O, #A>;
+                        fn #field_idents<#child>(&#child mut self) -> #prelude::ExclusiveWrapperT<#child, #ptr_lt, #top_lt, #info_lt, #field_types, #o, #a>;
                     )*
                 }
 
                 #[automatically_derived]
                 impl #impl_gen #extension_ident #ty_gen for #impl_for #wc {
                     #(
-                        fn #field_idents<#child>(&#child mut self) -> #prelude::ExclusiveWrapperT<#child, #ptr_lt, #top_lt, #info_lt, #field_types, #O, #A> {
+                        fn #field_idents<#child>(&#child mut self) -> #prelude::ExclusiveWrapperT<#child, #ptr_lt, #top_lt, #info_lt, #field_types, #o, #a> {
                             unsafe { #prelude::ExclusiveWrapper::map_ref(self, |x| &mut x.#field_idents) }
                         }
                     )*

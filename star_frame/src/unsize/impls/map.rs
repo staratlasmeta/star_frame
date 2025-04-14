@@ -1,8 +1,7 @@
 use crate::prelude::*;
 use bytemuck::AnyBitPattern;
 use star_frame_proc::unsized_impl;
-use std::collections::HashMap;
-use std::hash::Hash;
+use std::collections::BTreeMap;
 use std::iter::FusedIterator;
 
 #[derive(Align1, Copy, Clone, Debug, Default, PartialEq, Eq, Ord, PartialOrd, Hash)]
@@ -23,8 +22,8 @@ const _: fn() = || {
 };
 unsafe impl<K: UnsizedGenerics, V: UnsizedGenerics> Zeroable for ListItemSized<K, V> {}
 unsafe impl<K: UnsizedGenerics, V: UnsizedGenerics> NoUninit for ListItemSized<K, V> {}
-#[star_frame_proc::derivative(Debug, Copy, Clone)]
-#[repr(C, packed)]
+#[derive_where::derive_where(Debug, Copy, Clone; <K as CheckedBitPattern>::Bits, <V as CheckedBitPattern>::Bits)]
+#[repr(C)]
 pub struct ListItemSizedBits<K: UnsizedGenerics, V: UnsizedGenerics> {
     pub key: <K as CheckedBitPattern>::Bits,
     pub value: <V as CheckedBitPattern>::Bits,
@@ -40,7 +39,10 @@ unsafe impl<K: UnsizedGenerics, V: UnsizedGenerics> CheckedBitPattern for ListIt
     }
 }
 
-#[unsized_type(skip_idl, owned_attributes = [derive(Clone, Default, Eq, PartialEq, Ord, PartialOrd, Hash)])]
+#[unsized_type(skip_idl, owned_attributes = [doc = "The [`UnsizedType::Owned`] variant of [`Map`]. 
+    It is generally easier to create an initial [`BTreeMap`] or iterator of [`(K, V)`] 
+    and convert to this type vs working on it directly."]
+)]
 pub struct Map<K, V, L = u32>
 where
     K: UnsizedGenerics + Ord,
@@ -51,18 +53,93 @@ where
     list: List<ListItemSized<K, V>, L>,
 }
 
+impl<K, V, L> From<BTreeMap<K, V>> for MapOwned<K, V, L>
+where
+    K: UnsizedGenerics + Ord,
+    V: UnsizedGenerics,
+    L: ListLength,
+{
+    fn from(btree_map: BTreeMap<K, V>) -> Self {
+        let mut map = Self::new();
+        for (key, value) in btree_map {
+            map.insert(key, value);
+        }
+        map
+    }
+}
+
+impl<K, V, L> FromIterator<(K, V)> for MapOwned<K, V, L>
+where
+    K: UnsizedGenerics + Ord,
+    V: UnsizedGenerics,
+    L: ListLength,
+{
+    fn from_iter<I: IntoIterator<Item = (K, V)>>(iter: I) -> Self {
+        let mut map = Self::new();
+        for (key, value) in iter {
+            map.insert(key, value).unwrap();
+        }
+        map
+    }
+}
+
 impl<K, V, L> MapOwned<K, V, L>
 where
-    K: UnsizedGenerics + Ord + Hash,
+    K: UnsizedGenerics + Ord,
     V: UnsizedGenerics,
     L: ListLength,
 {
     #[must_use]
-    pub fn to_hash_map(&self) -> HashMap<K, V> {
+    pub fn to_btree_map(self) -> BTreeMap<K, V> {
         self.list
-            .iter()
+            .into_iter()
             .map(|item| (item.key, item.value))
             .collect()
+    }
+
+    #[must_use]
+    pub fn new() -> Self {
+        Self { list: vec![] }
+    }
+
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.list.len()
+    }
+
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.list.is_empty()
+    }
+
+    pub fn insert(&mut self, key: K, value: V) -> Option<V> {
+        match self.list.binary_search_by(|probe| probe.key.cmp(&key)) {
+            Ok(existing_index) => {
+                let old = core::mem::replace(&mut self.list[existing_index].value, value);
+                Some(old)
+            }
+            Err(insertion_index) => {
+                self.list
+                    .insert(insertion_index, ListItemSized { key, value });
+                None
+            }
+        }
+    }
+
+    pub fn remove(&mut self, key: &K) -> Option<V> {
+        match self.list.binary_search_by(|probe| probe.key.cmp(key)) {
+            Ok(existing_index) => Some(self.list[existing_index].value),
+            Err(_) => None,
+        }
+    }
+
+    pub fn clear(&mut self) {
+        self.list.clear();
+    }
+
+    #[must_use]
+    pub fn as_inner(&self) -> &Vec<ListItemSized<K, V>> {
+        &self.list
     }
 }
 
@@ -106,7 +183,7 @@ where
 
     #[exclusive]
     pub fn insert(&mut self, key: K, value: V) -> Result<Option<V>> {
-        match self.list.binary_search_by(|probe| { probe.key }.cmp(&key)) {
+        match self.list.binary_search_by(|probe| probe.key.cmp(&key)) {
             Ok(existing_index) => {
                 let old = core::mem::replace(&mut self.list[existing_index].value, value);
                 Ok(Some(old))
@@ -121,7 +198,7 @@ where
 
     #[exclusive]
     pub fn remove(&mut self, key: &K) -> Result<Option<V>> {
-        match self.list.binary_search_by(|probe| { probe.key }.cmp(key)) {
+        match self.list.binary_search_by(|probe| probe.key.cmp(key)) {
             Ok(existing_index) => {
                 let to_return = self.list[existing_index].value;
                 self.list().remove(existing_index)?;

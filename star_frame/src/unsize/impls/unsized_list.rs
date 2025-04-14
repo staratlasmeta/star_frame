@@ -2,26 +2,25 @@ use crate::align1::Align1;
 use crate::data_types::PackedValue;
 use crate::prelude::UnsizedTypeDataAccess;
 use crate::unsize::init::{DefaultInit, UnsizedInit};
-use crate::unsize::unsized_impl;
 use crate::unsize::wrapper::ExclusiveWrapper;
-use crate::unsize::UnsizedType;
+use crate::unsize::{unsized_impl, AsShared};
+use crate::unsize::{FromOwned, UnsizedType};
 use crate::Result;
 use advancer::{Advance, AdvanceArray};
 use anyhow::{bail, ensure, Context};
 use bytemuck::cast_slice_mut;
 use bytemuck::{bytes_of, from_bytes, Pod, Zeroable};
 use core::slice;
-use derivative::Derivative;
 use itertools::Itertools;
 use num_traits::ToPrimitive;
 use solana_program::program_memory::sol_memmove;
+use std::borrow::Borrow;
 use std::cmp::Ordering;
 use std::iter::FusedIterator;
 use std::marker::PhantomData;
 use std::mem::size_of;
 use std::ops::{Deref, DerefMut, RangeBounds};
 use std::{iter, ptr};
-// todo: move to UnsizedMap
 
 type PackedU32 = PackedValue<u32>;
 
@@ -52,7 +51,7 @@ impl PackedU32 {
         self.0 as usize
     }
 }
-const U32_SIZE: usize = size_of::<u32>();
+pub(super) const U32_SIZE: usize = size_of::<u32>();
 /// # Safety
 /// The offset provided in [`Self::from_usize_offset`] must be the same value returned by the getter methods.
 pub unsafe trait UnsizedListOffset: Pod + Align1 {
@@ -77,6 +76,74 @@ where
     pub(super) offset_list: [C],
     // copy of len
     // bytes of unsized data
+}
+
+impl<T, C> UnsizedList<T, C>
+where
+    T: UnsizedType + FromOwned + ?Sized,
+    C: UnsizedListOffset,
+{
+    pub(super) fn from_owned_byte_size<I>(items: I) -> usize
+    where
+        I: IntoIterator,
+        I::IntoIter: ExactSizeIterator,
+        I::Item: Borrow<T::Owned>,
+    {
+        let items = items.into_iter();
+        let len = items.len();
+        U32_SIZE + // unsized size
+            U32_SIZE + // len
+        len * size_of::<C>() + // offset list
+        U32_SIZE + // copy of len
+        items.zip_eq(0..len).fold(0, |acc, (item,_)| acc + <T as FromOwned>::byte_size(item.borrow()))
+    }
+
+    pub(super) fn from_owned_from_iter<I>(items: I, bytes: &mut &mut [u8]) -> Result<usize>
+    where
+        I: IntoIterator<Item = (T::Owned, C::ListOffsetInit)>,
+        I::IntoIter: ExactSizeIterator,
+    {
+        let owned = items.into_iter();
+        let owned_len = owned.len();
+        let owned_len_bytes = u32::try_from(owned_len)?.to_le_bytes();
+        let unsized_size_bytes = bytes.try_advance_array::<U32_SIZE>()?;
+
+        let len_bytes = bytes.try_advance_array::<U32_SIZE>()?;
+        *len_bytes = owned_len_bytes;
+
+        let offset_list_bytes = bytes.try_advance(owned_len * size_of::<C>())?;
+        let offset_array = bytemuck::try_cast_slice_mut::<_, C>(offset_list_bytes)?;
+
+        let copy_of_len_bytes = bytes.try_advance_array::<U32_SIZE>()?;
+        *copy_of_len_bytes = owned_len_bytes;
+
+        let mut unsized_bytes_written = 0;
+        owned
+            .zip_eq(offset_array.iter_mut())
+            .try_for_each(|((item, init), offset_item)| {
+                *offset_item = C::from_usize_offset(unsized_bytes_written, init)?;
+                unsized_bytes_written += T::from_owned(item, bytes)?;
+                anyhow::Ok(())
+            })?;
+
+        *unsized_size_bytes = u32::try_from(unsized_bytes_written)?.to_le_bytes();
+
+        Ok(U32_SIZE * 3 + owned_len * size_of::<C>() + unsized_bytes_written)
+    }
+}
+
+unsafe impl<T, C> FromOwned for UnsizedList<T, C>
+where
+    T: UnsizedType + FromOwned + ?Sized,
+    C: UnsizedListOffset<ListOffsetInit = ()>,
+{
+    fn byte_size(owned: &Self::Owned) -> usize {
+        Self::from_owned_byte_size(owned.iter())
+    }
+
+    fn from_owned(owned: Self::Owned, bytes: &mut &mut [u8]) -> Result<usize> {
+        Self::from_owned_from_iter(owned.into_iter().map(|item| (item, ())), bytes)
+    }
 }
 
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
@@ -329,9 +396,8 @@ where
     }
 }
 
-#[derive(Derivative)]
-#[derivative(Copy(bound = ""), Clone(bound = ""))]
-#[derive(Debug)]
+#[derive(derive_where::DeriveWhere)]
+#[derive_where(Copy, Clone, Debug)]
 pub struct UnsizedListRef<'a, T, C>
 where
     T: UnsizedType + ?Sized,
@@ -383,6 +449,17 @@ where
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         unsafe { &mut *self.list_ptr }
+    }
+}
+
+impl<'a, T, C> AsShared<'a> for UnsizedListMut<'a, T, C>
+where
+    T: UnsizedType + ?Sized,
+    C: UnsizedListOffset,
+{
+    type Ref = UnsizedListRef<'a, T, C>;
+    fn as_shared(&'a self) -> Self::Ref {
+        UnsizedList::mut_as_ref(self)
     }
 }
 
@@ -822,7 +899,7 @@ where
     C: UnsizedListOffset,
 {
     #[inline]
-    fn init_list_header<'a, const N: usize, I>(bytes: &mut &'a mut [u8]) -> Result<&'a mut [C]>
+    fn init_list_header<'a, const N: usize, I>(bytes: &mut &'a mut [u8]) -> Result<&'a mut [C; N]>
     where
         T: UnsizedInit<I>,
     {
@@ -842,17 +919,20 @@ where
         let offset_len_bytes = bytes.try_advance(U32_SIZE)?;
         offset_len_bytes.copy_from_slice(bytes_of(&len_l));
 
-        Ok(offset_slice)
+        Ok(offset_slice.try_into()?)
     }
 
     #[inline]
-    fn init_offset_slice<I>(offset_slice: &mut [C]) -> Result<()>
+    fn init_offset_slice<const N: usize, I, OI>(
+        offset_slice: &mut [C; N],
+        inits: [OI; N],
+    ) -> Result<()>
     where
         T: UnsizedInit<I>,
-        C: UnsizedListOffset<ListOffsetInit = ()>,
+        C: UnsizedListOffset<ListOffsetInit = OI>,
     {
-        for (index, item) in offset_slice.iter_mut().enumerate() {
-            *item = C::from_usize_offset(index * T::INIT_BYTES, ())?;
+        for (index, (item, init)) in offset_slice.iter_mut().zip(inits.into_iter()).enumerate() {
+            *item = C::from_usize_offset(index * T::INIT_BYTES, init)?;
         }
         Ok(())
     }
@@ -867,7 +947,7 @@ where
 
     unsafe fn init(bytes: &mut &mut [u8], array: [I; N]) -> Result<()> {
         let offset_slice = Self::init_list_header::<N, _>(bytes)?;
-        Self::init_offset_slice(offset_slice)?;
+        Self::init_offset_slice(offset_slice, [(); N])?;
 
         for item in array {
             unsafe { T::init(bytes, item)? };
@@ -886,9 +966,47 @@ where
 
     unsafe fn init(bytes: &mut &mut [u8], array: &[I; N]) -> Result<()> {
         let offset_slice = Self::init_list_header::<N, _>(bytes)?;
-        Self::init_offset_slice(offset_slice)?;
+        Self::init_offset_slice(offset_slice, [(); N])?;
 
         for item in array {
+            unsafe { T::init(bytes, item.clone())? };
+        }
+        Ok(())
+    }
+}
+
+unsafe impl<const N: usize, T, C, I, OI> UnsizedInit<([I; N], [OI; N])> for UnsizedList<T, C>
+where
+    T: UnsizedType + UnsizedInit<I> + ?Sized,
+    C: UnsizedListOffset<ListOffsetInit = OI>,
+{
+    const INIT_BYTES: usize = U32_SIZE * 3 + (N * size_of::<C>()) + T::INIT_BYTES * N;
+
+    unsafe fn init(bytes: &mut &mut [u8], arrays: ([I; N], [OI; N])) -> Result<()> {
+        let offset_slice = Self::init_list_header::<N, _>(bytes)?;
+        Self::init_offset_slice(offset_slice, arrays.1)?;
+
+        for item in arrays.0 {
+            unsafe { T::init(bytes, item)? };
+        }
+        Ok(())
+    }
+}
+
+unsafe impl<const N: usize, T, C, I, OI> UnsizedInit<(&[I; N], &[OI; N])> for UnsizedList<T, C>
+where
+    I: Clone,
+    OI: Clone,
+    T: UnsizedType + UnsizedInit<I> + ?Sized,
+    C: UnsizedListOffset<ListOffsetInit = OI>,
+{
+    const INIT_BYTES: usize = U32_SIZE * 3 + (N * size_of::<C>()) + T::INIT_BYTES * N;
+
+    unsafe fn init(bytes: &mut &mut [u8], arrays: (&[I; N], &[OI; N])) -> Result<()> {
+        let offset_slice = Self::init_list_header::<N, _>(bytes)?;
+        Self::init_offset_slice(offset_slice, arrays.1.clone())?;
+
+        for item in arrays.0 {
             unsafe { T::init(bytes, item.clone())? };
         }
         Ok(())
@@ -1107,7 +1225,7 @@ mod tests {
     fn list_iters() -> Result<()> {
         type TestList = UnsizedList<List<u8>>;
         let byte_arrays = [[100u8, 101, 102], [150, 151, 152], [200, 201, 202]];
-        let test_bytes = TestByteSet::<TestList>::new(byte_arrays)?;
+        let test_bytes = TestByteSet::<TestList>::new_from_init(byte_arrays)?;
         let mut owned = byte_arrays.map(|array| array.to_vec()).to_vec();
         let mut unsized_lists = test_bytes.data_mut()?;
         for (list, owned_list) in unsized_lists.iter_with_offsets_mut().zip(owned.iter_mut()) {
@@ -1135,7 +1253,7 @@ mod tests {
     #[test]
     fn test_list_insert() -> Result<()> {
         let byte_arrays = [[100u8, 101, 102], [200, 201, 202]];
-        let test_bytes = TestByteSet::<UnsizedList<List<u8, u8>>>::new(byte_arrays)?;
+        let test_bytes = TestByteSet::<UnsizedList<List<u8, u8>>>::new_from_init(byte_arrays)?;
         let mut owned = vec![vec![100u8, 101, 102], vec![200, 201, 202]];
         let mut bytes = test_bytes.data_mut()?;
         let mut exclusive = bytes.exclusive();
@@ -1161,7 +1279,8 @@ mod tests {
             [[100u8, 101, 102], [10u8, 20u8, 30]],
         ];
         // let mut vec = byte_array.to_vec();
-        let test_bytes = TestByteSet::<UnsizedList<UnsizedList<List<u8, u8>>>>::new(byte_array)?;
+        let test_bytes =
+            TestByteSet::<UnsizedList<UnsizedList<List<u8, u8>>>>::new_from_init(byte_array)?;
         let mut bytes = test_bytes.data_mut()?;
         let mut exclusive = bytes.exclusive();
         let mut first_list = exclusive.index_mut(0)?;
@@ -1199,6 +1318,17 @@ mod tests {
         // let list_bytes = &***bytes;
         // println!("{list_bytes:?}");
         // assert_eq!(list_bytes, vec.as_slice());
+        Ok(())
+    }
+
+    #[test]
+    fn test_from_owned() -> Result<()> {
+        let owned = vec![
+            vec![<PackedValue<u32>>::from(1), 2.into(), 3.into()],
+            vec![4.into(), 5.into()],
+        ];
+        let test_bytes = TestByteSet::<UnsizedList<List<PackedValue<u32>>>>::new(owned.clone())?;
+        assert_eq!(test_bytes.owned()?, owned);
         Ok(())
     }
 }

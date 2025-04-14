@@ -3,7 +3,7 @@ use crate::data_types::PackedValue;
 use crate::prelude::UnsizedTypeDataAccess;
 use crate::unsize::init::{DefaultInit, UnsizedInit};
 use crate::unsize::wrapper::ExclusiveWrapper;
-use crate::unsize::UnsizedType;
+use crate::unsize::{AsShared, FromOwned, UnsizedType};
 use crate::util::uninit_array_bytes;
 use crate::Result;
 use advancer::Advance;
@@ -148,7 +148,7 @@ where
     /// See [`<[T]>::binary_search_by`]
     /// ```
     /// # use star_frame::unsize::{impls::List, TestByteSet};
-    /// let bytes: TestByteSet<List<u8>> = TestByteSet::new(&[0, 1, 1, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55]).unwrap();
+    /// let bytes: TestByteSet<List<u8>> = TestByteSet::new([0, 1, 1, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55].to_vec()).unwrap();
     /// let s = bytes.data_mut().unwrap();
     /// let seek = 13;
     /// assert_eq!(s.binary_search_by(|probe| probe.cmp(&seek)), Ok(9));
@@ -273,7 +273,7 @@ where
 }
 
 #[derive(Copy, Clone, Debug)]
-pub struct ListRef<'a, T, L>(*const List<T, L>, PhantomData<&'a ()>)
+pub struct ListRef<'a, T, L = u32>(*const List<T, L>, PhantomData<&'a ()>)
 where
     L: ListLength,
     T: CheckedBitPattern + NoUninit + Align1;
@@ -290,7 +290,7 @@ where
     }
 }
 #[derive(Debug)]
-pub struct ListMut<'a, T, L>(*mut List<T, L>, PhantomData<&'a ()>)
+pub struct ListMut<'a, T, L = u32>(*mut List<T, L>, PhantomData<&'a ()>)
 where
     L: ListLength,
     T: CheckedBitPattern + NoUninit + Align1;
@@ -313,6 +313,17 @@ where
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         unsafe { &mut *self.0 }
+    }
+}
+
+impl<'a, T, L> AsShared<'a> for ListMut<'a, T, L>
+where
+    L: ListLength,
+    T: CheckedBitPattern + NoUninit + Align1,
+{
+    type Ref = ListRef<'a, T, L>;
+    fn as_shared(&'a self) -> Self::Ref {
+        List::mut_as_ref(self)
     }
 }
 
@@ -374,6 +385,30 @@ where
             self_mut.0 = unsafe { self_ptr.byte_offset(change) };
         }
         Ok(())
+    }
+}
+
+unsafe impl<T, L> FromOwned for List<T, L>
+where
+    L: ListLength,
+    T: Align1 + CheckedBitPattern + NoUninit,
+{
+    fn byte_size(owned: &Self::Owned) -> usize {
+        size_of::<L>() + size_of::<T>() * owned.len()
+    }
+
+    fn from_owned(owned: Self::Owned, bytes: &mut &mut [u8]) -> Result<usize> {
+        bytes
+            .try_advance(size_of::<L>())?
+            .copy_from_slice(bytes_of(&L::from_usize(owned.len()).unwrap()));
+
+        for item in &owned {
+            bytes
+                .try_advance(size_of::<T>())?
+                .copy_from_slice(bytes_of(item));
+        }
+
+        Ok(Self::byte_size(&owned))
     }
 }
 
@@ -685,7 +720,7 @@ mod tests {
     fn test_list() -> Result<()> {
         let byte_array = [1, 2, 3, 4, 5];
         let mut vec = byte_array.to_vec();
-        let test_bytes = TestByteSet::<List<u8>>::new(&byte_array)?;
+        let test_bytes = TestByteSet::<List<u8>>::new(byte_array.to_vec())?;
         let mut bytes = test_bytes.data_mut()?;
         let _ = bytes.exclusive();
         bytes.exclusive().push_all([10, 11, 12])?;

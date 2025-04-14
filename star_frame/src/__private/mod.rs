@@ -21,10 +21,11 @@ pub mod macro_prelude {
             ExclusiveWrapper, ExclusiveWrapperT, MutWrapper, SharedWrapper, StartPointer,
             UnsizedTypeDataAccess,
         },
-        UnsizedType,
+        AsShared, FromOwned, UnsizedType,
     };
+
     pub use crate::Result;
-    pub use star_frame_proc::{derivative, sighash};
+    pub use star_frame_proc::sighash;
 
     #[cfg(all(feature = "idl", not(target_os = "solana")))]
     pub use crate::{
@@ -52,4 +53,10 @@ pub mod macro_prelude {
         ty::{IdlEnumVariant, IdlStructField, IdlType, IdlTypeDef, IdlTypeId},
         CrateMetadata, IdlDefinition, IdlDefinitionReference, ItemInfo, Version,
     };
+
+    pub use derive_where::DeriveWhere;
+
+    #[doc(hidden)]
+    #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+    pub struct DeriveWhereWrapper<T>(T);
 }

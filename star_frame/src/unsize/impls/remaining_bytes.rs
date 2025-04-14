@@ -1,7 +1,7 @@
 use crate::align1::Align1;
 use crate::unsize::init::{DefaultInit, UnsizedInit};
 use crate::unsize::wrapper::ExclusiveWrapper;
-use crate::unsize::UnsizedType;
+use crate::unsize::{AsShared, FromOwned, UnsizedType};
 use crate::Result;
 use advancer::Advance;
 use anyhow::bail;
@@ -45,6 +45,13 @@ impl<'a> Deref for RemainingBytesMut<'a> {
 impl<'a> DerefMut for RemainingBytesMut<'a> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         unsafe { &mut *self.0 }
+    }
+}
+
+impl<'a> AsShared<'a> for RemainingBytesMut<'a> {
+    type Ref = RemainingBytesRef<'a>;
+    fn as_shared(&'a self) -> Self::Ref {
+        RemainingBytes::mut_as_ref(self)
     }
 }
 
@@ -94,6 +101,17 @@ unsafe impl UnsizedType for RemainingBytes {
             }
         }
         Ok(())
+    }
+}
+
+unsafe impl FromOwned for RemainingBytes {
+    fn byte_size(owned: &Self::Owned) -> usize {
+        owned.len()
+    }
+
+    fn from_owned(owned: Self::Owned, bytes: &mut &mut [u8]) -> Result<usize> {
+        bytes.try_advance(owned.len())?.copy_from_slice(&owned);
+        Ok(owned.len())
     }
 }
 
@@ -171,7 +189,7 @@ mod tests {
     #[test]
     fn test_remaining_bytes() -> Result<()> {
         let byte_array = [1, 2, 3, 4, 5];
-        let test_bytes = TestByteSet::<RemainingBytes>::new(&byte_array)?;
+        let test_bytes = TestByteSet::<RemainingBytes>::new_from_init(&byte_array)?;
         let mut bytes = test_bytes.data_mut()?;
         bytes.exclusive().set_len(3)?;
         println!("{:?}", &**bytes);

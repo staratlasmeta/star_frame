@@ -1,6 +1,8 @@
 mod instructions;
 mod state;
 
+// Avoid name collisions with glob import
+pub use instructions::CloseAccount;
 pub use instructions::*;
 use star_frame::prelude::*;
 pub use state::*;

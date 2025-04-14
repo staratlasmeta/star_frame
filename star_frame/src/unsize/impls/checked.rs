@@ -1,5 +1,5 @@
 use crate::unsize::init::{DefaultInit, DefaultInitable, UnsizedInit};
-use crate::unsize::UnsizedType;
+use crate::unsize::{AsShared, FromOwned, UnsizedType};
 use crate::{align1::Align1, Result};
 use advancer::Advance;
 use anyhow::Context;
@@ -53,6 +53,16 @@ where
     }
 }
 
+impl<'a, T> AsShared<'a> for CheckedMut<'a, T>
+where
+    T: CheckedBitPattern + NoUninit + Align1,
+{
+    type Ref = CheckedRef<'a, T>;
+    fn as_shared(&'a self) -> Self::Ref {
+        T::mut_as_ref(self)
+    }
+}
+
 unsafe impl<T> UnsizedType for T
 where
     T: CheckedBitPattern + NoUninit + Align1,
@@ -95,6 +105,22 @@ where
             self_mut.0 = unsafe { self_ptr.byte_offset(change) };
         }
         Ok(())
+    }
+}
+
+unsafe impl<T> FromOwned for T
+where
+    T: CheckedBitPattern + NoUninit + Align1,
+{
+    fn byte_size(_owned: &Self::Owned) -> usize {
+        size_of::<T>()
+    }
+
+    fn from_owned(owned: Self::Owned, bytes: &mut &mut [u8]) -> Result<usize> {
+        bytes
+            .try_advance(size_of::<T>())?
+            .copy_from_slice(bytemuck::bytes_of(&owned));
+        Ok(size_of::<T>())
     }
 }
 
