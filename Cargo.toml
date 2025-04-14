@@ -31,10 +31,10 @@ bytemuck = { version = "^1.22.0", features = [
     "derive",
 ] }
 clap = { version = "^4.3", features = ["derive"] }
-codama-nodes = { version = "^0.3.0", registry = "star-atlas" }
+codama-nodes = { version = "^0.4.0" }
 daggy = "^0.8.0"
 # todo: update this when upstreamed
-derive-where = { git = "https://github.com/stegaBOB/derive-where", branch = "stegaBOB/feat/for-lifetimes", version = "1.2.7" }
+derive-where = { version = "1.2.7", registry = "star-atlas" }
 derive_more = { version = "^2.0.1", features = ["full"] }
 easy_proc = "^0.4.0"
 fixed = "1.28.0"
