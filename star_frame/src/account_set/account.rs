@@ -4,26 +4,9 @@ use crate::unsize::UnsizedType;
 use advancer::Advance;
 use anyhow::{bail, Context};
 use bytemuck::{bytes_of, from_bytes};
-use derive_more::{Deref, DerefMut};
 pub use star_frame_proc::ProgramAccount;
 use std::marker::PhantomData;
 use std::mem::size_of;
-
-pub trait AccountValidate<ValidateArg>: UnsizedType {
-    fn validate(self_ref: &Self::Ref<'_>, arg: ValidateArg) -> Result<()>;
-}
-#[derive(AccountSet, Debug, Deref, DerefMut)]
-#[validate(generics = [<ValidateArg> where T: AccountValidate<ValidateArg>], arg = ValidateArg, extra_validation = T::validate(&*self.account.data()?, arg))]
-#[idl(generics = [<A> where T: AccountToIdl, Account<'info, T>: AccountSetToIdl<'info, A>], arg = A)]
-pub struct ValidatedAccount<'info, T>
-where
-    T: ProgramAccount + UnsizedType + ?Sized,
-{
-    #[single_account_set]
-    #[idl(arg = arg)]
-    account: Account<'info, T>,
-}
-
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
 pub struct NormalizeRent<T>(pub T);
 

@@ -6,6 +6,7 @@ mod rest;
 mod single_set;
 mod system_account;
 mod sysvar;
+mod validated_account;
 
 pub use account::*;
 pub use impls::*;
@@ -16,6 +17,7 @@ pub use single_set::*;
 pub use star_frame_proc::AccountSet;
 pub use system_account::*;
 pub use sysvar::*;
+pub use validated_account::*;
 
 use crate::prelude::StarFrameProgram;
 use crate::syscalls::{SyscallAccountCache, SyscallInvoke};
