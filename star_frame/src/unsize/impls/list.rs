@@ -346,10 +346,9 @@ where
         let ptr = data.as_ptr();
         let length_bytes = data.try_advance(size_of::<L>()).with_context(|| {
             format!(
-                "Failed to read length bytes of size {} for List<{}, {}>",
+                "Failed to read length bytes of size {} for {}",
                 size_of::<L>(),
-                std::any::type_name::<T>(),
-                std::any::type_name::<L>()
+                std::any::type_name::<Self>()
             )
         })?;
         let len_l = from_bytes::<PackedValue<L>>(length_bytes);
@@ -358,10 +357,9 @@ where
             .ok_or_else(|| anyhow::anyhow!("Could not convert list size to usize"))?;
         data.try_advance(size_of::<T>() * length).with_context(|| {
             format!(
-                "Failed to read list elements of total size {} for List<{}, {}>",
+                "Failed to read list elements of total size {} for {}",
                 size_of::<T>() * length,
-                std::any::type_name::<T>(),
-                std::any::type_name::<L>()
+                std::any::type_name::<Self>()
             )
         })?;
         Ok(ListRef(
@@ -373,10 +371,9 @@ where
     fn get_mut<'a>(data: &mut &'a mut [u8]) -> Result<Self::Mut<'a>> {
         let length_bytes = data.try_advance(size_of::<L>()).with_context(|| {
             format!(
-                "Failed to read length bytes of size {} for List<{}, {}>",
+                "Failed to read length bytes of size {} for {}",
                 size_of::<L>(),
-                std::any::type_name::<T>(),
-                std::any::type_name::<L>()
+                std::any::type_name::<Self>()
             )
         })?;
         let len_l = from_bytes::<PackedValue<L>>(length_bytes);
@@ -385,10 +382,9 @@ where
             .ok_or_else(|| anyhow::anyhow!("Could not convert list size to usize"))?;
         data.try_advance(size_of::<T>() * length).with_context(|| {
             format!(
-                "Failed to read mutable list elements of total size {} for List<{}, {}>",
+                "Failed to read mutable list elements of total size {} for {}",
                 size_of::<T>() * length,
-                std::any::type_name::<T>(),
-                std::any::type_name::<L>()
+                std::any::type_name::<Self>()
             )
         })?;
         let list_ptr = ptr::from_mut(unsafe {
@@ -582,10 +578,9 @@ where
             .try_advance(<Self as UnsizedInit<DefaultInit>>::INIT_BYTES)
             .with_context(|| {
                 format!(
-                    "Failed to advance {} bytes during default initialization of List<{}, {}>",
+                    "Failed to advance {} bytes during default initialization of {}",
                     <Self as UnsizedInit<DefaultInit>>::INIT_BYTES,
-                    std::any::type_name::<T>(),
-                    std::any::type_name::<L>()
+                    std::any::type_name::<Self>()
                 )
             })?
             .copy_from_slice(bytes_of(&<PackedValue<L>>::zeroed()));
@@ -611,10 +606,9 @@ where
             .try_advance(<Self as UnsizedInit<&[T; N]>>::INIT_BYTES)
             .with_context(|| {
                 format!(
-                    "Failed to advance {} bytes during array initialization of List<{}, {}>",
+                    "Failed to advance {} bytes during array initialization of {}",
                     <Self as UnsizedInit<&[T; N]>>::INIT_BYTES,
-                    std::any::type_name::<T>(),
-                    std::any::type_name::<L>()
+                    std::any::type_name::<Self>()
                 )
             })?;
         array_bytes[0..size_of::<L>()].copy_from_slice(bytes_of(&len_bytes));
