@@ -74,7 +74,7 @@ impl<'a, 'info, A, DArg> AccountSetDecode<'a, 'info, DArg> for Option<A>
 where
     A: AccountSetDecode<'a, 'info, DArg>,
 {
-    fn decode_accounts(
+    unsafe fn decode_accounts(
         accounts: &mut &'a [AccountInfo<'info>],
         decode_input: DArg,
         syscalls: &mut impl SyscallInvoke<'info>,
@@ -85,7 +85,10 @@ where
             let _program: &[_; 1] = accounts.try_advance_array()?;
             Ok(None)
         } else {
-            Ok(Some(A::decode_accounts(accounts, decode_input, syscalls)?))
+            // SAFETY: This function is unsafe too
+            Ok(Some(unsafe {
+                A::decode_accounts(accounts, decode_input, syscalls)?
+            }))
         }
     }
 }

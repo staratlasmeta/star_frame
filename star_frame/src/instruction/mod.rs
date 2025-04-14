@@ -208,11 +208,14 @@ where
             mut run,
             cleanup,
         } = Self::split_to_args(data);
-        let mut account_set = <Self as StarFrameInstruction>::Accounts::decode_accounts(
-            &mut accounts,
-            decode,
-            syscalls,
-        )?;
+        // SAFETY: .validate_accounts is called after .decode_accounts
+        let mut account_set = unsafe {
+            <Self as StarFrameInstruction>::Accounts::decode_accounts(
+                &mut accounts,
+                decode,
+                syscalls,
+            )
+        }?;
         account_set.set_account_cache(syscalls);
         account_set.validate_accounts(validate, syscalls)?;
         Self::extra_validations(&mut account_set, &mut run, syscalls)?;

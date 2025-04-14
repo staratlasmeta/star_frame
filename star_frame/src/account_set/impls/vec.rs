@@ -66,16 +66,19 @@ impl<'a, 'info, T> AccountSetDecode<'a, 'info, usize> for Vec<T>
 where
     T: AccountSetDecode<'a, 'info, ()>,
 {
-    fn decode_accounts(
+    unsafe fn decode_accounts(
         accounts: &mut &'a [AccountInfo<'info>],
         len: usize,
         syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<Self> {
-        <Self as AccountSetDecode<'a, 'info, (usize, ())>>::decode_accounts(
-            accounts,
-            (len, ()),
-            syscalls,
-        )
+        // SAFETY: This function is unsafe too
+        unsafe {
+            <Self as AccountSetDecode<'a, 'info, (usize, ())>>::decode_accounts(
+                accounts,
+                (len, ()),
+                syscalls,
+            )
+        }
     }
 }
 impl<'a, 'info, T, TA> AccountSetDecode<'a, 'info, (usize, TA)> for Vec<T>
@@ -83,18 +86,15 @@ where
     T: AccountSetDecode<'a, 'info, TA>,
     TA: Clone,
 {
-    fn decode_accounts(
+    unsafe fn decode_accounts(
         accounts: &mut &'a [AccountInfo<'info>],
         (len, decode_input): (usize, TA),
         syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<Self> {
         let mut output = Self::with_capacity(len);
         for _ in 0..len {
-            output.push(T::decode_accounts(
-                accounts,
-                decode_input.clone(),
-                syscalls,
-            )?);
+            // SAFETY: This function is unsafe too
+            output.push(unsafe { T::decode_accounts(accounts, decode_input.clone(), syscalls) }?);
         }
         Ok(output)
     }
@@ -103,14 +103,17 @@ impl<'a, 'info, T, TA, const N: usize> AccountSetDecode<'a, 'info, [TA; N]> for 
 where
     T: AccountSetDecode<'a, 'info, TA>,
 {
-    fn decode_accounts(
+    unsafe fn decode_accounts(
         accounts: &mut &'a [AccountInfo<'info>],
         decode_input: [TA; N],
         syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<Self> {
         decode_input
             .into_iter()
-            .map(|input| T::decode_accounts(accounts, input, syscalls))
+            .map(|input| {
+                // SAFETY: This function is unsafe too
+                unsafe { T::decode_accounts(accounts, input, syscalls) }
+            })
             .collect()
     }
 }
@@ -118,14 +121,17 @@ impl<'a, 'b, 'info, T, TA, const N: usize> AccountSetDecode<'a, 'info, &'b [TA; 
 where
     T: AccountSetDecode<'a, 'info, &'b TA>,
 {
-    fn decode_accounts(
+    unsafe fn decode_accounts(
         accounts: &mut &'a [AccountInfo<'info>],
         decode_input: &'b [TA; N],
         syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<Self> {
         decode_input
             .iter()
-            .map(|input| T::decode_accounts(accounts, input, syscalls))
+            .map(|input| {
+                // SAFETY: This function is unsafe too
+                unsafe { T::decode_accounts(accounts, input, syscalls) }
+            })
             .collect()
     }
 }
@@ -133,14 +139,17 @@ impl<'a, 'b, 'info, T, TA, const N: usize> AccountSetDecode<'a, 'info, &'b mut [
 where
     T: AccountSetDecode<'a, 'info, &'b mut TA>,
 {
-    fn decode_accounts(
+    unsafe fn decode_accounts(
         accounts: &mut &'a [AccountInfo<'info>],
         decode_input: &'b mut [TA; N],
         syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<Self> {
         decode_input
             .iter_mut()
-            .map(|input| T::decode_accounts(accounts, input, syscalls))
+            .map(|input| {
+                // SAFETY: This function is unsafe too
+                unsafe { T::decode_accounts(accounts, input, syscalls) }
+            })
             .collect()
     }
 }
@@ -149,7 +158,7 @@ where
     I: IntoIterator,
     T: AccountSetDecode<'a, 'info, I::Item>,
 {
-    fn decode_accounts(
+    unsafe fn decode_accounts(
         accounts: &mut &'a [AccountInfo<'info>],
         decode_input: (I,),
         syscalls: &mut impl SyscallInvoke<'info>,
@@ -157,7 +166,10 @@ where
         decode_input
             .0
             .into_iter()
-            .map(|input| T::decode_accounts(accounts, input, syscalls))
+            .map(|input| {
+                // SAFETY: This function is unsafe too
+                unsafe { T::decode_accounts(accounts, input, syscalls) }
+            })
             .collect()
     }
 }

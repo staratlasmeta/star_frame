@@ -118,15 +118,9 @@ where
             bail!(ProgramError::IllegalOwner);
         }
         let data = self.info_data_bytes()?;
-        Self::check_discriminant(&data)?;
-        Ok(())
-    }
-
-    #[inline]
-    fn check_discriminant(bytes: &[u8]) -> Result<()> {
-        if bytes.len() < size_of::<OwnerProgramDiscriminant<T>>()
+        if data.len() < size_of::<OwnerProgramDiscriminant<T>>()
             || from_bytes::<PackedValue<OwnerProgramDiscriminant<T>>>(
-                &bytes[..size_of::<OwnerProgramDiscriminant<T>>()],
+                &data[..size_of::<OwnerProgramDiscriminant<T>>()],
             ) != &PackedValue(T::DISCRIMINANT)
         {
             bail!(ProgramError::InvalidAccountData)
@@ -136,6 +130,10 @@ where
 
     #[inline]
     pub fn data(&self) -> Result<SharedWrapper<'_, 'info, T::Ref<'_>>> {
+        // If the account is writable, changes could have been made after AccountSetValidate has been run
+        if self.is_writable() {
+            self.validate()?;
+        }
         unsafe { SharedWrapper::<AccountDiscriminant<T>>::new(&self.info) }
     }
 
@@ -143,6 +141,10 @@ where
     pub fn data_mut(
         &self,
     ) -> Result<MutWrapper<'_, 'info, T::Mut<'_>, AccountDiscriminant<T>, AccountInfo<'info>>> {
+        // If the account is writable, changes could have been made after AccountSetValidate has been run
+        if self.is_writable() {
+            self.validate()?;
+        }
         unsafe { MutWrapper::new(&self.info) }
     }
 }

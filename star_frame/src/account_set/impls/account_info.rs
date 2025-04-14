@@ -165,7 +165,7 @@ impl<'info> SingleAccountSet<'info> for &AccountInfo<'info> {
     }
 }
 impl<'a, 'info> AccountSetDecode<'a, 'info, ()> for AccountInfo<'info> {
-    fn decode_accounts(
+    unsafe fn decode_accounts(
         accounts: &mut &'a [AccountInfo<'info>],
         _decode_input: (),
         _syscalls: &mut impl SyscallInvoke<'info>,
@@ -175,7 +175,7 @@ impl<'a, 'info> AccountSetDecode<'a, 'info, ()> for AccountInfo<'info> {
     }
 }
 impl<'a, 'info> AccountSetDecode<'a, 'info, ()> for &'a AccountInfo<'info> {
-    fn decode_accounts(
+    unsafe fn decode_accounts(
         accounts: &mut &'a [AccountInfo<'info>],
         _decode_input: (),
         _syscalls: &mut impl SyscallInvoke<'info>,

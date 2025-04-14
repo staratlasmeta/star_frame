@@ -51,7 +51,8 @@ pub trait TryFromAccountsWithArgs<'a, 'info, D, V>:
         validate: V,
         syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<Self> {
-        let mut set = Self::decode_accounts(accounts, decode, syscalls)?;
+        // SAFETY: We are calling .validate_accounts() immediately after decoding
+        let mut set = unsafe { Self::decode_accounts(accounts, decode, syscalls)? };
         set.set_account_cache(syscalls);
         set.validate_accounts(validate, syscalls)?;
         Ok(set)
@@ -104,7 +105,10 @@ impl<'a, 'info, T> TryFromAccounts<'a, 'info> for T where
 /// An [`AccountSet`] that can be decoded from a list of [`AccountInfo`]s using arg `A`.
 pub trait AccountSetDecode<'a, 'info, A>: AccountSet<'info> + Sized {
     /// Decode the accounts from `accounts` using `decode_input`.
-    fn decode_accounts(
+    ///
+    /// # Safety
+    /// The output has not been validated. Calls to this function should be followed by a call to [`AccountSetValidate::validate_accounts`], if applicable.
+    unsafe fn decode_accounts(
         accounts: &mut &'a [AccountInfo<'info>],
         decode_input: A,
         syscalls: &mut impl SyscallInvoke<'info>,

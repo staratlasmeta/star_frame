@@ -174,7 +174,7 @@ pub(super) fn decodes(
         quote!{
             #[automatically_derived]
             impl #impl_generics #account_set_decode<#decode_lifetime, #info_lifetime, #decode_type> for #ident #ty_generics #where_clause {
-                fn decode_accounts(
+                unsafe fn decode_accounts(
                     accounts: &mut &#decode_lifetime [#account_info<#info_lifetime>],
                     arg: #decode_type,
                     syscalls: &mut impl #syscall_invoke<#info_lifetime>,
