@@ -18,10 +18,6 @@ star_frame.workspace = true
 borsh.workspace = true
 bytemuck.workspace = true
 
-# locked versions
-half.workspace = true
-fixed.workspace = true
-
 [dev-dependencies]
 spl-associated-token-account.workspace = true
 spl-token.workspace = true

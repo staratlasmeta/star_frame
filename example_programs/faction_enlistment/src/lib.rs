@@ -1,4 +1,3 @@
-#![feature(trivial_bounds)]
 use counter::CounterAccountData;
 use star_frame::account_set::Account;
 // use star_frame::anyhow::bail;

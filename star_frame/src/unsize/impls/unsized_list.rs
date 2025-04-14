@@ -1,6 +1,5 @@
 use crate::align1::Align1;
 use crate::data_types::PackedValue;
-use crate::prelude::UnsizedTypeDataAccess;
 use crate::unsize::init::{DefaultInit, UnsizedInit};
 use crate::unsize::wrapper::ExclusiveWrapper;
 use crate::unsize::{unsized_impl, AsShared};
@@ -13,14 +12,15 @@ use bytemuck::{bytes_of, from_bytes, Pod, Zeroable};
 use core::slice;
 use itertools::Itertools;
 use num_traits::ToPrimitive;
+use ptr_meta::Pointee;
 use solana_program::program_memory::sol_memmove;
 use std::borrow::Borrow;
 use std::cmp::Ordering;
+use std::iter;
 use std::iter::FusedIterator;
 use std::marker::PhantomData;
 use std::mem::size_of;
 use std::ops::{Deref, DerefMut, RangeBounds};
-use std::{iter, ptr};
 
 type PackedU32 = PackedValue<u32>;
 
@@ -63,7 +63,7 @@ pub unsafe trait UnsizedListOffset: Pod + Align1 {
     fn from_usize_offset(offset: usize, init: Self::ListOffsetInit) -> Result<Self>;
 }
 
-#[derive(Debug, Align1)]
+#[derive(Debug, Align1, Pointee)]
 #[repr(C)]
 pub struct UnsizedList<T, C = PackedU32>
 where
@@ -407,7 +407,7 @@ where
     phantom: PhantomData<&'a ()>,
 }
 
-impl<'a, T, C> Deref for UnsizedListRef<'a, T, C>
+impl<T, C> Deref for UnsizedListRef<'_, T, C>
 where
     T: UnsizedType + ?Sized,
     C: UnsizedListOffset,
@@ -430,7 +430,7 @@ where
     phantom: PhantomData<&'a ()>,
 }
 
-impl<'a, T, C> Deref for UnsizedListMut<'a, T, C>
+impl<T, C> Deref for UnsizedListMut<'_, T, C>
 where
     T: UnsizedType + ?Sized,
     C: UnsizedListOffset,
@@ -442,7 +442,7 @@ where
     }
 }
 
-impl<'a, T, C> DerefMut for UnsizedListMut<'a, T, C>
+impl<T, C> DerefMut for UnsizedListMut<'_, T, C>
 where
     T: UnsizedType + ?Sized,
     C: UnsizedListOffset,
@@ -502,7 +502,7 @@ where
         let _unsized_data = data.try_advance(unsized_size)?;
 
         Ok(UnsizedListRef {
-            list_ptr: unsafe { &*ptr::from_raw_parts(ptr.cast::<()>(), length) },
+            list_ptr: unsafe { &*ptr_meta::from_raw_parts(ptr.cast::<()>(), length) },
             phantom: PhantomData,
         })
     }
@@ -523,7 +523,7 @@ where
         let _unsized_data = data.try_advance(unsized_size)?;
 
         Ok(UnsizedListMut {
-            list_ptr: unsafe { &mut *ptr::from_raw_parts_mut(ptr.cast::<()>(), length) },
+            list_ptr: unsafe { &mut *ptr_meta::from_raw_parts_mut(ptr.cast::<()>(), length) },
             inner_exclusive: None,
             phantom: PhantomData,
         })
@@ -655,14 +655,13 @@ where
     }
 }
 
-impl<'parent, 'ptr, 'top, 'info, T, C, O, A>
-    ExclusiveWrapper<'parent, 'top, 'info, UnsizedListMut<'ptr, T, C>, O, A>
+#[unsized_impl(inherent)]
+impl<T, C> UnsizedList<T, C>
 where
-    O: UnsizedType + ?Sized,
-    A: UnsizedTypeDataAccess<'info>,
     T: UnsizedType + ?Sized,
     C: UnsizedListOffset,
 {
+    #[exclusive]
     pub fn push<Init>(&mut self, item: Init) -> Result<()>
     where
         T: UnsizedInit<Init>,
@@ -670,6 +669,8 @@ where
     {
         self.push_with_offset(item, ())
     }
+
+    #[exclusive]
     pub fn push_with_offset<Init, CI>(&mut self, item: Init, offset_item: CI) -> Result<()>
     where
         T: UnsizedInit<Init>,
@@ -678,6 +679,7 @@ where
         self.insert_with_offset(self.len(), item, offset_item)
     }
 
+    #[exclusive]
     pub fn push_all<I, Init>(&mut self, items: I) -> Result<()>
     where
         T: UnsizedInit<Init>,
@@ -687,6 +689,8 @@ where
     {
         self.insert_all(self.len(), items)
     }
+
+    #[exclusive]
     pub fn push_all_with_offsets<I, Init, CInit>(&mut self, items: I) -> Result<()>
     where
         T: UnsizedInit<Init>,
@@ -696,6 +700,7 @@ where
         self.insert_all_with_offsets(self.len(), items)
     }
 
+    #[exclusive]
     pub fn insert<I>(&mut self, index: usize, item: I) -> Result<()>
     where
         T: UnsizedInit<I>,
@@ -703,6 +708,8 @@ where
     {
         self.insert_all(index, iter::once(item))
     }
+
+    #[exclusive]
     pub fn insert_with_offset<Init, CInit>(
         &mut self,
         index: usize,
@@ -716,6 +723,7 @@ where
         self.insert_all_with_offsets(index, iter::once((item, offset)))
     }
 
+    #[exclusive]
     pub fn insert_all<I, Init>(&mut self, index: usize, items: I) -> Result<()>
     where
         T: UnsizedInit<Init>,
@@ -726,6 +734,7 @@ where
         self.insert_all_with_offsets(index, items.into_iter().map(|i| (i, ())))
     }
 
+    #[exclusive]
     pub fn insert_all_with_offsets<I, Init, CInit>(&mut self, index: usize, items: I) -> Result<()>
     where
         T: UnsizedInit<Init>,
@@ -747,8 +756,10 @@ where
         unsafe {
             ExclusiveWrapper::add_bytes(self, source_ptr, add_bytes_start, add_amount, |list| {
                 {
-                    list.list_ptr =
-                        ptr::from_raw_parts_mut(list.list_ptr.cast::<()>(), list.len() + to_add);
+                    list.list_ptr = ptr_meta::from_raw_parts_mut(
+                        list.list_ptr.cast::<()>(),
+                        list.len() + to_add,
+                    );
                 }
                 {
                     // We have added bytes at the unsized list insertion index. We now need
@@ -794,6 +805,7 @@ where
         Ok(())
     }
 
+    #[exclusive]
     pub fn pop(&mut self) -> Result<Option<()>> {
         if self.len() == 0 {
             return Ok(None);
@@ -801,10 +813,12 @@ where
         Some(self.remove(self.len() - 1)).transpose()
     }
 
+    #[exclusive]
     pub fn remove(&mut self, index: usize) -> Result<()> {
         self.remove_range(index..=index)
     }
 
+    #[exclusive]
     pub fn remove_range(&mut self, indices: impl RangeBounds<usize>) -> Result<()> {
         let start = match indices.start_bound() {
             std::ops::Bound::Included(start) => *start,
@@ -854,7 +868,7 @@ where
                     remove_start..remove_end,
                     |list| {
                         {
-                            list.list_ptr = ptr::from_raw_parts_mut(
+                            list.list_ptr = ptr_meta::from_raw_parts_mut(
                                 list.list_ptr.cast::<()>(),
                                 list.len() - to_remove,
                             );

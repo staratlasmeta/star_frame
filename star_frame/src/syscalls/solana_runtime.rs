@@ -89,7 +89,7 @@ impl<'info> SyscallInvoke<'info> for SolanaRuntime<'info> {
         Ok(())
     }
 }
-impl<'info> SyscallCore for SolanaRuntime<'info> {
+impl SyscallCore for SolanaRuntime<'_> {
     fn current_program_id(&self) -> &Pubkey {
         &self.program_id
     }

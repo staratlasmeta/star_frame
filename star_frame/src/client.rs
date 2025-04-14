@@ -87,7 +87,7 @@ pub trait MakeCpi<'info>: StarFrameProgram {
     }
 }
 
-impl<'info, T> MakeCpi<'info> for T where T: StarFrameProgram + ?Sized {}
+impl<T> MakeCpi<'_> for T where T: StarFrameProgram + ?Sized {}
 
 impl<'info> CpiBuilder<'info> {
     pub fn new<S, I, A>(program_id: Pubkey, data: &I, accounts: A::CpiAccounts) -> Result<Self>
@@ -133,7 +133,7 @@ pub trait MakeInstruction<'info>: StarFrameProgram {
     }
 }
 
-impl<'info, T> MakeInstruction<'info> for T where T: StarFrameProgram + ?Sized {}
+impl<T> MakeInstruction<'_> for T where T: StarFrameProgram + ?Sized {}
 
 pub trait FindProgramAddress: HasSeeds + HasOwnerProgram {
     fn find_program_address(seeds: &Self::Seeds) -> (Pubkey, u8) {

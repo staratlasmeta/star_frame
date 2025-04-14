@@ -64,7 +64,6 @@ pub unsafe trait FromOwned: UnsizedType {
 // todo: convert these tests to TryBuild
 /// # Test ZST on sized
 /// ```compile_fail
-/// #![feature(trivial_bounds)]
 /// use star_frame::prelude::*;
 /// use star_frame::unsize::TestByteSet;
 /// #[unsized_type(skip_idl)]
@@ -79,7 +78,6 @@ pub unsafe trait FromOwned: UnsizedType {
 ///
 /// # Test ZST at end
 /// ```
-/// #![feature(trivial_bounds)]
 /// use star_frame::prelude::*;
 /// use star_frame::unsize::TestByteSet;
 /// #[unsized_type(skip_idl)]
@@ -94,7 +92,6 @@ pub unsafe trait FromOwned: UnsizedType {
 ///
 /// # Test nested ZST
 /// ```compile_fail
-/// #![feature(trivial_bounds)]
 /// use star_frame::prelude::*;
 /// use star_frame::unsize::TestByteSet;
 /// #[unsized_type(skip_idl)]

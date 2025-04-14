@@ -311,7 +311,7 @@ map_iter!(MapKeys: Clone, ListIter, &'a K, this => |item| &item.key);
 map_iter!(MapValues: Clone, ListIter, &'a V, this => |item| &item.value);
 map_iter!(MapValuesMut, ListIterMut, &'a mut V, this => |item| &mut item.value);
 
-impl<'a, 'b, K, V, L> IntoIterator for &'a MapMut<'b, K, V, L>
+impl<'a, K, V, L> IntoIterator for &'a MapMut<'_, K, V, L>
 where
     K: UnsizedGenerics + Ord,
     V: UnsizedGenerics,
@@ -324,7 +324,7 @@ where
     }
 }
 
-impl<'a, 'b, K, V, L> IntoIterator for &'a MapRef<'b, K, V, L>
+impl<'a, K, V, L> IntoIterator for &'a MapRef<'_, K, V, L>
 where
     K: UnsizedGenerics + Ord,
     V: UnsizedGenerics,
@@ -337,7 +337,7 @@ where
     }
 }
 
-impl<'a, 'b, K, V, L> IntoIterator for &'a mut MapMut<'b, K, V, L>
+impl<'a, K, V, L> IntoIterator for &'a mut MapMut<'_, K, V, L>
 where
     K: UnsizedGenerics + Ord,
     V: UnsizedGenerics,

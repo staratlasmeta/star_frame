@@ -16,7 +16,7 @@ impl<'info> AccountSet<'info> for AccountInfo<'info> {
     #[inline]
     fn set_account_cache(&mut self, _syscalls: &mut impl SyscallAccountCache<'info>) {}
 }
-impl<'__a, 'info> AccountSet<'info> for &'__a AccountInfo<'info> {
+impl<'info> AccountSet<'info> for &AccountInfo<'info> {
     #[inline]
     fn set_account_cache(&mut self, _syscalls: &mut impl SyscallAccountCache<'info>) {}
 }
@@ -73,7 +73,7 @@ impl<'info> SingleAccountSet<'info> for AccountInfo<'info> {
     }
 }
 
-impl<'a, 'info> ClientAccountSet for &'a AccountInfo<'info> {
+impl ClientAccountSet for &AccountInfo<'_> {
     type ClientAccounts = Pubkey;
     const MIN_LEN: usize = 1;
 
@@ -90,7 +90,7 @@ impl<'a, 'info> ClientAccountSet for &'a AccountInfo<'info> {
     }
 }
 
-impl<'info> ClientAccountSet for AccountInfo<'info> {
+impl ClientAccountSet for AccountInfo<'_> {
     type ClientAccounts = Pubkey;
     const MIN_LEN: usize = 1;
 
@@ -107,7 +107,7 @@ impl<'info> ClientAccountSet for AccountInfo<'info> {
     }
 }
 
-impl<'a, 'info> CpiAccountSet<'info> for &'a AccountInfo<'info> {
+impl<'info> CpiAccountSet<'info> for &AccountInfo<'info> {
     type CpiAccounts = AccountInfo<'info>;
     const MIN_LEN: usize = 1;
 
@@ -157,7 +157,7 @@ impl<'info> CpiAccountSet<'info> for AccountInfo<'info> {
     }
 }
 
-impl<'__a, 'info> SingleAccountSet<'info> for &'__a AccountInfo<'info> {
+impl<'info> SingleAccountSet<'info> for &AccountInfo<'info> {
     const META: SingleSetMeta = SingleSetMeta::default();
     #[inline]
     fn account_info(&self) -> &AccountInfo<'info> {
@@ -194,7 +194,7 @@ impl<'info> AccountSetValidate<'info, ()> for AccountInfo<'info> {
     }
 }
 
-impl<'a, 'info> AccountSetValidate<'info, ()> for &'a AccountInfo<'info> {
+impl<'info> AccountSetValidate<'info, ()> for &AccountInfo<'info> {
     fn validate_accounts(
         &mut self,
         validate_input: (),
@@ -213,7 +213,7 @@ impl<'info> AccountSetCleanup<'info, ()> for AccountInfo<'info> {
         Ok(cleanup_input)
     }
 }
-impl<'a, 'info> AccountSetCleanup<'info, ()> for &'a AccountInfo<'info> {
+impl<'info> AccountSetCleanup<'info, ()> for &AccountInfo<'info> {
     fn cleanup_accounts(
         &mut self,
         cleanup_input: (),
@@ -277,7 +277,7 @@ pub mod idl_impl {
         }
     }
 
-    impl<'a, 'info, A> AccountSetToIdl<'info, A> for &'a AccountInfo<'info>
+    impl<'info, A> AccountSetToIdl<'info, A> for &AccountInfo<'info>
     where
         AccountInfo<'info>: AccountSetToIdl<'info, A>,
     {

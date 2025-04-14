@@ -237,7 +237,7 @@ mod test {
     }
 
     impl SyscallAccountCache<'_> for DummyRuntime {}
-    impl<'info> SyscallInvoke<'info> for DummyRuntime {
+    impl SyscallInvoke<'_> for DummyRuntime {
         fn invoke(
             &self,
             _instruction: &SolanaInstruction,
