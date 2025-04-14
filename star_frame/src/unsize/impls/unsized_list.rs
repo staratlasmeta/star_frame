@@ -1013,19 +1013,31 @@ where
         *unsized_size_bytes = unsized_len.to_le_bytes();
 
         let len_l: u32 = N.to_u32().context("N must be less than u32::MAX")?;
-        let len_bytes = bytes.try_advance(U32_SIZE)
-            .with_context(|| format!("Failed to advance {} bytes for length in list header initialization of {}", 
-                U32_SIZE, std::any::type_name::<Self>()))?;
+        let len_bytes = bytes.try_advance(U32_SIZE).with_context(|| {
+            format!(
+                "Failed to advance {} bytes for length in list header initialization of {}",
+                U32_SIZE,
+                std::any::type_name::<Self>()
+            )
+        })?;
         len_bytes.copy_from_slice(bytes_of(&len_l));
 
-        let offset_slice_bytes = bytes.try_advance(N * size_of::<C>())
-            .with_context(|| format!("Failed to advance {} bytes for offset slice in list header initialization of {}", 
-                N * size_of::<C>(), std::any::type_name::<Self>()))?;
+        let offset_slice_bytes = bytes.try_advance(N * size_of::<C>()).with_context(|| {
+            format!(
+                "Failed to advance {} bytes for offset slice in list header initialization of {}",
+                N * size_of::<C>(),
+                std::any::type_name::<Self>()
+            )
+        })?;
         let offset_slice: &mut [C] = cast_slice_mut(offset_slice_bytes);
 
-        let offset_len_bytes = bytes.try_advance(U32_SIZE)
-            .with_context(|| format!("Failed to advance {} bytes for offset length in list header initialization of {}", 
-                U32_SIZE, std::any::type_name::<Self>()))?;
+        let offset_len_bytes = bytes.try_advance(U32_SIZE).with_context(|| {
+            format!(
+                "Failed to advance {} bytes for offset length in list header initialization of {}",
+                U32_SIZE,
+                std::any::type_name::<Self>()
+            )
+        })?;
         offset_len_bytes.copy_from_slice(bytes_of(&len_l));
 
         Ok(offset_slice.try_into()?)
