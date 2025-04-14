@@ -55,11 +55,11 @@ semver = { version = "^1.0.23", features = ["serde"] }
 serde = { version = "^1.0.192", features = ["derive"] }
 serde_json = "^1.0.108"
 sha2 = "^0.10.8"
-solana-program = "=2.1"
-solana-pubkey = "=2.1"
-solana-program-test = "=2.1"
-solana-sdk = "=2.1"
-spl-associated-token-account = { version = "=6.0.0", features = [
+solana-program = "2.1"
+solana-pubkey = "2.1"
+solana-program-test = "2.1"
+solana-sdk = "2.1"
+spl-associated-token-account = { version = "6.0.0", features = [
     "no-entrypoint",
 ] }
 spl-token = { version = "7.0.0", features = ["no-entrypoint"] }
