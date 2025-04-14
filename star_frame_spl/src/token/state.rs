@@ -30,11 +30,11 @@ impl HasOwnerProgram for MintAccount<'_> {
 }
 
 /// See [`spl_token::state::Mint`].
-#[repr(C)]
 #[derive(Debug, Clone, PartialEq, Eq, Copy, Default, Zeroable, CheckedBitPattern, Align1)]
+#[repr(C, packed)]
 pub struct MintData {
     pub mint_authority: PodOption<Pubkey>,
-    pub supply: PackedValue<u64>,
+    pub supply: u64,
     pub decimals: u8,
     pub is_initialized: bool,
     pub freeze_authority: PodOption<Pubkey>,
@@ -268,16 +268,16 @@ pub enum AccountState {
 }
 
 /// See [`spl_token::state::Account`].
-#[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, CheckedBitPattern, Zeroable)]
+#[repr(C, packed)]
 pub struct TokenAccountData {
     pub mint: Pubkey,
     pub owner: Pubkey,
-    pub amount: PackedValue<u64>,
+    pub amount: u64,
     pub delegate: PodOption<Pubkey>,
     pub state: AccountState,
     pub is_native: PodOption<u64>,
-    pub delegated_amount: PackedValue<u64>,
+    pub delegated_amount: u64,
     pub close_authority: PodOption<Pubkey>,
 }
 
@@ -481,7 +481,7 @@ mod tests {
             pod_data.mint_authority.into_option(),
             data.mint_authority.into()
         );
-        assert_eq!(pod_data.supply, data.supply);
+        assert_eq!({ pod_data.supply }, data.supply);
         assert_eq!(pod_data.decimals, data.decimals);
         assert_eq!(pod_data.is_initialized, data.is_initialized);
         assert_eq!(
@@ -526,11 +526,11 @@ mod tests {
         let pod_data = account.data()?;
         assert_eq!(pod_data.mint, data.mint);
         assert_eq!(pod_data.owner, data.owner);
-        assert_eq!(pod_data.amount, data.amount);
+        assert_eq!({ pod_data.amount }, data.amount);
         assert_eq!(pod_data.delegate.into_option(), data.delegate.into());
         assert_eq!(pod_data.state as u8, data.state as u8);
         assert_eq!(pod_data.is_native.into_option(), data.is_native.into());
-        assert_eq!(pod_data.delegated_amount, data.delegated_amount);
+        assert_eq!({ pod_data.delegated_amount }, data.delegated_amount);
         Ok(())
     }
 }
