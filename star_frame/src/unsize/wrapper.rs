@@ -438,8 +438,7 @@ impl<T> StartPointer<T> {
     }
 }
 
-impl<'ptr, 'info, O, A, T>
-    ExclusiveWrapper<'_, '_, 'info, StartPointer<T>, O, A>
+impl<'ptr, 'info, O, A, T> ExclusiveWrapper<'_, '_, 'info, StartPointer<T>, O, A>
 where
     O: UnsizedType + ?Sized,
     A: UnsizedTypeDataAccess<'info>,
