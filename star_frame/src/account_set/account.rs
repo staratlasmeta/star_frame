@@ -271,7 +271,7 @@ where
     ) -> Result<()> {
         let funder = syscalls
             .get_funder()
-            .context("Missing tagged `funder` for DataAccount `init_account`")?;
+            .context("Missing tagged `funder` for Account `init_account`")?;
         self.init_account::<IF_NEEDED>((arg.0, funder), account_seeds, syscalls)
     }
 }
