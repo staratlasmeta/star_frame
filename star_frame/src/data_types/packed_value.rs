@@ -8,7 +8,6 @@ use star_frame::align1::Align1;
 #[derive(
     Copy, Clone, Debug, Align1, Pod, PartialEq, Eq, PartialOrd, Ord, Zeroable, From, Default,
 )]
-// #[derive_where(Debug; T: std::fmt::Debug + Copy)]
 #[repr(C, packed)]
 pub struct PackedValue<T>(pub T);
 impl<T> FromPrimitive for PackedValue<T>
