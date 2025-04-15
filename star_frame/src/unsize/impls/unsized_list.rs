@@ -475,13 +475,16 @@ where
     }
 }
 
-impl<'a, T, C> AsShared<'a> for UnsizedListMut<'a, T, C>
+impl<T, C> AsShared for UnsizedListMut<'_, T, C>
 where
     T: UnsizedType + ?Sized,
     C: UnsizedListOffset,
 {
-    type Ref = UnsizedListRef<'a, T, C>;
-    fn as_shared(&'a self) -> Self::Ref {
+    type Ref<'b>
+        = UnsizedListRef<'b, T, C>
+    where
+        Self: 'b;
+    fn as_shared(&self) -> Self::Ref<'_> {
         UnsizedList::mut_as_ref(self)
     }
 }

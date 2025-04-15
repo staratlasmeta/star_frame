@@ -49,9 +49,12 @@ impl DerefMut for RemainingBytesMut<'_> {
     }
 }
 
-impl<'a> AsShared<'a> for RemainingBytesMut<'a> {
-    type Ref = RemainingBytesRef<'a>;
-    fn as_shared(&'a self) -> Self::Ref {
+impl AsShared for RemainingBytesMut<'_> {
+    type Ref<'a>
+        = RemainingBytesRef<'a>
+    where
+        Self: 'a;
+    fn as_shared(&self) -> Self::Ref<'_> {
         RemainingBytes::mut_as_ref(self)
     }
 }

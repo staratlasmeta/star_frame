@@ -317,13 +317,16 @@ where
     }
 }
 
-impl<'a, T, L> AsShared<'a> for ListMut<'a, T, L>
+impl<T, L> AsShared for ListMut<'_, T, L>
 where
     L: ListLength,
     T: CheckedBitPattern + NoUninit + Align1,
 {
-    type Ref = ListRef<'a, T, L>;
-    fn as_shared(&'a self) -> Self::Ref {
+    type Ref<'a>
+        = ListRef<'a, T, L>
+    where
+        Self: 'a;
+    fn as_shared(&self) -> Self::Ref<'_> {
         List::mut_as_ref(self)
     }
 }

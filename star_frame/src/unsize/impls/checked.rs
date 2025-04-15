@@ -53,12 +53,15 @@ where
     }
 }
 
-impl<'a, T> AsShared<'a> for CheckedMut<'a, T>
+impl<T> AsShared for CheckedMut<'_, T>
 where
     T: CheckedBitPattern + NoUninit + Align1,
 {
-    type Ref = CheckedRef<'a, T>;
-    fn as_shared(&'a self) -> Self::Ref {
+    type Ref<'a>
+        = CheckedRef<'a, T>
+    where
+        Self: 'a;
+    fn as_shared(&self) -> Self::Ref<'_> {
         T::mut_as_ref(self)
     }
 }

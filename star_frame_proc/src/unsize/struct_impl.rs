@@ -580,15 +580,21 @@ impl UnsizedStructContext {
 
     fn as_shared_impl(&self) -> TokenStream {
         Paths!(prelude);
-        UnsizedStructContext!(self => with_sized_idents, with_sized_types, mut_type, rm_lt, ref_type, ref_ident);
+        UnsizedStructContext!(self => with_sized_idents, with_sized_types, mut_ident, rm_lt, ref_type, ref_ident);
 
-        let (impl_gen, _, where_clause) = self.ref_mut_generics.split_for_impl();
+        let underscore_gen = self
+            .generics
+            .combine::<BetterGenerics>(&parse_quote!([<'_>]));
+        let underscore_ty_gen = underscore_gen.split_for_impl().1;
+
+        let (impl_gen, _, where_clause) = self.generics.split_for_impl();
 
         quote! {
             #[automatically_derived]
-            impl #impl_gen #prelude::AsShared<'a> for #mut_type #where_clause {
-                type Ref = #ref_type;
-                fn as_shared(&#rm_lt self) -> Self::Ref {
+            impl #impl_gen #prelude::AsShared for #mut_ident #underscore_ty_gen #where_clause {
+                type Ref<#rm_lt> = #ref_type
+                    where Self: #rm_lt;
+                fn as_shared(&self) -> Self::Ref<'_> {
                     #ref_ident {
                         #(#with_sized_idents: <#with_sized_types as #prelude::UnsizedType>::mut_as_ref(&self.#with_sized_idents),)*
                     }

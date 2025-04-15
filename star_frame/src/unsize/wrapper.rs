@@ -418,12 +418,15 @@ pub struct StartPointer<T> {
     pub data: T,
 }
 
-impl<'a, T> AsShared<'a> for StartPointer<T>
+impl<T> AsShared for StartPointer<T>
 where
-    T: AsShared<'a>,
+    T: AsShared,
 {
-    type Ref = T::Ref;
-    fn as_shared(&'a self) -> Self::Ref {
+    type Ref<'b>
+        = T::Ref<'b>
+    where
+        Self: 'b;
+    fn as_shared(&self) -> Self::Ref<'_> {
         self.data.as_shared()
     }
 }
