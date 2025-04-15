@@ -20,11 +20,11 @@ pub trait InstructionToIdl<A>: Instruction {
     fn instruction_to_idl(idl_definition: &mut IdlDefinition, arg: A) -> Result<IdlInstructionDef>;
 }
 pub trait AccountSetToIdl<'info, A>: AccountSet<'info> {
-    /// Adds the [`star_frame_idl::IdlAccountSetDef`] and associated account definitions to the idl definition.
+    /// Adds the [`star_frame_idl::account_set::IdlAccountSetDef`] and associated account definitions to the idl definition.
     fn account_set_to_idl(idl_definition: &mut IdlDefinition, arg: A) -> Result<IdlAccountSetDef>;
 }
 pub trait AccountToIdl: TypeToIdl {
-    /// Adds the [`star_frame_idl::IdlAccount`] and associated type definitions to the idl definition,
+    /// Adds the [`star_frame_idl::account::IdlAccount`] and associated type definitions to the idl definition,
     /// returning the idl account id reference.
     fn account_to_idl(idl_definition: &mut IdlDefinition) -> Result<IdlAccountId>;
 }
