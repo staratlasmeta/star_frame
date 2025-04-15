@@ -55,6 +55,24 @@ pub struct TestByteSet<'a, T: ?Sized + UnsizedType> {
     phantom_t: PhantomData<T>,
 }
 
+pub trait NewByteSet: UnsizedType {
+    fn new_byte_set<'a>(owned: Self::Owned) -> Result<TestByteSet<'a, Self>>
+    where
+        Self: FromOwned,
+    {
+        TestByteSet::new(owned)
+    }
+
+    fn new_default_byte_set<'a>() -> Result<TestByteSet<'a, Self>>
+    where
+        Self: UnsizedInit<DefaultInit>,
+    {
+        TestByteSet::new_default()
+    }
+}
+
+impl<T> NewByteSet for T where T: UnsizedType {}
+
 impl<'a, T> TestByteSet<'a, T>
 where
     T: UnsizedType + ?Sized,
@@ -100,7 +118,7 @@ where
         Self::new_from_init(DefaultInit)
     }
 
-    pub fn data_ref(&self) -> Result<SharedWrapper<'a, '_, T::Ref<'a>>> {
+    pub fn data(&self) -> Result<SharedWrapper<'a, '_, T::Ref<'a>>> {
         unsafe { SharedWrapper::<T>::new(self.test_data) }
     }
 
@@ -115,4 +133,26 @@ where
     pub fn underlying_data(&self) -> Result<Vec<u8>> {
         Ok(self.test_data.data.try_borrow()?.to_vec())
     }
+}
+
+#[macro_export]
+macro_rules! assert_with_shared {
+    ($the_mut:ident => $expr:expr $(, $($arg:tt)*)?) => {
+        assert!($expr, $($($arg)*)*);
+        {
+            let $the_mut = $the_mut.as_shared();
+            assert!($expr, $($($arg)*)*);
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! assert_eq_with_shared {
+    ($the_mut:ident => $left:expr, $right:expr $(, $($arg:tt)*)?) => {
+        assert_eq!($left, $right, $($($arg)*)*);
+        {
+            let $the_mut = $the_mut.as_shared();
+            assert_eq!($left, $right, $($($arg)*)*)
+        }
+    };
 }
