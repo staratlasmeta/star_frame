@@ -1,6 +1,8 @@
 use crate::pod::PodOption;
-use crate::token::instructions::{InitializeMint2, InitializeMint2CpiAccounts};
-use crate::token::{InitializeAccount3, InitializeAccount3CpiAccounts, Token};
+use crate::token::instructions::{
+    InitializeAccount3, InitializeAccount3CpiAccounts, InitializeMint2, InitializeMint2CpiAccounts,
+};
+use crate::token::Token;
 use star_frame::account_set::AccountSet;
 use star_frame::anyhow::{bail, Context};
 use star_frame::bytemuck;
@@ -44,7 +46,7 @@ impl MintAccount<'_> {
     /// See [`spl_token::state::Mint::LEN`].
     /// ```
     /// # use star_frame::solana_program::program_pack::Pack;
-    /// # use star_frame_spl::token::{MintAccount, MintData};
+    /// # use star_frame_spl::token::state::{MintAccount, MintData};
     /// assert_eq!(MintAccount::LEN, spl_token::state::Mint::LEN);
     /// assert_eq!(MintAccount::LEN, core::mem::size_of::<MintData>());
     /// ```
@@ -231,7 +233,7 @@ where
     }
 }
 
-/// A wrapper around `AccountInfo` for the [`spl_token::state::Token`] account.
+/// A wrapper around `AccountInfo` for the [`spl_token::state::Account`] account.
 /// It validates the account data on validate and provides cheap accessor methods for accessing fields
 /// without deserializing the entire account data, although it does provide full deserialization methods.
 #[derive(AccountSet, Debug, Clone)]
@@ -281,11 +283,14 @@ pub struct TokenAccountData {
     pub close_authority: PodOption<Pubkey>,
 }
 
+#[cfg(doc)]
+use star_frame::solana_program::program_pack::Pack;
+
 impl TokenAccount<'_> {
-    /// See [`spl_token::state::Account::LEN`].
+    /// See [`spl_token::state::Account`] LEN.
     /// ```
     /// # use star_frame::solana_program::program_pack::Pack;
-    /// # use star_frame_spl::token::{TokenAccount, TokenAccountData};
+    /// # use star_frame_spl::token::state::{TokenAccount, TokenAccountData};
     /// assert_eq!(TokenAccount::LEN, spl_token::state::Account::LEN);
     /// assert_eq!(TokenAccount::LEN, core::mem::size_of::<TokenAccountData>());
     /// ```

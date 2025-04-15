@@ -1,17 +1,14 @@
-mod instructions;
-mod state;
+pub mod instructions;
+pub mod state;
 
 // Avoid name collisions with glob
-pub use instructions::CloseAccount;
-pub use instructions::*;
 use star_frame::prelude::*;
-pub use state::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
 pub struct Token;
 
 impl StarFrameProgram for Token {
-    type InstructionSet = TokenInstructionSet;
+    type InstructionSet = instructions::TokenInstructionSet;
     type AccountDiscriminant = ();
     /// See [`spl_token::ID`].
     /// ```
