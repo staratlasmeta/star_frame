@@ -206,6 +206,7 @@ where
     T: UnsizedGenerics + Ord,
     L: ListLength,
 {
+    // TODO: Potentially figure out a way to make these docs only on mut or ref, so the doc tests aren't repeated. Perhaps "```ignore" on Mut?
     /// Returns the number of elements in the set.
     ///
     /// # Examples
