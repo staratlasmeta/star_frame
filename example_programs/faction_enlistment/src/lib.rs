@@ -171,7 +171,7 @@ pub struct PlayerFactionData {
     some_fields: SomeFields,
 }
 
-// #[unsized_type(program_account, seeds = PlayerFactionAccountSeeds, owned_attributes = [derive(PartialEq, Eq, Clone)])]
+// #[unsized_type(program_account, seeds = PlayerFactionAccountSeeds)]
 // #[repr(u8)]
 // pub enum PlayerFactionDataAccount {
 //     V1(PlayerFactionData),

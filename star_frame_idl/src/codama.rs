@@ -483,21 +483,32 @@ impl TryToCodama<TypeNode> for IdlTypeDef {
                 ArrayTypeNode::fixed(ty.try_to_codama(idl_def, _context)?, *length).into_type_node()
             }
 
-            IdlTypeDef::Struct(fields) => StructTypeNode::new(
-                fields
-                    .iter()
-                    .enumerate()
-                    .map(|(index, f)| {
-                        anyhow::Ok(StructFieldTypeNode {
-                            name: f.path.clone().unwrap_or(index.to_string()).into(),
-                            default_value_strategy: None,
-                            docs: f.description.clone().into(),
-                            r#type: f.type_def.try_to_codama(idl_def, _context)?,
-                            default_value: None,
-                        })
-                    })
-                    .try_collect()?,
-            ).into_type_node(),
+            IdlTypeDef::Struct(fields) => {
+                let named = fields.first().is_some_and(|f| f.path.is_some());
+                if named {
+                    StructTypeNode::new(
+                        fields
+                            .iter()
+                            .map(|f|{
+                                anyhow::Ok(StructFieldTypeNode {
+                                    name: f.path.clone().with_context(||format!("Missing name on named field for struct {:?}", self))?.into(),
+                                    default_value_strategy: None,
+                                    docs: f.description.clone().into(),
+                                    r#type: f.type_def.try_to_codama(idl_def, _context)?,
+                                    default_value: None,
+                                })
+                            })
+                            .try_collect()?,
+                    ).into_type_node()
+                } else {
+                    TupleTypeNode::new(
+                        fields
+                            .iter()
+                            .map(|f| f.type_def.try_to_codama(idl_def, _context))
+                            .try_collect()?,
+                    ).into_type_node()
+                }
+            }
             IdlTypeDef::Enum { variants, size } => EnumTypeNode {
                 variants: variants
                     .iter()
