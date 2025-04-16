@@ -181,3 +181,44 @@ mod idl_impl {
         }
     }
 }
+
+macro_rules! arithmetic_impls {
+    ($packed:ident: $($trait:ident $op:tt)*) => {
+        paste::paste! {
+            $(
+                impl<T> core::ops::[<$trait Assign>]<T> for $packed<T>
+                where
+                    T: core::ops::$trait<T, Output = T> + Copy,
+                {
+                    fn [<$trait:lower _assign>](&mut self, rhs: T) {
+                        *self = $packed(self.0 $op rhs);
+                    }
+                }
+
+                impl<T> core::ops::$trait<T> for $packed<T>
+                where
+                    T: core::ops::$trait<T, Output = T> + Copy,
+                {
+                    type Output = T;
+                    fn [<$trait:lower>](self, rhs: T) -> Self::Output {
+                        self.0 $op rhs
+                    }
+                }
+
+                impl<T> core::ops::$trait<$packed<T>> for $packed<T>
+                where
+                    T: core::ops::$trait<T, Output = T> + Copy,
+                {
+                    type Output = $packed<T>;
+                    fn [<$trait:lower>](self, rhs: $packed<T>) -> Self::Output {
+                        $packed(self.0 $op rhs.0)
+                    }
+                }
+
+            )*
+        }
+    };
+}
+
+arithmetic_impls!(PackedValue: Add + Sub - Mul * Div / Rem %);
+arithmetic_impls!(PackedValueChecked: Add + Sub - Mul * Div / Rem %);
