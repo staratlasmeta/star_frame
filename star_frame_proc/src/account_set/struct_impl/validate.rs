@@ -27,6 +27,7 @@ struct ValidateFieldArgs {
     skip: bool,
     requires: Option<Requires>,
     arg: Option<Expr>,
+    temp: Option<Expr>,
     arg_ty: Option<Type>,
     address: Option<Expr>,
 }
@@ -141,10 +142,13 @@ pub(super) fn validates(
 
         validate_type = validate_struct_args.arg.unwrap_or(validate_type);
 
-        let validate_args: Vec<(Expr, Type)> = relevant_field_validates
+        let validate_args: Vec<(Expr, Type, Option<Expr>)> = relevant_field_validates
             .iter()
             .map(|f| {
-                (f.arg.clone().unwrap_or_else(|| default_validate_arg.clone()), f.arg_ty.clone().unwrap_or_else(|| syn::parse_quote!(_)))
+                if f.temp.is_some() && f.arg.is_none() {
+                    abort!(f.arg, "Cannot specify `temp` when `arg` is not specified");
+                }
+                (f.arg.clone().unwrap_or_else(|| default_validate_arg.clone()), f.arg_ty.clone().unwrap_or_else(|| syn::parse_quote!(_)), f.temp.clone())
             }).collect();
 
         let validate_addresses = relevant_field_validates.iter().map(|f| f.address.clone()).collect_vec();
@@ -178,15 +182,19 @@ pub(super) fn validates(
                 }
                 a.skip
             }))
-            .map(|((((field_type, field_name), (validate_arg, validate_ty)), validate_address), skip)| if skip {
+            .map(|((((field_type, field_name), (validate_arg, validate_ty, temp)), validate_address), skip)| if skip {
                 quote! {}
             } else {
                 let address_check = validate_address.as_ref().map(|address| quote! {
                     <#field_type as #prelude::SingleAccountSet<#info_lifetime>>::check_key(&self.#field_name, #address)?;
                 });
+                let temp = temp.as_ref().map(|temp| quote! {
+                    let temp = #temp;
+                });
                 quote! {
                     {
                         #address_check
+                        #temp
                         let __arg = #validate_arg;
                         #prelude::_account_set_validate_reverse::<#field_type, #validate_ty>(
                             __arg,

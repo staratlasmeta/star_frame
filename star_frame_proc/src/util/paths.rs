@@ -20,10 +20,12 @@ pub struct Paths {
     pub deref: TokenStream,
     #[allow(dead_code)]
     pub deref_mut: TokenStream,
-    #[allow(dead_code)]
     pub eq: TokenStream,
-    #[allow(dead_code)]
     pub partial_eq: TokenStream,
+    #[allow(dead_code)]
+    pub partial_ord: TokenStream,
+    #[allow(dead_code)]
+    pub ord: TokenStream,
     pub phantom_data: TokenStream,
     #[allow(dead_code)]
     pub ptr: TokenStream,
@@ -91,6 +93,8 @@ impl Default for Paths {
             deref_mut: quote! { ::core::ops::DerefMut },
             eq: quote! { ::core::cmp::Eq },
             partial_eq: quote! { ::core::cmp::PartialEq },
+            ord: quote! { ::core::cmp::Ord },
+            partial_ord: quote! { ::core::cmp::PartialOrd },
             phantom_data: quote! { ::core::marker::PhantomData },
             ptr: quote! { ::core::ptr },
             size_of: quote! { ::core::mem::size_of },
@@ -130,4 +134,9 @@ impl Default for Paths {
             prelude,
         }
     }
+}
+
+pub fn pretty_path(path: &TokenStream) -> String {
+    let path = path.to_string();
+    path.replace(" :: ", "::")
 }

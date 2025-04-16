@@ -7,7 +7,6 @@ use bytemuck::{bytes_of, from_bytes};
 pub use star_frame_proc::ProgramAccount;
 use std::marker::PhantomData;
 use std::mem::size_of;
-
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
 pub struct NormalizeRent<T>(pub T);
 
@@ -71,7 +70,7 @@ pub struct CloseAccount<T>(pub T);
 )]
 pub struct Account<'info, T: ProgramAccount + UnsizedType + ?Sized> {
     #[single_account_set(
-        skip_has_program_account,
+        skip_has_inner_type,
         skip_can_init_account,
         skip_has_seeds,
         skip_has_owner_program
@@ -115,27 +114,34 @@ where
     #[inline]
     pub fn validate(&self) -> Result<()> {
         if self.owner() != &T::OwnerProgram::ID {
-            bail!(ProgramError::IllegalOwner);
+            bail!(
+                "Account {} owner {} does not match expected program ID {}",
+                self.key(),
+                self.owner(),
+                T::OwnerProgram::ID
+            );
         }
         let data = self.info_data_bytes()?;
-        Self::check_discriminant(&data)?;
-        Ok(())
-    }
-
-    #[inline]
-    fn check_discriminant(bytes: &[u8]) -> Result<()> {
-        if bytes.len() < size_of::<OwnerProgramDiscriminant<T>>()
+        if data.len() < size_of::<OwnerProgramDiscriminant<T>>()
             || from_bytes::<PackedValue<OwnerProgramDiscriminant<T>>>(
-                &bytes[..size_of::<OwnerProgramDiscriminant<T>>()],
+                &data[..size_of::<OwnerProgramDiscriminant<T>>()],
             ) != &PackedValue(T::DISCRIMINANT)
         {
-            bail!(ProgramError::InvalidAccountData)
+            bail!(
+                "Account {} data does not match expected discriminant for program {}",
+                self.key(),
+                T::OwnerProgram::ID
+            )
         }
         Ok(())
     }
 
     #[inline]
     pub fn data(&self) -> Result<SharedWrapper<'_, 'info, T::Ref<'_>>> {
+        // If the account is writable, changes could have been made after AccountSetValidate has been run
+        if self.is_writable() {
+            self.validate()?;
+        }
         unsafe { SharedWrapper::<AccountDiscriminant<T>>::new(&self.info) }
     }
 
@@ -143,6 +149,10 @@ where
     pub fn data_mut(
         &self,
     ) -> Result<MutWrapper<'_, 'info, T::Mut<'_>, AccountDiscriminant<T>, AccountInfo<'info>>> {
+        // If the account is writable, changes could have been made after AccountSetValidate has been run
+        if self.is_writable() {
+            self.validate()?;
+        }
         unsafe { MutWrapper::new(&self.info) }
     }
 }
@@ -168,17 +178,35 @@ pub mod discriminant {
         }
 
         fn get_ref<'a>(data: &mut &'a [u8]) -> Result<Self::Ref<'a>> {
-            data.try_advance(size_of::<OwnerProgramDiscriminant<T>>())?;
+            data.try_advance(size_of::<OwnerProgramDiscriminant<T>>())
+                .with_context(|| {
+                    format!(
+                        "Failed to advance past discriminant of size {}",
+                        size_of::<OwnerProgramDiscriminant<T>>()
+                    )
+                })?;
             T::get_ref(data)
         }
 
         fn get_mut<'a>(data: &mut &'a mut [u8]) -> Result<Self::Mut<'a>> {
-            data.try_advance(size_of::<OwnerProgramDiscriminant<T>>())?;
+            data.try_advance(size_of::<OwnerProgramDiscriminant<T>>())
+                .with_context(|| {
+                    format!(
+                        "Failed to advance past discriminant of size {}",
+                        size_of::<OwnerProgramDiscriminant<T>>()
+                    )
+                })?;
             T::get_mut(data)
         }
 
         fn owned(mut data: &[u8]) -> Result<Self::Owned> {
-            data.try_advance(size_of::<OwnerProgramDiscriminant<T>>())?;
+            data.try_advance(size_of::<OwnerProgramDiscriminant<T>>())
+                .with_context(|| {
+                    format!(
+                        "Failed to advance past discriminant of size {}",
+                        size_of::<OwnerProgramDiscriminant<T>>()
+                    )
+                })?;
             T::owned(data)
         }
 
@@ -205,7 +233,13 @@ pub mod discriminant {
 
         fn from_owned(owned: T::Owned, bytes: &mut &mut [u8]) -> Result<usize> {
             bytes
-                .try_advance(size_of::<OwnerProgramDiscriminant<T>>())?
+                .try_advance(size_of::<OwnerProgramDiscriminant<T>>())
+                .with_context(|| {
+                    format!(
+                        "Failed to advance past discriminant during initialization of {}",
+                        std::any::type_name::<T>()
+                    )
+                })?
                 .copy_from_slice(bytes_of(&T::DISCRIMINANT));
             T::from_owned(owned, bytes).map(|size| size + size_of::<OwnerProgramDiscriminant<T>>())
         }
@@ -218,7 +252,13 @@ pub mod discriminant {
 
         unsafe fn init(bytes: &mut &mut [u8], arg: I) -> Result<()> {
             bytes
-                .try_advance(size_of::<OwnerProgramDiscriminant<T>>())?
+                .try_advance(size_of::<OwnerProgramDiscriminant<T>>())
+                .with_context(|| {
+                    format!(
+                        "Failed to advance past discriminant during initialization of {}",
+                        std::any::type_name::<T>()
+                    )
+                })?
                 .copy_from_slice(bytes_of(&T::DISCRIMINANT));
             unsafe { T::init(bytes, arg) }
         }
@@ -226,8 +266,8 @@ pub mod discriminant {
 }
 use discriminant::AccountDiscriminant;
 
-impl<T: ProgramAccount + UnsizedType + ?Sized> HasProgramAccount for Account<'_, T> {
-    type ProgramAccount = T;
+impl<T: ProgramAccount + UnsizedType + ?Sized> HasInnerType for Account<'_, T> {
+    type Inner = T;
 }
 
 impl<T: ProgramAccount + UnsizedType + ?Sized> HasOwnerProgram for Account<'_, T> {
@@ -269,7 +309,7 @@ where
     ) -> Result<()> {
         let funder = syscalls
             .get_funder()
-            .context("Missing tagged `funder` for DataAccount `init_account`")?;
+            .context("Missing tagged `funder` for Account `init_account`")?;
         self.init_account::<IF_NEEDED>((arg.0, funder), account_seeds, syscalls)
     }
 }

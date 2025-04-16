@@ -122,6 +122,19 @@ trait TryToCodama<Output> {
     ) -> Result<Output>;
 }
 
+fn ensure_struct_node(type_node: TypeNode) -> Result<StructTypeNode> {
+    match type_node {
+        TypeNode::Struct(struct_node) => Ok(struct_node),
+        TypeNode::Tuple(tuple_node) if tuple_node.items.is_empty() => {
+            Ok(StructTypeNode { fields: vec![] })
+        }
+        _ => bail!(
+            "Only struct account types are supported in Codama at the moment. Found: {:?}",
+            type_node
+        ),
+    }
+}
+
 impl TryToCodama<InstructionNode> for IdlInstruction {
     fn try_to_codama(
         &self,
@@ -129,19 +142,12 @@ impl TryToCodama<InstructionNode> for IdlInstruction {
         context: &mut TryToCodamaContext,
     ) -> Result<InstructionNode> {
         let idl_type = self.definition.type_id.get_defined(idl_definition)?;
-        let TypeNode::Struct(StructTypeNode {
-            fields: struct_fields,
-        }) = idl_type.type_def.try_to_codama(idl_definition, context)?
-        else {
-            bail!(
-                "Only struct account types are supported in Codama at the moment. Found: {:?}",
-                idl_type.type_def
-            );
-        };
+        let struct_node =
+            ensure_struct_node(idl_type.type_def.try_to_codama(idl_definition, context)?)?;
 
         let (discriminator_field, discriminator_node) = discriminator_info(&self.discriminant);
         let mut arguments = vec![discriminator_field.into()];
-        arguments.extend(struct_fields.into_iter().map(Into::into));
+        arguments.extend(struct_node.fields.into_iter().map(Into::into));
         let (accounts, remaining_accounts) = self
             .definition
             .account_set
@@ -384,15 +390,11 @@ impl TryToCodama<(AccountNode, Option<PdaNode>)> for IdlAccount {
 
         let info = &defined_account.info;
 
-        let TypeNode::Struct(mut struct_node) = defined_account
-            .type_def
-            .try_to_codama(idl_definition, context)?
-        else {
-            bail!(
-                "Only struct account types are supported in Codama at the moment. Found: {:?}",
-                defined_account.type_def
-            );
-        };
+        let mut struct_node = ensure_struct_node(
+            defined_account
+                .type_def
+                .try_to_codama(idl_definition, context)?,
+        )?;
 
         let pda_node = self
             .seeds
@@ -483,21 +485,32 @@ impl TryToCodama<TypeNode> for IdlTypeDef {
                 ArrayTypeNode::fixed(ty.try_to_codama(idl_def, _context)?, *length).into_type_node()
             }
 
-            IdlTypeDef::Struct(fields) => StructTypeNode::new(
-                fields
-                    .iter()
-                    .enumerate()
-                    .map(|(index, f)| {
-                        anyhow::Ok(StructFieldTypeNode {
-                            name: f.path.clone().unwrap_or(index.to_string()).into(),
-                            default_value_strategy: None,
-                            docs: f.description.clone().into(),
-                            r#type: f.type_def.try_to_codama(idl_def, _context)?,
-                            default_value: None,
-                        })
-                    })
-                    .try_collect()?,
-            ).into_type_node(),
+            IdlTypeDef::Struct(fields) => {
+                let named = fields.first().is_some_and(|f| f.path.is_some());
+                if named {
+                    StructTypeNode::new(
+                        fields
+                            .iter()
+                            .map(|f|{
+                                anyhow::Ok(StructFieldTypeNode {
+                                    name: f.path.clone().with_context(||format!("Missing name on named field for struct {:?}", self))?.into(),
+                                    default_value_strategy: None,
+                                    docs: f.description.clone().into(),
+                                    r#type: f.type_def.try_to_codama(idl_def, _context)?,
+                                    default_value: None,
+                                })
+                            })
+                            .try_collect()?,
+                    ).into_type_node()
+                } else {
+                    TupleTypeNode::new(
+                        fields
+                            .iter()
+                            .map(|f| f.type_def.try_to_codama(idl_def, _context))
+                            .try_collect()?,
+                    ).into_type_node()
+                }
+            }
             IdlTypeDef::Enum { variants, size } => EnumTypeNode {
                 variants: variants
                     .iter()

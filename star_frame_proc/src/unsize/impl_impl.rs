@@ -10,7 +10,7 @@ use proc_macro_error2::{abort, OptionExt};
 use quote::{format_ident, quote};
 use syn::{
     parse_quote, AngleBracketedGenericArguments, FnArg, ImplItem, ImplItemFn, ItemImpl, Lifetime,
-    LitStr, PathArguments, PathSegment, Receiver, Signature, Type, Visibility,
+    LitStr, PathArguments, PathSegment, Receiver, Type, Visibility,
 };
 
 #[derive(ArgumentList)]
@@ -234,20 +234,24 @@ pub fn unsized_impl_impl(item: ItemImpl, args: TokenStream) -> TokenStream {
             }
         }
 
-        let pub_signatures = pub_exclusive_fns.iter().map(|item| &item.sig).collect_vec();
-        let priv_signatures = priv_exclusive_fns
-            .iter()
-            .map(|item| &item.sig)
-            .collect_vec();
-
-        let make_exclusive = |vis: Visibility,
-                              trait_ident: Ident,
-                              signatures: &[&Signature],
-                              funcs: &[ImplItemFn]| {
+        let make_exclusive = |vis: Visibility, trait_ident: Ident, funcs: &mut [ImplItemFn]| {
+            let signatures = funcs
+                .iter_mut()
+                .map(|item| {
+                    let docs = strip_inner_attributes(&mut item.attrs, "doc")
+                        .map(|doc| doc.attribute)
+                        .collect_vec();
+                    let signature = item.sig.clone();
+                    quote! {
+                        #(#docs)*
+                        #signature;
+                    }
+                })
+                .collect_vec();
             quote! {
                 #vis trait #trait_ident #impl_gen #where_clause
                 {
-                    #(#signatures;)*
+                    #(#signatures)*
                 }
 
                 #[automatically_derived]
@@ -261,16 +265,14 @@ pub fn unsized_impl_impl(item: ItemImpl, args: TokenStream) -> TokenStream {
             make_exclusive(
                 Visibility::Public(Default::default()),
                 pub_exclusive_ident,
-                &pub_signatures,
-                &pub_exclusive_fns,
+                &mut pub_exclusive_fns,
             )
         });
         let priv_exclusive = (!priv_exclusive_fns.is_empty()).then(|| {
             make_exclusive(
                 Visibility::Inherited,
                 priv_exclusive_ident,
-                &priv_signatures,
-                &priv_exclusive_fns,
+                &mut priv_exclusive_fns,
             )
         });
         quote! {

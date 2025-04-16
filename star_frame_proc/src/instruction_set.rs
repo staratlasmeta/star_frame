@@ -133,8 +133,9 @@ pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
                 mut ix_bytes: &[u8],
                 syscalls: &mut impl #syscalls<#info_lifetime>,
             ) -> #result<()> {
-                let discriminant_bytes =
-                    #prelude::Advance::try_advance(&mut ix_bytes, ::core::mem::size_of::<#discriminant_type>())?;
+                let maybe_discriminant_bytes =
+                    #prelude::Advance::try_advance(&mut ix_bytes, ::core::mem::size_of::<#discriminant_type>());
+                let discriminant_bytes = #prelude::anyhow::Context::context(maybe_discriminant_bytes, "Failed to read instruction discriminant bytes")?;
                 let discriminant = *#bytemuck::try_from_bytes(discriminant_bytes)?;
                 #[deny(unreachable_patterns)]
                 match discriminant {

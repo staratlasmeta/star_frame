@@ -1,6 +1,8 @@
 use crate::pod::PodOption;
-use crate::token::instructions::{InitializeMint2, InitializeMint2CpiAccounts};
-use crate::token::{InitializeAccount3, InitializeAccount3CpiAccounts, Token};
+use crate::token::instructions::{
+    InitializeAccount3, InitializeAccount3CpiAccounts, InitializeMint2, InitializeMint2CpiAccounts,
+};
+use crate::token::Token;
 use star_frame::account_set::AccountSet;
 use star_frame::anyhow::{bail, Context};
 use star_frame::bytemuck;
@@ -21,22 +23,24 @@ use std::cell::Ref;
     }
 )]
 pub struct MintAccount<'info> {
-    #[single_account_set(skip_can_init_account, skip_has_owner_program)]
+    #[single_account_set(skip_can_init_account, skip_has_owner_program, skip_has_inner_type)]
     info: AccountInfo<'info>,
-    #[account_set(skip = false)]
-    validated: bool,
 }
 
 impl HasOwnerProgram for MintAccount<'_> {
     type OwnerProgram = Token;
 }
 
+impl HasInnerType for MintAccount<'_> {
+    type Inner = MintAccount<'static>;
+}
+
 /// See [`spl_token::state::Mint`].
-#[repr(C)]
 #[derive(Debug, Clone, PartialEq, Eq, Copy, Default, Zeroable, CheckedBitPattern, Align1)]
+#[repr(C, packed)]
 pub struct MintData {
     pub mint_authority: PodOption<Pubkey>,
-    pub supply: PackedValue<u64>,
+    pub supply: u64,
     pub decimals: u8,
     pub is_initialized: bool,
     pub freeze_authority: PodOption<Pubkey>,
@@ -46,42 +50,50 @@ impl MintAccount<'_> {
     /// See [`spl_token::state::Mint::LEN`].
     /// ```
     /// # use star_frame::solana_program::program_pack::Pack;
-    /// # use star_frame_spl::token::{MintAccount, MintData};
+    /// # use star_frame_spl::token::state::{MintAccount, MintData};
     /// assert_eq!(MintAccount::LEN, spl_token::state::Mint::LEN);
     /// assert_eq!(MintAccount::LEN, core::mem::size_of::<MintData>());
     /// ```
     pub const LEN: usize = 82;
 
     #[inline]
-    pub fn validate(&mut self) -> Result<()> {
-        if self.validated {
-            return Ok(());
-        }
+    pub fn validate(&self) -> Result<()> {
         // // todo: maybe relax this check to allow token22
         if self.owner() != &Token::ID {
-            bail!(ProgramError::InvalidAccountOwner);
+            bail!(
+                "MintAccount owner {} does not match expected Token program ID {}",
+                self.owner(),
+                Token::ID
+            );
         }
         if self.info_data_bytes()?.len() != Self::LEN {
-            bail!(ProgramError::InvalidAccountData);
+            bail!(
+                "MintAccount {} has invalid data length {}, expected {}",
+                self.key(),
+                self.info_data_bytes()?.len(),
+                Self::LEN
+            );
         }
-        // set validate before checking state to allow us to call .data()
-        self.validated = true;
         // check initialized
-        if !self.data()?.is_initialized {
-            bail!(ProgramError::UninitializedAccount);
+        if !self.data_unchecked()?.is_initialized {
+            bail!("MintAccount {} is not initialized", self.key());
         }
         Ok(())
     }
 
     #[inline]
-    pub fn data(&self) -> Result<Ref<MintData>> {
-        if !self.validated {
-            return Err(ProgramError::InvalidAccountData)
-                .context("Called `.data()` on MintAccount before validation");
-        }
+    pub fn data_unchecked(&self) -> Result<Ref<MintData>> {
         Ok(try_map_ref(self.info_data_bytes()?, |data| {
             bytemuck::checked::try_from_bytes::<MintData>(data)
         })?)
+    }
+
+    #[inline]
+    pub fn data(&self) -> Result<Ref<MintData>> {
+        if self.is_writable() {
+            self.validate()?;
+        }
+        self.data_unchecked()
     }
 
     #[inline]
@@ -89,23 +101,41 @@ impl MintAccount<'_> {
         let data = self.data()?;
         if let Some(decimals) = validate_mint.decimals {
             if data.decimals != decimals {
-                bail!(ProgramError::InvalidArgument);
+                bail!(
+                    "MintAccount {} has decimals {}, expected {}",
+                    self.key(),
+                    data.decimals,
+                    decimals
+                );
             }
         }
         if let Some(authority) = validate_mint.authority {
             if data.mint_authority != PodOption::some(*authority) {
-                bail!(ProgramError::InvalidArgument);
+                bail!(
+                    "MintAccount {} has mint authority {:?}, expected {:?}",
+                    self.key(),
+                    data.mint_authority,
+                    authority
+                );
             }
         }
         match validate_mint.freeze_authority {
             FreezeAuthority::None => {
                 if data.freeze_authority.is_some() {
-                    bail!(ProgramError::InvalidArgument);
+                    bail!(
+                        "MintAccount {} has a freeze authority but expected none",
+                        self.key()
+                    );
                 }
             }
             FreezeAuthority::Some(authority) => {
                 if data.freeze_authority != PodOption::some(*authority) {
-                    bail!(ProgramError::InvalidArgument);
+                    bail!(
+                        "MintAccount {} has freeze authority {:?}, expected {:?}",
+                        self.key(),
+                        data.freeze_authority,
+                        authority
+                    );
                 }
             }
             _ => {}
@@ -207,7 +237,7 @@ where
     }
 }
 
-/// A wrapper around `AccountInfo` for the [`spl_token::state::Token`] account.
+/// A wrapper around `AccountInfo` for the [`spl_token::state::Account`] account.
 /// It validates the account data on validate and provides cheap accessor methods for accessing fields
 /// without deserializing the entire account data, although it does provide full deserialization methods.
 #[derive(AccountSet, Debug, Clone)]
@@ -220,14 +250,16 @@ where
     }
 )]
 pub struct TokenAccount<'info> {
-    #[single_account_set(skip_can_init_account, skip_has_owner_program)]
+    #[single_account_set(skip_can_init_account, skip_has_owner_program, skip_has_inner_type)]
     info: AccountInfo<'info>,
-    #[account_set(skip = false)]
-    validated: bool,
 }
 
 impl HasOwnerProgram for TokenAccount<'_> {
     type OwnerProgram = Token;
+}
+
+impl HasInnerType for TokenAccount<'_> {
+    type Inner = TokenAccount<'static>;
 }
 
 /// See [`spl_token::state::AccountState`].
@@ -246,58 +278,70 @@ pub enum AccountState {
 }
 
 /// See [`spl_token::state::Account`].
-#[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, CheckedBitPattern, Zeroable)]
+#[repr(C, packed)]
 pub struct TokenAccountData {
     pub mint: Pubkey,
     pub owner: Pubkey,
-    pub amount: PackedValue<u64>,
+    pub amount: u64,
     pub delegate: PodOption<Pubkey>,
     pub state: AccountState,
     pub is_native: PodOption<u64>,
-    pub delegated_amount: PackedValue<u64>,
+    pub delegated_amount: u64,
     pub close_authority: PodOption<Pubkey>,
 }
 
+#[cfg(doc)]
+use star_frame::solana_program::program_pack::Pack;
+
 impl TokenAccount<'_> {
-    /// See [`spl_token::state::Account::LEN`].
+    /// See [`spl_token::state::Account`] LEN.
     /// ```
     /// # use star_frame::solana_program::program_pack::Pack;
-    /// # use star_frame_spl::token::{TokenAccount, TokenAccountData};
+    /// # use star_frame_spl::token::state::{TokenAccount, TokenAccountData};
     /// assert_eq!(TokenAccount::LEN, spl_token::state::Account::LEN);
     /// assert_eq!(TokenAccount::LEN, core::mem::size_of::<TokenAccountData>());
     /// ```
     pub const LEN: usize = 165;
 
     #[inline]
-    pub fn validate(&mut self) -> Result<()> {
-        if self.validated {
-            return Ok(());
-        }
+    pub fn validate(&self) -> Result<()> {
         // todo: maybe relax this check to allow token22
         if self.owner() != &Token::ID {
-            bail!(ProgramError::InvalidAccountOwner);
+            bail!(
+                "TokenAccount owner {} does not match expected Token program ID {}",
+                self.owner(),
+                Token::ID
+            );
         }
         if self.info_data_bytes()?.len() != Self::LEN {
-            bail!(ProgramError::InvalidAccountData);
+            bail!(
+                "TokenAccount {} has invalid data length {}, expected {}",
+                self.key(),
+                self.info_data_bytes()?.len(),
+                Self::LEN
+            );
         }
         // set validate before checking state to allow us to call .data()
-        self.validated = true;
-        if self.data()?.state == AccountState::Uninitialized {
-            bail!(ProgramError::UninitializedAccount);
+        if self.data_unchecked()?.state == AccountState::Uninitialized {
+            bail!("TokenAccount {} is not initialized", self.key());
         }
         Ok(())
     }
 
     #[inline]
-    pub fn data(&self) -> Result<Ref<TokenAccountData>> {
-        if !self.validated {
-            return Err(ProgramError::InvalidAccountData)
-                .context("Called `.data()` on TokenAccount before validation");
-        }
+    pub fn data_unchecked(&self) -> Result<Ref<TokenAccountData>> {
         Ok(try_map_ref(self.info_data_bytes()?, |data| {
             bytemuck::checked::try_from_bytes::<TokenAccountData>(data)
         })?)
+    }
+
+    #[inline]
+    pub fn data(&self) -> Result<Ref<TokenAccountData>> {
+        if self.is_writable() {
+            self.validate()?;
+        }
+        self.data_unchecked()
     }
 
     #[inline]
@@ -305,12 +349,22 @@ impl TokenAccount<'_> {
         let data = self.data()?;
         if let Some(mint) = validate_token.mint {
             if data.mint != *mint {
-                bail!(ProgramError::InvalidAccountData);
+                bail!(
+                    "TokenAccount {} has mint {}, expected {}",
+                    self.key(),
+                    data.mint,
+                    mint
+                );
             }
         }
         if let Some(owner) = validate_token.owner {
             if data.owner != *owner {
-                bail!(ProgramError::InvalidAccountData);
+                bail!(
+                    "TokenAccount {} has owner {}, expected {}",
+                    self.key(),
+                    data.owner,
+                    owner
+                );
             }
         }
         Ok(())
@@ -428,10 +482,7 @@ mod tests {
             false,
             0,
         );
-        let mut mint = MintAccount {
-            info,
-            validated: false,
-        };
+        let mint = MintAccount { info };
         mint.validate()?;
         mint.validate_mint(ValidateMint {
             decimals: Some(data.decimals),
@@ -443,7 +494,7 @@ mod tests {
             pod_data.mint_authority.into_option(),
             data.mint_authority.into()
         );
-        assert_eq!(pod_data.supply, data.supply);
+        assert_eq!({ pod_data.supply }, data.supply);
         assert_eq!(pod_data.decimals, data.decimals);
         assert_eq!(pod_data.is_initialized, data.is_initialized);
         assert_eq!(
@@ -479,10 +530,7 @@ mod tests {
             false,
             0,
         );
-        let mut account = TokenAccount {
-            info,
-            validated: false,
-        };
+        let account = TokenAccount { info };
         account.validate()?;
         account.validate_token(ValidateToken {
             mint: Some(&data.mint),
@@ -491,11 +539,11 @@ mod tests {
         let pod_data = account.data()?;
         assert_eq!(pod_data.mint, data.mint);
         assert_eq!(pod_data.owner, data.owner);
-        assert_eq!(pod_data.amount, data.amount);
+        assert_eq!({ pod_data.amount }, data.amount);
         assert_eq!(pod_data.delegate.into_option(), data.delegate.into());
         assert_eq!(pod_data.state as u8, data.state as u8);
         assert_eq!(pod_data.is_native.into_option(), data.is_native.into());
-        assert_eq!(pod_data.delegated_amount, data.delegated_amount);
+        assert_eq!({ pod_data.delegated_amount }, data.delegated_amount);
         Ok(())
     }
 }

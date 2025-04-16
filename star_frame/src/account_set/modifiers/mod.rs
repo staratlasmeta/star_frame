@@ -1,4 +1,4 @@
-use crate::account_set::{ProgramAccount, SingleAccountSet};
+use crate::account_set::SingleAccountSet;
 use crate::prelude::*;
 
 mod init;
@@ -20,9 +20,9 @@ pub trait SignedAccount<'info>: SingleAccountSet<'info> {
 /// A marker trait that indicates the underlying account is writable.
 pub trait WritableAccount<'info>: SingleAccountSet<'info> {}
 
-/// A marker trait that indicates the underlying type has a [`ProgramAccount`] in it.
-pub trait HasProgramAccount {
-    type ProgramAccount: ProgramAccount + ?Sized;
+/// A marker trait that indicates the underlying type has some inner type in it.
+pub trait HasInnerType {
+    type Inner: ?Sized + 'static;
 }
 
 /// A marker trait that indicates the underlying type is owned by a [`StarFrameProgram`].

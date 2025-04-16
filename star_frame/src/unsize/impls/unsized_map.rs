@@ -106,6 +106,24 @@ where
         self.list.is_empty()
     }
 
+    pub fn contains_key(&self, key: &K) -> bool {
+        self.list.binary_search_by(|probe| probe.0.cmp(key)).is_ok()
+    }
+
+    pub fn get(&self, key: &K) -> Option<&V::Owned> {
+        match self.list.binary_search_by(|probe| probe.0.cmp(key)) {
+            Ok(existing_index) => Some(&self.list[existing_index].1),
+            Err(_) => None,
+        }
+    }
+
+    pub fn get_mut(&mut self, key: &K) -> Option<&mut V::Owned> {
+        match self.list.binary_search_by(|probe| probe.0.cmp(key)) {
+            Ok(existing_index) => Some(&mut self.list[existing_index].1),
+            Err(_) => None,
+        }
+    }
+
     pub fn insert(&mut self, key: K, value: V::Owned) -> Option<V::Owned> {
         match self.list.binary_search_by(|probe| probe.0.cmp(&key)) {
             Ok(existing_index) => {
@@ -197,7 +215,12 @@ where
     fn get_index(&self, key: &K) -> Result<usize, usize> {
         self.list
             .offset_list
-            .binary_search_by(|probe| { probe.key }.cmp(key))
+            .binary_search_by(|probe| probe.key.cmp(key))
+    }
+
+    #[must_use]
+    pub fn contains_key(&self, key: &K) -> bool {
+        self.get_index(key).is_ok()
     }
 
     pub fn get(&self, key: &K) -> Result<Option<V::Ref<'_>>> {

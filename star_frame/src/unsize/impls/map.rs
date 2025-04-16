@@ -112,6 +112,29 @@ where
         self.list.is_empty()
     }
 
+    #[must_use]
+    pub fn contains_key(&self, key: &K) -> bool {
+        self.list
+            .binary_search_by(|probe| probe.key.cmp(key))
+            .is_ok()
+    }
+
+    #[must_use]
+    pub fn get(&self, key: &K) -> Option<&V> {
+        match self.list.binary_search_by(|probe| probe.key.cmp(key)) {
+            Ok(existing_index) => Some(&self.list[existing_index].value),
+            Err(_) => None,
+        }
+    }
+
+    #[must_use]
+    pub fn get_mut(&mut self, key: &K) -> Option<&mut V> {
+        match self.list.binary_search_by(|probe| probe.key.cmp(key)) {
+            Ok(existing_index) => Some(&mut self.list[existing_index].value),
+            Err(_) => None,
+        }
+    }
+
     pub fn insert(&mut self, key: K, value: V) -> Option<V> {
         match self.list.binary_search_by(|probe| probe.key.cmp(&key)) {
             Ok(existing_index) => {
@@ -164,7 +187,11 @@ where
 
     #[inline]
     fn get_index(&self, key: &K) -> Result<usize, usize> {
-        self.list.binary_search_by(|probe| { probe.key }.cmp(key))
+        self.list.binary_search_by(|probe| probe.key.cmp(key))
+    }
+
+    pub fn contains_key(&self, key: &K) -> bool {
+        self.get_index(key).is_ok()
     }
 
     pub fn get(&self, key: &K) -> Option<&V> {
@@ -183,7 +210,7 @@ where
 
     #[exclusive]
     pub fn insert(&mut self, key: K, value: V) -> Result<Option<V>> {
-        match self.list.binary_search_by(|probe| probe.key.cmp(&key)) {
+        match self.get_index(&key) {
             Ok(existing_index) => {
                 let old = core::mem::replace(&mut self.list[existing_index].value, value);
                 Ok(Some(old))
@@ -198,7 +225,7 @@ where
 
     #[exclusive]
     pub fn remove(&mut self, key: &K) -> Result<Option<V>> {
-        match self.list.binary_search_by(|probe| probe.key.cmp(key)) {
+        match self.get_index(key) {
             Ok(existing_index) => {
                 let to_return = self.list[existing_index].value;
                 self.list().remove(existing_index)?;

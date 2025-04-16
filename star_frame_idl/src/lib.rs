@@ -3,10 +3,6 @@ extern crate core;
 
 pub mod account;
 pub mod account_set;
-#[cfg(feature = "anchor")]
-mod anchor;
-#[cfg(feature = "anchor")]
-pub use anchor::*;
 #[cfg(feature = "codama")]
 mod codama;
 #[cfg(feature = "codama")]

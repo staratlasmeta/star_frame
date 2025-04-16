@@ -303,14 +303,21 @@ impl UnsizedEnumContext {
 
     fn as_shared_impl(&self) -> TokenStream {
         Paths!(prelude);
-        UnsizedEnumContext!(self => ref_type, rm_lt, ref_ident, mut_type, mut_ident, variant_types, variant_idents);
-        let (impl_gen, _, where_clause) = self.ref_mut_generics.split_for_impl();
+        UnsizedEnumContext!(self => ref_type, rm_lt, ref_ident, mut_ident, variant_types, variant_idents);
+
+        let underscore_gen = self
+            .generics
+            .combine::<BetterGenerics>(&parse_quote!([<'_>]));
+        let underscore_ty_gen = underscore_gen.split_for_impl().1;
+
+        let (impl_gen, _, where_clause) = self.generics.split_for_impl();
 
         quote! {
             #[automatically_derived]
-            impl #impl_gen #prelude::AsShared<#rm_lt> for #mut_type #where_clause {
-                type Ref = #ref_type;
-                fn as_shared(&#rm_lt self) -> Self::Ref {
+            impl #impl_gen #prelude::AsShared for #mut_ident #underscore_ty_gen #where_clause {
+                type Ref<#rm_lt> = #ref_type
+                    where Self: #rm_lt;
+                fn as_shared(&self) -> Self::Ref<'_> {
                     match self {
                         #(#mut_ident::#variant_idents(inner) => #ref_ident::#variant_idents(<#variant_types as #prelude::UnsizedType>::mut_as_ref(inner)),)*
                     }
@@ -414,26 +421,30 @@ impl UnsizedEnumContext {
 
                 fn get_ref<#rm_lt>(data: &mut &#rm_lt [u8]) -> #result<Self::Ref<#rm_lt>> {
                     #(const #discriminant_consts: #integer_repr = #discriminant_ident::#variant_idents as #integer_repr;)*
-                    let repr: #integer_repr = <#integer_repr>::from_le_bytes(*#prelude::AdvanceArray::try_advance_array(data)?);
+                    let maybe_repr_bytes = #prelude::AdvanceArray::try_advance_array(data);
+                    let repr_bytes = #prelude::anyhow::Context::with_context(maybe_repr_bytes, || format!("Not enough bytes to get enum discriminant of {}", #prelude::type_name::<#enum_type>()))?;
+                    let repr: #integer_repr = <#integer_repr>::from_le_bytes(*repr_bytes);
                     match repr {
                         #(
                             #discriminant_consts =>
                                 Ok(#ref_ident::#variant_idents(<#variant_types as #prelude::UnsizedType>::get_ref(data)?)),
                         )*
-                        _ => #prelude::bail!("Invalid enum discriminant"),
+                        _ => #prelude::bail!("Invalid enum discriminant for {}", #prelude::type_name::<#enum_type>()),
                     }
                 }
 
                 fn get_mut<#rm_lt>(data: &mut &#rm_lt mut [u8]) -> #result<Self::Mut<#rm_lt>> {
                     #(const #discriminant_consts: #integer_repr = #discriminant_ident::#variant_idents as #integer_repr;)*
                     let start_ptr = data.as_mut_ptr().cast_const().cast::<()>();
-                    let repr: #integer_repr = <#integer_repr>::from_le_bytes(*#prelude::AdvanceArray::try_advance_array(data)?);
+                    let maybe_repr_bytes = #prelude::AdvanceArray::try_advance_array(data);
+                    let repr_bytes = #prelude::anyhow::Context::with_context(maybe_repr_bytes, || format!("Not enough bytes to get enum discriminant of {}", #prelude::type_name::<#enum_type>()))?;
+                    let repr: #integer_repr = <#integer_repr>::from_le_bytes(*repr_bytes);
                     let res = match repr {
                         #(
                             #discriminant_consts =>
                                 #mut_ident::#variant_idents(<#variant_types as #prelude::UnsizedType>::get_mut(data)?),
                         )*
-                        _ => #prelude::bail!("Invalid enum discriminant"),
+                        _ => #prelude::bail!("Invalid enum discriminant for {}", #prelude::type_name::<#enum_type>()),
                     };
                     Ok(unsafe { #prelude::StartPointer::new(start_ptr, res) })
                 }

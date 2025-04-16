@@ -92,7 +92,7 @@ fn test_unsized_test() -> Result<()> {
         ))
         .collect(),
     };
-    let owned = UnsizedTest::owned_from_ref(*r.data_ref()?)?;
+    let owned = UnsizedTest::owned_from_ref(*r.data()?)?;
     assert_eq!(owned, expected);
     Ok(())
 }
@@ -122,8 +122,8 @@ fn test_single_unsized() -> Result<()> {
         .unsized1()
         .insert_all(1, [10, 9, 8])?;
     let expected = vec![1, 10, 9, 8, 2, 3];
-    assert_eq!(r.data_ref()?.unsized1.as_slice(), expected.as_slice());
-    let owned = SingleUnsized::owned_from_ref(*r.data_ref()?)?;
+    assert_eq!(r.data()?.unsized1.as_slice(), expected.as_slice());
+    let owned = SingleUnsized::owned_from_ref(*r.data()?)?;
     assert_eq!(owned, SingleUnsizedOwned { unsized1: expected });
     Ok(())
 }
@@ -189,7 +189,7 @@ fn test_many_unsized() -> Result<()> {
             TestStruct { val1: 8, val2: 9 },
         ],
     };
-    let owned = ManyUnsized::owned_from_ref(*r.data_ref()?)?;
+    let owned = ManyUnsized::owned_from_ref(*r.data()?)?;
     assert_eq!(owned, expected);
     Ok(())
 }
@@ -208,7 +208,7 @@ fn test_single_unsized_with_sized() -> Result<()> {
         sized1: false,
         unsized1: vec![1.into()],
     })?;
-    let owned = SingleUnsizedWithSized::owned_from_ref(*r.data_ref()?)?;
+    let owned = SingleUnsizedWithSized::owned_from_ref(*r.data()?)?;
     assert_eq!(
         owned,
         SingleUnsizedWithSizedOwned {
@@ -243,7 +243,7 @@ fn test_sized_and_unsized() -> Result<()> {
         unsized2: vec![TestStruct { val1: 5, val2: 6 }],
         unsized3: 7,
     })?;
-    let owned = SizedAndUnsized::owned_from_ref(*r.data_ref()?)?;
+    let owned = SizedAndUnsized::owned_from_ref(*r.data()?)?;
     assert_eq!(
         owned,
         SizedAndUnsizedOwned {
@@ -280,7 +280,7 @@ fn test_with_sized_generics() -> Result<()> {
         sized3: 4,
         unsized1: vec![TestStruct { val1: 5, val2: 6 }],
     })?;
-    let owned = WithSizedGenerics::owned_from_ref(*r.data_ref()?)?;
+    let owned = WithSizedGenerics::owned_from_ref(*r.data()?)?;
     assert_eq!(
         owned,
         WithSizedGenericsOwned {
@@ -314,7 +314,7 @@ fn test_with_unsized_generics() -> Result<()> {
             unsized2: vec![TestStruct { val1: 3, val2: 4 }],
         },
     )?;
-    let owned = WithUnsizedGenerics::owned_from_ref(*r.data_ref()?)?;
+    let owned = WithUnsizedGenerics::owned_from_ref(*r.data()?)?;
     assert_eq!(
         owned,
         WithUnsizedGenericsOwned {
@@ -345,7 +345,7 @@ fn test_with_only_unsized_generics() -> Result<()> {
             unsized2: PackedValueChecked(10),
         },
     )?;
-    let owned = WithOnlyUnsizedGenerics::owned_from_ref(*r.data_ref()?)?;
+    let owned = WithOnlyUnsizedGenerics::owned_from_ref(*r.data()?)?;
     assert_eq!(
         owned,
         WithOnlyUnsizedGenericsOwned {
@@ -394,7 +394,7 @@ fn test_with_sized_and_unsized_generics() -> Result<()> {
         unsized2: vec![5.into()],
     })?;
     r.data_mut()?.exclusive().thingy()?;
-    let owned = WithSizedAndUnsizedGenerics::owned_from_ref(*r.data_ref()?)?;
+    let owned = WithSizedAndUnsizedGenerics::owned_from_ref(*r.data()?)?;
     assert_eq!(
         owned,
         WithSizedAndUnsizedGenericsOwned {

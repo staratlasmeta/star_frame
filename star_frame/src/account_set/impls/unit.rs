@@ -40,7 +40,7 @@ impl ClientAccountSet for () {
 }
 
 impl<'a, 'info> AccountSetDecode<'a, 'info, ()> for () {
-    fn decode_accounts(
+    unsafe fn decode_accounts(
         _accounts: &mut &'a [AccountInfo],
         decode_input: (),
         _syscalls: &mut impl SyscallInvoke<'info>,

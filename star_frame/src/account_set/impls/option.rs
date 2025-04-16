@@ -3,7 +3,7 @@ use crate::client::{ClientAccountSet, CpiAccountSet};
 use crate::prelude::SyscallAccountCache;
 use crate::syscalls::SyscallInvoke;
 use crate::Result;
-use advancer::AdvanceArray;
+use advancer::Advance;
 use solana_program::account_info::AccountInfo;
 use solana_program::instruction::AccountMeta;
 use solana_program::pubkey::Pubkey;
@@ -74,7 +74,7 @@ impl<'a, 'info, A, DArg> AccountSetDecode<'a, 'info, DArg> for Option<A>
 where
     A: AccountSetDecode<'a, 'info, DArg>,
 {
-    fn decode_accounts(
+    unsafe fn decode_accounts(
         accounts: &mut &'a [AccountInfo<'info>],
         decode_input: DArg,
         syscalls: &mut impl SyscallInvoke<'info>,
@@ -82,10 +82,15 @@ where
         if accounts.is_empty() {
             Ok(None)
         } else if accounts[0].key == syscalls.current_program_id() {
-            let _program: &[_; 1] = accounts.try_advance_array()?;
+            let _program = accounts
+                .try_advance(1)
+                .expect("There is at least one account skip Option<None>");
             Ok(None)
         } else {
-            Ok(Some(A::decode_accounts(accounts, decode_input, syscalls)?))
+            // SAFETY: This function is unsafe too
+            Ok(Some(unsafe {
+                A::decode_accounts(accounts, decode_input, syscalls)?
+            }))
         }
     }
 }

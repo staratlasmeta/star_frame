@@ -45,7 +45,7 @@ struct SingleAccountSetFieldArgs {
     #[argument(presence)]
     skip_writable_account: bool,
     #[argument(presence)]
-    skip_has_program_account: bool,
+    skip_has_inner_type: bool,
     #[argument(presence)]
     skip_has_owner_program: bool,
     #[argument(presence)]

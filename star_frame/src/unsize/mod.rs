@@ -1,20 +1,22 @@
 pub mod impls;
 pub mod init;
-#[cfg(feature = "test_helpers")]
+#[cfg(all(feature = "test_helpers", not(target_os = "solana")))]
 mod test_helpers;
 #[cfg(test)]
 mod tests;
 pub mod wrapper;
 
-#[cfg(feature = "test_helpers")]
+#[cfg(all(feature = "test_helpers", not(target_os = "solana")))]
 pub use test_helpers::*;
 
 use crate::Result;
 pub use star_frame_proc::{unsized_impl, unsized_type};
 
-pub trait AsShared<'a> {
-    type Ref;
-    fn as_shared(&'a self) -> Self::Ref;
+pub trait AsShared {
+    type Ref<'a>
+    where
+        Self: 'a;
+    fn as_shared(&self) -> Self::Ref<'_>;
 }
 
 pub type UnsizedTypeMut<'a, T> = <T as UnsizedType>::Mut<'a>;
@@ -23,7 +25,7 @@ pub type UnsizedTypeMut<'a, T> = <T as UnsizedType>::Mut<'a>;
 /// TODO
 pub unsafe trait UnsizedType: 'static {
     type Ref<'a>;
-    type Mut<'a>: AsShared<'a, Ref = Self::Ref<'a>>;
+    type Mut<'a>: AsShared<Ref<'a> = Self::Ref<'a>>;
 
     type Owned;
 

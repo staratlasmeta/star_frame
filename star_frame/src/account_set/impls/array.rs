@@ -66,13 +66,16 @@ impl<'a, 'info, A, const N: usize, DArg> AccountSetDecode<'a, 'info, [DArg; N]> 
 where
     A: AccountSetDecode<'a, 'info, DArg>,
 {
-    fn decode_accounts(
+    unsafe fn decode_accounts(
         accounts: &mut &'a [AccountInfo<'info>],
         decode_input: [DArg; N],
         syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<Self> {
         let mut decode_input = decode_input.into_iter();
-        try_array_init(|_| A::decode_accounts(accounts, decode_input.next().unwrap(), syscalls))
+        // SAFETY: This function is unsafe too
+        try_array_init(|_| unsafe {
+            A::decode_accounts(accounts, decode_input.next().unwrap(), syscalls)
+        })
     }
 }
 impl<'a, 'info, A, const N: usize, DArg> AccountSetDecode<'a, 'info, (DArg,)> for [A; N]
@@ -80,24 +83,28 @@ where
     A: AccountSetDecode<'a, 'info, DArg>,
     DArg: Clone,
 {
-    fn decode_accounts(
+    unsafe fn decode_accounts(
         accounts: &mut &'a [AccountInfo<'info>],
         decode_input: (DArg,),
         syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<Self> {
-        try_array_init(|_| A::decode_accounts(accounts, decode_input.0.clone(), syscalls))
+        // SAFETY: This function is unsafe too
+        try_array_init(|_| unsafe {
+            A::decode_accounts(accounts, decode_input.0.clone(), syscalls)
+        })
     }
 }
 impl<'a, 'info, A, const N: usize> AccountSetDecode<'a, 'info, ()> for [A; N]
 where
     A: AccountSetDecode<'a, 'info, ()>,
 {
-    fn decode_accounts(
+    unsafe fn decode_accounts(
         accounts: &mut &'a [AccountInfo<'info>],
         decode_input: (),
         syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<Self> {
-        Self::decode_accounts(accounts, (decode_input,), syscalls)
+        // SAFETY: This function is unsafe too
+        unsafe { Self::decode_accounts(accounts, (decode_input,), syscalls) }
     }
 }
 

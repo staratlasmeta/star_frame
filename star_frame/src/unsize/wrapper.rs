@@ -397,7 +397,13 @@ where
         let mut data = &unsafe { change_ref_back(wrapper.r) }[..];
         let data_usize = data.as_ptr() as usize;
         let start_offset = start_usize - data_usize;
-        data.try_advance(start_offset)?;
+        data.try_advance(start_offset).with_context(|| {
+            format!(
+                "Failed to advance {} bytes to start offset during compute_len for type {}",
+                start_offset,
+                std::any::type_name::<U>()
+            )
+        })?;
         U::get_ref(&mut data)?;
         let end_usize = data.as_ptr() as usize;
         Ok(end_usize - start_usize)
@@ -412,12 +418,15 @@ pub struct StartPointer<T> {
     pub data: T,
 }
 
-impl<'a, T> AsShared<'a> for StartPointer<T>
+impl<T> AsShared for StartPointer<T>
 where
-    T: AsShared<'a>,
+    T: AsShared,
 {
-    type Ref = T::Ref;
-    fn as_shared(&'a self) -> Self::Ref {
+    type Ref<'b>
+        = T::Ref<'b>
+    where
+        Self: 'b;
+    fn as_shared(&self) -> Self::Ref<'_> {
         self.data.as_shared()
     }
 }

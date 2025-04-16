@@ -9,14 +9,12 @@ license.workspace = true
 repository.workspace = true
 
 [features]
-default = ["anchor", "codama"]
+default = ["codama"]
 verifier = []
-anchor = ["anchor-lang-idl-spec"]
 codama = ["codama-nodes", "hex"]
 
 [dependencies]
 # verifier
-anchor-lang-idl-spec = { workspace = true, optional = true }
 codama-nodes = { workspace = true, optional = true }
 hex = { workspace = true, optional = true }
 anyhow = { workspace = true }

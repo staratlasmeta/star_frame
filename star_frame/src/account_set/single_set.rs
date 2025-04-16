@@ -7,6 +7,7 @@ use crate::syscalls::SyscallCore;
 use anyhow::{anyhow, bail};
 use solana_program::account_info::AccountInfo;
 use solana_program::instruction::AccountMeta;
+use solana_program::msg;
 use solana_program::program_error::ProgramError;
 use solana_program::pubkey::Pubkey;
 use std::cell::{Ref, RefMut};
@@ -62,7 +63,7 @@ pub trait SingleAccountSet<'info>: AccountSet<'info> {
         if self.is_signer() {
             Ok(())
         } else {
-            Err(ProgramError::MissingRequiredSignature.into())
+            bail!("Account {} is not signed", self.key())
         }
     }
 
@@ -78,7 +79,7 @@ pub trait SingleAccountSet<'info>: AccountSet<'info> {
         if self.is_writable() {
             Ok(())
         } else {
-            Err(ProgramError::AccountBorrowFailed.into())
+            bail!("Account {} is not writable", self.key())
         }
     }
 
@@ -94,7 +95,11 @@ pub trait SingleAccountSet<'info>: AccountSet<'info> {
         if self.key() == expected {
             Ok(())
         } else {
-            Err(ProgramError::InvalidAccountData.into())
+            bail!(
+                "Account key {} does not match expected public key {}",
+                self.key(),
+                expected
+            )
         }
     }
 
@@ -154,7 +159,9 @@ pub trait CanCloseAccount<'info>: SingleAccountSet<'info> {
 
 impl<'info, T> CanCloseAccount<'info> for T where T: SingleAccountSet<'info> {}
 
-pub trait CanModifyRent<'info>: SingleAccountSet<'info> {
+pub trait CanModifyRent<'info> {
+    fn account_to_modify(&self) -> &AccountInfo<'info>;
+
     /// Normalizes the rent of an account if data size is changed.
     /// Assumes `Self` is owned by this program and funder is a System account
     ///
@@ -164,16 +171,20 @@ pub trait CanModifyRent<'info>: SingleAccountSet<'info> {
         funder: &F,
         syscalls: &impl SyscallInvoke<'info>,
     ) -> Result<()> {
+        let account = self.account_to_modify();
+        msg!("Normalizing rent for {}", account.key());
         let rent = syscalls.get_rent()?;
-        let lamports = **self.account_info().try_borrow_lamports()?;
-        let data_len = self.account_info().data_len();
+        let lamports = **account.try_borrow_lamports()?;
+        let data_len = account.data_len();
         let rent_lamports = rent.minimum_balance(data_len);
         match rent_lamports.cmp(&lamports) {
             Ordering::Equal => Ok(()),
             Ordering::Greater => {
                 if lamports == 0 {
+                    msg!("Lamport is 0, skipping");
                     return Ok(());
                 }
+                msg!("Normalizing rent greater!");
                 let transfer_amount = rent_lamports - lamports;
                 let cpi = System::cpi(
                     &system_program::Transfer {
@@ -181,7 +192,7 @@ pub trait CanModifyRent<'info>: SingleAccountSet<'info> {
                     },
                     system_program::TransferCpiAccounts {
                         funder: funder.account_info_cloned(),
-                        recipient: self.account_info_cloned(),
+                        recipient: account.clone(),
                     },
                 )?;
                 match funder.signer_seeds() {
@@ -191,8 +202,9 @@ pub trait CanModifyRent<'info>: SingleAccountSet<'info> {
                 Ok(())
             }
             Ordering::Less => {
+                msg!("Lamports is less, refunding!");
                 let transfer_amount = lamports - rent_lamports;
-                **self.account_info().try_borrow_mut_lamports()? -= transfer_amount;
+                **account.try_borrow_mut_lamports()? -= transfer_amount;
                 **funder.account_info().try_borrow_mut_lamports()? += transfer_amount;
                 Ok(())
             }
@@ -205,12 +217,13 @@ pub trait CanModifyRent<'info>: SingleAccountSet<'info> {
     /// If the account has 0 lamports (i.e., it is set to be closed), this will do nothing.
     fn refund_rent<F: WritableAccount<'info>>(
         &self,
-        funder: &F,
+        recipient: &F,
         syscalls: &impl SyscallCore,
     ) -> Result<()> {
+        let account = self.account_to_modify();
         let rent = syscalls.get_rent()?;
-        let lamports = **self.account_info().try_borrow_lamports()?;
-        let data_len = self.account_info().data_len();
+        let lamports = **account.try_borrow_lamports()?;
+        let data_len = account.data_len();
         let rent_lamports = rent.minimum_balance(data_len);
         match rent_lamports.cmp(&lamports) {
             Ordering::Equal => Ok(()),
@@ -218,7 +231,7 @@ pub trait CanModifyRent<'info>: SingleAccountSet<'info> {
                 if lamports > 0 {
                     Err(anyhow!(
                         "Funder must be Signer to increase rent on {}",
-                        self.key()
+                        account.key()
                     ))
                 } else {
                     Ok(())
@@ -226,8 +239,8 @@ pub trait CanModifyRent<'info>: SingleAccountSet<'info> {
             }
             Ordering::Less => {
                 let transfer_amount = lamports - rent_lamports;
-                **self.account_info().try_borrow_mut_lamports()? -= transfer_amount;
-                **funder.account_info().try_borrow_mut_lamports()? += transfer_amount;
+                **account.try_borrow_mut_lamports()? -= transfer_amount;
+                **recipient.account_info().try_borrow_mut_lamports()? += transfer_amount;
                 Ok(())
             }
         }
@@ -239,15 +252,16 @@ pub trait CanModifyRent<'info>: SingleAccountSet<'info> {
         #[cfg(feature = "cleanup_rent_warning")]
         {
             use std::cmp::Ordering;
-            if self.is_writable() {
+            let account = self.account_to_modify();
+            if account.is_writable() {
                 let rent = sys_calls.get_rent()?;
-                let lamports = self.account_info().lamports();
-                let data_len = self.account_info().data_len();
+                let lamports = **account.try_borrow_lamports()?;
+                let data_len = account.data_len();
                 let rent_lamports = rent.minimum_balance(data_len);
                 if rent_lamports.cmp(&lamports) == Ordering::Less {
                     solana_program::msg!(
                         "{} was left with more lamports than required by rent",
-                        self.key()
+                        account.key()
                     );
                 }
             }
@@ -256,9 +270,17 @@ pub trait CanModifyRent<'info>: SingleAccountSet<'info> {
     }
 }
 
-impl<'info, T> CanModifyRent<'info> for T where T: SingleAccountSet<'info> {}
+impl<'info, T> CanModifyRent<'info> for T
+where
+    T: SingleAccountSet<'info>,
+{
+    fn account_to_modify(&self) -> &AccountInfo<'info> {
+        self.account_info()
+    }
+}
 
-pub trait CanSystemCreateAccount<'info>: SingleAccountSet<'info> {
+pub trait CanSystemCreateAccount<'info> {
+    fn account_to_create(&self) -> &AccountInfo<'info>;
     /// Creates an account using the system program
     /// Assumes `Self` is owned by the System program and funder is a System account
     fn system_create_account<F: WritableAccount<'info> + SignedAccount<'info>>(
@@ -269,10 +291,11 @@ pub trait CanSystemCreateAccount<'info>: SingleAccountSet<'info> {
         account_seeds: &Option<Vec<&[u8]>>,
         syscalls: &impl SyscallInvoke<'info>,
     ) -> Result<()> {
-        if self.owner() != &System::ID {
+        let account = self.account_to_create();
+        if account.owner() != &System::ID {
             bail!(ProgramError::InvalidAccountOwner);
         }
-        let current_lamports = **self.account_info().try_borrow_lamports()?;
+        let current_lamports = **account.try_borrow_lamports()?;
         let exempt_lamports = syscalls.get_rent()?.minimum_balance(space);
 
         if current_lamports == 0 {
@@ -291,7 +314,7 @@ pub trait CanSystemCreateAccount<'info>: SingleAccountSet<'info> {
                 },
                 system_program::CreateAccountCpiAccounts {
                     funder: funder.account_info_cloned(),
-                    new_account: self.account_info_cloned(),
+                    new_account: account.clone(),
                 },
             )?
             .invoke_signed(seeds, syscalls)?;
@@ -304,7 +327,7 @@ pub trait CanSystemCreateAccount<'info>: SingleAccountSet<'info> {
                     },
                     system_program::TransferCpiAccounts {
                         funder: funder.account_info_cloned(),
-                        recipient: self.account_info_cloned(),
+                        recipient: account.clone(),
                     },
                 )?;
                 match funder.signer_seeds() {
@@ -321,14 +344,14 @@ pub trait CanSystemCreateAccount<'info>: SingleAccountSet<'info> {
                     space: space as u64,
                 },
                 system_program::AllocateCpiAccounts {
-                    account: self.account_info_cloned(),
+                    account: account.clone(),
                 },
             )?
             .invoke_signed(account_seeds, syscalls)?;
             System::cpi(
                 &system_program::Assign { owner },
                 system_program::AssignCpiAccounts {
-                    account: self.account_info_cloned(),
+                    account: account.clone(),
                 },
             )?
             .invoke_signed(account_seeds, syscalls)?;
@@ -337,4 +360,11 @@ pub trait CanSystemCreateAccount<'info>: SingleAccountSet<'info> {
     }
 }
 
-impl<'info, T> CanSystemCreateAccount<'info> for T where T: SingleAccountSet<'info> {}
+impl<'info, T> CanSystemCreateAccount<'info> for T
+where
+    T: SingleAccountSet<'info>,
+{
+    fn account_to_create(&self) -> &AccountInfo<'info> {
+        self.account_info()
+    }
+}

@@ -1,8 +1,8 @@
 pub mod macro_prelude {
     pub use crate::account_set::{
         internal_reverse::{_account_set_cleanup_reverse, _account_set_validate_reverse},
-        AccountSet, AccountSetValidate, CanInitAccount, CanInitSeeds, GetSeeds, HasOwnerProgram,
-        HasProgramAccount, HasSeeds, ProgramAccount, Seed, SignedAccount, SingleAccountSet,
+        AccountSet, AccountSetValidate, CanInitAccount, CanInitSeeds, GetSeeds, HasInnerType,
+        HasOwnerProgram, HasSeeds, ProgramAccount, Seed, SignedAccount, SingleAccountSet,
         SingleSetMeta, WritableAccount,
     };
     pub use crate::align1::Align1;
@@ -37,7 +37,9 @@ pub mod macro_prelude {
     };
 
     pub use advancer::{Advance, AdvanceArray};
-    pub use anyhow::bail;
+    pub use anyhow::{self, bail};
+
+    pub use core::any::type_name;
 
     pub use solana_program::{
         account_info::AccountInfo, instruction::AccountMeta, msg, pubkey::Pubkey,

@@ -51,3 +51,9 @@ pub use crate::idl::{
 pub use star_frame_proc::{InstructionToIdl, TypeToIdl};
 
 pub use std::fmt::Debug;
+
+#[cfg(feature = "test_helpers")]
+pub use crate::{
+    assert_eq_with_shared, assert_with_shared,
+    unsize::{NewByteSet, TestByteSet},
+};

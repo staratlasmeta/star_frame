@@ -2,8 +2,8 @@ use crate::unsize::{account, UnsizedTypeArgs};
 use crate::util::{
     generate_fields_are_trait, get_doc_attributes, get_field_idents, get_field_types,
     get_field_vis, new_generic, new_ident, new_lifetime, phantom_generics_ident,
-    phantom_generics_type, reject_attributes, restrict_attributes, strip_inner_attributes,
-    BetterGenerics, CombineGenerics, Paths,
+    phantom_generics_type, pretty_path, reject_attributes, restrict_attributes,
+    strip_inner_attributes, BetterGenerics, CombineGenerics, Paths,
 };
 use heck::ToUpperCamelCase;
 use itertools::Itertools;
@@ -356,13 +356,13 @@ impl UnsizedStructContext {
     }
 
     fn sized_struct(&self) -> Option<ItemStruct> {
-        Paths!(prelude, debug, bytemuck, copy, clone, partial_eq, eq);
+        Paths!(prelude, bytemuck);
         UnsizedStructContext!(self => vis, sized_ident, sized_fields, phantom_generic_ident, phantom_generic_type);
         some_or_return!(sized_ident);
         let additional_attributes = self.args.sized_attributes.attributes.iter();
 
         let sized_bytemuck_derives = self.generics.params.is_empty().then(
-            || quote!(#copy, #clone, #debug, #partial_eq, #eq, #bytemuck::CheckedBitPattern, #bytemuck::NoUninit, #bytemuck::Zeroable),
+            || quote!(#bytemuck::CheckedBitPattern, #bytemuck::NoUninit, #bytemuck::Zeroable),
         );
         let (impl_gen, where_clause) = self.split_for_declaration(false);
         let phantom_field = phantom_generic_ident.as_ref().map(|ident| {
@@ -373,7 +373,6 @@ impl UnsizedStructContext {
         });
         let sized_struct: ItemStruct = parse_quote! {
             #(#[#additional_attributes])*
-            // #[#prelude::derivative(#copy, #clone, #debug, #partial_eq, #eq)]
             #[derive(#prelude::Align1, #sized_bytemuck_derives)]
             #[repr(C, packed)]
             #vis struct #sized_ident #impl_gen #where_clause {
@@ -389,9 +388,6 @@ impl UnsizedStructContext {
         Paths!(debug, copy, clone, partial_eq, eq);
         UnsizedStructContext!(self => sized_ident, sized_field_idents, sized_field_types);
         some_or_return!(sized_ident);
-        if self.generics.params.is_empty() {
-            return None;
-        }
         let (impl_generics, type_generics, _) = self.generics.split_for_impl();
 
         let lt = new_lifetime(&self.generics, None);
@@ -469,7 +465,7 @@ impl UnsizedStructContext {
             parse_quote!(#bytemuck::NoUninit + #bytemuck::Zeroable + #bytemuck::CheckedBitPattern),
         );
 
-        let bytemuck_print = bytemuck.to_string().replace(" :: ", "::");
+        let bytemuck_print = pretty_path(&bytemuck);
         let zeroable_bit_safety = format!("# Safety\nThis is safe because all fields are [`{bytemuck_print}::CheckedBitPattern::Bits`], which requires [`{bytemuck_print}::AnyBitPattern`], which requires [`{bytemuck_print}::Zeroable`]");
         let any_bit_pattern_safety = format!("# Safety\nThis is safe because all fields are [`{bytemuck_print}::CheckedBitPattern::Bits`], which requires [`{bytemuck_print}::AnyBitPattern`]");
         let no_uninit_safety = format!("# Safety\nThis is safe because the struct is `#[repr(C, packed)` (no padding bytes) and all fields are [`{bytemuck_print}::NoUninit`]");
@@ -502,6 +498,8 @@ impl UnsizedStructContext {
 
             #[repr(C, packed)]
             #[allow(clippy::pub_underscore_fields)]
+            #[doc = "`bytemuck`-generated struct for internal purposes only."]
+            #[allow(missing_docs)]
             #vis struct #bit_ident #struct_generics #where_clause {
                 #(#vis #sized_field_idents: #bit_field_types),*
             }
@@ -582,15 +580,21 @@ impl UnsizedStructContext {
 
     fn as_shared_impl(&self) -> TokenStream {
         Paths!(prelude);
-        UnsizedStructContext!(self => with_sized_idents, with_sized_types, mut_type, rm_lt, ref_type, ref_ident);
+        UnsizedStructContext!(self => with_sized_idents, with_sized_types, mut_ident, rm_lt, ref_type, ref_ident);
 
-        let (impl_gen, _, where_clause) = self.ref_mut_generics.split_for_impl();
+        let underscore_gen = self
+            .generics
+            .combine::<BetterGenerics>(&parse_quote!([<'_>]));
+        let underscore_ty_gen = underscore_gen.split_for_impl().1;
+
+        let (impl_gen, _, where_clause) = self.generics.split_for_impl();
 
         quote! {
             #[automatically_derived]
-            impl #impl_gen #prelude::AsShared<'a> for #mut_type #where_clause {
-                type Ref = #ref_type;
-                fn as_shared(&#rm_lt self) -> Self::Ref {
+            impl #impl_gen #prelude::AsShared for #mut_ident #underscore_ty_gen #where_clause {
+                type Ref<#rm_lt> = #ref_type
+                    where Self: #rm_lt;
+                fn as_shared(&self) -> Self::Ref<'_> {
                     #ref_ident {
                         #(#with_sized_idents: <#with_sized_types as #prelude::UnsizedType>::mut_as_ref(&self.#with_sized_idents),)*
                     }
@@ -739,8 +743,7 @@ impl UnsizedStructContext {
             #[allow(trivial_bounds)]
             #[automatically_derived]
             unsafe impl #default_init_impl #unsized_init for #struct_type #default_init_where {
-                const INIT_BYTES: usize = #(<#with_sized_types as #unsized_init>::INIT_BYTES)+*;
-
+                const INIT_BYTES: usize = 0 #(+ <#with_sized_types as #unsized_init>::INIT_BYTES)*;
                 unsafe fn init(
                     bytes: &mut &mut [u8],
                     arg: #prelude::DefaultInit,
@@ -805,7 +808,7 @@ impl UnsizedStructContext {
             #[allow(trivial_bounds)]
             #[automatically_derived]
             unsafe impl #init_impl_impl_generics #prelude::UnsizedInit<#init_struct_type> for #struct_type #init_impl_where_clause {
-                const INIT_BYTES: usize = #(<#with_sized_types as #prelude::UnsizedInit<#init_generic_idents>>::INIT_BYTES)+*;
+                const INIT_BYTES: usize = 0 #(+ <#with_sized_types as #prelude::UnsizedInit<#init_generic_idents>>::INIT_BYTES)*;
 
                 unsafe fn init(
                     bytes: &mut &mut [u8],

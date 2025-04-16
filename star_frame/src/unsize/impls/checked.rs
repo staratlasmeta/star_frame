@@ -53,12 +53,15 @@ where
     }
 }
 
-impl<'a, T> AsShared<'a> for CheckedMut<'a, T>
+impl<T> AsShared for CheckedMut<'_, T>
 where
     T: CheckedBitPattern + NoUninit + Align1,
 {
-    type Ref = CheckedRef<'a, T>;
-    fn as_shared(&'a self) -> Self::Ref {
+    type Ref<'a>
+        = CheckedRef<'a, T>
+    where
+        Self: 'a;
+    fn as_shared(&self) -> Self::Ref<'_> {
         T::mut_as_ref(self)
     }
 }
@@ -77,17 +80,29 @@ where
     }
 
     fn get_ref<'a>(data: &mut &'a [u8]) -> Result<Self::Ref<'a>> {
-        try_from_bytes(data.try_advance(size_of::<T>())?)
-            .map(std::ptr::from_ref)
-            .map(|r| CheckedRef(r, PhantomData))
-            .context("Invalid data for type")
+        try_from_bytes(data.try_advance(size_of::<T>()).with_context(|| {
+            format!(
+                "Failed to read {} bytes for checked type {}",
+                size_of::<T>(),
+                std::any::type_name::<T>()
+            )
+        })?)
+        .map(std::ptr::from_ref)
+        .map(|r| CheckedRef(r, PhantomData))
+        .context("Invalid data for type")
     }
 
     fn get_mut<'a>(data: &mut &'a mut [u8]) -> Result<Self::Mut<'a>> {
-        try_from_bytes_mut(data.try_advance(size_of::<T>())?)
-            .map(std::ptr::from_mut)
-            .map(|r| CheckedMut(r, PhantomData))
-            .context("Invalid data for type")
+        try_from_bytes_mut(data.try_advance(size_of::<T>()).with_context(|| {
+            format!(
+                "Failed to read {} mutable bytes for checked type {}",
+                size_of::<T>(),
+                std::any::type_name::<T>()
+            )
+        })?)
+        .map(std::ptr::from_mut)
+        .map(|r| CheckedMut(r, PhantomData))
+        .context("Invalid data for type")
     }
 
     fn owned_from_ref(r: Self::Ref<'_>) -> Result<Self::Owned> {
@@ -118,7 +133,13 @@ where
 
     fn from_owned(owned: Self::Owned, bytes: &mut &mut [u8]) -> Result<usize> {
         bytes
-            .try_advance(size_of::<T>())?
+            .try_advance(size_of::<T>())
+            .with_context(|| {
+                format!(
+                    "Failed to advance bytes during `FromOwned` of {}",
+                    std::any::type_name::<Self>()
+                )
+            })?
             .copy_from_slice(bytemuck::bytes_of(&owned));
         Ok(size_of::<T>())
     }
@@ -132,7 +153,13 @@ where
 
     unsafe fn init(bytes: &mut &mut [u8], arg: T) -> Result<()> {
         bytes
-            .try_advance(size_of::<T>())?
+            .try_advance(size_of::<T>())
+            .with_context(|| {
+                format!(
+                    "Failed to advance bytes during initialization of {}",
+                    std::any::type_name::<T>()
+                )
+            })?
             .copy_from_slice(bytemuck::bytes_of(&arg));
         Ok(())
     }
@@ -146,7 +173,13 @@ where
 
     unsafe fn init(bytes: &mut &mut [u8], _arg: DefaultInit) -> Result<()> {
         bytes
-            .try_advance(size_of::<T>())?
+            .try_advance(size_of::<T>())
+            .with_context(|| {
+                format!(
+                    "Failed to advance bytes during default initialization of {}",
+                    std::any::type_name::<Self>()
+                )
+            })?
             .copy_from_slice(bytemuck::bytes_of(&T::default_init()));
         Ok(())
     }
