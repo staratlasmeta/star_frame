@@ -224,6 +224,21 @@ pub mod state {
         pub(crate)  TokenAccount<'info>,
     );
 
+    // TODO: should AssociatedTokenAccount's inner type be TokenAccount or AssociatedTokenAccount?
+    // Having both is sorta okay, but if for example the account set was Option<AssociatedTokenAccount>, optional_key_for would
+    // only return TokenAccount since thats the inner type right now.
+    impl GetKeyFor<AssociatedTokenAccount<'static>> for AssociatedTokenAccount<'_> {
+        fn key_for(&self) -> KeyFor<AssociatedTokenAccount<'static>> {
+            KeyFor::new(*self.key())
+        }
+    }
+
+    impl GetOptionalKeyFor<AssociatedTokenAccount<'static>> for AssociatedTokenAccount<'_> {
+        fn optional_key_for(&self) -> OptionalKeyFor<AssociatedTokenAccount<'static>> {
+            self.key_for().into()
+        }
+    }
+
     impl AssociatedTokenAccount<'_> {
         /// Validates that the given account is an associated token account.
         pub fn validate_ata(&self, validate_ata: ValidateAta) -> Result<()> {

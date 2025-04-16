@@ -23,12 +23,16 @@ use std::cell::Ref;
     }
 )]
 pub struct MintAccount<'info> {
-    #[single_account_set(skip_can_init_account, skip_has_owner_program)]
+    #[single_account_set(skip_can_init_account, skip_has_owner_program, skip_has_inner_type)]
     info: AccountInfo<'info>,
 }
 
 impl HasOwnerProgram for MintAccount<'_> {
     type OwnerProgram = Token;
+}
+
+impl HasInnerType for MintAccount<'_> {
+    type Inner = MintAccount<'static>;
 }
 
 /// See [`spl_token::state::Mint`].
@@ -246,12 +250,16 @@ where
     }
 )]
 pub struct TokenAccount<'info> {
-    #[single_account_set(skip_can_init_account, skip_has_owner_program)]
+    #[single_account_set(skip_can_init_account, skip_has_owner_program, skip_has_inner_type)]
     info: AccountInfo<'info>,
 }
 
 impl HasOwnerProgram for TokenAccount<'_> {
     type OwnerProgram = Token;
+}
+
+impl HasInnerType for TokenAccount<'_> {
+    type Inner = TokenAccount<'static>;
 }
 
 /// See [`spl_token::state::AccountState`].

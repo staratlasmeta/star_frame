@@ -315,16 +315,16 @@ pub(super) fn derive_account_set_impl_struct(
             }
         });
 
-        let has_program_account = args.skip_has_program_account.not().then(|| {
+        let has_program_account = args.skip_has_inner_type.not().then(|| {
             let mut program_generics = single_generics.clone();
             let program_where = program_generics.make_where_clause();
             program_where.predicates.push(parse_quote! {
-                #field_ty: #prelude::HasProgramAccount
+                #field_ty: #prelude::HasInnerType
             });
             quote! {
                 #[automatically_derived]
-                impl #sg_impl #prelude::HasProgramAccount for #ident #ty_generics #program_where {
-                    type ProgramAccount = <#field_ty as #prelude::HasProgramAccount>::ProgramAccount;
+                impl #sg_impl #prelude::HasInnerType for #ident #ty_generics #program_where {
+                    type Inner = <#field_ty as #prelude::HasInnerType>::Inner;
                 }
             }
         });

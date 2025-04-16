@@ -1,10 +1,11 @@
 use crate::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
+use bytemuck::{cast, cast_mut, cast_ref};
 use derive_where::DeriveWhere;
 use std::fmt::{Display, Formatter};
 use std::marker::PhantomData;
 
-/// Allows setting a [`KeyFor`] using other types.
+/// Allows setting a [`KeyFor`] or [`OptionalKeyFor`] using other types.
 pub trait SetKeyFor<T: ?Sized, I> {
     /// Sets the contained pubkey.
     fn set_pubkey(&mut self, pubkey: I);
@@ -31,6 +32,15 @@ impl<T: ?Sized> Display for KeyFor<T> {
     }
 }
 impl<T: ?Sized> KeyFor<T> {
+    /// Creates a new [`KeyFor`] for any `T`.
+    #[must_use]
+    pub fn new(pubkey: Pubkey) -> Self {
+        Self {
+            pubkey,
+            phantom: PhantomData,
+        }
+    }
+
     /// Gets the contained pubkey.
     #[must_use]
     pub fn pubkey(&self) -> &Pubkey {
@@ -43,32 +53,40 @@ impl<T: ?Sized> KeyFor<T> {
     }
 }
 
-impl<'info, T: HasProgramAccount + SingleAccountSet<'info>> SetKeyFor<T::ProgramAccount, &T>
-    for KeyFor<T::ProgramAccount>
+impl<'info, T: HasInnerType + SingleAccountSet<'info>> SetKeyFor<T::Inner, &T>
+    for KeyFor<T::Inner>
 {
     fn set_pubkey(&mut self, pubkey: &T) {
         self.pubkey = *pubkey.key();
     }
 }
 
-impl<'info, T: HasProgramAccount + SingleAccountSet<'info>> GetKeyFor<T::ProgramAccount> for T {
-    fn key_for(&self) -> KeyFor<T::ProgramAccount> {
-        (*self.key()).into()
+impl<'info, T: HasInnerType + SingleAccountSet<'info>> GetKeyFor<T::Inner> for T {
+    fn key_for(&self) -> KeyFor<T::Inner> {
+        KeyFor::new(*self.key())
     }
 }
 
-impl<'info, T: HasProgramAccount + SingleAccountSet<'info>> PartialEq<T> for KeyFor<T> {
-    fn eq(&self, other: &T) -> bool {
-        self.pubkey == *(other.key())
+impl<T: ?Sized> PartialEq<OptionalKeyFor<T>> for KeyFor<T> {
+    fn eq(&self, other: &OptionalKeyFor<T>) -> bool {
+        self.pubkey() == other.as_inner()
+    }
+}
+impl<'a, T: ?Sized + 'static> From<&'a mut OptionalKeyFor<T>> for &'a mut KeyFor<T> {
+    fn from(key_for: &'a mut OptionalKeyFor<T>) -> Self {
+        cast_mut(key_for)
     }
 }
 
-impl<T: ?Sized> From<Pubkey> for KeyFor<T> {
-    fn from(pubkey: Pubkey) -> Self {
-        Self {
-            pubkey,
-            phantom: PhantomData,
-        }
+impl<'a, T: ?Sized + 'static> From<&'a OptionalKeyFor<T>> for &'a KeyFor<T> {
+    fn from(key_for: &'a OptionalKeyFor<T>) -> Self {
+        cast_ref(key_for)
+    }
+}
+
+impl<T: 'static + ?Sized> From<OptionalKeyFor<T>> for KeyFor<T> {
+    fn from(key: OptionalKeyFor<T>) -> Self {
+        cast(key)
     }
 }
 

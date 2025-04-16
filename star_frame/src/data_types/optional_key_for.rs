@@ -5,12 +5,6 @@ use derive_where::DeriveWhere;
 use std::fmt::{Display, Formatter};
 use std::marker::PhantomData;
 
-/// Allows setting an [`OptionalKeyFor`] using other types.
-pub trait SetOptionalKeyFor<T: ?Sized, I> {
-    /// Sets the contained pubkey.
-    fn set_pubkey(&mut self, pubkey: Option<I>);
-}
-
 /// Allows getting an [`OptionalKeyFor`] from other types.
 pub trait GetOptionalKeyFor<T: ?Sized> {
     /// Gets the contained `OptionalKeyFor`.
@@ -47,6 +41,16 @@ impl<T: ?Sized> OptionalKeyFor<T> {
         pubkey: solana_program::system_program::id(),
         phantom: PhantomData,
     };
+
+    /// Creates a new [`OptionalKeyFor`] for any `T`.
+    #[must_use]
+    pub fn new(pubkey: Pubkey) -> Self {
+        Self {
+            pubkey,
+            phantom: PhantomData,
+        }
+    }
+
     /// Gets the contained pub
     #[must_use]
     pub fn pubkey(&self) -> Option<&Pubkey> {
@@ -67,39 +71,36 @@ impl<T: ?Sized> OptionalKeyFor<T> {
     pub fn set_pubkey_direct(&mut self, pubkey: Option<Pubkey>) {
         self.pubkey = pubkey.unwrap_or_else(solana_program::system_program::id);
     }
+}
 
-    /// Turns a ref to a [`KeyFor`] into a ref to a [`OptionalKeyFor`].
-    #[must_use]
-    pub fn from_key_for_ref(key_for: &KeyFor<T>) -> &Self
-    where
-        T: 'static,
-    {
-        cast_ref(key_for)
-    }
-
-    /// Turns a mut ref to a [`KeyFor`] into a mut ref to a [`OptionalKeyFor`].
-    #[must_use]
-    pub fn from_key_for_mut(key_for: &mut KeyFor<T>) -> &mut Self
-    where
-        T: 'static,
-    {
-        cast_mut(key_for)
+impl<'info, T: HasInnerType + SingleAccountSet<'info>> SetKeyFor<T::Inner, &T>
+    for OptionalKeyFor<T::Inner>
+{
+    fn set_pubkey(&mut self, pubkey: &T) {
+        self.pubkey = *(pubkey.key());
     }
 }
 
-impl<'info, T: HasProgramAccount + SingleAccountSet<'info>> SetOptionalKeyFor<T::ProgramAccount, &T>
-    for OptionalKeyFor<T::ProgramAccount>
+impl<'info, T: HasInnerType + SingleAccountSet<'info>> SetKeyFor<T::Inner, &Option<T>>
+    for OptionalKeyFor<T::Inner>
 {
-    fn set_pubkey(&mut self, pubkey: Option<&T>) {
-        self.pubkey = pubkey.map_or_else(solana_program::system_program::id, |d| *(d.key()));
+    fn set_pubkey(&mut self, pubkey: &Option<T>) {
+        self.pubkey = pubkey
+            .as_ref()
+            .map_or_else(solana_program::system_program::id, |acc| *(acc.key()));
     }
 }
 
-impl<'info, T: HasProgramAccount + SingleAccountSet<'info>> GetOptionalKeyFor<T::ProgramAccount>
-    for T
-{
-    fn optional_key_for(&self) -> OptionalKeyFor<T::ProgramAccount> {
-        (*self.key()).into()
+impl<'info, T: HasInnerType + SingleAccountSet<'info>> GetOptionalKeyFor<T::Inner> for T {
+    fn optional_key_for(&self) -> OptionalKeyFor<T::Inner> {
+        self.key_for().into()
+    }
+}
+
+impl<'info, T: HasInnerType + SingleAccountSet<'info>> GetOptionalKeyFor<T::Inner> for Option<T> {
+    fn optional_key_for(&self) -> OptionalKeyFor<T::Inner> {
+        self.as_ref()
+            .map_or(OptionalKeyFor::NONE, GetOptionalKeyFor::optional_key_for)
     }
 }
 
@@ -109,24 +110,15 @@ impl<T: ?Sized> PartialEq<KeyFor<T>> for OptionalKeyFor<T> {
     }
 }
 
-impl<T: ?Sized> PartialEq<OptionalKeyFor<T>> for KeyFor<T> {
-    fn eq(&self, other: &OptionalKeyFor<T>) -> bool {
-        *self.pubkey() == other.pubkey
+impl<'a, T: ?Sized + 'static> From<&'a mut KeyFor<T>> for &'a mut OptionalKeyFor<T> {
+    fn from(key_for: &'a mut KeyFor<T>) -> Self {
+        cast_mut(key_for)
     }
 }
 
-impl<'info, T: HasProgramAccount + SingleAccountSet<'info>> PartialEq<T> for OptionalKeyFor<T> {
-    fn eq(&self, other: &T) -> bool {
-        self.pubkey == *(other.key())
-    }
-}
-
-impl<T: ?Sized> From<Pubkey> for OptionalKeyFor<T> {
-    fn from(pubkey: Pubkey) -> Self {
-        Self {
-            pubkey,
-            phantom: PhantomData,
-        }
+impl<'a, T: ?Sized + 'static> From<&'a KeyFor<T>> for &'a OptionalKeyFor<T> {
+    fn from(key_for: &'a KeyFor<T>) -> Self {
+        cast_ref(key_for)
     }
 }
 

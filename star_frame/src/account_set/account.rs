@@ -70,7 +70,7 @@ pub struct CloseAccount<T>(pub T);
 )]
 pub struct Account<'info, T: ProgramAccount + UnsizedType + ?Sized> {
     #[single_account_set(
-        skip_has_program_account,
+        skip_has_inner_type,
         skip_can_init_account,
         skip_has_seeds,
         skip_has_owner_program
@@ -266,8 +266,8 @@ pub mod discriminant {
 }
 use discriminant::AccountDiscriminant;
 
-impl<T: ProgramAccount + UnsizedType + ?Sized> HasProgramAccount for Account<'_, T> {
-    type ProgramAccount = T;
+impl<T: ProgramAccount + UnsizedType + ?Sized> HasInnerType for Account<'_, T> {
+    type Inner = T;
 }
 
 impl<T: ProgramAccount + UnsizedType + ?Sized> HasOwnerProgram for Account<'_, T> {
