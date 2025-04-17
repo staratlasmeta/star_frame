@@ -122,7 +122,7 @@ where
         unsafe { SharedWrapper::<T>::new(self.test_data) }
     }
 
-    pub fn data_mut(&self) -> Result<MutWrapper<'a, '_, T::Mut<'a>, T, TestUnderlyingData<'_>>> {
+    pub fn data_mut(&self) -> Result<MutWrapper<'a, '_, T, TestUnderlyingData<'_>>> {
         unsafe { MutWrapper::new(self.test_data) }
     }
 
