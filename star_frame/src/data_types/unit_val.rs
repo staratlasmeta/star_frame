@@ -209,23 +209,24 @@ macro_rules! create_unit_system {
     };
 
     ($vis:vis struct $ident:ident<$($unit:ident),* $(,)?>) => {
-        #[derive(
-            $crate::serde::Serialize,
-            $crate::serde::Deserialize,
-            $crate::align1::Align1,
-        )]
-        #[serde(bound = "")]
-        #[$crate::derive_where::derive_where(Default, Debug, PartialEq, Eq)]
-        #[repr(transparent)]
-        $vis struct $ident<$($unit,)*>(::std::marker::PhantomData<($($unit,)*)>);
-        impl<$($unit,)*> Copy for $ident<$($unit,)*> {}
-        impl<$($unit,)*> Clone for $ident<$($unit,)*> {
-            fn clone(&self) -> Self {
-                *self
-            }
-        }
-
         $crate::paste::paste!{
+            #[allow(unused_imports)]
+            mod [<_serde_ $ident:snake>] {
+                pub(super) use $crate::serde as _serde_unit_system;
+            }
+            #[allow(unused_imports)]
+            use [<_serde_ $ident:snake>]::*;
+            #[derive(
+                $crate::serde::Serialize,
+                $crate::serde::Deserialize,
+                $crate::align1::Align1,
+                $crate::derive_where::DeriveWhere,
+            )]
+            #[serde(bound = "", crate = "_serde_unit_system")]
+            #[derive_where(Copy, Clone, Default, Debug, PartialEq, Eq)]
+            #[repr(transparent)]
+            $vis struct $ident<$($unit,)*>(::std::marker::PhantomData<($($unit,)*)>);
+
             unsafe impl<$($unit,)*> $crate::bytemuck::Zeroable for $ident<$($unit,)*>
             where
                 $($unit: $crate::typenum::Integer,)*
@@ -245,6 +246,7 @@ macro_rules! create_unit_system {
                 )*
             {
                 type Output = $ident<$([<$unit 1>]::Output,)*>;
+                /// This trait implementation is solely used as trait bounds in `UnitVal` and the method isn't actually called
                 fn add(
                     self,
                     _rhs: $ident<$([<$unit 2>],)*>,
@@ -263,6 +265,7 @@ macro_rules! create_unit_system {
                 )*
             {
                 type Output = $ident<$([<$unit 1>]::Output,)*>;
+                /// This trait implementation is solely used as trait bounds in `UnitVal` and the method isn't actually called
                 fn sub(
                     self,
                     _rhs: $ident<$([<$unit 2>],)*>,
@@ -279,6 +282,7 @@ macro_rules! create_unit_system {
                 )*
             {
                 type Output = $ident<$($unit::Output,)*>;
+                /// This trait implementation is solely used as trait bounds in `UnitVal` and the method isn't actually called
                 fn mul(self, _rhs: Value) -> Self::Output {
                     ::std::panic!("Not implemented")
                 }
@@ -292,6 +296,7 @@ macro_rules! create_unit_system {
                 )*
             {
                 type Output = $ident<$($unit::Output,)*>;
+                /// This trait implementation is solely used as trait bounds in `UnitVal` and the method isn't actually called
                 fn div(self, _rhs: Value) -> Self::Output {
                     ::std::panic!("Not implemented")
                 }
@@ -305,6 +310,7 @@ macro_rules! create_unit_system {
                 )*
             {
                 type Output = $ident<$($unit::Output,)*>;
+                /// This trait implementation is solely used as trait bounds in `UnitVal` and the method isn't actually called
                 fn rem(self, _rhs: Value) -> Self::Output {
                     ::std::panic!("Not implemented")
                 }
@@ -321,6 +327,7 @@ macro_rules! create_unit_system {
             {
                 type Output = $crate::typenum::True;
 
+                /// This trait implementation is solely used as trait bounds in `UnitVal` and the method isn't actually called
                 fn is_equal(self, _rhs: $ident<$([<$unit 2>],)*>) -> Self::Output {
                     panic!("Not implemented")
                 }

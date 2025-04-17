@@ -127,6 +127,25 @@ pub mod borsh_bytemuck {
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
         Ok(unsafe { buffer.assume_init() })
     }
+
+    #[macro_export]
+    macro_rules! borsh_with_bytemuck {
+        ($($ty:ident),*) => {
+            $(
+                impl $crate::borsh::BorshSerialize for $ty {
+                    fn serialize<W: ::std::io::Write>(&self, writer: &mut W) -> ::std::io::Result<()> {
+                        $crate::util::borsh_bytemuck::serialize(self, writer)
+                    }
+                }
+
+                impl $crate::borsh::BorshDeserialize for $ty {
+                    fn deserialize_reader<R: ::std::io::Read>(reader: &mut R) -> ::std::io::Result<Self> {
+                        $crate::util::borsh_bytemuck::deserialize(reader)
+                    }
+                }
+            )*
+        };
+    }
 }
 
 #[cfg(test)]
