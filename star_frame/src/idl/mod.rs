@@ -11,30 +11,39 @@ mod find_seeds;
 pub mod ty;
 pub use find_seeds::*;
 
+/// Derivable via [`derive@InstructionSet`].   
 pub trait InstructionSetToIdl: InstructionSet {
     /// Adds each instruction in an instruction set to the idl definition.
     fn instruction_set_to_idl(idl_definition: &mut IdlDefinition) -> Result<()>;
 }
+
+/// Derivable via [`derive@InstructionToIdl`] or [`derive@InstructionArgs`].
 pub trait InstructionToIdl<A>: Instruction {
     /// Adds an instruction to the idl definition, handling any nested definitions as necessary.
     fn instruction_to_idl(idl_definition: &mut IdlDefinition, arg: A) -> Result<IdlInstructionDef>;
 }
+
+/// Derivable via [`derive@AccountSet`].
 pub trait AccountSetToIdl<'info, A>: AccountSet<'info> {
     /// Adds the [`star_frame_idl::account_set::IdlAccountSetDef`] and associated account definitions to the idl definition.
     fn account_set_to_idl(idl_definition: &mut IdlDefinition, arg: A) -> Result<IdlAccountSetDef>;
 }
+
+/// Derivable via [`derive@ProgramAccount`].
 pub trait AccountToIdl: TypeToIdl {
     /// Adds the [`star_frame_idl::account::IdlAccount`] and associated type definitions to the idl definition,
     /// returning the idl account id reference.
     fn account_to_idl(idl_definition: &mut IdlDefinition) -> Result<IdlAccountId>;
 }
 
+/// Derivable via [`derive@TypeToIdl`].
 pub trait TypeToIdl {
     type AssociatedProgram: ProgramToIdl;
     /// Returns the idl of this type.
     fn type_to_idl(idl_definition: &mut IdlDefinition) -> Result<IdlTypeDef>;
 }
 
+/// Derivable via [`derive@GetSeeds`].
 pub trait SeedsToIdl: GetSeeds {
     /// Returns the [`IdlSeeds`] for a given [`GetSeeds`], adding any new types to the idl definition.
     fn seeds_to_idl(idl_definition: &mut IdlDefinition) -> Result<IdlSeeds>;

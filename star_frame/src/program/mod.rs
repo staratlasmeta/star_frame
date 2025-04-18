@@ -8,7 +8,7 @@ use solana_program::entrypoint::ProgramResult;
 use solana_program::pubkey::Pubkey;
 pub use star_frame_proc::StarFrameProgram;
 
-/// A Solana program's definition. This should be derived using the [`StarFrameProgram`](star_frame_proc::StarFrameProgram) macro,
+/// A Solana program's definition. This should be derived using the [`StarFrameProgram`](derive@StarFrameProgram) macro,
 /// since it does more than just implement this trait.
 pub trait StarFrameProgram {
     /// The instruction set used by this program.
