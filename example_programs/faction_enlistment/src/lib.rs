@@ -63,7 +63,7 @@ pub enum FactionEnlistmentInstructionSet {
 #[instruction_to_idl(program = FactionEnlistment)]
 pub struct ProcessEnlistPlayerIx {
     /// The bump for PDA seeds
-    #[ix_args(decode)] // not used, but just to make sure this works
+    #[ix_args(run, decode)] // not used, but just to make sure this works
     bump: u8,
     /// New faction id for the player
     /// Some more docs
@@ -78,7 +78,7 @@ impl StarFrameInstruction for ProcessEnlistPlayerIx {
 
     fn run_instruction<'info>(
         account_set: &mut Self::Accounts<'_, '_, 'info>,
-        faction_id: Self::RunArg<'_>,
+        (_bump, faction_id): Self::RunArg<'_>,
         syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<Self::ReturnType> {
         let clock = syscalls.get_clock()?;
