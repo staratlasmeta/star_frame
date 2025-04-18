@@ -10,7 +10,8 @@ pub mod macro_prelude {
         ClientAccountSet, CpiAccountSet, CpiBuilder, MakeCpi, MakeInstruction,
     };
     pub use crate::instruction::{
-        Instruction, InstructionDiscriminant, InstructionSet, StarFrameInstruction,
+        Instruction, InstructionArgs, InstructionDiscriminant, InstructionSet, IxArgs,
+        StarFrameInstruction,
     };
     pub use crate::program::StarFrameProgram;
 

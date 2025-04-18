@@ -55,6 +55,8 @@ pub struct Paths {
     pub type_to_idl_args_ident: Ident,
     pub program_account_args_ident: Ident,
     pub instruction_to_idl_args_ident: Ident,
+    pub ix_args_ident: Ident,
+    pub instruction_args_ident: Ident,
     pub get_seeds_ident: Ident,
 
     // bytemuck
@@ -124,6 +126,8 @@ impl Default for Paths {
             star_frame_program_ident: format_ident!("program"),
             single_account_set_ident: format_ident!("single_account_set"),
             instruction_set_args_ident: format_ident!("ix_set"),
+            ix_args_ident: format_ident!("ix_args"),
+            instruction_args_ident: format_ident!("instruction_args"),
             get_seeds_ident: format_ident!("get_seeds"),
 
             // bytemuck
