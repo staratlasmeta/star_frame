@@ -50,20 +50,20 @@ impl<'info> UnsizedTypeDataAccess<'info> for TestUnderlyingData<'info> {
 
 /// A way to test [`UnsizedType`] types. Uses a [`TestUnderlyingData`] internally.
 #[derive(Debug)]
-pub struct TestByteSet<'a, T: ?Sized + UnsizedType> {
-    test_data: &'a TestUnderlyingData<'a>,
+pub struct TestByteSet<T: ?Sized + UnsizedType> {
+    test_data: &'static TestUnderlyingData<'static>,
     phantom_t: PhantomData<T>,
 }
 
 pub trait NewByteSet: UnsizedType {
-    fn new_byte_set<'a>(owned: Self::Owned) -> Result<TestByteSet<'a, Self>>
+    fn new_byte_set(owned: Self::Owned) -> Result<TestByteSet<Self>>
     where
         Self: FromOwned,
     {
         TestByteSet::new(owned)
     }
 
-    fn new_default_byte_set<'a>() -> Result<TestByteSet<'a, Self>>
+    fn new_default_byte_set() -> Result<TestByteSet<Self>>
     where
         Self: UnsizedInit<DefaultInit>,
     {
@@ -73,7 +73,7 @@ pub trait NewByteSet: UnsizedType {
 
 impl<T> NewByteSet for T where T: UnsizedType {}
 
-impl<'a, T> TestByteSet<'a, T>
+impl<T> TestByteSet<T>
 where
     T: UnsizedType + ?Sized,
 {
@@ -118,11 +118,11 @@ where
         Self::new_from_init(DefaultInit)
     }
 
-    pub fn data(&self) -> Result<SharedWrapper<'a, '_, T::Ref<'a>>> {
+    pub fn data<'a>(&self) -> Result<SharedWrapper<'a, '_, T::Ref<'a>>> {
         unsafe { SharedWrapper::<T>::new(self.test_data) }
     }
 
-    pub fn data_mut(&self) -> Result<MutWrapper<'a, '_, T, TestUnderlyingData<'_>>> {
+    pub fn data_mut<'a>(&self) -> Result<MutWrapper<'a, 'static, T, TestUnderlyingData<'static>>> {
         unsafe { MutWrapper::new(self.test_data) }
     }
 
