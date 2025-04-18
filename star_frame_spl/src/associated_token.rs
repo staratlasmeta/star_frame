@@ -227,14 +227,14 @@ pub mod state {
     // TODO: should AssociatedTokenAccount's inner type be TokenAccount or AssociatedTokenAccount?
     // Having both is sorta okay, but if for example the account set was Option<AssociatedTokenAccount>, optional_key_for would
     // only return TokenAccount since thats the inner type right now.
-    impl GetKeyFor<AssociatedTokenAccount<'static>> for AssociatedTokenAccount<'_> {
-        fn key_for(&self) -> KeyFor<AssociatedTokenAccount<'static>> {
-            KeyFor::new(*self.key())
+    impl<'info> GetKeyFor<'info, AssociatedTokenAccount<'static>> for AssociatedTokenAccount<'info> {
+        fn key_for(&self) -> &'info KeyFor<AssociatedTokenAccount<'static>> {
+            KeyFor::new_ref(self.key())
         }
     }
 
-    impl GetOptionalKeyFor<AssociatedTokenAccount<'static>> for AssociatedTokenAccount<'_> {
-        fn optional_key_for(&self) -> OptionalKeyFor<AssociatedTokenAccount<'static>> {
+    impl<'info> GetOptionalKeyFor<'info, AssociatedTokenAccount<'static>> for AssociatedTokenAccount<'info> {
+        fn optional_key_for(&self) -> &'info OptionalKeyFor<AssociatedTokenAccount<'static>> {
             self.key_for().into()
         }
     }
