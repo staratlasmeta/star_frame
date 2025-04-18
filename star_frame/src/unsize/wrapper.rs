@@ -118,28 +118,37 @@ pub(crate) unsafe fn change_ref_back<'info, 'top>(
 }
 
 #[derive(Debug)]
-pub struct MutWrapper<'top, 'info, T, O: ?Sized, A> {
+pub struct MutWrapper<'top, 'info, O, A>
+where
+    O: UnsizedType + ?Sized,
+{
     underlying_data: &'top A,
     r: RefMut<'top, *mut [u8]>,
     phantom_o: PhantomData<fn() -> &'info O>,
-    data: T,
+    data: O::Mut<'top>,
 }
 
-impl<T, O: ?Sized, A> Deref for MutWrapper<'_, '_, T, O, A> {
-    type Target = T;
+impl<'top, O, A> Deref for MutWrapper<'top, '_, O, A>
+where
+    O: UnsizedType + ?Sized,
+{
+    type Target = O::Mut<'top>;
 
     fn deref(&self) -> &Self::Target {
         &self.data
     }
 }
 
-impl<T, O: ?Sized, A> DerefMut for MutWrapper<'_, '_, T, O, A> {
+impl<O, A> DerefMut for MutWrapper<'_, '_, O, A>
+where
+    O: UnsizedType + ?Sized,
+{
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.data
     }
 }
 
-impl<'a, 'info, O, A> MutWrapper<'a, 'info, O::Mut<'_>, O, A>
+impl<'a, 'info, O, A> MutWrapper<'a, 'info, O, A>
 where
     'info: 'a,
     O: UnsizedType + ?Sized,
@@ -183,8 +192,10 @@ where
 pub type ExclusiveWrapperT<'parent, 'ptr, 'top, 'info, T, O, A> =
     ExclusiveWrapper<'parent, 'top, 'info, <T as UnsizedType>::Mut<'ptr>, O, A>;
 
-impl<'top, 'info, O: UnsizedType + ?Sized, A: UnsizedTypeDataAccess<'info>>
-    MutWrapper<'top, 'info, <O as UnsizedType>::Mut<'top>, O, A>
+impl<'top, 'info, O, A> MutWrapper<'top, 'info, O, A>
+where
+    O: UnsizedType + ?Sized,
+    A: UnsizedTypeDataAccess<'info>,
 {
     pub fn exclusive<'parent>(
         &'parent mut self,

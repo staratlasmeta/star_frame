@@ -148,7 +148,7 @@ where
     #[inline]
     pub fn data_mut(
         &self,
-    ) -> Result<MutWrapper<'_, 'info, T::Mut<'_>, AccountDiscriminant<T>, AccountInfo<'info>>> {
+    ) -> Result<MutWrapper<'_, 'info, AccountDiscriminant<T>, AccountInfo<'info>>> {
         // If the account is writable, changes could have been made after AccountSetValidate has been run
         if self.is_writable() {
             self.validate()?;
