@@ -19,7 +19,7 @@ pub trait GetKeyFor<T: ?Sized> {
 
 /// A key for an account type
 #[derive(BorshDeserialize, BorshSerialize, Align1, DeriveWhere)]
-#[derive_where(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[derive_where(Debug, Clone, Copy, Hash, PartialEq, Eq, Default, PartialOrd, Ord)]
 #[repr(transparent)]
 pub struct KeyFor<T: ?Sized> {
     pubkey: Pubkey,
