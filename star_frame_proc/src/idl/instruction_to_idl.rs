@@ -5,7 +5,7 @@ use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote};
 use syn::{parse_quote, DeriveInput};
 
-pub fn derive_instruction_to_idl(input: DeriveInput) -> TokenStream {
+pub fn derive_instruction_to_idl(input: &DeriveInput) -> TokenStream {
     let Paths {
         instruction_to_idl_args_ident,
         type_to_idl_args_ident,
@@ -13,7 +13,7 @@ pub fn derive_instruction_to_idl(input: DeriveInput) -> TokenStream {
         ..
     } = &Paths::default();
     reject_generics(
-        &input,
+        input,
         Some("Generics are not supported yet for InstructionToIdl"),
     );
 
@@ -24,7 +24,7 @@ pub fn derive_instruction_to_idl(input: DeriveInput) -> TokenStream {
         .unwrap_or_default();
 
     reject_attributes(&input.attrs, type_to_idl_args_ident, None);
-    let type_to_idl_derivation = derive_type_to_idl_inner(&input, args);
+    let type_to_idl_derivation = derive_type_to_idl_inner(input, args);
     let mut generics = input.generics.clone();
     let where_clause = generics.make_where_clause();
 

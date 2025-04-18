@@ -36,8 +36,9 @@ pub struct CounterAccountSeeds {
     pub owner: Pubkey,
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Debug, InstructionToIdl)]
+#[derive(BorshSerialize, BorshDeserialize, Debug, InstructionArgs)]
 pub struct CreateCounterIx {
+    #[ix_args(&run)]
     pub start_at: Option<u64>,
 }
 
@@ -56,16 +57,8 @@ pub struct CreateCounterAccounts<'info> {
 }
 
 impl StarFrameInstruction for CreateCounterIx {
-    type DecodeArg<'a> = ();
-    type ValidateArg<'a> = ();
-    type RunArg<'a> = &'a Option<u64>;
-    type CleanupArg<'a> = ();
     type ReturnType = ();
     type Accounts<'b, 'c, 'info> = CreateCounterAccounts<'info>;
-
-    fn split_to_args<'a>(r: &mut Self) -> IxArgs<Self> {
-        IxArgs::run(&r.start_at)
-    }
 
     fn run_instruction<'info>(
         account_set: &mut Self::Accounts<'_, '_, 'info>,
@@ -85,7 +78,8 @@ impl StarFrameInstruction for CreateCounterIx {
     }
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Debug, InstructionToIdl)]
+#[derive(BorshSerialize, BorshDeserialize, Debug, InstructionArgs)]
+#[ix_args(&run)]
 pub struct UpdateCounterSignerIx;
 
 #[derive(AccountSet, Debug)]
@@ -106,16 +100,8 @@ impl UpdateCounterSignerAccounts<'_> {
 }
 
 impl StarFrameInstruction for UpdateCounterSignerIx {
-    type DecodeArg<'a> = ();
-    type ValidateArg<'a> = ();
-    type RunArg<'a> = ();
-    type CleanupArg<'a> = ();
     type ReturnType = ();
     type Accounts<'b, 'c, 'info> = UpdateCounterSignerAccounts<'info>;
-
-    fn split_to_args<'a>(_r: &mut Self) -> IxArgs<Self> {
-        IxArgs::default()
-    }
 
     fn run_instruction<'info>(
         account_set: &mut Self::Accounts<'_, '_, 'info>,
@@ -129,7 +115,8 @@ impl StarFrameInstruction for UpdateCounterSignerIx {
     }
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Debug, InstructionToIdl)]
+#[derive(BorshSerialize, BorshDeserialize, Debug, Copy, Clone, InstructionArgs)]
+#[ix_args(run)]
 pub struct CountIx {
     pub amount: u64,
     pub subtract: bool,
@@ -152,20 +139,12 @@ impl CountAccounts<'_> {
 }
 
 impl StarFrameInstruction for CountIx {
-    type DecodeArg<'a> = ();
-    type ValidateArg<'a> = ();
-    type RunArg<'a> = (u64, bool);
-    type CleanupArg<'a> = ();
     type ReturnType = ();
     type Accounts<'b, 'c, 'info> = CountAccounts<'info>;
 
-    fn split_to_args<'a>(r: &mut Self) -> IxArgs<Self> {
-        IxArgs::run((r.amount, r.subtract))
-    }
-
     fn run_instruction<'info>(
         account_set: &mut Self::Accounts<'_, '_, 'info>,
-        (amount, subtract): Self::RunArg<'_>,
+        CountIx { amount, subtract }: Self::RunArg<'_>,
         _syscalls: &mut impl SyscallInvoke<'info>,
     ) -> Result<Self::ReturnType> {
         let mut counter = account_set.counter.data_mut()?;

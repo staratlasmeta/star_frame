@@ -4,7 +4,7 @@ use borsh::{to_vec, BorshDeserialize, BorshSerialize};
 use bytemuck::{bytes_of, Pod};
 use solana_program::account_info::AccountInfo;
 use solana_program::pubkey::Pubkey;
-pub use star_frame_proc::{InstructionSet, InstructionToIdl};
+pub use star_frame_proc::{InstructionArgs, InstructionSet, InstructionToIdl};
 
 mod no_op;
 pub mod un_callable;
@@ -55,89 +55,33 @@ pub trait Instruction {
     ) -> Result<()>;
 }
 
-/// Helper type for the return of [`StarFrameInstruction::split_to_args`].
-#[derive_where::derive_where(
+/// Helper type for the return of [`InstructionArgs::split_to_args`].
+#[derive(derive_where::DeriveWhere)]
+#[derive_where(
     Default, Debug;
-    <T as StarFrameInstruction>::DecodeArg<'a>,
-    <T as StarFrameInstruction>::ValidateArg<'a>,
-    <T as StarFrameInstruction>::RunArg<'a>,
-    <T as StarFrameInstruction>::CleanupArg<'a>
+    <T as InstructionArgs>::DecodeArg<'a>,
+    <T as InstructionArgs>::ValidateArg<'a>,
+    <T as InstructionArgs>::RunArg<'a>,
+    <T as InstructionArgs>::CleanupArg<'a>
 )]
-pub struct IxArgs<'a, T: StarFrameInstruction> {
-    pub decode: <T as StarFrameInstruction>::DecodeArg<'a>,
-    pub validate: <T as StarFrameInstruction>::ValidateArg<'a>,
-    pub run: <T as StarFrameInstruction>::RunArg<'a>,
-    pub cleanup: <T as StarFrameInstruction>::CleanupArg<'a>,
+pub struct IxArgs<'a, T: InstructionArgs> {
+    pub decode: <T as InstructionArgs>::DecodeArg<'a>,
+    pub validate: <T as InstructionArgs>::ValidateArg<'a>,
+    pub run: <T as InstructionArgs>::RunArg<'a>,
+    pub cleanup: <T as InstructionArgs>::CleanupArg<'a>,
 }
 
-impl<'a, T: StarFrameInstruction> IxArgs<'a, T> {
-    pub fn decode<D>(decode: D) -> Self
-    where
-        T: StarFrameInstruction<
-            DecodeArg<'a> = D,
-            ValidateArg<'a> = (),
-            CleanupArg<'a> = (),
-            RunArg<'a> = (),
-        >,
-    {
-        Self {
-            decode,
-            validate: (),
-            run: (),
-            cleanup: (),
-        }
-    }
-
-    pub fn validate<V>(validate: V) -> Self
-    where
-        T: StarFrameInstruction<
-            DecodeArg<'a> = (),
-            ValidateArg<'a> = V,
-            CleanupArg<'a> = (),
-            RunArg<'a> = (),
-        >,
-    {
-        Self {
-            decode: (),
-            validate,
-            run: (),
-            cleanup: (),
-        }
-    }
-
-    pub fn run<R>(run: R) -> Self
-    where
-        T: StarFrameInstruction<
-            DecodeArg<'a> = (),
-            ValidateArg<'a> = (),
-            CleanupArg<'a> = (),
-            RunArg<'a> = R,
-        >,
-    {
-        Self {
-            decode: (),
-            validate: (),
-            run,
-            cleanup: (),
-        }
-    }
-
-    pub fn cleanup<C>(cleanup: C) -> Self
-    where
-        T: StarFrameInstruction<
-            DecodeArg<'a> = (),
-            ValidateArg<'a> = (),
-            CleanupArg<'a> = C,
-            RunArg<'a> = (),
-        >,
-    {
-        Self {
-            decode: (),
-            validate: (),
-            run: (),
-            cleanup,
-        }
-    }
+pub trait InstructionArgs: Sized {
+    /// The instruction data type used to decode accounts.
+    type DecodeArg<'a>;
+    /// The instruction data type used to validate accounts.
+    type ValidateArg<'a>;
+    /// The instruction data type used to run the instruction.
+    type RunArg<'a>;
+    /// The instruction data type used to cleanup accounts.
+    type CleanupArg<'a>;
+    /// Splits self into decode, validate, cleanup, and run args.
+    fn split_to_args(r: &mut Self) -> IxArgs<Self>;
 }
 
 /// A `star_frame` defined instruction using [`AccountSet`] and other traits.
@@ -149,16 +93,7 @@ impl<'a, T: StarFrameInstruction> IxArgs<'a, T> {
 /// 4. Validate the accounts using [`Self::Accounts::validate_accounts`](AccountSetValidate::validate_accounts).
 /// 5. Run the instruction using [`Self::run_instruction`].
 /// 6. Set the solana return data using [`BorshSerialize`].
-pub trait StarFrameInstruction: BorshDeserialize {
-    /// The instruction data type used to decode accounts.
-    type DecodeArg<'a>;
-    /// The instruction data type used to validate accounts.
-    type ValidateArg<'a>;
-    /// The instruction data type used to run the instruction.
-    type RunArg<'a>;
-    /// The instruction data type used to cleanup accounts.
-    type CleanupArg<'a>;
-
+pub trait StarFrameInstruction: BorshDeserialize + InstructionArgs {
     /// The return type of this instruction.
     type ReturnType: BorshSerialize;
 
@@ -166,9 +101,6 @@ pub trait StarFrameInstruction: BorshDeserialize {
     type Accounts<'b, 'c, 'info>: AccountSetDecode<'b, 'info, Self::DecodeArg<'c>>
         + AccountSetValidate<'info, Self::ValidateArg<'c>>
         + AccountSetCleanup<'info, Self::CleanupArg<'c>>;
-
-    /// Splits self into decode, validate, and run args.
-    fn split_to_args(r: &mut Self) -> IxArgs<Self>;
 
     /// Runs any extra validations on the accounts.
     #[allow(unused_variables)]
@@ -232,17 +164,18 @@ where
 #[macro_export]
 macro_rules! empty_star_frame_instruction {
     ($ix:ident, $accounts:ident) => {
-        impl $crate::instruction::StarFrameInstruction for $ix {
+        impl $crate::instruction::InstructionArgs for $ix {
             type DecodeArg<'a> = ();
             type ValidateArg<'a> = ();
             type RunArg<'a> = ();
             type CleanupArg<'a> = ();
-            type ReturnType = ();
-            type Accounts<'b, 'c, 'info> = $accounts<'info>;
-
-            fn split_to_args<'a>(_r: &mut Self) -> $crate::instruction::IxArgs<Self> {
+            fn split_to_args(_r: &mut Self) -> $crate::instruction::IxArgs<Self> {
                 Default::default()
             }
+        }
+        impl $crate::instruction::StarFrameInstruction for $ix {
+            type ReturnType = ();
+            type Accounts<'b, 'c, 'info> = $accounts<'info>;
 
             fn run_instruction<'info>(
                 _account_set: &mut Self::Accounts<'_, '_, 'info>,

@@ -57,30 +57,24 @@ pub enum FactionEnlistmentInstructionSet {
 }
 
 /// ProcessEnlistPlayerIx
-#[derive(Clone, BorshDeserialize, BorshSerialize, Default, InstructionToIdl)]
+#[derive(Clone, BorshDeserialize, BorshSerialize, Default, InstructionArgs)]
 #[borsh(crate = "borsh")]
 #[repr(C)]
 #[instruction_to_idl(program = FactionEnlistment)]
 pub struct ProcessEnlistPlayerIx {
     /// The bump for PDA seeds
+    #[ix_args(decode)] // not used, but just to make sure this works
     bump: u8,
     /// New faction id for the player
     /// Some more docs
+    #[ix_args(run)]
     faction_id: FactionId,
     // buncha_data: Vec<u8>,
 }
 
 impl StarFrameInstruction for ProcessEnlistPlayerIx {
-    type DecodeArg<'a> = ();
-    type ValidateArg<'a> = ();
-    type RunArg<'a> = FactionId;
-    type CleanupArg<'a> = ();
     type ReturnType = ();
     type Accounts<'b, 'c, 'info> = ProcessEnlistPlayer<'info>;
-
-    fn split_to_args<'a>(r: &mut Self) -> IxArgs<Self> {
-        IxArgs::run(r.faction_id)
-    }
 
     fn run_instruction<'info>(
         account_set: &mut Self::Accounts<'_, '_, 'info>,
@@ -119,6 +113,7 @@ impl StarFrameInstruction for ProcessEnlistPlayerIx {
 }
 
 #[derive(AccountSet)]
+#[decode(arg = u8)]
 pub struct ProcessEnlistPlayer<'info> {
     /// The player faction account
     #[validate(arg = (Create(()),

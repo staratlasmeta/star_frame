@@ -4,6 +4,7 @@ mod align1;
 mod get_seeds;
 mod hash;
 mod idl;
+mod instruction_args;
 mod instruction_set;
 mod program;
 mod program_account;
@@ -32,12 +33,12 @@ pub fn derive_account_set(input: proc_macro::TokenStream) -> proc_macro::TokenSt
 ///
 /// ## 1. `#[get_seeds(seed_const = <expr>, skip_idl)]` (item level attribute)
 ///
-/// ### syntax
+/// ### Syntax
 ///
 /// Attribute takes an `Expr` which resolves to a `&[u8]` seed for the account.
 /// If `skip_idl` is present, the `SeedsToIdl` trait and the `IdlFindSeed` struct will not be derived.
 ///
-/// ### usage
+/// ### Usage
 ///
 /// Attribute is optional. If the attribute is present, the seed for the account will be the concatenation
 /// of the seed provided in the attribute and the seeds of the fields of the account.
@@ -265,6 +266,93 @@ pub fn unsized_impl(
     out.into()
 }
 
+/// Derives `InstructionArgs` for a valid type.
+///
+/// # Attributes
+///
+/// ## 1. `#[ix_args(decode, validate, run, cleanup)]` (item and field level attribute)
+///
+/// ### Syntax
+///
+/// Attribute takes an optional list of the following arguments: `decode`, `validate`, `run`, `cleanup`.
+/// Each argument can be optionally preceded by `&` or `&mut` to specify that argument should be borrowed from the struct.
+///
+/// ## 2. `#[instruction_args(skip_idl)]` (item level attribute)
+///
+/// If present, the macro will not generate a `InstructionToIdl` implementation for the type.
+///
+/// # Example
+/// ```
+/// use star_frame::prelude::*;
+/// use star_frame::static_assertions::assert_type_eq_all;
+/// #[derive(Copy, Clone, InstructionArgs, Default)]
+/// #[ix_args(decode)]
+/// pub struct Ix1 {
+///     #[ix_args(&mut validate)]
+///     pub validate: u64,
+///     #[ix_args(run)]
+///     pub run: u32,
+///     #[ix_args(&cleanup)]
+///     pub cleanup: u8,
+/// }
+///
+/// assert_type_eq_all!(
+///     <Ix1 as InstructionArgs>::DecodeArg<'static>,
+///     Ix1
+/// );
+/// assert_type_eq_all!(
+///     <Ix1 as InstructionArgs>::ValidateArg<'static>,
+///     &mut u64
+/// );
+/// assert_type_eq_all!(
+///     <Ix1 as InstructionArgs>::RunArg<'static>,
+///     u32
+/// );
+/// assert_type_eq_all!(
+///     <Ix1 as InstructionArgs>::CleanupArg<'static>,
+///     &u8
+/// );
+/// ```
+///
+/// # Example
+/// ```
+/// // It's even possible for a single field to be used in multiple args!
+/// use star_frame::prelude::*;
+/// use star_frame::static_assertions::assert_type_eq_all;
+/// #[derive(Copy, Clone, Default, InstructionArgs)]
+/// #[ix_args(&decode, &validate, cleanup, run)]
+/// pub struct Ix2 {
+///     pub ignored: u64,
+/// }
+///
+/// assert_type_eq_all!(
+///     <Ix2 as InstructionArgs>::DecodeArg<'static>,
+///     &Ix2
+/// );
+/// assert_type_eq_all!(
+///     <Ix2 as InstructionArgs>::ValidateArg<'static>,
+///     &Ix2
+/// );
+/// assert_type_eq_all!(
+///     <Ix2 as InstructionArgs>::RunArg<'static>,
+///     Ix2
+/// );
+/// assert_type_eq_all!(
+///     <Ix2 as InstructionArgs>::CleanupArg<'static>,
+///     Ix2
+/// );
+/// ```
+#[proc_macro_error]
+#[proc_macro_derive(
+    InstructionArgs,
+    attributes(ix_args, instruction_to_idl, type_to_idl, instruction_args)
+)]
+pub fn instruction_args(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let out =
+        instruction_args::derive_instruction_args_impl(parse_macro_input!(input as DeriveInput));
+    out.into()
+}
+
 /// Derives `TypeToIdl` for a valid type.
 // todo: docs
 #[proc_macro_error]
@@ -278,7 +366,7 @@ pub fn derive_type_to_idl(item: proc_macro::TokenStream) -> proc_macro::TokenStr
 #[proc_macro_error]
 #[proc_macro_derive(InstructionToIdl, attributes(instruction_to_idl, type_to_idl))]
 pub fn derive_instruction_to_idl(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let out = idl::derive_instruction_to_idl(parse_macro_input!(input as DeriveInput));
+    let out = idl::derive_instruction_to_idl(&parse_macro_input!(input as DeriveInput));
     out.into()
 }
 
