@@ -233,7 +233,9 @@ pub mod state {
         }
     }
 
-    impl<'info> GetOptionalKeyFor<'info, AssociatedTokenAccount<'static>> for AssociatedTokenAccount<'info> {
+    impl<'info> GetOptionalKeyFor<'info, AssociatedTokenAccount<'static>>
+        for AssociatedTokenAccount<'info>
+    {
         fn optional_key_for(&self) -> &'info OptionalKeyFor<AssociatedTokenAccount<'static>> {
             self.key_for().into()
         }
