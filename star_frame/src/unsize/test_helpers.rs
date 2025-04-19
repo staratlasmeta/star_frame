@@ -1,6 +1,8 @@
 #![allow(unused)]
 use crate::unsize::init::{DefaultInit, UnsizedInit};
-use crate::unsize::wrapper::{ExclusiveWrapper, MutWrapper, SharedWrapper, UnsizedTypeDataAccess};
+use crate::unsize::wrapper::{
+    ExclusiveWrapper, ExclusiveWrapperT, MutWrapper, SharedWrapper, UnsizedTypeDataAccess,
+};
 use crate::unsize::UnsizedType;
 use crate::Result;
 use solana_program::entrypoint::MAX_PERMITTED_DATA_INCREASE;
@@ -48,37 +50,29 @@ impl<'info> UnsizedTypeDataAccess<'info> for TestUnderlyingData<'info> {
     }
 }
 
-/// A way to test [`UnsizedType`] types. Uses a [`TestUnderlyingData`] internally.
+/// A way to work with [`UnsizedType`] types off-chain. Uses a [`TestUnderlyingData`] internally.
 #[derive(Debug)]
-pub struct TestByteSet<T: ?Sized + UnsizedType> {
-    test_data: &'static TestUnderlyingData<'static>,
+pub struct TestByteSet<'info, T: ?Sized + UnsizedType> {
+    test_data: &'info TestUnderlyingData<'info>,
+    // test_data_ptr: *mut TestUnderlyingData<'info>,
+    data_ptr: *mut Vec<u8>,
     phantom_t: PhantomData<T>,
 }
 
-pub trait NewByteSet: UnsizedType {
-    fn new_byte_set(owned: Self::Owned) -> Result<TestByteSet<Self>>
-    where
-        Self: FromOwned,
-    {
-        TestByteSet::new(owned)
-    }
-
-    fn new_default_byte_set() -> Result<TestByteSet<Self>>
-    where
-        Self: UnsizedInit<DefaultInit>,
-    {
-        TestByteSet::new_default()
+impl<T: ?Sized + UnsizedType> Drop for TestByteSet<'_, T> {
+    fn drop(&mut self) {
+        drop(unsafe { Box::from_raw(core::ptr::from_ref(self.test_data).cast_mut()) });
+        drop(unsafe { Box::from_raw(self.data_ptr) });
     }
 }
 
-impl<T> NewByteSet for T where T: UnsizedType {}
-
-impl<T> TestByteSet<T>
+impl<'info, T> TestByteSet<'info, T>
 where
     T: UnsizedType + ?Sized,
 {
     fn initialize(size: usize, init: impl FnOnce(&mut &mut [u8]) -> Result<()>) -> Result<Self> {
         let data: &mut Vec<u8> = Box::leak(Box::default());
+        let data_ptr: *mut Vec<u8> = data;
         let test_account = Box::leak(Box::new(TestUnderlyingData::new(data, size)));
         {
             let mut data = &mut UnsizedTypeDataAccess::data_mut(test_account)?[..];
@@ -89,6 +83,7 @@ where
         Ok(Self {
             test_data: test_account,
             phantom_t: PhantomData,
+            data_ptr,
         })
     }
 
@@ -118,11 +113,11 @@ where
         Self::new_from_init(DefaultInit)
     }
 
-    pub fn data<'a>(&self) -> Result<SharedWrapper<'a, '_, T::Ref<'a>>> {
+    pub fn data<'a>(&'a self) -> Result<SharedWrapper<'a, 'info, T::Ref<'info>>> {
         unsafe { SharedWrapper::<T>::new(self.test_data) }
     }
 
-    pub fn data_mut<'a>(&self) -> Result<MutWrapper<'a, 'static, T, TestUnderlyingData<'static>>> {
+    pub fn data_mut<'a>(&'a self) -> Result<MutWrapper<'a, 'info, T, TestUnderlyingData<'info>>> {
         unsafe { MutWrapper::new(self.test_data) }
     }
 
@@ -156,3 +151,45 @@ macro_rules! assert_eq_with_shared {
         }
     };
 }
+
+pub trait NewByteSet: UnsizedType {
+    fn new_byte_set<'info>(owned: Self::Owned) -> Result<TestByteSet<'info, Self>>
+    where
+        Self: FromOwned,
+    {
+        TestByteSet::<Self>::new(owned)
+    }
+
+    fn new_default_byte_set<'info>() -> Result<TestByteSet<'info, Self>>
+    where
+        Self: UnsizedInit<DefaultInit>,
+    {
+        TestByteSet::<Self>::new_default()
+    }
+}
+
+impl<T> NewByteSet for T where T: UnsizedType + ?Sized {}
+
+pub trait ModifyOwned: Clone {
+    fn modify_owned<'info, U>(
+        &mut self,
+        modify: impl FnOnce(
+            &mut ExclusiveWrapperT<'_, '_, '_, 'info, U, U, TestUnderlyingData<'info>>,
+        ) -> Result<()>,
+    ) -> Result<()>
+    where
+        U: UnsizedType<Owned = Self> + FromOwned + ?Sized,
+    {
+        let self_byte_set = TestByteSet::<U>::new(self.clone())?;
+        {
+            let mut bytes_mut = self_byte_set.data_mut()?;
+            let mut bytes_exclusive = bytes_mut.exclusive();
+            modify(&mut bytes_exclusive)?;
+        }
+
+        *self = self_byte_set.owned()?;
+        Ok(())
+    }
+}
+
+impl<T> ModifyOwned for T where T: Clone {}
