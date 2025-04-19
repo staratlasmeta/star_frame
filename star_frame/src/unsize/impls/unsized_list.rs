@@ -277,8 +277,7 @@ where
         if self.offset_list.is_empty() {
             return Ok(());
         }
-        let adjusted_source =
-            unsafe { source_ptr.byte_sub(self.unsized_data_ptr() as usize) } as usize;
+        let adjusted_source = source_ptr as usize - unsafe { self.unsized_data_ptr() } as usize;
         let start_index = match self
             .offset_list
             .binary_search_by(|offset| offset.to_usize_offset().cmp(&adjusted_source))

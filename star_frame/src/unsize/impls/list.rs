@@ -497,8 +497,11 @@ where
                 end_ptr,
                 size_of::<T>() * to_add,
                 |list| {
-                    list.len = PackedValue(new_len);
-                    list.0 = &mut *ptr_meta::from_raw_parts_mut(
+                    {
+                        let list = &mut **list;
+                        list.len = PackedValue(new_len);
+                    }
+                    list.0 = ptr_meta::from_raw_parts_mut(
                         list.0.cast::<()>(),
                         (old_len + to_add) * size_of::<T>(),
                     );
@@ -555,9 +558,12 @@ where
             let start_ptr = self.bytes.as_ptr().add(start * size_of::<T>()).cast();
             let end_ptr = self.bytes.as_ptr().add(end * size_of::<T>()).cast();
             ExclusiveWrapper::remove_bytes(self, source_ptr, start_ptr..end_ptr, |list| {
-                list.len = PackedValue(
-                    L::from_usize(new_len).context("Failed to convert new list len to L")?,
-                );
+                {
+                    let list = &mut **list;
+                    list.len = PackedValue(
+                        L::from_usize(new_len).context("Failed to convert new list len to L")?,
+                    );
+                }
                 list.0 = &mut *ptr_meta::from_raw_parts_mut(
                     list.0.cast::<()>(),
                     new_len * size_of::<T>(),
