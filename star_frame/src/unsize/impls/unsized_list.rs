@@ -602,7 +602,7 @@ where
         })?;
 
         Ok(UnsizedListMut {
-            list_ptr: unsafe { &mut *ptr_meta::from_raw_parts_mut(ptr.cast::<()>(), length) },
+            list_ptr: ptr_meta::from_raw_parts_mut(ptr.cast::<()>(), length),
             inner_exclusive: None,
             phantom: PhantomData,
         })

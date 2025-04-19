@@ -92,7 +92,7 @@ unsafe impl UnsizedType for RemainingBytes {
         })?;
         let ptr = remaining_bytes.as_mut_ptr();
         Ok(RemainingBytesMut(
-            unsafe { &mut *ptr_meta::from_raw_parts_mut(ptr.cast::<()>(), remaining_bytes.len()) },
+            ptr_meta::from_raw_parts_mut(ptr.cast::<()>(), remaining_bytes.len()),
             PhantomData,
         ))
     }
@@ -162,7 +162,7 @@ impl RemainingBytes {
         };
         unsafe {
             ExclusiveWrapper::set_inner(self, |bytes| {
-                bytes.0 = &mut *ptr_meta::from_raw_parts_mut(bytes.0.cast::<()>(), len);
+                bytes.0 = ptr_meta::from_raw_parts_mut(bytes.0.cast::<()>(), len);
                 Ok(())
             })?;
         }
