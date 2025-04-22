@@ -71,6 +71,9 @@ pub struct IxArgs<'a, T: InstructionArgs> {
     pub cleanup: <T as InstructionArgs>::CleanupArg<'a>,
 }
 
+/// A helper trait to split a struct into arguments for a [`StarFrameInstruction`].
+///
+/// Derivable via [`derive@InstructionArgs`].
 pub trait InstructionArgs: Sized {
     /// The instruction data type used to decode accounts.
     type DecodeArg<'a>;
@@ -87,7 +90,7 @@ pub trait InstructionArgs: Sized {
 /// A `star_frame` defined instruction using [`AccountSet`] and other traits.
 ///
 /// The steps are as follows:
-/// 1. Split self into decode, validate, and run args using [`Self::split_to_args`].
+/// 1. Split self into decode, validate, and run args using [`InstructionArgs::split_to_args`].
 /// 2. Decode the accounts using [`Self::Accounts::decode_accounts`](AccountSetDecode::decode_accounts).
 /// 3. Run any extra instruction validations using [`Self::extra_validations`].
 /// 4. Validate the accounts using [`Self::Accounts::validate_accounts`](AccountSetValidate::validate_accounts).

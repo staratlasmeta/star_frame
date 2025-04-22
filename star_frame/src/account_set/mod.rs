@@ -27,6 +27,8 @@ use solana_program::account_info::AccountInfo;
 use std::slice;
 
 /// A set of accounts that can be used as input to an instruction.
+///
+/// Derivable via [`derive@AccountSet`].
 pub trait AccountSet<'info> {
     /// Sets account cache
     fn set_account_cache(&mut self, syscalls: &mut impl SyscallAccountCache<'info>);
@@ -105,6 +107,8 @@ impl<'a, 'info, T> TryFromAccounts<'a, 'info> for T where
 }
 
 /// An [`AccountSet`] that can be decoded from a list of [`AccountInfo`]s using arg `A`.
+///
+/// Derivable via [`derive@AccountSet`].
 pub trait AccountSetDecode<'a, 'info, A>: AccountSet<'info> + Sized {
     /// Decode the accounts from `accounts` using `decode_input`.
     ///
@@ -119,6 +123,8 @@ pub trait AccountSetDecode<'a, 'info, A>: AccountSet<'info> + Sized {
 
 /// An [`AccountSet`] that can be validated using arg `A`.
 /// Evaluate wrapping as inner before outer.
+///
+/// Derivable via [`derive@AccountSet`].
 pub trait AccountSetValidate<'info, A>: AccountSet<'info> + Sized {
     /// Validate the accounts using `validate_input`.
     fn validate_accounts(
@@ -129,6 +135,8 @@ pub trait AccountSetValidate<'info, A>: AccountSet<'info> + Sized {
 }
 
 /// An [`AccountSet`] that can be cleaned up using arg `A`.
+///
+/// Derivable via [`derive@AccountSet`].
 pub trait AccountSetCleanup<'info, A>: AccountSet<'info> + Sized {
     /// Clean up the accounts using `cleanup_input`.
     fn cleanup_accounts(
@@ -138,6 +146,7 @@ pub trait AccountSetCleanup<'info, A>: AccountSet<'info> + Sized {
     ) -> Result<()>;
 }
 
+#[doc(hidden)]
 pub(crate) mod internal_reverse {
     use super::*;
 

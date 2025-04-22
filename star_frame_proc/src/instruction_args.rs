@@ -23,16 +23,6 @@ enum InstructionArgType {
     Cleanup,
 }
 
-impl InstructionArgType {
-    fn ident_str(&self) -> &'static str {
-        match self {
-            InstructionArgType::Decode => "decode",
-            InstructionArgType::Validate => "validate",
-            InstructionArgType::Run => "run",
-            InstructionArgType::Cleanup => "cleanup",
-        }
-    }
-}
 impl Parse for InstructionArgType {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let ident: Ident = input.parse()?;
@@ -142,10 +132,10 @@ pub fn derive_instruction_args_impl(input: DeriveInput) -> TokenStream {
     let lt = new_lifetime(&input.generics, None);
 
     let default_type: ArgInfo = (parse_quote! {()}, parse_quote! {()});
-    let mut decode: Option<ArgInfo> = None;
-    let mut validate: Option<ArgInfo> = None;
-    let mut run: Option<ArgInfo> = None;
-    let mut cleanup: Option<ArgInfo> = None;
+    let mut decode: Vec<ArgInfo> = Vec::new();
+    let mut validate: Vec<ArgInfo> = Vec::new();
+    let mut run: Vec<ArgInfo> = Vec::new();
+    let mut cleanup: Vec<ArgInfo> = Vec::new();
 
     let mut handle_attrs = |attrs: &[syn::Attribute],
                             attribute_type: AttributeType,
@@ -165,10 +155,7 @@ pub fn derive_instruction_args_impl(input: DeriveInput) -> TokenStream {
                         InstructionArgType::Run => &mut run,
                         InstructionArgType::Cleanup => &mut cleanup,
                     };
-                    let old = arg_to_replace.replace(info);
-                    if old.is_some() {
-                        abort!(attr, "Duplicate instruction arg type: {}", arg.arg_type.ident_str());
-                    }
+                    arg_to_replace.push(info);
                 }
             }
     };
@@ -180,10 +167,24 @@ pub fn derive_instruction_args_impl(input: DeriveInput) -> TokenStream {
         handle_attrs(&field.attrs, AttributeType::Field(&ident, &field.ty), &lt);
     }
 
-    let (decode_ty, decode_expr) = decode.unwrap_or_else(|| default_type.clone());
-    let (validate_ty, validate_expr) = validate.unwrap_or_else(|| default_type.clone());
-    let (run_ty, run_expr) = run.unwrap_or_else(|| default_type.clone());
-    let (cleanup_ty, cleanup_expr) = cleanup.unwrap_or_else(|| default_type.clone());
+    if decode.is_empty() {
+        decode.push(default_type.clone());
+    }
+    if validate.is_empty() {
+        validate.push(default_type.clone());
+    }
+    if run.is_empty() {
+        run.push(default_type.clone());
+    }
+    if cleanup.is_empty() {
+        cleanup.push(default_type.clone());
+    }
+
+    type SplitInfos = (Vec<Type>, Vec<Expr>);
+    let (decode_tys, decode_exprs): SplitInfos = decode.into_iter().unzip();
+    let (validate_tys, validate_exprs): SplitInfos = validate.into_iter().unzip();
+    let (run_tys, run_exprs): SplitInfos = run.into_iter().unzip();
+    let (cleanup_tys, cleanup_exprs): SplitInfos = cleanup.into_iter().unzip();
 
     let idl_impl = idl_impl(&input);
 
@@ -193,17 +194,17 @@ pub fn derive_instruction_args_impl(input: DeriveInput) -> TokenStream {
         #idl_impl
 
         impl #impl_generics #prelude::InstructionArgs for #ident #ty_generics #where_clause {
-            type DecodeArg<#lt> = #decode_ty;
-            type ValidateArg<#lt> = #validate_ty;
-            type RunArg<#lt> = #run_ty;
-            type CleanupArg<#lt> = #cleanup_ty;
+            type DecodeArg<#lt> = (#(#decode_tys),*);
+            type ValidateArg<#lt> = (#(#validate_tys),*);
+            type RunArg<#lt> = (#(#run_tys),*);
+            type CleanupArg<#lt> = (#(#cleanup_tys),*);
 
             fn split_to_args(r: &mut Self) -> #prelude::IxArgs<Self> {
                 #prelude::IxArgs {
-                    decode: #decode_expr,
-                    validate: #validate_expr,
-                    run: #run_expr,
-                    cleanup: #cleanup_expr,
+                    decode: (#(#decode_exprs),*),
+                    validate: (#(#validate_exprs),*),
+                    run: (#(#run_exprs),*),
+                    cleanup: (#(#cleanup_exprs),*),
                 }
             }
         }

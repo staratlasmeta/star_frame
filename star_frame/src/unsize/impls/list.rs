@@ -16,11 +16,11 @@ use star_frame_proc::unsized_impl;
 use std::any::type_name;
 use std::borrow::Borrow;
 use std::cmp::Ordering;
+use std::iter;
 use std::iter::FusedIterator;
 use std::marker::PhantomData;
 use std::mem::size_of;
 use std::ops::{Deref, DerefMut, Index, IndexMut, RangeBounds};
-use std::{iter, ptr};
 
 /// A marker trait for types that can be used as the length of a [`List<T> `].
 pub trait ListLength: Pod + ToPrimitive + FromPrimitive {}
@@ -366,7 +366,7 @@ where
             )
         })?;
         Ok(ListRef(
-            unsafe { &*ptr_meta::from_raw_parts(ptr.cast::<()>(), size_of::<T>() * length) },
+            ptr_meta::from_raw_parts(ptr.cast::<()>(), size_of::<T>() * length),
             PhantomData,
         ))
     }
@@ -390,13 +390,13 @@ where
                 std::any::type_name::<Self>()
             )
         })?;
-        let list_ptr = ptr::from_mut(unsafe {
-            &mut *ptr_meta::from_raw_parts_mut(
+        Ok(ListMut(
+            ptr_meta::from_raw_parts_mut(
                 length_bytes.as_mut_ptr().cast::<()>(),
                 size_of::<T>() * length,
-            )
-        });
-        Ok(ListMut(list_ptr, PhantomData))
+            ),
+            PhantomData,
+        ))
     }
 
     fn owned_from_ref(r: Self::Ref<'_>) -> Result<Self::Owned> {
@@ -497,8 +497,11 @@ where
                 end_ptr,
                 size_of::<T>() * to_add,
                 |list| {
-                    list.len = PackedValue(new_len);
-                    list.0 = &mut *ptr_meta::from_raw_parts_mut(
+                    {
+                        let list = &mut **list;
+                        list.len = PackedValue(new_len);
+                    }
+                    list.0 = ptr_meta::from_raw_parts_mut(
                         list.0.cast::<()>(),
                         (old_len + to_add) * size_of::<T>(),
                     );
@@ -555,13 +558,14 @@ where
             let start_ptr = self.bytes.as_ptr().add(start * size_of::<T>()).cast();
             let end_ptr = self.bytes.as_ptr().add(end * size_of::<T>()).cast();
             ExclusiveWrapper::remove_bytes(self, source_ptr, start_ptr..end_ptr, |list| {
-                list.len = PackedValue(
-                    L::from_usize(new_len).context("Failed to convert new list len to L")?,
-                );
-                list.0 = &mut *ptr_meta::from_raw_parts_mut(
-                    list.0.cast::<()>(),
-                    new_len * size_of::<T>(),
-                );
+                {
+                    let list = &mut **list;
+                    list.len = PackedValue(
+                        L::from_usize(new_len).context("Failed to convert new list len to L")?,
+                    );
+                }
+                list.0 =
+                    ptr_meta::from_raw_parts_mut(list.0.cast::<()>(), new_len * size_of::<T>());
                 Ok(())
             })?;
         };

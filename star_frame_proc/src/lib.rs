@@ -266,18 +266,22 @@ pub fn unsized_impl(
     out.into()
 }
 
-/// Derives `InstructionArgs` for a valid type.
+/// Derives `InstructionArgs` on a struct.
 ///
 /// # Attributes
 ///
-/// ## 1. `#[ix_args(decode, validate, run, cleanup)]` (item and field level attribute)
+/// ## `#[ix_args(decode, validate, run, cleanup)]` (item and field level attribute)
 ///
 /// ### Syntax
 ///
 /// Attribute takes an optional list of the following arguments: `decode`, `validate`, `run`, `cleanup`.
 /// Each argument can be optionally preceded by `&` or `&mut` to specify that argument should be borrowed from the struct.
 ///
-/// ## 2. `#[instruction_args(skip_idl)]` (item level attribute)
+/// If an argument type is provided multiple times, the type will be a tuple of the combined types, starting with the top level argument and in order of appearance.
+///
+/// If an argument type is not provided, the type will default to `()`.
+///
+/// ## `#[instruction_args(skip_idl)]` (item level attribute)
 ///
 /// If present, the macro will not generate a `InstructionToIdl` implementation for the type.
 ///
@@ -286,6 +290,7 @@ pub fn unsized_impl(
 /// use star_frame::prelude::*;
 /// use star_frame::static_assertions::assert_type_eq_all;
 /// #[derive(Copy, Clone, InstructionArgs, Default)]
+/// #[instruction_args(skip_idl)]
 /// #[ix_args(decode)]
 /// pub struct Ix1 {
 ///     #[ix_args(&mut validate)]
@@ -314,9 +319,8 @@ pub fn unsized_impl(
 /// );
 /// ```
 ///
-/// # Example
+/// A single field can be used in multiple args:
 /// ```
-/// // It's even possible for a single field to be used in multiple args!
 /// use star_frame::prelude::*;
 /// use star_frame::static_assertions::assert_type_eq_all;
 /// #[derive(Copy, Clone, Default, InstructionArgs)]
@@ -327,19 +331,41 @@ pub fn unsized_impl(
 ///
 /// assert_type_eq_all!(
 ///     <Ix2 as InstructionArgs>::DecodeArg<'static>,
-///     &Ix2
-/// );
-/// assert_type_eq_all!(
 ///     <Ix2 as InstructionArgs>::ValidateArg<'static>,
 ///     &Ix2
 /// );
 /// assert_type_eq_all!(
 ///     <Ix2 as InstructionArgs>::RunArg<'static>,
-///     Ix2
-/// );
-/// assert_type_eq_all!(
 ///     <Ix2 as InstructionArgs>::CleanupArg<'static>,
 ///     Ix2
+/// );
+/// ```
+///
+/// You can pick multiple fields to turn into a tuple of arguments:
+/// ```
+/// use star_frame::prelude::*;
+/// use star_frame::static_assertions::assert_type_eq_all;
+/// #[derive(Copy, Clone, Default, InstructionArgs)]
+/// #[ix_args(decode)]
+/// pub struct Ix3 {
+///     #[ix_args(&mut decode)]
+///     pub field1: u64,
+///     #[ix_args(&decode)]
+///     pub field2: u32,
+///     #[ix_args(decode)]
+///     pub field3: u8,
+/// }
+///
+/// assert_type_eq_all!(
+///     <Ix3 as InstructionArgs>::DecodeArg<'static>,
+///     (Ix3, &mut u64, &u32, u8)
+/// );
+/// // None of these args are provided, so the default is `()`
+/// assert_type_eq_all!(
+///     <Ix3 as InstructionArgs>::ValidateArg<'static>,
+///     <Ix3 as InstructionArgs>::RunArg<'static>,
+///     <Ix3 as InstructionArgs>::CleanupArg<'static>,
+///     ()
 /// );
 /// ```
 #[proc_macro_error]
@@ -347,7 +373,7 @@ pub fn unsized_impl(
     InstructionArgs,
     attributes(ix_args, instruction_to_idl, type_to_idl, instruction_args)
 )]
-pub fn instruction_args(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+pub fn derive_instruction_args(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let out =
         instruction_args::derive_instruction_args_impl(parse_macro_input!(input as DeriveInput));
     out.into()

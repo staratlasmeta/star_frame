@@ -6,9 +6,9 @@ use std::fmt::{Display, Formatter};
 use std::marker::PhantomData;
 
 /// Allows getting an [`OptionalKeyFor`] from other types.
-pub trait GetOptionalKeyFor<T: ?Sized> {
+pub trait GetOptionalKeyFor<'info, T: ?Sized> {
     /// Gets the contained `OptionalKeyFor`.
-    fn optional_key_for(&self) -> OptionalKeyFor<T>;
+    fn optional_key_for(&self) -> &'info OptionalKeyFor<T>;
 }
 
 /// A key for an account type
@@ -51,6 +51,15 @@ impl<T: ?Sized> OptionalKeyFor<T> {
         }
     }
 
+    /// Creates a new reference to [`OptionalKeyFor`] for any `T` from a reference to a `Pubkey`.
+    #[must_use]
+    pub fn new_ref(pubkey: &Pubkey) -> &Self
+    where
+        T: 'static,
+    {
+        bytemuck::cast_ref(pubkey)
+    }
+
     /// Gets the contained pub
     #[must_use]
     pub fn pubkey(&self) -> Option<&Pubkey> {
@@ -91,16 +100,18 @@ impl<'info, T: HasInnerType + SingleAccountSet<'info>> SetKeyFor<T::Inner, &Opti
     }
 }
 
-impl<'info, T: HasInnerType + SingleAccountSet<'info>> GetOptionalKeyFor<T::Inner> for T {
-    fn optional_key_for(&self) -> OptionalKeyFor<T::Inner> {
+impl<'info, T: HasInnerType + SingleAccountSet<'info>> GetOptionalKeyFor<'info, T::Inner> for T {
+    fn optional_key_for(&self) -> &'info OptionalKeyFor<T::Inner> {
         self.key_for().into()
     }
 }
 
-impl<'info, T: HasInnerType + SingleAccountSet<'info>> GetOptionalKeyFor<T::Inner> for Option<T> {
-    fn optional_key_for(&self) -> OptionalKeyFor<T::Inner> {
+impl<'info, T: HasInnerType + SingleAccountSet<'info>> GetOptionalKeyFor<'info, T::Inner>
+    for Option<T>
+{
+    fn optional_key_for(&self) -> &'info OptionalKeyFor<T::Inner> {
         self.as_ref()
-            .map_or(OptionalKeyFor::NONE, GetOptionalKeyFor::optional_key_for)
+            .map_or(&OptionalKeyFor::NONE, GetOptionalKeyFor::optional_key_for)
     }
 }
 
