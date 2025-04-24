@@ -241,7 +241,7 @@ where
     pub fn get_exclusive<'child>(
         &'child mut self,
         key: &K,
-    ) -> Result<Option<ExclusiveWrapper<'child, 'top, 'info, V::Mut<'ptr>, O, A>>> {
+    ) -> Result<Option<ExclusiveWrapper<'child, 'top, 'info, V::Mut<'top>, O, A>>> {
         let Ok(index) = self.get_index(key) else {
             return Ok(None);
         };

@@ -558,7 +558,6 @@ impl UnsizedEnumContext {
 
         // Create new lifetimes and generics for the extension trait
         let parent_lt = new_lifetime(&self.generics, Some("parent"));
-        let ptr_lt = new_lifetime(&self.generics, Some("ptr"));
         let top_lt = new_lifetime(&self.generics, Some("top"));
         let info_lt = new_lifetime(&self.generics, Some("info"));
         let child_lt = new_lifetime(&self.generics, Some("child"));
@@ -570,8 +569,8 @@ impl UnsizedEnumContext {
         let wc = quote!(#o: #prelude::UnsizedType + ?Sized, #a: #prelude::UnsizedTypeDataAccess<#info_lt>);
 
         let oa_gen = quote!(#o, #a);
-        let parent_before_gen = quote!(#parent_lt, #ptr_lt, #top_lt, #info_lt);
-        let child_before_gen = quote!(#child_lt, #ptr_lt, #top_lt, #info_lt);
+        let parent_before_gen = quote!(#parent_lt, #top_lt, #info_lt);
+        let child_before_gen = quote!(#child_lt, #top_lt, #info_lt);
 
         // Combine generics for the extension trait
         let ext_trait_generics = self.generics.combine::<BetterGenerics>(&parse_quote!([

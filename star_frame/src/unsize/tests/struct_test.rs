@@ -28,7 +28,7 @@ impl UnsizedTest3 {
     #[exclusive]
     fn foo<'child>(
         &'child mut self,
-    ) -> ExclusiveWrapperT<'child, 'ptr, 'top, 'info, List<PackedValue<u16>, u8>, O, A> {
+    ) -> ExclusiveWrapperT<'child, 'top, 'info, List<PackedValue<u16>, u8>, O, A> {
         self.unsized3()
     }
 }
@@ -75,15 +75,9 @@ fn test_unsized_test() -> Result<()> {
     let mut item = map2.get_exclusive(&1)?.expect("Item exsts");
     assert_eq!(&**item.unsized3, unsized3_arr);
     item.unsized3().push(6.into())?;
+    drop(item); // ensure drop works properly still
     let mut some_item = banana.unsized2();
     some_item.push(204.into())?;
-    drop(some_item);
-    banana.map2().insert(
-        1,
-        UnsizedTest3Init {
-            unsized3: unsized3_arr.map(Into::into),
-        },
-    )?;
     drop(banana);
 
     let expected = UnsizedTestOwned {
@@ -114,19 +108,6 @@ fn test_modify_owned() -> Result<()> {
         Ok(())
     })?;
     assert_eq!(my_vec, vec![1, 2, 3, 4]);
-    Ok(())
-}
-
-#[test]
-fn test_miri() -> Result<()> {
-    let my_list = List::<u8>::new_byte_set(vec![1, 2, 3])?;
-    // let mut data = my_list.data_mut()?;
-    let mut data = my_list.data_mut()?;
-    data.push(4)?;
-    // drop(data);
-    // let mut data2 = my_list.data_exclusive()?;
-    // data2.push(5)?;
-    println!("data2: {:?}", &*data.as_shared());
     Ok(())
 }
 

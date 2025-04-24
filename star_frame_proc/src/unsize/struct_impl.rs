@@ -827,7 +827,6 @@ impl UnsizedStructContext {
         Paths!(prelude);
         UnsizedStructContext!(self => struct_ident, unsized_fields, struct_type);
         let info_lt = new_lifetime(&self.generics, Some("info"));
-        let ptr_lt = new_lifetime(&self.generics, Some("ptr"));
         let top_lt = new_lifetime(&self.generics, Some("top"));
         let parent_lt = new_lifetime(&self.generics, Some("parent"));
         let child = new_lifetime(&self.generics, Some("child"));
@@ -837,9 +836,10 @@ impl UnsizedStructContext {
         let ext_trait_generics = self
             .ref_mut_generics
             .combine::<BetterGenerics>(&parse_quote!([
-                <#parent_lt, #ptr_lt, #top_lt, #info_lt, #o, #a> where
+                <#parent_lt, #top_lt, #info_lt, #o, #a> where
                     #o: #prelude::UnsizedType + ?Sized,
-                    #a: #prelude::UnsizedTypeDataAccess<#info_lt>
+                    #a: #prelude::UnsizedTypeDataAccess<#info_lt>,
+                    #info_lt: #parent_lt
             ]));
 
         let (impl_gen, ty_gen, wc) = ext_trait_generics.split_for_impl();
@@ -855,7 +855,7 @@ impl UnsizedStructContext {
                 }
             });
 
-        let impl_for = quote!(#prelude::ExclusiveWrapperT<#parent_lt, #ptr_lt, #top_lt, #info_lt, #struct_type, #o, #a>);
+        let impl_for = quote!(#prelude::ExclusiveWrapperT<#parent_lt, #top_lt, #info_lt, #struct_type, #o, #a>);
 
         let make_ext_trait = |vis: &Visibility, fields: Vec<&Field>, extension_ident: &Ident| {
             let field_idents = get_field_idents(&fields).collect_vec();
@@ -864,14 +864,14 @@ impl UnsizedStructContext {
                 #vis trait #extension_ident #impl_gen #wc
                 {
                     #(
-                        fn #field_idents<#child>(&#child mut self) -> #prelude::ExclusiveWrapperT<#child, #ptr_lt, #top_lt, #info_lt, #field_types, #o, #a>;
+                        fn #field_idents<#child>(&#child mut self) -> #prelude::ExclusiveWrapperT<#child, #top_lt, #info_lt, #field_types, #o, #a>;
                     )*
                 }
 
                 #[automatically_derived]
                 impl #impl_gen #extension_ident #ty_gen for #impl_for #wc {
                     #(
-                        fn #field_idents<#child>(&#child mut self) -> #prelude::ExclusiveWrapperT<#child, #ptr_lt, #top_lt, #info_lt, #field_types, #o, #a> {
+                        fn #field_idents<#child>(&#child mut self) -> #prelude::ExclusiveWrapperT<#child, #top_lt, #info_lt, #field_types, #o, #a> {
                             unsafe { #prelude::ExclusiveWrapper::map_ref(self, |x| &mut x.#field_idents) }
                         }
                     )*

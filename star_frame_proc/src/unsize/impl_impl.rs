@@ -185,15 +185,19 @@ pub fn unsized_impl_impl(item: ItemImpl, args: TokenStream) -> TokenStream {
     let a = new_generic(&item.generics, Some("A"));
 
     let exclusive_trait_generics = item.generics.combine::<BetterGenerics>(&parse_quote!([
-        <#parent_lt, #ptr_lt, #top_lt, #info_lt, #o, #a> where
+        <#parent_lt, #top_lt, #info_lt, #o, #a> where
             #o: #prelude::UnsizedType + ?Sized,
-            #a: #prelude::UnsizedTypeDataAccess<#info_lt>
+            #a: #prelude::UnsizedTypeDataAccess<#info_lt>,
+            #info_lt: #parent_lt
     ]));
     let (impl_gen, ty_gen, where_clause) = exclusive_trait_generics.split_for_impl();
-    let impl_for = quote!(#prelude::ExclusiveWrapperT<#parent_lt, #ptr_lt, #top_lt, #info_lt, #self_ty, #o, #a>);
+    let impl_for =
+        quote!(#prelude::ExclusiveWrapperT<#parent_lt, #top_lt, #info_lt, #self_ty, #o, #a>);
     // need to directly use mut ty so params aren't unconstrained
+
+    let mut_ty_inherent = new_last_segment(mut_ident.clone(), top_lt.clone());
     let impl_for_inherent =
-        quote!(#prelude::ExclusiveWrapper<#parent_lt, #top_lt, #info_lt, #mut_ty, #o, #a>);
+        quote!(#prelude::ExclusiveWrapper<#parent_lt, #top_lt, #info_lt, #mut_ty_inherent, #o, #a>);
 
     let exclusive_impls = if impl_args.inherent {
         let found_crate = crate_name("star_frame").expect("Could not find `star_frame`");

@@ -127,7 +127,7 @@ where
 
     pub fn data_mut(
         &self,
-    ) -> Result<ExclusiveWrapperT<'_, '_, '_, 'static, T, T, TestUnderlyingData<'static>>> {
+    ) -> Result<ExclusiveWrapperT<'_, '_, 'static, T, T, TestUnderlyingData<'static>>> {
         let res = unsafe { ExclusiveWrapper::new(self.test_data_ref()) }?;
         Ok(res)
     }
@@ -189,7 +189,7 @@ pub trait ModifyOwned: Clone {
     fn modify_owned<U>(
         &mut self,
         modify: impl FnOnce(
-            &mut ExclusiveWrapperT<'_, '_, '_, 'static, U, U, TestUnderlyingData<'static>>,
+            &mut ExclusiveWrapperT<'_, '_, 'static, U, U, TestUnderlyingData<'static>>,
         ) -> Result<()>,
     ) -> Result<()>
     where

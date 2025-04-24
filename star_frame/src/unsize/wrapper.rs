@@ -190,18 +190,18 @@ where
     r: MaybeOwnedR<'parent, 'top>,
     outer_data: MaybeOwnedPtr<<O as UnsizedType>::Mut<'top>>,
     phantom_o: PhantomData<fn() -> &'info O>,
-    data: Option<*mut T>, // ptr is lifetime 'self, so should just be parent?. When None, borrow from outer_data.
+    data: Option<*mut T>, // ptr is lifetime 'top
 }
 
 /// A convenience type where T is passed in as the [`UnsizedType`], instead of `UnsizedType::Mut`
-pub type ExclusiveWrapperT<'parent, 'ptr, 'top, 'info, T, O, A> =
-    ExclusiveWrapper<'parent, 'top, 'info, <T as UnsizedType>::Mut<'ptr>, O, A>;
+pub type ExclusiveWrapperT<'parent, 'top, 'info, T, O, A> =
+    ExclusiveWrapper<'parent, 'top, 'info, <T as UnsizedType>::Mut<'top>, O, A>;
 
-impl<'parent, 'top, 'info, O, A> ExclusiveWrapperT<'parent, 'top, 'top, 'info, O, O, A>
+impl<'top, 'info, O, A> ExclusiveWrapperT<'top, 'top, 'info, O, O, A>
 where
     O: UnsizedType + ?Sized,
     A: UnsizedTypeDataAccess<'info>,
-    'info: 'parent + 'top,
+    'info: 'top,
 {
     /// # Safety
     /// TODO:
@@ -273,27 +273,33 @@ where
 {
     /// # Safety
     /// todo
-    pub unsafe fn map_ref<'child, U: 'child>(
+    pub unsafe fn map_ref<'child, U: 'top>(
         wrapper: &'child mut Self,
-        f: impl FnOnce(&'child mut T) -> *mut U,
-    ) -> ExclusiveWrapper<'child, 'top, 'info, U, O, A> {
-        let data = f(unsafe { &mut *wrapper.get_data_mut() });
-        ExclusiveWrapper {
-            underlying_data: wrapper.underlying_data,
-            outer_data: wrapper.outer_data.get_borrowed(),
-            r: wrapper.r.get_borrowed(),
-            data: data.into(),
-            phantom_o: PhantomData,
+        f: impl FnOnce(&'top mut T) -> &'top mut U,
+    ) -> ExclusiveWrapper<'child, 'top, 'info, U, O, A>
+    where
+        T: 'top,
+    {
+        unsafe {
+            Self::try_map_ref(
+                wrapper,
+                #[inline]
+                |data| Ok(f(data)),
+            )
         }
+        .unwrap()
     }
 
     /// # Safety
     /// TODO
-    pub unsafe fn try_map_ref<'child, U: 'child>(
+    pub unsafe fn try_map_ref<'child, U: 'top>(
         wrapper: &'child mut Self,
-        f: impl FnOnce(&'child mut T) -> Result<*mut U>,
-    ) -> Result<ExclusiveWrapper<'child, 'top, 'info, U, O, A>> {
-        let data = f(unsafe { &mut *wrapper.get_data_mut() })?;
+        f: impl FnOnce(&'top mut T) -> Result<&'top mut U>,
+    ) -> Result<ExclusiveWrapper<'child, 'top, 'info, U, O, A>>
+    where
+        T: 'top,
+    {
+        let data = core::ptr::from_mut(f(unsafe { &mut *wrapper.get_data_mut() })?);
         Ok(ExclusiveWrapper {
             underlying_data: wrapper.underlying_data,
             outer_data: wrapper.outer_data.get_borrowed(),
