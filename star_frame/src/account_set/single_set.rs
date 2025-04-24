@@ -172,7 +172,6 @@ pub trait CanModifyRent<'info> {
         syscalls: &impl SyscallInvoke<'info>,
     ) -> Result<()> {
         let account = self.account_to_modify();
-        msg!("Normalizing rent for {}", account.key());
         let rent = syscalls.get_rent()?;
         let lamports = **account.try_borrow_lamports()?;
         let data_len = account.data_len();
@@ -184,7 +183,6 @@ pub trait CanModifyRent<'info> {
                     msg!("Lamport is 0, skipping");
                     return Ok(());
                 }
-                msg!("Normalizing rent greater!");
                 let transfer_amount = rent_lamports - lamports;
                 let cpi = System::cpi(
                     &system_program::Transfer {
@@ -202,7 +200,6 @@ pub trait CanModifyRent<'info> {
                 Ok(())
             }
             Ordering::Less => {
-                msg!("Lamports is less, refunding!");
                 let transfer_amount = lamports - rent_lamports;
                 **account.try_borrow_mut_lamports()? -= transfer_amount;
                 **funder.account_info().try_borrow_mut_lamports()? += transfer_amount;
