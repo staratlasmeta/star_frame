@@ -216,7 +216,7 @@ mod tests {
         let byte_array = [1, 2, 3, 4, 5];
         let test_bytes = TestByteSet::<RemainingBytes>::new_from_init(&byte_array)?;
         let mut bytes = test_bytes.data_mut()?;
-        bytes.exclusive().set_len(3)?;
+        bytes.set_len(3)?;
         println!("{:?}", &**bytes);
         Ok(())
     }

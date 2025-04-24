@@ -87,12 +87,11 @@ fn unsized_enum_test() -> Result<()> {
     };
 
     let mut mut_bytes = bytes.data_mut()?;
-    let mut exclusive = mut_bytes.exclusive();
 
-    exclusive.list_before().push(100)?;
+    mut_bytes.list_before().push(100)?;
     owned.list_before.push(100);
-    compare_with_owned(&owned, &exclusive)?;
-    if let UnsizedEnumTestExclusive::Unsized1(mut a) = exclusive.enum_test().get() {
+    compare_with_owned(&owned, &mut_bytes)?;
+    if let UnsizedEnumTestExclusive::Unsized1(mut a) = mut_bytes.enum_test().get() {
         a.list().push(150)?;
         a.list().push(151)?;
         a.sized = 10;
@@ -106,17 +105,17 @@ fn unsized_enum_test() -> Result<()> {
     } else {
         bail!("Expected Unsized1Owned");
     }
-    compare_with_owned(&owned, &exclusive)?;
+    compare_with_owned(&owned, &mut_bytes)?;
 
-    exclusive.list_after().push(202)?;
-    exclusive.list_after().push(203)?;
-    exclusive.list_after().push(204)?;
+    mut_bytes.list_after().push(202)?;
+    mut_bytes.list_after().push(203)?;
+    mut_bytes.list_after().push(204)?;
     owned.list_after.push(202);
     owned.list_after.push(203);
     owned.list_after.push(204);
-    compare_with_owned(&owned, &exclusive)?;
+    compare_with_owned(&owned, &mut_bytes)?;
 
-    exclusive.enum_test().set_unsized3(DefaultInit)?;
+    mut_bytes.enum_test().set_unsized3(DefaultInit)?;
     owned.enum_test = UnsizedEnumTestOwned::Unsized3(Unsized3Owned {
         sized: 0.into(),
         unsized1: Unsized2Owned {
@@ -124,16 +123,16 @@ fn unsized_enum_test() -> Result<()> {
             list: vec![],
         },
     });
-    compare_with_owned(&owned, &exclusive)?;
-    if let UnsizedEnumTestExclusive::Unsized3(mut a) = exclusive.enum_test().get() {
+    compare_with_owned(&owned, &mut_bytes)?;
+    if let UnsizedEnumTestExclusive::Unsized3(mut a) = mut_bytes.enum_test().get() {
         a.unsized1().list().push(151.into())?;
         a.unsized1().list().insert(0, 150.into())?;
         a.unsized1.sized = 30.into();
     } else {
         bail!("Expected Unsized3");
     }
-    exclusive.list_before().insert(0, 190)?;
-    exclusive.list_after().insert(2, 200)?;
+    mut_bytes.list_before().insert(0, 190)?;
+    mut_bytes.list_after().insert(2, 200)?;
     if let UnsizedEnumTestOwned::Unsized3(unsized3) = &mut owned.enum_test {
         unsized3.unsized1.list.push(151.into());
         unsized3.unsized1.list.insert(0, 150.into());
@@ -143,9 +142,9 @@ fn unsized_enum_test() -> Result<()> {
     }
     owned.list_before.insert(0, 190);
     owned.list_after.insert(2, 200);
-    compare_with_owned(&owned, &exclusive)?;
+    compare_with_owned(&owned, &mut_bytes)?;
 
-    exclusive.enum_test().set_unsized2(Unsized2Init {
+    mut_bytes.enum_test().set_unsized2(Unsized2Init {
         sized: Unsized2Sized { sized: 426.into() },
         list: [1, 2, 3, 4, 5].map(Into::into),
     })?;
@@ -153,9 +152,9 @@ fn unsized_enum_test() -> Result<()> {
         sized: 426.into(),
         list: [1, 2, 3, 4, 5].map(Into::into).to_vec(),
     });
-    compare_with_owned(&owned, &exclusive)?;
+    compare_with_owned(&owned, &mut_bytes)?;
 
-    if let UnsizedEnumTestExclusive::Unsized2(mut a) = exclusive.enum_test().get() {
+    if let UnsizedEnumTestExclusive::Unsized2(mut a) = mut_bytes.enum_test().get() {
         a.list().insert(0, 0.into())?;
     } else {
         bail!("Expected Unsized2");
@@ -165,10 +164,10 @@ fn unsized_enum_test() -> Result<()> {
     } else {
         bail!("Expected Unsized2Owned");
     }
-    compare_with_owned(&owned, &exclusive)?;
+    compare_with_owned(&owned, &mut_bytes)?;
 
-    let new_owned = EnumTestStruct::owned_from_ref(EnumTestStruct::mut_as_ref(&exclusive))?;
-    compare_with_owned(&new_owned, &exclusive)?;
+    let new_owned = EnumTestStruct::owned_from_ref(EnumTestStruct::mut_as_ref(&mut_bytes))?;
+    compare_with_owned(&new_owned, &mut_bytes)?;
     ensure!(owned == new_owned);
     Ok(())
 }

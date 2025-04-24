@@ -83,9 +83,8 @@ impl StarFrameInstruction for ProcessEnlistPlayerIx {
     ) -> Result<Self::ReturnType> {
         let clock = syscalls.get_clock()?;
         let bump = account_set.player_faction_account.access_seeds().bump;
-        let mut player_faction_account_data = account_set.player_faction_account.data_mut()?;
-        let mut exclusive = player_faction_account_data.exclusive();
-        **exclusive = PlayerFactionDataSized {
+        let mut player_faction_data = account_set.player_faction_account.data_mut()?;
+        **player_faction_data = PlayerFactionDataSized {
             owner: *account_set.player_account.key,
             enlisted_at_timestamp: clock.unix_timestamp,
             faction_id,
@@ -93,7 +92,7 @@ impl StarFrameInstruction for ProcessEnlistPlayerIx {
             bump,
             _padding: [0; 5],
         };
-        // exclusive.set_v1(PlayerFactionDataInit {
+        // player_faction_data.set_v1(PlayerFactionDataInit {
         //     sized: PlayerFactionDataSized {
         //         owner: *account_set.player_account.key,
         //         enlisted_at_timestamp: clock.unix_timestamp,
@@ -104,10 +103,10 @@ impl StarFrameInstruction for ProcessEnlistPlayerIx {
         //     },
         //     some_fields: DefaultInit,
         // })?;
-        // let PlayerFactionDataAccountExclusive::V1(data) = &mut exclusive.get() else {
-        //     bail!("Invalid exclusive state");
+        // let PlayerFactionDataAccountExclusive::V1(data) = &mut player_faction_data.get() else {
+        //     bail!("Invalid player_faction_data state");
         // };
-        exclusive.some_fields().foo()?;
+        player_faction_data.some_fields().foo()?;
         Ok(())
     }
 }

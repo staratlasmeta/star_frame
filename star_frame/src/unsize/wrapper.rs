@@ -3,7 +3,8 @@ use crate::prelude::UnsizedInit;
 use crate::Result;
 use advancer::Advance;
 use anyhow::{ensure, Context};
-use derive_more::{Deref, DerefMut};
+use core::fmt;
+use derive_more::{Debug, Deref, DerefMut};
 use solana_program::account_info::AccountInfo;
 use solana_program::entrypoint::MAX_PERMITTED_DATA_INCREASE;
 use solana_program::program_error::ProgramError;
@@ -11,6 +12,7 @@ use solana_program::program_memory::sol_memmove;
 use std::cell::{Ref, RefMut};
 use std::cmp::Ordering;
 use std::collections::Bound;
+use std::fmt::Pointer;
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut, RangeBounds};
 use std::slice::from_raw_parts_mut;
@@ -65,8 +67,8 @@ impl<'info> UnsizedTypeDataAccess<'info> for AccountInfo<'info> {
 }
 
 #[derive(Debug)]
-pub struct SharedWrapper<'a, 'info, T: ?Sized> {
-    r: Ref<'a, &'info mut [u8]>,
+pub struct SharedWrapper<'top, 'info, T: ?Sized> {
+    r: Ref<'top, &'info mut [u8]>,
     data: T,
 }
 
@@ -118,45 +120,92 @@ pub(crate) unsafe fn change_ref_back<'info, 'top>(
 }
 
 #[derive(Debug)]
-pub struct MutWrapper<'top, 'info, O, A>
+pub enum MaybeOwnedR<'parent, 'top> {
+    Owned(RefMut<'top, *mut [u8]>), // ptr is lifetime 'info
+    Borrowed(&'parent mut RefMut<'top, *mut [u8]>),
+}
+
+impl<'parent, 'top> MaybeOwnedR<'parent, 'top> {
+    pub fn get_ref<'a>(&'a mut self) -> &'a mut RefMut<'top, *mut [u8]> {
+        match self {
+            Self::Owned(r) => r,
+            Self::Borrowed(r) => r,
+        }
+    }
+
+    #[must_use]
+    pub fn get_borrowed<'a>(&'a mut self) -> MaybeOwnedR<'a, 'top>
+    where
+        'parent: 'a,
+    {
+        match self {
+            Self::Owned(r) => MaybeOwnedR::Borrowed(r),
+            Self::Borrowed(r) => MaybeOwnedR::Borrowed(r),
+        }
+    }
+}
+
+pub enum MaybeOwnedPtr<O> {
+    Owned(O),
+    Borrowed(*mut O),
+}
+
+impl<O> fmt::Debug for MaybeOwnedPtr<O> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let ptr = self.get_ptr();
+        Pointer::fmt(&ptr, f)
+    }
+}
+
+impl<O> MaybeOwnedPtr<O> {
+    pub fn get_ptr(&self) -> *const O {
+        match self {
+            Self::Owned(o) => o,
+            Self::Borrowed(o) => *o,
+        }
+    }
+
+    pub fn get_mut_ptr(&mut self) -> *mut O {
+        match self {
+            Self::Owned(o) => o,
+            Self::Borrowed(o) => *o,
+        }
+    }
+
+    #[must_use]
+    pub fn get_borrowed(&mut self) -> Self {
+        match self {
+            Self::Owned(o) => MaybeOwnedPtr::Borrowed(o),
+            Self::Borrowed(o) => MaybeOwnedPtr::Borrowed(*o),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct ExclusiveWrapper<'parent, 'top, 'info, T, O, A>
 where
     O: UnsizedType + ?Sized,
 {
     underlying_data: &'top A,
-    r: RefMut<'top, *mut [u8]>,
+    r: MaybeOwnedR<'parent, 'top>,
+    outer_data: MaybeOwnedPtr<<O as UnsizedType>::Mut<'top>>,
     phantom_o: PhantomData<fn() -> &'info O>,
-    data: O::Mut<'top>,
+    data: Option<*mut T>, // ptr is lifetime 'self, so should just be parent?. When None, borrow from outer_data.
 }
 
-impl<'top, O, A> Deref for MutWrapper<'top, '_, O, A>
-where
-    O: UnsizedType + ?Sized,
-{
-    type Target = O::Mut<'top>;
+/// A convenience type where T is passed in as the [`UnsizedType`], instead of `UnsizedType::Mut`
+pub type ExclusiveWrapperT<'parent, 'ptr, 'top, 'info, T, O, A> =
+    ExclusiveWrapper<'parent, 'top, 'info, <T as UnsizedType>::Mut<'ptr>, O, A>;
 
-    fn deref(&self) -> &Self::Target {
-        &self.data
-    }
-}
-
-impl<O, A> DerefMut for MutWrapper<'_, '_, O, A>
+impl<'parent, 'top, 'info, O, A> ExclusiveWrapperT<'parent, 'top, 'top, 'info, O, O, A>
 where
-    O: UnsizedType + ?Sized,
-{
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.data
-    }
-}
-
-impl<'a, 'info, O, A> MutWrapper<'a, 'info, O, A>
-where
-    'info: 'a,
     O: UnsizedType + ?Sized,
     A: UnsizedTypeDataAccess<'info>,
+    'info: 'parent + 'top,
 {
     /// # Safety
-    /// todo
-    pub unsafe fn new(underlying_data: &'a A) -> Result<Self> {
+    /// TODO:
+    pub unsafe fn new(underlying_data: &'top A) -> Result<Self> {
         let mut r = RefMut::map(
             UnsizedTypeDataAccess::data_mut(underlying_data)?,
             |r| unsafe { change_ref(r) },
@@ -164,48 +213,36 @@ where
         // ensure no ZSTs in middle of struct
         let _ = O::ZST_STATUS;
 
+        // TODO: This is lifetime extension. Is this okay?
         let data = O::get_mut(unsafe { &mut &mut **r })?;
+
         Ok(Self {
             underlying_data,
-            r,
+            r: MaybeOwnedR::Owned(r),
+            outer_data: MaybeOwnedPtr::Owned(data),
             phantom_o: PhantomData,
-            data,
+            data: None,
         })
     }
 }
 
-/// `'info` is the lifetime of the account info data.
-///
-#[derive(Debug)]
-pub struct ExclusiveWrapper<'parent, 'top, 'info, T, O, A>
+impl<T, O, A> ExclusiveWrapper<'_, '_, '_, T, O, A>
 where
     O: UnsizedType + ?Sized,
 {
-    underlying_data: &'top A,
-    r: &'parent mut RefMut<'top, *mut [u8]>, // ptr is lifetime 'info
-    outer_data: *mut <O as UnsizedType>::Mut<'top>,
-    phantom_o: PhantomData<fn() -> &'info O>,
-    data: *mut T, // ptr is lifetime 'ptr
-}
+    /// # Safety
+    /// T and O must be the same type if data is None
+    unsafe fn get_data(&self) -> *const T {
+        match self.data {
+            Some(ptr) => ptr,
+            None => self.outer_data.get_ptr().cast::<T>(),
+        }
+    }
 
-/// A convenience type where T is passed in as the [`UnsizedType`], instead of `UnsizedType::Mut`
-pub type ExclusiveWrapperT<'parent, 'ptr, 'top, 'info, T, O, A> =
-    ExclusiveWrapper<'parent, 'top, 'info, <T as UnsizedType>::Mut<'ptr>, O, A>;
-
-impl<'top, 'info, O, A> MutWrapper<'top, 'info, O, A>
-where
-    O: UnsizedType + ?Sized,
-    A: UnsizedTypeDataAccess<'info>,
-{
-    pub fn exclusive<'parent>(
-        &'parent mut self,
-    ) -> ExclusiveWrapperT<'parent, 'top, 'top, 'info, O, O, A> {
-        ExclusiveWrapper {
-            underlying_data: self.underlying_data,
-            r: &mut self.r,
-            outer_data: std::ptr::from_mut(&mut self.data),
-            phantom_o: PhantomData,
-            data: &mut self.data,
+    unsafe fn get_data_mut(&mut self) -> *mut T {
+        match self.data {
+            Some(ptr) => ptr,
+            None => self.outer_data.get_mut_ptr().cast::<T>(),
         }
     }
 }
@@ -217,7 +254,7 @@ where
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        unsafe { &*self.data }
+        unsafe { &*self.get_data() }
     }
 }
 impl<T, O, A> DerefMut for ExclusiveWrapper<'_, '_, '_, T, O, A>
@@ -225,7 +262,7 @@ where
     O: UnsizedType + ?Sized,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        unsafe { &mut *self.data }
+        unsafe { &mut *self.get_data_mut() }
     }
 }
 
@@ -240,11 +277,12 @@ where
         wrapper: &'child mut Self,
         f: impl FnOnce(&'child mut T) -> *mut U,
     ) -> ExclusiveWrapper<'child, 'top, 'info, U, O, A> {
+        let data = f(unsafe { &mut *wrapper.get_data_mut() });
         ExclusiveWrapper {
             underlying_data: wrapper.underlying_data,
-            outer_data: wrapper.outer_data,
-            r: wrapper.r,
-            data: f(unsafe { &mut *wrapper.data }),
+            outer_data: wrapper.outer_data.get_borrowed(),
+            r: wrapper.r.get_borrowed(),
+            data: data.into(),
             phantom_o: PhantomData,
         }
     }
@@ -255,11 +293,12 @@ where
         wrapper: &'child mut Self,
         f: impl FnOnce(&'child mut T) -> Result<*mut U>,
     ) -> Result<ExclusiveWrapper<'child, 'top, 'info, U, O, A>> {
+        let data = f(unsafe { &mut *wrapper.get_data_mut() })?;
         Ok(ExclusiveWrapper {
             underlying_data: wrapper.underlying_data,
-            outer_data: wrapper.outer_data,
-            r: wrapper.r,
-            data: f(unsafe { &mut *wrapper.data })?,
+            outer_data: wrapper.outer_data.get_borrowed(),
+            r: wrapper.r.get_borrowed(),
+            data: data.into(),
             phantom_o: PhantomData,
         })
     }
@@ -283,7 +322,7 @@ where
         after_add: impl FnOnce(&mut T) -> Result<()>,
     ) -> Result<()> {
         {
-            let data = unsafe { change_ref_back(wrapper.r) };
+            let data = unsafe { change_ref_back(wrapper.r.get_ref()) };
             let old_ptr = data.as_ptr();
             let old_len = data.len();
 
@@ -310,11 +349,11 @@ where
             }
         }
 
-        after_add(unsafe { &mut *wrapper.data })?;
+        after_add(unsafe { &mut *wrapper.get_data_mut() })?;
 
         unsafe {
             <O as UnsizedType>::resize_notification(
-                &mut *wrapper.outer_data,
+                &mut *wrapper.outer_data.get_mut_ptr(),
                 source_ptr,
                 amount.try_into()?,
             )?;
@@ -331,7 +370,7 @@ where
         after_remove: impl FnOnce(&mut T) -> Result<()>,
     ) -> Result<()> {
         let amount = {
-            let data = unsafe { change_ref_back(wrapper.r) };
+            let data = unsafe { change_ref_back(wrapper.r.get_ref()) };
             let old_len = data.len();
 
             let start = match range.start_bound() {
@@ -386,11 +425,11 @@ where
             amount
         };
 
-        after_remove(unsafe { &mut *wrapper.data })?;
+        after_remove(unsafe { &mut *wrapper.get_data_mut() })?;
 
         unsafe {
             <O as UnsizedType>::resize_notification(
-                &mut *wrapper.outer_data,
+                &mut *wrapper.outer_data.get_mut_ptr(),
                 source_ptr,
                 -amount.try_into()?,
             )?;
@@ -405,7 +444,7 @@ where
         U: UnsizedType + ?Sized,
     {
         let start_usize = start_ptr as usize;
-        let mut data = &unsafe { change_ref_back(wrapper.r) }[..];
+        let mut data = &unsafe { change_ref_back(wrapper.r.get_ref()) }[..];
         let data_usize = data.as_ptr() as usize;
         let start_offset = start_usize - data_usize;
         data.try_advance(start_offset).with_context(|| {

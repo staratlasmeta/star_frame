@@ -1379,14 +1379,12 @@ mod tests {
         let test_bytes = TestByteSet::<UnsizedList<List<u8, u8>>>::new_from_init(byte_arrays)?;
         let mut owned = vec![vec![100u8, 101, 102], vec![200, 201, 202]];
         let mut bytes = test_bytes.data_mut()?;
-        let mut exclusive = bytes.exclusive();
-        exclusive.insert(0, [50])?;
+        bytes.insert(0, [50])?;
         owned.insert(0, vec![50]);
-        exclusive.push([51, 52, 53])?;
+        bytes.push([51, 52, 53])?;
         owned.push(vec![51, 52, 53]);
-        exclusive.remove_range(..exclusive.len() - 1)?;
-        exclusive.insert(1, [54, 55])?;
-        // exclusive.get_exclusive()
+        bytes.remove_range(..bytes.len() - 1)?;
+        bytes.insert(1, [54, 55])?;
         owned.insert(1, vec![54, 55]);
         drop(bytes);
         let owned = test_bytes.owned()?;
@@ -1405,12 +1403,11 @@ mod tests {
         let test_bytes =
             TestByteSet::<UnsizedList<UnsizedList<List<u8, u8>>>>::new_from_init(byte_array)?;
         let mut bytes = test_bytes.data_mut()?;
-        let mut exclusive = bytes.exclusive();
-        let mut first_list = exclusive.index_mut(0)?;
+        let mut first_list = bytes.index_mut(0)?;
         let mut first_first_list = first_list.index_mut(0)?;
         println!("{:?}", &**first_first_list);
 
-        let mut first_exclusive = exclusive.index_exclusive(0)?;
+        let mut first_exclusive = bytes.index_exclusive(0)?;
         println!("{:?}", &**first_exclusive.index_mut(0)?);
         println!("{:?}", &first_exclusive.offset_list);
         let mut exclusive_exclusive = first_exclusive.index_exclusive(1)?;

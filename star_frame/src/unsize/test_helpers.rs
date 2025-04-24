@@ -1,7 +1,7 @@
 #![allow(unused)]
 use crate::unsize::init::{DefaultInit, UnsizedInit};
 use crate::unsize::wrapper::{
-    ExclusiveWrapper, ExclusiveWrapperT, MutWrapper, SharedWrapper, UnsizedTypeDataAccess,
+    ExclusiveWrapper, ExclusiveWrapperT, SharedWrapper, UnsizedTypeDataAccess,
 };
 use crate::unsize::UnsizedType;
 use crate::Result;
@@ -125,8 +125,11 @@ where
         unsafe { SharedWrapper::<T>::new(self.test_data_ref()) }
     }
 
-    pub fn data_mut(&self) -> Result<MutWrapper<'_, 'static, T, TestUnderlyingData<'static>>> {
-        unsafe { MutWrapper::new(self.test_data_ref()) }
+    pub fn data_mut(
+        &self,
+    ) -> Result<ExclusiveWrapperT<'_, '_, '_, 'static, T, T, TestUnderlyingData<'static>>> {
+        let res = unsafe { ExclusiveWrapper::new(self.test_data_ref()) }?;
+        Ok(res)
     }
 
     pub fn owned(&self) -> Result<T::Owned> {
@@ -195,8 +198,7 @@ pub trait ModifyOwned: Clone {
         let self_byte_set = TestByteSet::<U>::new(self.clone())?;
         {
             let mut bytes_mut = self_byte_set.data_mut()?;
-            let mut bytes_exclusive = bytes_mut.exclusive();
-            modify(&mut bytes_exclusive)?;
+            modify(&mut bytes_mut)?;
         }
 
         *self = self_byte_set.owned()?;
