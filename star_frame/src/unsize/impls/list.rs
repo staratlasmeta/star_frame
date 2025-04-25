@@ -776,7 +776,8 @@ mod tests {
         let mut vec = byte_array.to_vec();
         let test_bytes = TestByteSet::<List<u8>>::new(byte_array.to_vec())?;
         let mut bytes = test_bytes.data_mut()?;
-        bytes.push_all([10, 11, 12])?;
+        bytes.push_all([10, 11])?;
+        bytes.push(12)?;
         vec.extend_from_slice(&[10, 11, 12]);
 
         for (list_item, owned_item) in bytes.iter_mut().zip_eq(vec.iter_mut()) {
