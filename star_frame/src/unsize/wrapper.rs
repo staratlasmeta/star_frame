@@ -4,15 +4,16 @@ use crate::Result;
 use advancer::Advance;
 use anyhow::{ensure, Context};
 use core::fmt;
+use core::ptr;
 use derive_more::{Debug, Deref, DerefMut};
 use solana_program::account_info::AccountInfo;
 use solana_program::entrypoint::MAX_PERMITTED_DATA_INCREASE;
 use solana_program::program_error::ProgramError;
 use solana_program::program_memory::sol_memmove;
+use std::any::type_name;
 use std::cell::{Ref, RefMut};
 use std::cmp::Ordering;
 use std::collections::Bound;
-use std::fmt::Pointer;
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut, RangeBounds};
 use std::slice::from_raw_parts_mut;
@@ -110,74 +111,72 @@ impl<T> Deref for SharedWrapper<'_, '_, T> {
 pub(crate) unsafe fn change_ref<'info, 'top>(
     the_ref: &'top mut &'info mut [u8],
 ) -> &'top mut *mut [u8] {
-    unsafe { &mut *std::ptr::from_mut::<&'info mut [u8]>(the_ref).cast::<*mut [u8]>() }
+    unsafe { &mut *ptr::from_mut::<&'info mut [u8]>(the_ref).cast::<*mut [u8]>() }
 }
 
 pub(crate) unsafe fn change_ref_back<'info, 'top>(
     the_ptr: &'top mut *mut [u8],
 ) -> &'top mut &'info mut [u8] {
-    unsafe { &mut *std::ptr::from_mut::<*mut [u8]>(the_ptr).cast::<&'info mut [u8]>() }
+    unsafe { &mut *ptr::from_mut::<*mut [u8]>(the_ptr).cast::<&'info mut [u8]>() }
 }
 
-#[derive(Debug)]
-pub enum MaybeOwnedR<'parent, 'top> {
-    Owned(RefMut<'top, *mut [u8]>), // ptr is lifetime 'info
-    Borrowed(&'parent mut RefMut<'top, *mut [u8]>),
+enum MaybeOwned<'parent, 'top, O> {
+    Owned {
+        r: RefMut<'top, *mut [u8]>,
+        outer_data: O,
+    },
+    Borrowed {
+        r: &'parent mut RefMut<'top, *mut [u8]>,
+        outer_data: *mut O,
+    },
 }
 
-impl<'parent, 'top> MaybeOwnedR<'parent, 'top> {
-    pub fn get_ref<'a>(&'a mut self) -> &'a mut RefMut<'top, *mut [u8]> {
-        match self {
-            Self::Owned(r) => r,
-            Self::Borrowed(r) => r,
-        }
-    }
-
-    #[must_use]
-    pub fn get_borrowed<'a>(&'a mut self) -> MaybeOwnedR<'a, 'top>
+impl<'parent, 'top, O> MaybeOwned<'parent, 'top, O> {
+    fn borrowed<'a>(&'a mut self) -> MaybeOwned<'a, 'top, O>
     where
         'parent: 'a,
     {
         match self {
-            Self::Owned(r) => MaybeOwnedR::Borrowed(r),
-            Self::Borrowed(r) => MaybeOwnedR::Borrowed(r),
+            Self::Owned { r, outer_data } => MaybeOwned::Borrowed { r, outer_data },
+            Self::Borrowed { r, outer_data } => MaybeOwned::Borrowed {
+                r: *r,
+                outer_data: *outer_data,
+            },
+        }
+    }
+
+    fn r(&mut self) -> &mut RefMut<'top, *mut [u8]> {
+        match self {
+            MaybeOwned::Owned { r, .. } => r,
+            MaybeOwned::Borrowed { r, .. } => *r,
+        }
+    }
+
+    fn outer_data(&self) -> *const O {
+        match self {
+            MaybeOwned::Owned { outer_data, .. } => outer_data,
+            MaybeOwned::Borrowed { outer_data, .. } => *outer_data,
+        }
+    }
+
+    fn outer_data_mut(&mut self) -> *mut O {
+        match self {
+            MaybeOwned::Owned { outer_data, .. } => outer_data,
+            MaybeOwned::Borrowed { outer_data, .. } => *outer_data,
         }
     }
 }
 
-pub enum MaybeOwnedPtr<O> {
-    Owned(O),
-    Borrowed(*mut O),
-}
-
-impl<O> fmt::Debug for MaybeOwnedPtr<O> {
+impl<'parent, 'top, O> fmt::Debug for MaybeOwned<'parent, 'top, O> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let ptr = self.get_ptr();
-        Pointer::fmt(&ptr, f)
-    }
-}
-
-impl<O> MaybeOwnedPtr<O> {
-    pub fn get_ptr(&self) -> *const O {
-        match self {
-            Self::Owned(o) => o,
-            Self::Borrowed(o) => *o,
-        }
-    }
-
-    pub fn get_mut_ptr(&mut self) -> *mut O {
-        match self {
-            Self::Owned(o) => o,
-            Self::Borrowed(o) => *o,
-        }
-    }
-
-    #[must_use]
-    pub fn get_borrowed(&mut self) -> Self {
-        match self {
-            Self::Owned(o) => MaybeOwnedPtr::Borrowed(o),
-            Self::Borrowed(o) => MaybeOwnedPtr::Borrowed(*o),
-        }
+        let (variant, r, data): (_, _, *const O) = match self {
+            Self::Owned { r, outer_data } => ("Owned", r, outer_data),
+            Self::Borrowed { r, outer_data } => ("Borrowed", *r, *outer_data),
+        };
+        f.debug_struct(variant)
+            .field("r", r)
+            .field("data", &data)
+            .finish()
     }
 }
 
@@ -187,9 +186,9 @@ where
     O: UnsizedType + ?Sized,
 {
     underlying_data: &'top A,
-    r: MaybeOwnedR<'parent, 'top>,
-    outer_data: MaybeOwnedPtr<<O as UnsizedType>::Mut<'top>>,
+    maybe_owned: MaybeOwned<'parent, 'top, O::Mut<'top>>,
     phantom_o: PhantomData<fn() -> &'info O>,
+    // Data must be None while maybe_owned is Owned
     data: Option<*mut T>, // ptr is lifetime 'top
 }
 
@@ -218,31 +217,37 @@ where
 
         Ok(Self {
             underlying_data,
-            r: MaybeOwnedR::Owned(r),
-            outer_data: MaybeOwnedPtr::Owned(data),
+            maybe_owned: MaybeOwned::Owned {
+                r,
+                outer_data: data,
+            },
             phantom_o: PhantomData,
             data: None,
         })
     }
 }
 
-impl<T, O, A> ExclusiveWrapper<'_, '_, '_, T, O, A>
+impl<'parent, 'top, T, O, A> ExclusiveWrapper<'parent, 'top, '_, T, O, A>
 where
     O: UnsizedType + ?Sized,
 {
     /// # Safety
     /// T and O must be the same type if data is None
-    unsafe fn get_data(&self) -> *const T {
+    unsafe fn data(&self) -> *const T {
         match self.data {
             Some(ptr) => ptr,
-            None => self.outer_data.get_ptr().cast::<T>(),
+            None => {
+                // Not ideal, but we can't use TypeId because T isn't 'static
+                debug_assert!(type_name::<T>() == type_name::<O::Mut<'top>>());
+                self.maybe_owned.outer_data().cast::<T>()
+            }
         }
     }
 
-    unsafe fn get_data_mut(&mut self) -> *mut T {
+    unsafe fn data_mut(&mut self) -> *mut T {
         match self.data {
             Some(ptr) => ptr,
-            None => self.outer_data.get_mut_ptr().cast::<T>(),
+            None => self.maybe_owned.outer_data_mut().cast::<T>(),
         }
     }
 }
@@ -254,7 +259,7 @@ where
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        unsafe { &*self.get_data() }
+        unsafe { &*self.data() }
     }
 }
 impl<T, O, A> DerefMut for ExclusiveWrapper<'_, '_, '_, T, O, A>
@@ -262,7 +267,7 @@ where
     O: UnsizedType + ?Sized,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        unsafe { &mut *self.get_data_mut() }
+        unsafe { &mut *self.data_mut() }
     }
 }
 
@@ -299,12 +304,11 @@ where
     where
         T: 'top,
     {
-        let data = core::ptr::from_mut(f(unsafe { &mut *wrapper.get_data_mut() })?);
+        let data = ptr::from_mut(f(unsafe { &mut *wrapper.data_mut() })?);
         Ok(ExclusiveWrapper {
             underlying_data: wrapper.underlying_data,
-            outer_data: wrapper.outer_data.get_borrowed(),
-            r: wrapper.r.get_borrowed(),
-            data: data.into(),
+            maybe_owned: wrapper.maybe_owned.borrowed(),
+            data: Some(data),
             phantom_o: PhantomData,
         })
     }
@@ -328,7 +332,7 @@ where
         after_add: impl FnOnce(&mut T) -> Result<()>,
     ) -> Result<()> {
         {
-            let data = unsafe { change_ref_back(wrapper.r.get_ref()) };
+            let data = unsafe { change_ref_back(wrapper.maybe_owned.r()) };
             let old_ptr = data.as_ptr();
             let old_len = data.len();
 
@@ -355,11 +359,11 @@ where
             }
         }
 
-        after_add(unsafe { &mut *wrapper.get_data_mut() })?;
+        after_add(unsafe { &mut *wrapper.data_mut() })?;
 
         unsafe {
             <O as UnsizedType>::resize_notification(
-                &mut *wrapper.outer_data.get_mut_ptr(),
+                &mut *wrapper.maybe_owned.outer_data_mut(),
                 source_ptr,
                 amount.try_into()?,
             )?;
@@ -376,7 +380,7 @@ where
         after_remove: impl FnOnce(&mut T) -> Result<()>,
     ) -> Result<()> {
         let amount = {
-            let data = unsafe { change_ref_back(wrapper.r.get_ref()) };
+            let data = unsafe { change_ref_back(wrapper.maybe_owned.r()) };
             let old_len = data.len();
 
             let start = match range.start_bound() {
@@ -431,11 +435,11 @@ where
             amount
         };
 
-        after_remove(unsafe { &mut *wrapper.get_data_mut() })?;
+        after_remove(unsafe { &mut *wrapper.data_mut() })?;
 
         unsafe {
             <O as UnsizedType>::resize_notification(
-                &mut *wrapper.outer_data.get_mut_ptr(),
+                &mut *wrapper.maybe_owned.outer_data_mut(),
                 source_ptr,
                 -amount.try_into()?,
             )?;
@@ -450,7 +454,7 @@ where
         U: UnsizedType + ?Sized,
     {
         let start_usize = start_ptr as usize;
-        let mut data = &unsafe { change_ref_back(wrapper.r.get_ref()) }[..];
+        let mut data = &unsafe { change_ref_back(wrapper.maybe_owned.r()) }[..];
         let data_usize = data.as_ptr() as usize;
         let start_offset = start_usize - data_usize;
         data.try_advance(start_offset).with_context(|| {
