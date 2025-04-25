@@ -2,7 +2,7 @@ pub mod impls;
 pub mod init;
 #[cfg(all(feature = "test_helpers", not(target_os = "solana")))]
 mod test_helpers;
-#[cfg(test)]
+#[cfg(all(test, feature = "test_helpers"))]
 mod tests;
 pub mod wrapper;
 

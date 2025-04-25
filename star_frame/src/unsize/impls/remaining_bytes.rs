@@ -206,7 +206,7 @@ unsafe impl<const N: usize> UnsizedInit<[u8; N]> for RemainingBytes {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "test_helpers"))]
 mod tests {
     use super::*;
     use crate::unsize::test_helpers::TestByteSet;

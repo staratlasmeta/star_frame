@@ -764,7 +764,7 @@ where
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "test_helpers"))]
 mod tests {
     use super::*;
     use crate::unsize::test_helpers::TestByteSet;

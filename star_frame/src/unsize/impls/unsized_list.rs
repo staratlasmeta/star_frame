@@ -1328,7 +1328,7 @@ macro_rules! iter_impls {
 
 iter_impls!(UnsizedListIter: T::Ref<'a>, UnsizedListIterMut: T::Mut<'a>);
 
-#[cfg(test)]
+#[cfg(all(test, feature = "test_helpers"))]
 mod tests {
     use super::*;
     use crate::prelude::List;

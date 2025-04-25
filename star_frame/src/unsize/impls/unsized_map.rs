@@ -474,7 +474,7 @@ mod idl_impl {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "test_helpers"))]
 mod tests {
     use super::*;
     use crate::unsize::TestByteSet;
