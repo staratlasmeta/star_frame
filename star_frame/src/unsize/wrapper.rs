@@ -139,7 +139,7 @@ impl<'parent, 'top, O> MaybeOwned<'parent, 'top, O> {
         match self {
             Self::Owned { r, outer_data } => MaybeOwned::Borrowed { r, outer_data },
             Self::Borrowed { r, outer_data } => MaybeOwned::Borrowed {
-                r: *r,
+                r,
                 outer_data: *outer_data,
             },
         }
@@ -148,7 +148,7 @@ impl<'parent, 'top, O> MaybeOwned<'parent, 'top, O> {
     fn r(&mut self) -> &mut RefMut<'top, *mut [u8]> {
         match self {
             MaybeOwned::Owned { r, .. } => r,
-            MaybeOwned::Borrowed { r, .. } => *r,
+            MaybeOwned::Borrowed { r, .. } => r,
         }
     }
 
@@ -167,7 +167,7 @@ impl<'parent, 'top, O> MaybeOwned<'parent, 'top, O> {
     }
 }
 
-impl<'parent, 'top, O> fmt::Debug for MaybeOwned<'parent, 'top, O> {
+impl<O> fmt::Debug for MaybeOwned<'_, '_, O> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let (variant, r, data): (_, _, *const O) = match self {
             Self::Owned { r, outer_data } => ("Owned", r, outer_data),
@@ -227,20 +227,17 @@ where
     }
 }
 
-impl<'parent, 'top, T, O, A> ExclusiveWrapper<'parent, 'top, '_, T, O, A>
+impl<'top, T, O, A> ExclusiveWrapper<'_, 'top, '_, T, O, A>
 where
     O: UnsizedType + ?Sized,
 {
     /// # Safety
     /// T and O must be the same type if data is None
     unsafe fn data(&self) -> *const T {
-        match self.data {
-            Some(ptr) => ptr,
-            None => {
-                // Not ideal, but we can't use TypeId because T isn't 'static
-                debug_assert!(type_name::<T>() == type_name::<O::Mut<'top>>());
-                self.maybe_owned.outer_data().cast::<T>()
-            }
+        if let Some(ptr) = self.data { ptr } else {
+            // Not ideal, but we can't use TypeId because T isn't 'static
+            debug_assert!(type_name::<T>() == type_name::<O::Mut<'top>>());
+            self.maybe_owned.outer_data().cast::<T>()
         }
     }
 
