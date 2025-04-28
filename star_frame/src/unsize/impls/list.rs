@@ -1,7 +1,7 @@
 use crate::align1::Align1;
 use crate::data_types::PackedValue;
 use crate::unsize::init::{DefaultInit, UnsizedInit};
-use crate::unsize::wrapper::ExclusiveWrapper;
+use crate::unsize::wrapper::{ExclusiveWrapper, ResizeExclusive};
 use crate::unsize::{AsShared, FromOwned, UnsizedType};
 use crate::util::uninit_array_bytes;
 use crate::Result;
@@ -573,6 +573,108 @@ where
     }
 }
 
+impl<T, L, P> star_frame::unsize::wrapper::ExclusiveWrapper2<'_, List<T, L>, P>
+where
+    Self: ResizeExclusive,
+    T: Align1 + NoUninit + CheckedBitPattern,
+    L: ListLength,
+{
+    #[inline]
+    pub fn push(&mut self, item: T) -> Result<()> {
+        let len = self.len();
+        self.insert(len, item)
+    }
+    #[inline]
+    pub fn push_all<I>(&mut self, items: I) -> Result<()>
+    where
+        I: IntoIterator<Item = T>,
+        I::IntoIter: ExactSizeIterator,
+    {
+        self.insert_all(self.len(), items)
+    }
+    #[inline]
+    pub fn insert(&mut self, index: usize, item: T) -> Result<()> {
+        self.insert_all(index, iter::once(item))
+    }
+    pub fn insert_all<I>(&mut self, index: usize, items: I) -> Result<()>
+    where
+        I: IntoIterator,
+        I::IntoIter: ExactSizeIterator,
+        I::Item: Borrow<T>,
+    {
+        let iter = items.into_iter();
+        let to_add = iter.len();
+        let byte_index = index * size_of::<T>();
+        let (end_ptr, old_len, new_len, source_ptr) = {
+            let list: &mut List<T, L> = self;
+            let old_len = list.len();
+            if index > old_len {
+                bail!("Index {index} is out of bounds for list of length {old_len}");
+            }
+            let new_len =
+                L::from_usize(old_len + to_add).context("Failed to convert new len to L")?;
+            let end_ptr = unsafe { list.bytes.as_mut_ptr().add(byte_index).cast() };
+            (end_ptr, old_len, new_len, self.0.cast_const().cast::<()>())
+        };
+        unsafe {
+            ResizeExclusive::add_bytes(self, source_ptr, end_ptr, size_of::<T>() * to_add)?;
+        };
+
+        self.len = PackedValue(new_len);
+        self.0 =
+            ptr_meta::from_raw_parts_mut(self.0.cast::<()>(), (old_len + to_add) * size_of::<T>());
+
+        for ((i, value), _) in iter.enumerate().zip_eq(0..to_add) {
+            let bytes = &mut self.bytes;
+            bytes[byte_index + i * size_of::<T>()..][..size_of::<T>()]
+                .copy_from_slice(bytes_of(value.borrow()));
+        }
+        Ok(())
+    }
+    #[inline]
+    pub fn pop(&mut self) -> Result<Option<()>> {
+        if self.len() == 0 {
+            return Ok(None);
+        }
+        self.remove(self.len() - 1).map(Some)
+    }
+    #[inline]
+    pub fn remove(&mut self, index: usize) -> Result<()> {
+        self.remove_range(index..=index)
+    }
+    pub fn remove_range(&mut self, indices: impl RangeBounds<usize>) -> Result<()> {
+        let start = match indices.start_bound() {
+            std::ops::Bound::Included(start) => *start,
+            std::ops::Bound::Excluded(start) => start + 1,
+            std::ops::Bound::Unbounded => 0,
+        };
+        let end = match indices.end_bound() {
+            std::ops::Bound::Included(end) => *end + 1,
+            std::ops::Bound::Excluded(end) => *end,
+            std::ops::Bound::Unbounded => self.len(),
+        };
+
+        ensure!(start <= end);
+        ensure!(end <= self.len());
+
+        let to_remove = end - start;
+        let old_len = self.len();
+        let new_len = old_len - to_remove;
+        let source_ptr: *const () = self.0.cast_const().cast();
+        unsafe {
+            let start_ptr = self.bytes.as_ptr().add(start * size_of::<T>()).cast();
+            let end_ptr = self.bytes.as_ptr().add(end * size_of::<T>()).cast();
+            ResizeExclusive::remove_bytes(self, source_ptr, start_ptr..end_ptr)?;
+        };
+        {
+            self.len =
+                PackedValue(L::from_usize(new_len).context("Failed to convert new list len to L")?);
+            self.0 = ptr_meta::from_raw_parts_mut(self.0.cast::<()>(), new_len * size_of::<T>());
+        }
+        Ok(())
+    }
+}
+
 unsafe impl<T, L> UnsizedInit<DefaultInit> for List<T, L>
 where
     L: ListLength,
@@ -775,8 +877,9 @@ mod tests {
         let byte_array = [1, 2, 3, 4, 5];
         let mut vec = byte_array.to_vec();
         let test_bytes = TestByteSet::<List<u8>>::new(byte_array.to_vec())?;
-        let mut bytes = test_bytes.data_mut()?;
+        let mut bytes = test_bytes.data_mut2()?;
         bytes.push_all([10, 11])?;
+        println!("Hello!!");
         bytes.push(12)?;
         vec.extend_from_slice(&[10, 11, 12]);
 

@@ -12,6 +12,7 @@ use std::mem::MaybeUninit;
 use std::ptr::slice_from_raw_parts_mut;
 use std::slice::from_raw_parts_mut;
 
+use super::wrapper::{ExclusiveWrapper2, ExclusiveWrapperTop};
 use super::FromOwned;
 
 #[derive(Debug)]
@@ -121,14 +122,22 @@ where
         Self::new_from_init(DefaultInit)
     }
 
-    pub fn data(&self) -> Result<SharedWrapper<'_, 'static, T::Ref<'static>>> {
-        unsafe { SharedWrapper::<T>::new(self.test_data_ref()) }
+    pub fn data(&self) -> Result<SharedWrapper<'_, T::Ref<'_>>> {
+        unsafe { SharedWrapper::new::<T>(self.test_data_ref()) }
     }
 
     pub fn data_mut(
         &self,
     ) -> Result<ExclusiveWrapperT<'_, '_, 'static, T, T, TestUnderlyingData<'static>>> {
         let res = unsafe { ExclusiveWrapper::new(self.test_data_ref()) }?;
+        Ok(res)
+    }
+
+    pub fn data_mut2(
+        &self,
+    ) -> Result<ExclusiveWrapper2<'_, T, ExclusiveWrapperTop<'_, TestUnderlyingData<'static>>>>
+    {
+        let res = unsafe { ExclusiveWrapper2::new(self.test_data_ref()) }?;
         Ok(res)
     }
 

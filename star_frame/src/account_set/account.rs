@@ -137,12 +137,12 @@ where
     }
 
     #[inline]
-    pub fn data(&self) -> Result<SharedWrapper<'_, 'info, T::Ref<'_>>> {
+    pub fn data(&self) -> Result<SharedWrapper<'_, T::Ref<'_>>> {
         // If the account is writable, changes could have been made after AccountSetValidate has been run
         if self.is_writable() {
             self.validate()?;
         }
-        unsafe { SharedWrapper::<AccountDiscriminant<T>>::new(&self.info) }
+        unsafe { SharedWrapper::new::<AccountDiscriminant<T>>(&self.info) }
     }
 
     #[inline]

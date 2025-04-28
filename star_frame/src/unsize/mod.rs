@@ -1,16 +1,18 @@
 pub mod impls;
 pub mod init;
+mod owned_ref;
 #[cfg(all(feature = "test_helpers", not(target_os = "solana")))]
 mod test_helpers;
 #[cfg(all(test, feature = "test_helpers"))]
 mod tests;
 pub mod wrapper;
 
+pub use owned_ref::*;
+pub use star_frame_proc::{unsized_impl, unsized_type};
 #[cfg(all(feature = "test_helpers", not(target_os = "solana")))]
 pub use test_helpers::*;
 
 use crate::Result;
-pub use star_frame_proc::{unsized_impl, unsized_type};
 
 pub trait AsShared {
     type Ref<'a>
@@ -35,12 +37,20 @@ pub unsafe trait UnsizedType: 'static {
 
     fn mut_as_ref<'a>(m: &'a Self::Mut<'_>) -> Self::Ref<'a>;
 
+    /// # Safety
+    /// Variance is complicated. Everything that is assigned to the return value must be at least 'a.
+    /// This should really only be called from within the [`unsized_type`] macro. Be careful if you need to call it directly.
+    unsafe fn sub_ref_mut<'a: 'b, 'b>(r: &'b mut Self::Mut<'a>) -> Self::Mut<'b> {
+        todo!()
+    }
+
     fn get_ref<'a>(data: &mut &'a [u8]) -> Result<Self::Ref<'a>>;
     fn get_mut<'a>(data: &mut &'a mut [u8]) -> Result<Self::Mut<'a>>;
     fn owned(mut data: &[u8]) -> Result<Self::Owned> {
         let data = &mut data;
         Self::owned_from_ref(Self::get_ref(data)?)
     }
+
     fn owned_from_ref(r: Self::Ref<'_>) -> Result<Self::Owned>;
 
     /// # Safety

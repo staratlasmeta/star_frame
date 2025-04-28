@@ -1,4 +1,6 @@
+use super::impls::ListMut;
 use super::{AsShared, UnsizedType};
+use super::{OwnedRef, OwnedRefMut};
 use crate::prelude::UnsizedInit;
 use crate::Result;
 use advancer::Advance;
@@ -68,43 +70,323 @@ impl<'info> UnsizedTypeDataAccess<'info> for AccountInfo<'info> {
 }
 
 #[derive(Debug)]
-pub struct SharedWrapper<'top, 'info, T: ?Sized> {
-    r: Ref<'top, &'info mut [u8]>,
-    data: T,
+pub struct SharedWrapper<'top, T> {
+    r: OwnedRef<'top, T>,
 }
 
-impl<'a, 'info, O> SharedWrapper<'a, 'info, O>
-where
-    O: UnsizedType + ?Sized,
-{
+impl<'a, T> SharedWrapper<'a, T> {
     /// # Safety
     /// todo
-    pub unsafe fn new(
+    pub unsafe fn new<'info, U>(
         underlying_data: &'a impl UnsizedTypeDataAccess<'info>,
-    ) -> Result<SharedWrapper<'a, 'info, O::Ref<'a>>> {
+    ) -> Result<Self>
+    where
+        'info: 'a,
+        T: 'a,
+        U: UnsizedType<Ref<'a> = T> + ?Sized,
+    {
         let data = UnsizedTypeDataAccess::data_ref(underlying_data)?;
-        let ptr = *data as *const [u8];
-        Ok(SharedWrapper {
-            r: data,
-            data: O::get_ref(&mut unsafe { &*ptr })?,
+        let r = OwnedRef::try_new(data, |r| U::get_ref(&mut &**r))?;
+        Ok(SharedWrapper { r })
+    }
+}
+impl<T> Deref for SharedWrapper<'_, T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.r
+    }
+}
+
+#[derive(Debug)]
+pub enum ExclusiveWrapper2<'parent, U, P>
+where
+    U: UnsizedType + ?Sized,
+{
+    Top {
+        data: OwnedRefMut<'parent, (P, U::Mut<'parent>)>,
+    },
+    Inner {
+        parent: *mut P, // 'parent
+        field: U::Mut<'parent>,
+    },
+}
+#[derive(Debug)]
+pub struct ExclusiveWrapperTop<'parent, A> {
+    info: &'parent A,
+    data: *mut *mut [u8], // &'parent mut &'info mut [u8]
+                          // phantom_u: PhantomData<fn() -> U>,
+}
+
+// type ExclusiveWrapperTop<'parent, A> = &'parent A;
+
+impl<'parent, 'info, U, A> ExclusiveWrapper2<'parent, U, ExclusiveWrapperTop<'parent, A>>
+where
+    'info: 'parent,
+    U: UnsizedType + ?Sized,
+    A: UnsizedTypeDataAccess<'info>,
+{
+    pub fn new(info: &'parent A) -> Result<Self> {
+        let data: RefMut<'parent, &mut [u8]> = UnsizedTypeDataAccess::data_mut(info)?;
+        // let field = U::get_mut(&mut data)?;
+        Ok(ExclusiveWrapper2::Top {
+            data: OwnedRefMut::try_new(data, |data| {
+                anyhow::Ok((
+                    ExclusiveWrapperTop {
+                        info,
+                        data: ptr::from_mut(data).cast::<*mut [u8]>(),
+                    },
+                    U::get_mut(&mut &mut **data)?,
+                ))
+            })?,
         })
     }
 }
 
-impl<'a, 'info, T> SharedWrapper<'a, 'info, T> {
-    pub fn map<U>(r: Self, f: impl FnOnce(T) -> U) -> SharedWrapper<'a, 'info, U> {
-        SharedWrapper {
-            r: r.r,
-            data: f(r.data),
+mod sealed {
+    use super::*;
+
+    pub trait Sealed {}
+    impl<U, P> Sealed for ExclusiveWrapper2<'_, U, P> where U: UnsizedType + ?Sized {}
+}
+
+pub trait ResizeExclusive: sealed::Sealed {
+    /// # Safety
+    /// Is this actually unsafe? If bounds are checked, everything should be fine? We have exclusive access to self right now.
+    unsafe fn add_bytes(
+        wrapper: &mut Self,
+        source_ptr: *const (),
+        start: *const (),
+        amount: usize,
+    ) -> Result<()>;
+    /// # Safety
+    /// Is this actually unsafe? If bounds are checked, everything should be fine? We have exclusive access to self right now.
+    unsafe fn remove_bytes(
+        wrapper: &mut Self,
+        source_ptr: *const (),
+        range: impl RangeBounds<*const ()>,
+    ) -> Result<()>;
+}
+
+impl<U, P> ResizeExclusive for ExclusiveWrapper2<'_, U, P>
+where
+    U: UnsizedType + ?Sized,
+    P: ResizeExclusive,
+{
+    unsafe fn add_bytes(
+        wrapper: &mut Self,
+        source_ptr: *const (),
+        start: *const (),
+        amount: usize,
+        // after_add: impl FnOnce(&mut Self::T) -> Result<()>,
+    ) -> Result<()> {
+        match wrapper {
+            ExclusiveWrapper2::Top { .. } => unreachable!(),
+            ExclusiveWrapper2::Inner { parent, .. } => {
+                let parent = unsafe { &mut **parent };
+                unsafe { P::add_bytes(parent, source_ptr, start, amount) }
+            }
+        }
+    }
+
+    unsafe fn remove_bytes(
+        wrapper: &mut Self,
+        source_ptr: *const (),
+        range: impl RangeBounds<*const ()>,
+        // after_remove: impl FnOnce(&mut Self::T) -> Result<()>,
+    ) -> Result<()> {
+        match wrapper {
+            ExclusiveWrapper2::Top { .. } => unreachable!(),
+            ExclusiveWrapper2::Inner { parent, .. } => {
+                let parent = unsafe { &mut **parent };
+                unsafe { P::remove_bytes(parent, source_ptr, range) }
+            }
         }
     }
 }
 
-impl<T> Deref for SharedWrapper<'_, '_, T> {
-    type Target = T;
+impl<'parent, 'info, U, A> ResizeExclusive
+    for ExclusiveWrapper2<'parent, U, ExclusiveWrapperTop<'parent, A>>
+where
+    U: UnsizedType + ?Sized,
+    A: UnsizedTypeDataAccess<'info>,
+    'info: 'parent,
+{
+    unsafe fn add_bytes(
+        wrapper: &mut Self,
+        source_ptr: *const (),
+        start: *const (),
+        amount: usize,
+        // after_add: impl FnOnce(&mut Self::T) -> Result<()>,
+    ) -> Result<()> {
+        let s: &mut OwnedRefMut<
+            '_,
+            (ExclusiveWrapperTop<'parent, A>, <U as UnsizedType>::Mut<'_>),
+        > = match wrapper {
+            ExclusiveWrapper2::Top { data } => data,
+            ExclusiveWrapper2::Inner { .. } => unreachable!(),
+        };
+
+        {
+            // SAFETY: We are at the top level now, and all the child `field()`s can only contain mutable pointers to the data, so we are the only one.
+            let data: &'parent mut &'info mut [u8] = unsafe { &mut *s.0.data.cast() };
+            let old_ptr = data.as_ptr();
+            let old_len = data.len();
+
+            ensure!(start as usize >= data.as_ptr() as usize);
+            ensure!(start as usize <= data.as_ptr() as usize + old_len);
+
+            // Return early if length hasn't changed
+            if amount == 0 {
+                return Ok(());
+            }
+            let new_len = old_len + amount;
+
+            // realloc
+            unsafe { UnsizedTypeDataAccess::realloc(s.0.info, new_len, data) }?;
+
+            if start as usize != old_ptr as usize + old_len {
+                unsafe {
+                    sol_memmove(
+                        start.cast::<u8>().add(amount).cast_mut(),
+                        start.cast_mut().cast::<u8>(),
+                        old_len - (start as usize - data.as_ptr() as usize),
+                    );
+                }
+            }
+        }
+
+        // after_add(unsafe { &mut *wrapper.data_mut() })?;
+
+        unsafe {
+            U::resize_notification(&mut s.1, source_ptr, amount.try_into()?)?;
+        }
+
+        Ok(())
+    }
+
+    unsafe fn remove_bytes(
+        wrapper: &mut Self,
+        source_ptr: *const (),
+        range: impl RangeBounds<*const ()>,
+        // after_remove: impl FnOnce(&mut Self::T) -> Result<()>,
+    ) -> Result<()> {
+        let s = match wrapper {
+            ExclusiveWrapper2::Top { data } => data,
+            ExclusiveWrapper2::Inner { .. } => unreachable!(),
+        };
+
+        let amount = {
+            let data: &'parent mut &'info mut [u8] = unsafe { &mut *s.0.data.cast() };
+            let old_len = data.len();
+
+            let start = match range.start_bound() {
+                Bound::Included(start) => {
+                    ensure!(*start as usize >= data.as_ptr() as usize);
+                    ensure!(*start as usize <= data.as_ptr() as usize + old_len);
+                    start.cast::<u8>()
+                }
+                Bound::Excluded(start) => {
+                    ensure!(*start as usize >= data.as_ptr() as usize);
+                    ensure!(*start as usize <= data.as_ptr() as usize + old_len);
+                    unsafe { start.cast::<u8>().add(1) }
+                }
+                Bound::Unbounded => data.as_ptr(),
+            };
+
+            let end = match range.end_bound() {
+                Bound::Included(end) => {
+                    ensure!(*end as usize >= start as usize);
+                    ensure!((*end as usize) < data.as_ptr() as usize + old_len);
+                    unsafe { end.cast::<u8>().add(1) }
+                }
+                Bound::Excluded(end) => {
+                    ensure!(*end as usize >= start as usize);
+                    ensure!(*end as usize <= data.as_ptr() as usize + old_len);
+                    end.cast::<u8>()
+                }
+                Bound::Unbounded => unsafe { data.as_ptr().add(old_len) },
+            };
+
+            let amount = end as usize - start as usize;
+            if amount == 0 {
+                return Ok(());
+            }
+
+            if end as usize != data.as_ptr() as usize + old_len {
+                unsafe {
+                    sol_memmove(
+                        start.cast_mut(),
+                        end.cast_mut(),
+                        old_len - (end as usize - data.as_ptr() as usize),
+                    );
+                }
+            }
+
+            let new_len = old_len - amount;
+            // realloc
+            unsafe {
+                UnsizedTypeDataAccess::realloc(s.0.info, new_len, data)?;
+            }
+
+            amount
+        };
+
+        unsafe {
+            U::resize_notification(&mut s.1, source_ptr, -amount.try_into()?)?;
+        }
+        Ok(())
+    }
+}
+
+impl<'parent, U, P> ExclusiveWrapper2<'parent, U, P>
+where
+    U: UnsizedType + ?Sized,
+{
+    /// # Safety
+    /// O may not contain a mutable reference to T, but can contain a mutable pointer.
+    pub unsafe fn field<'child, O>(
+        &'child mut self,
+        mapper: impl FnOnce(&'child mut U::Mut<'parent>) -> O::Mut<'child>,
+    ) -> ExclusiveWrapper2<'child, O, Self>
+    where
+        O: UnsizedType + ?Sized,
+    {
+        let parent: *mut Self = self;
+        match self {
+            ExclusiveWrapper2::Top { data, .. } => ExclusiveWrapper2::Inner {
+                parent,
+                field: mapper(&mut data.1),
+            },
+            ExclusiveWrapper2::Inner { field, .. } => ExclusiveWrapper2::Inner {
+                parent,
+                field: mapper(field),
+            },
+        }
+    }
+}
+impl<'parent, U, P> Deref for ExclusiveWrapper2<'parent, U, P>
+where
+    U: UnsizedType + ?Sized,
+{
+    type Target = U::Mut<'parent>;
 
     fn deref(&self) -> &Self::Target {
-        &self.data
+        match self {
+            ExclusiveWrapper2::Top { data, .. } => &data.1,
+            ExclusiveWrapper2::Inner { field, .. } => field,
+        }
+    }
+}
+impl<U, P> DerefMut for ExclusiveWrapper2<'_, U, P>
+where
+    U: UnsizedType + ?Sized,
+{
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        match self {
+            ExclusiveWrapper2::Top { data, .. } => &mut data.1,
+            ExclusiveWrapper2::Inner { field, .. } => field,
+        }
     }
 }
 
@@ -234,7 +516,9 @@ where
     /// # Safety
     /// T and O must be the same type if data is None
     unsafe fn data(&self) -> *const T {
-        if let Some(ptr) = self.data { ptr } else {
+        if let Some(ptr) = self.data {
+            ptr
+        } else {
             // Not ideal, but we can't use TypeId because T isn't 'static
             debug_assert!(type_name::<T>() == type_name::<O::Mut<'top>>());
             self.maybe_owned.outer_data().cast::<T>()
@@ -552,6 +836,24 @@ where
                 Ok(())
             })
         }?;
+        Ok(())
+    }
+}
+
+#[cfg(all(test, feature = "test_helpers"))]
+mod tests {
+    use crate::prelude::*;
+
+    #[test]
+    fn test_miri_stuff() -> Result<()> {
+        let byte_set = TestByteSet::<[u8; 20]>::new_default()?;
+        {
+            let data = &**byte_set.data()?;
+            println!("data: {data:?}");
+        }
+        // drop(data);
+        drop(byte_set);
+        // exclusive.unsized1().push(100.into())?;
         Ok(())
     }
 }
