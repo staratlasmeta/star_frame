@@ -6,7 +6,6 @@ use easy_proc::ArgumentList;
 use heck::ToUpperCamelCase;
 use itertools::Itertools;
 use proc_macro2::{Ident, TokenStream};
-use proc_macro_crate::{crate_name, FoundCrate};
 use proc_macro_error2::{abort, OptionExt};
 use quote::{format_ident, quote};
 use syn::{
@@ -17,8 +16,6 @@ use syn::{
 #[derive(ArgumentList)]
 pub struct UnsizedImplArgs {
     tag: Option<LitStr>,
-    #[argument(presence)]
-    inherent: bool,
     ref_ident: Option<Ident>,
     mut_ident: Option<Ident>,
 }
@@ -180,100 +177,82 @@ pub fn unsized_impl_impl(item: ItemImpl, args: TokenStream) -> TokenStream {
     let parent_lt = new_lifetime(&item.generics, Some("parent"));
     let top_lt = new_lifetime(&item.generics, Some("top"));
     let p = new_generic(&item.generics, Some("P"));
+    let u = new_generic(&item.generics, Some("U"));
 
-    let exclusive_trait_generics = combine_gen!(item.generics; <#parent_lt, #top_lt, #p> where Self: #prelude::ResizeExclusive + ::core::marker::Sized);
+    let exclusive_trait_generics = combine_gen!(item.generics; <#parent_lt, #top_lt, #p, #u>
+        where Self: #prelude::ResizeExclusive + ::core::marker::Sized,
+        #u: #prelude::UnsizedType<Mut<'top> = <#self_ty as #prelude::UnsizedType>::Mut<'top>> + ?::core::marker::Sized
+    );
     let (impl_gen, ty_gen, where_clause) = exclusive_trait_generics.split_for_impl();
-    let impl_for = quote!(#prelude::ExclusiveWrapper<#parent_lt, #top_lt, #self_ty, #p>);
+    let impl_for = quote!(#prelude::ExclusiveWrapper<#parent_lt, #top_lt, #u, #p>);
 
-    let exclusive_impls = if impl_args.inherent {
-        let found_crate = crate_name("star_frame").expect("Could not find `star_frame`");
-        if found_crate != FoundCrate::Itself {
-            abort!(
-                args,
-                "`unsized_impl` with `inherent` can only be used by star frame directly"
-            );
+    let pub_exclusive_ident = format_ident!("{self_ident}ExclusiveImpl{tag_str}");
+    let priv_exclusive_ident = format_ident!("{self_ident}ExclusiveImplPrivate{tag_str}");
+    let mut pub_exclusive_fns = vec![];
+    let mut priv_exclusive_fns = vec![];
+
+    for mut exclusive_fn in exclusive_fns {
+        match exclusive_fn.vis {
+            Visibility::Public(_) => {
+                exclusive_fn.vis = Visibility::Inherited;
+                pub_exclusive_fns.push(exclusive_fn);
+            }
+            Visibility::Restricted(_) => abort!(
+                exclusive_fn.vis,
+                "`exclusive` functions can only have pub or inherited visibilities"
+            ),
+            Visibility::Inherited => {
+                priv_exclusive_fns.push(exclusive_fn);
+            }
         }
-        (!exclusive_fns.is_empty())
-            .then(|| {
+    }
+
+    let make_exclusive = |vis: Visibility, trait_ident: Ident, funcs: &mut [ImplItemFn]| {
+        let signatures = funcs
+            .iter_mut()
+            .map(|item| {
+                let docs = strip_inner_attributes(&mut item.attrs, "doc")
+                    .map(|doc| doc.attribute)
+                    .collect_vec();
+                let signature = item.sig.clone();
                 quote! {
-                    impl #impl_gen #impl_for #where_clause {
-                        #(#exclusive_fns)*
-                    }
+                    #(#docs)*
+                    #signature;
                 }
             })
-            .unwrap_or_default()
-    } else {
-        let pub_exclusive_ident = format_ident!("{self_ident}ExclusiveImpl{tag_str}");
-        let priv_exclusive_ident = format_ident!("{self_ident}ExclusiveImplPrivate{tag_str}");
-        let mut pub_exclusive_fns = vec![];
-        let mut priv_exclusive_fns = vec![];
-
-        for mut exclusive_fn in exclusive_fns {
-            match exclusive_fn.vis {
-                Visibility::Public(_) => {
-                    exclusive_fn.vis = Visibility::Inherited;
-                    pub_exclusive_fns.push(exclusive_fn);
-                }
-                Visibility::Restricted(_) => abort!(
-                    exclusive_fn.vis,
-                    "`exclusive` functions can only have pub or inherited visibilities"
-                ),
-                Visibility::Inherited => {
-                    priv_exclusive_fns.push(exclusive_fn);
-                }
-            }
-        }
-
-        let make_exclusive = |vis: Visibility, trait_ident: Ident, funcs: &mut [ImplItemFn]| {
-            let signatures = funcs
-                .iter_mut()
-                .map(|item| {
-                    let docs = strip_inner_attributes(&mut item.attrs, "doc")
-                        .map(|doc| doc.attribute)
-                        .collect_vec();
-                    let signature = item.sig.clone();
-                    quote! {
-                        #(#docs)*
-                        #signature;
-                    }
-                })
-                .collect_vec();
-            quote! {
-                #vis trait #trait_ident #impl_gen #where_clause
-                {
-                    #(#signatures)*
-                }
-
-                #[automatically_derived]
-                impl #impl_gen #trait_ident #ty_gen for #impl_for #where_clause
-                {
-                    #(#funcs)*
-                }
-            }
-        };
-        let pub_exclusive = (!pub_exclusive_fns.is_empty()).then(|| {
-            make_exclusive(
-                Visibility::Public(Default::default()),
-                pub_exclusive_ident,
-                &mut pub_exclusive_fns,
-            )
-        });
-        let priv_exclusive = (!priv_exclusive_fns.is_empty()).then(|| {
-            make_exclusive(
-                Visibility::Inherited,
-                priv_exclusive_ident,
-                &mut priv_exclusive_fns,
-            )
-        });
+            .collect_vec();
         quote! {
-            #pub_exclusive
-            #priv_exclusive
+            #vis trait #trait_ident #impl_gen #where_clause
+            {
+                #(#signatures)*
+            }
+
+            #[automatically_derived]
+            impl #impl_gen #trait_ident #ty_gen for #impl_for #where_clause
+            {
+                #(#funcs)*
+            }
         }
     };
+    let pub_exclusive = (!pub_exclusive_fns.is_empty()).then(|| {
+        make_exclusive(
+            Visibility::Public(Default::default()),
+            pub_exclusive_ident,
+            &mut pub_exclusive_fns,
+        )
+    });
+    let priv_exclusive = (!priv_exclusive_fns.is_empty()).then(|| {
+        make_exclusive(
+            Visibility::Inherited,
+            priv_exclusive_ident,
+            &mut priv_exclusive_fns,
+        )
+    });
 
     quote! {
         #ref_impls
         #mut_impls
-        #exclusive_impls
+        #pub_exclusive
+        #priv_exclusive
     }
 }

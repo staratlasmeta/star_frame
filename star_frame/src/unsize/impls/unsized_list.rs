@@ -683,7 +683,7 @@ macro_rules! unsized_list_exclusive {
 
 pub(super) use unsized_list_exclusive;
 
-#[unsized_impl(inherent)]
+#[unsized_impl]
 impl<T, C> UnsizedList<T, C>
 where
     T: UnsizedType + ?Sized,
@@ -733,14 +733,7 @@ where
             self.get_exclusive(self.len() - 1)
         }
     }
-}
 
-#[unsized_impl(inherent)]
-impl<T, C> UnsizedList<T, C>
-where
-    T: UnsizedType + ?Sized,
-    C: UnsizedListOffset,
-{
     #[exclusive]
     pub fn push<Init>(&mut self, item: Init) -> Result<()>
     where
@@ -1329,7 +1322,7 @@ iter_impls!(UnsizedListIter: T::Ref<'a>, UnsizedListIterMut: T::Mut<'a>);
 #[cfg(all(test, feature = "test_helpers"))]
 mod tests {
     use super::*;
-    use crate::prelude::List;
+    use crate::prelude::{List, ListExclusiveImpl};
     use crate::unsize::test_helpers::TestByteSet;
     use star_frame_proc::unsized_type;
 

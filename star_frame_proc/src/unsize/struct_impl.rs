@@ -820,7 +820,9 @@ impl UnsizedStructContext {
 
         let (trait_impl_gen, trait_ty_gen, trait_wc) = ext_trait_generics.split_for_impl();
 
-        let ext_impl_trait_generics = combine_gen!(ext_trait_generics; <#u> where #u: #prelude::UnsizedType<Mut<#top_lt> = <#struct_type as #prelude::UnsizedType>::Mut<#top_lt>>);
+        let ext_impl_trait_generics = combine_gen!(ext_trait_generics;
+            <#u> where #u: #prelude::UnsizedType<Mut<#top_lt> = <#struct_type as #prelude::UnsizedType>::Mut<#top_lt>> + ?::core::marker::Sized
+        );
 
         let (impl_gen, _, wc) = ext_impl_trait_generics.split_for_impl();
         let pub_extension_ident = format_ident!("{struct_ident}ExclusiveExt");

@@ -194,7 +194,7 @@ where
         )
     }
 }
-#[unsized_impl(inherent)]
+#[unsized_impl]
 impl<K, V> UnsizedMap<K, V>
 where
     K: Pod + Ord + Align1,

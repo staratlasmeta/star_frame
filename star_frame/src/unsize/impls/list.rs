@@ -440,7 +440,7 @@ where
     }
 }
 
-#[unsized_impl(inherent)]
+#[unsized_impl]
 impl<T, L> List<T, L>
 where
     T: Align1 + NoUninit + CheckedBitPattern,

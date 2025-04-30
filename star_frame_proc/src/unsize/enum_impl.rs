@@ -580,7 +580,7 @@ impl UnsizedEnumContext {
         let ext_trait_generics = combine_gen!(self.generics;
             <#parent_lt, #top_lt, #p, #u> where
                 Self: #prelude::ResizeExclusive + Sized,
-                #u: #prelude::UnsizedType<Mut<#top_lt> = <#enum_type as #prelude::UnsizedType>::Mut<#top_lt>> + ?Sized,
+                #u: #prelude::UnsizedType<Mut<#top_lt> = <#enum_type as #prelude::UnsizedType>::Mut<#top_lt>> + ?::core::marker::Sized,
                 #top_lt: #parent_lt
         );
         let (impl_gen, ty_gen, wc) = ext_trait_generics.split_for_impl();

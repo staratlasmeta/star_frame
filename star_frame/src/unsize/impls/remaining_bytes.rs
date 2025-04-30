@@ -129,7 +129,7 @@ unsafe impl FromOwned for RemainingBytes {
     }
 }
 
-#[unsized_impl(inherent)]
+#[unsized_impl]
 impl RemainingBytes {
     #[exclusive]
     pub fn set_len(&mut self, len: usize) -> Result<()> {
