@@ -28,7 +28,7 @@ impl UnsizedTest3 {
     #[exclusive]
     fn foo<'child>(
         &'child mut self,
-    ) -> ExclusiveWrapperT<'child, 'top, 'info, List<PackedValue<u16>, u8>, O, A> {
+    ) -> ExclusiveWrapper<'child, 'top, List<PackedValue<u16>, u8>, Self> {
         self.unsized3()
     }
 }

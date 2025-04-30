@@ -116,7 +116,7 @@ impl StarFrameInstruction for ProcessEnlistPlayerIx {
 pub struct ProcessEnlistPlayer<'info> {
     /// The player faction account
     #[validate(arg = (Create(()),
-    Seeds(PlayerFactionAccountSeeds {
+        Seeds(PlayerFactionAccountSeeds {
         player_account: *self.player_account.key()
     })))]
     #[idl(

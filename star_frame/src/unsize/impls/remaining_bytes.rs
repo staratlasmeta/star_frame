@@ -1,6 +1,6 @@
 use crate::align1::Align1;
 use crate::unsize::init::{DefaultInit, UnsizedInit};
-use crate::unsize::wrapper::ExclusiveWrapper;
+use crate::unsize::wrapper::ResizeExclusive;
 use crate::unsize::{AsShared, FromOwned, UnsizedType};
 use crate::Result;
 use advancer::Advance;
@@ -143,9 +143,7 @@ impl RemainingBytes {
                     (source_ptr, end_ptr)
                 };
                 unsafe {
-                    ExclusiveWrapper::add_bytes(self, source_ptr, end_ptr, bytes_to_add, |_r| {
-                        Ok(())
-                    })?;
+                    ResizeExclusive::add_bytes(self, source_ptr, end_ptr, bytes_to_add)?;
                 }
             }
             Ordering::Equal => return Ok(()),
@@ -154,18 +152,11 @@ impl RemainingBytes {
                 let start_ptr = unsafe { source_ptr.byte_add(len) };
                 let end_ptr = unsafe { source_ptr.byte_add(self_len) };
                 unsafe {
-                    ExclusiveWrapper::remove_bytes(self, source_ptr, start_ptr..end_ptr, |_r| {
-                        Ok(())
-                    })?;
+                    ResizeExclusive::remove_bytes(self, source_ptr, start_ptr..end_ptr)?;
                 }
             }
         };
-        unsafe {
-            ExclusiveWrapper::set_inner(self, |bytes| {
-                bytes.0 = ptr_meta::from_raw_parts_mut(bytes.0.cast::<()>(), len);
-                Ok(())
-            })?;
-        }
+        self.0 = ptr_meta::from_raw_parts_mut(self.0.cast::<()>(), len);
         Ok(())
     }
 }

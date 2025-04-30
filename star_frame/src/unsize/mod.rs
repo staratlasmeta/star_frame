@@ -37,13 +37,6 @@ pub unsafe trait UnsizedType: 'static {
 
     fn mut_as_ref<'a>(m: &'a Self::Mut<'_>) -> Self::Ref<'a>;
 
-    /// # Safety
-    /// Variance is complicated. Everything that is assigned to the return value must be at least 'a.
-    /// This should really only be called from within the [`unsized_type`] macro. Be careful if you need to call it directly.
-    unsafe fn sub_ref_mut<'a: 'b, 'b>(r: &'b mut Self::Mut<'a>) -> Self::Mut<'b> {
-        todo!()
-    }
-
     fn get_ref<'a>(data: &mut &'a [u8]) -> Result<Self::Ref<'a>>;
     fn get_mut<'a>(data: &mut &'a mut [u8]) -> Result<Self::Mut<'a>>;
     fn owned(mut data: &[u8]) -> Result<Self::Owned> {

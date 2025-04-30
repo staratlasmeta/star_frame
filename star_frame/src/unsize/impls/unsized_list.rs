@@ -1,7 +1,8 @@
 use crate::align1::Align1;
 use crate::data_types::PackedValue;
+use crate::prelude::ExclusiveWrapper;
 use crate::unsize::init::{DefaultInit, UnsizedInit};
-use crate::unsize::wrapper::ExclusiveWrapper;
+use crate::unsize::wrapper::ResizeExclusive;
 use crate::unsize::{unsized_impl, AsShared};
 use crate::unsize::{FromOwned, UnsizedType};
 use crate::Result;
@@ -692,12 +693,12 @@ where
     pub fn get_exclusive<'child>(
         &'child mut self,
         index: usize,
-    ) -> Result<Option<ExclusiveWrapper<'child, 'top, 'info, T::Mut<'top>, O, A>>> {
+    ) -> Result<Option<ExclusiveWrapper<'child, 'top, T, Self>>> {
         let Some((start, end)) = self.get_unsized_range(index) else {
             return Ok(None);
         };
         unsafe {
-            ExclusiveWrapper::try_map_ref(self, |data| unsized_list_exclusive!(<T> data start..end))
+            ExclusiveWrapper::try_map_mut(self, |data| unsized_list_exclusive!(<T> data start..end))
         }
         .map(Some)
     }
@@ -707,7 +708,7 @@ where
     pub fn index_exclusive<'child>(
         &'child mut self,
         index: usize,
-    ) -> Result<ExclusiveWrapper<'child, 'top, 'info, T::Mut<'top>, O, A>> {
+    ) -> Result<ExclusiveWrapper<'child, 'top, T, Self>> {
         self.get_exclusive(index)
             .transpose()
             .context("Index out of bounds")?
@@ -717,7 +718,7 @@ where
     #[inline]
     pub fn first_exclusive<'child>(
         &'child mut self,
-    ) -> Result<Option<ExclusiveWrapper<'child, 'top, 'info, T::Mut<'top>, O, A>>> {
+    ) -> Result<Option<ExclusiveWrapper<'child, 'top, T, Self>>> {
         self.get_exclusive(0)
     }
 
@@ -725,7 +726,7 @@ where
     #[inline]
     pub fn last_exclusive<'child>(
         &'child mut self,
-    ) -> Result<Option<ExclusiveWrapper<'child, 'top, 'info, T::Mut<'top>, O, A>>> {
+    ) -> Result<Option<ExclusiveWrapper<'child, 'top, T, Self>>> {
         if self.is_empty() {
             Ok(None)
         } else {
@@ -832,55 +833,56 @@ where
         let to_add = items.len();
         let add_amount = (T::INIT_BYTES + size_of::<C>()) * to_add;
 
-        unsafe {
-            ExclusiveWrapper::add_bytes(self, source_ptr, add_bytes_start, add_amount, |list| {
-                {
-                    list.list_ptr = ptr_meta::from_raw_parts_mut(
-                        list.list_ptr.cast::<()>(),
-                        list.len() + to_add,
-                    );
-                }
-                {
-                    // We have added bytes at the unsized list insertion index. We now need
-                    // to shift all the bytes from the index in the offset list up to immediately before we
-                    // inserted the new bytes by the size of an offset list element to fit the new offset in
-                    let offset_list_ptr = list.offset_list.as_mut_ptr();
-                    let new_offset_start = offset_list_ptr.add(index);
-                    let dst_ptr = new_offset_start.add(to_add); // shift down by size of offset counter element
+        unsafe { ResizeExclusive::add_bytes(self, source_ptr, add_bytes_start, add_amount)? };
+        {
+            let list = &mut **self;
+            {
+                list.list_ptr =
+                    ptr_meta::from_raw_parts_mut(list.list_ptr.cast::<()>(), list.len() + to_add);
+            }
+            {
+                // We have added bytes at the unsized list insertion index. We now need
+                // to shift all the bytes from the index in the offset list up to immediately before we
+                // inserted the new bytes by the size of an offset list element to fit the new offset in
+                let offset_list_ptr = list.offset_list.as_mut_ptr();
+                let new_offset_start = unsafe { offset_list_ptr.add(index) };
+                let dst_ptr = unsafe { new_offset_start.add(to_add) }; // shift down by size of offset counter element
+                unsafe {
                     sol_memmove(
                         dst_ptr.cast::<u8>(),
                         new_offset_start.cast::<u8>(),
                         add_bytes_start as usize - new_offset_start as usize,
                     );
                 }
-                {
-                    let new_len = u32::try_from(list.len() + to_add)?;
-                    list.len.0 = new_len;
-                    list.unsized_list_len().0 = new_len;
+            }
+            {
+                let new_len = u32::try_from(list.len() + to_add)?;
+                list.len.0 = new_len;
+                list.unsized_list_len().0 = new_len;
 
-                    let size_increase = to_add * T::INIT_BYTES;
-                    list.unsized_size.0 += u32::try_from(size_increase)?;
-                    list.adjust_offsets(index + to_add, size_increase.try_into()?)?;
-                }
-                {
-                    let mut new_data = slice::from_raw_parts_mut(
+                let size_increase = to_add * T::INIT_BYTES;
+                list.unsized_size.0 += u32::try_from(size_increase)?;
+                list.adjust_offsets(index + to_add, size_increase.try_into()?)?;
+            }
+            {
+                let mut new_data = unsafe {
+                    slice::from_raw_parts_mut(
                         list.unsized_data_ptr_mut().byte_add(insertion_offset),
                         T::INIT_BYTES * to_add,
-                    );
+                    )
+                };
 
-                    // zip_eq to ensure ExactSizeIterator is telling the truth
-                    for ((item_index, (item_init, offset_init)), _) in
-                        items.enumerate().zip_eq(0..to_add)
-                    {
-                        T::init(&mut new_data, item_init)?;
-                        let new_offset = insertion_offset + item_index * T::INIT_BYTES;
-                        list.offset_list[index + item_index] =
-                            C::from_usize_offset(new_offset, offset_init)?;
-                    }
+                // zip_eq to ensure ExactSizeIterator is telling the truth
+                for ((item_index, (item_init, offset_init)), _) in
+                    items.enumerate().zip_eq(0..to_add)
+                {
+                    unsafe { T::init(&mut new_data, item_init)? };
+                    let new_offset = insertion_offset + item_index * T::INIT_BYTES;
+                    list.offset_list[index + item_index] =
+                        C::from_usize_offset(new_offset, offset_init)?;
                 }
-                Ok(())
-            })
-        }?;
+            }
+        }
         Ok(())
     }
 
@@ -941,27 +943,23 @@ where
             let remove_end = unsafe { self.unsized_data_ptr().byte_add(end_offset) }.cast::<()>();
             let source_ptr = self.list_ptr.cast_const().cast::<()>();
             unsafe {
-                ExclusiveWrapper::remove_bytes(
-                    self,
-                    source_ptr,
-                    remove_start..remove_end,
-                    |list| {
-                        {
-                            list.list_ptr = ptr_meta::from_raw_parts_mut(
-                                list.list_ptr.cast::<()>(),
-                                list.len() - to_remove,
-                            );
-                        }
-                        {
-                            let new_len = u32::try_from(list.len() - to_remove)?;
-                            list.len.0 = new_len;
-                            list.unsized_list_len().0 = new_len;
-                            list.unsized_size.0 -= u32::try_from(unsized_bytes_removed)?;
-                            list.adjust_offsets(start, -isize::try_from(unsized_bytes_removed)?)?;
-                        }
-                        Ok(())
-                    },
-                )?;
+                ResizeExclusive::remove_bytes(self, source_ptr, remove_start..remove_end)?;
+            }
+            {
+                let list = &mut **self;
+                {
+                    list.list_ptr = ptr_meta::from_raw_parts_mut(
+                        list.list_ptr.cast::<()>(),
+                        list.len() - to_remove,
+                    );
+                }
+                {
+                    let new_len = u32::try_from(list.len() - to_remove)?;
+                    list.len.0 = new_len;
+                    list.unsized_list_len().0 = new_len;
+                    list.unsized_size.0 -= u32::try_from(unsized_bytes_removed)?;
+                    list.adjust_offsets(start, -isize::try_from(unsized_bytes_removed)?)?;
+                }
             }
         }
 

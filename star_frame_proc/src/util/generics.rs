@@ -115,6 +115,13 @@ pub trait CombineGenerics {
     fn combine<G: GetGenerics>(&self, other: &G) -> Self;
 }
 
+macro_rules! combine_gen {
+    ($generic:expr; $($other:tt)*) => {
+        $generic.combine::<BetterGenerics>(&parse_quote!([$($other)*]))
+    };
+}
+pub(crate) use combine_gen;
+
 impl CombineGenerics for Generics {
     fn combine<G: GetGenerics>(&self, other: &G) -> Self {
         let other = other.get_generics().clone();

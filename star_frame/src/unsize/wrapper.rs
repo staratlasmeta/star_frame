@@ -1,21 +1,19 @@
-use super::impls::ListMut;
 use super::{AsShared, UnsizedType};
 use super::{OwnedRef, OwnedRefMut};
 use crate::prelude::UnsizedInit;
 use crate::Result;
 use advancer::Advance;
 use anyhow::{ensure, Context};
-use core::fmt;
 use core::ptr;
 use derive_more::{Debug, Deref, DerefMut};
 use solana_program::account_info::AccountInfo;
 use solana_program::entrypoint::MAX_PERMITTED_DATA_INCREASE;
 use solana_program::program_error::ProgramError;
 use solana_program::program_memory::sol_memmove;
-use std::any::type_name;
 use std::cell::{Ref, RefMut};
 use std::cmp::Ordering;
 use std::collections::Bound;
+use std::convert::Infallible;
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut, RangeBounds};
 use std::slice::from_raw_parts_mut;
@@ -85,6 +83,8 @@ impl<'a, T> SharedWrapper<'a, T> {
         T: 'a,
         U: UnsizedType<Ref<'a> = T> + ?Sized,
     {
+        // ensure no ZSTs in middle of struct
+        let _ = U::ZST_STATUS;
         let data = UnsizedTypeDataAccess::data_ref(underlying_data)?;
         let r = OwnedRef::try_new(data, |r| U::get_ref(&mut &**r))?;
         Ok(SharedWrapper { r })
@@ -99,40 +99,43 @@ impl<T> Deref for SharedWrapper<'_, T> {
 }
 
 #[derive(Debug)]
-pub enum ExclusiveWrapper2<'parent, U, P>
+pub enum ExclusiveWrapper<'parent, 'top, U, P>
 where
     U: UnsizedType + ?Sized,
 {
     Top {
-        data: OwnedRefMut<'parent, (P, U::Mut<'parent>)>,
+        data: OwnedRefMut<'top, (P, U::Mut<'top>)>,
     },
     Inner {
+        parent_lt: PhantomData<&'parent ()>,
         parent: *mut P, // 'parent
-        field: U::Mut<'parent>,
+        field: *mut U::Mut<'top>,
     },
 }
+
+pub type ExclusiveWrapperTop<'top, U, A> =
+    ExclusiveWrapper<'top, 'top, U, ExclusiveWrapperTopMeta<'top, A>>;
+
 #[derive(Debug)]
-pub struct ExclusiveWrapperTop<'parent, A> {
-    info: &'parent A,
-    data: *mut *mut [u8], // &'parent mut &'info mut [u8]
-                          // phantom_u: PhantomData<fn() -> U>,
+pub struct ExclusiveWrapperTopMeta<'top, A> {
+    info: &'top A,
+    data: *mut *mut [u8], // &'top mut &'info mut [u8]
 }
 
-// type ExclusiveWrapperTop<'parent, A> = &'parent A;
-
-impl<'parent, 'info, U, A> ExclusiveWrapper2<'parent, U, ExclusiveWrapperTop<'parent, A>>
+impl<'top, 'info, U, A> ExclusiveWrapper<'top, 'top, U, ExclusiveWrapperTopMeta<'top, A>>
 where
-    'info: 'parent,
+    'info: 'top,
     U: UnsizedType + ?Sized,
     A: UnsizedTypeDataAccess<'info>,
 {
-    pub fn new(info: &'parent A) -> Result<Self> {
-        let data: RefMut<'parent, &mut [u8]> = UnsizedTypeDataAccess::data_mut(info)?;
-        // let field = U::get_mut(&mut data)?;
-        Ok(ExclusiveWrapper2::Top {
+    pub fn new(info: &'top A) -> Result<Self> {
+        // ensure no ZSTs in middle of struct
+        let _ = U::ZST_STATUS;
+        let data: RefMut<'top, &mut [u8]> = UnsizedTypeDataAccess::data_mut(info)?;
+        Ok(ExclusiveWrapper::Top {
             data: OwnedRefMut::try_new(data, |data| {
                 anyhow::Ok((
-                    ExclusiveWrapperTop {
+                    ExclusiveWrapperTopMeta {
                         info,
                         data: ptr::from_mut(data).cast::<*mut [u8]>(),
                     },
@@ -147,7 +150,7 @@ mod sealed {
     use super::*;
 
     pub trait Sealed {}
-    impl<U, P> Sealed for ExclusiveWrapper2<'_, U, P> where U: UnsizedType + ?Sized {}
+    impl<U, P> Sealed for ExclusiveWrapper<'_, '_, U, P> where U: UnsizedType + ?Sized {}
 }
 
 pub trait ResizeExclusive: sealed::Sealed {
@@ -166,9 +169,16 @@ pub trait ResizeExclusive: sealed::Sealed {
         source_ptr: *const (),
         range: impl RangeBounds<*const ()>,
     ) -> Result<()>;
+
+    /// # Safety
+    /// Is this actually unsafe? If bounds are checked, everything should be fine? We have exclusive access to self right now.
+    unsafe fn compute_len<UT: UnsizedType + ?Sized>(
+        wrapper: &mut Self,
+        start_ptr: *const (),
+    ) -> Result<usize>;
 }
 
-impl<U, P> ResizeExclusive for ExclusiveWrapper2<'_, U, P>
+impl<U, P> ResizeExclusive for ExclusiveWrapper<'_, '_, U, P>
 where
     U: UnsizedType + ?Sized,
     P: ResizeExclusive,
@@ -178,11 +188,11 @@ where
         source_ptr: *const (),
         start: *const (),
         amount: usize,
-        // after_add: impl FnOnce(&mut Self::T) -> Result<()>,
     ) -> Result<()> {
         match wrapper {
-            ExclusiveWrapper2::Top { .. } => unreachable!(),
-            ExclusiveWrapper2::Inner { parent, .. } => {
+            ExclusiveWrapper::Top { .. } => unreachable!(),
+            ExclusiveWrapper::Inner { parent, .. } => {
+                // SAFETY: We have exclusive access to self right now, and no other
                 let parent = unsafe { &mut **parent };
                 unsafe { P::add_bytes(parent, source_ptr, start, amount) }
             }
@@ -193,24 +203,37 @@ where
         wrapper: &mut Self,
         source_ptr: *const (),
         range: impl RangeBounds<*const ()>,
-        // after_remove: impl FnOnce(&mut Self::T) -> Result<()>,
     ) -> Result<()> {
         match wrapper {
-            ExclusiveWrapper2::Top { .. } => unreachable!(),
-            ExclusiveWrapper2::Inner { parent, .. } => {
+            ExclusiveWrapper::Top { .. } => unreachable!(),
+            ExclusiveWrapper::Inner { parent, .. } => {
+                // SAFETY: We have exclusive access to self right now, so no other references to parent can exist.
                 let parent = unsafe { &mut **parent };
                 unsafe { P::remove_bytes(parent, source_ptr, range) }
             }
         }
     }
+
+    unsafe fn compute_len<UT: UnsizedType + ?Sized>(
+        wrapper: &mut Self,
+        start_ptr: *const (),
+    ) -> Result<usize> {
+        match wrapper {
+            ExclusiveWrapper::Top { .. } => unreachable!(),
+            ExclusiveWrapper::Inner { parent, .. } => {
+                let parent = unsafe { &mut **parent };
+                unsafe { P::compute_len::<UT>(parent, start_ptr) }
+            }
+        }
+    }
 }
 
-impl<'parent, 'info, U, A> ResizeExclusive
-    for ExclusiveWrapper2<'parent, U, ExclusiveWrapperTop<'parent, A>>
+impl<'top, 'info, U, A> ResizeExclusive
+    for ExclusiveWrapper<'_, 'top, U, ExclusiveWrapperTopMeta<'top, A>>
 where
     U: UnsizedType + ?Sized,
     A: UnsizedTypeDataAccess<'info>,
-    'info: 'parent,
+    'info: 'top,
 {
     unsafe fn add_bytes(
         wrapper: &mut Self,
@@ -221,15 +244,18 @@ where
     ) -> Result<()> {
         let s: &mut OwnedRefMut<
             '_,
-            (ExclusiveWrapperTop<'parent, A>, <U as UnsizedType>::Mut<'_>),
+            (
+                ExclusiveWrapperTopMeta<'top, A>,
+                <U as UnsizedType>::Mut<'_>,
+            ),
         > = match wrapper {
-            ExclusiveWrapper2::Top { data } => data,
-            ExclusiveWrapper2::Inner { .. } => unreachable!(),
+            ExclusiveWrapper::Top { data } => data,
+            ExclusiveWrapper::Inner { .. } => unreachable!(),
         };
 
         {
-            // SAFETY: We are at the top level now, and all the child `field()`s can only contain mutable pointers to the data, so we are the only one.
-            let data: &'parent mut &'info mut [u8] = unsafe { &mut *s.0.data.cast() };
+            // SAFETY: We are at the top level now, and all the child `field()`s can only contain mutable pointers to the data, so we are the only one
+            let data: &'top mut &'info mut [u8] = unsafe { &mut *s.0.data.cast() };
             let old_ptr = data.as_ptr();
             let old_len = data.len();
 
@@ -256,8 +282,7 @@ where
             }
         }
 
-        // after_add(unsafe { &mut *wrapper.data_mut() })?;
-
+        // TODO: Figure out the safety requirements of calling this. I think it is safe to call here assuming the UnsizedType is implemented correctly.
         unsafe {
             U::resize_notification(&mut s.1, source_ptr, amount.try_into()?)?;
         }
@@ -272,12 +297,12 @@ where
         // after_remove: impl FnOnce(&mut Self::T) -> Result<()>,
     ) -> Result<()> {
         let s = match wrapper {
-            ExclusiveWrapper2::Top { data } => data,
-            ExclusiveWrapper2::Inner { .. } => unreachable!(),
+            ExclusiveWrapper::Top { data } => data,
+            ExclusiveWrapper::Inner { .. } => unreachable!(),
         };
 
         let amount = {
-            let data: &'parent mut &'info mut [u8] = unsafe { &mut *s.0.data.cast() };
+            let data: &'top mut &'info mut [u8] = unsafe { &mut *s.0.data.cast() };
             let old_len = data.len();
 
             let start = match range.start_bound() {
@@ -324,7 +349,7 @@ where
             }
 
             let new_len = old_len - amount;
-            // realloc
+            // TODO: Figure out the safety requirements of calling this
             unsafe {
                 UnsizedTypeDataAccess::realloc(s.0.info, new_len, data)?;
             }
@@ -337,405 +362,20 @@ where
         }
         Ok(())
     }
-}
 
-impl<'parent, U, P> ExclusiveWrapper2<'parent, U, P>
-where
-    U: UnsizedType + ?Sized,
-{
-    /// # Safety
-    /// O may not contain a mutable reference to T, but can contain a mutable pointer.
-    pub unsafe fn field<'child, O>(
-        &'child mut self,
-        mapper: impl FnOnce(&'child mut U::Mut<'parent>) -> O::Mut<'child>,
-    ) -> ExclusiveWrapper2<'child, O, Self>
-    where
-        O: UnsizedType + ?Sized,
-    {
-        let parent: *mut Self = self;
-        match self {
-            ExclusiveWrapper2::Top { data, .. } => ExclusiveWrapper2::Inner {
-                parent,
-                field: mapper(&mut data.1),
-            },
-            ExclusiveWrapper2::Inner { field, .. } => ExclusiveWrapper2::Inner {
-                parent,
-                field: mapper(field),
-            },
-        }
-    }
-}
-impl<'parent, U, P> Deref for ExclusiveWrapper2<'parent, U, P>
-where
-    U: UnsizedType + ?Sized,
-{
-    type Target = U::Mut<'parent>;
-
-    fn deref(&self) -> &Self::Target {
-        match self {
-            ExclusiveWrapper2::Top { data, .. } => &data.1,
-            ExclusiveWrapper2::Inner { field, .. } => field,
-        }
-    }
-}
-impl<U, P> DerefMut for ExclusiveWrapper2<'_, U, P>
-where
-    U: UnsizedType + ?Sized,
-{
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        match self {
-            ExclusiveWrapper2::Top { data, .. } => &mut data.1,
-            ExclusiveWrapper2::Inner { field, .. } => field,
-        }
-    }
-}
-
-pub(crate) unsafe fn change_ref<'info, 'top>(
-    the_ref: &'top mut &'info mut [u8],
-) -> &'top mut *mut [u8] {
-    unsafe { &mut *ptr::from_mut::<&'info mut [u8]>(the_ref).cast::<*mut [u8]>() }
-}
-
-pub(crate) unsafe fn change_ref_back<'info, 'top>(
-    the_ptr: &'top mut *mut [u8],
-) -> &'top mut &'info mut [u8] {
-    unsafe { &mut *ptr::from_mut::<*mut [u8]>(the_ptr).cast::<&'info mut [u8]>() }
-}
-
-enum MaybeOwned<'parent, 'top, O> {
-    Owned {
-        r: RefMut<'top, *mut [u8]>,
-        outer_data: O,
-    },
-    Borrowed {
-        r: &'parent mut RefMut<'top, *mut [u8]>,
-        outer_data: *mut O,
-    },
-}
-
-impl<'parent, 'top, O> MaybeOwned<'parent, 'top, O> {
-    fn borrowed<'a>(&'a mut self) -> MaybeOwned<'a, 'top, O>
-    where
-        'parent: 'a,
-    {
-        match self {
-            Self::Owned { r, outer_data } => MaybeOwned::Borrowed { r, outer_data },
-            Self::Borrowed { r, outer_data } => MaybeOwned::Borrowed {
-                r,
-                outer_data: *outer_data,
-            },
-        }
-    }
-
-    fn r(&mut self) -> &mut RefMut<'top, *mut [u8]> {
-        match self {
-            MaybeOwned::Owned { r, .. } => r,
-            MaybeOwned::Borrowed { r, .. } => r,
-        }
-    }
-
-    fn outer_data(&self) -> *const O {
-        match self {
-            MaybeOwned::Owned { outer_data, .. } => outer_data,
-            MaybeOwned::Borrowed { outer_data, .. } => *outer_data,
-        }
-    }
-
-    fn outer_data_mut(&mut self) -> *mut O {
-        match self {
-            MaybeOwned::Owned { outer_data, .. } => outer_data,
-            MaybeOwned::Borrowed { outer_data, .. } => *outer_data,
-        }
-    }
-}
-
-impl<O> fmt::Debug for MaybeOwned<'_, '_, O> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let (variant, r, data): (_, _, *const O) = match self {
-            Self::Owned { r, outer_data } => ("Owned", r, outer_data),
-            Self::Borrowed { r, outer_data } => ("Borrowed", *r, *outer_data),
-        };
-        f.debug_struct(variant)
-            .field("r", r)
-            .field("data", &data)
-            .finish()
-    }
-}
-
-#[derive(Debug)]
-pub struct ExclusiveWrapper<'parent, 'top, 'info, T, O, A>
-where
-    O: UnsizedType + ?Sized,
-{
-    underlying_data: &'top A,
-    maybe_owned: MaybeOwned<'parent, 'top, O::Mut<'top>>,
-    phantom_o: PhantomData<fn() -> &'info O>,
-    // Data must be None while maybe_owned is Owned
-    data: Option<*mut T>, // ptr is lifetime 'top
-}
-
-/// A convenience type where T is passed in as the [`UnsizedType`], instead of `UnsizedType::Mut`
-pub type ExclusiveWrapperT<'parent, 'top, 'info, T, O, A> =
-    ExclusiveWrapper<'parent, 'top, 'info, <T as UnsizedType>::Mut<'top>, O, A>;
-
-impl<'top, 'info, O, A> ExclusiveWrapperT<'top, 'top, 'info, O, O, A>
-where
-    O: UnsizedType + ?Sized,
-    A: UnsizedTypeDataAccess<'info>,
-    'info: 'top,
-{
-    /// # Safety
-    /// TODO:
-    pub unsafe fn new(underlying_data: &'top A) -> Result<Self> {
-        let mut r = RefMut::map(
-            UnsizedTypeDataAccess::data_mut(underlying_data)?,
-            |r| unsafe { change_ref(r) },
-        );
-        // ensure no ZSTs in middle of struct
-        let _ = O::ZST_STATUS;
-
-        // TODO: This is lifetime extension. Is this okay?
-        let data = O::get_mut(unsafe { &mut &mut **r })?;
-
-        Ok(Self {
-            underlying_data,
-            maybe_owned: MaybeOwned::Owned {
-                r,
-                outer_data: data,
-            },
-            phantom_o: PhantomData,
-            data: None,
-        })
-    }
-}
-
-impl<'top, T, O, A> ExclusiveWrapper<'_, 'top, '_, T, O, A>
-where
-    O: UnsizedType + ?Sized,
-{
-    /// # Safety
-    /// T and O must be the same type if data is None
-    unsafe fn data(&self) -> *const T {
-        if let Some(ptr) = self.data {
-            ptr
-        } else {
-            // Not ideal, but we can't use TypeId because T isn't 'static
-            debug_assert!(type_name::<T>() == type_name::<O::Mut<'top>>());
-            self.maybe_owned.outer_data().cast::<T>()
-        }
-    }
-
-    unsafe fn data_mut(&mut self) -> *mut T {
-        match self.data {
-            Some(ptr) => ptr,
-            None => self.maybe_owned.outer_data_mut().cast::<T>(),
-        }
-    }
-}
-
-impl<T, O, A> Deref for ExclusiveWrapper<'_, '_, '_, T, O, A>
-where
-    O: UnsizedType + ?Sized,
-{
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        unsafe { &*self.data() }
-    }
-}
-impl<T, O, A> DerefMut for ExclusiveWrapper<'_, '_, '_, T, O, A>
-where
-    O: UnsizedType + ?Sized,
-{
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        unsafe { &mut *self.data_mut() }
-    }
-}
-
-impl<'top, 'info, T, O, A> ExclusiveWrapper<'_, 'top, 'info, T, O, A>
-where
-    O: UnsizedType + ?Sized,
-    A: UnsizedTypeDataAccess<'info>,
-{
-    /// # Safety
-    /// todo
-    pub unsafe fn map_ref<'child, U: 'top>(
-        wrapper: &'child mut Self,
-        f: impl FnOnce(&'top mut T) -> &'top mut U,
-    ) -> ExclusiveWrapper<'child, 'top, 'info, U, O, A>
-    where
-        T: 'top,
-    {
-        unsafe {
-            Self::try_map_ref(
-                wrapper,
-                #[inline]
-                |data| Ok(f(data)),
-            )
-        }
-        .unwrap()
-    }
-
-    /// # Safety
-    /// TODO
-    pub unsafe fn try_map_ref<'child, U: 'top>(
-        wrapper: &'child mut Self,
-        f: impl FnOnce(&'top mut T) -> Result<&'top mut U>,
-    ) -> Result<ExclusiveWrapper<'child, 'top, 'info, U, O, A>>
-    where
-        T: 'top,
-    {
-        let data = ptr::from_mut(f(unsafe { &mut *wrapper.data_mut() })?);
-        Ok(ExclusiveWrapper {
-            underlying_data: wrapper.underlying_data,
-            maybe_owned: wrapper.maybe_owned.borrowed(),
-            data: Some(data),
-            phantom_o: PhantomData,
-        })
-    }
-
-    /// # Safety
-    /// TODO
-    pub unsafe fn set_inner<U>(
+    unsafe fn compute_len<UT: UnsizedType + ?Sized>(
         wrapper: &mut Self,
-        f: impl FnOnce(&'_ mut T) -> Result<U>,
-    ) -> Result<U> {
-        f(wrapper)
-    }
-
-    /// # Safety
-    /// TODO
-    pub unsafe fn add_bytes(
-        wrapper: &mut Self,
-        source_ptr: *const (),
-        start: *const (),
-        amount: usize,
-        after_add: impl FnOnce(&mut T) -> Result<()>,
-    ) -> Result<()> {
-        {
-            let data = unsafe { change_ref_back(wrapper.maybe_owned.r()) };
-            let old_ptr = data.as_ptr();
-            let old_len = data.len();
-
-            ensure!(start as usize >= data.as_ptr() as usize);
-            ensure!(start as usize <= data.as_ptr() as usize + old_len);
-
-            // Return early if length hasn't changed
-            if amount == 0 {
-                return Ok(());
-            }
-            let new_len = old_len + amount;
-
-            // realloc
-            unsafe { UnsizedTypeDataAccess::realloc(wrapper.underlying_data, new_len, data) }?;
-
-            if start as usize != old_ptr as usize + old_len {
-                unsafe {
-                    sol_memmove(
-                        start.cast::<u8>().add(amount).cast_mut(),
-                        start.cast_mut().cast::<u8>(),
-                        old_len - (start as usize - data.as_ptr() as usize),
-                    );
-                }
-            }
-        }
-
-        after_add(unsafe { &mut *wrapper.data_mut() })?;
-
-        unsafe {
-            <O as UnsizedType>::resize_notification(
-                &mut *wrapper.maybe_owned.outer_data_mut(),
-                source_ptr,
-                amount.try_into()?,
-            )?;
-        }
-        Ok(())
-    }
-
-    /// # Safety
-    /// TODO
-    pub unsafe fn remove_bytes(
-        wrapper: &mut Self,
-        source_ptr: *const (),
-        range: impl RangeBounds<*const ()>,
-        after_remove: impl FnOnce(&mut T) -> Result<()>,
-    ) -> Result<()> {
-        let amount = {
-            let data = unsafe { change_ref_back(wrapper.maybe_owned.r()) };
-            let old_len = data.len();
-
-            let start = match range.start_bound() {
-                Bound::Included(start) => {
-                    ensure!(*start as usize >= data.as_ptr() as usize);
-                    ensure!(*start as usize <= data.as_ptr() as usize + old_len);
-                    start.cast::<u8>()
-                }
-                Bound::Excluded(start) => {
-                    ensure!(*start as usize >= data.as_ptr() as usize);
-                    ensure!(*start as usize <= data.as_ptr() as usize + old_len);
-                    unsafe { start.cast::<u8>().add(1) }
-                }
-                Bound::Unbounded => data.as_ptr(),
-            };
-
-            let end = match range.end_bound() {
-                Bound::Included(end) => {
-                    ensure!(*end as usize >= start as usize);
-                    ensure!((*end as usize) < data.as_ptr() as usize + old_len);
-                    unsafe { end.cast::<u8>().add(1) }
-                }
-                Bound::Excluded(end) => {
-                    ensure!(*end as usize >= start as usize);
-                    ensure!(*end as usize <= data.as_ptr() as usize + old_len);
-                    end.cast::<u8>()
-                }
-                Bound::Unbounded => unsafe { data.as_ptr().add(old_len) },
-            };
-
-            let amount = end as usize - start as usize;
-            if amount == 0 {
-                return Ok(());
-            }
-
-            if end as usize != data.as_ptr() as usize + old_len {
-                unsafe {
-                    sol_memmove(
-                        start.cast_mut(),
-                        end.cast_mut(),
-                        old_len - (end as usize - data.as_ptr() as usize),
-                    );
-                }
-            }
-
-            let new_len = old_len - amount;
-            // realloc
-            unsafe {
-                UnsizedTypeDataAccess::realloc(wrapper.underlying_data, new_len, data)?;
-            }
-
-            amount
+        start_ptr: *const (),
+    ) -> Result<usize> {
+        let s = match wrapper {
+            ExclusiveWrapper::Top { data } => data,
+            ExclusiveWrapper::Inner { .. } => unreachable!(),
         };
 
-        after_remove(unsafe { &mut *wrapper.data_mut() })?;
+        let data: &'top mut &'info mut [u8] = unsafe { &mut *s.0.data.cast() };
+        let mut data = &data[..];
 
-        unsafe {
-            <O as UnsizedType>::resize_notification(
-                &mut *wrapper.maybe_owned.outer_data_mut(),
-                source_ptr,
-                -amount.try_into()?,
-            )?;
-        }
-        Ok(())
-    }
-
-    /// # Safety
-    /// TODO
-    pub unsafe fn compute_len<U>(wrapper: &mut Self, start_ptr: *const ()) -> Result<usize>
-    where
-        U: UnsizedType + ?Sized,
-    {
         let start_usize = start_ptr as usize;
-        let mut data = &unsafe { change_ref_back(wrapper.maybe_owned.r()) }[..];
         let data_usize = data.as_ptr() as usize;
         let start_offset = start_usize - data_usize;
         data.try_advance(start_offset).with_context(|| {
@@ -745,9 +385,77 @@ where
                 std::any::type_name::<U>()
             )
         })?;
-        U::get_ref(&mut data)?;
+        UT::get_ref(&mut data)?;
         let end_usize = data.as_ptr() as usize;
         Ok(end_usize - start_usize)
+    }
+}
+
+impl<'top, U, P> ExclusiveWrapper<'_, 'top, U, P>
+where
+    U: UnsizedType + ?Sized,
+{
+    /// # Safety
+    /// O may not contain a mutable reference to T, but can contain a mutable pointer.
+    pub unsafe fn map_mut<'child, O>(
+        parent: &'child mut Self,
+        mapper: impl FnOnce(&'child mut U::Mut<'top>) -> &'child mut O::Mut<'top>,
+    ) -> ExclusiveWrapper<'child, 'top, O, Self>
+    where
+        O: UnsizedType + ?Sized,
+    {
+        unsafe { Self::try_map_mut::<O, Infallible>(parent, |m| Ok(mapper(m))) }.unwrap()
+    }
+
+    /// # Safety
+    /// O may not contain a mutable reference to T, but can contain a mutable pointer.
+    pub unsafe fn try_map_mut<'child, O, E>(
+        parent: &'child mut Self,
+        mapper: impl FnOnce(&'child mut U::Mut<'top>) -> Result<&'child mut O::Mut<'top>, E>,
+    ) -> Result<ExclusiveWrapper<'child, 'top, O, Self>, E>
+    where
+        O: UnsizedType + ?Sized,
+    {
+        let parent_mut: *mut Self = parent;
+        let res = match parent {
+            ExclusiveWrapper::Top { data, .. } => ExclusiveWrapper::Inner {
+                parent_lt: PhantomData,
+                parent: parent_mut,
+                field: mapper(&mut data.1)?,
+            },
+            ExclusiveWrapper::Inner { field, .. } => ExclusiveWrapper::Inner {
+                parent_lt: PhantomData,
+                parent: parent_mut,
+                // SAFETY: We have exclusive access to self right now, and field is private so no other references to it can exist.
+                // SAFETY: There are likely other raw pointers to the same field in parent, but they are not dereferenced.
+                field: mapper(unsafe { &mut **field })?,
+            },
+        };
+        Ok(res)
+    }
+}
+impl<'top, U, P> Deref for ExclusiveWrapper<'_, 'top, U, P>
+where
+    U: UnsizedType + ?Sized,
+{
+    type Target = U::Mut<'top>;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            ExclusiveWrapper::Top { data, .. } => &data.1,
+            ExclusiveWrapper::Inner { field, .. } => unsafe { &**field },
+        }
+    }
+}
+impl<U, P> DerefMut for ExclusiveWrapper<'_, '_, U, P>
+where
+    U: UnsizedType + ?Sized,
+{
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        match self {
+            ExclusiveWrapper::Top { data, .. } => &mut data.1,
+            ExclusiveWrapper::Inner { field, .. } => unsafe { &mut **field },
+        }
     }
 }
 
@@ -788,72 +496,54 @@ impl<T> StartPointer<T> {
     }
 }
 
-impl<'ptr, 'info, O, A, T> ExclusiveWrapper<'_, '_, 'info, StartPointer<T>, O, A>
+impl<'top, U, T, P> ExclusiveWrapper<'_, 'top, U, P>
 where
-    O: UnsizedType + ?Sized,
-    A: UnsizedTypeDataAccess<'info>,
+    Self: ResizeExclusive,
+    U: UnsizedType<Mut<'top> = StartPointer<T>> + ?Sized,
 {
     /// # Safety
-    /// todo
-    // todo: maybe rename this?
-    pub unsafe fn set_start_pointer_data<U, I>(wrapper: &mut Self, init_arg: I) -> Result<()>
+    // TODO: I think it might be safe since we're relying on the UnsizedType implementation to be correct.
+    pub unsafe fn set_start_pointer_data<I>(wrapper: &mut Self, init_arg: I) -> Result<()>
     where
-        U: UnsizedType<Mut<'ptr> = StartPointer<T>> + UnsizedInit<I>,
+        U: UnsizedInit<I>,
     {
-        let current_len = unsafe { ExclusiveWrapper::compute_len::<U>(wrapper, wrapper.start)? };
+        // SAFETY: TODO: might be safe
+        let current_len = unsafe { Self::compute_len::<U>(wrapper, wrapper.start)? };
         let new_len = <U as UnsizedInit<I>>::INIT_BYTES;
 
         match current_len.cmp(&new_len) {
             Ordering::Less => {
+                // TODO: might be safe
                 unsafe {
                     ExclusiveWrapper::add_bytes(
                         wrapper,
                         wrapper.start,
                         wrapper.start,
                         new_len - current_len,
-                        |_| Ok(()),
                     )
                 }?;
             }
             Ordering::Equal => {}
             Ordering::Greater => {
+                // TODO: might be safe
                 unsafe {
                     ExclusiveWrapper::remove_bytes(
                         wrapper,
                         wrapper.start,
                         wrapper.start..wrapper.start.byte_add(current_len - new_len),
-                        |_| Ok(()),
                     )
                 }?;
             }
         }
-        unsafe {
-            ExclusiveWrapper::set_inner(wrapper, |data: &mut StartPointer<T>| {
-                let slice = from_raw_parts_mut(data.start.cast_mut().cast::<u8>(), new_len);
-                <U as UnsizedInit<I>>::init(&mut &mut slice[..], init_arg)?;
-                let new_data = U::get_mut(&mut &mut slice[..])?;
-                data.data = new_data.data;
-                Ok(())
-            })
-        }?;
-        Ok(())
-    }
-}
-
-#[cfg(all(test, feature = "test_helpers"))]
-mod tests {
-    use crate::prelude::*;
-
-    #[test]
-    fn test_miri_stuff() -> Result<()> {
-        let byte_set = TestByteSet::<[u8; 20]>::new_default()?;
-        {
-            let data = &**byte_set.data()?;
-            println!("data: {data:?}");
-        }
-        // drop(data);
-        drop(byte_set);
-        // exclusive.unsized1().push(100.into())?;
+        wrapper.data = {
+            // SAFETY: We have exclusive access to the wrapper, so no external references to the underlying data exist.
+            // SAFETY: No other references exist in this function either. We can assume the StartPointer is valid since it was created by the UnsizedType implementation.
+            let slice =
+                unsafe { from_raw_parts_mut(wrapper.start.cast_mut().cast::<u8>(), new_len) };
+            // TODO: this is probably safe
+            unsafe { <U as UnsizedInit<I>>::init(&mut &mut slice[..], init_arg)? };
+            U::get_mut(&mut &mut slice[..])?.data
+        };
         Ok(())
     }
 }

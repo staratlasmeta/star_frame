@@ -43,7 +43,7 @@ pub enum UnsizedEnumTest {
 
 fn compare_with_owned(
     owned: &EnumTestStructOwned,
-    exclusive: &ExclusiveWrapperT<EnumTestStruct, EnumTestStruct, TestUnderlyingData>,
+    exclusive: &ExclusiveWrapperTop<EnumTestStruct, TestUnderlyingData>,
 ) -> Result<()> {
     assert_eq!(**exclusive.list_before, owned.list_before);
     assert_eq!(**exclusive.list_after, owned.list_after);

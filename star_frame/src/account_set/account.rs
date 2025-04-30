@@ -148,14 +148,12 @@ where
     #[inline]
     pub fn data_mut(
         &self,
-    ) -> Result<
-        ExclusiveWrapper<'_, '_, 'info, T::Mut<'_>, AccountDiscriminant<T>, AccountInfo<'info>>,
-    > {
+    ) -> Result<ExclusiveWrapperTop<'_, AccountDiscriminant<T>, AccountInfo<'info>>> {
         // If the account is writable, changes could have been made after AccountSetValidate has been run
         if self.is_writable() {
             self.validate()?;
         }
-        unsafe { ExclusiveWrapper::new(&self.info) }
+        ExclusiveWrapper::new(&self.info)
     }
 }
 

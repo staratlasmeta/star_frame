@@ -1,5 +1,6 @@
 use crate::util::{
-    new_generic, new_lifetime, strip_inner_attributes, BetterGenerics, CombineGenerics, Paths,
+    combine_gen, new_generic, new_lifetime, strip_inner_attributes, BetterGenerics,
+    CombineGenerics, Paths,
 };
 use easy_proc::ArgumentList;
 use heck::ToUpperCamelCase;
@@ -159,9 +160,7 @@ pub fn unsized_impl_impl(item: ItemImpl, args: TokenStream) -> TokenStream {
             }
         });
 
-    let ref_mut_generics = item
-        .generics
-        .combine::<BetterGenerics>(&parse_quote!([<#ptr_lt>]));
+    let ref_mut_generics = combine_gen!(item.generics; <#ptr_lt>);
     let (impl_gen, _, where_clause) = ref_mut_generics.split_for_impl();
     let ref_impls = (!ref_fns.is_empty()).then(|| {
         quote! {
@@ -180,24 +179,11 @@ pub fn unsized_impl_impl(item: ItemImpl, args: TokenStream) -> TokenStream {
 
     let parent_lt = new_lifetime(&item.generics, Some("parent"));
     let top_lt = new_lifetime(&item.generics, Some("top"));
-    let info_lt = new_lifetime(&item.generics, Some("info"));
-    let o = new_generic(&item.generics, Some("O"));
-    let a = new_generic(&item.generics, Some("A"));
+    let p = new_generic(&item.generics, Some("P"));
 
-    let exclusive_trait_generics = item.generics.combine::<BetterGenerics>(&parse_quote!([
-        <#parent_lt, #top_lt, #info_lt, #o, #a> where
-            #o: #prelude::UnsizedType + ?Sized,
-            #a: #prelude::UnsizedTypeDataAccess<#info_lt>,
-            #info_lt: #parent_lt
-    ]));
+    let exclusive_trait_generics = combine_gen!(item.generics; <#parent_lt, #top_lt, #p> where Self: #prelude::ResizeExclusive + ::core::marker::Sized);
     let (impl_gen, ty_gen, where_clause) = exclusive_trait_generics.split_for_impl();
-    let impl_for =
-        quote!(#prelude::ExclusiveWrapperT<#parent_lt, #top_lt, #info_lt, #self_ty, #o, #a>);
-    // need to directly use mut ty so params aren't unconstrained
-
-    let mut_ty_inherent = new_last_segment(mut_ident.clone(), top_lt.clone());
-    let impl_for_inherent =
-        quote!(#prelude::ExclusiveWrapper<#parent_lt, #top_lt, #info_lt, #mut_ty_inherent, #o, #a>);
+    let impl_for = quote!(#prelude::ExclusiveWrapper<#parent_lt, #top_lt, #self_ty, #p>);
 
     let exclusive_impls = if impl_args.inherent {
         let found_crate = crate_name("star_frame").expect("Could not find `star_frame`");
@@ -210,7 +196,7 @@ pub fn unsized_impl_impl(item: ItemImpl, args: TokenStream) -> TokenStream {
         (!exclusive_fns.is_empty())
             .then(|| {
                 quote! {
-                    impl #impl_gen #impl_for_inherent #where_clause {
+                    impl #impl_gen #impl_for #where_clause {
                         #(#exclusive_fns)*
                     }
                 }

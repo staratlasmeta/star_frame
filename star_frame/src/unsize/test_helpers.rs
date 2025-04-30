@@ -1,8 +1,6 @@
 #![allow(unused)]
 use crate::unsize::init::{DefaultInit, UnsizedInit};
-use crate::unsize::wrapper::{
-    ExclusiveWrapper, ExclusiveWrapperT, SharedWrapper, UnsizedTypeDataAccess,
-};
+use crate::unsize::wrapper::{SharedWrapper, UnsizedTypeDataAccess};
 use crate::unsize::UnsizedType;
 use crate::Result;
 use solana_program::entrypoint::MAX_PERMITTED_DATA_INCREASE;
@@ -12,7 +10,7 @@ use std::mem::MaybeUninit;
 use std::ptr::slice_from_raw_parts_mut;
 use std::slice::from_raw_parts_mut;
 
-use super::wrapper::{ExclusiveWrapper2, ExclusiveWrapperTop};
+use super::wrapper::{ExclusiveWrapper, ExclusiveWrapperTop, ExclusiveWrapperTopMeta};
 use super::FromOwned;
 
 #[derive(Debug)]
@@ -126,29 +124,20 @@ where
         unsafe { SharedWrapper::new::<T>(self.test_data_ref()) }
     }
 
-    pub fn data_mut(
-        &self,
-    ) -> Result<ExclusiveWrapperT<'_, '_, 'static, T, T, TestUnderlyingData<'static>>> {
-        let res = unsafe { ExclusiveWrapper::new(self.test_data_ref()) }?;
-        Ok(res)
-    }
-
-    pub fn data_mut2(
-        &self,
-    ) -> Result<ExclusiveWrapper2<'_, T, ExclusiveWrapperTop<'_, TestUnderlyingData<'static>>>>
-    {
-        let res = unsafe { ExclusiveWrapper2::new(self.test_data_ref()) }?;
-        Ok(res)
+    pub fn data_mut(&self) -> Result<ExclusiveWrapperTop<'_, T, TestUnderlyingData<'static>>> {
+        // SAFETY: test_data_ref is not being returned to the user; ExclusiveWrapper doesn't expose it.
+        let test_data_ref = unsafe { self.test_data_ref() };
+        ExclusiveWrapper::new(test_data_ref)
     }
 
     pub fn owned(&self) -> Result<T::Owned> {
-        // Safety: test_data is not being returned to the user
+        // SAFETY: test_data is not being returned to the user
         let test_data = unsafe { self.test_data_ref() };
         T::owned(&test_data.data.try_borrow()?)
     }
 
     pub fn underlying_data(&self) -> Result<Vec<u8>> {
-        // Safety: test_data is not being returned to the user
+        // SAFETY: test_data is not being returned to the user
         let test_data = unsafe { self.test_data_ref() };
         Ok(test_data.data.try_borrow()?.to_vec())
     }
@@ -197,19 +186,22 @@ impl<T> NewByteSet for T where T: UnsizedType + ?Sized {}
 pub trait ModifyOwned: Clone {
     fn modify_owned<U>(
         &mut self,
-        modify: impl FnOnce(
-            &mut ExclusiveWrapperT<'_, '_, 'static, U, U, TestUnderlyingData<'static>>,
+        modify: impl for<'a, 'b> FnOnce(
+            &'a mut ExclusiveWrapper<
+                'b,
+                'b,
+                U,
+                ExclusiveWrapperTopMeta<'b, TestUnderlyingData<'static>>,
+            >,
         ) -> Result<()>,
     ) -> Result<()>
     where
         U: UnsizedType<Owned = Self> + FromOwned + ?Sized,
     {
         let self_byte_set = TestByteSet::<U>::new(self.clone())?;
-        {
-            let mut bytes_mut = self_byte_set.data_mut()?;
-            modify(&mut bytes_mut)?;
-        }
-
+        let mut bytes_mut = self_byte_set.data_mut()?;
+        modify(&mut bytes_mut)?;
+        drop(bytes_mut);
         *self = self_byte_set.owned()?;
         Ok(())
     }
