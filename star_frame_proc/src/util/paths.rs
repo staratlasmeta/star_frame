@@ -9,6 +9,7 @@ pub struct Paths {
     pub prelude: TokenStream,
 
     // std
+    pub sized: TokenStream,
     #[allow(dead_code)]
     pub box_ty: TokenStream,
     pub clone: TokenStream,
@@ -86,6 +87,7 @@ impl Default for Paths {
             crate_name: crate_name.clone(),
 
             // std
+            sized: quote! { ::core::marker::Sized },
             box_ty: quote! { ::std::boxed::Box },
             clone: quote! { ::core::clone::Clone },
             copy: quote! { ::core::marker::Copy },

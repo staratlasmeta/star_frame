@@ -13,7 +13,10 @@ pub use crate::instruction::*;
 pub use crate::unsize::{
     impls::*,
     init::{DefaultInit, UnsizedInit},
-    wrapper::{ExclusiveWrapper, ExclusiveWrapperTop, SharedWrapper, UnsizedTypeDataAccess},
+    wrapper::{
+        ExclusiveWrapper, ExclusiveWrapperTop, ResizeExclusive, SharedWrapper,
+        UnsizedTypeDataAccess,
+    },
     AsShared, FromOwned, UnsizedType, {unsized_impl, unsized_type},
 };
 

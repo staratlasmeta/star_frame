@@ -27,7 +27,7 @@ pub fn unsized_impl_impl(item: ItemImpl, args: TokenStream) -> TokenStream {
         .tag
         .map(|tag| tag.value().to_upper_camel_case())
         .unwrap_or_default();
-    Paths!(prelude);
+    Paths!(prelude, sized);
     if let Some(trait_) = item.trait_ {
         abort!(
             trait_.1,
@@ -176,15 +176,15 @@ pub fn unsized_impl_impl(item: ItemImpl, args: TokenStream) -> TokenStream {
 
     let parent_lt = new_lifetime(&item.generics, Some("parent"));
     let top_lt = new_lifetime(&item.generics, Some("top"));
+    let top = new_generic(&item.generics, Some("Top"));
     let p = new_generic(&item.generics, Some("P"));
-    let u = new_generic(&item.generics, Some("U"));
 
-    let exclusive_trait_generics = combine_gen!(item.generics; <#parent_lt, #top_lt, #p, #u>
-        where Self: #prelude::ResizeExclusive + ::core::marker::Sized,
-        #u: #prelude::UnsizedType<Mut<'top> = <#self_ty as #prelude::UnsizedType>::Mut<'top>> + ?::core::marker::Sized
+    let exclusive_trait_generics = combine_gen!(item.generics; <#parent_lt, #top_lt, #top, #p>
+        where Self: #prelude::ResizeExclusive + #sized,
+        #top: #prelude::UnsizedType + ?#sized,
     );
     let (impl_gen, ty_gen, where_clause) = exclusive_trait_generics.split_for_impl();
-    let impl_for = quote!(#prelude::ExclusiveWrapper<#parent_lt, #top_lt, #u, #p>);
+    let impl_for = quote!(#prelude::ExclusiveWrapper<#parent_lt, #top_lt, <#self_ty as #prelude::UnsizedType>::Mut<#top_lt>, #top, #p>);
 
     let pub_exclusive_ident = format_ident!("{self_ident}ExclusiveImpl{tag_str}");
     let priv_exclusive_ident = format_ident!("{self_ident}ExclusiveImplPrivate{tag_str}");

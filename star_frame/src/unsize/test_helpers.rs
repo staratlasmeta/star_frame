@@ -186,12 +186,13 @@ impl<T> NewByteSet for T where T: UnsizedType + ?Sized {}
 pub trait ModifyOwned: Clone {
     fn modify_owned<U>(
         &mut self,
-        modify: impl for<'a, 'b> FnOnce(
+        modify: impl for<'a, 'top> FnOnce(
             &'a mut ExclusiveWrapper<
-                'b,
-                'b,
+                'top,
+                'top,
+                U::Mut<'top>,
                 U,
-                ExclusiveWrapperTopMeta<'b, TestUnderlyingData<'static>>,
+                ExclusiveWrapperTopMeta<'top, TestUnderlyingData<'static>>,
             >,
         ) -> Result<()>,
     ) -> Result<()>

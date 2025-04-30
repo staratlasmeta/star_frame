@@ -693,12 +693,12 @@ where
     pub fn get_exclusive<'child>(
         &'child mut self,
         index: usize,
-    ) -> Result<Option<ExclusiveWrapper<'child, 'top, T, Self>>> {
+    ) -> Result<Option<ExclusiveWrapper<'child, 'top, T::Mut<'top>, Top, Self>>> {
         let Some((start, end)) = self.get_unsized_range(index) else {
             return Ok(None);
         };
         unsafe {
-            ExclusiveWrapper::try_map_mut(self, |data| unsized_list_exclusive!(<T> data start..end))
+            ExclusiveWrapper::try_map_mut::<T, _>(self, |data| unsized_list_exclusive!(<T> data start..end))
         }
         .map(Some)
     }
@@ -708,7 +708,7 @@ where
     pub fn index_exclusive<'child>(
         &'child mut self,
         index: usize,
-    ) -> Result<ExclusiveWrapper<'child, 'top, T, Self>> {
+    ) -> Result<ExclusiveWrapper<'child, 'top, T::Mut<'top>, Top, Self>> {
         self.get_exclusive(index)
             .transpose()
             .context("Index out of bounds")?
@@ -718,7 +718,7 @@ where
     #[inline]
     pub fn first_exclusive<'child>(
         &'child mut self,
-    ) -> Result<Option<ExclusiveWrapper<'child, 'top, T, Self>>> {
+    ) -> Result<Option<ExclusiveWrapper<'child, 'top, T::Mut<'top>, Top, Self>>> {
         self.get_exclusive(0)
     }
 
@@ -726,7 +726,7 @@ where
     #[inline]
     pub fn last_exclusive<'child>(
         &'child mut self,
-    ) -> Result<Option<ExclusiveWrapper<'child, 'top, T, Self>>> {
+    ) -> Result<Option<ExclusiveWrapper<'child, 'top, T::Mut<'top>, Top, Self>>> {
         if self.is_empty() {
             Ok(None)
         } else {
