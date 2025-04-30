@@ -291,7 +291,7 @@ where
     }
 }
 #[derive(Debug)]
-pub struct ListMut<'a, T, L = u32>(pub *mut List<T, L>, pub PhantomData<&'a ()>)
+pub struct ListMut<'a, T, L = u32>(*mut List<T, L>, PhantomData<&'a ()>)
 where
     L: ListLength,
     T: CheckedBitPattern + NoUninit + Align1;
