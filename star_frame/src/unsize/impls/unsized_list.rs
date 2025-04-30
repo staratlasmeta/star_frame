@@ -698,7 +698,10 @@ where
             return Ok(None);
         };
         unsafe {
-            ExclusiveWrapper::try_map_mut::<T, _>(self, |data| unsized_list_exclusive!(<T> data start..end))
+            ExclusiveWrapper::try_map_mut::<T, _>(
+                self,
+                |data| unsized_list_exclusive!(<T> data start..end),
+            )
         }
         .map(Some)
     }
