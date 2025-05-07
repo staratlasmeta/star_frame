@@ -29,7 +29,6 @@ bytemuck = { version = "^1.22.0", features = [
     "min_const_generics",
     "derive",
 ] }
-clap = { version = "^4.3", features = ["derive"] }
 codama-nodes = { version = "^0.4.0" }
 daggy = "^0.8.0"
 # todo: update this when upstreamed
@@ -39,7 +38,6 @@ easy_proc = "^0.4.0"
 fixed = "1.28.0"
 heck = "^0.5.0"
 itertools = "^0.14.0"
-lazy_static = "^1.4.0"
 num-traits = "^0.2.17"
 paste = "^1.0.14"
 pretty_assertions = "^1.4.0"
