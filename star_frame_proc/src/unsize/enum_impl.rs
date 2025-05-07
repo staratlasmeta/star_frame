@@ -551,7 +551,6 @@ impl UnsizedEnumContext {
         let parent_lt = new_lifetime(&self.generics, Some("parent"));
         let top_lt = new_lifetime(&self.generics, Some("top"));
         let child_lt = new_lifetime(&self.generics, Some("child"));
-        let top = new_generic(&self.generics, Some("Top"));
         let p = new_generic(&self.generics, Some("P"));
         let init = new_generic(&self.generics, Some("Init"));
 
@@ -563,8 +562,7 @@ impl UnsizedEnumContext {
             .collect_vec();
 
         let ext_trait_generics = combine_gen!(self.generics;
-            <#parent_lt, #top_lt, #top, #p> where
-                #top: #prelude::UnsizedType + ?#sized,
+            <#parent_lt, #top_lt, #p>
         );
 
         let (impl_gen, ty_gen, wc) = ext_trait_generics.split_for_impl();
@@ -575,7 +573,7 @@ impl UnsizedEnumContext {
                 #vis enum #exclusive_ident #ext_trait_generics #wc
                 {
                     #(
-                        #variant_idents(#prelude::ExclusiveWrapper<#parent_lt, #top_lt, <#variant_types as #prelude::UnsizedType>::Mut<#top_lt>, #top, #p>),
+                        #variant_idents(#prelude::ExclusiveWrapper<#parent_lt, #top_lt, <#variant_types as #prelude::UnsizedType>::Mut<#top_lt>, #p>),
                     )*
                 }
             }
@@ -583,14 +581,14 @@ impl UnsizedEnumContext {
 
         let enum_as_mut = quote!(<#enum_type as #prelude::UnsizedType>::Mut<#top_lt>);
 
-        let get_return_gen = combine_gen!(self.generics; <#child_lt, #top_lt, #top>);
+        let get_return_gen = combine_gen!(self.generics; <#child_lt, #top_lt>);
         let get_return_gen_tt = get_return_gen.split_for_impl().1.to_token_stream();
         let mut get_return_gen_args: AngleBracketedGenericArguments =
             parse2(get_return_gen_tt).unwrap_or_abort();
         get_return_gen_args.args.push(parse_quote!(Self));
 
         let ext_impl_trait_generics =
-            combine_gen!(ext_trait_generics; where Self: #prelude::ResizeExclusive + #sized);
+            combine_gen!(ext_trait_generics; where Self: #prelude::ExclusiveRecurse + #sized);
         let impl_wc = ext_impl_trait_generics.split_for_impl().2;
 
         let extension_trait = quote! {
@@ -606,7 +604,7 @@ impl UnsizedEnumContext {
             }
 
             #[automatically_derived]
-            impl #impl_gen #extension_ident #ty_gen for #prelude::ExclusiveWrapper<#parent_lt, #top_lt, #enum_as_mut, #top, #p> #impl_wc
+            impl #impl_gen #extension_ident #ty_gen for #prelude::ExclusiveWrapper<#parent_lt, #top_lt, #enum_as_mut, #p> #impl_wc
             {
                 fn get<#child_lt>(&#child_lt mut self) -> #exclusive_ident #get_return_gen_args {
                     match &***self {

@@ -1,6 +1,6 @@
 use crate::align1::Align1;
 use crate::unsize::init::{DefaultInit, UnsizedInit};
-use crate::unsize::wrapper::ResizeExclusive;
+use crate::unsize::wrapper::ExclusiveRecurse;
 use crate::unsize::{AsShared, FromOwned, UnsizedType};
 use crate::Result;
 use advancer::Advance;
@@ -143,7 +143,7 @@ impl RemainingBytes {
                     (source_ptr, end_ptr)
                 };
                 unsafe {
-                    ResizeExclusive::add_bytes(self, source_ptr, end_ptr, bytes_to_add)?;
+                    ExclusiveRecurse::add_bytes(self, source_ptr, end_ptr, bytes_to_add)?;
                 }
             }
             Ordering::Equal => return Ok(()),
@@ -152,7 +152,7 @@ impl RemainingBytes {
                 let start_ptr = unsafe { source_ptr.byte_add(len) };
                 let end_ptr = unsafe { source_ptr.byte_add(self_len) };
                 unsafe {
-                    ResizeExclusive::remove_bytes(self, source_ptr, start_ptr..end_ptr)?;
+                    ExclusiveRecurse::remove_bytes(self, source_ptr, start_ptr..end_ptr)?;
                 }
             }
         };

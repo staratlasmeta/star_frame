@@ -176,15 +176,13 @@ pub fn unsized_impl_impl(item: ItemImpl, args: TokenStream) -> TokenStream {
 
     let parent_lt = new_lifetime(&item.generics, Some("parent"));
     let top_lt = new_lifetime(&item.generics, Some("top"));
-    let top = new_generic(&item.generics, Some("Top"));
     let p = new_generic(&item.generics, Some("P"));
-
-    let exclusive_trait_generics = combine_gen!(item.generics; <#parent_lt, #top_lt, #top, #p>
-        where Self: #prelude::ResizeExclusive + #sized,
-        #top: #prelude::UnsizedType + ?#sized,
+    let mut_ut = quote!(<#self_ty as #prelude::UnsizedType>::Mut<#top_lt>);
+    let exclusive_trait_generics = combine_gen!(item.generics; <#parent_lt, #top_lt, #p>
+        where Self: #prelude::ExclusiveRecurse + #sized,
     );
     let (impl_gen, ty_gen, where_clause) = exclusive_trait_generics.split_for_impl();
-    let impl_for = quote!(#prelude::ExclusiveWrapper<#parent_lt, #top_lt, <#self_ty as #prelude::UnsizedType>::Mut<#top_lt>, #top, #p>);
+    let impl_for = quote!(#prelude::ExclusiveWrapper<#parent_lt, #top_lt, #mut_ut, #p>);
 
     let pub_exclusive_ident = format_ident!("{self_ident}ExclusiveImpl{tag_str}");
     let priv_exclusive_ident = format_ident!("{self_ident}ExclusiveImplPrivate{tag_str}");

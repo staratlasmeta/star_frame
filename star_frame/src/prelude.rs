@@ -14,7 +14,7 @@ pub use crate::unsize::{
     impls::*,
     init::{DefaultInit, UnsizedInit},
     wrapper::{
-        ExclusiveWrapper, ExclusiveWrapperTop, ResizeExclusive, SharedWrapper,
+        ExclusiveRecurse, ExclusiveWrapper, ExclusiveWrapperTop, SharedWrapper,
         UnsizedTypeDataAccess,
     },
     AsShared, FromOwned, UnsizedType, {unsized_impl, unsized_type},
@@ -53,7 +53,7 @@ pub use star_frame_proc::{InstructionToIdl, TypeToIdl};
 
 pub use std::fmt::Debug;
 
-#[cfg(feature = "test_helpers")]
+#[cfg(all(feature = "test_helpers", not(target_os = "solana")))]
 pub use crate::{
     assert_eq_with_shared, assert_with_shared,
     unsize::{NewByteSet, TestByteSet},

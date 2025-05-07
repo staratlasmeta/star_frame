@@ -1,7 +1,7 @@
 use crate::align1::Align1;
 use crate::data_types::PackedValue;
 use crate::unsize::init::{DefaultInit, UnsizedInit};
-use crate::unsize::wrapper::ResizeExclusive;
+use crate::unsize::wrapper::ExclusiveRecurse;
 use crate::unsize::{AsShared, FromOwned, UnsizedType};
 use crate::util::uninit_array_bytes;
 use crate::Result;
@@ -489,7 +489,7 @@ where
             (end_ptr, old_len, new_len, self.0.cast_const().cast::<()>())
         };
         unsafe {
-            ResizeExclusive::add_bytes(self, source_ptr, end_ptr, size_of::<T>() * to_add)?;
+            ExclusiveRecurse::add_bytes(self, source_ptr, end_ptr, size_of::<T>() * to_add)?;
         };
 
         self.len = PackedValue(new_len);
@@ -542,7 +542,7 @@ where
         unsafe {
             let start_ptr = self.bytes.as_ptr().add(start * size_of::<T>()).cast();
             let end_ptr = self.bytes.as_ptr().add(end * size_of::<T>()).cast();
-            ResizeExclusive::remove_bytes(self, source_ptr, start_ptr..end_ptr)?;
+            ExclusiveRecurse::remove_bytes(self, source_ptr, start_ptr..end_ptr)?;
         };
         {
             self.len =

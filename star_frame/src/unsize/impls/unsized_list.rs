@@ -2,7 +2,7 @@ use crate::align1::Align1;
 use crate::data_types::PackedValue;
 use crate::prelude::ExclusiveWrapper;
 use crate::unsize::init::{DefaultInit, UnsizedInit};
-use crate::unsize::wrapper::ResizeExclusive;
+use crate::unsize::wrapper::ExclusiveRecurse;
 use crate::unsize::{unsized_impl, AsShared};
 use crate::unsize::{FromOwned, UnsizedType};
 use crate::Result;
@@ -693,7 +693,7 @@ where
     pub fn get_exclusive<'child>(
         &'child mut self,
         index: usize,
-    ) -> Result<Option<ExclusiveWrapper<'child, 'top, T::Mut<'top>, Top, Self>>> {
+    ) -> Result<Option<ExclusiveWrapper<'child, 'top, T::Mut<'top>, Self>>> {
         let Some((start, end)) = self.get_unsized_range(index) else {
             return Ok(None);
         };
@@ -711,7 +711,7 @@ where
     pub fn index_exclusive<'child>(
         &'child mut self,
         index: usize,
-    ) -> Result<ExclusiveWrapper<'child, 'top, T::Mut<'top>, Top, Self>> {
+    ) -> Result<ExclusiveWrapper<'child, 'top, T::Mut<'top>, Self>> {
         self.get_exclusive(index)
             .transpose()
             .context("Index out of bounds")?
@@ -721,7 +721,7 @@ where
     #[inline]
     pub fn first_exclusive<'child>(
         &'child mut self,
-    ) -> Result<Option<ExclusiveWrapper<'child, 'top, T::Mut<'top>, Top, Self>>> {
+    ) -> Result<Option<ExclusiveWrapper<'child, 'top, T::Mut<'top>, Self>>> {
         self.get_exclusive(0)
     }
 
@@ -729,7 +729,7 @@ where
     #[inline]
     pub fn last_exclusive<'child>(
         &'child mut self,
-    ) -> Result<Option<ExclusiveWrapper<'child, 'top, T::Mut<'top>, Top, Self>>> {
+    ) -> Result<Option<ExclusiveWrapper<'child, 'top, T::Mut<'top>, Self>>> {
         if self.is_empty() {
             Ok(None)
         } else {
@@ -829,7 +829,7 @@ where
         let to_add = items.len();
         let add_amount = (T::INIT_BYTES + size_of::<C>()) * to_add;
 
-        unsafe { ResizeExclusive::add_bytes(self, source_ptr, add_bytes_start, add_amount)? };
+        unsafe { ExclusiveRecurse::add_bytes(self, source_ptr, add_bytes_start, add_amount)? };
         {
             let list = &mut **self;
             {
@@ -939,7 +939,7 @@ where
             let remove_end = unsafe { self.unsized_data_ptr().byte_add(end_offset) }.cast::<()>();
             let source_ptr = self.list_ptr.cast_const().cast::<()>();
             unsafe {
-                ResizeExclusive::remove_bytes(self, source_ptr, remove_start..remove_end)?;
+                ExclusiveRecurse::remove_bytes(self, source_ptr, remove_start..remove_end)?;
             }
             {
                 let list = &mut **self;

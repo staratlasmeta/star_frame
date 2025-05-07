@@ -813,12 +813,10 @@ impl UnsizedStructContext {
         let parent_lt = new_lifetime(&self.generics, Some("parent"));
         let top_lt = new_lifetime(&self.generics, Some("top"));
         let child = new_lifetime(&self.generics, Some("child"));
-        let top = new_generic(&self.generics, Some("Top"));
         let p = new_generic(&self.generics, Some("P"));
 
-        let ext_trait_generics = combine_gen!(self.generics; <#parent_lt, #top_lt, #top, #p> where
-            Self: #prelude::ResizeExclusive + #sized,
-            #top: #prelude::UnsizedType + ?#sized
+        let ext_trait_generics = combine_gen!(self.generics; <#parent_lt, #top_lt, #p> where
+            Self: #prelude::ExclusiveRecurse + #sized,
         );
 
         let (impl_gen, ty_gen, wc) = ext_trait_generics.split_for_impl();
@@ -841,14 +839,14 @@ impl UnsizedStructContext {
                 #vis trait #extension_ident #impl_gen #wc
                 {
                     #(
-                        fn #field_idents<#child>(&#child mut self) -> #prelude::ExclusiveWrapper<#child, #top_lt, <#field_types as #prelude::UnsizedType>::Mut<#top_lt>, #top, Self>;
+                        fn #field_idents<#child>(&#child mut self) -> #prelude::ExclusiveWrapper<#child, #top_lt, <#field_types as #prelude::UnsizedType>::Mut<#top_lt>, Self>;
                     )*
                 }
 
                 #[automatically_derived]
-                impl #impl_gen #extension_ident #ty_gen for #prelude::ExclusiveWrapper<#parent_lt, #top_lt, <#struct_type as #prelude::UnsizedType>::Mut<#top_lt>, #top, #p> #wc {
+                impl #impl_gen #extension_ident #ty_gen for #prelude::ExclusiveWrapper<#parent_lt, #top_lt, <#struct_type as #prelude::UnsizedType>::Mut<#top_lt>, #p> #wc {
                     #(
-                        fn #field_idents<#child>(&#child mut self) -> #prelude::ExclusiveWrapper<#child, #top_lt, <#field_types as #prelude::UnsizedType>::Mut<#top_lt>, #top, Self> {
+                        fn #field_idents<#child>(&#child mut self) -> #prelude::ExclusiveWrapper<#child, #top_lt, <#field_types as #prelude::UnsizedType>::Mut<#top_lt>, Self> {
                             unsafe { #prelude::ExclusiveWrapper::map_mut::<#field_types>(self, |x| &mut x.#field_idents) }
                         }
                     )*

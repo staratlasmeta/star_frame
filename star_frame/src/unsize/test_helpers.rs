@@ -187,13 +187,7 @@ pub trait ModifyOwned: Clone {
     fn modify_owned<U>(
         &mut self,
         modify: impl for<'a, 'top> FnOnce(
-            &'a mut ExclusiveWrapper<
-                'top,
-                'top,
-                U::Mut<'top>,
-                U,
-                ExclusiveWrapperTopMeta<'top, TestUnderlyingData<'static>>,
-            >,
+            &'a mut ExclusiveWrapperTop<'top, U, TestUnderlyingData<'static>>,
         ) -> Result<()>,
     ) -> Result<()>
     where

@@ -99,13 +99,9 @@ impl<T> Deref for SharedWrapper<'_, T> {
 }
 
 #[derive(Debug)]
-pub enum ExclusiveWrapper<'parent, 'top, Mut, Top, P>
-where
-    Top: UnsizedType + ?Sized,
-{
+pub enum ExclusiveWrapper<'parent, 'top, Mut, P> {
     Top {
         data: OwnedRefMut<'top, (P, Mut)>,
-        phantom_o: PhantomData<Top>,
     },
     Inner {
         parent_lt: PhantomData<&'parent ()>,
@@ -118,14 +114,17 @@ pub type ExclusiveWrapperTop<'top, Top, A> = ExclusiveWrapper<
     'top,
     'top,
     <Top as UnsizedType>::Mut<'top>,
-    Top,
-    ExclusiveWrapperTopMeta<'top, A>,
+    ExclusiveWrapperTopMeta<'top, Top, A>,
 >;
 
 #[derive(Debug)]
-pub struct ExclusiveWrapperTopMeta<'top, A> {
+pub struct ExclusiveWrapperTopMeta<'top, Top, A>
+where
+    Top: UnsizedType + ?Sized,
+{
     info: &'top A,
-    data: *mut *mut [u8], // &'top mut &'info mut [u8]
+    data: *mut *mut [u8],                  // &'top mut &'info mut [u8]
+    top_phantom: PhantomData<fn() -> Top>, // Giving this a `Top` to allow ExclusiveWrapperTop to be impl'd on
 }
 
 impl<'top, 'info, Top, A> ExclusiveWrapperTop<'top, Top, A>
@@ -144,23 +143,54 @@ where
                     ExclusiveWrapperTopMeta {
                         info,
                         data: ptr::from_mut(data).cast::<*mut [u8]>(),
+                        top_phantom: PhantomData,
                     },
                     Top::get_mut(&mut &mut **data)?,
                 ))
             })?,
-            phantom_o: PhantomData,
         })
     }
 }
 
+impl<Mut, P> ExclusiveWrapper<'_, '_, Mut, P> {
+    fn mut_ref(this: &Self) -> &Mut {
+        match this {
+            ExclusiveWrapper::Top { data, .. } => &data.1,
+            ExclusiveWrapper::Inner { field, .. } => {
+                // SAFETY:
+                // We have shared access to self right now, so no mutable references to self can exist.
+                // Field is created in ExclusiveWrapper::new, and this pointer is derived from ExclusiveWrapper::map,
+                // which takes in &mut self, so no references to upper fields can exist at the same time.
+                // Self cannot be used again until the mut_ref is dropped due to lifetimes, so no other references to field can be created
+                // while mut_ref is still alive.
+                unsafe { &**field }
+            }
+        }
+    }
+
+    fn mut_mut(this: &mut Self) -> &mut Mut {
+        match this {
+            ExclusiveWrapper::Top { data, .. } => &mut data.1,
+            ExclusiveWrapper::Inner { field, .. } => {
+                // SAFETY:
+                // We have exclusive access to self right now, so no mutable references to self can exist.
+                // Field is created in ExclusiveWrapper::new, and this pointer is derived from ExclusiveWrapper::map,
+                // which takes in &mut self, so no references to upper fields can exist at the same time.
+                // Self cannot be used again until the mut_mut is dropped due to lifetimes, so no other references to field can be created
+                // while mut_mut is still alive.
+                unsafe { &mut **field }
+            }
+        }
+    }
+}
 mod sealed {
     use super::*;
 
     pub trait Sealed {}
-    impl<Top, Mut, P> Sealed for ExclusiveWrapper<'_, '_, Mut, Top, P> where Top: UnsizedType + ?Sized {}
+    impl<Mut, P> Sealed for ExclusiveWrapper<'_, '_, Mut, P> {}
 }
 
-pub trait ResizeExclusive: sealed::Sealed {
+pub trait ExclusiveRecurse: sealed::Sealed + Sized {
     /// # Safety
     /// Is this actually unsafe? If bounds are checked, everything should be fine? We have exclusive access to self right now.
     unsafe fn add_bytes(
@@ -185,10 +215,9 @@ pub trait ResizeExclusive: sealed::Sealed {
     ) -> Result<usize>;
 }
 
-impl<Mut, Top, P> ResizeExclusive for ExclusiveWrapper<'_, '_, Mut, Top, P>
+impl<Mut, P> ExclusiveRecurse for ExclusiveWrapper<'_, '_, Mut, P>
 where
-    Top: UnsizedType + ?Sized,
-    P: ResizeExclusive,
+    P: ExclusiveRecurse,
 {
     unsafe fn add_bytes(
         wrapper: &mut Self,
@@ -199,7 +228,8 @@ where
         match wrapper {
             ExclusiveWrapper::Top { .. } => unreachable!(),
             ExclusiveWrapper::Inner { parent, .. } => {
-                // SAFETY: We have exclusive access to self right now, and no other
+                // SAFETY:
+                // We have exclusive access to self right now, and no other references to parent can exist.
                 let parent = unsafe { &mut **parent };
                 unsafe { P::add_bytes(parent, source_ptr, start, amount) }
             }
@@ -214,7 +244,8 @@ where
         match wrapper {
             ExclusiveWrapper::Top { .. } => unreachable!(),
             ExclusiveWrapper::Inner { parent, .. } => {
-                // SAFETY: We have exclusive access to self right now, so no other references to parent can exist.
+                // SAFETY:
+                // We have exclusive access to self right now, so no other references to parent can exist.
                 let parent = unsafe { &mut **parent };
                 unsafe { P::remove_bytes(parent, source_ptr, range) }
             }
@@ -235,7 +266,7 @@ where
     }
 }
 
-impl<'top, 'info, Top, A> ResizeExclusive for ExclusiveWrapperTop<'top, Top, A>
+impl<'top, 'info, Top, A> ExclusiveRecurse for ExclusiveWrapperTop<'top, Top, A>
 where
     Top: UnsizedType + ?Sized,
     A: UnsizedTypeDataAccess<'info>,
@@ -246,9 +277,8 @@ where
         source_ptr: *const (),
         start: *const (),
         amount: usize,
-        // after_add: impl FnOnce(&mut Self::T) -> Result<()>,
     ) -> Result<()> {
-        let s: &mut OwnedRefMut<'_, (ExclusiveWrapperTopMeta<'top, A>, Top::Mut<'top>)> =
+        let s: &mut OwnedRefMut<'_, (ExclusiveWrapperTopMeta<'top, Top, A>, Top::Mut<'top>)> =
             match wrapper {
                 ExclusiveWrapper::Top { data, .. } => data,
                 ExclusiveWrapper::Inner { .. } => unreachable!(),
@@ -392,16 +422,16 @@ where
     }
 }
 
-impl<'top, Mut, Top, P> ExclusiveWrapper<'_, 'top, Mut, Top, P>
+impl<'top, Mut, P> ExclusiveWrapper<'_, 'top, Mut, P>
 where
-    Top: UnsizedType + ?Sized,
+    Self: ExclusiveRecurse,
 {
     /// # Safety
     /// O may not contain a mutable reference to T, but can contain a mutable pointer.
     pub unsafe fn map_mut<'child, O>(
         parent: &'child mut Self,
         mapper: impl FnOnce(&'child mut Mut) -> &'child mut O::Mut<'top>,
-    ) -> ExclusiveWrapper<'child, 'top, O::Mut<'top>, Top, Self>
+    ) -> ExclusiveWrapper<'child, 'top, O::Mut<'top>, Self>
     where
         O: UnsizedType + ?Sized,
     {
@@ -413,50 +443,36 @@ where
     pub unsafe fn try_map_mut<'child, O, E>(
         parent: &'child mut Self,
         mapper: impl FnOnce(&'child mut Mut) -> Result<&'child mut O::Mut<'top>, E>,
-    ) -> Result<ExclusiveWrapper<'child, 'top, O::Mut<'top>, Top, Self>, E>
+    ) -> Result<ExclusiveWrapper<'child, 'top, O::Mut<'top>, Self>, E>
     where
         O: UnsizedType + ?Sized,
     {
         let parent_mut: *mut Self = parent;
-        let res = match parent {
-            ExclusiveWrapper::Top { data, .. } => ExclusiveWrapper::Inner {
-                parent_lt: PhantomData,
-                parent: parent_mut,
-                field: mapper(&mut data.1)?,
-            },
-            ExclusiveWrapper::Inner { field, .. } => ExclusiveWrapper::Inner {
-                parent_lt: PhantomData,
-                parent: parent_mut,
-                // SAFETY: We have exclusive access to self right now, and field is private so no other references to it can exist.
-                // SAFETY: There are likely other raw pointers to the same field in parent, but they are not dereferenced.
-                field: mapper(unsafe { &mut **field })?,
-            },
-        };
-        Ok(res)
+        Ok(ExclusiveWrapper::Inner {
+            parent_lt: PhantomData,
+            parent: parent_mut,
+            field: mapper(Self::mut_mut(parent))?,
+        })
     }
 }
-impl<Mut, Top, P> Deref for ExclusiveWrapper<'_, '_, Mut, Top, P>
+
+impl<Mut, P> Deref for ExclusiveWrapper<'_, '_, Mut, P>
 where
-    Top: UnsizedType + ?Sized,
+    Self: ExclusiveRecurse,
 {
     type Target = Mut;
 
     fn deref(&self) -> &Self::Target {
-        match self {
-            ExclusiveWrapper::Top { data, .. } => &data.1,
-            ExclusiveWrapper::Inner { field, .. } => unsafe { &**field },
-        }
+        Self::mut_ref(self)
     }
 }
-impl<Mut, Top, P> DerefMut for ExclusiveWrapper<'_, '_, Mut, Top, P>
+
+impl<Mut, P> DerefMut for ExclusiveWrapper<'_, '_, Mut, P>
 where
-    Top: UnsizedType + ?Sized,
+    Self: ExclusiveRecurse,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        match self {
-            ExclusiveWrapper::Top { data, .. } => &mut data.1,
-            ExclusiveWrapper::Inner { field, .. } => unsafe { &mut **field },
-        }
+        Self::mut_mut(self)
     }
 }
 
@@ -497,10 +513,9 @@ impl<T> StartPointer<T> {
     }
 }
 
-impl<'top, Mut, Top, P> ExclusiveWrapper<'_, 'top, StartPointer<Mut>, Top, P>
+impl<'top, Mut, P> ExclusiveWrapper<'_, 'top, StartPointer<Mut>, P>
 where
-    Self: ResizeExclusive,
-    Top: UnsizedType + ?Sized,
+    Self: ExclusiveRecurse,
 {
     /// # Safety
     // TODO: I think it might be safe since we're relying on the UnsizedType implementation to be correct.
@@ -508,7 +523,8 @@ where
     where
         U: UnsizedType<Mut<'top> = StartPointer<Mut>> + UnsizedInit<I> + ?Sized,
     {
-        // SAFETY: TODO: might be safe
+        // SAFETY:
+        // TODO: might be safe
         let current_len = unsafe { Self::compute_len::<U>(wrapper, wrapper.start)? };
         let new_len = <U as UnsizedInit<I>>::INIT_BYTES;
 
@@ -537,8 +553,9 @@ where
             }
         }
         wrapper.data = {
-            // SAFETY: We have exclusive access to the wrapper, so no external references to the underlying data exist.
-            // SAFETY: No other references exist in this function either. We can assume the StartPointer is valid since it was created by the UnsizedType implementation.
+            // SAFETY:
+            // We have exclusive access to the wrapper, so no external references to the underlying data exist.
+            // No other references exist in this function either. We can assume the StartPointer is valid since it was created by the UnsizedType implementation.
             let slice =
                 unsafe { from_raw_parts_mut(wrapper.start.cast_mut().cast::<u8>(), new_len) };
             // TODO: this is probably safe
