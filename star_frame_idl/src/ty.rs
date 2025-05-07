@@ -1,10 +1,7 @@
-use crate::{
-    serde_base58_pubkey_option, IdlDefinition, IdlDiscriminant, ItemDescription, ItemSource,
-};
+use crate::{IdlDefinition, IdlDiscriminant, IdlNamespace, ItemDescription, ItemSource};
 use crate::{IdlGeneric, ItemInfo};
 use anyhow::{bail, Context};
 use serde::{Deserialize, Serialize};
-use solana_pubkey::Pubkey;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct IdlType {
@@ -18,8 +15,7 @@ pub struct IdlType {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct IdlTypeId {
     pub source: ItemSource,
-    #[serde(with = "serde_base58_pubkey_option")]
-    pub namespace: Option<Pubkey>,
+    pub namespace: Option<IdlNamespace>,
     #[serde(skip_serializing_if = "crate::is_default", default)]
     pub provided_generics: Vec<IdlTypeDef>,
 }

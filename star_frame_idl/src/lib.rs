@@ -24,8 +24,7 @@ pub use semver::{Version, VersionReq};
 use serde::{Deserialize, Serialize};
 use solana_pubkey::Pubkey;
 use std::any::type_name;
-use std::collections::HashMap;
-use std::fmt::Debug;
+use std::collections::BTreeMap;
 use ty::IdlType;
 
 pub fn idl_spec_version() -> Version {
@@ -37,8 +36,8 @@ pub type IdlDiscriminant = Vec<u8>;
 
 /// A source of an item in the IDL, found using the `item_source` function
 pub type ItemSource = String;
-pub type IdlNamespace = Pubkey;
 pub type ItemDescription = Vec<String>;
+pub type IdlNamespace = String;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ItemInfo {
@@ -66,7 +65,7 @@ pub struct IdlMetadata {
     pub crate_metadata: CrateMetadata,
     #[serde(skip_serializing_if = "crate::is_default", default)]
     // todo: figure out required_idl_definitions
-    pub required_idl_definitions: HashMap<String, IdlDefinitionReference>,
+    pub required_idl_definitions: BTreeMap<String, IdlDefinitionReference>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -105,7 +104,7 @@ impl Default for IdlMetadata {
         Self {
             idl_spec: idl_spec_version(),
             crate_metadata: Default::default(),
-            required_idl_definitions: HashMap::default(),
+            required_idl_definitions: BTreeMap::default(),
         }
     }
 }
@@ -115,14 +114,18 @@ pub struct IdlDefinition {
     #[serde(with = "serde_base58_pubkey")]
     pub address: Pubkey,
     pub metadata: IdlMetadata,
-    pub instructions: HashMap<ItemSource, IdlInstruction>,
-    pub account_sets: HashMap<ItemSource, IdlAccountSet>,
-    pub accounts: HashMap<ItemSource, IdlAccount>,
-    pub types: HashMap<ItemSource, IdlType>,
-    pub external_types: HashMap<ItemSource, IdlType>,
+    pub instructions: BTreeMap<ItemSource, IdlInstruction>,
+    pub account_sets: BTreeMap<ItemSource, IdlAccountSet>,
+    pub accounts: BTreeMap<ItemSource, IdlAccount>,
+    pub types: BTreeMap<ItemSource, IdlType>,
+    pub external_types: BTreeMap<ItemSource, IdlType>,
 }
 
 impl IdlDefinition {
+    pub fn namespace(&self) -> IdlNamespace {
+        self.metadata.crate_metadata.name.clone()
+    }
+
     pub fn add_instruction(
         &mut self,
         definition: IdlInstructionDef,
@@ -140,10 +143,10 @@ impl IdlDefinition {
     pub fn add_account(
         &mut self,
         account: IdlAccount,
-        namespace: Pubkey,
+        namespace: IdlNamespace,
     ) -> anyhow::Result<Option<IdlNamespace>> {
         let source = account.type_id.source.clone();
-        if namespace == self.address {
+        if namespace == self.namespace() {
             self.accounts.entry(source).or_insert(account);
             Ok(None)
         } else {
@@ -158,7 +161,7 @@ impl IdlDefinition {
 
     pub fn add_type(&mut self, ty: IdlType, namespace: IdlNamespace) -> Option<IdlNamespace> {
         let source = ty.info.source.clone();
-        if namespace == self.address {
+        if namespace == self.namespace() {
             self.types.entry(source).or_insert(ty);
             None
         } else {

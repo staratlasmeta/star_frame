@@ -94,7 +94,7 @@ pub fn program_account_impl_inner(input: DeriveInput, args: ProgramAccountArgs) 
                         type_id,
                         seeds: #seeds,
                     };
-                    let namespace = idl_definition.add_account(idl_account, Self::AssociatedProgram::ID)?;
+                    let namespace = idl_definition.add_account(idl_account, <Self::AssociatedProgram as #prelude::ProgramToIdl>::crate_metadata().name)?;
                     Ok(#prelude::IdlAccountId {
                         namespace,
                         source,
