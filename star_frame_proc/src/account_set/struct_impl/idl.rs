@@ -159,60 +159,61 @@ pub(super) fn idls(
             let (impl_generics, _, where_clause) = generics.split_for_impl();
 
 
-            let inner = if let Some(single) = single_set_field {
-                let ty = &single.ty;
-                let idl_arg = idl_args.first().expect("single field idl arg");
-                let idl_address = idl_addresses.first().expect("single field idl address");
-                let expression = quote! {
-                    <#ty as #prelude::AccountSetToIdl<#info_lifetime, _>>::account_set_to_idl(idl_definition, #idl_arg)
-                };
-                if let Some(address) = idl_address {
-                    quote! (#expression?.with_single_address(#address))
-                } else {
-                    expression
-                }
+
+            let mut single_vec = Vec::with_capacity(1);
+            let relevant_field_types = if let Some(single) = single_set_field {
+                single_vec.push(&single.ty);
+                &single_vec
             } else {
-                let account_set_defs = field_type.iter().zip(idl_args).zip(idl_addresses).map(|((ty, idl_arg), idl_address)| {
+                field_type
+            };
+
+            let inner = {
+                let account_set_defs = relevant_field_types.iter().zip(idl_args).zip(idl_addresses).map(|((ty, idl_arg), idl_address)| {
                     let expression = quote! {
-                        <#ty as #prelude::AccountSetToIdl<#info_lifetime, _>>::account_set_to_idl(idl_definition, #idl_arg)?
+                        <#ty as #prelude::AccountSetToIdl<#info_lifetime, _>>::account_set_to_idl(idl_definition, #idl_arg)
                     };
                     if let Some(address) = idl_address {
-                        quote! (#expression?.with_single_address(#address)?)
+                        quote! (#expression?.with_single_address(#address))
                     } else {
                         expression
                     }
-
                 }).collect_vec();
 
-                quote! {
-                    let source = #prelude::item_source::<Self>();
-                    let account_set_def = #prelude::IdlAccountSetDef::Struct(vec![
-                    #(
-                        #prelude::IdlAccountSetStructField {
-                            path: #field_path,
-                            description: #field_docs,
-                            account_set_def: #account_set_defs,
-                        }
-                    ),*
-                    ]);
-                    let account_set = #prelude::IdlAccountSet {
-                        info: #prelude::ItemInfo {
-                            name: #ident_str.to_string(),
-                            description: #struct_docs,
-                            source: source.clone(),
-                        },
-                        account_set_def,
-                        type_generics: vec![],
-                        account_generics: vec![],
-                    };
-                    idl_definition.add_account_set(account_set);
-                    Ok(#prelude::IdlAccountSetDef::Defined(#prelude::IdlAccountSetId {
-                        source,
-                        provided_type_generics: vec![],
-                        provided_account_generics: vec![],
-                    }))
+                if account_set_defs.len() == 1 {
+                    account_set_defs[0].clone()
+                } else {
+                    quote! {
+                        let source = #prelude::item_source::<Self>();
+                        let account_set_def = #prelude::IdlAccountSetDef::Struct(vec![
+                        #(
+                            #prelude::IdlAccountSetStructField {
+                                path: #field_path,
+                                description: #field_docs,
+                                account_set_def: #account_set_defs?,
+                            }
+                        ),*
+                        ]);
+                        let account_set = #prelude::IdlAccountSet {
+                            info: #prelude::ItemInfo {
+                                name: #ident_str.to_string(),
+                                description: #struct_docs,
+                                source: source.clone(),
+                            },
+                            account_set_def,
+                            type_generics: vec![],
+                            account_generics: vec![],
+                        };
+                        idl_definition.add_account_set(account_set);
+                        Ok(#prelude::IdlAccountSetDef::Defined(#prelude::IdlAccountSetId {
+                            source,
+                            provided_type_generics: vec![],
+                            provided_account_generics: vec![],
+                        }))
+                    }
                 }
             };
+
             quote! {
                 #[cfg(all(feature = "idl", not(target_os = "solana")))]
                 #[automatically_derived]
