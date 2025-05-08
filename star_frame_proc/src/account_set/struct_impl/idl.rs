@@ -158,8 +158,6 @@ pub(super) fn idls(
             let idl_args: Vec<Expr> = idl_args.into_iter().map(|a| a.unwrap_or(default_idl_arg.clone())).collect();
             let (impl_generics, _, where_clause) = generics.split_for_impl();
 
-
-
             let mut single_vec = Vec::with_capacity(1);
             let relevant_field_types = if let Some(single) = single_set_field {
                 single_vec.push(&single.ty);
