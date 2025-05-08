@@ -168,24 +168,23 @@ pub(super) fn idls(
                 field_type
             };
 
-            let inner = {
-                let account_set_defs = relevant_field_types.iter().zip(idl_args).zip(idl_addresses).map(|((ty, idl_arg), idl_address)| {
-                    let expression = quote! {
-                        <#ty as #prelude::AccountSetToIdl<#info_lifetime, _>>::account_set_to_idl(idl_definition, #idl_arg)
-                    };
-                    if let Some(address) = idl_address {
-                        quote! (#expression?.with_single_address(#address))
-                    } else {
-                        expression
-                    }
-                }).collect_vec();
-
-                if account_set_defs.len() == 1 {
-                    account_set_defs[0].clone()
+            let account_set_defs = relevant_field_types.iter().zip(idl_args).zip(idl_addresses).map(|((ty, idl_arg), idl_address)| {
+                let expression = quote! {
+                    <#ty as #prelude::AccountSetToIdl<#info_lifetime, _>>::account_set_to_idl(idl_definition, #idl_arg)
+                };
+                if let Some(address) = idl_address {
+                    quote! (#expression?.with_single_address(#address))
                 } else {
-                    quote! {
-                        let source = #prelude::item_source::<Self>();
-                        let account_set_def = #prelude::IdlAccountSetDef::Struct(vec![
+                    expression
+                }
+            }).collect_vec();
+
+            let inner = if account_set_defs.len() == 1 {
+                account_set_defs[0].clone()
+            } else {
+                quote! {
+                    let source = #prelude::item_source::<Self>();
+                    let account_set_def = #prelude::IdlAccountSetDef::Struct(vec![
                         #(
                             #prelude::IdlAccountSetStructField {
                                 path: #field_path,
@@ -193,24 +192,23 @@ pub(super) fn idls(
                                 account_set_def: #account_set_defs?,
                             }
                         ),*
-                        ]);
-                        let account_set = #prelude::IdlAccountSet {
-                            info: #prelude::ItemInfo {
-                                name: #ident_str.to_string(),
-                                description: #struct_docs,
-                                source: source.clone(),
-                            },
-                            account_set_def,
-                            type_generics: vec![],
-                            account_generics: vec![],
-                        };
-                        idl_definition.add_account_set(account_set);
-                        Ok(#prelude::IdlAccountSetDef::Defined(#prelude::IdlAccountSetId {
-                            source,
-                            provided_type_generics: vec![],
-                            provided_account_generics: vec![],
-                        }))
-                    }
+                    ]);
+                    let account_set = #prelude::IdlAccountSet {
+                        info: #prelude::ItemInfo {
+                            name: #ident_str.to_string(),
+                            description: #struct_docs,
+                            source: source.clone(),
+                        },
+                        account_set_def,
+                        type_generics: vec![],
+                        account_generics: vec![],
+                    };
+                    idl_definition.add_account_set(account_set);
+                    Ok(#prelude::IdlAccountSetDef::Defined(#prelude::IdlAccountSetId {
+                        source,
+                        provided_type_generics: vec![],
+                        provided_account_generics: vec![],
+                    }))
                 }
             };
 
