@@ -1,6 +1,6 @@
 use crate::align1::Align1;
 use crate::unsize::init::{DefaultInit, UnsizedInit};
-use crate::unsize::wrapper::ExclusiveWrapper;
+use crate::unsize::wrapper::ExclusiveRecurse;
 use crate::unsize::{AsShared, FromOwned, UnsizedType};
 use crate::Result;
 use advancer::Advance;
@@ -129,7 +129,7 @@ unsafe impl FromOwned for RemainingBytes {
     }
 }
 
-#[unsized_impl(inherent)]
+#[unsized_impl]
 impl RemainingBytes {
     #[exclusive]
     pub fn set_len(&mut self, len: usize) -> Result<()> {
@@ -143,9 +143,7 @@ impl RemainingBytes {
                     (source_ptr, end_ptr)
                 };
                 unsafe {
-                    ExclusiveWrapper::add_bytes(self, source_ptr, end_ptr, bytes_to_add, |_r| {
-                        Ok(())
-                    })?;
+                    ExclusiveRecurse::add_bytes(self, source_ptr, end_ptr, bytes_to_add)?;
                 }
             }
             Ordering::Equal => return Ok(()),
@@ -154,18 +152,11 @@ impl RemainingBytes {
                 let start_ptr = unsafe { source_ptr.byte_add(len) };
                 let end_ptr = unsafe { source_ptr.byte_add(self_len) };
                 unsafe {
-                    ExclusiveWrapper::remove_bytes(self, source_ptr, start_ptr..end_ptr, |_r| {
-                        Ok(())
-                    })?;
+                    ExclusiveRecurse::remove_bytes(self, source_ptr, start_ptr..end_ptr)?;
                 }
             }
         };
-        unsafe {
-            ExclusiveWrapper::set_inner(self, |bytes| {
-                bytes.0 = ptr_meta::from_raw_parts_mut(bytes.0.cast::<()>(), len);
-                Ok(())
-            })?;
-        }
+        self.0 = ptr_meta::from_raw_parts_mut(self.0.cast::<()>(), len);
         Ok(())
     }
 }
@@ -206,7 +197,7 @@ unsafe impl<const N: usize> UnsizedInit<[u8; N]> for RemainingBytes {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "test_helpers"))]
 mod tests {
     use super::*;
     use crate::unsize::test_helpers::TestByteSet;
@@ -216,7 +207,7 @@ mod tests {
         let byte_array = [1, 2, 3, 4, 5];
         let test_bytes = TestByteSet::<RemainingBytes>::new_from_init(&byte_array)?;
         let mut bytes = test_bytes.data_mut()?;
-        bytes.exclusive().set_len(3)?;
+        bytes.set_len(3)?;
         println!("{:?}", &**bytes);
         Ok(())
     }

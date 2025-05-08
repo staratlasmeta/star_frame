@@ -194,7 +194,7 @@ where
         )
     }
 }
-#[unsized_impl(inherent)]
+#[unsized_impl]
 impl<K, V> UnsizedMap<K, V>
 where
     K: Pod + Ord + Align1,
@@ -241,12 +241,12 @@ where
     pub fn get_exclusive<'child>(
         &'child mut self,
         key: &K,
-    ) -> Result<Option<ExclusiveWrapper<'child, 'top, 'info, V::Mut<'ptr>, O, A>>> {
+    ) -> Result<Option<ExclusiveWrapper<'child, 'top, V::Mut<'top>, Self>>> {
         let Ok(index) = self.get_index(key) else {
             return Ok(None);
         };
         unsafe {
-            ExclusiveWrapper::try_map_ref(self, |data| {
+            ExclusiveWrapper::try_map_mut::<V, _>(self, |data| {
                 let list = &mut data.list;
                 let (start, end) = list.get_unsized_range(index).expect("Index exists");
                 unsized_list_exclusive!(<V> list start..end)
@@ -474,7 +474,7 @@ mod idl_impl {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "test_helpers"))]
 mod tests {
     use super::*;
     use crate::unsize::TestByteSet;

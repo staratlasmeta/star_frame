@@ -166,7 +166,7 @@ where
     }
 }
 
-#[unsized_impl(inherent)]
+#[unsized_impl]
 impl<K, V, L> Map<K, V, L>
 where
     K: UnsizedGenerics + Ord,

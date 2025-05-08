@@ -1,7 +1,8 @@
 use crate::align1::Align1;
 use crate::data_types::PackedValue;
+use crate::prelude::ExclusiveWrapper;
 use crate::unsize::init::{DefaultInit, UnsizedInit};
-use crate::unsize::wrapper::ExclusiveWrapper;
+use crate::unsize::wrapper::ExclusiveRecurse;
 use crate::unsize::{unsized_impl, AsShared};
 use crate::unsize::{FromOwned, UnsizedType};
 use crate::Result;
@@ -682,7 +683,7 @@ macro_rules! unsized_list_exclusive {
 
 pub(super) use unsized_list_exclusive;
 
-#[unsized_impl(inherent)]
+#[unsized_impl]
 impl<T, C> UnsizedList<T, C>
 where
     T: UnsizedType + ?Sized,
@@ -692,12 +693,15 @@ where
     pub fn get_exclusive<'child>(
         &'child mut self,
         index: usize,
-    ) -> Result<Option<ExclusiveWrapper<'child, 'top, 'info, T::Mut<'ptr>, O, A>>> {
+    ) -> Result<Option<ExclusiveWrapper<'child, 'top, T::Mut<'top>, Self>>> {
         let Some((start, end)) = self.get_unsized_range(index) else {
             return Ok(None);
         };
         unsafe {
-            ExclusiveWrapper::try_map_ref(self, |data| unsized_list_exclusive!(<T> data start..end))
+            ExclusiveWrapper::try_map_mut::<T, _>(
+                self,
+                |data| unsized_list_exclusive!(<T> data start..end),
+            )
         }
         .map(Some)
     }
@@ -707,7 +711,7 @@ where
     pub fn index_exclusive<'child>(
         &'child mut self,
         index: usize,
-    ) -> Result<ExclusiveWrapper<'child, 'top, 'info, T::Mut<'ptr>, O, A>> {
+    ) -> Result<ExclusiveWrapper<'child, 'top, T::Mut<'top>, Self>> {
         self.get_exclusive(index)
             .transpose()
             .context("Index out of bounds")?
@@ -717,7 +721,7 @@ where
     #[inline]
     pub fn first_exclusive<'child>(
         &'child mut self,
-    ) -> Result<Option<ExclusiveWrapper<'child, 'top, 'info, T::Mut<'ptr>, O, A>>> {
+    ) -> Result<Option<ExclusiveWrapper<'child, 'top, T::Mut<'top>, Self>>> {
         self.get_exclusive(0)
     }
 
@@ -725,21 +729,14 @@ where
     #[inline]
     pub fn last_exclusive<'child>(
         &'child mut self,
-    ) -> Result<Option<ExclusiveWrapper<'child, 'top, 'info, T::Mut<'ptr>, O, A>>> {
+    ) -> Result<Option<ExclusiveWrapper<'child, 'top, T::Mut<'top>, Self>>> {
         if self.is_empty() {
             Ok(None)
         } else {
             self.get_exclusive(self.len() - 1)
         }
     }
-}
 
-#[unsized_impl(inherent)]
-impl<T, C> UnsizedList<T, C>
-where
-    T: UnsizedType + ?Sized,
-    C: UnsizedListOffset,
-{
     #[exclusive]
     pub fn push<Init>(&mut self, item: Init) -> Result<()>
     where
@@ -832,55 +829,56 @@ where
         let to_add = items.len();
         let add_amount = (T::INIT_BYTES + size_of::<C>()) * to_add;
 
-        unsafe {
-            ExclusiveWrapper::add_bytes(self, source_ptr, add_bytes_start, add_amount, |list| {
-                {
-                    list.list_ptr = ptr_meta::from_raw_parts_mut(
-                        list.list_ptr.cast::<()>(),
-                        list.len() + to_add,
-                    );
-                }
-                {
-                    // We have added bytes at the unsized list insertion index. We now need
-                    // to shift all the bytes from the index in the offset list up to immediately before we
-                    // inserted the new bytes by the size of an offset list element to fit the new offset in
-                    let offset_list_ptr = list.offset_list.as_mut_ptr();
-                    let new_offset_start = offset_list_ptr.add(index);
-                    let dst_ptr = new_offset_start.add(to_add); // shift down by size of offset counter element
+        unsafe { ExclusiveRecurse::add_bytes(self, source_ptr, add_bytes_start, add_amount)? };
+        {
+            let list = &mut **self;
+            {
+                list.list_ptr =
+                    ptr_meta::from_raw_parts_mut(list.list_ptr.cast::<()>(), list.len() + to_add);
+            }
+            {
+                // We have added bytes at the unsized list insertion index. We now need
+                // to shift all the bytes from the index in the offset list up to immediately before we
+                // inserted the new bytes by the size of an offset list element to fit the new offset in
+                let offset_list_ptr = list.offset_list.as_mut_ptr();
+                let new_offset_start = unsafe { offset_list_ptr.add(index) };
+                let dst_ptr = unsafe { new_offset_start.add(to_add) }; // shift down by size of offset counter element
+                unsafe {
                     sol_memmove(
                         dst_ptr.cast::<u8>(),
                         new_offset_start.cast::<u8>(),
                         add_bytes_start as usize - new_offset_start as usize,
                     );
                 }
-                {
-                    let new_len = u32::try_from(list.len() + to_add)?;
-                    list.len.0 = new_len;
-                    list.unsized_list_len().0 = new_len;
+            }
+            {
+                let new_len = u32::try_from(list.len() + to_add)?;
+                list.len.0 = new_len;
+                list.unsized_list_len().0 = new_len;
 
-                    let size_increase = to_add * T::INIT_BYTES;
-                    list.unsized_size.0 += u32::try_from(size_increase)?;
-                    list.adjust_offsets(index + to_add, size_increase.try_into()?)?;
-                }
-                {
-                    let mut new_data = slice::from_raw_parts_mut(
+                let size_increase = to_add * T::INIT_BYTES;
+                list.unsized_size.0 += u32::try_from(size_increase)?;
+                list.adjust_offsets(index + to_add, size_increase.try_into()?)?;
+            }
+            {
+                let mut new_data = unsafe {
+                    slice::from_raw_parts_mut(
                         list.unsized_data_ptr_mut().byte_add(insertion_offset),
                         T::INIT_BYTES * to_add,
-                    );
+                    )
+                };
 
-                    // zip_eq to ensure ExactSizeIterator is telling the truth
-                    for ((item_index, (item_init, offset_init)), _) in
-                        items.enumerate().zip_eq(0..to_add)
-                    {
-                        T::init(&mut new_data, item_init)?;
-                        let new_offset = insertion_offset + item_index * T::INIT_BYTES;
-                        list.offset_list[index + item_index] =
-                            C::from_usize_offset(new_offset, offset_init)?;
-                    }
+                // zip_eq to ensure ExactSizeIterator is telling the truth
+                for ((item_index, (item_init, offset_init)), _) in
+                    items.enumerate().zip_eq(0..to_add)
+                {
+                    unsafe { T::init(&mut new_data, item_init)? };
+                    let new_offset = insertion_offset + item_index * T::INIT_BYTES;
+                    list.offset_list[index + item_index] =
+                        C::from_usize_offset(new_offset, offset_init)?;
                 }
-                Ok(())
-            })
-        }?;
+            }
+        }
         Ok(())
     }
 
@@ -941,27 +939,23 @@ where
             let remove_end = unsafe { self.unsized_data_ptr().byte_add(end_offset) }.cast::<()>();
             let source_ptr = self.list_ptr.cast_const().cast::<()>();
             unsafe {
-                ExclusiveWrapper::remove_bytes(
-                    self,
-                    source_ptr,
-                    remove_start..remove_end,
-                    |list| {
-                        {
-                            list.list_ptr = ptr_meta::from_raw_parts_mut(
-                                list.list_ptr.cast::<()>(),
-                                list.len() - to_remove,
-                            );
-                        }
-                        {
-                            let new_len = u32::try_from(list.len() - to_remove)?;
-                            list.len.0 = new_len;
-                            list.unsized_list_len().0 = new_len;
-                            list.unsized_size.0 -= u32::try_from(unsized_bytes_removed)?;
-                            list.adjust_offsets(start, -isize::try_from(unsized_bytes_removed)?)?;
-                        }
-                        Ok(())
-                    },
-                )?;
+                ExclusiveRecurse::remove_bytes(self, source_ptr, remove_start..remove_end)?;
+            }
+            {
+                let list = &mut **self;
+                {
+                    list.list_ptr = ptr_meta::from_raw_parts_mut(
+                        list.list_ptr.cast::<()>(),
+                        list.len() - to_remove,
+                    );
+                }
+                {
+                    let new_len = u32::try_from(list.len() - to_remove)?;
+                    list.len.0 = new_len;
+                    list.unsized_list_len().0 = new_len;
+                    list.unsized_size.0 -= u32::try_from(unsized_bytes_removed)?;
+                    list.adjust_offsets(start, -isize::try_from(unsized_bytes_removed)?)?;
+                }
             }
         }
 
@@ -1328,10 +1322,10 @@ macro_rules! iter_impls {
 
 iter_impls!(UnsizedListIter: T::Ref<'a>, UnsizedListIterMut: T::Mut<'a>);
 
-#[cfg(test)]
+#[cfg(all(test, feature = "test_helpers"))]
 mod tests {
     use super::*;
-    use crate::prelude::List;
+    use crate::prelude::{List, ListExclusiveImpl};
     use crate::unsize::test_helpers::TestByteSet;
     use star_frame_proc::unsized_type;
 
@@ -1379,14 +1373,12 @@ mod tests {
         let test_bytes = TestByteSet::<UnsizedList<List<u8, u8>>>::new_from_init(byte_arrays)?;
         let mut owned = vec![vec![100u8, 101, 102], vec![200, 201, 202]];
         let mut bytes = test_bytes.data_mut()?;
-        let mut exclusive = bytes.exclusive();
-        exclusive.insert(0, [50])?;
+        bytes.insert(0, [50])?;
         owned.insert(0, vec![50]);
-        exclusive.push([51, 52, 53])?;
+        bytes.push([51, 52, 53])?;
         owned.push(vec![51, 52, 53]);
-        exclusive.remove_range(..exclusive.len() - 1)?;
-        exclusive.insert(1, [54, 55])?;
-        // exclusive.get_exclusive()
+        bytes.remove_range(..bytes.len() - 1)?;
+        bytes.insert(1, [54, 55])?;
         owned.insert(1, vec![54, 55]);
         drop(bytes);
         let owned = test_bytes.owned()?;
@@ -1405,12 +1397,11 @@ mod tests {
         let test_bytes =
             TestByteSet::<UnsizedList<UnsizedList<List<u8, u8>>>>::new_from_init(byte_array)?;
         let mut bytes = test_bytes.data_mut()?;
-        let mut exclusive = bytes.exclusive();
-        let mut first_list = exclusive.index_mut(0)?;
+        let mut first_list = bytes.index_mut(0)?;
         let mut first_first_list = first_list.index_mut(0)?;
         println!("{:?}", &**first_first_list);
 
-        let mut first_exclusive = exclusive.index_exclusive(0)?;
+        let mut first_exclusive = bytes.index_exclusive(0)?;
         println!("{:?}", &**first_exclusive.index_mut(0)?);
         println!("{:?}", &first_exclusive.offset_list);
         let mut exclusive_exclusive = first_exclusive.index_exclusive(1)?;

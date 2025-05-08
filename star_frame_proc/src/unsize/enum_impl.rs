@@ -1,17 +1,18 @@
 use crate::unsize::account::account_impl;
 use crate::unsize::UnsizedTypeArgs;
 use crate::util::{
-    get_doc_attributes, get_repr, new_generic, new_lifetime, phantom_generics_type,
+    combine_gen, get_doc_attributes, get_repr, new_generic, new_lifetime, phantom_generics_type,
     restrict_attributes, strip_inner_attributes, BetterGenerics, CombineGenerics, IntegerRepr,
     Paths, Representation,
 };
 use heck::{ToShoutySnakeCase, ToSnakeCase};
 use itertools::Itertools;
-use proc_macro2::{Ident, Span, TokenStream};
-use proc_macro_error2::abort;
-use quote::{format_ident, quote};
+use proc_macro2::{Ident, TokenStream};
+use proc_macro_error2::{abort, ResultExt};
+use quote::{format_ident, quote, ToTokens};
 use syn::{
-    parse_quote, Attribute, Fields, Generics, ItemEnum, ItemStruct, Lifetime, Type, Visibility,
+    parse2, parse_quote, AngleBracketedGenericArguments, Attribute, Fields, Generics, ItemEnum,
+    ItemStruct, Lifetime, Type, Visibility,
 };
 
 #[allow(non_snake_case)]
@@ -91,9 +92,7 @@ impl UnsizedEnumContext {
     fn parse(item_enum: ItemEnum, args: UnsizedTypeArgs) -> Self {
         restrict_attributes(&item_enum, &["default_init", "doc"]);
         let ref_mut_lifetime = new_lifetime(&item_enum.generics, None);
-        let ref_mut_generics = item_enum
-            .generics
-            .combine::<BetterGenerics>(&parse_quote!([<#ref_mut_lifetime>]));
+        let ref_mut_generics = combine_gen!(item_enum.generics; <#ref_mut_lifetime>);
         let ref_mut_type_generics = ref_mut_generics.split_for_impl().1;
         let type_generics = item_enum.generics.split_for_impl().1;
         let enum_ident = item_enum.ident.clone();
@@ -304,10 +303,7 @@ impl UnsizedEnumContext {
     fn as_shared_impl(&self) -> TokenStream {
         Paths!(prelude);
         UnsizedEnumContext!(self => ref_type, rm_lt, ref_ident, mut_ident, variant_types, variant_idents);
-
-        let underscore_gen = self
-            .generics
-            .combine::<BetterGenerics>(&parse_quote!([<'_>]));
+        let underscore_gen = combine_gen!(self.generics; <'_>);
         let underscore_ty_gen = underscore_gen.split_for_impl().1;
 
         let (impl_gen, _, where_clause) = self.generics.split_for_impl();
@@ -334,9 +330,8 @@ impl UnsizedEnumContext {
         Paths!(prelude, result, size_of, bytemuck);
         UnsizedEnumContext!(self => enum_type, variant_types, variant_idents, integer_repr, owned_type,discriminant_ident);
 
-        let from_owned_generics = self.generics.combine::<BetterGenerics>(&parse_quote!([
-            where #(#variant_types: #prelude::FromOwned),*
-        ]));
+        let from_owned_generics =
+            combine_gen!(self.generics; where #(#variant_types: #prelude::FromOwned),*);
 
         let (impl_gen, _, where_clause) = from_owned_generics.split_for_impl();
 
@@ -485,9 +480,7 @@ impl UnsizedEnumContext {
         let variant_ident = &self.variant_idents[default_init.index];
 
         let unsized_init = quote!(#prelude::UnsizedInit<#prelude::DefaultInit>);
-        let default_init_generics = self
-            .generics
-            .combine::<BetterGenerics>(&parse_quote!([where #variant_type: #unsized_init]));
+        let default_init_generics = combine_gen!(self.generics; where #variant_type: #unsized_init);
         let (default_init_impl, _, default_init_where) = default_init_generics.split_for_impl();
         quote! {
             #[allow(trivial_bounds)]
@@ -517,9 +510,7 @@ impl UnsizedEnumContext {
             .variant_types
             .iter()
             .map(|variant_ty| {
-                self.generics.combine::<BetterGenerics>(&parse_quote!([
-                    <#init_generic> where #variant_ty: #init_generic_trait
-                ]))
+                combine_gen!(self.generics; <#init_generic> where #variant_ty: #init_generic_trait)
             })
             .collect_vec();
         let base_generics = &all_generics[0];
@@ -553,89 +544,74 @@ impl UnsizedEnumContext {
     }
 
     fn extension_impl(&self) -> TokenStream {
-        Paths!(prelude, debug, result);
-        UnsizedEnumContext!(self => vis, enum_ident, variant_idents, variant_types, mut_ident, init_idents);
+        Paths!(prelude, debug, result, sized);
+        UnsizedEnumContext!(self => vis, enum_ident, variant_idents, variant_types, mut_ident, init_idents, enum_type);
 
         // Create new lifetimes and generics for the extension trait
         let parent_lt = new_lifetime(&self.generics, Some("parent"));
-        let ptr_lt = new_lifetime(&self.generics, Some("ptr"));
         let top_lt = new_lifetime(&self.generics, Some("top"));
-        let info_lt = new_lifetime(&self.generics, Some("info"));
         let child_lt = new_lifetime(&self.generics, Some("child"));
-
-        let o = new_generic(&self.generics, Some("O"));
+        let p = new_generic(&self.generics, Some("P"));
         let init = new_generic(&self.generics, Some("Init"));
-        let a = new_generic(&self.generics, Some("A"));
-
-        let wc = quote!(#o: #prelude::UnsizedType + ?Sized, #a: #prelude::UnsizedTypeDataAccess<#info_lt>);
-
-        let oa_gen = quote!(#o, #a);
-        let parent_before_gen = quote!(#parent_lt, #ptr_lt, #top_lt, #info_lt);
-        let child_before_gen = quote!(#child_lt, #ptr_lt, #top_lt, #info_lt);
-
-        // Combine generics for the extension trait
-        let ext_trait_generics = self.generics.combine::<BetterGenerics>(&parse_quote!([
-            <#parent_before_gen, #oa_gen> where #wc
-        ]));
-
-        // Combine generics for the exclusive enum
-        let ext_enum_return_generics = self.generics.combine::<BetterGenerics>(&parse_quote!([
-            <#child_before_gen, #oa_gen> where #wc
-        ]));
-
-        let return_ty_gen = ext_enum_return_generics.split_for_impl().1;
-
-        let (impl_gen, ty_gen, wc) = ext_trait_generics.split_for_impl();
 
         let extension_ident = format_ident!("{enum_ident}ExclusiveExt");
-        let exclusive_ident = format_ident!("{enum_ident}Exclusive");
-
-        let impl_for =
-            quote!(#prelude::ExclusiveWrapperT<#parent_before_gen, #enum_ident, #oa_gen>);
-
         let setter_methods = self
             .variant_idents
             .iter()
             .map(|var_ident| format_ident!("set_{}", var_ident.to_string().to_snake_case()))
             .collect_vec();
 
-        // RustRover highlights spans used in unsafe operations (and generics of those unsafe operations),
-        // so this is a workaround to avoid that.
-        let enum_ident_stripped_span = format_ident!("{enum_ident}", span = Span::call_site());
+        let ext_trait_generics = combine_gen!(self.generics;
+            <#parent_lt, #top_lt, #p>
+        );
 
-        let exclusive_enum = quote! {
-            #[derive(#debug)]
-            #vis enum #exclusive_ident #impl_gen #wc
-            {
-                #(
-                    #variant_idents(#prelude::ExclusiveWrapperT<#parent_before_gen, #variant_types, #oa_gen>),
-                )*
+        let (impl_gen, ty_gen, wc) = ext_trait_generics.split_for_impl();
+        let exclusive_ident = format_ident!("{enum_ident}Exclusive");
+        let exclusive_enum = {
+            quote! {
+                #[derive(#debug)]
+                #vis enum #exclusive_ident #ext_trait_generics #wc
+                {
+                    #(
+                        #variant_idents(#prelude::ExclusiveWrapper<#parent_lt, #top_lt, <#variant_types as #prelude::UnsizedType>::Mut<#top_lt>, #p>),
+                    )*
+                }
             }
         };
 
+        let enum_as_mut = quote!(<#enum_type as #prelude::UnsizedType>::Mut<#top_lt>);
+
+        let get_return_gen = combine_gen!(self.generics; <#child_lt, #top_lt>);
+        let get_return_gen_tt = get_return_gen.split_for_impl().1.to_token_stream();
+        let mut get_return_gen_args: AngleBracketedGenericArguments =
+            parse2(get_return_gen_tt).unwrap_or_abort();
+        get_return_gen_args.args.push(parse_quote!(Self));
+
+        let ext_impl_trait_generics =
+            combine_gen!(ext_trait_generics; where Self: #prelude::ExclusiveRecurse + #sized);
+        let impl_wc = ext_impl_trait_generics.split_for_impl().2;
+
         let extension_trait = quote! {
-            #vis trait #extension_ident #impl_gen #wc
+            #vis trait #extension_ident #impl_gen #impl_wc
             {
-                fn get<#child_lt>(&#child_lt mut self) -> #exclusive_ident #return_ty_gen;
+                fn get<#child_lt>(&#child_lt mut self) -> #exclusive_ident #get_return_gen_args;
 
                 #(
                     fn #setter_methods<#init>(&mut self, init: #init) -> #result<()>
                     where
-                        #enum_ident: #prelude::UnsizedInit<#init_idents<#init>>;
+                        #enum_type: #prelude::UnsizedInit<#init_idents<#init>>;
                 )*
             }
-        };
 
-        let extension_impl = quote! {
             #[automatically_derived]
-            impl #impl_gen #extension_ident #ty_gen for #impl_for #wc
+            impl #impl_gen #extension_ident #ty_gen for #prelude::ExclusiveWrapper<#parent_lt, #top_lt, #enum_as_mut, #p> #impl_wc
             {
-                fn get<#child_lt>(&#child_lt mut self) -> #exclusive_ident #return_ty_gen {
+                fn get<#child_lt>(&#child_lt mut self) -> #exclusive_ident #get_return_gen_args {
                     match &***self {
                         #(
                             #mut_ident::#variant_idents(_) => {
                                 #exclusive_ident::#variant_idents(unsafe {
-                                    #prelude::ExclusiveWrapper::map_ref(self, |inner| {
+                                    #prelude::ExclusiveWrapper::map_mut::<#variant_types>(self, |inner| {
                                         match &mut **inner {
                                             #mut_ident::#variant_idents(inner) => inner,
                                             _ => unreachable!(),
@@ -650,10 +626,10 @@ impl UnsizedEnumContext {
                 #(
                     fn #setter_methods<Init>(&mut self, init: #init) -> #result<()>
                     where
-                        #enum_ident: #prelude::UnsizedInit<#init_idents<#init>>,
+                        #enum_type: #prelude::UnsizedInit<#init_idents<#init>>,
                     {
                         unsafe {
-                            #prelude::ExclusiveWrapper::set_start_pointer_data::<#enum_ident_stripped_span, _>(
+                            #prelude::ExclusiveWrapper::set_start_pointer_data::<#enum_type, _>(
                                 self,
                                 #init_idents(init),
                             )
@@ -664,9 +640,8 @@ impl UnsizedEnumContext {
         };
 
         quote! {
-            #extension_trait
-            #extension_impl
             #exclusive_enum
+            #extension_trait
         }
     }
 

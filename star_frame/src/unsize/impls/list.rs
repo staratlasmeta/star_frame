@@ -1,7 +1,7 @@
 use crate::align1::Align1;
 use crate::data_types::PackedValue;
 use crate::unsize::init::{DefaultInit, UnsizedInit};
-use crate::unsize::wrapper::ExclusiveWrapper;
+use crate::unsize::wrapper::ExclusiveRecurse;
 use crate::unsize::{AsShared, FromOwned, UnsizedType};
 use crate::util::uninit_array_bytes;
 use crate::Result;
@@ -440,7 +440,7 @@ where
     }
 }
 
-#[unsized_impl(inherent)]
+#[unsized_impl]
 impl<T, L> List<T, L>
 where
     T: Align1 + NoUninit + CheckedBitPattern,
@@ -477,39 +477,25 @@ where
         let iter = items.into_iter();
         let to_add = iter.len();
         let byte_index = index * size_of::<T>();
-
         let (end_ptr, old_len, new_len, source_ptr) = {
             let list: &mut List<T, L> = self;
             let old_len = list.len();
             if index > old_len {
-                bail!("Index {index} is out of bounds for list of length {old_len}",);
+                bail!("Index {index} is out of bounds for list of length {old_len}");
             }
             let new_len =
                 L::from_usize(old_len + to_add).context("Failed to convert new len to L")?;
             let end_ptr = unsafe { list.bytes.as_mut_ptr().add(byte_index).cast() };
             (end_ptr, old_len, new_len, self.0.cast_const().cast::<()>())
         };
-
         unsafe {
-            ExclusiveWrapper::add_bytes(
-                self,
-                source_ptr,
-                end_ptr,
-                size_of::<T>() * to_add,
-                |list| {
-                    {
-                        let list = &mut **list;
-                        list.len = PackedValue(new_len);
-                    }
-                    list.0 = ptr_meta::from_raw_parts_mut(
-                        list.0.cast::<()>(),
-                        (old_len + to_add) * size_of::<T>(),
-                    );
-                    Ok(())
-                },
-            )?;
+            ExclusiveRecurse::add_bytes(self, source_ptr, end_ptr, size_of::<T>() * to_add)?;
         };
-        // zip_eq to ensure ExactSizeIterator is telling the truth
+
+        self.len = PackedValue(new_len);
+        self.0 =
+            ptr_meta::from_raw_parts_mut(self.0.cast::<()>(), (old_len + to_add) * size_of::<T>());
+
         for ((i, value), _) in iter.enumerate().zip_eq(0..to_add) {
             let bytes = &mut self.bytes;
             bytes[byte_index + i * size_of::<T>()..][..size_of::<T>()]
@@ -553,22 +539,16 @@ where
         let old_len = self.len();
         let new_len = old_len - to_remove;
         let source_ptr: *const () = self.0.cast_const().cast();
-
         unsafe {
             let start_ptr = self.bytes.as_ptr().add(start * size_of::<T>()).cast();
             let end_ptr = self.bytes.as_ptr().add(end * size_of::<T>()).cast();
-            ExclusiveWrapper::remove_bytes(self, source_ptr, start_ptr..end_ptr, |list| {
-                {
-                    let list = &mut **list;
-                    list.len = PackedValue(
-                        L::from_usize(new_len).context("Failed to convert new list len to L")?,
-                    );
-                }
-                list.0 =
-                    ptr_meta::from_raw_parts_mut(list.0.cast::<()>(), new_len * size_of::<T>());
-                Ok(())
-            })?;
+            ExclusiveRecurse::remove_bytes(self, source_ptr, start_ptr..end_ptr)?;
         };
+        {
+            self.len =
+                PackedValue(L::from_usize(new_len).context("Failed to convert new list len to L")?);
+            self.0 = ptr_meta::from_raw_parts_mut(self.0.cast::<()>(), new_len * size_of::<T>());
+        }
         Ok(())
     }
 }
@@ -764,7 +744,7 @@ where
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "test_helpers"))]
 mod tests {
     use super::*;
     use crate::unsize::test_helpers::TestByteSet;
@@ -776,8 +756,9 @@ mod tests {
         let mut vec = byte_array.to_vec();
         let test_bytes = TestByteSet::<List<u8>>::new(byte_array.to_vec())?;
         let mut bytes = test_bytes.data_mut()?;
-        let _ = bytes.exclusive();
-        bytes.exclusive().push_all([10, 11, 12])?;
+        bytes.push_all([10, 11])?;
+        println!("Hello!!");
+        bytes.push(12)?;
         vec.extend_from_slice(&[10, 11, 12]);
 
         for (list_item, owned_item) in bytes.iter_mut().zip_eq(vec.iter_mut()) {

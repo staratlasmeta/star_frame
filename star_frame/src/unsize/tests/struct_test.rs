@@ -3,6 +3,7 @@ use crate::unsize::test_helpers::TestByteSet;
 use crate::unsize::tests::struct_test::many_unsized::{
     ManyUnsized, ManyUnsizedExclusiveExt, ManyUnsizedOwned,
 };
+use crate::unsize::ModifyOwned;
 use pretty_assertions::assert_eq;
 use star_frame_proc::unsized_impl;
 
@@ -27,7 +28,7 @@ impl UnsizedTest3 {
     #[exclusive]
     fn foo<'child>(
         &'child mut self,
-    ) -> ExclusiveWrapperT<'child, 'ptr, 'top, 'info, List<PackedValue<u16>, u8>, O, A> {
+    ) -> ExclusiveWrapper<'child, 'top, ListMut<'top, PackedValue<u16>, u8>, Self> {
         self.unsized3()
     }
 }
@@ -44,9 +45,8 @@ fn test_unsized_test() -> Result<()> {
         map: Default::default(),
         map2: Default::default(),
     })?;
-    let mut data_mut = r.data_mut()?;
 
-    let mut banana = data_mut.exclusive();
+    let mut banana = r.data_mut()?;
     banana.unsized1().push(103.into())?;
     assert_eq!(&**banana.unsized1, [100, 101, 102, 103]);
     assert_eq!(&**banana.unsized2, [200, 201, 202]);
@@ -75,11 +75,14 @@ fn test_unsized_test() -> Result<()> {
     let mut item = map2.get_exclusive(&1)?.expect("Item exsts");
     assert_eq!(&**item.unsized3, unsized3_arr);
     item.unsized3().push(6.into())?;
-    drop(data_mut);
+    drop(item); // ensure drop works properly still
+    let mut some_item = banana.unsized2();
+    some_item.push(204.into())?;
+    drop(banana);
 
     let expected = UnsizedTestOwned {
         unsized1: [100, 101, 102, 103].map(Into::into).to_vec(),
-        unsized2: [200, 201, 202, 203].map(Into::into).to_vec(),
+        unsized2: [200, 201, 202, 203, 204].map(Into::into).to_vec(),
         unsized3: UnsizedTest3Owned {
             unsized3: [150, 151, 152, 153].map(Into::into).to_vec(),
         },
@@ -94,6 +97,17 @@ fn test_unsized_test() -> Result<()> {
     };
     let owned = UnsizedTest::owned_from_ref(*r.data()?)?;
     assert_eq!(owned, expected);
+    Ok(())
+}
+
+#[test]
+fn test_modify_owned() -> Result<()> {
+    let mut my_vec = vec![1u8, 2, 3];
+    my_vec.modify_owned::<List<u8>>(|a| {
+        a.push(4)?;
+        Ok(())
+    })?;
+    assert_eq!(my_vec, vec![1, 2, 3, 4]);
     Ok(())
 }
 
@@ -116,11 +130,8 @@ fn test_single_unsized() -> Result<()> {
     let r = TestByteSet::<SingleUnsized>::new(SingleUnsizedOwned {
         unsized1: vec![1, 2],
     })?;
-    r.data_mut()?.exclusive().unsized1().push(3)?;
-    r.data_mut()?
-        .exclusive()
-        .unsized1()
-        .insert_all(1, [10, 9, 8])?;
+    r.data_mut()?.unsized1().push(3)?;
+    r.data_mut()?.unsized1().insert_all(1, [10, 9, 8])?;
     let expected = vec![1, 10, 9, 8, 2, 3];
     assert_eq!(r.data()?.unsized1.as_slice(), expected.as_slice());
     let owned = SingleUnsized::owned_from_ref(*r.data()?)?;
@@ -176,7 +187,7 @@ fn test_many_unsized() -> Result<()> {
         unsized4: vec![TestStruct { val1: 4, val2: 5 }],
         unsized5: vec![TestStruct { val1: 6, val2: 7 }],
     })?;
-    r.data_mut()?.exclusive().foo()?;
+    r.data_mut()?.foo()?;
     let expected = ManyUnsizedOwned {
         sized1: 1,
         sized2: 2,
@@ -393,7 +404,7 @@ fn test_with_sized_and_unsized_generics() -> Result<()> {
         unsized1: PackedValueChecked(3u16),
         unsized2: vec![5.into()],
     })?;
-    r.data_mut()?.exclusive().thingy()?;
+    r.data_mut()?.thingy()?;
     let owned = WithSizedAndUnsizedGenerics::owned_from_ref(*r.data()?)?;
     assert_eq!(
         owned,

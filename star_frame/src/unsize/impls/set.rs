@@ -235,7 +235,7 @@ where
     /// let bytes = <Set<u8>>::new_default_byte_set()?;
     /// let mut set = bytes.data_mut()?;
     /// assert_with_shared!(set => set.is_empty());
-    /// set.exclusive().insert(10)?;
+    /// set.insert(10)?;
     /// assert_with_shared!(set => !set.is_empty());
     /// # Ok(())
     /// # }
@@ -273,7 +273,6 @@ where
     /// # fn main() -> Result<()> {
     /// let bytes = <Set<u8>>::new_default_byte_set()?;
     /// let mut set = bytes.data_mut()?;
-    /// let mut set = set.exclusive();
     /// assert_eq_with_shared!(set => set.len(), 0);
     ///
     /// assert_eq!(set.insert(1)?, true);
@@ -302,7 +301,6 @@ where
     /// # fn main() -> Result<()> {
     /// let bytes = <Set<u8>>::new_default_byte_set()?;
     /// let mut set = bytes.data_mut()?;
-    /// let mut set = set.exclusive();
     /// set.insert(2)?;
     /// assert_eq!(set.remove(&2)?, true);
     /// assert_eq!(set.remove(&2)?, false);
@@ -329,7 +327,7 @@ where
     /// # fn main() -> Result<()> {
     /// let bytes = <Set<u8>>::new_byte_set(vec![1u8,2,3].into_iter().collect())?;
     /// let mut set = bytes.data_mut()?;
-    /// set.exclusive().clear()?;
+    /// set.clear()?;
     /// assert_with_shared!(set => set.is_empty());
     /// # Ok(())
     /// # }

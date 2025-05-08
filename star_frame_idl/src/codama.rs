@@ -75,7 +75,7 @@ impl TryFrom<IdlDefinition> for ProgramNode {
 
         let pdas = maybe_pdas.into_iter().flatten().collect();
 
-        let defined_types = def
+        let mut defined_types: Vec<_> = def
             .types
             .iter()
             .filter(|(source, _)| {
@@ -89,12 +89,14 @@ impl TryFrom<IdlDefinition> for ProgramNode {
                 })
             })
             .try_collect()?;
+        defined_types.sort_by_key(|ty| ty.name.to_string());
 
-        let instructions = def
+        let mut instructions: Vec<_> = def
             .instructions
             .values()
             .map(|instruction| instruction.try_to_codama(&def, ctx))
             .try_collect()?;
+        instructions.sort_by_key(|ix| ix.name.to_string());
 
         Ok(ProgramNode {
             name: def.metadata.crate_metadata.name.as_str().into(),
@@ -449,7 +451,7 @@ impl TryToCodama<TypeNode> for IdlTypeDef {
                 //  of these types
                 let defined = ty.get_defined(idl_def)?;
                 let name = defined.info.codama_name();
-                let program = ty.namespace.map(|namespace| ProgramLinkNode {
+                let program = ty.namespace.as_ref().map(|namespace| ProgramLinkNode {
                     name: namespace.to_string().into(),
                 });
                 TypeNode::Link(DefinedTypeLinkNode { name, program })

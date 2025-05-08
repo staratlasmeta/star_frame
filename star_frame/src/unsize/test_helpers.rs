@@ -1,8 +1,6 @@
 #![allow(unused)]
 use crate::unsize::init::{DefaultInit, UnsizedInit};
-use crate::unsize::wrapper::{
-    ExclusiveWrapper, ExclusiveWrapperT, MutWrapper, SharedWrapper, UnsizedTypeDataAccess,
-};
+use crate::unsize::wrapper::{SharedWrapper, UnsizedTypeDataAccess};
 use crate::unsize::UnsizedType;
 use crate::Result;
 use solana_program::entrypoint::MAX_PERMITTED_DATA_INCREASE;
@@ -12,6 +10,7 @@ use std::mem::MaybeUninit;
 use std::ptr::slice_from_raw_parts_mut;
 use std::slice::from_raw_parts_mut;
 
+use super::wrapper::{ExclusiveWrapper, ExclusiveWrapperTop, ExclusiveWrapperTopMeta};
 use super::FromOwned;
 
 #[derive(Debug)]
@@ -52,25 +51,25 @@ impl<'info> UnsizedTypeDataAccess<'info> for TestUnderlyingData<'info> {
 
 /// A way to work with [`UnsizedType`] types off-chain. Uses a [`TestUnderlyingData`] internally.
 #[derive(Debug)]
-pub struct TestByteSet<'info, T: ?Sized + UnsizedType> {
-    test_data: &'info TestUnderlyingData<'info>,
-    // test_data_ptr: *mut TestUnderlyingData<'info>,
+pub struct TestByteSet<T: ?Sized + UnsizedType> {
+    test_data: *mut TestUnderlyingData<'static>,
     data_ptr: *mut Vec<u8>,
     phantom_t: PhantomData<T>,
 }
 
-impl<T: ?Sized + UnsizedType> Drop for TestByteSet<'_, T> {
+impl<T: ?Sized + UnsizedType> Drop for TestByteSet<T> {
     fn drop(&mut self) {
-        drop(unsafe { Box::from_raw(core::ptr::from_ref(self.test_data).cast_mut()) });
+        drop(unsafe { Box::from_raw(self.test_data) });
         drop(unsafe { Box::from_raw(self.data_ptr) });
     }
 }
 
-impl<'info, T> TestByteSet<'info, T>
+impl<T> TestByteSet<T>
 where
     T: UnsizedType + ?Sized,
 {
     fn initialize(size: usize, init: impl FnOnce(&mut &mut [u8]) -> Result<()>) -> Result<Self> {
+        // Temporarily leak the data. It will be cleaned up in the Drop implementation.
         let data: &mut Vec<u8> = Box::leak(Box::default());
         let data_ptr: *mut Vec<u8> = data;
         let test_account = Box::leak(Box::new(TestUnderlyingData::new(data, size)));
@@ -85,6 +84,14 @@ where
             phantom_t: PhantomData,
             data_ptr,
         })
+    }
+
+    /// # Safety
+    ///
+    /// We need to ensure this value is never exposed to the user, since it could outlive Self and lead
+    /// to use after free errors.
+    unsafe fn test_data_ref(&self) -> &'static TestUnderlyingData<'static> {
+        unsafe { &*self.test_data }
     }
 
     /// Creates a new [`TestByteSet`] from the owned value
@@ -113,20 +120,26 @@ where
         Self::new_from_init(DefaultInit)
     }
 
-    pub fn data<'a>(&'a self) -> Result<SharedWrapper<'a, 'info, T::Ref<'info>>> {
-        unsafe { SharedWrapper::<T>::new(self.test_data) }
+    pub fn data(&self) -> Result<SharedWrapper<'_, T::Ref<'_>>> {
+        unsafe { SharedWrapper::new::<T>(self.test_data_ref()) }
     }
 
-    pub fn data_mut<'a>(&'a self) -> Result<MutWrapper<'a, 'info, T, TestUnderlyingData<'info>>> {
-        unsafe { MutWrapper::new(self.test_data) }
+    pub fn data_mut(&self) -> Result<ExclusiveWrapperTop<'_, T, TestUnderlyingData<'static>>> {
+        // SAFETY: test_data_ref is not being returned to the user; ExclusiveWrapper doesn't expose it.
+        let test_data_ref = unsafe { self.test_data_ref() };
+        ExclusiveWrapper::new(test_data_ref)
     }
 
     pub fn owned(&self) -> Result<T::Owned> {
-        T::owned(&self.test_data.data.try_borrow()?)
+        // SAFETY: test_data is not being returned to the user
+        let test_data = unsafe { self.test_data_ref() };
+        T::owned(&test_data.data.try_borrow()?)
     }
 
     pub fn underlying_data(&self) -> Result<Vec<u8>> {
-        Ok(self.test_data.data.try_borrow()?.to_vec())
+        // SAFETY: test_data is not being returned to the user
+        let test_data = unsafe { self.test_data_ref() };
+        Ok(test_data.data.try_borrow()?.to_vec())
     }
 }
 
@@ -153,14 +166,14 @@ macro_rules! assert_eq_with_shared {
 }
 
 pub trait NewByteSet: UnsizedType {
-    fn new_byte_set<'info>(owned: Self::Owned) -> Result<TestByteSet<'info, Self>>
+    fn new_byte_set(owned: Self::Owned) -> Result<TestByteSet<Self>>
     where
         Self: FromOwned,
     {
         TestByteSet::<Self>::new(owned)
     }
 
-    fn new_default_byte_set<'info>() -> Result<TestByteSet<'info, Self>>
+    fn new_default_byte_set() -> Result<TestByteSet<Self>>
     where
         Self: UnsizedInit<DefaultInit>,
     {
@@ -171,22 +184,19 @@ pub trait NewByteSet: UnsizedType {
 impl<T> NewByteSet for T where T: UnsizedType + ?Sized {}
 
 pub trait ModifyOwned: Clone {
-    fn modify_owned<'info, U>(
+    fn modify_owned<U>(
         &mut self,
-        modify: impl FnOnce(
-            &mut ExclusiveWrapperT<'_, '_, '_, 'info, U, U, TestUnderlyingData<'info>>,
+        modify: impl for<'a, 'top> FnOnce(
+            &'a mut ExclusiveWrapperTop<'top, U, TestUnderlyingData<'static>>,
         ) -> Result<()>,
     ) -> Result<()>
     where
         U: UnsizedType<Owned = Self> + FromOwned + ?Sized,
     {
         let self_byte_set = TestByteSet::<U>::new(self.clone())?;
-        {
-            let mut bytes_mut = self_byte_set.data_mut()?;
-            let mut bytes_exclusive = bytes_mut.exclusive();
-            modify(&mut bytes_exclusive)?;
-        }
-
+        let mut bytes_mut = self_byte_set.data_mut()?;
+        modify(&mut bytes_mut)?;
+        drop(bytes_mut);
         *self = self_byte_set.owned()?;
         Ok(())
     }

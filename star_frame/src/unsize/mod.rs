@@ -1,16 +1,18 @@
 pub mod impls;
 pub mod init;
+mod owned_ref;
 #[cfg(all(feature = "test_helpers", not(target_os = "solana")))]
 mod test_helpers;
-#[cfg(test)]
+#[cfg(all(test, feature = "test_helpers"))]
 mod tests;
 pub mod wrapper;
 
+pub use owned_ref::*;
+pub use star_frame_proc::{unsized_impl, unsized_type};
 #[cfg(all(feature = "test_helpers", not(target_os = "solana")))]
 pub use test_helpers::*;
 
 use crate::Result;
-pub use star_frame_proc::{unsized_impl, unsized_type};
 
 pub trait AsShared {
     type Ref<'a>
@@ -41,6 +43,7 @@ pub unsafe trait UnsizedType: 'static {
         let data = &mut data;
         Self::owned_from_ref(Self::get_ref(data)?)
     }
+
     fn owned_from_ref(r: Self::Ref<'_>) -> Result<Self::Owned>;
 
     /// # Safety
