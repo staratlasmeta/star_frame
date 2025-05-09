@@ -158,11 +158,15 @@ pub(super) fn idls(
             let idl_args: Vec<Expr> = idl_args.into_iter().map(|a| a.unwrap_or(default_idl_arg.clone())).collect();
             let (impl_generics, _, where_clause) = generics.split_for_impl();
 
+            let mut single_vec = Vec::with_capacity(1);
+            let relevant_field_types = if let Some(single) = single_set_field {
+                single_vec.push(&single.ty);
+                &single_vec
+            } else {
+                field_type
+            };
 
-            let inner = if let Some(single) = single_set_field {
-                let ty = &single.ty;
-                let idl_arg = idl_args.first().expect("single field idl arg");
-                let idl_address = idl_addresses.first().expect("single field idl address");
+            let account_set_defs = relevant_field_types.iter().zip(idl_args).zip(idl_addresses).map(|((ty, idl_arg), idl_address)| {
                 let expression = quote! {
                     <#ty as #prelude::AccountSetToIdl<#info_lifetime, _>>::account_set_to_idl(idl_definition, #idl_arg)
                 };
@@ -171,29 +175,21 @@ pub(super) fn idls(
                 } else {
                     expression
                 }
+            }).collect_vec();
+
+            let inner = if account_set_defs.len() == 1 {
+                account_set_defs[0].clone()
             } else {
-                let account_set_defs = field_type.iter().zip(idl_args).zip(idl_addresses).map(|((ty, idl_arg), idl_address)| {
-                    let expression = quote! {
-                        <#ty as #prelude::AccountSetToIdl<#info_lifetime, _>>::account_set_to_idl(idl_definition, #idl_arg)?
-                    };
-                    if let Some(address) = idl_address {
-                        quote! (#expression?.with_single_address(#address)?)
-                    } else {
-                        expression
-                    }
-
-                }).collect_vec();
-
                 quote! {
                     let source = #prelude::item_source::<Self>();
                     let account_set_def = #prelude::IdlAccountSetDef::Struct(vec![
-                    #(
-                        #prelude::IdlAccountSetStructField {
-                            path: #field_path,
-                            description: #field_docs,
-                            account_set_def: #account_set_defs,
-                        }
-                    ),*
+                        #(
+                            #prelude::IdlAccountSetStructField {
+                                path: #field_path,
+                                description: #field_docs,
+                                account_set_def: #account_set_defs?,
+                            }
+                        ),*
                     ]);
                     let account_set = #prelude::IdlAccountSet {
                         info: #prelude::ItemInfo {
@@ -213,6 +209,7 @@ pub(super) fn idls(
                     }))
                 }
             };
+
             quote! {
                 #[cfg(all(feature = "idl", not(target_os = "solana")))]
                 #[automatically_derived]
