@@ -138,7 +138,7 @@ impl RemainingBytes {
             Ordering::Less => {
                 let bytes_to_add = len - self_len;
                 let (source_ptr, end_ptr) = {
-                    let source_ptr = self.0.cast_const().cast::<()>();
+                    let source_ptr = self.0.cast::<()>();
                     let end_ptr = unsafe { source_ptr.byte_add(self_len) };
                     (source_ptr, end_ptr)
                 };
@@ -148,7 +148,7 @@ impl RemainingBytes {
             }
             Ordering::Equal => return Ok(()),
             Ordering::Greater => {
-                let source_ptr = self.0.cast_const().cast::<()>();
+                let source_ptr = self.0.cast::<()>();
                 let start_ptr = unsafe { source_ptr.byte_add(len) };
                 let end_ptr = unsafe { source_ptr.byte_add(self_len) };
                 unsafe {

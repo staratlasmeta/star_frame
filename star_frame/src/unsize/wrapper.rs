@@ -196,7 +196,7 @@ pub trait ExclusiveRecurse: sealed::Sealed + Sized {
     unsafe fn add_bytes(
         wrapper: &mut Self,
         source_ptr: *const (),
-        start: *const (),
+        start: *mut (),
         amount: usize,
     ) -> Result<()>;
     /// # Safety
@@ -204,7 +204,7 @@ pub trait ExclusiveRecurse: sealed::Sealed + Sized {
     unsafe fn remove_bytes(
         wrapper: &mut Self,
         source_ptr: *const (),
-        range: impl RangeBounds<*const ()>,
+        range: impl RangeBounds<*mut ()>,
     ) -> Result<()>;
 
     /// # Safety
@@ -222,7 +222,7 @@ where
     unsafe fn add_bytes(
         wrapper: &mut Self,
         source_ptr: *const (),
-        start: *const (),
+        start: *mut (),
         amount: usize,
     ) -> Result<()> {
         match wrapper {
@@ -239,7 +239,7 @@ where
     unsafe fn remove_bytes(
         wrapper: &mut Self,
         source_ptr: *const (),
-        range: impl RangeBounds<*const ()>,
+        range: impl RangeBounds<*mut ()>,
     ) -> Result<()> {
         match wrapper {
             ExclusiveWrapper::Top { .. } => unreachable!(),
@@ -275,7 +275,7 @@ where
     unsafe fn add_bytes(
         wrapper: &mut Self,
         source_ptr: *const (),
-        start: *const (),
+        start: *mut (),
         amount: usize,
     ) -> Result<()> {
         let s: &mut OwnedRefMut<'_, (ExclusiveWrapperTopMeta<'top, Top, A>, Top::Mut<'top>)> =
@@ -305,8 +305,8 @@ where
             if start as usize != old_ptr as usize + old_len {
                 unsafe {
                     sol_memmove(
-                        start.cast::<u8>().add(amount).cast_mut(),
-                        start.cast_mut().cast::<u8>(),
+                        start.cast::<u8>().add(amount),
+                        start.cast::<u8>(),
                         old_len - (start as usize - data.as_ptr() as usize),
                     );
                 }
@@ -324,7 +324,7 @@ where
     unsafe fn remove_bytes(
         wrapper: &mut Self,
         source_ptr: *const (),
-        range: impl RangeBounds<*const ()>,
+        range: impl RangeBounds<*mut ()>,
         // after_remove: impl FnOnce(&mut Self::T) -> Result<()>,
     ) -> Result<()> {
         let s = match wrapper {
@@ -347,7 +347,7 @@ where
                     ensure!(*start as usize <= data.as_ptr() as usize + old_len);
                     unsafe { start.cast::<u8>().add(1) }
                 }
-                Bound::Unbounded => data.as_ptr(),
+                Bound::Unbounded => data.as_mut_ptr(),
             };
 
             let end = match range.end_bound() {
@@ -361,7 +361,7 @@ where
                     ensure!(*end as usize <= data.as_ptr() as usize + old_len);
                     end.cast::<u8>()
                 }
-                Bound::Unbounded => unsafe { data.as_ptr().add(old_len) },
+                Bound::Unbounded => unsafe { data.as_mut_ptr().add(old_len) },
             };
 
             let amount = end as usize - start as usize;
@@ -372,8 +372,8 @@ where
             if end as usize != data.as_ptr() as usize + old_len {
                 unsafe {
                     sol_memmove(
-                        start.cast_mut(),
-                        end.cast_mut(),
+                        start,
+                        end,
                         old_len - (end as usize - data.as_ptr() as usize),
                     );
                 }
@@ -478,7 +478,7 @@ where
 
 #[derive(Debug, Deref, DerefMut)]
 pub struct StartPointer<T> {
-    start: *const (),
+    start: *mut (),
     #[deref]
     #[deref_mut]
     pub data: T,
@@ -500,7 +500,7 @@ where
 impl<T> StartPointer<T> {
     /// # Safety
     /// todo
-    pub unsafe fn new(start: *const (), data: T) -> Self {
+    pub unsafe fn new(start: *mut (), data: T) -> Self {
         Self { start, data }
     }
 
@@ -556,8 +556,7 @@ where
             // SAFETY:
             // We have exclusive access to the wrapper, so no external references to the underlying data exist.
             // No other references exist in this function either. We can assume the StartPointer is valid since it was created by the UnsizedType implementation.
-            let slice =
-                unsafe { from_raw_parts_mut(wrapper.start.cast_mut().cast::<u8>(), new_len) };
+            let slice = unsafe { from_raw_parts_mut(wrapper.start.cast::<u8>(), new_len) };
             // TODO: this is probably safe
             unsafe { <U as UnsizedInit<I>>::init(&mut &mut slice[..], init_arg)? };
             U::get_mut(&mut &mut slice[..])?.data

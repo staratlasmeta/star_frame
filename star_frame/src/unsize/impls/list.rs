@@ -540,8 +540,8 @@ where
         let new_len = old_len - to_remove;
         let source_ptr: *const () = self.0.cast_const().cast();
         unsafe {
-            let start_ptr = self.bytes.as_ptr().add(start * size_of::<T>()).cast();
-            let end_ptr = self.bytes.as_ptr().add(end * size_of::<T>()).cast();
+            let start_ptr = self.bytes.as_mut_ptr().add(start * size_of::<T>()).cast();
+            let end_ptr = self.bytes.as_mut_ptr().add(end * size_of::<T>()).cast();
             ExclusiveRecurse::remove_bytes(self, source_ptr, start_ptr..end_ptr)?;
         };
         {
@@ -751,7 +751,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     #[test]
-    fn test_list() -> Result<()> {
+    fn test_list_miri() -> Result<()> {
         let byte_array = [1, 2, 3, 4, 5];
         let mut vec = byte_array.to_vec();
         let test_bytes = TestByteSet::<List<u8>>::new(byte_array.to_vec())?;

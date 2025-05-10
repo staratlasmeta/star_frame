@@ -430,7 +430,7 @@ impl UnsizedEnumContext {
 
                 fn get_mut<#rm_lt>(data: &mut &#rm_lt mut [u8]) -> #result<Self::Mut<#rm_lt>> {
                     #(const #discriminant_consts: #integer_repr = #discriminant_ident::#variant_idents as #integer_repr;)*
-                    let start_ptr = data.as_mut_ptr().cast_const().cast::<()>();
+                    let start_ptr = data.as_mut_ptr().cast::<()>();
                     let maybe_repr_bytes = #prelude::AdvanceArray::try_advance_array(data);
                     let repr_bytes = #prelude::anyhow::Context::with_context(maybe_repr_bytes, || format!("Not enough bytes to get enum discriminant of {}", #prelude::type_name::<#enum_type>()))?;
                     let repr: #integer_repr = <#integer_repr>::from_le_bytes(*repr_bytes);

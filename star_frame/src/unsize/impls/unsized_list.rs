@@ -822,8 +822,12 @@ where
                 bail!("Index out of bounds");
             }
             let offset = self.get_offset(index);
-            let start_ptr = unsafe { self.unsized_data_ptr().byte_add(offset) };
-            (self.list_ptr.cast_const().cast(), start_ptr.cast(), offset)
+            let start_ptr = unsafe { self.unsized_data_ptr_mut().byte_add(offset) };
+            (
+                self.list_ptr.cast_const().cast::<()>(),
+                start_ptr.cast::<()>(),
+                offset,
+            )
         };
 
         let to_add = items.len();
@@ -913,7 +917,7 @@ where
 
         let (start_offset, offset_of_start_ptr, end_offset) = {
             let start_offset = self.get_offset(start);
-            let offset_of_start_ptr = unsafe { self.unsized_data_ptr().byte_add(start_offset) };
+            let offset_of_start_ptr = unsafe { self.unsized_data_ptr_mut().byte_add(start_offset) };
             let end_offset = self.get_offset(end);
             (start_offset, offset_of_start_ptr, end_offset)
         };
@@ -936,7 +940,8 @@ where
             // bytes to remove has to be shifted too
             let remove_start =
                 unsafe { offset_of_start_ptr.byte_sub(size_of::<C>() * to_remove) }.cast::<()>();
-            let remove_end = unsafe { self.unsized_data_ptr().byte_add(end_offset) }.cast::<()>();
+            let remove_end =
+                unsafe { self.unsized_data_ptr_mut().byte_add(end_offset) }.cast::<()>();
             let source_ptr = self.list_ptr.cast_const().cast::<()>();
             unsafe {
                 ExclusiveRecurse::remove_bytes(self, source_ptr, remove_start..remove_end)?;
