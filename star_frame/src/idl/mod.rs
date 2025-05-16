@@ -5,7 +5,6 @@ use star_frame_idl::instruction::IdlInstructionDef;
 use star_frame_idl::seeds::IdlSeeds;
 use star_frame_idl::ty::IdlTypeDef;
 use star_frame_idl::{CrateMetadata, IdlDefinition, IdlMetadata};
-pub use star_frame_proc::{InstructionToIdl, TypeToIdl};
 
 mod find_seeds;
 pub mod ty;

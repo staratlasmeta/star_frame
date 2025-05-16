@@ -113,6 +113,7 @@ pub struct UnsizedStructContext {
     phantom_generic_type: Option<Type>,
     account_item_struct: ItemStruct,
     sized_fields: Vec<Field>,
+    unstripped_sized_fields: Vec<Field>,
     unsized_fields: Vec<Field>,
     owned_fields: Vec<Field>,
     sized_field_idents: Vec<Ident>,
@@ -159,6 +160,12 @@ impl UnsizedStructContext {
         let all_fields = item_struct.fields.iter().cloned().collect::<Vec<_>>();
         let (sized_fields, unsized_fields) = all_fields.split_at(first_unsized);
         let sized_fields = sized_fields.to_vec();
+        let unstripped_sized_fields = account_item_struct
+            .fields
+            .iter()
+            .take(first_unsized)
+            .cloned()
+            .collect_vec();
         let unsized_fields = unsized_fields.to_vec();
         let owned_fields = sized_fields
             .iter()
@@ -252,6 +259,7 @@ impl UnsizedStructContext {
             phantom_generic_ident,
             phantom_generic_type,
             account_item_struct,
+            unstripped_sized_fields,
             sized_fields,
             unsized_fields,
             owned_fields,
@@ -354,8 +362,8 @@ impl UnsizedStructContext {
     }
 
     fn sized_struct(&self) -> Option<TokenStream> {
-        Paths!(prelude, bytemuck);
-        UnsizedStructContext!(self => vis, sized_ident, sized_fields, phantom_generic_ident, phantom_generic_type);
+        Paths!(prelude, bytemuck, type_to_idl_args_ident);
+        UnsizedStructContext!(self => vis, sized_ident, unstripped_sized_fields, phantom_generic_ident, phantom_generic_type);
         some_or_return!(sized_ident);
         let additional_attributes = self.args.sized_attributes.attributes.iter();
 
@@ -369,12 +377,24 @@ impl UnsizedStructContext {
                 #vis #ident: #phantom_generic_type,
             )
         });
+        let sized_attributes = (!self.args.skip_idl).then(|| {
+            let program_account = self.args.program.as_ref().map(|program| {
+                quote! {
+                    #[#type_to_idl_args_ident(program = #program)]
+                }
+            });
+            quote!(
+                #[derive(#prelude::TypeToIdl)]
+                #program_account
+            )
+        });
         let sized_struct = quote! {
             #(#[#additional_attributes])*
             #[derive(#prelude::Align1, #sized_bytemuck_derives)]
+            #sized_attributes
             #[repr(C, packed)]
             #vis struct #sized_ident #impl_gen #where_clause {
-                #(#sized_fields,)*
+                #(#unstripped_sized_fields,)*
                 #phantom_field
             }
         };

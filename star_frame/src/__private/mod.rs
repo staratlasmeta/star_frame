@@ -25,7 +25,7 @@ pub mod macro_prelude {
     };
 
     pub use crate::Result;
-    pub use star_frame_proc::sighash;
+    pub use star_frame_proc::{sighash, InstructionToIdl, TypeToIdl};
 
     #[cfg(all(feature = "idl", not(target_os = "solana")))]
     pub use crate::{

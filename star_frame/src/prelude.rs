@@ -48,7 +48,6 @@ pub use crate::idl::{
 };
 
 // ensure derive macros are in scope
-#[cfg(not(all(feature = "idl", not(target_os = "solana"))))]
 pub use star_frame_proc::{InstructionToIdl, TypeToIdl};
 
 pub use std::fmt::Debug;
