@@ -2,7 +2,6 @@ use super::{AsShared, UnsizedType};
 use super::{OwnedRef, OwnedRefMut};
 use crate::prelude::UnsizedInit;
 use crate::Result;
-use advancer::Advance;
 use anyhow::{ensure, Context};
 use core::ptr;
 use derive_more::{Debug, Deref, DerefMut};
@@ -15,19 +14,31 @@ use std::cmp::Ordering;
 use std::collections::Bound;
 use std::convert::Infallible;
 use std::marker::PhantomData;
-use std::ops::{Deref, DerefMut, RangeBounds};
-use std::slice::from_raw_parts_mut;
+use std::ops::{AddAssign, Deref, DerefMut, RangeBounds, SubAssign};
 
-pub trait UnsizedTypeDataAccess<'info> {
+/// # Safety
+/// [`Self::unsized_data_realloc`] must properly check the new length of the underlying data pointer.
+pub unsafe trait UnsizedTypeDataAccess<'info> {
     /// # Safety
-    /// todo
-    unsafe fn realloc(this: &Self, new_len: usize, data: &mut &'info mut [u8]) -> Result<()>;
+    /// `data` must actually point to the same data that is returned by [`UnsizedTypeDataAccess::data_ref`] and [`UnsizedTypeDataAccess::data_mut`].
+    unsafe fn unsized_data_realloc(this: &Self, data: &mut *mut [u8], new_len: usize)
+        -> Result<()>;
     fn data_ref(this: &Self) -> Result<Ref<&'info mut [u8]>>;
     fn data_mut(this: &Self) -> Result<RefMut<&'info mut [u8]>>;
 }
 
-impl<'info> UnsizedTypeDataAccess<'info> for AccountInfo<'info> {
-    unsafe fn realloc(this: &Self, new_len: usize, data: &mut &'info mut [u8]) -> Result<()> {
+/// # Safety
+/// We are checking the length of the underlying data pointer in [`Self::unsized_data_realloc`].
+unsafe impl<'info> UnsizedTypeDataAccess<'info> for AccountInfo<'info> {
+    /// Sets the data length in the serialized data. This is identical to how [`AccountInfo::realloc`] works, minus the `RefCell::borrow_mut` call.
+    /// # Safety
+    /// `data` must actually point to the underlying data of the account, and `Self` needs to be from the entrypoint of a program or
+    /// have its memory laid out in the same way. The fact that you can create `AccountInfo`s that aren't like this is a tragedy, but it is what it is.
+    unsafe fn unsized_data_realloc(
+        this: &Self,
+        data: &mut *mut [u8],
+        new_len: usize,
+    ) -> Result<()> {
         // Return early if the length increase from the original serialized data
         // length is too large and would result in an out of bounds allocation.
         let original_data_len = unsafe { this.original_data_len() };
@@ -35,20 +46,17 @@ impl<'info> UnsizedTypeDataAccess<'info> for AccountInfo<'info> {
             new_len.saturating_sub(original_data_len) <= MAX_PERMITTED_DATA_INCREASE,
             "Tried to realloc data to {new_len}. An increase over {MAX_PERMITTED_DATA_INCREASE} is not permitted",
         );
-        let data_ptr = data.as_mut_ptr();
 
-        // First set new length in the serialized data
+        // Set new length in the serialized data. Very questionable, but it's what solana does in `Self::realloc`.
         unsafe {
-            data_ptr
+            data.cast::<u8>()
                 .offset(-8)
                 .cast::<u64>()
                 .write_unaligned(new_len as u64);
         }
 
         // Then recreate the local slice with the new length
-        unsafe {
-            *data = from_raw_parts_mut(data.as_mut_ptr(), new_len);
-        }
+        *data = ptr_meta::from_raw_parts_mut(data.cast(), new_len);
         Ok(())
     }
 
@@ -98,6 +106,9 @@ impl<T> Deref for SharedWrapper<'_, T> {
     }
 }
 
+/// The heart of the `UnsizedType` system. This wrapper enables resizing through the [`ExclusiveRecurse`] trait, and mapping to
+/// child wrappers through [`Self::try_map_mut`]. In addition, this impl's [`DerefMut`] and [`Deref`] for easy access to the
+///
 #[derive(Debug)]
 pub enum ExclusiveWrapper<'parent, 'top, Mut, P> {
     Top {
@@ -117,14 +128,18 @@ pub type ExclusiveWrapperTop<'top, Top, A> = ExclusiveWrapper<
     ExclusiveWrapperTopMeta<'top, Top, A>,
 >;
 
+/// The generic `P` for an [`ExclusiveWrapper`] that is at the top level of the wrapper stack.
 #[derive(Debug)]
 pub struct ExclusiveWrapperTopMeta<'top, Top, A>
 where
     Top: UnsizedType + ?Sized,
 {
     info: &'top A,
-    data: *mut *mut [u8],                  // &'top mut &'info mut [u8]
-    top_phantom: PhantomData<fn() -> Top>, // Giving this a `Top` to allow ExclusiveWrapperTop to be impl'd on
+    /// The pointer to the contiguous allocated slice. The len metadata may be shorter than the actual length of the allocated slice.
+    /// It's lifetimes should match `&'top mut &'info mut [u8]` when run in [`ExclusiveWrapperTop::new`].
+    data: *mut *mut [u8],
+    /// This allows inherent implemenations on [`ExclusiveWrapperTop`].
+    top_phantom: PhantomData<fn() -> Top>,
 }
 
 impl<'top, 'info, Top, A> ExclusiveWrapperTop<'top, Top, A>
@@ -139,13 +154,19 @@ where
         let data: RefMut<'top, &mut [u8]> = UnsizedTypeDataAccess::data_mut(info)?;
         Ok(ExclusiveWrapper::Top {
             data: OwnedRefMut::try_new(data, |data| {
+                let data_ptr = ptr::from_mut(data).cast::<*mut [u8]>();
+                // SAFETY:
+                // we just made this pointer, so its safe to dereference.
+                let mut data = unsafe { *data_ptr }; // pointer lasts for 'top.
                 anyhow::Ok((
                     ExclusiveWrapperTopMeta {
                         info,
-                        data: ptr::from_mut(data).cast::<*mut [u8]>(),
+                        data: data_ptr,
                         top_phantom: PhantomData,
                     },
-                    Top::get_mut(&mut &mut **data)?,
+                    // SAFETY:
+                    // The pointer lasts for 'top, and we made the pointer from a properly formed slice, so its metadata is valid.
+                    unsafe { Top::get_mut(&mut data)? },
                 ))
             })?,
         })
@@ -168,7 +189,7 @@ impl<Mut, P> ExclusiveWrapper<'_, '_, Mut, P> {
         }
     }
 
-    fn mut_mut(this: &mut Self) -> &mut Mut {
+    fn mut_mut(this: &mut Self) -> *mut Mut {
         match this {
             ExclusiveWrapper::Top { data, .. } => &mut data.1,
             ExclusiveWrapper::Inner { field, .. } => {
@@ -178,7 +199,7 @@ impl<Mut, P> ExclusiveWrapper<'_, '_, Mut, P> {
                 // which takes in &mut self, so no references to upper fields can exist at the same time.
                 // Self cannot be used again until the mut_mut is dropped due to lifetimes, so no other references to field can be created
                 // while mut_mut is still alive.
-                unsafe { &mut **field }
+                *field
             }
         }
     }
@@ -206,13 +227,6 @@ pub trait ExclusiveRecurse: sealed::Sealed + Sized {
         source_ptr: *const (),
         range: impl RangeBounds<*mut ()>,
     ) -> Result<()>;
-
-    /// # Safety
-    /// Is this actually unsafe? If bounds are checked, everything should be fine? We have exclusive access to self right now.
-    unsafe fn compute_len<UT: UnsizedType + ?Sized>(
-        wrapper: &mut Self,
-        start_ptr: *const (),
-    ) -> Result<usize>;
 }
 
 impl<Mut, P> ExclusiveRecurse for ExclusiveWrapper<'_, '_, Mut, P>
@@ -251,19 +265,6 @@ where
             }
         }
     }
-
-    unsafe fn compute_len<UT: UnsizedType + ?Sized>(
-        wrapper: &mut Self,
-        start_ptr: *const (),
-    ) -> Result<usize> {
-        match wrapper {
-            ExclusiveWrapper::Top { .. } => unreachable!(),
-            ExclusiveWrapper::Inner { parent, .. } => {
-                let parent = unsafe { &mut **parent };
-                unsafe { P::compute_len::<UT>(parent, start_ptr) }
-            }
-        }
-    }
 }
 
 impl<'top, 'info, Top, A> ExclusiveRecurse for ExclusiveWrapperTop<'top, Top, A>
@@ -285,13 +286,16 @@ where
             };
 
         {
-            // SAFETY: We are at the top level now, and all the child `field()`s can only contain mutable pointers to the data, so we are the only one
-            let data: &'top mut &'info mut [u8] = unsafe { &mut *s.0.data.cast() };
-            let old_ptr = data.as_ptr();
-            let old_len = data.len();
+            // SAFETY:
+            // We are at the top level now, and all the child `field()`s can only contain mutable pointers to the data, so we are the only one
+            let data_ptr = unsafe { &mut *s.0.data };
+            let old_len = data_ptr.len();
 
-            ensure!(start as usize >= data.as_ptr() as usize);
-            ensure!(start as usize <= data.as_ptr() as usize + old_len);
+            let data_addr = data_ptr.addr();
+            let start_addr = start.addr();
+
+            ensure!(start_addr >= data_addr);
+            ensure!(start_addr <= data_addr + old_len);
 
             // Return early if length hasn't changed
             if amount == 0 {
@@ -300,14 +304,16 @@ where
             let new_len = old_len + amount;
 
             // realloc
-            unsafe { UnsizedTypeDataAccess::realloc(s.0.info, new_len, data) }?;
+            unsafe { UnsizedTypeDataAccess::unsized_data_realloc(s.0.info, data_ptr, new_len) }?;
 
-            if start as usize != old_ptr as usize + old_len {
+            if start_addr != data_addr + old_len {
+                // SAFETY:
+                // todo
                 unsafe {
                     sol_memmove(
-                        start.cast::<u8>().add(amount),
+                        start.cast::<u8>().wrapping_add(amount),
                         start.cast::<u8>(),
-                        old_len - (start as usize - data.as_ptr() as usize),
+                        old_len - (start_addr - data_addr),
                     );
                 }
             }
@@ -333,35 +339,39 @@ where
         };
 
         let amount = {
-            let data: &'top mut &'info mut [u8] = unsafe { &mut *s.0.data.cast() };
-            let old_len = data.len();
+            // SAFETY:
+            // we have exclusive access to self, so no one else has a mutable reference to the data pointer.
+            let data_ptr = unsafe { &mut *s.0.data };
+            let old_len = data_ptr.len();
+
+            let data_addr = data_ptr.addr();
 
             let start = match range.start_bound() {
                 Bound::Included(start) => {
-                    ensure!(*start as usize >= data.as_ptr() as usize);
-                    ensure!(*start as usize <= data.as_ptr() as usize + old_len);
+                    ensure!(*start as usize >= data_addr);
+                    ensure!(*start as usize <= data_addr + old_len);
                     start.cast::<u8>()
                 }
                 Bound::Excluded(start) => {
-                    ensure!(*start as usize >= data.as_ptr() as usize);
-                    ensure!(*start as usize <= data.as_ptr() as usize + old_len);
-                    unsafe { start.cast::<u8>().add(1) }
+                    ensure!(*start as usize >= data_addr);
+                    ensure!(*start as usize <= data_addr + old_len);
+                    start.cast::<u8>().wrapping_add(1)
                 }
-                Bound::Unbounded => data.as_mut_ptr(),
+                Bound::Unbounded => data_ptr.cast(),
             };
 
             let end = match range.end_bound() {
                 Bound::Included(end) => {
                     ensure!(*end as usize >= start as usize);
-                    ensure!((*end as usize) < data.as_ptr() as usize + old_len);
-                    unsafe { end.cast::<u8>().add(1) }
+                    ensure!((*end as usize) < data_addr + old_len);
+                    end.cast::<u8>().wrapping_add(1)
                 }
                 Bound::Excluded(end) => {
                     ensure!(*end as usize >= start as usize);
-                    ensure!(*end as usize <= data.as_ptr() as usize + old_len);
+                    ensure!(*end as usize <= data_addr + old_len);
                     end.cast::<u8>()
                 }
-                Bound::Unbounded => unsafe { data.as_mut_ptr().add(old_len) },
+                Bound::Unbounded => data_ptr.cast::<u8>().wrapping_add(old_len),
             };
 
             let amount = end as usize - start as usize;
@@ -369,20 +379,17 @@ where
                 return Ok(());
             }
 
-            if end as usize != data.as_ptr() as usize + old_len {
+            if end as usize != data_addr + old_len {
                 unsafe {
-                    sol_memmove(
-                        start,
-                        end,
-                        old_len - (end as usize - data.as_ptr() as usize),
-                    );
+                    sol_memmove(start, end, old_len - (end as usize - data_addr));
                 }
             }
 
             let new_len = old_len - amount;
-            // TODO: Figure out the safety requirements of calling this
+            // SAFETY:
+            // Data ptr is derived from the info.
             unsafe {
-                UnsizedTypeDataAccess::realloc(s.0.info, new_len, data)?;
+                UnsizedTypeDataAccess::unsized_data_realloc(s.0.info, data_ptr, new_len)?;
             }
 
             amount
@@ -392,33 +399,6 @@ where
             Top::resize_notification(&mut s.1, source_ptr, -amount.try_into()?)?;
         }
         Ok(())
-    }
-
-    unsafe fn compute_len<UT: UnsizedType + ?Sized>(
-        wrapper: &mut Self,
-        start_ptr: *const (),
-    ) -> Result<usize> {
-        let s = match wrapper {
-            ExclusiveWrapper::Top { data, .. } => data,
-            ExclusiveWrapper::Inner { .. } => unreachable!(),
-        };
-
-        let data: &'top mut &'info mut [u8] = unsafe { &mut *s.0.data.cast() };
-        let mut data = &data[..];
-
-        let start_usize = start_ptr as usize;
-        let data_usize = data.as_ptr() as usize;
-        let start_offset = start_usize - data_usize;
-        data.try_advance(start_offset).with_context(|| {
-            format!(
-                "Failed to advance {} bytes to start offset during compute_len for type {}",
-                start_offset,
-                std::any::type_name::<UT>()
-            )
-        })?;
-        UT::get_ref(&mut data)?;
-        let end_usize = data.as_ptr() as usize;
-        Ok(end_usize - start_usize)
     }
 }
 
@@ -430,7 +410,7 @@ where
     /// O may not contain a mutable reference to T, but can contain a mutable pointer.
     pub unsafe fn map_mut<'child, O>(
         parent: &'child mut Self,
-        mapper: impl FnOnce(&'child mut Mut) -> &'child mut O::Mut<'top>,
+        mapper: impl FnOnce(*mut Mut) -> *mut O::Mut<'top>,
     ) -> ExclusiveWrapper<'child, 'top, O::Mut<'top>, Self>
     where
         O: UnsizedType + ?Sized,
@@ -442,7 +422,7 @@ where
     /// O may not contain a mutable reference to T, but can contain a mutable pointer.
     pub unsafe fn try_map_mut<'child, O, E>(
         parent: &'child mut Self,
-        mapper: impl FnOnce(&'child mut Mut) -> Result<&'child mut O::Mut<'top>, E>,
+        mapper: impl FnOnce(*mut Mut) -> Result<*mut O::Mut<'top>, E>,
     ) -> Result<ExclusiveWrapper<'child, 'top, O::Mut<'top>, Self>, E>
     where
         O: UnsizedType + ?Sized,
@@ -472,19 +452,21 @@ where
     Self: ExclusiveRecurse,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        Self::mut_mut(self)
+        unsafe { &mut *Self::mut_mut(self) }
     }
 }
 
 #[derive(Debug, Deref, DerefMut)]
-pub struct StartPointer<T> {
-    start: *mut (),
+#[repr(C)]
+pub struct LengthTracker<T> {
     #[deref]
     #[deref_mut]
     pub data: T,
+    start: *mut (),
+    len: usize,
 }
 
-impl<T> AsShared for StartPointer<T>
+impl<T> AsShared for LengthTracker<T>
 where
     T: AsShared,
 {
@@ -497,36 +479,51 @@ where
     }
 }
 
-impl<T> StartPointer<T> {
+impl<T> LengthTracker<T> {
     /// # Safety
     /// todo
-    pub unsafe fn new(start: *mut (), data: T) -> Self {
-        Self { start, data }
+    pub unsafe fn new(data: T, start: *mut (), len: usize) -> Self {
+        Self { data, start, len }
     }
 
     /// # Safety
     /// todo
-    pub unsafe fn handle_resize_notification(s: &mut Self, source_ptr: *const (), change: isize) {
+    pub unsafe fn handle_resize_notification(
+        s: &mut Self,
+        source_ptr: *const (),
+        change: isize,
+        zst_status: bool,
+    ) {
         if source_ptr < s.start {
             s.start = unsafe { s.start.byte_offset(change) };
+        }
+        // if we are a ZST (ZST_STATUS is false), if changes aren't happening before us, they must be within us since we are the last field.
+        else if !zst_status || source_ptr < s.start.wrapping_byte_add(s.len) {
+            match change.cmp(&0) {
+                Ordering::Less => {
+                    s.len.sub_assign(change.unsigned_abs());
+                }
+                Ordering::Equal => {}
+                Ordering::Greater => {
+                    s.len.add_assign(change.unsigned_abs());
+                }
+            }
         }
     }
 }
 
-impl<'top, Mut, P> ExclusiveWrapper<'_, 'top, StartPointer<Mut>, P>
+impl<'top, Mut, P> ExclusiveWrapper<'_, 'top, LengthTracker<Mut>, P>
 where
     Self: ExclusiveRecurse,
 {
     /// # Safety
     // TODO: I think it might be safe since we're relying on the UnsizedType implementation to be correct.
-    pub unsafe fn set_start_pointer_data<U, I>(wrapper: &mut Self, init_arg: I) -> Result<()>
+    pub unsafe fn set_length_tracker_data<U, I>(wrapper: &mut Self, init_arg: I) -> Result<()>
     where
-        U: UnsizedType<Mut<'top> = StartPointer<Mut>> + UnsizedInit<I> + ?Sized,
+        U: UnsizedType<Mut<'top> = LengthTracker<Mut>> + UnsizedInit<I> + ?Sized,
     {
-        // SAFETY:
-        // TODO: might be safe
-        let current_len = unsafe { Self::compute_len::<U>(wrapper, wrapper.start)? };
         let new_len = <U as UnsizedInit<I>>::INIT_BYTES;
+        let current_len = wrapper.len;
 
         match current_len.cmp(&new_len) {
             Ordering::Less => {
@@ -547,7 +544,7 @@ where
                     ExclusiveWrapper::remove_bytes(
                         wrapper,
                         wrapper.start,
-                        wrapper.start..wrapper.start.byte_add(current_len - new_len),
+                        wrapper.start..wrapper.start.wrapping_byte_add(current_len - new_len),
                     )
                 }?;
             }
@@ -556,11 +553,16 @@ where
             // SAFETY:
             // We have exclusive access to the wrapper, so no external references to the underlying data exist.
             // No other references exist in this function either. We can assume the StartPointer is valid since it was created by the UnsizedType implementation.
-            let slice = unsafe { from_raw_parts_mut(wrapper.start.cast::<u8>(), new_len) };
+            let slice_ptr: *mut [u8] = ptr_meta::from_raw_parts_mut(wrapper.start.cast(), new_len);
+            let mut slice = unsafe { &mut *slice_ptr };
+            // let slice = unsafe { from_raw_parts_mut(wrapper.start.cast::<u8>(), new_len) };
             // TODO: this is probably safe
-            unsafe { <U as UnsizedInit<I>>::init(&mut &mut slice[..], init_arg)? };
-            U::get_mut(&mut &mut slice[..])?.data
+            unsafe { <U as UnsizedInit<I>>::init(&mut slice, init_arg)? };
+            unsafe {
+                U::get_mut(&mut slice_ptr.clone() /* None */)?.data
+            }
         };
+        wrapper.len = new_len;
         Ok(())
     }
 }

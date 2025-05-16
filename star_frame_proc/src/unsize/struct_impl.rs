@@ -276,7 +276,7 @@ impl UnsizedStructContext {
         (the_generics, the_generics.where_clause.as_ref())
     }
 
-    fn main_struct(&self) -> ItemStruct {
+    fn main_struct(&self) -> TokenStream {
         Paths!(prelude, debug);
         UnsizedStructContext!(self => vis, struct_ident);
 
@@ -291,19 +291,19 @@ impl UnsizedStructContext {
         } else {
             quote!(#[derive(#debug)])
         };
-        parse_quote! {
+        quote! {
             #(#docs)*
             #derives
             #vis struct #struct_ident #generics #phantom_ty #wc;
         }
     }
 
-    fn ref_struct(&self) -> ItemStruct {
+    fn ref_struct(&self) -> TokenStream {
         Paths!(prelude);
         UnsizedStructContext!(self => vis, ref_ident, with_sized_vis, with_sized_idents, with_sized_types, rm_lt);
         let (generics, wc) = self.split_for_declaration(true);
         let transparent = (with_sized_idents.len() == 1).then(|| quote!(#[repr(transparent)]));
-        parse_quote! {
+        quote! {
             #[derive(#prelude::DeriveWhere)]
             #[derive_where(Debug, Copy, Clone; #(<#with_sized_types as #prelude::UnsizedType>::Ref<#rm_lt>,)*)]
             #transparent
@@ -315,13 +315,13 @@ impl UnsizedStructContext {
         }
     }
 
-    fn mut_struct(&self) -> ItemStruct {
+    fn mut_struct(&self) -> TokenStream {
         Paths!(prelude);
         UnsizedStructContext!(self => vis, mut_ident, rm_lt, with_sized_vis, with_sized_idents, with_sized_types);
         let (generics, wc) = self.split_for_declaration(true);
         let transparent = (with_sized_idents.len() == 1).then(|| quote!(#[repr(transparent)]));
 
-        parse_quote! {
+        quote! {
             #[derive(#prelude::DeriveWhere)]
             #[derive_where(Debug; #(<#with_sized_types as #prelude::UnsizedType>::Mut<#rm_lt>,)*)]
             #transparent
@@ -333,7 +333,7 @@ impl UnsizedStructContext {
         }
     }
 
-    fn owned_struct(&self) -> ItemStruct {
+    fn owned_struct(&self) -> TokenStream {
         Paths!(prelude);
         UnsizedStructContext!(self => vis, owned_ident, owned_fields);
         let additional_attributes = self.args.owned_attributes.attributes.iter();
@@ -343,7 +343,7 @@ impl UnsizedStructContext {
         let owned_types = get_field_types(owned_fields).collect_vec();
         let lt = new_lifetime(&self.generics, None);
 
-        parse_quote! {
+        quote! {
             #(#[#additional_attributes])*
             #[derive(#prelude::DeriveWhere)]
             #[derive_where(Debug, Copy, Clone, Default, Eq, Hash, Ord, PartialEq, PartialOrd; #(for<#lt> #owned_types,)*)]
@@ -353,7 +353,7 @@ impl UnsizedStructContext {
         }
     }
 
-    fn sized_struct(&self) -> Option<ItemStruct> {
+    fn sized_struct(&self) -> Option<TokenStream> {
         Paths!(prelude, bytemuck);
         UnsizedStructContext!(self => vis, sized_ident, sized_fields, phantom_generic_ident, phantom_generic_type);
         some_or_return!(sized_ident);
@@ -369,7 +369,7 @@ impl UnsizedStructContext {
                 #vis #ident: #phantom_generic_type,
             )
         });
-        let sized_struct: ItemStruct = parse_quote! {
+        let sized_struct = quote! {
             #(#[#additional_attributes])*
             #[derive(#prelude::Align1, #sized_bytemuck_derives)]
             #[repr(C, packed)]
@@ -699,9 +699,9 @@ impl UnsizedStructContext {
                     })
                 }
 
-                fn get_mut<#rm_lt>(data: &mut &#rm_lt mut [u8]) -> #result<Self::Mut<#rm_lt>> {
+                unsafe fn get_mut<#rm_lt>(data: &mut *mut [u8]/* , provenance: Option<*mut ()> */) -> #result<Self::Mut<#rm_lt>> {
                     Ok(#mut_ident {
-                        #(#with_sized_idents: <#with_sized_types as #prelude::UnsizedType>::get_mut(data)?,)*
+                        #(#with_sized_idents: unsafe {<#with_sized_types as #prelude::UnsizedType>::get_mut(data/* , provenance */)? },)*
                     })
                 }
 
@@ -847,7 +847,7 @@ impl UnsizedStructContext {
                 impl #impl_gen #extension_ident #ty_gen for #prelude::ExclusiveWrapper<#parent_lt, #top_lt, <#struct_type as #prelude::UnsizedType>::Mut<#top_lt>, #p> #wc {
                     #(
                         fn #field_idents<#child>(&#child mut self) -> #prelude::ExclusiveWrapper<#child, #top_lt, <#field_types as #prelude::UnsizedType>::Mut<#top_lt>, Self> {
-                            unsafe { #prelude::ExclusiveWrapper::map_mut::<#field_types>(self, |x| &mut x.#field_idents) }
+                            unsafe { #prelude::ExclusiveWrapper::map_mut::<#field_types>(self, |x| &raw mut (*x).#field_idents) }
                         }
                     )*
                 }

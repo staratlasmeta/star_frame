@@ -10,7 +10,7 @@ use crate::prelude::*;
 /// ## Unsized Type System
 /// See [`SetRef`] and [`SetMut`]. These will be used often in the `UnsizedType` system.
 /// For exclusive methods that change the underlying data size, see [`SetExclusiveImpl`].
-#[unsized_type(skip_idl, owned_attributes = [doc = "The [`UnsizedType::Owned`] variant of [`Set`]. 
+#[unsized_type(skip_idl, owned_attributes = [doc = "The [`UnsizedType::Owned`] variant of [`Set`].
     It is generally easier to create an initial [`BTreeSet`] or iterator of `T`
     and convert to this type vs working on it directly."])]
 pub struct Set<T, L = u32>
@@ -357,7 +357,7 @@ where
     /// let mut iter = set.iter();
     /// assert_eq!(iter.next(), Some(&1));
     /// assert_eq!(iter.next(), Some(&2));
-    /// assert_eq!(iter.next(), None);  
+    /// assert_eq!(iter.next(), None);
     /// # Ok(())
     /// # }
     /// ```

@@ -1,5 +1,4 @@
 use crate::prelude::*;
-use crate::unsize::impls::unsized_list::unsized_list_exclusive;
 use std::collections::BTreeMap;
 use std::iter::FusedIterator;
 
@@ -245,11 +244,10 @@ where
         let Ok(index) = self.get_index(key) else {
             return Ok(None);
         };
+        let (start, _end) = self.list.get_unsized_range(index).expect("Index exists");
         unsafe {
             ExclusiveWrapper::try_map_mut::<V, _>(self, |data| {
-                let list = &mut data.list;
-                let (start, end) = list.get_unsized_range(index).expect("Index exists");
-                unsized_list_exclusive!(<V> list start..end)
+                unsized_list_exclusive_fn(&raw mut (*data).list, start)
             })
         }
         .map(Some)
@@ -478,6 +476,7 @@ mod idl_impl {
 mod tests {
     use super::*;
     use crate::unsize::TestByteSet;
+    use pretty_assertions::assert_eq;
 
     #[test]
     fn test_from_owned() -> Result<()> {
@@ -498,6 +497,46 @@ mod tests {
         .collect();
         let test_bytes = TestByteSet::<MyMap>::new(owned.clone())?;
         assert_eq!(test_bytes.owned()?, owned);
+        Ok(())
+    }
+
+    #[test]
+    fn test_unsized_map_crud() -> Result<()> {
+        let owned_map = vec![
+            (0, vec![0, 1, 2]),
+            (1, vec![10, 11, 12]),
+            (2, vec![20, 21, 22]),
+        ]
+        .into_iter()
+        .collect();
+        let map = UnsizedMap::<u8, List<u8>>::new_byte_set(owned_map)?;
+        let mut data = map.data_mut()?;
+        // insert a few elements
+        data.insert(1, [15, 16, 17])?;
+
+        let mut second_item = data.get_exclusive(&1)?.expect("Second item exists");
+        second_item.push(18)?;
+        second_item.insert(0, 14)?;
+
+        let mut last_item = data.get_exclusive(&2)?.expect("Last item exists");
+        last_item.insert(0, 19)?;
+        last_item.push_all([23, 24])?;
+
+        drop(data);
+        {
+            let _data_again = map.data_mut()?;
+        }
+        let owned = map.owned()?;
+        assert_eq!(
+            owned,
+            [
+                (0, vec![0, 1, 2]),
+                (1, vec![14, 15, 16, 17, 18]),
+                (2, vec![19, 20, 21, 22, 23, 24])
+            ]
+            .into_iter()
+            .collect()
+        );
         Ok(())
     }
 }

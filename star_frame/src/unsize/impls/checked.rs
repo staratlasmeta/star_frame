@@ -1,12 +1,10 @@
 use crate::unsize::init::{DefaultInit, DefaultInitable, UnsizedInit};
-use crate::unsize::{AsShared, FromOwned, UnsizedType};
+use crate::unsize::{AsShared, FromOwned, RawSliceAdvance, UnsizedType};
 use crate::{align1::Align1, Result};
 use advancer::Advance;
 use anyhow::Context;
-use bytemuck::{
-    checked::{try_from_bytes, try_from_bytes_mut},
-    CheckedBitPattern, NoUninit, Zeroable,
-};
+use bytemuck::checked;
+use bytemuck::{CheckedBitPattern, NoUninit, Zeroable};
 use std::marker::PhantomData;
 use std::mem::size_of;
 use std::ops::{Deref, DerefMut};
@@ -80,7 +78,7 @@ where
     }
 
     fn get_ref<'a>(data: &mut &'a [u8]) -> Result<Self::Ref<'a>> {
-        try_from_bytes(data.try_advance(size_of::<T>()).with_context(|| {
+        checked::try_from_bytes(data.try_advance(size_of::<T>()).with_context(|| {
             format!(
                 "Failed to read {} bytes for checked type {}",
                 size_of::<T>(),
@@ -92,17 +90,17 @@ where
         .context("Invalid data for type")
     }
 
-    fn get_mut<'a>(data: &mut &'a mut [u8]) -> Result<Self::Mut<'a>> {
-        try_from_bytes_mut(data.try_advance(size_of::<T>()).with_context(|| {
+    unsafe fn get_mut<'a>(data: &mut *mut [u8]) -> Result<Self::Mut<'a>> {
+        let sized = data.try_advance(size_of::<T>()).with_context(|| {
             format!(
                 "Failed to read {} mutable bytes for checked type {}",
                 size_of::<T>(),
                 std::any::type_name::<T>()
             )
-        })?)
-        .map(std::ptr::from_mut)
-        .map(|r| CheckedMut(r, PhantomData))
-        .context("Invalid data for type")
+        })?;
+
+        checked::try_from_bytes::<T>(unsafe { &*sized })?;
+        Ok(CheckedMut(sized.cast(), PhantomData))
     }
 
     fn owned_from_ref(r: Self::Ref<'_>) -> Result<Self::Owned> {

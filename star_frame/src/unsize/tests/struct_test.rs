@@ -21,6 +21,7 @@ pub struct UnsizedTest {
 pub struct UnsizedTest3 {
     #[unsized_start]
     pub unsized3: List<PackedValue<u16>, u8>,
+    pub unsized_map: UnsizedMap<u8, List<u8>>,
 }
 
 #[unsized_impl]
@@ -41,6 +42,7 @@ fn test_unsized_test() -> Result<()> {
         unsized2: [200, 201, 202].map(Into::into).to_vec(),
         unsized3: UnsizedTest3Owned {
             unsized3: [150, 151, 152].map(Into::into).to_vec(),
+            unsized_map: Default::default(),
         },
         map: Default::default(),
         map2: Default::default(),
@@ -70,11 +72,13 @@ fn test_unsized_test() -> Result<()> {
         1,
         UnsizedTest3Init {
             unsized3: unsized3_arr.map(Into::into),
+            unsized_map: DefaultInit,
         },
     )?;
     let mut item = map2.get_exclusive(&1)?.expect("Item exsts");
     assert_eq!(&**item.unsized3, unsized3_arr);
     item.unsized3().push(6.into())?;
+    item.unsized_map().insert(1, [1, 2, 3])?;
     drop(item); // ensure drop works properly still
     let mut some_item = banana.unsized2();
     some_item.push(204.into())?;
@@ -85,12 +89,14 @@ fn test_unsized_test() -> Result<()> {
         unsized2: [200, 201, 202, 203, 204].map(Into::into).to_vec(),
         unsized3: UnsizedTest3Owned {
             unsized3: [150, 151, 152, 153].map(Into::into).to_vec(),
+            unsized_map: Default::default(),
         },
         map: Default::default(),
         map2: std::iter::once((
             1,
             UnsizedTest3Owned {
                 unsized3: [1, 2, 3, 4, 5, 6].map(Into::into).to_vec(),
+                unsized_map: [(1u8, vec![1, 2, 3])].into_iter().collect(),
             },
         ))
         .collect(),

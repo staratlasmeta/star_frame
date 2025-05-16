@@ -12,7 +12,7 @@ use proc_macro_error2::{abort, ResultExt};
 use quote::{format_ident, quote, ToTokens};
 use syn::{
     parse2, parse_quote, AngleBracketedGenericArguments, Attribute, Fields, Generics, ItemEnum,
-    ItemStruct, Lifetime, Type, Visibility,
+    Lifetime, Type, Visibility,
 };
 
 #[allow(non_snake_case)]
@@ -210,7 +210,7 @@ impl UnsizedEnumContext {
         (the_generics, the_generics.where_clause.as_ref())
     }
 
-    fn enum_struct(&self) -> ItemStruct {
+    fn enum_struct(&self) -> TokenStream {
         Paths!(prelude, debug);
         UnsizedEnumContext!(self => enum_ident, generics, vis);
 
@@ -228,18 +228,18 @@ impl UnsizedEnumContext {
             quote!(#[derive(#debug)])
         };
 
-        parse_quote! {
+        quote! {
             #[repr(C)]
             #derives
             #vis struct #enum_ident #generics #phantom_generics #wc;
         }
     }
 
-    fn discriminant_enum(&self) -> ItemEnum {
+    fn discriminant_enum(&self) -> TokenStream {
         Paths!(debug, copy, clone, eq, partial_eq, bytemuck);
         UnsizedEnumContext!(self => vis, discriminant_ident, variant_idents, repr, discriminant_values);
 
-        parse_quote! {
+        quote! {
             #[derive(#copy, #clone, #debug, #eq, #partial_eq, Hash, Ord, PartialOrd, #bytemuck::NoUninit)]
             #repr
             #vis enum #discriminant_ident {
@@ -248,14 +248,14 @@ impl UnsizedEnumContext {
         }
     }
 
-    fn owned_enum(&self) -> ItemEnum {
+    fn owned_enum(&self) -> TokenStream {
         Paths!(prelude);
         UnsizedEnumContext!(self => owned_ident, variant_idents, variant_types, variant_docs, args, generics);
         let additional_owned = args.owned_attributes.attributes.iter();
         let wc = &generics.where_clause;
         let lt = new_lifetime(generics, None);
 
-        parse_quote! {
+        quote! {
             #(#[#additional_owned])*
             #[derive(#prelude::DeriveWhere)]
             #[derive_where(Debug, Copy, Clone, Eq, Hash, Ord, PartialEq, PartialOrd; #(for<#lt> <#variant_types as #prelude::UnsizedType>::Owned,)*)]
@@ -268,11 +268,11 @@ impl UnsizedEnumContext {
         }
     }
 
-    fn ref_enum(&self) -> ItemEnum {
+    fn ref_enum(&self) -> TokenStream {
         Paths!(prelude);
         UnsizedEnumContext!(self => ref_ident, variant_idents, variant_types, variant_docs, rm_lt);
         let (generics, wc) = self.split_for_declaration(true);
-        parse_quote! {
+        quote! {
             #[derive(#prelude::DeriveWhere)]
             #[derive_where(Debug, Copy, Clone; #(<#variant_types as #prelude::UnsizedType>::Ref<#rm_lt>,)*)]
             pub enum #ref_ident #generics #wc {
@@ -284,11 +284,11 @@ impl UnsizedEnumContext {
         }
     }
 
-    fn mut_enum(&self) -> ItemEnum {
+    fn mut_enum(&self) -> TokenStream {
         Paths!(prelude);
         UnsizedEnumContext!(self => mut_ident, variant_idents, variant_types, variant_docs, rm_lt);
         let (generics, wc) = self.split_for_declaration(true);
-        parse_quote! {
+        quote! {
             #[derive(#prelude::DeriveWhere)]
             #[derive_where(Debug; #(<#variant_types as #prelude::UnsizedType>::Mut<#rm_lt>,)*)]
             pub enum #mut_ident #generics #wc {
@@ -363,7 +363,7 @@ impl UnsizedEnumContext {
     }
 
     fn unsized_type_impl(&self) -> TokenStream {
-        Paths!(prelude, result);
+        Paths!(prelude, result, size_of);
         UnsizedEnumContext!(self => ref_type, rm_lt,
             ref_ident, mut_type, mut_ident, enum_type, variant_types, integer_repr,
             discriminant_ident, variant_idents
@@ -395,7 +395,7 @@ impl UnsizedEnumContext {
             #[automatically_derived]
             unsafe impl #impl_gen #prelude::UnsizedType for #enum_type #where_clause {
                 type Ref<#rm_lt> = #ref_type;
-                type Mut<#rm_lt> = #prelude::StartPointer<#mut_type>;
+                type Mut<#rm_lt> = #prelude::LengthTracker<#mut_type>;
                 type Owned = #owned_type;
 
                 const ZST_STATUS: bool = {
@@ -428,20 +428,22 @@ impl UnsizedEnumContext {
                     }
                 }
 
-                fn get_mut<#rm_lt>(data: &mut &#rm_lt mut [u8]) -> #result<Self::Mut<#rm_lt>> {
+                unsafe fn get_mut<#rm_lt>(data: &mut *mut [u8]) -> #result<Self::Mut<#rm_lt>> {
                     #(const #discriminant_consts: #integer_repr = #discriminant_ident::#variant_idents as #integer_repr;)*
-                    let start_ptr = data.as_mut_ptr().cast::<()>();
-                    let maybe_repr_bytes = #prelude::AdvanceArray::try_advance_array(data);
-                    let repr_bytes = #prelude::anyhow::Context::with_context(maybe_repr_bytes, || format!("Not enough bytes to get enum discriminant of {}", #prelude::type_name::<#enum_type>()))?;
-                    let repr: #integer_repr = <#integer_repr>::from_le_bytes(*repr_bytes);
+                    let start_ptr = data.cast::<()>();
+                    let maybe_repr_bytes = #prelude::RawSliceAdvance::try_advance(data, #size_of::<#discriminant_ident>());
+                    let repr_ptr = #prelude::anyhow::Context::with_context(maybe_repr_bytes, || format!("Not enough bytes to get enum discriminant of {}", #prelude::type_name::<#enum_type>()))?;
+                    let repr_bytes = unsafe { repr_ptr.cast::<[#integer_repr; #size_of::<#integer_repr>()]>().read() };
+                    let repr: #integer_repr = <#integer_repr>::from_le_bytes(repr_bytes);
                     let res = match repr {
                         #(
                             #discriminant_consts =>
-                                #mut_ident::#variant_idents(<#variant_types as #prelude::UnsizedType>::get_mut(data)?),
+                                #mut_ident::#variant_idents(unsafe { <#variant_types as #prelude::UnsizedType>::get_mut(data)? }),
                         )*
                         _ => #prelude::bail!("Invalid enum discriminant for {}", #prelude::type_name::<#enum_type>()),
                     };
-                    Ok(unsafe { #prelude::StartPointer::new(start_ptr, res) })
+                    let length = data.addr() - start_ptr.addr();
+                    Ok(unsafe { #prelude::LengthTracker::new(res, start_ptr, length) })
                 }
 
                 fn owned_from_ref(r: Self::Ref<'_>) -> #result<Self::Owned> {
@@ -449,7 +451,9 @@ impl UnsizedEnumContext {
                 }
 
                 unsafe fn resize_notification(self_mut: &mut Self::Mut<'_>, source_ptr: *const (), change: isize) -> #result<()> {
-                    unsafe { Self::Mut::handle_resize_notification(self_mut, source_ptr, change) };
+                    unsafe {
+                        Self::Mut::handle_resize_notification(self_mut, source_ptr, change, <#enum_type as #prelude::UnsizedType>::ZST_STATUS);
+                    }
                     match &mut self_mut.data {
                         #(
                             #mut_ident::#variant_idents(inner) => unsafe {
@@ -629,7 +633,7 @@ impl UnsizedEnumContext {
                         #enum_type: #prelude::UnsizedInit<#init_idents<#init>>,
                     {
                         unsafe {
-                            #prelude::ExclusiveWrapper::set_start_pointer_data::<#enum_type, _>(
+                            #prelude::ExclusiveWrapper::set_length_tracker_data::<#enum_type, _>(
                                 self,
                                 #init_idents(init),
                             )

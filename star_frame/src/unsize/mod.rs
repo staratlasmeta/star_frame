@@ -7,6 +7,7 @@ mod test_helpers;
 mod tests;
 pub mod wrapper;
 
+use anyhow::ensure;
 pub use owned_ref::*;
 pub use star_frame_proc::{unsized_impl, unsized_type};
 #[cfg(all(feature = "test_helpers", not(target_os = "solana")))]
@@ -38,7 +39,15 @@ pub unsafe trait UnsizedType: 'static {
     fn mut_as_ref<'a>(m: &'a Self::Mut<'_>) -> Self::Ref<'a>;
 
     fn get_ref<'a>(data: &mut &'a [u8]) -> Result<Self::Ref<'a>>;
-    fn get_mut<'a>(data: &mut &'a mut [u8]) -> Result<Self::Mut<'a>>;
+
+    /// # Safety
+    /// The pointer must be valid for `'a`, and the length metadata must not be more than the slice's actual
+    /// length. Implementations are allowed to modify the pointer and read from the data it points to, but should not write to it.
+    ///
+    /// We use raw pointers here to avoid invalidating the main data pointer through reborrowing, allowing us to pass Miri with the
+    /// Tree Borrows aliasing model.
+    unsafe fn get_mut<'a>(data: &mut *mut [u8]) -> Result<Self::Mut<'a>>;
+
     fn owned(mut data: &[u8]) -> Result<Self::Owned> {
         let data = &mut data;
         Self::owned_from_ref(Self::get_ref(data)?)
@@ -54,6 +63,52 @@ pub unsafe trait UnsizedType: 'static {
         source_ptr: *const (),
         change: isize,
     ) -> Result<()>;
+}
+
+#[doc(hidden)]
+mod sealed {
+    pub trait Sealed {}
+    impl Sealed for *mut [u8] {}
+}
+
+/// Convenience trait for advancing a raw pointer. See the sole implementation for `*mut [u8]` for more details.
+pub trait RawSliceAdvance: Sized + sealed::Sealed {
+    fn try_advance(&mut self, advance: usize) -> Result<Self>;
+}
+
+impl RawSliceAdvance for *mut [u8] {
+    /// Advances the pointer by `advance` bytes, returning a pointer to the advanced over section.
+    /// This uses [`Self::wrapping_add`] to advance the pointer, so while this method is safe to call,
+    /// the resulting pointer may be unsafe to dereference if Self and its metadata (slice length) are not valid.
+    ///
+    /// # Examples
+    /// ```
+    /// # use star_frame::unsize::RawSliceAdvance;
+    ///
+    /// let mut array = [1, 2, 3, 4, 5];
+    /// let mut ptr = core::ptr::from_mut(&mut array[..]);
+    /// let first_part = ptr.try_advance(3).unwrap();
+    ///
+    /// assert_eq!(first_part.len(), 3);
+    /// assert_eq!(ptr.len(), 2);
+    ///
+    /// let first_part = unsafe { &*first_part };
+    /// let remaining = unsafe { &*ptr };
+    ///
+    /// assert_eq!(first_part, &[1, 2, 3]);
+    /// assert_eq!(remaining, &[4, 5]);
+    /// ```
+    #[inline]
+    fn try_advance(&mut self, advance: usize) -> Result<Self> {
+        let len = self.len();
+        ensure!(advance <= len, "advance is out of bounds");
+        let to_return = core::ptr::slice_from_raw_parts_mut(self.cast::<u8>(), advance);
+        *self = core::ptr::slice_from_raw_parts_mut(
+            self.cast::<u8>().wrapping_add(advance),
+            len - advance,
+        );
+        Ok(to_return)
+    }
 }
 
 /// # Safety

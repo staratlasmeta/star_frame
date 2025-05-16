@@ -19,9 +19,9 @@ pub mod macro_prelude {
     pub use crate::unsize::{
         init::{DefaultInit, UnsizedInit},
         wrapper::{
-            ExclusiveRecurse, ExclusiveWrapper, SharedWrapper, StartPointer, UnsizedTypeDataAccess,
+            ExclusiveRecurse, ExclusiveWrapper, LengthTracker, SharedWrapper, UnsizedTypeDataAccess,
         },
-        AsShared, FromOwned, UnsizedType,
+        AsShared, FromOwned, RawSliceAdvance, UnsizedType,
     };
 
     pub use crate::Result;

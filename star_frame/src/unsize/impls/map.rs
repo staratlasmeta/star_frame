@@ -39,8 +39,8 @@ unsafe impl<K: UnsizedGenerics, V: UnsizedGenerics> CheckedBitPattern for ListIt
     }
 }
 
-#[unsized_type(skip_idl, owned_attributes = [doc = "The [`UnsizedType::Owned`] variant of [`Map`]. 
-    It is generally easier to create an initial [`BTreeMap`] or iterator of [`(K, V)`] 
+#[unsized_type(skip_idl, owned_attributes = [doc = "The [`UnsizedType::Owned`] variant of [`Map`].
+    It is generally easier to create an initial [`BTreeMap`] or iterator of [`(K, V)`]
     and convert to this type vs working on it directly."]
 )]
 pub struct Map<K, V, L = u32>

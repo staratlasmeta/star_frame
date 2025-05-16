@@ -28,15 +28,21 @@ impl<'info> TestUnderlyingData<'info> {
     }
 }
 
-impl<'info> UnsizedTypeDataAccess<'info> for TestUnderlyingData<'info> {
-    unsafe fn realloc(this: &Self, new_len: usize, data: &mut &'info mut [u8]) -> Result<()> {
+/// # Safety
+/// We are properly checking the bounds in `unsized_data_realloc`.
+unsafe impl<'info> UnsizedTypeDataAccess<'info> for TestUnderlyingData<'info> {
+    unsafe fn unsized_data_realloc(
+        this: &Self,
+        data: &mut *mut [u8],
+        new_len: usize,
+    ) -> Result<()> {
         assert!(
             new_len <= this.original_data_len + MAX_PERMITTED_DATA_INCREASE,
             "data too large"
         );
 
         unsafe {
-            *data = from_raw_parts_mut(data.as_mut_ptr(), new_len);
+            *data = ptr_meta::from_raw_parts_mut(data.cast(), new_len);
         }
         Ok(())
     }
