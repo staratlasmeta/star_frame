@@ -112,7 +112,8 @@ impl<T> Deref for SharedWrapper<'_, T> {
 #[derive(Debug)]
 pub enum ExclusiveWrapper<'parent, 'top, Mut, P> {
     Top {
-        data: OwnedRefMut<'top, (P, Mut)>,
+        // We Box the Mut so its derived from a separate allocation, so dereferencing parent in inners wont invalidate the top Mut.
+        data: OwnedRefMut<'top, (P, Box<Mut>)>,
     },
     Inner {
         parent_lt: PhantomData<&'parent ()>,
@@ -120,6 +121,14 @@ pub enum ExclusiveWrapper<'parent, 'top, Mut, P> {
         field: *mut Mut,
     },
 }
+
+type ExclusiveWrapperTopVariant<'top, Top, A> = OwnedRefMut<
+    'top,
+    (
+        ExclusiveWrapperTopMeta<'top, Top, A>,
+        Box<<Top as UnsizedType>::Mut<'top>>,
+    ),
+>;
 
 pub type ExclusiveWrapperTop<'top, Top, A> = ExclusiveWrapper<
     'top,
@@ -166,7 +175,7 @@ where
                     },
                     // SAFETY:
                     // The pointer lasts for 'top, and we made the pointer from a properly formed slice, so its metadata is valid.
-                    unsafe { Top::get_mut(&mut data)? },
+                    unsafe { Box::new(Top::get_mut(&mut data)?) },
                 ))
             })?,
         })
@@ -191,7 +200,7 @@ impl<Mut, P> ExclusiveWrapper<'_, '_, Mut, P> {
 
     fn mut_mut(this: &mut Self) -> *mut Mut {
         match this {
-            ExclusiveWrapper::Top { data, .. } => &mut data.1,
+            ExclusiveWrapper::Top { data, .. } => &raw mut *(data.1),
             ExclusiveWrapper::Inner { field, .. } => {
                 // SAFETY:
                 // We have exclusive access to self right now, so no mutable references to self can exist.
@@ -279,11 +288,10 @@ where
         start: *mut (),
         amount: usize,
     ) -> Result<()> {
-        let s: &mut OwnedRefMut<'_, (ExclusiveWrapperTopMeta<'top, Top, A>, Top::Mut<'top>)> =
-            match wrapper {
-                ExclusiveWrapper::Top { data, .. } => data,
-                ExclusiveWrapper::Inner { .. } => unreachable!(),
-            };
+        let s: &mut ExclusiveWrapperTopVariant<'top, Top, A> = match wrapper {
+            ExclusiveWrapper::Top { data, .. } => data,
+            ExclusiveWrapper::Inner { .. } => unreachable!(),
+        };
 
         {
             // SAFETY:

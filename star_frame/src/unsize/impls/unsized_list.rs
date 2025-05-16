@@ -1386,9 +1386,7 @@ iter_impls!(UnsizedListIter: T::Ref<'a>, UnsizedListIterMut: T::Mut<'a>);
 #[cfg(all(test, feature = "test_helpers"))]
 mod tests {
     use super::*;
-    use crate::prelude::{
-        List, ListExclusiveImpl, Map, MapExclusiveImpl, UnsizedMap, UnsizedMapExclusiveImpl,
-    };
+    use crate::prelude::{List, ListExclusiveImpl};
     use crate::unsize::test_helpers::TestByteSet;
     use crate::unsize::NewByteSet;
     use pretty_assertions::assert_eq;
@@ -1440,34 +1438,6 @@ mod tests {
         ];
         let test_bytes = TestByteSet::<UnsizedList<List<PackedValue<u32>>>>::new(owned.clone())?;
         assert_eq!(test_bytes.owned()?, owned);
-        Ok(())
-    }
-
-    #[unsized_type(skip_idl)]
-    struct InnerList {
-        #[unsized_start]
-        list: List<u8>,
-    }
-
-    #[unsized_type(skip_idl)]
-    struct OuterList {
-        #[unsized_start]
-        // list: UnsizedMap<u8, InnerList>,
-        inner_list: InnerList,
-    }
-
-    #[test]
-    fn test_inner_list() -> Result<()> {
-        let test_bytes = OuterList::new_default_byte_set()?;
-        let mut bytes = test_bytes.data_mut()?;
-        // bytes.list().insert(0, DefaultInit)?;
-        let mut inner_list = bytes.inner_list();
-        inner_list.list().push(1)?;
-        inner_list.list().push(2)?;
-
-        drop(bytes);
-
-        let _bytes = test_bytes.data()?;
         Ok(())
     }
 

@@ -493,7 +493,7 @@ where
         unsafe {
             ExclusiveRecurse::add_bytes(self, source_ptr, end_ptr, size_of::<T>() * to_add)?;
         };
-        
+
         self.len = PackedValue(new_len);
         self.0 =
             ptr_meta::from_raw_parts_mut(self.0.cast::<()>(), (old_len + to_add) * size_of::<T>());
@@ -755,7 +755,7 @@ where
 #[cfg(all(test, feature = "test_helpers"))]
 mod tests {
     use super::*;
-    use crate::unsize::NewByteSet;
+    use crate::unsize::{unsized_type, NewByteSet};
     use pretty_assertions::assert_eq;
 
     #[test]
@@ -787,6 +787,32 @@ mod tests {
         list.remove_range(1..3)?;
         assert_eq!(&*vec, &***list);
 
+        Ok(())
+    }
+
+    #[unsized_type(skip_idl)]
+    struct InnerList {
+        #[unsized_start]
+        list: List<u8>,
+    }
+
+    #[unsized_type(skip_idl)]
+    struct OuterList {
+        #[unsized_start]
+        inner_list: InnerList,
+    }
+
+    #[test]
+    fn test_inner_list() -> Result<()> {
+        let test_bytes = OuterList::new_default_byte_set()?;
+        let mut bytes = test_bytes.data_mut()?;
+        let mut inner_list = bytes.inner_list();
+        inner_list.list().push(1)?;
+        inner_list.list().push(2)?;
+
+        drop(bytes);
+
+        let _bytes = test_bytes.data()?;
         Ok(())
     }
 }
