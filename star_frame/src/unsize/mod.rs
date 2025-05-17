@@ -46,6 +46,8 @@ pub unsafe trait UnsizedType: 'static {
     ///
     /// We use raw pointers here to avoid invalidating the main data pointer through reborrowing, allowing us to pass Miri with the
     /// Tree Borrows aliasing model.
+    ///
+    /// This implementation should probably be correct as well. TODO: check if unsafe code relies on this being correct.
     unsafe fn get_mut<'a>(data: &mut *mut [u8]) -> Result<Self::Mut<'a>>;
 
     fn owned(mut data: &[u8]) -> Result<Self::Owned> {
