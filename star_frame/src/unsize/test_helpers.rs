@@ -42,7 +42,7 @@ unsafe impl<'info> UnsizedTypeDataAccess<'info> for TestUnderlyingData<'info> {
         );
 
         unsafe {
-            *data = ptr_meta::from_raw_parts_mut(data.cast(), new_len);
+            *data = ptr_meta::from_raw_parts_mut(data.cast::<()>(), new_len);
         }
         Ok(())
     }
