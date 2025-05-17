@@ -1,6 +1,6 @@
 //! Anchor replacement.
 // TODO: Expand docs
-
+#![cfg_attr(feature = "nightly", feature(offset_of_enum))]
 #![warn(
     clippy::pedantic,
     missing_copy_implementations,
