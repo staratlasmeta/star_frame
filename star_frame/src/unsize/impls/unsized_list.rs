@@ -688,12 +688,16 @@ where
                 .wrapping_byte_add(self_mut.total_byte_size())
         {
             // An element in me is changing its size!!
-            unsafe {
-                T::resize_notification(
-                    self_mut.inner_exclusive.assume_init_mut(),
-                    source_ptr,
-                    change,
-                )?;
+            if self_mut.inner_initialized {
+                unsafe {
+                    T::resize_notification(
+                        self_mut.inner_exclusive.assume_init_mut(),
+                        source_ptr,
+                        change,
+                    )?;
+                }
+            } else {
+                bail!("An element UnsizedList is changing its size, but the inner Mut is not initialized. This should never happen");
             }
             let new_unsized_len: isize = self_mut
                 .unsized_size
@@ -1476,8 +1480,8 @@ mod tests {
         assert_eq!(&***second_item, &*second_item_owned);
 
         drop(data);
-        let owned_list = map.owned()?;
-        assert_eq!(owned_list, owned_list);
+        let data_to_owned = map.owned()?;
+        assert_eq!(owned_list, data_to_owned);
         Ok(())
     }
 }
