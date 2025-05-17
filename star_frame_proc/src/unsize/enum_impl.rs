@@ -621,8 +621,8 @@ impl UnsizedEnumContext {
                                         // We know what the variant is, and the mut enum has an integer repr, so we can advance over the discriminant and any additional bytes past the alignment padding for the variant.
                                         // see https://doc.rust-lang.org/reference/type-layout.html#primitive-representation-of-enums-with-fields
                                         let offset: usize = #size_of::<#integer_repr>() + ::core::mem::align_of::<<#variant_types as #prelude::UnsizedType>::Mut<#top_lt>>().saturating_sub(#size_of::<#integer_repr>());
-                                        #[cfg(feature = "nightly")]
-                                        debug_assert_eq!(offset, ::core::mem::offset_of!(#mut_type, #variant_idents.0));
+                                        // TODO: Use this once offset_of is stable
+                                        // debug_assert_eq!(offset, ::core::mem::offset_of!(#mut_type, #variant_idents.0));
                                         inner.wrapping_byte_add(offset).cast::<<#variant_types as #prelude::UnsizedType>::Mut<#top_lt>>()
                                     })
                                 })

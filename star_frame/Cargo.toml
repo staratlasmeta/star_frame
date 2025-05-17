@@ -13,8 +13,6 @@ cleanup_rent_warning = []
 idl = ["star_frame_idl", "serde_json"]
 test_helpers = []
 locked_versions = []
-# Performs additional nightly-only checks. Enabling this feature will require a nightly Rust toolchain.
-nightly = []
 
 [dependencies]
 advancer = { workspace = true }
@@ -44,6 +42,3 @@ star_frame_idl = { workspace = true, optional = true }
 pretty_assertions = { workspace = true }
 strum = { workspace = true, features = ["derive"] }
 rand = { workspace = true }
-
-[build-dependencies]
-rustc_version = { workspace = true }
