@@ -50,7 +50,7 @@ unsafe impl<'info> UnsizedTypeDataAccess<'info> for AccountInfo<'info> {
         // Set new length in the serialized data. Very questionable, but it's what solana does in `Self::realloc`.
         unsafe {
             data.cast::<u8>()
-                .offset(-8)
+                .wrapping_offset(-8)
                 .cast::<u64>()
                 .write_unaligned(new_len as u64);
         }
