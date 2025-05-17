@@ -72,7 +72,7 @@ where
         let len = self
             .len
             .to_usize()
-            .expect("Could not convert list size to usize");
+            .expect("List size should convert to usize");
         debug_assert_eq!(len, self.bytes.len() / size_of::<T>());
         len
     }
