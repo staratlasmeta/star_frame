@@ -593,8 +593,11 @@ impl UnsizedEnumContext {
             parse2(get_return_gen_tt).unwrap_or_abort();
         get_return_gen_args.args.push(parse_quote!(Self));
 
-        let ext_impl_trait_generics =
-            combine_gen!(ext_trait_generics; where Self: #prelude::ExclusiveRecurse + #sized);
+        let ext_impl_trait_generics = combine_gen!(ext_trait_generics;
+            where
+                Self: #prelude::ExclusiveRecurse + #sized,
+                #enum_type: #prelude::UnsizedType<Mut<'top> = #prelude::LengthTracker<#mut_type>>
+        );
         let impl_wc = ext_impl_trait_generics.split_for_impl().2;
 
         let extension_trait = quote! {
@@ -605,7 +608,7 @@ impl UnsizedEnumContext {
                 #(
                     fn #setter_methods<#init>(&mut self, init: #init) -> #result<()>
                     where
-                        #enum_type: #prelude::UnsizedInit<#init_idents<#init>> + #prelude::UnsizedType<Mut<'top> = LengthTracker<#mut_type>>;
+                        #enum_type: #prelude::UnsizedInit<#init_idents<#init>>;
                 )*
             }
 
@@ -634,7 +637,7 @@ impl UnsizedEnumContext {
                 #(
                     fn #setter_methods<Init>(&mut self, init: #init) -> #result<()>
                     where
-                        #enum_type: #prelude::UnsizedInit<#init_idents<#init>> + #prelude::UnsizedType<Mut<'top> = LengthTracker<#mut_type>>,
+                        #enum_type: #prelude::UnsizedInit<#init_idents<#init>>
                     {
                         unsafe {
                             Self::set_length_tracker_data::<#enum_type, _>(
