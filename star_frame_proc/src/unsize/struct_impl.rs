@@ -97,7 +97,7 @@ pub struct UnsizedStructContext {
     vis: Visibility,
     struct_ident: Ident,
     struct_type: Type,
-    rm_lt: Lifetime,
+    top_lt: Lifetime,
     ref_mut_generics: Generics,
     generics: Generics,
     mut_ident: Ident,
@@ -186,8 +186,8 @@ impl UnsizedStructContext {
             }
         }
 
-        let ref_mut_lifetime = new_lifetime(&item_struct.generics, None);
-        let ref_mut_generics = combine_gen!(item_struct.generics; <#ref_mut_lifetime>);
+        let top_lt = new_lifetime(&item_struct.generics, Some("top"));
+        let ref_mut_generics = combine_gen!(item_struct.generics; <#top_lt>);
 
         let ref_mut_type_gen = ref_mut_generics.split_for_impl().1;
         let type_generics = &item_struct.generics.split_for_impl().1;
@@ -244,7 +244,7 @@ impl UnsizedStructContext {
             generics,
             vis,
             struct_ident,
-            rm_lt: ref_mut_lifetime,
+            top_lt,
             ref_mut_generics,
             struct_type,
             mut_ident,
@@ -308,16 +308,16 @@ impl UnsizedStructContext {
 
     fn ref_struct(&self) -> TokenStream {
         Paths!(prelude);
-        UnsizedStructContext!(self => vis, ref_ident, with_sized_vis, with_sized_idents, with_sized_types, rm_lt);
+        UnsizedStructContext!(self => vis, ref_ident, with_sized_vis, with_sized_idents, with_sized_types, top_lt);
         let (generics, wc) = self.split_for_declaration(true);
         let transparent = (with_sized_idents.len() == 1).then(|| quote!(#[repr(transparent)]));
         quote! {
             #[derive(#prelude::DeriveWhere)]
-            #[derive_where(Debug, Copy, Clone; #(<#with_sized_types as #prelude::UnsizedType>::Ref<#rm_lt>,)*)]
+            #[derive_where(Debug, Copy, Clone; #(<#with_sized_types as #prelude::UnsizedType>::Ref<#top_lt>,)*)]
             #transparent
             #vis struct #ref_ident #generics #wc {
                 #(
-                    #with_sized_vis #with_sized_idents: <#with_sized_types as #prelude::UnsizedType>::Ref<#rm_lt>,
+                    #with_sized_vis #with_sized_idents: <#with_sized_types as #prelude::UnsizedType>::Ref<#top_lt>,
                 )*
             }
         }
@@ -325,17 +325,17 @@ impl UnsizedStructContext {
 
     fn mut_struct(&self) -> TokenStream {
         Paths!(prelude);
-        UnsizedStructContext!(self => vis, mut_ident, rm_lt, with_sized_vis, with_sized_idents, with_sized_types);
+        UnsizedStructContext!(self => vis, mut_ident, top_lt, with_sized_vis, with_sized_idents, with_sized_types);
         let (generics, wc) = self.split_for_declaration(true);
         let transparent = (with_sized_idents.len() == 1).then(|| quote!(#[repr(transparent)]));
 
         quote! {
             #[derive(#prelude::DeriveWhere)]
-            #[derive_where(Debug; #(<#with_sized_types as #prelude::UnsizedType>::Mut<#rm_lt>,)*)]
+            #[derive_where(Debug; #(<#with_sized_types as #prelude::UnsizedType>::Mut<#top_lt>,)*)]
             #transparent
             #vis struct #mut_ident #generics #wc {
                 #(
-                    #with_sized_vis #with_sized_idents: <#with_sized_types as #prelude::UnsizedType>::Mut<#rm_lt>,
+                    #with_sized_vis #with_sized_idents: <#with_sized_types as #prelude::UnsizedType>::Mut<#top_lt>,
                 )*
             }
         }
@@ -589,7 +589,7 @@ impl UnsizedStructContext {
 
     fn as_shared_impl(&self) -> TokenStream {
         Paths!(prelude);
-        UnsizedStructContext!(self => with_sized_idents, with_sized_types, mut_ident, rm_lt, ref_type, ref_ident);
+        UnsizedStructContext!(self => with_sized_idents, with_sized_types, mut_ident, top_lt, ref_type, ref_ident);
 
         let underscore_gen = combine_gen!(self.generics; <'_>);
         let underscore_ty_gen = underscore_gen.split_for_impl().1;
@@ -599,8 +599,8 @@ impl UnsizedStructContext {
         quote! {
             #[automatically_derived]
             impl #impl_gen #prelude::AsShared for #mut_ident #underscore_ty_gen #where_clause {
-                type Ref<#rm_lt> = #ref_type
-                    where Self: #rm_lt;
+                type Ref<#top_lt> = #ref_type
+                    where Self: #top_lt;
                 fn as_shared(&self) -> Self::Ref<'_> {
                     #ref_ident {
                         #(#with_sized_idents: <#with_sized_types as #prelude::UnsizedType>::mut_as_ref(&self.#with_sized_idents),)*
@@ -667,7 +667,7 @@ impl UnsizedStructContext {
 
     fn unsized_type_impl(&self) -> TokenStream {
         Paths!(prelude, result);
-        UnsizedStructContext!(self => ref_type, sized_field_idents, struct_type, rm_lt,
+        UnsizedStructContext!(self => ref_type, sized_field_idents, struct_type, top_lt,
             with_sized_types, ref_ident, with_sized_idents, mut_type, mut_ident,
             unsized_field_idents, unsized_field_types, struct_ident
         );
@@ -696,8 +696,8 @@ impl UnsizedStructContext {
         quote! {
             #[automatically_derived]
             unsafe impl #impl_gen #prelude::UnsizedType for #struct_type #where_clause {
-                type Ref<#rm_lt> = #ref_type;
-                type Mut<#rm_lt> = #mut_type;
+                type Ref<#top_lt> = #ref_type;
+                type Mut<#top_lt> = #mut_type;
                 type Owned = #owned_type;
 
                 const ZST_STATUS: bool = {
@@ -707,19 +707,19 @@ impl UnsizedStructContext {
                     <#last_ty as UnsizedType>::ZST_STATUS
                 };
 
-                fn mut_as_ref<#rm_lt>(m: &#rm_lt Self::Mut<'_>) -> Self::Ref<#rm_lt> {
+                fn mut_as_ref<#top_lt>(m: &#top_lt Self::Mut<'_>) -> Self::Ref<#top_lt> {
                     #ref_ident{
                         #(#with_sized_idents: <#with_sized_types as #prelude::UnsizedType>::mut_as_ref(&m.#with_sized_idents),)*
                     }
                 }
 
-                fn get_ref<#rm_lt>(data: &mut &#rm_lt [u8]) -> #result<Self::Ref<#rm_lt>> {
+                fn get_ref<#top_lt>(data: &mut &#top_lt [u8]) -> #result<Self::Ref<#top_lt>> {
                     Ok(#ref_ident {
                         #(#with_sized_idents: <#with_sized_types as #prelude::UnsizedType>::get_ref(data)?,)*
                     })
                 }
 
-                unsafe fn get_mut<#rm_lt>(data: &mut *mut [u8]/* , provenance: Option<*mut ()> */) -> #result<Self::Mut<#rm_lt>> {
+                unsafe fn get_mut<#top_lt>(data: &mut *mut [u8]/* , provenance: Option<*mut ()> */) -> #result<Self::Mut<#top_lt>> {
                     Ok(#mut_ident {
                         #(#with_sized_idents: unsafe {<#with_sized_types as #prelude::UnsizedType>::get_mut(data/* , provenance */)? },)*
                     })
@@ -829,9 +829,8 @@ impl UnsizedStructContext {
 
     fn extension_impl(&self) -> TokenStream {
         Paths!(prelude, sized);
-        UnsizedStructContext!(self => struct_ident, unsized_fields, struct_type);
+        UnsizedStructContext!(self => struct_ident, unsized_fields, struct_type, top_lt);
         let parent_lt = new_lifetime(&self.generics, Some("parent"));
-        let top_lt = new_lifetime(&self.generics, Some("top"));
         let child = new_lifetime(&self.generics, Some("child"));
         let p = new_generic(&self.generics, Some("P"));
 
