@@ -104,7 +104,7 @@ unsafe impl UnsizedType for RemainingBytes {
     ) -> Result<()> {
         let self_ptr = self_mut.0;
         match source_ptr.cmp(&self_ptr.cast_const().cast()) {
-            Ordering::Less => self_mut.0 = unsafe { self_ptr.byte_offset(change) },
+            Ordering::Less => self_mut.0 = self_ptr.wrapping_byte_offset(change),
             Ordering::Equal => {}
             Ordering::Greater => {
                 bail!("Resize occurred after RemainingBytes, which shouldn't be possible")
