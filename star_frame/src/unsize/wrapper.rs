@@ -537,19 +537,14 @@ where
             Ordering::Less => {
                 // TODO: might be safe
                 unsafe {
-                    ExclusiveWrapper::add_bytes(
-                        wrapper,
-                        wrapper.start,
-                        wrapper.start,
-                        new_len - current_len,
-                    )
+                    Self::add_bytes(wrapper, wrapper.start, wrapper.start, new_len - current_len)
                 }?;
             }
             Ordering::Equal => {}
             Ordering::Greater => {
                 // TODO: might be safe
                 unsafe {
-                    ExclusiveWrapper::remove_bytes(
+                    Self::remove_bytes(
                         wrapper,
                         wrapper.start,
                         wrapper.start..wrapper.start.wrapping_byte_add(current_len - new_len),
@@ -557,20 +552,27 @@ where
                 }?;
             }
         }
-        wrapper.data = {
+        **wrapper = {
             // SAFETY:
             // We have exclusive access to the wrapper, so no external references to the underlying data exist.
             // No other references exist in this function either. We can assume the StartPointer is valid since it was created by the UnsizedType implementation.
-            let slice_ptr: *mut [u8] = ptr_meta::from_raw_parts_mut(wrapper.start.cast(), new_len);
-            let mut slice = unsafe { &mut *slice_ptr };
-            // let slice = unsafe { from_raw_parts_mut(wrapper.start.cast::<u8>(), new_len) };
-            // TODO: this is probably safe
-            unsafe { <U as UnsizedInit<I>>::init(&mut slice, init_arg)? };
-            unsafe {
-                U::get_mut(&mut slice_ptr.clone() /* None */)?.data
+            let mut slice_ptr: *mut [u8] =
+                ptr_meta::from_raw_parts_mut(wrapper.start.cast::<()>(), new_len);
+            {
+                // SAFETY:
+                // we just made the slice pointer. No one else has access to the data, so we can dereference it as we please.
+                let mut slice = unsafe { &mut *slice_ptr };
+                // TODO: this is probably safe
+                unsafe { <U as UnsizedInit<I>>::init(&mut slice, init_arg)? };
             }
+            // SAFETY:
+            // The underlying data is valid for 'top, and we just created the slice so it's length is valid.
+            // We just resizd the underlying data to be enough for `len`
+            let res: U::Mut<'top> = unsafe { U::get_mut(&mut slice_ptr)? };
+            debug_assert_eq!(res.len, new_len);
+            debug_assert_eq!(res.start, wrapper.start);
+            res
         };
-        wrapper.len = new_len;
         Ok(())
     }
 }
