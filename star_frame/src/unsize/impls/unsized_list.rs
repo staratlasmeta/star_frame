@@ -453,9 +453,10 @@ where
     T: UnsizedType + ?Sized,
     C: UnsizedListOffset,
 {
-    pub(crate) list_ptr: *mut UnsizedList<T, C>,
-    pub(super) inner_exclusive: Box<MaybeUninit<T::Mut<'a>>>,
-    pub inner_initialized: bool,
+    list_ptr: *mut UnsizedList<T, C>,
+    // We use MaybeUninit here to allow us to access the pointer directly without reborrowing (TODO: Fully understand why this is neccesary lol)
+    inner_exclusive: Box<MaybeUninit<T::Mut<'a>>>,
+    inner_initialized: bool,
     phantom: PhantomData<&'a ()>,
 }
 
