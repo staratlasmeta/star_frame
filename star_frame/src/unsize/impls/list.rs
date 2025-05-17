@@ -540,16 +540,9 @@ where
         let old_len = self.len();
         let new_len = old_len - to_remove;
         let source_ptr: *const () = self.0.cast_const().cast();
-        let start_ptr = self
-            .bytes
-            .as_mut_ptr()
-            .wrapping_add(start * size_of::<T>())
-            .cast();
-        let end_ptr = self
-            .bytes
-            .as_mut_ptr()
-            .wrapping_add(end * size_of::<T>())
-            .cast();
+        let bytes_ptr = self.bytes.as_mut_ptr();
+        let start_ptr = bytes_ptr.wrapping_add(start * size_of::<T>()).cast();
+        let end_ptr = bytes_ptr.wrapping_add(end * size_of::<T>()).cast();
         unsafe {
             ExclusiveRecurse::remove_bytes(self, source_ptr, start_ptr..end_ptr)?;
         };
