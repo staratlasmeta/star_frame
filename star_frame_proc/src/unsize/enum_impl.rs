@@ -433,9 +433,9 @@ impl UnsizedEnumContext {
                 unsafe fn get_mut<#top_lt>(data: &mut *mut [u8]) -> #result<Self::Mut<#top_lt>> {
                     #(const #discriminant_consts: #integer_repr = #discriminant_ident::#variant_idents as #integer_repr;)*
                     let start_ptr = data.cast::<()>();
-                    let maybe_repr_bytes = #prelude::RawSliceAdvance::try_advance(data, #size_of::<#discriminant_ident>());
+                    let maybe_repr_bytes = #prelude::RawSliceAdvance::try_advance(data, #size_of::<#integer_repr>());
                     let repr_ptr = #prelude::anyhow::Context::with_context(maybe_repr_bytes, || format!("Not enough bytes to get enum discriminant of {}", #prelude::type_name::<#enum_type>()))?;
-                    let repr_bytes = unsafe { repr_ptr.cast::<[#integer_repr; #size_of::<#integer_repr>()]>().read() };
+                    let repr_bytes = unsafe { repr_ptr.cast::<[u8; #size_of::<#integer_repr>()]>().read() };
                     let repr: #integer_repr = <#integer_repr>::from_le_bytes(repr_bytes);
                     let res = match repr {
                         #(
