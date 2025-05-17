@@ -719,9 +719,9 @@ impl UnsizedStructContext {
                     })
                 }
 
-                unsafe fn get_mut<#top_lt>(data: &mut *mut [u8]/* , provenance: Option<*mut ()> */) -> #result<Self::Mut<#top_lt>> {
+                unsafe fn get_mut<#top_lt>(data: &mut *mut [u8]) -> #result<Self::Mut<#top_lt>> {
                     Ok(#mut_ident {
-                        #(#with_sized_idents: unsafe {<#with_sized_types as #prelude::UnsizedType>::get_mut(data/* , provenance */)? },)*
+                        #(#with_sized_idents: unsafe {<#with_sized_types as #prelude::UnsizedType>::get_mut(data)? },)*
                     })
                 }
 
