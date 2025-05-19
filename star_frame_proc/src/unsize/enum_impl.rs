@@ -250,7 +250,7 @@ impl UnsizedEnumContext {
 
     fn owned_enum(&self) -> TokenStream {
         Paths!(prelude);
-        UnsizedEnumContext!(self => owned_ident, variant_idents, variant_types, variant_docs, args, generics);
+        UnsizedEnumContext!(self => owned_ident, variant_idents, variant_types, variant_docs, args, generics, integer_repr, discriminant_values);
         let additional_owned = args.owned_attributes.attributes.iter();
         let wc = &generics.where_clause;
         let lt = new_lifetime(generics, None);
@@ -259,10 +259,11 @@ impl UnsizedEnumContext {
             #(#[#additional_owned])*
             #[derive(#prelude::DeriveWhere)]
             #[derive_where(Debug, Copy, Clone, Eq, Hash, Ord, PartialEq, PartialOrd; #(for<#lt> <#variant_types as #prelude::UnsizedType>::Owned,)*)]
+            #[repr(#integer_repr)]
             pub enum #owned_ident #generics #wc {
                 #(
                     #(#variant_docs)*
-                    #variant_idents(<#variant_types as #prelude::UnsizedType>::Owned),
+                    #variant_idents(<#variant_types as #prelude::UnsizedType>::Owned) #discriminant_values,
                 )*
             }
         }
@@ -550,8 +551,8 @@ impl UnsizedEnumContext {
     }
 
     fn extension_impl(&self) -> TokenStream {
-        Paths!(prelude, result, sized, size_of);
-        UnsizedEnumContext!(self => vis, enum_ident, variant_idents, integer_repr, variant_types, mut_ident, init_idents, enum_type, top_lt, mut_type);
+        Paths!(prelude, ptr, result, sized);
+        UnsizedEnumContext!(self => vis, enum_ident, variant_idents, variant_types, mut_ident, init_idents, enum_type, top_lt, mut_type);
 
         // Create new lifetimes and generics for the extension trait
         let parent_lt = new_lifetime(&self.generics, Some("parent"));
@@ -618,15 +619,11 @@ impl UnsizedEnumContext {
                 fn get<#child_lt>(&#child_lt mut self) -> #exclusive_ident #get_return_gen_args {
                     match &***self {
                         #(
-                            #mut_ident::#variant_idents(_) => {
+                            #mut_ident::#variant_idents(variant) => {
+                                let variant_addr = #ptr::from_ref(variant).addr();
                                 #exclusive_ident::#variant_idents(unsafe {
                                     #prelude::ExclusiveWrapper::map_mut::<#variant_types>(self, |inner| {
-                                        // We know what the variant is, and the mut enum has an integer repr, so we can advance over the discriminant and any additional bytes past the alignment padding for the variant.
-                                        // see https://doc.rust-lang.org/reference/type-layout.html#primitive-representation-of-enums-with-fields
-                                        let offset: usize = #size_of::<#integer_repr>() + ::core::mem::align_of::<<#variant_types as #prelude::UnsizedType>::Mut<#top_lt>>().saturating_sub(#size_of::<#integer_repr>());
-                                        // TODO: Use this once offset_of is stable
-                                        // debug_assert_eq!(offset, ::core::mem::offset_of!(#mut_type, #variant_idents.0));
-                                        inner.wrapping_byte_add(offset).cast::<<#variant_types as #prelude::UnsizedType>::Mut<#top_lt>>()
+                                        inner.with_addr(variant_addr).cast::<<#variant_types as #prelude::UnsizedType>::Mut<#top_lt>>()
                                     })
                                 })
                             }
