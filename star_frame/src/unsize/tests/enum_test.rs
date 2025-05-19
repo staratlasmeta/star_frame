@@ -33,11 +33,11 @@ pub struct EnumTestStruct {
 }
 
 #[unsized_type(skip_idl)]
-#[repr(u8)]
+#[repr(u16)]
 pub enum UnsizedEnumTest<T: UnsizedType + Debug + ?Sized> {
     #[default_init]
     Unsized1(T),
-    Unsized2(Unsized2),
+    Unsized2(Unsized2) = 2,
     Unsized3(Unsized3),
 }
 
