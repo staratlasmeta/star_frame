@@ -2,7 +2,7 @@ use crate::align1::Align1;
 use crate::data_types::PackedValue;
 use crate::unsize::init::{DefaultInit, UnsizedInit};
 use crate::unsize::wrapper::ExclusiveRecurse;
-use crate::unsize::{AsShared, FromOwned, UnsizedType};
+use crate::unsize::{AsShared, FromOwned, RawSliceAdvance, UnsizedType};
 use crate::util::uninit_array_bytes;
 use crate::Result;
 use advancer::Advance;
@@ -69,14 +69,17 @@ where
 {
     #[inline]
     pub fn len(&self) -> usize {
-        self.len
+        let len = self
+            .len
             .to_usize()
-            .expect("Could not convert list size to usize")
+            .expect("List size should convert to usize");
+        debug_assert_eq!(len, self.bytes.len() / size_of::<T>());
+        len
     }
 
     #[inline]
     pub fn is_empty(&self) -> bool {
-        self.bytes.is_empty()
+        self.len() == 0
     }
 
     #[inline]
@@ -371,15 +374,17 @@ where
         ))
     }
 
-    fn get_mut<'a>(data: &mut &'a mut [u8]) -> Result<Self::Mut<'a>> {
-        let length_bytes = data.try_advance(size_of::<L>()).with_context(|| {
+    unsafe fn get_mut<'a>(data: &mut *mut [u8]) -> Result<Self::Mut<'a>> {
+        let len_ptr = data.try_advance(size_of::<L>()).with_context(|| {
             format!(
                 "Failed to read length bytes of size {} for {}",
                 size_of::<L>(),
                 std::any::type_name::<Self>()
             )
         })?;
-        let len_l = from_bytes::<PackedValue<L>>(length_bytes);
+        // SAFETY:
+        // We are allowed to read from the pointer per the method contract, and it must be valid.
+        let len_l: L = bytemuck::try_pod_read_unaligned(unsafe { &*len_ptr })?;
         let length = len_l
             .to_usize()
             .ok_or_else(|| anyhow::anyhow!("Could not convert list size to usize"))?;
@@ -391,10 +396,7 @@ where
             )
         })?;
         Ok(ListMut(
-            ptr_meta::from_raw_parts_mut(
-                length_bytes.as_mut_ptr().cast::<()>(),
-                size_of::<T>() * length,
-            ),
+            ptr_meta::from_raw_parts_mut(len_ptr.cast::<()>(), size_of::<T>() * length),
             PhantomData,
         ))
     }
@@ -410,7 +412,7 @@ where
     ) -> Result<()> {
         let self_ptr = self_mut.0;
         if source_ptr < self_ptr.cast_const().cast() {
-            self_mut.0 = unsafe { self_ptr.byte_offset(change) };
+            self_mut.0 = self_ptr.wrapping_byte_offset(change);
         }
         Ok(())
     }
@@ -485,7 +487,7 @@ where
             }
             let new_len =
                 L::from_usize(old_len + to_add).context("Failed to convert new len to L")?;
-            let end_ptr = unsafe { list.bytes.as_mut_ptr().add(byte_index).cast() };
+            let end_ptr = list.bytes.as_mut_ptr().wrapping_add(byte_index).cast();
             (end_ptr, old_len, new_len, self.0.cast_const().cast::<()>())
         };
         unsafe {
@@ -495,7 +497,6 @@ where
         self.len = PackedValue(new_len);
         self.0 =
             ptr_meta::from_raw_parts_mut(self.0.cast::<()>(), (old_len + to_add) * size_of::<T>());
-
         for ((i, value), _) in iter.enumerate().zip_eq(0..to_add) {
             let bytes = &mut self.bytes;
             bytes[byte_index + i * size_of::<T>()..][..size_of::<T>()]
@@ -539,9 +540,10 @@ where
         let old_len = self.len();
         let new_len = old_len - to_remove;
         let source_ptr: *const () = self.0.cast_const().cast();
+        let bytes_ptr = self.bytes.as_mut_ptr();
+        let start_ptr = bytes_ptr.wrapping_add(start * size_of::<T>()).cast();
+        let end_ptr = bytes_ptr.wrapping_add(end * size_of::<T>()).cast();
         unsafe {
-            let start_ptr = self.bytes.as_ptr().add(start * size_of::<T>()).cast();
-            let end_ptr = self.bytes.as_ptr().add(end * size_of::<T>()).cast();
             ExclusiveRecurse::remove_bytes(self, source_ptr, start_ptr..end_ptr)?;
         };
         {
@@ -552,7 +554,6 @@ where
         Ok(())
     }
 }
-
 unsafe impl<T, L> UnsizedInit<DefaultInit> for List<T, L>
 where
     L: ListLength,
@@ -747,28 +748,64 @@ where
 #[cfg(all(test, feature = "test_helpers"))]
 mod tests {
     use super::*;
-    use crate::unsize::test_helpers::TestByteSet;
+    use crate::unsize::{unsized_type, NewByteSet};
     use pretty_assertions::assert_eq;
 
     #[test]
-    fn test_list() -> Result<()> {
-        let byte_array = [1, 2, 3, 4, 5];
-        let mut vec = byte_array.to_vec();
-        let test_bytes = TestByteSet::<List<u8>>::new(byte_array.to_vec())?;
+    fn test_list_crud() -> Result<()> {
+        let mut vec = Vec::<PackedValue<u16>>::new();
+        let list_byte_set = List::<PackedValue<u16>>::new_default_byte_set()?;
+        let mut list = list_byte_set.data_mut()?;
+        assert_eq!(&*vec, &***list);
+
+        vec.extend_from_slice(&[10.into(), 20.into(), 30.into()]);
+        list.push_all([10.into(), 20.into(), 30.into()])?;
+        assert_eq!(&*vec, &***list);
+
+        vec.insert(1, 12.into());
+        vec.insert(2, 14.into());
+        vec.insert(1, 13.into());
+
+        list.insert_all(1, [PackedValue(12), 14.into()])?;
+        list.insert(1, 13.into())?;
+
+        assert_eq!(&*vec, &***list);
+
+        vec.pop();
+        list.pop()?;
+        assert_eq!(&*vec, &***list);
+
+        vec.remove(1);
+        vec.remove(1);
+        list.remove_range(1..3)?;
+        assert_eq!(&*vec, &***list);
+
+        Ok(())
+    }
+
+    #[unsized_type(skip_idl)]
+    struct InnerList {
+        #[unsized_start]
+        list: List<u8>,
+    }
+
+    #[unsized_type(skip_idl)]
+    struct OuterList {
+        #[unsized_start]
+        inner_list: InnerList,
+    }
+
+    #[test]
+    fn test_inner_list() -> Result<()> {
+        let test_bytes = OuterList::new_default_byte_set()?;
         let mut bytes = test_bytes.data_mut()?;
-        bytes.push_all([10, 11])?;
-        println!("Hello!!");
-        bytes.push(12)?;
-        vec.extend_from_slice(&[10, 11, 12]);
+        let mut inner_list = bytes.inner_list();
+        inner_list.list().push(1)?;
+        inner_list.list().push(2)?;
 
-        for (list_item, owned_item) in bytes.iter_mut().zip_eq(vec.iter_mut()) {
-            *list_item += 1;
-            *owned_item += 1;
-        }
+        drop(bytes);
 
-        let list_bytes = &***bytes;
-        println!("{list_bytes:?}");
-        assert_eq!(list_bytes, vec.as_slice());
+        let _bytes = test_bytes.data()?;
         Ok(())
     }
 }

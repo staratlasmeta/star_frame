@@ -7332,7 +7332,6 @@ dependencies = [
  "ptr_meta",
  "rand 0.8.5",
  "ref-cast",
- "rustc_version",
  "serde",
  "serde_json",
  "solana-program",

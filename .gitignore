@@ -9,3 +9,4 @@ test-ledger
 .vscode
 example_programs/faction_enlistment/idl.json
 example_programs/counter/idl.json
+rustc-ice-*

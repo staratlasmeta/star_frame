@@ -1,7 +1,7 @@
 use crate::align1::Align1;
 use crate::unsize::init::{DefaultInit, UnsizedInit};
 use crate::unsize::wrapper::ExclusiveRecurse;
-use crate::unsize::{AsShared, FromOwned, UnsizedType};
+use crate::unsize::{AsShared, FromOwned, RawSliceAdvance, UnsizedType};
 use crate::Result;
 use advancer::Advance;
 use anyhow::bail;
@@ -83,18 +83,14 @@ unsafe impl UnsizedType for RemainingBytes {
         ))
     }
 
-    fn get_mut<'a>(data: &mut &'a mut [u8]) -> Result<Self::Mut<'a>> {
+    unsafe fn get_mut<'a>(data: &mut *mut [u8]) -> Result<Self::Mut<'a>> {
         let remaining_bytes = data.try_advance(data.len()).with_context(|| {
             format!(
                 "Failed to read remaining mutable {} bytes for RemainingBytes",
                 data.len()
             )
         })?;
-        let ptr = remaining_bytes.as_mut_ptr();
-        Ok(RemainingBytesMut(
-            ptr_meta::from_raw_parts_mut(ptr.cast::<()>(), remaining_bytes.len()),
-            PhantomData,
-        ))
+        Ok(RemainingBytesMut(remaining_bytes as _, PhantomData))
     }
 
     fn owned_from_ref(r: Self::Ref<'_>) -> Result<Self::Owned> {
@@ -108,7 +104,7 @@ unsafe impl UnsizedType for RemainingBytes {
     ) -> Result<()> {
         let self_ptr = self_mut.0;
         match source_ptr.cmp(&self_ptr.cast_const().cast()) {
-            Ordering::Less => self_mut.0 = unsafe { self_ptr.byte_offset(change) },
+            Ordering::Less => self_mut.0 = self_ptr.wrapping_byte_offset(change),
             Ordering::Equal => {}
             Ordering::Greater => {
                 bail!("Resize occurred after RemainingBytes, which shouldn't be possible")
@@ -138,8 +134,8 @@ impl RemainingBytes {
             Ordering::Less => {
                 let bytes_to_add = len - self_len;
                 let (source_ptr, end_ptr) = {
-                    let source_ptr = self.0.cast_const().cast::<()>();
-                    let end_ptr = unsafe { source_ptr.byte_add(self_len) };
+                    let source_ptr = self.0.cast::<()>();
+                    let end_ptr = source_ptr.wrapping_byte_add(self_len);
                     (source_ptr, end_ptr)
                 };
                 unsafe {
@@ -148,9 +144,9 @@ impl RemainingBytes {
             }
             Ordering::Equal => return Ok(()),
             Ordering::Greater => {
-                let source_ptr = self.0.cast_const().cast::<()>();
-                let start_ptr = unsafe { source_ptr.byte_add(len) };
-                let end_ptr = unsafe { source_ptr.byte_add(self_len) };
+                let source_ptr = self.0.cast::<()>();
+                let start_ptr = source_ptr.wrapping_byte_add(len);
+                let end_ptr = source_ptr.wrapping_byte_add(self_len);
                 unsafe {
                     ExclusiveRecurse::remove_bytes(self, source_ptr, start_ptr..end_ptr)?;
                 }

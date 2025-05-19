@@ -158,7 +158,7 @@ where
 }
 
 pub mod discriminant {
-    use crate::unsize::FromOwned;
+    use crate::unsize::{FromOwned, RawSliceAdvance};
 
     use super::*;
     #[derive(Debug)]
@@ -188,7 +188,7 @@ pub mod discriminant {
             T::get_ref(data)
         }
 
-        fn get_mut<'a>(data: &mut &'a mut [u8]) -> Result<Self::Mut<'a>> {
+        unsafe fn get_mut<'a>(data: &mut *mut [u8]) -> Result<Self::Mut<'a>> {
             data.try_advance(size_of::<OwnerProgramDiscriminant<T>>())
                 .with_context(|| {
                     format!(
@@ -196,7 +196,7 @@ pub mod discriminant {
                         size_of::<OwnerProgramDiscriminant<T>>()
                     )
                 })?;
-            T::get_mut(data)
+            unsafe { T::get_mut(data) }
         }
 
         fn owned(mut data: &[u8]) -> Result<Self::Owned> {

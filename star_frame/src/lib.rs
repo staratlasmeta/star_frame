@@ -1,6 +1,5 @@
 //! Anchor replacement.
 // TODO: Expand docs
-
 #![warn(
     clippy::pedantic,
     missing_copy_implementations,

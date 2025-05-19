@@ -28,16 +28,16 @@ pub struct Unsized3 {
 pub struct EnumTestStruct {
     #[unsized_start]
     pub list_before: List<u8>,
-    pub enum_test: UnsizedEnumTest,
+    pub enum_test: UnsizedEnumTest<Unsized1>,
     pub list_after: List<u8>,
 }
 
 #[unsized_type(skip_idl)]
 #[repr(u8)]
-pub enum UnsizedEnumTest {
+pub enum UnsizedEnumTest<T: UnsizedType + Debug + ?Sized> {
     #[default_init]
-    Unsized1(Unsized1),
-    Unsized2(Unsized2) = 2,
+    Unsized1(T),
+    Unsized2(Unsized2),
     Unsized3(Unsized3),
 }
 
