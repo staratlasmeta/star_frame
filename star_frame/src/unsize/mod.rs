@@ -8,7 +8,7 @@ mod tests;
 pub mod wrapper;
 
 use anyhow::ensure;
-pub use owned_ref::*;
+use owned_ref::*;
 pub use star_frame_proc::{unsized_impl, unsized_type};
 #[cfg(all(feature = "test_helpers", not(target_os = "solana")))]
 pub use test_helpers::*;
