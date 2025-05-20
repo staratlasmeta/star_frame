@@ -275,7 +275,7 @@ impl UnsizedEnumContext {
         let (generics, wc) = self.split_for_declaration(true);
         quote! {
             #[derive(#prelude::DeriveWhere)]
-            #[derive_where(Debug, Copy, Clone; #(<#variant_types as #prelude::UnsizedType>::Ref<#top_lt>,)*)]
+            #[derive_where(Debug; #(<#variant_types as #prelude::UnsizedType>::Ref<#top_lt>,)*)]
             pub enum #ref_ident #generics #wc {
                 #(
                     #(#variant_docs)*
@@ -394,6 +394,8 @@ impl UnsizedEnumContext {
                     }
             });
 
+        let mut_lt = new_lifetime(&self.generics, Some("m"));
+
         quote! {
             #[automatically_derived]
             unsafe impl #impl_gen #prelude::UnsizedType for #enum_type #where_clause {
@@ -405,7 +407,7 @@ impl UnsizedEnumContext {
                     true #(&& <#variant_types as #prelude::UnsizedType>::ZST_STATUS)*
                 };
 
-                fn mut_as_ref<#top_lt>(m: &#top_lt Self::Mut<'_>) -> Self::Ref<#top_lt> {
+                fn mut_as_ref<#mut_lt>(m: &#mut_lt Self::Mut<'_>) -> Self::Ref<#mut_lt> {
                     match &m.data {
                         #(
                             #mut_ident::#variant_idents(inner) => {
@@ -449,7 +451,7 @@ impl UnsizedEnumContext {
                     Ok(unsafe { #prelude::LengthTracker::new(res, start_ptr, length) })
                 }
 
-                fn owned_from_ref(r: Self::Ref<'_>) -> #result<Self::Owned> {
+                fn owned_from_ref(r: &Self::Ref<'_>) -> #result<Self::Owned> {
                     #owned_from_ref
                 }
 

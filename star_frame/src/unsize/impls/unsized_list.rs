@@ -425,7 +425,7 @@ where
 }
 
 #[derive(derive_where::DeriveWhere)]
-#[derive_where(Copy, Clone, Debug)]
+#[derive_where(Debug)]
 pub struct UnsizedListRef<'a, T, C>
 where
     T: UnsizedType + ?Sized,
@@ -660,12 +660,12 @@ where
         })
     }
 
-    fn owned_from_ref(r: Self::Ref<'_>) -> Result<Self::Owned> {
+    fn owned_from_ref(r: &Self::Ref<'_>) -> Result<Self::Owned> {
         let mut owned = Vec::with_capacity(r.len());
         let unsized_bytes = r.unsized_bytes();
         for offset in &r.offset_list {
             let t_ref = T::get_ref(&mut &unsized_bytes[offset.to_usize_offset()..])?;
-            owned.push(T::owned_from_ref(t_ref)?);
+            owned.push(T::owned_from_ref(&t_ref)?);
         }
         Ok(owned)
     }
@@ -1430,7 +1430,7 @@ mod tests {
             let list = list?;
             assert_eq!(&**list, owned_list);
         }
-        let to_owned = TestList::owned_from_ref(TestList::mut_as_ref(&unsized_lists))?;
+        let to_owned = TestList::owned_from_ref(&TestList::mut_as_ref(&unsized_lists))?;
         assert_eq!(to_owned, owned);
         Ok(())
     }

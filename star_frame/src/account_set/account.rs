@@ -210,7 +210,7 @@ pub mod discriminant {
             T::owned(data)
         }
 
-        fn owned_from_ref(r: Self::Ref<'_>) -> Result<Self::Owned> {
+        fn owned_from_ref(r: &Self::Ref<'_>) -> Result<Self::Owned> {
             T::owned_from_ref(r)
         }
 

@@ -276,7 +276,7 @@ where
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Debug)]
 pub struct ListRef<'a, T, L = u32>(*const List<T, L>, PhantomData<&'a ()>)
 where
     L: ListLength,
@@ -401,7 +401,7 @@ where
         ))
     }
 
-    fn owned_from_ref(r: Self::Ref<'_>) -> Result<Self::Owned> {
+    fn owned_from_ref(r: &Self::Ref<'_>) -> Result<Self::Owned> {
         Ok(checked::try_cast_slice(&r.bytes)?.to_vec())
     }
 

@@ -25,7 +25,7 @@ pub trait AsShared {
 pub type UnsizedTypeMut<'a, T> = <T as UnsizedType>::Mut<'a>;
 
 /// # Safety
-/// TODO
+/// Neither the `Ref` nor `Mut` types can implement Copy.
 pub unsafe trait UnsizedType: 'static {
     type Ref<'a>;
     type Mut<'a>: AsShared<Ref<'a> = Self::Ref<'a>>;
@@ -52,10 +52,10 @@ pub unsafe trait UnsizedType: 'static {
 
     fn owned(mut data: &[u8]) -> Result<Self::Owned> {
         let data = &mut data;
-        Self::owned_from_ref(Self::get_ref(data)?)
+        Self::owned_from_ref(&Self::get_ref(data)?)
     }
 
-    fn owned_from_ref(r: Self::Ref<'_>) -> Result<Self::Owned>;
+    fn owned_from_ref(r: &Self::Ref<'_>) -> Result<Self::Owned>;
 
     /// # Safety
     /// No resize operations should be performed on the data.
