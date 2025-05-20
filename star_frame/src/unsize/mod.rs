@@ -25,7 +25,7 @@ pub trait AsShared {
 pub type UnsizedTypeMut<'a, T> = <T as UnsizedType>::Mut<'a>;
 
 /// # Safety
-/// Neither the `Ref` nor `Mut` types can implement Copy.
+/// Neither the `Ref` or `Mut` types should be allowed to Copy themselves from behind a reference. They definitely should not implement `Copy` or `Clone` as a result.
 pub unsafe trait UnsizedType: 'static {
     type Ref<'a>;
     type Mut<'a>: AsShared<Ref<'a> = Self::Ref<'a>>;
