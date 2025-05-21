@@ -68,5 +68,5 @@ jobs:
           rustup toolchain install nightly --component miri
           rustup override set nightly
           cargo miri setup
-      - run: 'MIRIFLAGS="-Zmiri-tree-borrows" cargo +nightly miri test --features "test_helpers" unsize::*'
+      - run: 'MIRIFLAGS="-Zmiri-tree-borrows" cargo +nightly miri test --features "test_helpers" unsize::'
         working-directory: star_frame
