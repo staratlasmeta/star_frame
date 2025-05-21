@@ -50,3 +50,20 @@ jobs:
           ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
           private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
       - run: cargo test --all-features
+
+  miri:
+    runs-on:
+      group: sa-runners
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/install-binaries
+        with:
+          ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
+          private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+      - name: Install Miri
+        run: |
+          rustup toolchain install nightly --component miri
+          rustup override set nightly
+          cargo miri setup
+      - run: 'MIRIFLAGS="-Zmiri-tree-borrows" cargo +nightly miri test --features "test_helpers" unsize::*'
+        working-directory: star_frame
