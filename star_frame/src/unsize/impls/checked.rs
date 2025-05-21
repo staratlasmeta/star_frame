@@ -13,7 +13,7 @@ use std::ops::{Deref, DerefMut};
 pub trait UnsizedGenerics: CheckedBitPattern + Align1 + NoUninit + Zeroable {}
 impl<T> UnsizedGenerics for T where T: CheckedBitPattern + Align1 + NoUninit + Zeroable {}
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug)]
 pub struct CheckedRef<'a, T>(*const T, PhantomData<&'a ()>)
 where
     T: CheckedBitPattern + NoUninit + Align1;
@@ -103,8 +103,8 @@ where
         Ok(CheckedMut(sized.cast(), PhantomData))
     }
 
-    fn owned_from_ref(r: Self::Ref<'_>) -> Result<Self::Owned> {
-        Ok(*r)
+    fn owned_from_ref(r: &Self::Ref<'_>) -> Result<Self::Owned> {
+        Ok(**r)
     }
 
     #[inline]

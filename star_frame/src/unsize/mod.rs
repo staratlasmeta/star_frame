@@ -8,7 +8,7 @@ mod tests;
 pub mod wrapper;
 
 use anyhow::ensure;
-pub use owned_ref::*;
+use owned_ref::*;
 pub use star_frame_proc::{unsized_impl, unsized_type};
 #[cfg(all(feature = "test_helpers", not(target_os = "solana")))]
 pub use test_helpers::*;
@@ -25,7 +25,7 @@ pub trait AsShared {
 pub type UnsizedTypeMut<'a, T> = <T as UnsizedType>::Mut<'a>;
 
 /// # Safety
-/// TODO
+/// Neither the `Ref` or `Mut` types should be allowed to Copy themselves from behind a reference. They definitely should not implement `Copy` or `Clone` as a result.
 pub unsafe trait UnsizedType: 'static {
     type Ref<'a>;
     type Mut<'a>: AsShared<Ref<'a> = Self::Ref<'a>>;
@@ -52,10 +52,10 @@ pub unsafe trait UnsizedType: 'static {
 
     fn owned(mut data: &[u8]) -> Result<Self::Owned> {
         let data = &mut data;
-        Self::owned_from_ref(Self::get_ref(data)?)
+        Self::owned_from_ref(&Self::get_ref(data)?)
     }
 
-    fn owned_from_ref(r: Self::Ref<'_>) -> Result<Self::Owned>;
+    fn owned_from_ref(r: &Self::Ref<'_>) -> Result<Self::Owned>;
 
     /// # Safety
     /// No resize operations should be performed on the data.

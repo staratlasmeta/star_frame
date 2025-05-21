@@ -107,10 +107,13 @@ impl<T> Deref for SharedWrapper<'_, T> {
 }
 
 /// The heart of the `UnsizedType` system. This wrapper enables resizing through the [`ExclusiveRecurse`] trait, and mapping to
-/// child wrappers through [`Self::try_map_mut`]. In addition, this impl's [`DerefMut`] and [`Deref`] for easy access to the
-///
+/// child wrappers through [`Self::try_map_mut`]. In addition, this implements [`Deref`] and [`DerefMut`] for easy access to Mut type.
 #[derive(Debug)]
-pub enum ExclusiveWrapper<'parent, 'top, Mut, P> {
+pub struct ExclusiveWrapper<'parent, 'top, Mut, P>(ExclusiveWrapperEnum<'parent, 'top, Mut, P>);
+
+/// Private enum for [`ExclusiveWrapper`].
+#[derive(Debug)]
+enum ExclusiveWrapperEnum<'parent, 'top, Mut, P> {
     Top {
         // We Box the Mut so its derived from a separate allocation, so dereferencing parent in inners wont invalidate the top Mut.
         data: OwnedRefMut<'top, (P, Box<Mut>)>,
@@ -161,7 +164,7 @@ where
         // ensure no ZSTs in middle of struct
         let _ = Top::ZST_STATUS;
         let data: RefMut<'top, &mut [u8]> = UnsizedTypeDataAccess::data_mut(info)?;
-        Ok(ExclusiveWrapper::Top {
+        Ok(Self(ExclusiveWrapperEnum::Top {
             data: OwnedRefMut::try_new(data, |data| {
                 let data_ptr = ptr::from_mut(data).cast::<*mut [u8]>();
                 // SAFETY:
@@ -178,15 +181,15 @@ where
                     unsafe { Box::new(Top::get_mut(&mut data)?) },
                 ))
             })?,
-        })
+        }))
     }
 }
 
 impl<Mut, P> ExclusiveWrapper<'_, '_, Mut, P> {
     fn mut_ref(this: &Self) -> &Mut {
-        match this {
-            ExclusiveWrapper::Top { data, .. } => &data.1,
-            ExclusiveWrapper::Inner { field, .. } => {
+        match &this.0 {
+            ExclusiveWrapperEnum::Top { data, .. } => &data.1,
+            ExclusiveWrapperEnum::Inner { field, .. } => {
                 // SAFETY:
                 // We have shared access to self right now, so no mutable references to self can exist.
                 // Field is created in ExclusiveWrapper::new, and this pointer is derived from ExclusiveWrapper::map,
@@ -199,9 +202,9 @@ impl<Mut, P> ExclusiveWrapper<'_, '_, Mut, P> {
     }
 
     fn mut_mut(this: &mut Self) -> *mut Mut {
-        match this {
-            ExclusiveWrapper::Top { data, .. } => &raw mut *(data.1),
-            ExclusiveWrapper::Inner { field, .. } => {
+        match &mut this.0 {
+            ExclusiveWrapperEnum::Top { data, .. } => &raw mut *(data.1),
+            ExclusiveWrapperEnum::Inner { field, .. } => {
                 // SAFETY:
                 // We have exclusive access to self right now, so no mutable references to self can exist.
                 // Field is created in ExclusiveWrapper::new, and this pointer is derived from ExclusiveWrapper::map,
@@ -248,9 +251,9 @@ where
         start: *mut (),
         amount: usize,
     ) -> Result<()> {
-        match wrapper {
-            ExclusiveWrapper::Top { .. } => unreachable!(),
-            ExclusiveWrapper::Inner { parent, .. } => {
+        match &mut wrapper.0 {
+            ExclusiveWrapperEnum::Top { .. } => unreachable!(),
+            ExclusiveWrapperEnum::Inner { parent, .. } => {
                 // SAFETY:
                 // We have exclusive access to self right now, and no other references to parent can exist.
                 let parent = unsafe { &mut **parent };
@@ -264,9 +267,9 @@ where
         source_ptr: *const (),
         range: impl RangeBounds<*mut ()>,
     ) -> Result<()> {
-        match wrapper {
-            ExclusiveWrapper::Top { .. } => unreachable!(),
-            ExclusiveWrapper::Inner { parent, .. } => {
+        match &mut wrapper.0 {
+            ExclusiveWrapperEnum::Top { .. } => unreachable!(),
+            ExclusiveWrapperEnum::Inner { parent, .. } => {
                 // SAFETY:
                 // We have exclusive access to self right now, so no other references to parent can exist.
                 let parent = unsafe { &mut **parent };
@@ -288,9 +291,9 @@ where
         start: *mut (),
         amount: usize,
     ) -> Result<()> {
-        let s: &mut ExclusiveWrapperTopVariant<'top, Top, A> = match wrapper {
-            ExclusiveWrapper::Top { data, .. } => data,
-            ExclusiveWrapper::Inner { .. } => unreachable!(),
+        let s: &mut ExclusiveWrapperTopVariant<'top, Top, A> = match &mut wrapper.0 {
+            ExclusiveWrapperEnum::Top { data, .. } => data,
+            ExclusiveWrapperEnum::Inner { .. } => unreachable!(),
         };
 
         {
@@ -341,9 +344,9 @@ where
         range: impl RangeBounds<*mut ()>,
         // after_remove: impl FnOnce(&mut Self::T) -> Result<()>,
     ) -> Result<()> {
-        let s = match wrapper {
-            ExclusiveWrapper::Top { data, .. } => data,
-            ExclusiveWrapper::Inner { .. } => unreachable!(),
+        let s = match &mut wrapper.0 {
+            ExclusiveWrapperEnum::Top { data, .. } => data,
+            ExclusiveWrapperEnum::Inner { .. } => unreachable!(),
         };
 
         let amount = {
@@ -436,11 +439,11 @@ where
         O: UnsizedType + ?Sized,
     {
         let parent_mut: *mut Self = parent;
-        Ok(ExclusiveWrapper::Inner {
+        Ok(ExclusiveWrapper(ExclusiveWrapperEnum::Inner {
             parent_lt: PhantomData,
             parent: parent_mut,
             field: mapper(Self::mut_mut(parent))?,
-        })
+        }))
     }
 }
 

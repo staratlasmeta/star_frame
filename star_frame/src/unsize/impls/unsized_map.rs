@@ -153,7 +153,7 @@ where
     }
 }
 
-fn unsized_map_owned_from_ref<K, V>(r: UnsizedMapRef<'_, K, V>) -> Result<UnsizedMapOwned<K, V>>
+fn unsized_map_owned_from_ref<K, V>(r: &UnsizedMapRef<'_, K, V>) -> Result<UnsizedMapOwned<K, V>>
 where
     K: Pod + Ord + Align1,
     V: UnsizedType + ?Sized,
@@ -161,7 +161,7 @@ where
     let mut owned = UnsizedMapOwned::default();
     for result in r.list.iter_with_offsets() {
         let (item, ord_offset) = result?;
-        let owned_item = V::owned_from_ref(item)?;
+        let owned_item = V::owned_from_ref(&item)?;
         owned.list.push((ord_offset.key, owned_item));
     }
     Ok(owned)

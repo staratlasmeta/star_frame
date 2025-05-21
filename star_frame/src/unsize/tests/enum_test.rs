@@ -166,7 +166,7 @@ fn unsized_enum_test() -> Result<()> {
     }
     compare_with_owned(&owned, &mut_bytes)?;
 
-    let new_owned = EnumTestStruct::owned_from_ref(EnumTestStruct::mut_as_ref(&mut_bytes))?;
+    let new_owned = EnumTestStruct::owned_from_ref(&EnumTestStruct::mut_as_ref(&mut_bytes))?;
     compare_with_owned(&new_owned, &mut_bytes)?;
     ensure!(owned == new_owned);
     Ok(())

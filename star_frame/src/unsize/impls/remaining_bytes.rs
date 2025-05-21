@@ -23,7 +23,7 @@ mod idl_impl {
     impl_type_to_idl_for_primitive!(super::RemainingBytes: RemainingBytes);
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Debug)]
 pub struct RemainingBytesRef<'a>(*const RemainingBytes, PhantomData<&'a ()>);
 
 impl Deref for RemainingBytesRef<'_> {
@@ -93,7 +93,7 @@ unsafe impl UnsizedType for RemainingBytes {
         Ok(RemainingBytesMut(remaining_bytes as _, PhantomData))
     }
 
-    fn owned_from_ref(r: Self::Ref<'_>) -> Result<Self::Owned> {
+    fn owned_from_ref(r: &Self::Ref<'_>) -> Result<Self::Owned> {
         Ok(r.to_vec())
     }
 

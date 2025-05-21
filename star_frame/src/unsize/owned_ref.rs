@@ -5,11 +5,13 @@ use std::cell::{Ref, RefMut};
 use std::convert::Infallible;
 
 #[derive(Debug, Deref)]
-pub struct OwnedRef<'a, T> {
+pub(crate) struct OwnedRef<'a, T> {
     #[deref]
     data: T,
     r: Ref<'a, ()>,
 }
+
+#[allow(unused)]
 impl<'a, T> OwnedRef<'a, T> {
     pub fn new<I: ?Sized>(r: Ref<'a, I>, mapper: impl FnOnce(&'a I) -> T) -> Self
     where
@@ -54,12 +56,14 @@ impl<'a, T> OwnedRef<'a, T> {
 }
 
 #[derive(Debug, Deref, DerefMut)]
-pub struct OwnedRefMut<'a, T> {
+pub(crate) struct OwnedRefMut<'a, T> {
     #[deref]
     #[deref_mut]
     data: T,
     r: RefMut<'a, [u8]>,
 }
+
+#[allow(unused)]
 impl<'a, T> OwnedRefMut<'a, T> {
     pub fn new<I: ?Sized>(r: RefMut<'a, I>, mapper: impl FnOnce(&'a mut I) -> T) -> Self
     where

@@ -313,7 +313,7 @@ impl UnsizedStructContext {
         let transparent = (with_sized_idents.len() == 1).then(|| quote!(#[repr(transparent)]));
         quote! {
             #[derive(#prelude::DeriveWhere)]
-            #[derive_where(Debug, Copy, Clone; #(<#with_sized_types as #prelude::UnsizedType>::Ref<#top_lt>,)*)]
+            #[derive_where(Debug; #(<#with_sized_types as #prelude::UnsizedType>::Ref<#top_lt>,)*)]
             #transparent
             #vis struct #ref_ident #generics #wc {
                 #(
@@ -688,10 +688,12 @@ impl UnsizedStructContext {
             quote! {
                 Ok(Self::Owned {
                     #(#sized_field_idents: r.#sized_field_idents,)*
-                    #(#unsized_field_idents: <#unsized_field_types as #prelude::UnsizedType>::owned_from_ref(r.#unsized_field_idents)?,)*
+                    #(#unsized_field_idents: <#unsized_field_types as #prelude::UnsizedType>::owned_from_ref(&r.#unsized_field_idents)?,)*
                 })
             }
         });
+
+        let mut_lt = new_lifetime(&self.generics, Some("m"));
 
         quote! {
             #[automatically_derived]
@@ -707,7 +709,7 @@ impl UnsizedStructContext {
                     <#last_ty as UnsizedType>::ZST_STATUS
                 };
 
-                fn mut_as_ref<#top_lt>(m: &#top_lt Self::Mut<'_>) -> Self::Ref<#top_lt> {
+                fn mut_as_ref<#mut_lt>(m: &#mut_lt Self::Mut<'_>) -> Self::Ref<#mut_lt> {
                     #ref_ident{
                         #(#with_sized_idents: <#with_sized_types as #prelude::UnsizedType>::mut_as_ref(&m.#with_sized_idents),)*
                     }
@@ -725,7 +727,7 @@ impl UnsizedStructContext {
                     })
                 }
 
-                fn owned_from_ref(r: Self::Ref<'_>) -> #result<Self::Owned> {
+                fn owned_from_ref(r: &Self::Ref<'_>) -> #result<Self::Owned> {
                     #owned_from_ref
                 }
 
