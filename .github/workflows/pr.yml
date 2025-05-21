@@ -1,4 +1,7 @@
 name: build-lint-test
+permissions:
+  contents: read
+  pull-requests: write
 
 on:
   merge_group:
