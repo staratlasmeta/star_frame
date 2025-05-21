@@ -1,23 +1,19 @@
-name: Install Binaries
-description: Configures SSH, Shipyard, and installs `anchor` and `cargo-make`
+name: Setup Shipyard
+description: Configures SSH, Shipyard
 inputs:
   ssh-private-key:
-    description: "SSH private key"
+    description: 'SSH private key'
     required: true
   private-repo-token:
-    description: "Shipyard private repo token"
+    description: 'Shipyard private repo token'
     required: true
   working-directory:
-    description: "working directory"
+    description: 'working directory'
     required: false
-    default: "."
-  build:
-    description: "Build the workspace"
-    required: false
-    default: "false"
+    default: '.'
 
 runs:
-  using: "composite"
+  using: 'composite'
   steps:
     - name: Install dependencies
       shell: bash
@@ -27,7 +23,7 @@ runs:
       uses: actions-rust-lang/setup-rust-toolchain@v1
       with:
         cache: 'true'
-        rustflags: "-D warnings -A unexpected_cfgs"
+        rustflags: '-D warnings -A unexpected_cfgs'
 
     - name: Configure SSH
       uses: kielabokkie/ssh-key-and-known-hosts-action@v1
@@ -44,9 +40,3 @@ runs:
       run: mkdir -p ~/.cargo && cp -r ./.cargo/ ~/.cargo
       working-directory: ${{ inputs.working-directory }}
       shell: bash
-
-    - name: Build workspace
-      run: cargo build --release
-      working-directory: ${{ inputs.working-directory }}
-      shell: bash
-      if: ${{ inputs.build == 'true' }}

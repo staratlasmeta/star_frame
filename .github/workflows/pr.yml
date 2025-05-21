@@ -1,4 +1,7 @@
 name: build-lint-test
+permissions:
+  contents: read
+  pull-requests: write
 
 on:
   merge_group:
@@ -12,18 +15,18 @@ jobs:
       group: sa-runners
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/install-binaries
+      - uses: ./.github/actions/setup_shipyard
         with:
           ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
           private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
-          build: 'true'
+      - run: cargo build --release --all-features
 
   lint:
     runs-on:
       group: sa-runners
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/install-binaries
+      - uses: ./.github/actions/setup_shipyard
         with:
           ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
           private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
@@ -34,7 +37,7 @@ jobs:
       group: sa-runners
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/install-binaries
+      - uses: ./.github/actions/setup_shipyard
         with:
           ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
           private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
@@ -45,8 +48,25 @@ jobs:
       group: sa-runners
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/install-binaries
+      - uses: ./.github/actions/setup_shipyard
         with:
           ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
           private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
       - run: cargo test --all-features
+
+  miri:
+    runs-on:
+      group: sa-runners
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup_shipyard
+        with:
+          ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
+          private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+      - name: Install Miri
+        run: |
+          rustup toolchain install nightly --component miri
+          rustup override set nightly
+          cargo miri setup
+      - run: 'MIRIFLAGS="-Zmiri-tree-borrows" cargo +nightly miri test --features "test_helpers" unsize::'
+        working-directory: star_frame
