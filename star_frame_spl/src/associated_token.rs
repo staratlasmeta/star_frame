@@ -210,6 +210,8 @@ pub mod instructions {
 }
 
 pub mod state {
+    use star_frame::typenum;
+
     use super::*;
 
     #[derive(AccountSet, Debug, Clone, Deref, DerefMut)]
@@ -336,7 +338,7 @@ pub mod state {
         CanInitAccount<'info, (InitAta<'a, 'info, WalletInfo, MintInfo>, &Funder)>
         for AssociatedTokenAccount<'info>
     where
-        Funder: SignedAccount<'info> + WritableAccount<'info>,
+        Funder: CanFundRent<'info, CanCreateAccount = typenum::True>,
         WalletInfo: SingleAccountSet<'info>,
         MintInfo: SingleAccountSet<'info>,
     {
@@ -365,7 +367,7 @@ pub mod state {
             AssociatedToken::cpi(
                 &instructions::Create,
                 instructions::CreateCpiAccounts {
-                    funder: funder.account_info_cloned(),
+                    funder: funder.account_to_modify().clone(),
                     token_account: self.account_info_cloned(),
                     wallet: init_ata.wallet.account_info_cloned(),
                     mint: init_ata.mint.account_info_cloned(),
