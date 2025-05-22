@@ -2,7 +2,7 @@ use crate::util::{BetterGenerics, Paths};
 use easy_proc::{find_attr, ArgumentList};
 use proc_macro2::TokenStream;
 use proc_macro_error2::abort;
-use syn::{Attribute, Data, DeriveInput, Ident, Visibility};
+use syn::{Attribute, Data, DeriveInput, Expr, Ident, Visibility};
 
 mod generics;
 mod struct_impl;
@@ -40,6 +40,7 @@ struct SingleAccountSetFieldArgs {
     signer: bool,
     #[argument(presence)]
     writable: bool,
+    meta: Option<Expr>,
     #[argument(presence)]
     skip_signed_account: bool,
     #[argument(presence)]

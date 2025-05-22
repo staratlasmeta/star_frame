@@ -220,18 +220,35 @@ pub(super) fn derive_account_set_impl_struct(
             Self: #prelude::AccountSet<#info_lifetime>
         });
 
-        let signer = args.signer.then(|| quote!(signer: true,));
-        let writable = args.writable.then(|| quote!(writable: true,));
+        let meta = args.meta.map_or_else(
+            || {
+                let signer = args.signer.then(|| quote!(signer: true,));
+                let writable = args.writable.then(|| quote!(writable: true,));
+                quote! {
+                    #prelude::SingleSetMeta {
+                        #signer
+                        #writable
+                        ..<#field_ty as #prelude::SingleAccountSet<#info_lifetime>>::META
+                    }
+                }
+            },
+            |expr| {
+                if args.signer || args.writable {
+                    abort!(
+                        expr,
+                        "Cannot specif ya custom `metadata` with `signer` or `writable`"
+                    );
+                }
+                quote!(#expr)
+            }
+        );
+
 
         let single = quote! {
             #[automatically_derived]
             impl #info_sg_impl #prelude::SingleAccountSet<#info_lifetime> for #ident #ty_generics #single_where {
                 #[allow(clippy::needless_update)]
-                const META: #prelude::SingleSetMeta = #prelude::SingleSetMeta {
-                    #signer
-                    #writable
-                    ..<#field_ty as #prelude::SingleAccountSet<#info_lifetime>>::META
-                };
+                const META: #prelude::SingleSetMeta = #meta;
 
                 #[inline]
                 fn account_info(&self) -> &#account_info<#info_lifetime> {
