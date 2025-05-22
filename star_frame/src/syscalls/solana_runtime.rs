@@ -127,7 +127,7 @@ impl<'info> SyscallAccountCache<'info> for SolanaRuntime<'info> {
 
     fn set_funder(&mut self, funder: &(impl SignedAccount<'info> + WritableAccount<'info>)) {
         self.funder
-            .replace(Mut(Signer(funder.account_info_cloned())));
+            .replace(MaybeMut(MaybeSigner(funder.account_info_cloned())));
     }
 
     fn get_recipient(&self) -> Option<&Mut<AccountInfo<'info>>> {
@@ -135,6 +135,7 @@ impl<'info> SyscallAccountCache<'info> for SolanaRuntime<'info> {
     }
 
     fn set_recipient(&mut self, recipient: &impl WritableAccount<'info>) {
-        self.recipient.replace(Mut(recipient.account_info_cloned()));
+        self.recipient
+            .replace(MaybeMut(recipient.account_info_cloned()));
     }
 }
