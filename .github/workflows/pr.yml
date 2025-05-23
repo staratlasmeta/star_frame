@@ -10,55 +10,55 @@ on:
     types: [synchronize, opened, reopened]
 
 jobs:
-  # build:
-  #   runs-on:
-  #     group: sa-runners
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - uses: actions-rust-lang/setup-rust-toolchain@v1
-  #     - uses: ./.github/actions/setup_shipyard
-  #       with:
-  #         ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
-  #         private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
-  #     - run: cargo build --all-features
+  build:
+    runs-on:
+      group: sa-runners
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: ./.github/actions/setup_shipyard
+        with:
+          ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
+          private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+      - run: cargo build --all-features
 
-  # lint:
-  #   runs-on:
-  #     group: sa-runners
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - uses: actions-rust-lang/setup-rust-toolchain@v1
-  #     - uses: ./.github/actions/setup_shipyard
-  #       with:
-  #         ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
-  #         private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
-  #     - run: cargo clippy --all-targets --all-features
+  lint:
+    runs-on:
+      group: sa-runners
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: ./.github/actions/setup_shipyard
+        with:
+          ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
+          private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+      - run: cargo clippy --all-targets --all-features
 
-  # fmt:
-  #   runs-on:
-  #     group: sa-runners
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - uses: actions-rust-lang/setup-rust-toolchain@v1
-  #       with:
-  #         cache: 'false'
-  #     - uses: ./.github/actions/setup_shipyard
-  #       with:
-  #         ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
-  #         private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
-  #     - run: cargo fmt --check
+  fmt:
+    runs-on:
+      group: sa-runners
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: 'false'
+      - uses: ./.github/actions/setup_shipyard
+        with:
+          ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
+          private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+      - run: cargo fmt --all --check
 
-  # test:
-  #   runs-on:
-  #     group: sa-runners
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - uses: actions-rust-lang/setup-rust-toolchain@v1
-  #     - uses: ./.github/actions/setup_shipyard
-  #       with:
-  #         ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
-  #         private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
-  #     - run: cargo test --all-features
+  test:
+    runs-on:
+      group: sa-runners
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: ./.github/actions/setup_shipyard
+        with:
+          ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
+          private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+      - run: cargo test --all-features
 
   miri:
     runs-on:
@@ -69,15 +69,13 @@ jobs:
         with:
           toolchain: 'nightly'
           components: 'miri, rust-src'
-          cache-directories: '/home/runner/.cache/miri'
       - name: Set up miri
         run: |
           rustup override set nightly
-          ls -hl /home/runner/.cache
           cargo miri setup
       - uses: ./.github/actions/setup_shipyard
         with:
           ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
           private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
-      # - run: 'MIRIFLAGS="-Zmiri-tree-borrows" cargo +nightly miri test --features "test_helpers" unsize::'
-      # working-directory: star_frame
+      - run: 'MIRIFLAGS="-Zmiri-tree-borrows" cargo +nightly miri test --features "test_helpers" unsize::'
+        working-directory: star_frame
