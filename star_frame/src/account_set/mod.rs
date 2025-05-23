@@ -9,6 +9,7 @@ mod sysvar;
 mod validated_account;
 
 pub use account::*;
+use anyhow::bail;
 pub use impls::*;
 pub use modifiers::*;
 pub use program::*;
@@ -19,10 +20,10 @@ pub use system_account::*;
 pub use sysvar::*;
 pub use validated_account::*;
 
-use crate::prelude::StarFrameProgram;
+use crate::prelude::{PackedValue, StarFrameProgram};
 use crate::syscalls::{SyscallAccountCache, SyscallInvoke};
 use crate::Result;
-use bytemuck::bytes_of;
+use bytemuck::{bytes_of, from_bytes};
 use solana_program::account_info::AccountInfo;
 use std::slice;
 
@@ -39,6 +40,30 @@ pub trait ProgramAccount: HasOwnerProgram {
     #[must_use]
     fn discriminant_bytes() -> Vec<u8> {
         bytes_of(&Self::DISCRIMINANT).into()
+    }
+
+    fn validate_account_info<'info>(info: &impl SingleAccountSet<'info>) -> Result<()> {
+        if info.owner() != &Self::OwnerProgram::ID {
+            bail!(
+                "Account {} owner {} does not match expected program ID {}",
+                info.key(),
+                info.owner(),
+                Self::OwnerProgram::ID
+            );
+        }
+        let data = info.info_data_bytes()?;
+        if data.len() < size_of::<OwnerProgramDiscriminant<Self>>()
+            || from_bytes::<PackedValue<OwnerProgramDiscriminant<Self>>>(
+                &data[..size_of::<OwnerProgramDiscriminant<Self>>()],
+            ) != &Self::DISCRIMINANT
+        {
+            bail!(
+                "Account {} data does not match expected discriminant for program {}",
+                info.key(),
+                Self::OwnerProgram::ID
+            )
+        }
+        Ok(())
     }
 }
 

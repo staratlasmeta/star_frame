@@ -2,17 +2,25 @@ use crate::prelude::*;
 use crate::unsize::init::DefaultInit;
 use crate::unsize::UnsizedType;
 use advancer::Advance;
-use anyhow::{bail, Context};
-use bytemuck::{bytes_of, from_bytes};
+use anyhow::Context;
+use bytemuck::bytes_of;
 pub use star_frame_proc::ProgramAccount;
 use std::marker::PhantomData;
 use std::mem::size_of;
+
+/// Increases or decreases the rent of self to be the minimum required using [`CanModifyRent::normalize_rent`].
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
 pub struct NormalizeRent<T>(pub T);
 
+/// Decreases the rent of self to be the minimum required using [`CanModifyRent::refund_rent`].
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
 pub struct RefundRent<T>(pub T);
 
+/// Increases the rent of self to be at least the minimum rent using [`CanModifyRent::receive_rent`].
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
+pub struct ReceiveRent<T>(pub T);
+
+/// Closes the account using [`CanCloseAccount::close`].
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
 pub struct CloseAccount<T>(pub T);
 
@@ -25,7 +33,7 @@ pub struct CloseAccount<T>(pub T);
 )]
 #[cleanup(
     id = "normalize_rent",
-    generics = [<'a, Funder> where Funder: WritableAccount<'info> + SignedAccount<'info>],
+    generics = [<'a, Funder> where Funder: CanFundRent<'info>],
     arg = NormalizeRent<&'a Funder>,
     extra_cleanup = self.normalize_rent(arg.0, syscalls)
 )]
@@ -39,8 +47,23 @@ pub struct CloseAccount<T>(pub T);
     },
 )]
 #[cleanup(
+    id = "receive_rent",
+    generics = [<'a, Funder> where Funder: CanFundRent<'info>],
+    arg = ReceiveRent<&'a Funder>,
+    extra_cleanup = self.receive_rent(arg.0, syscalls)
+)]
+#[cleanup(
+    id = "receive_rent_cached",
+    arg = ReceiveRent<()>,
+    generics = [],
+    extra_cleanup = {
+        let funder = syscalls.get_funder().context("Missing `funder` in cache for `ReceiveRent`")?;
+        self.receive_rent(funder, syscalls)
+    }
+)]
+#[cleanup(
     id = "refund_rent",
-    generics = [<'a, Recipient> where Recipient: WritableAccount<'info>],
+    generics = [<'a, Recipient> where Recipient: CanReceiveRent<'info>],
     arg = RefundRent<&'a Recipient>,
     extra_cleanup = self.refund_rent(arg.0, syscalls)
 )]
@@ -55,7 +78,7 @@ pub struct CloseAccount<T>(pub T);
 )]
 #[cleanup(
     id = "close_account",
-    generics = [<'a, Recipient> where Recipient: WritableAccount<'info>],
+    generics = [<'a, Recipient> where Recipient: CanReceiveRent<'info>],
     arg = CloseAccount<&'a Recipient>,
     extra_cleanup = self.close(arg.0)
 )]
@@ -113,30 +136,9 @@ where
     /// Validates the owner and the discriminant of the account.
     #[inline]
     pub fn validate(&self) -> Result<()> {
-        if self.owner() != &T::OwnerProgram::ID {
-            bail!(
-                "Account {} owner {} does not match expected program ID {}",
-                self.key(),
-                self.owner(),
-                T::OwnerProgram::ID
-            );
-        }
-        let data = self.info_data_bytes()?;
-        if data.len() < size_of::<OwnerProgramDiscriminant<T>>()
-            || from_bytes::<PackedValue<OwnerProgramDiscriminant<T>>>(
-                &data[..size_of::<OwnerProgramDiscriminant<T>>()],
-            ) != &PackedValue(T::DISCRIMINANT)
-        {
-            bail!(
-                "Account {} data does not match expected discriminant for program {}",
-                self.key(),
-                T::OwnerProgram::ID
-            )
-        }
-        Ok(())
+        T::validate_account_info(self)
     }
 
-    #[inline]
     pub fn data(&self) -> Result<SharedWrapper<'_, T::Ref<'_>>> {
         // If the account is writable, changes could have been made after AccountSetValidate has been run
         if self.is_writable() {
@@ -145,7 +147,6 @@ where
         unsafe { SharedWrapper::new::<AccountDiscriminant<T>>(&self.info) }
     }
 
-    #[inline]
     pub fn data_mut(
         &self,
     ) -> Result<ExclusiveWrapperTop<'_, AccountDiscriminant<T>, AccountInfo<'info>>> {
@@ -318,7 +319,7 @@ impl<'info, T: ProgramAccount + UnsizedType + ?Sized, InitArg, Funder>
     CanInitAccount<'info, (InitArg, &Funder)> for Account<'info, T>
 where
     T: UnsizedInit<InitArg>,
-    Funder: SignedAccount<'info> + WritableAccount<'info>,
+    Funder: CanFundRent<'info>,
 {
     fn init_account<const IF_NEEDED: bool>(
         &mut self,

@@ -7,7 +7,6 @@ use crate::syscalls::SyscallCore;
 use anyhow::{anyhow, bail};
 use solana_program::account_info::AccountInfo;
 use solana_program::instruction::AccountMeta;
-use solana_program::msg;
 use solana_program::program_error::ProgramError;
 use solana_program::pubkey::Pubkey;
 use std::cell::{Ref, RefMut};
@@ -130,7 +129,7 @@ pub trait SingleAccountSet<'info>: AccountSet<'info> {
 pub trait CanCloseAccount<'info>: SingleAccountSet<'info> {
     /// Closes the account by zeroing the lamports and replacing the discriminant with all `u8::MAX`,
     /// reallocating down to size.
-    fn close(&self, recipient: &impl WritableAccount<'info>) -> Result<()>
+    fn close(&self, recipient: &impl CanReceiveRent<'info>) -> Result<()>
     where
         Self: HasOwnerProgram,
     {
@@ -140,16 +139,18 @@ pub trait CanCloseAccount<'info>: SingleAccountSet<'info> {
             false,
         )?;
         self.info_data_bytes_mut()?.fill(u8::MAX);
-        **recipient.account_info().try_borrow_mut_lamports()? += **info.try_borrow_lamports()?;
+        recipient.receive_rent(**info.try_borrow_lamports()?)?;
         **info.try_borrow_mut_lamports()? = 0;
         Ok(())
     }
 
     /// Closes the account by reallocating to zero and assigning to the System program.
     /// This is the same as calling `close` but not abusable and harder for indexer detection.
-    fn close_full(&self, recipient: &impl WritableAccount<'info>) -> Result<()> {
+    ///
+    /// It also happens to be unsound because [`AccountInfo::assign`] is unsound.
+    fn close_full(&self, recipient: &impl CanReceiveRent<'info>) -> Result<()> {
         let info = self.account_info();
-        **recipient.account_info().try_borrow_mut_lamports()? += **info.try_borrow_lamports()?;
+        recipient.receive_rent(**info.try_borrow_lamports()?)?;
         **info.try_borrow_mut_lamports()? = 0;
         info.realloc(0, false)?;
         info.assign(&System::ID);
@@ -159,16 +160,82 @@ pub trait CanCloseAccount<'info>: SingleAccountSet<'info> {
 
 impl<'info, T> CanCloseAccount<'info> for T where T: SingleAccountSet<'info> {}
 
+pub trait CanReceiveRent<'info> {
+    fn account_to_modify(&self) -> &AccountInfo<'info>;
+    fn receive_rent(&self, lamports: u64) -> Result<()> {
+        **self.account_to_modify().try_borrow_mut_lamports()? += lamports;
+        Ok(())
+    }
+}
+
+impl<'info, T> CanReceiveRent<'info> for T
+where
+    T: WritableAccount<'info>,
+{
+    fn account_to_modify(&self) -> &AccountInfo<'info> {
+        self.account_info()
+    }
+}
+
+/// Indicates that this account can fund rent on another account, and potentially be used to create an account.
+pub trait CanFundRent<'info>: CanReceiveRent<'info> {
+    /// Whether [`Self::account_to_modify`](`CanReceiveRent::account_to_modify`) can be used as the funder for a [`system_program::CreateAccount`] CPI.
+    /// If [`typenum::Bit::to_bool`] is `true`, then the account can be used as the funder for a [`system_program::CreateAccount`] CPI.
+    type CanCreateAccount: typenum::Bit;
+    /// Increases the rent of the recipient by `lamports`.
+    fn fund_rent(
+        funder: &Self,
+        recipient: &impl SingleAccountSet<'info>,
+        lamports: u64,
+        syscalls: &impl SyscallInvoke<'info>,
+    ) -> Result<()>;
+
+    fn signer_seeds(&self) -> Option<Vec<&[u8]>> {
+        None
+    }
+}
+
+impl<'info, T> CanFundRent<'info> for T
+where
+    T: CanReceiveRent<'info> + SignedAccount<'info>,
+{
+    type CanCreateAccount = typenum::True;
+    fn fund_rent(
+        funder: &Self,
+        // TODO: should this be a WritableAccount instead?
+        recipient: &impl SingleAccountSet<'info>,
+        lamports: u64,
+        syscalls: &impl SyscallInvoke<'info>,
+    ) -> Result<()> {
+        let cpi = System::cpi(
+            &system_program::Transfer { lamports },
+            system_program::TransferCpiAccounts {
+                funder: funder.account_info_cloned(),
+                recipient: recipient.account_info_cloned(),
+            },
+        )?;
+        match funder.signer_seeds() {
+            None => cpi.invoke(syscalls)?,
+            Some(seeds) => cpi.invoke_signed(&[&seeds], syscalls)?,
+        };
+        Ok(())
+    }
+
+    fn signer_seeds(&self) -> Option<Vec<&[u8]>> {
+        SignedAccount::signer_seeds(self)
+    }
+}
+
 pub trait CanModifyRent<'info> {
     fn account_to_modify(&self) -> &AccountInfo<'info>;
 
     /// Normalizes the rent of an account if data size is changed.
-    /// Assumes `Self` is owned by this program and funder is a System account
+    /// Assumes `Self` is mutable and owned by this program.
     ///
     /// If the account has 0 lamports (i.e., it is set to be closed), this will do nothing.
-    fn normalize_rent<F: WritableAccount<'info> + SignedAccount<'info>>(
+    fn normalize_rent(
         &self,
-        funder: &F,
+        funder: &impl CanFundRent<'info>,
         syscalls: &impl SyscallInvoke<'info>,
     ) -> Result<()> {
         let account = self.account_to_modify();
@@ -180,42 +247,29 @@ pub trait CanModifyRent<'info> {
             Ordering::Equal => Ok(()),
             Ordering::Greater => {
                 if lamports == 0 {
-                    msg!("Lamport is 0, skipping");
                     return Ok(());
                 }
                 let transfer_amount = rent_lamports - lamports;
-                let cpi = System::cpi(
-                    &system_program::Transfer {
-                        lamports: transfer_amount,
-                    },
-                    system_program::TransferCpiAccounts {
-                        funder: funder.account_info_cloned(),
-                        recipient: account.clone(),
-                    },
-                )?;
-                match funder.signer_seeds() {
-                    None => cpi.invoke(syscalls)?,
-                    Some(seeds) => cpi.invoke_signed(&[&seeds], syscalls)?,
-                };
+                CanFundRent::fund_rent(funder, account, transfer_amount, syscalls)?;
                 Ok(())
             }
             Ordering::Less => {
                 let transfer_amount = lamports - rent_lamports;
                 **account.try_borrow_mut_lamports()? -= transfer_amount;
-                **funder.account_info().try_borrow_mut_lamports()? += transfer_amount;
+                funder.receive_rent(transfer_amount)?;
                 Ok(())
             }
         }
     }
 
     /// Refunds rent to the funder so long as the account has more than the minimum rent.
-    /// Assumes `Self` is owned by this program.
+    /// Assumes `Self` is owned by this program and is mutable.
     ///
     /// If the account has 0 lamports (i.e., it is set to be closed), this will do nothing.
-    fn refund_rent<F: WritableAccount<'info>>(
+    fn refund_rent(
         &self,
-        recipient: &F,
-        syscalls: &impl SyscallCore,
+        recipient: &impl CanReceiveRent<'info>,
+        syscalls: &impl SyscallInvoke<'info>,
     ) -> Result<()> {
         let account = self.account_to_modify();
         let rent = syscalls.get_rent()?;
@@ -227,7 +281,7 @@ pub trait CanModifyRent<'info> {
             Ordering::Greater => {
                 if lamports > 0 {
                     Err(anyhow!(
-                        "Funder must be Signer to increase rent on {}",
+                        "Tried to refund rent from {} but does not have enough lamports to cover rent",
                         account.key()
                     ))
                 } else {
@@ -237,10 +291,34 @@ pub trait CanModifyRent<'info> {
             Ordering::Less => {
                 let transfer_amount = lamports - rent_lamports;
                 **account.try_borrow_mut_lamports()? -= transfer_amount;
-                **recipient.account_info().try_borrow_mut_lamports()? += transfer_amount;
+                recipient.receive_rent(transfer_amount)?;
                 Ok(())
             }
         }
+    }
+
+    /// Receive rent to self to be at least the minimum rent. This will not normalize down excess lamports.
+    /// Assumes `Self` is owned by this program and is mutable.
+    ///
+    /// If the account has 0 lamports (i.e., it is set to be closed), this will do nothing.
+    fn receive_rent(
+        &self,
+        funder: &impl CanFundRent<'info>,
+        syscalls: &impl SyscallInvoke<'info>,
+    ) -> Result<()> {
+        let account = self.account_to_modify();
+        let rent = syscalls.get_rent()?;
+        let lamports = **account.try_borrow_lamports()?;
+        let data_len = account.data_len();
+        let rent_lamports = rent.minimum_balance(data_len);
+        if rent_lamports > lamports {
+            if lamports == 0 {
+                return Ok(());
+            }
+            let transfer_amount = rent_lamports - lamports;
+            CanFundRent::fund_rent(funder, account, transfer_amount, syscalls)?;
+        }
+        Ok(())
     }
 
     /// Emits a warning message if the account has more lamports than required by rent.
@@ -280,7 +358,7 @@ pub trait CanSystemCreateAccount<'info> {
     fn account_to_create(&self) -> &AccountInfo<'info>;
     /// Creates an account using the system program
     /// Assumes `Self` is owned by the System program and funder is a System account
-    fn system_create_account<F: WritableAccount<'info> + SignedAccount<'info>>(
+    fn system_create_account<F: CanFundRent<'info>>(
         &self,
         funder: &F,
         owner: Pubkey,
@@ -295,7 +373,7 @@ pub trait CanSystemCreateAccount<'info> {
         let current_lamports = **account.try_borrow_lamports()?;
         let exempt_lamports = syscalls.get_rent()?.minimum_balance(space);
 
-        if current_lamports == 0 {
+        if current_lamports == 0 && <F::CanCreateAccount as typenum::Bit>::to_bool() {
             let funder_seeds = funder.signer_seeds();
             let seeds: &[&[&[u8]]] = match (&funder_seeds, account_seeds) {
                 (Some(signer_seeds), Some(account_seeds)) => &[signer_seeds, account_seeds],
@@ -310,7 +388,7 @@ pub trait CanSystemCreateAccount<'info> {
                     owner,
                 },
                 system_program::CreateAccountCpiAccounts {
-                    funder: funder.account_info_cloned(),
+                    funder: funder.account_to_modify().clone(),
                     new_account: account.clone(),
                 },
             )?
@@ -318,19 +396,7 @@ pub trait CanSystemCreateAccount<'info> {
         } else {
             let required_lamports = exempt_lamports.saturating_sub(current_lamports).max(1);
             if required_lamports > 0 {
-                let cpi = System::cpi(
-                    &system_program::Transfer {
-                        lamports: required_lamports,
-                    },
-                    system_program::TransferCpiAccounts {
-                        funder: funder.account_info_cloned(),
-                        recipient: account.clone(),
-                    },
-                )?;
-                match funder.signer_seeds() {
-                    None => cpi.invoke(syscalls)?,
-                    Some(seeds) => cpi.invoke_signed(&[&seeds], syscalls)?,
-                }
+                CanFundRent::fund_rent(funder, account, required_lamports, syscalls)?;
             }
             let account_seeds: &[&[&[u8]]] = match &account_seeds {
                 Some(seeds) => &[seeds],

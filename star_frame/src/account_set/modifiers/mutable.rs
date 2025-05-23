@@ -1,15 +1,28 @@
-use crate::account_set::{AccountSet, SingleAccountSet, WritableAccount};
+use crate::{
+    account_set::{AccountSet, SingleAccountSet, WritableAccount},
+    prelude::SingleSetMeta,
+};
 use derive_more::{Deref, DerefMut};
 
+/// A potentially mutable account, contingent on the `MUT` const generic being true.
 #[derive(AccountSet, Copy, Clone, Debug, Deref, DerefMut)]
 #[account_set(skip_default_idl)]
 #[validate(
-    extra_validation = self.check_writable(),
+    extra_validation = if MUT { self.check_writable() } else { Ok(()) }
 )]
 #[repr(transparent)]
-pub struct Mut<T>(#[single_account_set(writable, skip_writable_account)] pub(crate) T);
+pub struct MaybeMut<const MUT: bool, T>(
+    #[single_account_set(meta = SingleSetMeta { writable: MUT, ..T::META}, skip_writable_account)]
+    pub(crate) T,
+);
 
-impl<'info, T> WritableAccount<'info> for Mut<T> where T: SingleAccountSet<'info> {}
+/// A mutable account
+pub type Mut<T> = MaybeMut<true, T>;
+
+impl<'info, T> WritableAccount<'info> for MaybeMut<true, T> where T: SingleAccountSet<'info> {}
+
+// A false MaybeMut just acts as a pass-through, so we need to pass this through!
+impl<'info, T> WritableAccount<'info> for MaybeMut<false, T> where T: WritableAccount<'info> {}
 
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
 mod idl_impl {
@@ -19,7 +32,7 @@ mod idl_impl {
     use star_frame_idl::account_set::IdlAccountSetDef;
     use star_frame_idl::IdlDefinition;
 
-    impl<'info, T, A> AccountSetToIdl<'info, A> for Mut<T>
+    impl<'info, const MUT: bool, T, A> AccountSetToIdl<'info, A> for MaybeMut<MUT, T>
     where
         T: AccountSetToIdl<'info, A> + SingleAccountSet<'info>,
     {
@@ -28,7 +41,9 @@ mod idl_impl {
             arg: A,
         ) -> Result<IdlAccountSetDef> {
             let mut set = T::account_set_to_idl(idl_definition, arg)?;
-            set.single()?.writable = true;
+            if MUT {
+                set.single()?.writable = true;
+            }
             Ok(set)
         }
     }
