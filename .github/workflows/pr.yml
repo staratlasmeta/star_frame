@@ -73,6 +73,7 @@ jobs:
       - name: Set up miri
         run: |
           rustup override set nightly
+          ls -hl /home/runner/.cache
           cargo miri setup
       - uses: ./.github/actions/setup_shipyard
         with:
