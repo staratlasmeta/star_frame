@@ -15,11 +15,11 @@ jobs:
       group: sa-runners
     steps:
       - uses: actions/checkout@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
       - uses: ./.github/actions/setup_shipyard
         with:
           ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
           private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
       - run: cargo build --all-features
 
   lint:
@@ -27,11 +27,11 @@ jobs:
       group: sa-runners
     steps:
       - uses: actions/checkout@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
       - uses: ./.github/actions/setup_shipyard
         with:
           ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
           private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
       - run: cargo clippy --all-targets --all-features
 
   fmt:
@@ -39,13 +39,13 @@ jobs:
       group: sa-runners
     steps:
       - uses: actions/checkout@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: 'false'
       - uses: ./.github/actions/setup_shipyard
         with:
           ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
           private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
-        with:
-          cache: 'false'
       - run: cargo fmt --check
 
   test:
@@ -53,11 +53,11 @@ jobs:
       group: sa-runners
     steps:
       - uses: actions/checkout@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
       - uses: ./.github/actions/setup_shipyard
         with:
           ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
           private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
       - run: cargo test --all-features
 
   miri:
@@ -65,15 +65,17 @@ jobs:
       group: sa-runners
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup_shipyard
-        with:
-          ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
-          private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           toolchain: 'nightly'
           components: 'miri'
       - name: Set up miri
-        run: cargo +nightly miri setup
+        run: |
+          rustup override set nightly
+          cargo miri setup
+      - uses: ./.github/actions/setup_shipyard
+        with:
+          ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
+          private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
       - run: 'MIRIFLAGS="-Zmiri-tree-borrows" cargo +nightly miri test --features "test_helpers" unsize::'
         working-directory: star_frame
