@@ -19,11 +19,11 @@ runs:
       shell: bash
       run: sudo apt install -y libsasl2-dev
 
-    - name: Install Rust 🦀
-      uses: actions-rust-lang/setup-rust-toolchain@v1
-      with:
-        cache: 'true'
-        rustflags: '-D warnings -A unexpected_cfgs'
+    # - name: Install Rust 🦀
+    #   uses: actions-rust-lang/setup-rust-toolchain@v1
+    #   with:
+    #     cache: 'false'
+    #     rustflags: '-D warnings -A unexpected_cfgs'
 
     - name: Configure SSH
       uses: kielabokkie/ssh-key-and-known-hosts-action@v1
