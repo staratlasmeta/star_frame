@@ -68,7 +68,7 @@ jobs:
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           toolchain: 'nightly'
-          components: 'miri'
+          components: 'miri, rust-src'
           cache-directories: '/home/runner/.cache/miri'
       - name: Set up miri
         run: |
