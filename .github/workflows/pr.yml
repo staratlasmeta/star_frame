@@ -69,6 +69,7 @@ jobs:
         with:
           toolchain: 'nightly'
           components: 'miri'
+          cache-directories: '~/.cache/miri/'
       - name: Set up miri
         run: |
           rustup override set nightly
