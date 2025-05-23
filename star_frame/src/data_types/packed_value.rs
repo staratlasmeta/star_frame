@@ -1,6 +1,7 @@
 use std::cmp::Ordering;
 
 use bytemuck::{AnyBitPattern, CheckedBitPattern, NoUninit, Pod, Zeroable};
+use core::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Rem, RemAssign, Sub, SubAssign};
 use derive_more::From;
 use num_traits::{FromPrimitive, ToPrimitive};
 use star_frame::align1::Align1;
@@ -50,22 +51,80 @@ macro_rules! packed_comparisons {
 packed_comparisons!(PackedValue);
 packed_comparisons!(PackedValueChecked);
 
+macro_rules! ref_arithmetic_impls {
+    ($packed:ident $trait:ident: $($rhs:ty)*) => {
+        $(
+            paste::paste! {
+                impl<T> [<$trait Assign>]<&$rhs> for $packed<T>
+                where
+                    T: $trait<T, Output = T> + Copy,
+                {
+                    fn [<$trait:lower _assign>](&mut self, rhs: &$rhs) {
+                        [<$trait Assign>]::[<$trait:lower _assign>](self, *rhs);
+                    }
+                }
+
+                impl<T> $trait<&$rhs> for $packed<T>
+                where
+                    T: $trait<T, Output = T> + Copy,
+                {
+                    type Output = $rhs;
+
+                    fn [<$trait:lower>](self, rhs: &$rhs) -> Self::Output {
+                        $trait::[<$trait:lower>](self, *rhs)
+                    }
+                }
+
+                impl<T> $trait<$rhs> for &$packed<T>
+                where
+                    T: $trait<T, Output = T> + Copy,
+                {
+                    type Output = $rhs;
+                    fn [<$trait:lower>](self, rhs: $rhs) -> Self::Output {
+                        $trait::[<$trait:lower>](*self, rhs)
+                    }
+                }
+
+                impl<T> $trait<&$rhs> for &$packed<T>
+                where
+                    T: $trait<T, Output = T> + Copy,
+                {
+                    type Output = $rhs;
+                    fn [<$trait:lower>](self, rhs: &$rhs) -> Self::Output {
+                        $trait::[<$trait:lower>](*self, *rhs)
+                    }
+                }
+            }
+        )*
+    };
+}
+
 macro_rules! arithmetic_impls {
     ($packed:ident: $($trait:ident $op:tt)*) => {
         paste::paste! {
             $(
-                impl<T> core::ops::[<$trait Assign>]<T> for $packed<T>
+                impl<T> [<$trait Assign>]<T> for $packed<T>
                 where
-                    T: core::ops::$trait<T, Output = T> + Copy,
+                    T: $trait<T, Output = T> + Copy,
                 {
                     fn [<$trait:lower _assign>](&mut self, rhs: T) {
-                        *self = $packed(self.0 $op rhs);
+                        self.0 = self.0 $op rhs;
                     }
                 }
 
-                impl<T> core::ops::$trait<T> for $packed<T>
+
+                impl<T> [<$trait Assign>]<$packed<T>> for $packed<T>
                 where
-                    T: core::ops::$trait<T, Output = T> + Copy,
+                    T: $trait<T, Output = T> + Copy,
+                {
+                    fn [<$trait:lower _assign>](&mut self, rhs: $packed<T>) {
+                        self.0 = self.0 $op rhs.0;
+                    }
+                }
+
+                impl<T> $trait<T> for $packed<T>
+                where
+                    T: $trait<T, Output = T> + Copy,
                 {
                     type Output = T;
                     fn [<$trait:lower>](self, rhs: T) -> Self::Output {
@@ -73,9 +132,9 @@ macro_rules! arithmetic_impls {
                     }
                 }
 
-                impl<T> core::ops::$trait<$packed<T>> for $packed<T>
+                impl<T> $trait<$packed<T>> for $packed<T>
                 where
-                    T: core::ops::$trait<T, Output = T> + Copy,
+                    T: $trait<T, Output = T> + Copy,
                 {
                     type Output = $packed<T>;
                     fn [<$trait:lower>](self, rhs: $packed<T>) -> Self::Output {
@@ -83,6 +142,7 @@ macro_rules! arithmetic_impls {
                     }
                 }
 
+                ref_arithmetic_impls!($packed $trait: T $packed<T>);
             )*
         }
     };
