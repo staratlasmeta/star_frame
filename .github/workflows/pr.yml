@@ -77,5 +77,5 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
           private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
-      - run: 'MIRIFLAGS="-Zmiri-tree-borrows" cargo +nightly miri test --features "test_helpers" unsize::'
+      - run: 'MIRIFLAGS="-Zmiri-tree-borrows" cargo miri test --features "test_helpers" unsize::'
         working-directory: star_frame
