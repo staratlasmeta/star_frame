@@ -236,7 +236,7 @@ pub(super) fn derive_account_set_impl_struct(
                 if args.signer || args.writable {
                     abort!(
                         expr,
-                        "Cannot specif ya custom `metadata` with `signer` or `writable`"
+                        "`signer` or `writable` cannot be used with custom `meta`"
                     );
                 }
                 quote!(#expr)
