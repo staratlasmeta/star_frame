@@ -139,7 +139,7 @@ pub trait CanCloseAccount<'info>: SingleAccountSet<'info> {
             false,
         )?;
         self.info_data_bytes_mut()?.fill(u8::MAX);
-        recipient.recieve_rent(**info.try_borrow_lamports()?)?;
+        recipient.receive_rent(**info.try_borrow_lamports()?)?;
         **info.try_borrow_mut_lamports()? = 0;
         Ok(())
     }
@@ -150,7 +150,7 @@ pub trait CanCloseAccount<'info>: SingleAccountSet<'info> {
     /// It also happens to be unsound because [`AccountInfo::assign`] is unsound.
     fn close_full(&self, recipient: &impl CanReceiveRent<'info>) -> Result<()> {
         let info = self.account_info();
-        recipient.recieve_rent(**info.try_borrow_lamports()?)?;
+        recipient.receive_rent(**info.try_borrow_lamports()?)?;
         **info.try_borrow_mut_lamports()? = 0;
         info.realloc(0, false)?;
         info.assign(&System::ID);
@@ -162,7 +162,7 @@ impl<'info, T> CanCloseAccount<'info> for T where T: SingleAccountSet<'info> {}
 
 pub trait CanReceiveRent<'info> {
     fn account_to_modify(&self) -> &AccountInfo<'info>;
-    fn recieve_rent(&self, lamports: u64) -> Result<()> {
+    fn receive_rent(&self, lamports: u64) -> Result<()> {
         **self.account_to_modify().try_borrow_mut_lamports()? += lamports;
         Ok(())
     }
@@ -256,7 +256,7 @@ pub trait CanModifyRent<'info> {
             Ordering::Less => {
                 let transfer_amount = lamports - rent_lamports;
                 **account.try_borrow_mut_lamports()? -= transfer_amount;
-                funder.recieve_rent(transfer_amount)?;
+                funder.receive_rent(transfer_amount)?;
                 Ok(())
             }
         }
@@ -291,7 +291,7 @@ pub trait CanModifyRent<'info> {
             Ordering::Less => {
                 let transfer_amount = lamports - rent_lamports;
                 **account.try_borrow_mut_lamports()? -= transfer_amount;
-                recipient.recieve_rent(transfer_amount)?;
+                recipient.receive_rent(transfer_amount)?;
                 Ok(())
             }
         }
