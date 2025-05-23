@@ -19,7 +19,8 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
           private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
-      - run: cargo build --release --all-features
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - run: cargo build --all-features
 
   lint:
     runs-on:
@@ -30,6 +31,7 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
           private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
       - run: cargo clippy --all-targets --all-features
 
   fmt:
@@ -41,6 +43,9 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
           private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: 'false'
       - run: cargo fmt --check
 
   test:
@@ -52,6 +57,7 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
           private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
       - run: cargo test --all-features
 
   miri:
@@ -63,10 +69,11 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
           private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
-      - name: Install Miri
-        run: |
-          rustup toolchain install nightly --component miri
-          rustup override set nightly
-          cargo miri setup
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: 'nightly'
+          components: 'miri'
+      - name: Set up miri
+        run: cargo +nightly miri setup
       - run: 'MIRIFLAGS="-Zmiri-tree-borrows" cargo +nightly miri test --features "test_helpers" unsize::'
         working-directory: star_frame
