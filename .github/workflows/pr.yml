@@ -15,7 +15,7 @@ jobs:
       group: sa-runners
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup_shipyard
+      - uses: ./.github/actions/install-binaries
         with:
           ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
           private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
@@ -26,7 +26,7 @@ jobs:
       group: sa-runners
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup_shipyard
+      - uses: ./.github/actions/install-binaries
         with:
           ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
           private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
@@ -37,7 +37,7 @@ jobs:
       group: sa-runners
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup_shipyard
+      - uses: ./.github/actions/install-binaries
         with:
           ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
           private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
@@ -48,7 +48,7 @@ jobs:
       group: sa-runners
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup_shipyard
+      - uses: ./.github/actions/install-binaries
         with:
           ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
           private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
@@ -59,7 +59,7 @@ jobs:
       group: sa-runners
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup_shipyard
+      - uses: ./.github/actions/install-binaries
         with:
           ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
           private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
