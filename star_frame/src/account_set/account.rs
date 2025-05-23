@@ -8,19 +8,19 @@ pub use star_frame_proc::ProgramAccount;
 use std::marker::PhantomData;
 use std::mem::size_of;
 
-/// Increases or decreases the rent of self to be the minimum required.
+/// Increases or decreases the rent of self to be the minimum required using [`CanModifyRent::normalize_rent`].
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
 pub struct NormalizeRent<T>(pub T);
 
-/// Decreases the rent of self to be the minimum required.
+/// Decreases the rent of self to be the minimum required using [`CanModifyRent::refund_rent`].
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
 pub struct RefundRent<T>(pub T);
 
-/// Increases the rent of self to be at least the minimum rent.
+/// Increases the rent of self to be at least the minimum rent using [`CanModifyRent::receive_rent`].
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
 pub struct ReceiveRent<T>(pub T);
 
-/// Closes the account using
+/// Closes the account using [`CanCloseAccount::close`].
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
 pub struct CloseAccount<T>(pub T);
 
