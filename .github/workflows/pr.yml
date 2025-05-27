@@ -15,17 +15,19 @@ jobs:
       group: sa-runners
     steps:
       - uses: actions/checkout@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
       - uses: ./.github/actions/setup_shipyard
         with:
           ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
           private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
-      - run: cargo build --release --all-features
+      - run: cargo build --all-features
 
   lint:
     runs-on:
       group: sa-runners
     steps:
       - uses: actions/checkout@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
       - uses: ./.github/actions/setup_shipyard
         with:
           ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
@@ -37,17 +39,21 @@ jobs:
       group: sa-runners
     steps:
       - uses: actions/checkout@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: 'false'
       - uses: ./.github/actions/setup_shipyard
         with:
           ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
           private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
-      - run: cargo fmt --check
+      - run: cargo fmt --all --check
 
   test:
     runs-on:
       group: sa-runners
     steps:
       - uses: actions/checkout@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
       - uses: ./.github/actions/setup_shipyard
         with:
           ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
@@ -59,14 +65,18 @@ jobs:
       group: sa-runners
     steps:
       - uses: actions/checkout@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: 'nightly'
+          components: 'miri, rust-src'
+      - name: Set up miri
+        run: |
+          rustup override set nightly
+          cargo miri setup
+      - uses: taiki-e/install-action@nextest
       - uses: ./.github/actions/setup_shipyard
         with:
           ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
           private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
-      - name: Install Miri
-        run: |
-          rustup toolchain install nightly --component miri
-          rustup override set nightly
-          cargo miri setup
-      - run: 'MIRIFLAGS="-Zmiri-tree-borrows" cargo +nightly miri test --features "test_helpers" unsize::'
+      - run: 'MIRIFLAGS="-Zmiri-tree-borrows" cargo miri nextest run --features "test_helpers" unsize::'
         working-directory: star_frame
