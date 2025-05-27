@@ -15,7 +15,7 @@ use std::fmt::Debug;
     extra_validation = if SIGNER { self.check_signer() } else { Ok(()) }
 )]
 pub struct MaybeSigner<const SIGNER: bool, T>(
-    #[single_account_set(meta = SingleSetMeta { signer: SIGNER, ..T::META}, skip_signed_account, skip_can_init_seeds)]
+    #[single_account_set(meta = SingleSetMeta { signer: SIGNER, ..T::meta() }, skip_signed_account, skip_can_init_seeds)]
     pub(crate) T,
 );
 

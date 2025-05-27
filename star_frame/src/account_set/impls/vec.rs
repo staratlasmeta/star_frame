@@ -12,7 +12,7 @@ where
     T: AccountSet<'info>,
 {
     #[inline]
-    fn set_account_cache(&mut self, _syscalls: &mut impl SyscallAccountCache<'info>) {}
+    fn set_account_cache(&mut self, _syscalls: &mut dyn SyscallAccountCache<'info>) {}
 }
 
 impl<'info, T> CpiAccountSet<'info> for Vec<T>

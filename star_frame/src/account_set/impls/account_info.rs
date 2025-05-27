@@ -14,14 +14,17 @@ use std::cell::{Ref, RefMut};
 
 impl<'info> AccountSet<'info> for AccountInfo<'info> {
     #[inline]
-    fn set_account_cache(&mut self, _syscalls: &mut impl SyscallAccountCache<'info>) {}
+    fn set_account_cache(&mut self, _syscalls: &mut dyn SyscallAccountCache<'info>) {}
 }
 impl<'info> AccountSet<'info> for &AccountInfo<'info> {
     #[inline]
-    fn set_account_cache(&mut self, _syscalls: &mut impl SyscallAccountCache<'info>) {}
+    fn set_account_cache(&mut self, _syscalls: &mut dyn SyscallAccountCache<'info>) {}
 }
 impl<'info> SingleAccountSet<'info> for AccountInfo<'info> {
-    const META: SingleSetMeta = SingleSetMeta::default();
+    #[inline]
+    fn meta() -> SingleSetMeta {
+        SingleSetMeta::default()
+    }
     #[inline]
     fn account_info(&self) -> &AccountInfo<'info> {
         self
@@ -158,7 +161,10 @@ impl<'info> CpiAccountSet<'info> for AccountInfo<'info> {
 }
 
 impl<'info> SingleAccountSet<'info> for &AccountInfo<'info> {
-    const META: SingleSetMeta = SingleSetMeta::default();
+    #[inline]
+    fn meta() -> SingleSetMeta {
+        SingleSetMeta::default()
+    }
     #[inline]
     fn account_info(&self) -> &AccountInfo<'info> {
         self

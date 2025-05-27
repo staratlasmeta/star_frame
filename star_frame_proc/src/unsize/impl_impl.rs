@@ -1,7 +1,4 @@
-use crate::util::{
-    combine_gen, new_generic, new_lifetime, strip_inner_attributes, BetterGenerics,
-    CombineGenerics, Paths,
-};
+use crate::util::{combine_gen, new_generic, new_lifetime, strip_inner_attributes, Paths};
 use easy_proc::ArgumentList;
 use heck::ToUpperCamelCase;
 use itertools::Itertools;

@@ -90,6 +90,7 @@ pub(super) fn derive_account_set_impl_struct(
         account_set,
         prelude,
         result,
+        clone,
         ..
     } = &paths;
 
@@ -228,7 +229,7 @@ pub(super) fn derive_account_set_impl_struct(
                     #prelude::SingleSetMeta {
                         #signer
                         #writable
-                        ..<#field_ty as #prelude::SingleAccountSet<#info_lifetime>>::META
+                        ..<#field_ty as #prelude::SingleAccountSet<#info_lifetime>>::meta()
                     }
                 }
             },
@@ -248,7 +249,9 @@ pub(super) fn derive_account_set_impl_struct(
             #[automatically_derived]
             impl #info_sg_impl #prelude::SingleAccountSet<#info_lifetime> for #ident #ty_generics #single_where {
                 #[allow(clippy::needless_update)]
-                const META: #prelude::SingleSetMeta = #meta;
+                fn meta() -> #prelude::SingleSetMeta {
+                    #meta
+                }
 
                 #[inline]
                 fn account_info(&self) -> &#account_info<#info_lifetime> {
@@ -276,8 +279,8 @@ pub(super) fn derive_account_set_impl_struct(
                 ) {
                     metas.push(#prelude::AccountMeta {
                         pubkey: *account_info.key,
-                        is_signer: <Self as #prelude::SingleAccountSet<#info_lifetime>>::META.signer,
-                        is_writable: <Self as #prelude::SingleAccountSet<#info_lifetime>>::META.writable,
+                        is_signer: <Self as #prelude::SingleAccountSet<#info_lifetime>>::meta().signer,
+                        is_writable: <Self as #prelude::SingleAccountSet<#info_lifetime>>::meta().writable,
                     });
                 }
             }
@@ -294,8 +297,8 @@ pub(super) fn derive_account_set_impl_struct(
                 ) {
                     metas.push(#prelude::AccountMeta {
                         pubkey: *accounts,
-                        is_signer: <Self as #prelude::SingleAccountSet<#info_lifetime>>::META.signer,
-                        is_writable: <Self as #prelude::SingleAccountSet<#info_lifetime>>::META.writable,
+                        is_signer: <Self as #prelude::SingleAccountSet<#info_lifetime>>::meta().signer,
+                        is_writable: <Self as #prelude::SingleAccountSet<#info_lifetime>>::meta().writable,
                     });
                 }
             }
@@ -632,7 +635,7 @@ pub(super) fn derive_account_set_impl_struct(
             single_name("funder", &find_field_names(|args| args.funder)).map(|field_name| {
                 quote! {
                     if syscalls.get_funder().is_none() {
-                        syscalls.set_funder(&self.#field_name);
+                        syscalls.set_funder(Box::new(#clone::clone(&self.#field_name)));
                     }
                 }
             });
@@ -641,7 +644,7 @@ pub(super) fn derive_account_set_impl_struct(
             single_name("recipient", &find_field_names(|args| args.recipient)).map(|field_name| {
                 quote! {
                     if syscalls.get_recipient().is_none() {
-                        syscalls.set_recipient(&self.#field_name);
+                        syscalls.set_recipient(Box::new(#clone::clone(&self.#field_name)));
                     }
                 }
             });
@@ -658,7 +661,7 @@ pub(super) fn derive_account_set_impl_struct(
                 #[inline]
                 fn set_account_cache(
                     &mut self,
-                    syscalls: &mut impl #prelude::SyscallAccountCache<#info_lifetime>,
+                    syscalls: &mut dyn #prelude::SyscallAccountCache<#info_lifetime>,
                 ) {
                     #set_account_caches
                     #(<#field_type as #account_set<#info_lifetime>>::set_account_cache(&mut self.#field_name, syscalls);)*

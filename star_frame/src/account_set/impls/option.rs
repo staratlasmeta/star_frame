@@ -13,7 +13,7 @@ where
     A: AccountSet<'info>,
 {
     #[inline]
-    fn set_account_cache(&mut self, syscalls: &mut impl SyscallAccountCache<'info>) {
+    fn set_account_cache(&mut self, syscalls: &mut dyn SyscallAccountCache<'info>) {
         if let Some(inner) = self {
             inner.set_account_cache(syscalls);
         }

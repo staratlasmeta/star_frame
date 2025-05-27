@@ -8,7 +8,7 @@ use solana_program::pubkey::Pubkey;
 
 impl<'info> AccountSet<'info> for () {
     #[inline]
-    fn set_account_cache(&mut self, _syscalls: &mut impl SyscallAccountCache<'info>) {}
+    fn set_account_cache(&mut self, _syscalls: &mut dyn SyscallAccountCache<'info>) {}
 }
 
 impl<'info> CpiAccountSet<'info> for () {

@@ -1,5 +1,5 @@
 pub mod solana_runtime;
-use crate::account_set::{Mut, SignedAccount, SignerInfo, WritableAccount};
+use crate::prelude::{CanFundRent, CanReceiveRent};
 use crate::{Result, SolanaInstruction};
 use solana_program::account_info::AccountInfo;
 use solana_program::clock::Clock;
@@ -37,17 +37,17 @@ pub trait SyscallInvoke<'info>: SyscallCore + SyscallAccountCache<'info> {
 /// implementations to pull from this cache instead of requiring the user to explicitly pass in the accounts.
 pub trait SyscallAccountCache<'info> {
     /// Gets a cached version of the funder if exists and Self has a funder cache
-    fn get_funder(&self) -> Option<&Mut<SignerInfo<'info>>> {
+    fn get_funder(&self) -> Option<&dyn CanFundRent<'info>> {
         None
     }
     /// Sets the funder cache if Self has one. No-op if it doesn't.
-    fn set_funder(&mut self, _funder: &(impl SignedAccount<'info> + WritableAccount<'info>)) {}
+    fn set_funder(&mut self, _funder: Box<dyn CanFundRent<'info> + 'info>) {}
     /// Gets a cached version of the funder if exists and Self has a funder cache
-    fn get_recipient(&self) -> Option<&Mut<AccountInfo<'info>>> {
+    fn get_recipient(&self) -> Option<&dyn CanReceiveRent<'info>> {
         None
     }
     /// Sets the recipient cache if Self has one. No-op if it doesn't.
-    fn set_recipient(&mut self, _recipient: &impl WritableAccount<'info>) {}
+    fn set_recipient(&mut self, _recipient: Box<dyn CanReceiveRent<'info> + 'info>) {}
 }
 
 /// System calls that all syscall implementations must provide.

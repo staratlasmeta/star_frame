@@ -112,7 +112,7 @@ where
     }
 }
 
-#[derive(Debug, AccountSet, Deref, DerefMut)]
+#[derive(Debug, AccountSet, Deref, DerefMut, Clone)]
 #[account_set(skip_default_idl, skip_default_validate)]
 #[validate(
     id = "seeds",

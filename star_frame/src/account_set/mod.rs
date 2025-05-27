@@ -32,7 +32,7 @@ use std::slice;
 /// Derivable via [`derive@AccountSet`].
 pub trait AccountSet<'info> {
     /// Sets account cache
-    fn set_account_cache(&mut self, syscalls: &mut impl SyscallAccountCache<'info>);
+    fn set_account_cache(&mut self, syscalls: &mut dyn SyscallAccountCache<'info>);
 }
 
 pub trait ProgramAccount: HasOwnerProgram {

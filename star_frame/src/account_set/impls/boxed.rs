@@ -15,7 +15,7 @@ where
     T: AccountSet<'info>,
 {
     #[inline]
-    fn set_account_cache(&mut self, syscalls: &mut impl SyscallAccountCache<'info>) {
+    fn set_account_cache(&mut self, syscalls: &mut dyn SyscallAccountCache<'info>) {
         T::set_account_cache(self, syscalls);
     }
 }
@@ -24,8 +24,11 @@ impl<'info, T> SingleAccountSet<'info> for Box<T>
 where
     T: SingleAccountSet<'info>,
 {
-    const META: SingleSetMeta = T::META;
-
+    #[inline]
+    fn meta() -> SingleSetMeta {
+        T::meta()
+    }
+    #[inline]
     fn account_info(&self) -> &AccountInfo<'info> {
         T::account_info(self)
     }
