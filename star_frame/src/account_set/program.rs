@@ -2,7 +2,8 @@ use crate::prelude::*;
 use ref_cast::{ref_cast_custom, RefCastCustom};
 use std::marker::PhantomData;
 
-#[derive(AccountSet, Debug, Clone, RefCastCustom)]
+#[derive(AccountSet, Debug, RefCastCustom, derive_where::DeriveWhere)]
+#[derive_where(Clone)]
 #[validate(
     generics = [where T: StarFrameProgram],
     extra_validation = self.check_id(),

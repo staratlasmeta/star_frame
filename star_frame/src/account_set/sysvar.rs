@@ -2,7 +2,8 @@ use solana_program::sysvar::{Sysvar as SysvarTrait, SysvarId};
 use star_frame::prelude::*;
 use std::marker::PhantomData;
 
-#[derive(AccountSet, Debug, Clone)]
+#[derive(AccountSet, Debug, derive_where::DeriveWhere)]
+#[derive_where(Clone)]
 #[idl(generics = [])]
 #[validate(generics = [])]
 pub struct Sysvar<'info, T>

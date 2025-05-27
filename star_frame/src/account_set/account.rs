@@ -24,7 +24,8 @@ pub struct ReceiveRent<T>(pub T);
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
 pub struct CloseAccount<T>(pub T);
 
-#[derive(AccountSet, Debug, Clone)]
+#[derive(AccountSet, Debug, derive_where::DeriveWhere)]
+#[derive_where(Clone)]
 #[account_set(skip_default_idl, skip_default_cleanup)]
 #[validate(extra_validation = self.validate())]
 #[cleanup(

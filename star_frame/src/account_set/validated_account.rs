@@ -6,7 +6,8 @@ pub trait AccountValidate<ValidateArg>: UnsizedType {
     fn validate(self_ref: &Self::Ref<'_>, arg: ValidateArg) -> Result<()>;
 }
 
-#[derive(AccountSet, Debug, Deref, DerefMut, Clone)]
+#[derive(AccountSet, Debug, Deref, DerefMut, derive_where::DeriveWhere)]
+#[derive_where(Clone)]
 #[validate(generics = [<ValidateArg> where T: AccountValidate<ValidateArg>], arg = ValidateArg, extra_validation = T::validate(&*self.account.data()?, arg))]
 #[idl(generics = [<A> where T: AccountToIdl, Account<'info, T>: AccountSetToIdl<'info, A>], arg = A)]
 pub struct ValidatedAccount<'info, T>
