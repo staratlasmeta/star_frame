@@ -748,7 +748,7 @@ where
         &'child mut self,
         index: usize,
     ) -> Result<Option<ExclusiveWrapper<'child, 'top, T::Mut<'top>, Self>>> {
-        let Some((start, end)) = self.get_unsized_range(index) else {
+        let Some((start, _end)) = self.get_unsized_range(index) else {
             return Ok(None);
         };
         unsafe {

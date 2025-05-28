@@ -222,7 +222,6 @@ pub fn unsized_impl_impl(item: ItemImpl, args: TokenStream) -> TokenStream {
                 #(#signatures)*
             }
 
-            #[automatically_derived]
             impl #impl_gen #trait_ident #ty_gen for #impl_for #where_clause
             {
                 #(#funcs)*
