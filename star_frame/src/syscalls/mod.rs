@@ -42,7 +42,7 @@ pub trait SyscallAccountCache<'info> {
     }
     /// Sets the funder cache if Self has one. No-op if it doesn't.
     fn set_funder(&mut self, _funder: Box<dyn CanFundRent<'info> + 'info>) {}
-    /// Gets a cached version of the funder if exists and Self has a funder cache
+    /// Gets a cached version of the recipient if exists and Self has a recipient cache
     fn get_recipient(&self) -> Option<&dyn CanReceiveRent<'info>> {
         None
     }
