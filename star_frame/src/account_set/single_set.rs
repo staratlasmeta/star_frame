@@ -185,7 +185,6 @@ where
 /// Indicates that this account can fund rent on another account, and potentially be used to create an account.
 pub trait CanFundRent<'info>: CanReceiveRent<'info> {
     /// Whether [`Self::account_to_modify`](`CanReceiveRent::account_to_modify`) can be used as the funder for a [`system_program::CreateAccount`] CPI.
-    /// If [`typenum::Bit::to_bool`] is `true`, then the account can be used as the funder for a [`system_program::CreateAccount`] CPI.
     fn can_create_account(&self) -> bool;
     /// Increases the rent of the recipient by `lamports`.
     fn fund_rent(
