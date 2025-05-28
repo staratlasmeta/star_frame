@@ -1,5 +1,9 @@
-use std::cmp::Ordering;
+use std::{
+    cmp::Ordering,
+    io::{Read, Write},
+};
 
+use borsh::{BorshDeserialize, BorshSerialize};
 use bytemuck::{AnyBitPattern, CheckedBitPattern, NoUninit, Pod, Zeroable};
 use core::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Rem, RemAssign, Sub, SubAssign};
 use derive_more::From;
@@ -31,6 +35,31 @@ where
 }
 unsafe impl<T> NoUninit for PackedValueChecked<T> where T: NoUninit {}
 unsafe impl<T> Zeroable for PackedValueChecked<T> where T: Zeroable {}
+
+macro_rules! packed_borsh {
+    ($ident:ident) => {
+        impl<T> BorshSerialize for $ident<T>
+        where
+            T: BorshSerialize + Copy,
+        {
+            fn serialize<W: Write>(&self, writer: &mut W) -> borsh::io::Result<()> {
+                { self.0 }.serialize(writer)
+            }
+        }
+
+        impl<T> BorshDeserialize for $ident<T>
+        where
+            T: BorshDeserialize + Copy,
+        {
+            fn deserialize_reader<R: Read>(reader: &mut R) -> borsh::io::Result<Self> {
+                T::deserialize_reader(reader).map(Self)
+            }
+        }
+    };
+}
+
+packed_borsh!(PackedValue);
+packed_borsh!(PackedValueChecked);
 
 macro_rules! packed_comparisons {
     ($ident:ident) => {
