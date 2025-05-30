@@ -18,7 +18,7 @@ use std::marker::PhantomData;
 ///
 /// `GetSeeds` can be manually implemented by defining a `seeds` method that returns a `Vec<&[u8]>`.
 /// The `seeds` method should optionally include a constant seed at the beginning of the vector,
-/// followed by calling the `seed` method on each field of the struct.
+/// followed by calling the `seed` method on each field of the struct, with an empty slice at the end.
 ///
 /// ```
 /// # use star_frame::prelude::*;
@@ -30,7 +30,7 @@ use std::marker::PhantomData;
 ///
 /// impl GetSeeds for Cool {
 ///    fn seeds(&self) -> Vec<&[u8]> {
-///       vec![b"TEST_CONST", self.key.seed(), self.number.seed()]
+///       vec![b"TEST_CONST", self.key.seed(), self.number.seed(), &[]]
 ///     }
 /// }
 ///
@@ -65,11 +65,11 @@ pub struct SeedsWithBump<T: GetSeeds> {
     pub bump: u8,
 }
 
-impl<T> GetSeeds for SeedsWithBump<T>
+impl<T> SeedsWithBump<T>
 where
     T: GetSeeds,
 {
-    fn seeds(&self) -> Vec<&[u8]> {
+    pub fn seeds_with_bump(&self) -> Vec<&[u8]> {
         let mut seeds = self.seeds.seeds();
         if let Some(last) = seeds.last_mut() {
             *last = bytes_of(&self.bump);
@@ -77,16 +77,6 @@ where
             seeds.push(bytes_of(&self.bump));
         }
         seeds
-    }
-}
-
-impl<T> SeedsWithBump<T>
-where
-    T: GetSeeds,
-{
-    #[deprecated(note = "Use `GetSeeds::seeds` instead", since = "0.9.0")]
-    pub fn seeds_with_bump(&self) -> Vec<&[u8]> {
-        self.seeds()
     }
 }
 
@@ -268,7 +258,7 @@ where
         if self.seeds.is_some() {
             return Ok(());
         }
-        let arg_seeds = seeds.seeds();
+        let arg_seeds = seeds.seeds_with_bump();
         let address = Pubkey::create_program_address(&arg_seeds, &P::id(sys_calls)?)?;
         if self.account.account_info().key != &address {
             bail!(
@@ -300,7 +290,7 @@ where
     S: GetSeeds + Clone,
 {
     fn signer_seeds(&self) -> Option<Vec<&[u8]>> {
-        Some(self.access_seeds().seeds())
+        Some(self.access_seeds().seeds_with_bump())
     }
 }
 
@@ -332,7 +322,7 @@ where
         let seeds = self
             .seeds
             .as_ref()
-            .map(|s| s.seeds())
+            .map(|s| s.seeds_with_bump())
             .context("Seeds not set for `Seeded` during init!")?;
         self.account
             .init_account::<IF_NEEDED>(arg, Some(seeds), syscalls)
