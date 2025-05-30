@@ -425,7 +425,7 @@ mod tests {
     fn test_unit_struct() {
         let unit_seeds = UnitSeeds {};
         let seeds = <UnitSeeds as crate::prelude::GetSeeds>::seeds(&unit_seeds);
-        assert_eq!(seeds.len(), 0);
+        assert_eq!(seeds, &[&[] as &[u8]]);
     }
 
     #[derive(Debug, GetSeeds, Clone)]
@@ -437,10 +437,9 @@ mod tests {
         let single_key = SingleKey {
             key: Pubkey::new_unique(),
         };
-        let intended_seeds = vec![single_key.key.seed()];
+        let intended_seeds = vec![single_key.key.seed(), &[]];
         let seeds = single_key.seeds();
         assert_eq!(seeds, intended_seeds);
-        assert_eq!(seeds.len(), 1);
     }
 
     #[derive(Debug, GetSeeds, Clone)]
@@ -454,10 +453,9 @@ mod tests {
             key1: Pubkey::new_unique(),
             key2: Pubkey::new_unique(),
         };
-        let intended_seeds = vec![two_keys.key1.seed(), two_keys.key2.seed()];
+        let intended_seeds = vec![two_keys.key1.seed(), two_keys.key2.seed(), &[]];
         let seeds = two_keys.seeds();
         assert_eq!(seeds, intended_seeds);
-        assert_eq!(seeds.len(), 2);
     }
 
     #[derive(Debug, GetSeeds, Clone)]
@@ -471,10 +469,9 @@ mod tests {
             key: Pubkey::new_unique(),
             number: 42,
         };
-        let intended_seeds = vec![key_and_number.key.seed(), key_and_number.number.seed()];
+        let intended_seeds = vec![key_and_number.key.seed(), key_and_number.number.seed(), &[]];
         let seeds = key_and_number.seeds();
         assert_eq!(seeds, intended_seeds);
-        assert_eq!(seeds.len(), 2);
     }
 
     #[derive(Debug, GetSeeds, Clone)]
@@ -484,9 +481,8 @@ mod tests {
     fn test_unit_with_const_seed() {
         let only_const_seed = OnlyConstSeed {};
         let seeds = only_const_seed.seeds();
-        let intended_seeds = vec![b"TEST_CONST".as_ref()];
+        let intended_seeds = vec![b"TEST_CONST".as_ref(), &[]];
         assert_eq!(seeds, intended_seeds);
-        assert_eq!(seeds.len(), 1);
     }
 
     #[derive(Debug, GetSeeds, Clone)]
@@ -499,10 +495,9 @@ mod tests {
         let account = OneKeyConstSeed {
             key: Pubkey::new_unique(),
         };
-        let intended_seeds = vec![b"TEST_CONST".as_ref(), account.key.seed()];
+        let intended_seeds = vec![b"TEST_CONST".as_ref(), account.key.seed(), &[]];
         let seeds = account.seeds();
         assert_eq!(seeds, intended_seeds);
-        assert_eq!(seeds.len(), 2);
     }
 
     pub struct Cool {}
@@ -517,8 +512,7 @@ mod tests {
     fn test_path_seed() {
         let account = SeedPath {};
         let seeds = account.seeds();
-        let intended_seeds = vec![b"TEST_CONST".as_ref()];
+        let intended_seeds = vec![b"TEST_CONST".as_ref(), &[]];
         assert_eq!(seeds, intended_seeds);
-        assert_eq!(seeds.len(), 1);
     }
 }
