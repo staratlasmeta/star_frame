@@ -1,13 +1,14 @@
 use crate::account_set::SignedAccount;
 use crate::prelude::*;
-use anyhow::bail;
+use anyhow::{bail, Context};
 use bytemuck::bytes_of;
 use derive_more::{Deref, DerefMut};
 pub use star_frame_proc::GetSeeds;
 use std::fmt::Debug;
 use std::marker::PhantomData;
 
-/// A trait for getting the seed bytes of an account.
+/// A trait for getting the seed bytes of an account. The last element of the returned vector should be an empty slice, in order to replace it with a bump later on without
+/// having to push to the vector.
 ///
 /// ## Derivable
 ///
@@ -34,15 +35,15 @@ use std::marker::PhantomData;
 /// }
 ///
 /// ```
-pub trait GetSeeds: Debug + Clone {
+pub trait GetSeeds: Debug {
     fn seeds(&self) -> Vec<&[u8]>;
 }
 impl<T> GetSeeds for T
 where
-    T: Seed + Debug + Clone,
+    T: Seed + Debug,
 {
     fn seeds(&self) -> Vec<&[u8]> {
-        vec![self.seed()]
+        vec![self.seed(), &[]]
     }
 }
 
@@ -63,14 +64,29 @@ pub struct SeedsWithBump<T: GetSeeds> {
     pub seeds: T,
     pub bump: u8,
 }
+
+impl<T> GetSeeds for SeedsWithBump<T>
+where
+    T: GetSeeds,
+{
+    fn seeds(&self) -> Vec<&[u8]> {
+        let mut seeds = self.seeds.seeds();
+        if let Some(last) = seeds.last_mut() {
+            *last = bytes_of(&self.bump);
+        } else {
+            seeds.push(bytes_of(&self.bump));
+        }
+        seeds
+    }
+}
+
 impl<T> SeedsWithBump<T>
 where
     T: GetSeeds,
 {
+    #[deprecated(note = "Use `GetSeeds::seeds` instead", since = "0.9.0")]
     pub fn seeds_with_bump(&self) -> Vec<&[u8]> {
-        let mut seeds = self.seeds.seeds();
-        seeds.push(bytes_of(&self.bump));
-        seeds
+        self.seeds()
     }
 }
 
@@ -138,7 +154,7 @@ where
 )]
 pub struct Seeded<T, S = <T as HasSeeds>::Seeds, P = CurrentProgram>
 where
-    S: GetSeeds,
+    S: GetSeeds + Clone,
     P: SeedProgram,
 {
     #[single_account_set(
@@ -162,7 +178,7 @@ where
 impl<'info, T, S, P, A> CanInitSeeds<'info, (Seeds<S>, A)> for Seeded<T, S, P>
 where
     T: SingleAccountSet<'info> + AccountSetValidate<'info, A>,
-    S: GetSeeds,
+    S: GetSeeds + Clone,
     P: SeedProgram,
 {
     fn init_seeds(
@@ -177,7 +193,7 @@ where
 impl<'info, T, S, P> CanInitSeeds<'info, Seeds<S>> for Seeded<T, S, P>
 where
     T: SingleAccountSet<'info> + AccountSetValidate<'info, ()>,
-    S: GetSeeds,
+    S: GetSeeds + Clone,
     P: SeedProgram,
 {
     fn init_seeds(&mut self, arg: &Seeds<S>, syscalls: &impl SyscallInvoke<'info>) -> Result<()> {
@@ -188,7 +204,7 @@ where
 impl<'info, T, S, P, A> CanInitSeeds<'info, (SeedsWithBump<S>, A)> for Seeded<T, S, P>
 where
     T: SingleAccountSet<'info> + AccountSetValidate<'info, A>,
-    S: GetSeeds,
+    S: GetSeeds + Clone,
     P: SeedProgram,
 {
     fn init_seeds(
@@ -203,7 +219,7 @@ where
 impl<'info, T, S, P> CanInitSeeds<'info, SeedsWithBump<S>> for Seeded<T, S, P>
 where
     T: SingleAccountSet<'info> + AccountSetValidate<'info, ()>,
-    S: GetSeeds,
+    S: GetSeeds + Clone,
     P: SeedProgram,
 {
     fn init_seeds(
@@ -218,7 +234,7 @@ where
 impl<'info, T, S, P> Seeded<T, S, P>
 where
     T: SingleAccountSet<'info>,
-    S: GetSeeds,
+    S: GetSeeds + Clone,
     P: SeedProgram,
 {
     fn validate_and_set_seeds(
@@ -252,7 +268,7 @@ where
         if self.seeds.is_some() {
             return Ok(());
         }
-        let arg_seeds = seeds.seeds_with_bump();
+        let arg_seeds = seeds.seeds();
         let address = Pubkey::create_program_address(&arg_seeds, &P::id(sys_calls)?)?;
         if self.account.account_info().key != &address {
             bail!(
@@ -269,7 +285,7 @@ where
 
 impl<T, S, P> Seeded<T, S, P>
 where
-    S: GetSeeds,
+    S: GetSeeds + Clone,
     P: SeedProgram,
 {
     pub fn access_seeds(&self) -> &SeedsWithBump<S> {
@@ -281,17 +297,17 @@ where
 impl<'info, T, S> SignedAccount<'info> for Seeded<T, S, CurrentProgram>
 where
     T: SingleAccountSet<'info>,
-    S: GetSeeds,
+    S: GetSeeds + Clone,
 {
     fn signer_seeds(&self) -> Option<Vec<&[u8]>> {
-        Some(self.access_seeds().seeds_with_bump())
+        Some(self.access_seeds().seeds())
     }
 }
 
 impl<'info, T, S, P> HasSeeds for Seeded<T, S, P>
 where
     T: SingleAccountSet<'info>,
-    S: GetSeeds,
+    S: GetSeeds + Clone,
     P: SeedProgram,
 {
     type Seeds = S;
@@ -301,7 +317,7 @@ where
 impl<'info, T, S, A> CanInitAccount<'info, A> for Seeded<T, S, CurrentProgram>
 where
     T: SingleAccountSet<'info> + CanInitAccount<'info, A>,
-    S: GetSeeds,
+    S: GetSeeds + Clone,
 {
     fn init_account<const IF_NEEDED: bool>(
         &mut self,
@@ -313,8 +329,13 @@ where
         if account_seeds.is_some() {
             bail!("Conflicting account seeds during init!");
         }
-        let seeds = self.seeds.as_ref().map(|s| s.seeds_with_bump());
-        self.account.init_account::<IF_NEEDED>(arg, seeds, syscalls)
+        let seeds = self
+            .seeds
+            .as_ref()
+            .map(|s| s.seeds())
+            .context("Seeds not set for `Seeded` during init!")?;
+        self.account
+            .init_account::<IF_NEEDED>(arg, Some(seeds), syscalls)
     }
 }
 
@@ -328,7 +349,7 @@ mod idl_impl {
     impl<'info, T, A, S, P, F> AccountSetToIdl<'info, (Seeds<F>, A)> for Seeded<T, S, P>
     where
         T: AccountSetToIdl<'info, A> + SingleAccountSet<'info>,
-        S: GetSeeds,
+        S: GetSeeds + Clone,
         P: SeedProgram,
         F: FindIdlSeeds,
     {
@@ -357,7 +378,7 @@ mod idl_impl {
     impl<'info, T, S, P, F> AccountSetToIdl<'info, Seeds<F>> for Seeded<T, S, P>
     where
         T: AccountSetToIdl<'info, ()> + SingleAccountSet<'info>,
-        S: GetSeeds,
+        S: GetSeeds + Clone,
         P: SeedProgram,
         F: FindIdlSeeds,
     {
@@ -372,7 +393,7 @@ mod idl_impl {
     impl<'info, T, S, P> AccountSetToIdl<'info, ()> for Seeded<T, S, P>
     where
         T: AccountSetToIdl<'info, ()> + SingleAccountSet<'info>,
-        S: GetSeeds,
+        S: GetSeeds + Clone,
         P: SeedProgram,
     {
         fn account_set_to_idl(
