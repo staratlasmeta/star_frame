@@ -30,6 +30,7 @@ use std::slice;
 /// A set of accounts that can be used as input to an instruction.
 ///
 /// Derivable via [`derive@AccountSet`].
+// TODO: Probably should remove this trait. its essentially useless now
 pub trait AccountSet<'info> {}
 
 pub trait ProgramAccount: HasOwnerProgram {
