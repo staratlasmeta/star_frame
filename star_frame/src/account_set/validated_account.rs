@@ -18,3 +18,32 @@ where
     #[idl(arg = arg)]
     account: Account<'info, T>,
 }
+
+macro_rules! account_validate_tuple {
+    ($($idents:ident)*) => {
+        account_validate_tuple!(| $($idents)*);
+    };
+    ($($idents:ident)* |) => {};
+    ($($initial:ident)* | $($after:ident $($last:ident)*)?) => {
+        account_validate_tuple!(inner: $($initial)* $($after)*);
+        account_validate_tuple!($($initial)* $($after)* | $($($last)*)?);
+    };
+    (inner: $($generic:ident)*) => {
+        star_frame::paste::paste!{
+            impl<Acc, $($generic,)*> star_frame::prelude::AccountValidate<($($generic,)*)> for Acc
+            where
+                $(Acc: star_frame::prelude::AccountValidate<$generic>),*
+            {
+                fn validate(self_ref: &Self::Ref<'_>, arg: ($($generic,)*)) -> star_frame::prelude::Result<()> {
+                    let ($([<$generic:snake>],)*) = arg;
+                    $(
+                        <Acc as star_frame::prelude::AccountValidate<$generic>>::validate(self_ref, [<$generic:snake>])?;
+                    )*
+                    Ok(())
+                }
+            }
+        }
+    }
+}
+
+account_validate_tuple!(A B C D E F G H I J K L M N O P Q R S T U V W X Y Z);
