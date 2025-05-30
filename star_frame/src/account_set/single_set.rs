@@ -365,7 +365,7 @@ pub trait CanSystemCreateAccount<'info> {
     /// Assumes `Self` is owned by the System program and funder is a System account
     fn system_create_account(
         &self,
-        funder: &dyn CanFundRent<'info>,
+        funder: &(impl CanFundRent<'info> + ?Sized),
         owner: Pubkey,
         space: usize,
         account_seeds: &Option<Vec<&[u8]>>,

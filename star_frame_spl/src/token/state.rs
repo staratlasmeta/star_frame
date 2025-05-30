@@ -200,10 +200,13 @@ impl<'info> CanInitAccount<'info, InitMint<'_>> for MintAccount<'info> {
     }
 }
 
-impl<'info> CanInitAccount<'info, (InitMint<'_>, &dyn CanFundRent<'info>)> for MintAccount<'info> {
+impl<'info, Funder> CanInitAccount<'info, (InitMint<'_>, &Funder)> for MintAccount<'info>
+where
+    Funder: CanFundRent<'info> + ?Sized,
+{
     fn init_account<const IF_NEEDED: bool>(
         &mut self,
-        arg: (InitMint, &dyn CanFundRent<'info>),
+        arg: (InitMint, &Funder),
         account_seeds: Option<Vec<&[u8]>>,
         syscalls: &impl SyscallInvoke<'info>,
     ) -> Result<()> {
@@ -411,14 +414,15 @@ where
     }
 }
 
-impl<'info, MintInfo> CanInitAccount<'info, (InitToken<'_, MintInfo>, &dyn CanFundRent<'info>)>
+impl<'info, MintInfo, Funder> CanInitAccount<'info, (InitToken<'_, MintInfo>, &Funder)>
     for TokenAccount<'info>
 where
     MintInfo: SingleAccountSet<'info>,
+    Funder: CanFundRent<'info> + ?Sized,
 {
     fn init_account<const IF_NEEDED: bool>(
         &mut self,
-        arg: (InitToken<MintInfo>, &dyn CanFundRent<'info>),
+        arg: (InitToken<MintInfo>, &Funder),
         account_seeds: Option<Vec<&[u8]>>,
         syscalls: &impl SyscallInvoke<'info>,
     ) -> Result<()> {

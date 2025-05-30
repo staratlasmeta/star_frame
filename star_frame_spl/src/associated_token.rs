@@ -332,24 +332,17 @@ pub mod state {
         }
     }
 
-    impl<'info, 'a, WalletInfo, MintInfo>
-        CanInitAccount<
-            'info,
-            (
-                InitAta<'a, 'info, WalletInfo, MintInfo>,
-                &dyn CanFundRent<'info>,
-            ),
-        > for AssociatedTokenAccount<'info>
+    impl<'info, 'a, WalletInfo, MintInfo, Funder>
+        CanInitAccount<'info, (InitAta<'a, 'info, WalletInfo, MintInfo>, &Funder)>
+        for AssociatedTokenAccount<'info>
     where
         WalletInfo: SingleAccountSet<'info>,
         MintInfo: SingleAccountSet<'info>,
+        Funder: CanFundRent<'info> + ?Sized,
     {
         fn init_account<const IF_NEEDED: bool>(
             &mut self,
-            (init_ata, funder): (
-                InitAta<'a, 'info, WalletInfo, MintInfo>,
-                &dyn CanFundRent<'info>,
-            ),
+            (init_ata, funder): (InitAta<'a, 'info, WalletInfo, MintInfo>, &Funder),
             account_seeds: Option<Vec<&[u8]>>,
             syscalls: &impl SyscallInvoke<'info>,
         ) -> Result<()> {

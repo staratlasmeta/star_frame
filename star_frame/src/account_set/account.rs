@@ -316,14 +316,15 @@ where
     }
 }
 
-impl<'info, T: ProgramAccount + UnsizedType + ?Sized, InitArg>
-    CanInitAccount<'info, (InitArg, &dyn CanFundRent<'info>)> for Account<'info, T>
+impl<'info, T: ProgramAccount + UnsizedType + ?Sized, InitArg, Funder>
+    CanInitAccount<'info, (InitArg, &Funder)> for Account<'info, T>
 where
     T: UnsizedInit<InitArg>,
+    Funder: CanFundRent<'info> + ?Sized,
 {
     fn init_account<const IF_NEEDED: bool>(
         &mut self,
-        arg: (InitArg, &dyn CanFundRent<'info>),
+        arg: (InitArg, &Funder),
         account_seeds: Option<Vec<&[u8]>>,
         syscalls: &impl SyscallInvoke<'info>,
     ) -> Result<()> {
