@@ -1,6 +1,6 @@
 use crate::account_set::SignedAccount;
 use crate::prelude::*;
-use anyhow::{bail, Context};
+use anyhow::{bail, ensure, Context};
 use bytemuck::bytes_of;
 use derive_more::{Deref, DerefMut};
 pub use star_frame_proc::GetSeeds;
@@ -83,6 +83,7 @@ where
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Hash, PartialOrd, Ord)]
 #[repr(transparent)]
 pub struct Seeds<T>(pub T);
+
 /// Allows generic [`crate::account_set`]s to be used in multiple programs by defaulting the [`SeedProgram`] to the current
 /// executing program. This is the default `SeedProgram` for [`Seeded`], and the only `SeedProgram` that can be used with
 /// the [`Init`] account set.
@@ -237,15 +238,11 @@ where
         }
         let seeds = seeds.clone().0;
         let (address, bump) = Pubkey::find_program_address(&seeds.seeds(), &P::id(sys_calls)?);
-        if self.account.account_info().key != &address {
-            bail!(
-                "Seeds: {:?} result in address `{}` and bump `{}`, expected `{}`",
-                seeds,
-                address,
-                bump,
-                self.account.account_info().key
-            );
-        }
+        let expected = self.account.account_info().key;
+        ensure!(
+            &address == expected,
+            "Seeds: {seeds:?} result in address `{address}` and bump `{bump}`, expected `{expected}`"
+        );
         self.seeds = Some(SeedsWithBump { seeds, bump });
         Ok(())
     }
@@ -260,14 +257,11 @@ where
         }
         let arg_seeds = seeds.seeds_with_bump();
         let address = Pubkey::create_program_address(&arg_seeds, &P::id(sys_calls)?)?;
-        if self.account.account_info().key != &address {
-            bail!(
-                "Seeds `{:?}` result in address `{}`, expected `{}`",
-                seeds,
-                address,
-                self.account.account_info().key
-            );
-        }
+        let expected = self.account.account_info().key;
+        ensure!(
+            &address == expected,
+            "Seeds `{seeds:?}` result in address `{address}`, expected `{expected}`"
+        );
         self.seeds = Some(seeds.clone());
         Ok(())
     }
@@ -350,10 +344,10 @@ mod idl_impl {
             let mut set = T::account_set_to_idl(idl_definition, arg.1)?;
             let single = set.single()?;
             if single.seeds.is_some() {
-                bail!("Seeds already set for `Seeded`. Got: {:?}", single);
+                bail!("Seeds already set for `Seeded`. Got: {single:?}");
             }
             if single.is_init {
-                bail!("`Seeded` should not wrap an init account. Wrap `Seeded` with `Init` instead. Got: {:?}", single);
+                bail!("`Seeded` should not wrap an init account. Wrap `Seeded` with `Init` instead. Got: {single:?}");
             }
             let seeds = IdlFindSeeds {
                 seeds: F::find_seeds(&arg.0 .0)?,
