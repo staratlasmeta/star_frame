@@ -151,7 +151,6 @@ where
                 syscalls,
             )
         }?;
-        account_set.set_account_cache(syscalls);
         account_set.validate_accounts(validate, syscalls)?;
         Self::extra_validations(&mut account_set, &mut run, syscalls)?;
         let ret = Self::run_instruction(&mut account_set, run, syscalls)?;

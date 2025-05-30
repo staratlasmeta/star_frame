@@ -36,6 +36,7 @@ pub(super) fn idls(
         field_name,
         fields,
         field_type,
+        ..
     }: StepInput,
 ) -> Vec<TokenStream> {
     let ident = &input.ident;

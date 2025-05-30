@@ -61,7 +61,7 @@ pub struct CpiBuilder<'info> {
 
 impl<'info> CpiBuilder<'info> {
     #[inline]
-    pub fn invoke(&self, syscalls: &dyn SyscallInvoke<'info>) -> Result<()> {
+    pub fn invoke(&self, syscalls: &(impl SyscallInvoke<'info> + ?Sized)) -> Result<()> {
         syscalls.invoke(&self.instruction, &self.accounts)
     }
 
@@ -69,7 +69,7 @@ impl<'info> CpiBuilder<'info> {
     pub fn invoke_signed(
         &self,
         signer_seeds: &[&[&[u8]]],
-        syscalls: &dyn SyscallInvoke<'info>,
+        syscalls: &(impl SyscallInvoke<'info> + ?Sized),
     ) -> Result<()> {
         syscalls.invoke_signed(&self.instruction, &self.accounts, signer_seeds)
     }

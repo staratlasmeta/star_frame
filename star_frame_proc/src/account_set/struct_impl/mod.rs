@@ -3,17 +3,13 @@ use crate::account_set::struct_impl::decode::DecodeFieldTy;
 use crate::account_set::{AccountSetStructArgs, SingleAccountSetFieldArgs, StrippedDeriveInput};
 use crate::util::{ignore_cfg_module, make_struct, new_generic, Paths};
 use easy_proc::{find_attr, ArgumentList};
-use itertools::Itertools;
 use proc_macro2::TokenStream;
 use proc_macro_error2::abort;
 use quote::{format_ident, quote, ToTokens};
 use std::ops::Not;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
-use syn::{
-    bracketed, parse_quote, token, Attribute, DataStruct, Field, Ident, Index, Token,
-    WherePredicate,
-};
+use syn::{bracketed, parse_quote, token, DataStruct, Field, Ident, Index, Token, WherePredicate};
 
 mod cleanup;
 mod decode;
@@ -36,7 +32,7 @@ impl Parse for Requires {
     }
 }
 
-#[derive(ArgumentList, Debug, Clone)]
+#[derive(ArgumentList, Debug, Clone, Default)]
 struct AccountSetFieldAttrs {
     skip: Option<TokenStream>,
     #[argument(presence)]
@@ -67,6 +63,7 @@ pub struct StepInput<'a> {
     single_set_field: Option<&'a Field>,
     field_name: &'a [TokenStream],
     fields: &'a [&'a Field],
+    field_args: &'a [AccountSetFieldAttrs],
     field_type: &'a [&'a syn::Type],
 }
 
@@ -90,7 +87,6 @@ pub(super) fn derive_account_set_impl_struct(
         account_set,
         prelude,
         result,
-        clone,
         ..
     } = &paths;
 
@@ -590,6 +586,15 @@ pub(super) fn derive_account_set_impl_struct(
         })
         .collect::<Vec<_>>();
 
+    let field_args = fields
+        .iter()
+        .map(|field| {
+            find_attr(&field.attrs, &paths.account_set_ident)
+                .map(AccountSetFieldAttrs::parse_arguments)
+                .unwrap_or_default()
+        })
+        .collect::<Vec<_>>();
+
     let step_input = StepInput {
         paths: &paths,
         input: &input,
@@ -598,6 +603,7 @@ pub(super) fn derive_account_set_impl_struct(
         single_set_field: single_set_field.as_ref(),
         field_name: &field_name,
         fields: &fields,
+        field_args: &field_args,
         field_type: &field_type,
     };
 
@@ -606,67 +612,10 @@ pub(super) fn derive_account_set_impl_struct(
     let cleanups = cleanup::cleanups(step_input);
     let idls = idl::idls(step_input);
 
-    let set_account_caches = {
-        let find_field_names =
-            |is_active: fn(AccountSetFieldAttrs) -> bool| -> Vec<(TokenStream, Attribute)> {
-                data_struct
-                    .fields
-                    .iter()
-                    .zip(all_field_name.iter())
-                    .filter_map(|(field, name)| {
-                        let attr = find_attr(&field.attrs, &paths.account_set_ident)?;
-                        let args = AccountSetFieldAttrs::parse_arguments(attr);
-                        is_active(args).then_some((name.clone(), attr.clone()))
-                    })
-                    .collect_vec()
-            };
-
-        let single_name = |name: &str, names: &[(TokenStream, Attribute)]| {
-            if names.len() > 1 {
-                abort!(
-                    names[1].1,
-                    format!("Only one field can be marked as {}", name)
-                );
-            }
-            names.first().map(|(name, _)| name.clone())
-        };
-
-        let set_funder =
-            single_name("funder", &find_field_names(|args| args.funder)).map(|field_name| {
-                quote! {
-                    if syscalls.get_funder().is_none() {
-                        syscalls.set_funder(Box::new(#clone::clone(&self.#field_name)));
-                    }
-                }
-            });
-
-        let set_recipient =
-            single_name("recipient", &find_field_names(|args| args.recipient)).map(|field_name| {
-                quote! {
-                    if syscalls.get_recipient().is_none() {
-                        syscalls.set_recipient(Box::new(#clone::clone(&self.#field_name)));
-                    }
-                }
-            });
-        quote! {
-            #set_funder
-            #set_recipient
-        }
-    };
-
     let account_set_impl = account_set_struct_args.skip_account_set.not().then(|| {
         quote! {
             #[automatically_derived]
-            impl #other_impl_generics #account_set<#info_lifetime> for #ident #ty_generics #other_where_clause {
-                #[inline]
-                fn set_account_cache(
-                    &mut self,
-                    syscalls: &mut dyn #prelude::SyscallAccountCache<#info_lifetime>,
-                ) {
-                    #set_account_caches
-                    #(<#field_type as #account_set<#info_lifetime>>::set_account_cache(&mut self.#field_name, syscalls);)*
-                }
-            }
+            impl #other_impl_generics #account_set<#info_lifetime> for #ident #ty_generics #other_where_clause {}
         }
     });
 

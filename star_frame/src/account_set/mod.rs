@@ -21,7 +21,7 @@ pub use sysvar::*;
 pub use validated_account::*;
 
 use crate::prelude::{PackedValue, StarFrameProgram};
-use crate::syscalls::{SyscallAccountCache, SyscallInvoke};
+use crate::syscalls::SyscallInvoke;
 use crate::Result;
 use bytemuck::{bytes_of, from_bytes};
 use solana_program::account_info::AccountInfo;
@@ -30,10 +30,7 @@ use std::slice;
 /// A set of accounts that can be used as input to an instruction.
 ///
 /// Derivable via [`derive@AccountSet`].
-pub trait AccountSet<'info> {
-    /// Sets account cache
-    fn set_account_cache(&mut self, syscalls: &mut dyn SyscallAccountCache<'info>);
-}
+pub trait AccountSet<'info> {}
 
 pub trait ProgramAccount: HasOwnerProgram {
     const DISCRIMINANT: <Self::OwnerProgram as StarFrameProgram>::AccountDiscriminant;
@@ -82,7 +79,6 @@ pub trait TryFromAccountsWithArgs<'a, 'info, D, V>:
     ) -> Result<Self> {
         // SAFETY: We are calling .validate_accounts() immediately after decoding
         let mut set = unsafe { Self::decode_accounts(accounts, decode, syscalls)? };
-        set.set_account_cache(syscalls);
         set.validate_accounts(validate, syscalls)?;
         Ok(set)
     }

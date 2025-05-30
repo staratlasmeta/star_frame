@@ -1,6 +1,5 @@
 use crate::account_set::{AccountSet, AccountSetCleanup, AccountSetDecode, AccountSetValidate};
 use crate::client::{ClientAccountSet, CpiAccountSet};
-use crate::prelude::SyscallAccountCache;
 use crate::syscalls::SyscallInvoke;
 use crate::Result;
 use advancer::Advance;
@@ -8,17 +7,7 @@ use solana_program::account_info::AccountInfo;
 use solana_program::instruction::AccountMeta;
 use solana_program::pubkey::Pubkey;
 
-impl<'info, A> AccountSet<'info> for Option<A>
-where
-    A: AccountSet<'info>,
-{
-    #[inline]
-    fn set_account_cache(&mut self, syscalls: &mut dyn SyscallAccountCache<'info>) {
-        if let Some(inner) = self {
-            inner.set_account_cache(syscalls);
-        }
-    }
-}
+impl<'info, A> AccountSet<'info> for Option<A> where A: AccountSet<'info> {}
 
 impl<'info, T> CpiAccountSet<'info> for Option<T>
 where
