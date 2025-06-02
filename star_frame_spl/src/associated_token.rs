@@ -370,7 +370,7 @@ pub mod state {
             AssociatedToken::cpi(
                 &instructions::Create,
                 instructions::CreateCpiAccounts {
-                    funder: funder.account_to_modify().account_info_cloned(),
+                    funder: funder.account_to_modify().clone(),
                     token_account: self.account_info_cloned(),
                     wallet: init_ata.wallet.account_info_cloned(),
                     mint: init_ata.mint.account_info_cloned(),
