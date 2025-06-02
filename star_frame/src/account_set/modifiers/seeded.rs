@@ -71,11 +71,14 @@ where
 {
     pub fn seeds_with_bump(&self) -> Vec<&[u8]> {
         let mut seeds = self.seeds.seeds();
+        // TODO: Replace with let chains once stable
         if let Some(last) = seeds.last_mut() {
-            *last = bytes_of(&self.bump);
-        } else {
-            seeds.push(bytes_of(&self.bump));
+            if last.is_empty() {
+                *last = bytes_of(&self.bump);
+                return seeds;
+            }
         }
+        seeds.push(bytes_of(&self.bump));
         seeds
     }
 }
