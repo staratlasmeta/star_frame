@@ -12,7 +12,7 @@ use derive_more::{Deref, DerefMut};
 )]
 #[repr(transparent)]
 pub struct MaybeMut<const MUT: bool, T>(
-    #[single_account_set(meta = SingleSetMeta { writable: MUT, ..T::META}, skip_writable_account)]
+    #[single_account_set(meta = SingleSetMeta { writable: MUT, ..T::meta() }, skip_writable_account)]
     pub(crate) T,
 );
 

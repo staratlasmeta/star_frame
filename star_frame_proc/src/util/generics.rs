@@ -117,7 +117,7 @@ pub trait CombineGenerics {
 
 macro_rules! combine_gen {
     ($generic:expr; $($other:tt)*) => {
-        $generic.combine::<BetterGenerics>(&parse_quote!([$($other)*]))
+        $crate::util::CombineGenerics::combine::<$crate::util::BetterGenerics>(&$generic, &parse_quote!([$($other)*]))
     };
 }
 pub(crate) use combine_gen;

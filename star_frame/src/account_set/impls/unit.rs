@@ -1,15 +1,12 @@
 use crate::account_set::{AccountSet, AccountSetCleanup, AccountSetDecode, AccountSetValidate};
-use crate::prelude::{ClientAccountSet, CpiAccountSet, SyscallAccountCache};
+use crate::prelude::{ClientAccountSet, CpiAccountSet};
 use crate::syscalls::SyscallInvoke;
 use crate::Result;
 use solana_program::account_info::AccountInfo;
 use solana_program::instruction::AccountMeta;
 use solana_program::pubkey::Pubkey;
 
-impl<'info> AccountSet<'info> for () {
-    #[inline]
-    fn set_account_cache(&mut self, _syscalls: &mut impl SyscallAccountCache<'info>) {}
-}
+impl AccountSet<'_> for () {}
 
 impl<'info> CpiAccountSet<'info> for () {
     type CpiAccounts = ();

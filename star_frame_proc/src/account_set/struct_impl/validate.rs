@@ -41,6 +41,7 @@ pub(super) fn validates(
         single_set_field,
         field_name,
         fields,
+        field_args,
         field_type,
     }: StepInput,
 ) -> Vec<TokenStream> {
@@ -57,6 +58,8 @@ pub(super) fn validates(
         validate_ident,
         prelude,
         account_set_validate,
+        clone,
+        box_ty,
         ..
     } = paths;
 
@@ -169,14 +172,44 @@ pub(super) fn validates(
             }
         }
 
+        // set caches
+        let mut has_funder = false;
+        let mut has_recipient = false;
+        let caches = field_args.iter().zip(field_name.iter()).map(|(a, name)| {
+            let mut tokens = quote!();
+            if a.funder {
+                if has_funder {
+                    abort!(name, "Only one field can be marked as funder");
+                }
+                has_funder = true;
+                tokens.extend(quote! {
+                    if syscalls.get_funder().is_none() {
+                        syscalls.set_funder(Box::new(#clone::clone(&self.#name)));
+                    }
+                });
+            }
+            if a.recipient {
+                if has_recipient {
+                    abort!(name, "Only one field can be marked as recipient");
+                }
+                has_recipient = true;
+                tokens.extend(quote! {
+                    if syscalls.get_recipient().is_none() {
+                        syscalls.set_recipient(#box_ty::new(#clone::clone(&self.#name)));
+                    }
+                });
+            }
+            tokens
+        }).collect_vec();
+
         // build requires
 
         // build the validate calls
         let validates = field_type.iter()
-            .zip(field_name.iter())
-            .zip(validate_args.iter())
-            .zip(validate_addresses.iter())
-            .zip(relevant_field_validates.iter().map(|a| {
+            .zip_eq(field_name.iter())
+            .zip_eq(validate_args.iter())
+            .zip_eq(validate_addresses.iter())
+            .zip_eq(relevant_field_validates.iter().map(|a| {
                 if a.skip && a.arg.is_some() {
                     abort!(a.arg, "Cannot specify arg when skip is true");
                 }
@@ -203,8 +236,15 @@ pub(super) fn validates(
                         )?;
                     }
                 }
-            })
-            .collect::<Vec<_>>();
+            });
+
+        let validates = validates.zip_eq(caches).map(|(validate, cache)| {
+            quote! {
+                #validate
+                #cache
+            }
+        }).collect_vec();
+
         // Stores named validates in order
         let mut out: Vec<(TokenStream, String)> = Vec::new();
         // Map requires to vec of strings

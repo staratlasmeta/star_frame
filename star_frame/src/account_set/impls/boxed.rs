@@ -3,29 +3,23 @@ use crate::account_set::{
     SingleSetMeta,
 };
 use crate::client::{ClientAccountSet, CpiAccountSet};
-use crate::prelude::SyscallAccountCache;
 use crate::syscalls::SyscallInvoke;
 use crate::Result;
 use solana_program::account_info::AccountInfo;
 use solana_program::instruction::AccountMeta;
 use solana_program::pubkey::Pubkey;
 
-impl<'info, T> AccountSet<'info> for Box<T>
-where
-    T: AccountSet<'info>,
-{
-    #[inline]
-    fn set_account_cache(&mut self, syscalls: &mut impl SyscallAccountCache<'info>) {
-        T::set_account_cache(self, syscalls);
-    }
-}
+impl<'info, T> AccountSet<'info> for Box<T> where T: AccountSet<'info> {}
 
 impl<'info, T> SingleAccountSet<'info> for Box<T>
 where
     T: SingleAccountSet<'info>,
 {
-    const META: SingleSetMeta = T::META;
-
+    #[inline]
+    fn meta() -> SingleSetMeta {
+        T::meta()
+    }
+    #[inline]
     fn account_info(&self) -> &AccountInfo<'info> {
         T::account_info(self)
     }

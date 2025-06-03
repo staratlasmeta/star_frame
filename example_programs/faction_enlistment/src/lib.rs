@@ -118,7 +118,7 @@ pub struct ProcessEnlistPlayer<'info> {
     #[validate(arg = (Create(()),
         Seeds(PlayerFactionAccountSeeds {
         player_account: *self.player_account.key()
-    })))]
+    })), requires = [player_account])] // the funder is set during validate, so we need the player account to be run first.
     #[idl(
         arg = Seeds(FindPlayerFactionAccountSeeds {
             player_account: seed_path("player_account")

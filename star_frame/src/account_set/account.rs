@@ -24,7 +24,8 @@ pub struct ReceiveRent<T>(pub T);
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
 pub struct CloseAccount<T>(pub T);
 
-#[derive(AccountSet, Debug)]
+#[derive(AccountSet, Debug, derive_where::DeriveWhere)]
+#[derive_where(Clone)]
 #[account_set(skip_default_idl, skip_default_cleanup)]
 #[validate(extra_validation = self.validate())]
 #[cleanup(
@@ -319,7 +320,7 @@ impl<'info, T: ProgramAccount + UnsizedType + ?Sized, InitArg, Funder>
     CanInitAccount<'info, (InitArg, &Funder)> for Account<'info, T>
 where
     T: UnsizedInit<InitArg>,
-    Funder: CanFundRent<'info>,
+    Funder: CanFundRent<'info> + ?Sized,
 {
     fn init_account<const IF_NEEDED: bool>(
         &mut self,

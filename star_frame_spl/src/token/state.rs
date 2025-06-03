@@ -202,7 +202,7 @@ impl<'info> CanInitAccount<'info, InitMint<'_>> for MintAccount<'info> {
 
 impl<'info, Funder> CanInitAccount<'info, (InitMint<'_>, &Funder)> for MintAccount<'info>
 where
-    Funder: CanFundRent<'info>,
+    Funder: CanFundRent<'info> + ?Sized,
 {
     fn init_account<const IF_NEEDED: bool>(
         &mut self,
@@ -417,8 +417,8 @@ where
 impl<'info, MintInfo, Funder> CanInitAccount<'info, (InitToken<'_, MintInfo>, &Funder)>
     for TokenAccount<'info>
 where
-    Funder: CanFundRent<'info>,
     MintInfo: SingleAccountSet<'info>,
+    Funder: CanFundRent<'info> + ?Sized,
 {
     fn init_account<const IF_NEEDED: bool>(
         &mut self,

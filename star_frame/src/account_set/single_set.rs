@@ -31,7 +31,11 @@ impl SingleSetMeta {
 
 /// An [`AccountSet`] that contains exactly 1 account.
 pub trait SingleAccountSet<'info>: AccountSet<'info> {
-    const META: SingleSetMeta;
+    /// Associated metadata for the account set
+    fn meta() -> SingleSetMeta
+    where
+        Self: Sized;
+
     /// Gets the contained account.
     fn account_info(&self) -> &AccountInfo<'info>;
     /// Gets the contained account cloned.
@@ -126,12 +130,15 @@ pub trait SingleAccountSet<'info>: AccountSet<'info> {
     }
 }
 
+static_assertions::assert_obj_safe!(CanCloseAccount<'_>, CanReceiveRent<'_>, CanFundRent<'_>);
+
 pub trait CanCloseAccount<'info>: SingleAccountSet<'info> {
     /// Closes the account by zeroing the lamports and replacing the discriminant with all `u8::MAX`,
     /// reallocating down to size.
-    fn close(&self, recipient: &impl CanReceiveRent<'info>) -> Result<()>
+    fn close(&self, recipient: &(impl CanReceiveRent<'info> + ?Sized)) -> Result<()>
     where
         Self: HasOwnerProgram,
+        Self: Sized,
     {
         let info = self.account_info();
         info.realloc(
@@ -148,7 +155,7 @@ pub trait CanCloseAccount<'info>: SingleAccountSet<'info> {
     /// This is the same as calling `close` but not abusable and harder for indexer detection.
     ///
     /// It also happens to be unsound because [`AccountInfo::assign`] is unsound.
-    fn close_full(&self, recipient: &impl CanReceiveRent<'info>) -> Result<()> {
+    fn close_full(&self, recipient: &dyn CanReceiveRent<'info>) -> Result<()> {
         let info = self.account_info();
         recipient.receive_rent(**info.try_borrow_lamports()?)?;
         **info.try_borrow_mut_lamports()? = 0;
@@ -158,7 +165,7 @@ pub trait CanCloseAccount<'info>: SingleAccountSet<'info> {
     }
 }
 
-impl<'info, T> CanCloseAccount<'info> for T where T: SingleAccountSet<'info> {}
+impl<'info, T> CanCloseAccount<'info> for T where T: SingleAccountSet<'info> + ?Sized {}
 
 pub trait CanReceiveRent<'info> {
     fn account_to_modify(&self) -> &AccountInfo<'info>;
@@ -170,7 +177,7 @@ pub trait CanReceiveRent<'info> {
 
 impl<'info, T> CanReceiveRent<'info> for T
 where
-    T: WritableAccount<'info>,
+    T: WritableAccount<'info> + ?Sized,
 {
     fn account_to_modify(&self) -> &AccountInfo<'info> {
         self.account_info()
@@ -180,14 +187,13 @@ where
 /// Indicates that this account can fund rent on another account, and potentially be used to create an account.
 pub trait CanFundRent<'info>: CanReceiveRent<'info> {
     /// Whether [`Self::account_to_modify`](`CanReceiveRent::account_to_modify`) can be used as the funder for a [`system_program::CreateAccount`] CPI.
-    /// If [`typenum::Bit::to_bool`] is `true`, then the account can be used as the funder for a [`system_program::CreateAccount`] CPI.
-    type CanCreateAccount: typenum::Bit;
+    fn can_create_account(&self) -> bool;
     /// Increases the rent of the recipient by `lamports`.
     fn fund_rent(
-        funder: &Self,
-        recipient: &impl SingleAccountSet<'info>,
+        &self,
+        recipient: &dyn SingleAccountSet<'info>,
         lamports: u64,
-        syscalls: &impl SyscallInvoke<'info>,
+        syscalls: &dyn SyscallInvoke<'info>,
     ) -> Result<()>;
 
     fn signer_seeds(&self) -> Option<Vec<&[u8]>> {
@@ -197,24 +203,25 @@ pub trait CanFundRent<'info>: CanReceiveRent<'info> {
 
 impl<'info, T> CanFundRent<'info> for T
 where
-    T: CanReceiveRent<'info> + SignedAccount<'info>,
+    T: CanReceiveRent<'info> + SignedAccount<'info> + ?Sized,
 {
-    type CanCreateAccount = typenum::True;
+    fn can_create_account(&self) -> bool {
+        true
+    }
     fn fund_rent(
-        funder: &Self,
-        // TODO: should this be a WritableAccount instead?
-        recipient: &impl SingleAccountSet<'info>,
+        &self,
+        recipient: &dyn SingleAccountSet<'info>,
         lamports: u64,
-        syscalls: &impl SyscallInvoke<'info>,
+        syscalls: &dyn SyscallInvoke<'info>,
     ) -> Result<()> {
         let cpi = System::cpi(
             &system_program::Transfer { lamports },
             system_program::TransferCpiAccounts {
-                funder: funder.account_info_cloned(),
+                funder: self.account_info_cloned(),
                 recipient: recipient.account_info_cloned(),
             },
         )?;
-        match funder.signer_seeds() {
+        match self.signer_seeds() {
             None => cpi.invoke(syscalls)?,
             Some(seeds) => cpi.invoke_signed(&[&seeds], syscalls)?,
         };
@@ -235,8 +242,8 @@ pub trait CanModifyRent<'info> {
     /// If the account has 0 lamports (i.e., it is set to be closed), this will do nothing.
     fn normalize_rent(
         &self,
-        funder: &impl CanFundRent<'info>,
-        syscalls: &impl SyscallInvoke<'info>,
+        funder: &(impl CanFundRent<'info> + ?Sized),
+        syscalls: &dyn SyscallInvoke<'info>,
     ) -> Result<()> {
         let account = self.account_to_modify();
         let rent = syscalls.get_rent()?;
@@ -268,8 +275,8 @@ pub trait CanModifyRent<'info> {
     /// If the account has 0 lamports (i.e., it is set to be closed), this will do nothing.
     fn refund_rent(
         &self,
-        recipient: &impl CanReceiveRent<'info>,
-        syscalls: &impl SyscallInvoke<'info>,
+        recipient: &(impl CanReceiveRent<'info> + ?Sized),
+        syscalls: &(impl SyscallInvoke<'info> + ?Sized),
     ) -> Result<()> {
         let account = self.account_to_modify();
         let rent = syscalls.get_rent()?;
@@ -303,8 +310,8 @@ pub trait CanModifyRent<'info> {
     /// If the account has 0 lamports (i.e., it is set to be closed), this will do nothing.
     fn receive_rent(
         &self,
-        funder: &impl CanFundRent<'info>,
-        syscalls: &impl SyscallInvoke<'info>,
+        funder: &(impl CanFundRent<'info> + ?Sized),
+        syscalls: &dyn SyscallInvoke<'info>,
     ) -> Result<()> {
         let account = self.account_to_modify();
         let rent = syscalls.get_rent()?;
@@ -323,7 +330,7 @@ pub trait CanModifyRent<'info> {
 
     /// Emits a warning message if the account has more lamports than required by rent.
     #[cfg_attr(not(feature = "cleanup_rent_warning"), allow(unused_variables))]
-    fn check_cleanup(&self, sys_calls: &impl SyscallCore) -> Result<()> {
+    fn check_cleanup(&self, sys_calls: &(impl SyscallCore + ?Sized)) -> Result<()> {
         #[cfg(feature = "cleanup_rent_warning")]
         {
             use std::cmp::Ordering;
@@ -347,7 +354,7 @@ pub trait CanModifyRent<'info> {
 
 impl<'info, T> CanModifyRent<'info> for T
 where
-    T: SingleAccountSet<'info>,
+    T: SingleAccountSet<'info> + ?Sized,
 {
     fn account_to_modify(&self) -> &AccountInfo<'info> {
         self.account_info()
@@ -358,13 +365,13 @@ pub trait CanSystemCreateAccount<'info> {
     fn account_to_create(&self) -> &AccountInfo<'info>;
     /// Creates an account using the system program
     /// Assumes `Self` is owned by the System program and funder is a System account
-    fn system_create_account<F: CanFundRent<'info>>(
+    fn system_create_account(
         &self,
-        funder: &F,
+        funder: &(impl CanFundRent<'info> + ?Sized),
         owner: Pubkey,
         space: usize,
         account_seeds: &Option<Vec<&[u8]>>,
-        syscalls: &impl SyscallInvoke<'info>,
+        syscalls: &dyn SyscallInvoke<'info>,
     ) -> Result<()> {
         let account = self.account_to_create();
         if account.owner() != &System::ID {
@@ -373,8 +380,8 @@ pub trait CanSystemCreateAccount<'info> {
         let current_lamports = **account.try_borrow_lamports()?;
         let exempt_lamports = syscalls.get_rent()?.minimum_balance(space);
 
-        if current_lamports == 0 && <F::CanCreateAccount as typenum::Bit>::to_bool() {
-            let funder_seeds = funder.signer_seeds();
+        if current_lamports == 0 && funder.can_create_account() {
+            let funder_seeds: Option<Vec<&[u8]>> = funder.signer_seeds();
             let seeds: &[&[&[u8]]] = match (&funder_seeds, account_seeds) {
                 (Some(signer_seeds), Some(account_seeds)) => &[signer_seeds, account_seeds],
                 (Some(signer_seeds), None) => &[signer_seeds],
@@ -425,7 +432,7 @@ pub trait CanSystemCreateAccount<'info> {
 
 impl<'info, T> CanSystemCreateAccount<'info> for T
 where
-    T: SingleAccountSet<'info>,
+    T: SingleAccountSet<'info> + ?Sized,
 {
     fn account_to_create(&self) -> &AccountInfo<'info> {
         self.account_info()

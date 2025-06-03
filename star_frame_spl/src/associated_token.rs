@@ -210,8 +210,6 @@ pub mod instructions {
 }
 
 pub mod state {
-    use star_frame::typenum;
-
     use super::*;
 
     #[derive(AccountSet, Debug, Clone, Deref, DerefMut)]
@@ -338,26 +336,31 @@ pub mod state {
         CanInitAccount<'info, (InitAta<'a, 'info, WalletInfo, MintInfo>, &Funder)>
         for AssociatedTokenAccount<'info>
     where
-        Funder: CanFundRent<'info, CanCreateAccount = typenum::True>,
         WalletInfo: SingleAccountSet<'info>,
         MintInfo: SingleAccountSet<'info>,
+        Funder: CanFundRent<'info> + ?Sized,
     {
         fn init_account<const IF_NEEDED: bool>(
             &mut self,
-            arg: (InitAta<'a, 'info, WalletInfo, MintInfo>, &Funder),
+            (init_ata, funder): (InitAta<'a, 'info, WalletInfo, MintInfo>, &Funder),
             account_seeds: Option<Vec<&[u8]>>,
             syscalls: &impl SyscallInvoke<'info>,
         ) -> Result<()> {
+            if !funder.can_create_account() {
+                bail!(
+                    "Funder with key `{}` does not have the ability to create accounts. This is a logic bug in the program.",
+                    funder.account_to_modify().key(),
+                );
+            }
             if IF_NEEDED && self.owner() == &Token::ID {
                 self.validate()?;
-                self.validate_ata(arg.0.into())?;
+                self.validate_ata(init_ata.into())?;
                 return Ok(());
             }
             if account_seeds.is_some() {
                 bail!("Account seeds are not supported for Init<AssociatedTokenAccount>");
             }
             self.check_writable()?;
-            let (init_ata, funder) = arg;
             let funder_seeds = funder.signer_seeds();
             let seeds: &[&[&[u8]]] = match &funder_seeds {
                 Some(seeds) => &[seeds],

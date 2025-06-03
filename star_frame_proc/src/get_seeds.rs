@@ -144,7 +144,10 @@ pub fn derive_get_seeds_impl(input: DeriveInput) -> TokenStream {
         let name = field.ident.as_ref().expect("Field must have an identifier");
         parse_quote!(self.#name.seed())
     });
-    let seeds = seed_const.into_iter().chain(field_seeds);
+    let seeds = seed_const
+        .into_iter()
+        .chain(field_seeds)
+        .chain(std::iter::once(parse_quote!(&[])));
 
     quote! {
         #[automatically_derived]

@@ -1,6 +1,6 @@
 use crate::account_set::{AccountSetDecode, SingleAccountSet, SingleSetMeta};
 use crate::client::ClientAccountSet;
-use crate::prelude::{CpiAccountSet, SyscallAccountCache};
+use crate::prelude::CpiAccountSet;
 use crate::syscalls::SyscallInvoke;
 use crate::Result;
 use advancer::AdvanceArray;
@@ -12,16 +12,13 @@ use solana_program::pubkey::Pubkey;
 use star_frame::account_set::{AccountSet, AccountSetCleanup, AccountSetValidate};
 use std::cell::{Ref, RefMut};
 
-impl<'info> AccountSet<'info> for AccountInfo<'info> {
-    #[inline]
-    fn set_account_cache(&mut self, _syscalls: &mut impl SyscallAccountCache<'info>) {}
-}
-impl<'info> AccountSet<'info> for &AccountInfo<'info> {
-    #[inline]
-    fn set_account_cache(&mut self, _syscalls: &mut impl SyscallAccountCache<'info>) {}
-}
+impl<'info> AccountSet<'info> for AccountInfo<'info> {}
+impl<'info> AccountSet<'info> for &AccountInfo<'info> {}
 impl<'info> SingleAccountSet<'info> for AccountInfo<'info> {
-    const META: SingleSetMeta = SingleSetMeta::default();
+    #[inline]
+    fn meta() -> SingleSetMeta {
+        SingleSetMeta::default()
+    }
     #[inline]
     fn account_info(&self) -> &AccountInfo<'info> {
         self
@@ -158,7 +155,10 @@ impl<'info> CpiAccountSet<'info> for AccountInfo<'info> {
 }
 
 impl<'info> SingleAccountSet<'info> for &AccountInfo<'info> {
-    const META: SingleSetMeta = SingleSetMeta::default();
+    #[inline]
+    fn meta() -> SingleSetMeta {
+        SingleSetMeta::default()
+    }
     #[inline]
     fn account_info(&self) -> &AccountInfo<'info> {
         self

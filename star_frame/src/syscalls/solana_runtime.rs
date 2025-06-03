@@ -10,15 +10,18 @@ use solana_program::sysvar::Sysvar;
 use std::cell::RefCell;
 
 /// Syscalls provided by the solana runtime.
-#[derive(Debug, Clone)]
+#[derive(derive_more::Debug)]
 pub struct SolanaRuntime<'info> {
     /// The program id of the currently executing program.
     pub program_id: Pubkey,
     rent_cache: RefCell<Option<Rent>>,
     clock_cache: RefCell<Option<Clock>>,
-    recipient: Option<Mut<AccountInfo<'info>>>,
-    funder: Option<Mut<SignerInfo<'info>>>,
+    #[debug("{:?}", recipient.as_ref().map(|r| std::any::type_name_of_val(r)))]
+    recipient: Option<Box<dyn CanReceiveRent<'info> + 'info>>,
+    #[debug("{:?}", funder.as_ref().map(|f| std::any::type_name_of_val(f)))]
+    funder: Option<Box<dyn CanFundRent<'info> + 'info>>,
 }
+
 impl SolanaRuntime<'_> {
     /// Create a new solana runtime.
     #[must_use]
@@ -121,21 +124,19 @@ impl SyscallCore for SolanaRuntime<'_> {
 }
 
 impl<'info> SyscallAccountCache<'info> for SolanaRuntime<'info> {
-    fn get_funder(&self) -> Option<&Mut<SignerInfo<'info>>> {
-        self.funder.as_ref()
+    fn get_funder(&self) -> Option<&dyn CanFundRent<'info>> {
+        self.funder.as_ref().map(std::convert::AsRef::as_ref)
     }
 
-    fn set_funder(&mut self, funder: &(impl SignedAccount<'info> + WritableAccount<'info>)) {
-        self.funder
-            .replace(MaybeMut(MaybeSigner(funder.account_info_cloned())));
+    fn set_funder(&mut self, funder: Box<dyn CanFundRent<'info> + 'info>) {
+        self.funder.replace(funder);
     }
 
-    fn get_recipient(&self) -> Option<&Mut<AccountInfo<'info>>> {
-        self.recipient.as_ref()
+    fn get_recipient(&self) -> Option<&dyn CanReceiveRent<'info>> {
+        self.recipient.as_ref().map(std::convert::AsRef::as_ref)
     }
 
-    fn set_recipient(&mut self, recipient: &impl WritableAccount<'info>) {
-        self.recipient
-            .replace(MaybeMut(recipient.account_info_cloned()));
+    fn set_recipient(&mut self, recipient: Box<dyn CanReceiveRent<'info> + 'info>) {
+        self.recipient.replace(recipient);
     }
 }

@@ -1,13 +1,14 @@
 use crate::account_set::SignedAccount;
 use crate::prelude::*;
-use anyhow::bail;
+use anyhow::{bail, ensure, Context};
 use bytemuck::bytes_of;
 use derive_more::{Deref, DerefMut};
 pub use star_frame_proc::GetSeeds;
 use std::fmt::Debug;
 use std::marker::PhantomData;
 
-/// A trait for getting the seed bytes of an account.
+/// A trait for getting the seed bytes of an account. The last element of the returned vector should be an empty slice, in order to replace it with a bump later on without
+/// having to push to the vector.
 ///
 /// ## Derivable
 ///
@@ -17,7 +18,7 @@ use std::marker::PhantomData;
 ///
 /// `GetSeeds` can be manually implemented by defining a `seeds` method that returns a `Vec<&[u8]>`.
 /// The `seeds` method should optionally include a constant seed at the beginning of the vector,
-/// followed by calling the `seed` method on each field of the struct.
+/// followed by calling the `seed` method on each field of the struct, with an empty slice at the end.
 ///
 /// ```
 /// # use star_frame::prelude::*;
@@ -29,20 +30,20 @@ use std::marker::PhantomData;
 ///
 /// impl GetSeeds for Cool {
 ///    fn seeds(&self) -> Vec<&[u8]> {
-///       vec![b"TEST_CONST", self.key.seed(), self.number.seed()]
+///       vec![b"TEST_CONST", self.key.seed(), self.number.seed(), &[]]
 ///     }
 /// }
 ///
 /// ```
-pub trait GetSeeds: Debug + Clone {
+pub trait GetSeeds: Debug {
     fn seeds(&self) -> Vec<&[u8]>;
 }
 impl<T> GetSeeds for T
 where
-    T: Seed + Debug + Clone,
+    T: Seed + Debug,
 {
     fn seeds(&self) -> Vec<&[u8]> {
-        vec![self.seed()]
+        vec![self.seed(), &[]]
     }
 }
 
@@ -63,12 +64,20 @@ pub struct SeedsWithBump<T: GetSeeds> {
     pub seeds: T,
     pub bump: u8,
 }
+
 impl<T> SeedsWithBump<T>
 where
     T: GetSeeds,
 {
     pub fn seeds_with_bump(&self) -> Vec<&[u8]> {
         let mut seeds = self.seeds.seeds();
+        // TODO: Replace with let chains once stable
+        if let Some(last) = seeds.last_mut() {
+            if last.is_empty() {
+                *last = bytes_of(&self.bump);
+                return seeds;
+            }
+        }
         seeds.push(bytes_of(&self.bump));
         seeds
     }
@@ -77,6 +86,7 @@ where
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Hash, PartialOrd, Ord)]
 #[repr(transparent)]
 pub struct Seeds<T>(pub T);
+
 /// Allows generic [`crate::account_set`]s to be used in multiple programs by defaulting the [`SeedProgram`] to the current
 /// executing program. This is the default `SeedProgram` for [`Seeded`], and the only `SeedProgram` that can be used with
 /// the [`Init`] account set.
@@ -112,7 +122,7 @@ where
     }
 }
 
-#[derive(Debug, AccountSet, Deref, DerefMut)]
+#[derive(Debug, AccountSet, Deref, DerefMut, Clone)]
 #[account_set(skip_default_idl, skip_default_validate)]
 #[validate(
     id = "seeds",
@@ -138,7 +148,7 @@ where
 )]
 pub struct Seeded<T, S = <T as HasSeeds>::Seeds, P = CurrentProgram>
 where
-    S: GetSeeds,
+    S: GetSeeds + Clone,
     P: SeedProgram,
 {
     #[single_account_set(
@@ -162,7 +172,7 @@ where
 impl<'info, T, S, P, A> CanInitSeeds<'info, (Seeds<S>, A)> for Seeded<T, S, P>
 where
     T: SingleAccountSet<'info> + AccountSetValidate<'info, A>,
-    S: GetSeeds,
+    S: GetSeeds + Clone,
     P: SeedProgram,
 {
     fn init_seeds(
@@ -177,7 +187,7 @@ where
 impl<'info, T, S, P> CanInitSeeds<'info, Seeds<S>> for Seeded<T, S, P>
 where
     T: SingleAccountSet<'info> + AccountSetValidate<'info, ()>,
-    S: GetSeeds,
+    S: GetSeeds + Clone,
     P: SeedProgram,
 {
     fn init_seeds(&mut self, arg: &Seeds<S>, syscalls: &impl SyscallInvoke<'info>) -> Result<()> {
@@ -188,7 +198,7 @@ where
 impl<'info, T, S, P, A> CanInitSeeds<'info, (SeedsWithBump<S>, A)> for Seeded<T, S, P>
 where
     T: SingleAccountSet<'info> + AccountSetValidate<'info, A>,
-    S: GetSeeds,
+    S: GetSeeds + Clone,
     P: SeedProgram,
 {
     fn init_seeds(
@@ -203,7 +213,7 @@ where
 impl<'info, T, S, P> CanInitSeeds<'info, SeedsWithBump<S>> for Seeded<T, S, P>
 where
     T: SingleAccountSet<'info> + AccountSetValidate<'info, ()>,
-    S: GetSeeds,
+    S: GetSeeds + Clone,
     P: SeedProgram,
 {
     fn init_seeds(
@@ -218,7 +228,7 @@ where
 impl<'info, T, S, P> Seeded<T, S, P>
 where
     T: SingleAccountSet<'info>,
-    S: GetSeeds,
+    S: GetSeeds + Clone,
     P: SeedProgram,
 {
     fn validate_and_set_seeds(
@@ -231,15 +241,11 @@ where
         }
         let seeds = seeds.clone().0;
         let (address, bump) = Pubkey::find_program_address(&seeds.seeds(), &P::id(sys_calls)?);
-        if self.account.account_info().key != &address {
-            bail!(
-                "Seeds: {:?} result in address `{}` and bump `{}`, expected `{}`",
-                seeds,
-                address,
-                bump,
-                self.account.account_info().key
-            );
-        }
+        let expected = self.account.account_info().key;
+        ensure!(
+            &address == expected,
+            "Seeds: {seeds:?} result in address `{address}` and bump `{bump}`, expected `{expected}`"
+        );
         self.seeds = Some(SeedsWithBump { seeds, bump });
         Ok(())
     }
@@ -254,14 +260,11 @@ where
         }
         let arg_seeds = seeds.seeds_with_bump();
         let address = Pubkey::create_program_address(&arg_seeds, &P::id(sys_calls)?)?;
-        if self.account.account_info().key != &address {
-            bail!(
-                "Seeds `{:?}` result in address `{}`, expected `{}`",
-                seeds,
-                address,
-                self.account.account_info().key
-            );
-        }
+        let expected = self.account.account_info().key;
+        ensure!(
+            &address == expected,
+            "Seeds `{seeds:?}` result in address `{address}`, expected `{expected}`"
+        );
         self.seeds = Some(seeds.clone());
         Ok(())
     }
@@ -269,7 +272,7 @@ where
 
 impl<T, S, P> Seeded<T, S, P>
 where
-    S: GetSeeds,
+    S: GetSeeds + Clone,
     P: SeedProgram,
 {
     pub fn access_seeds(&self) -> &SeedsWithBump<S> {
@@ -281,7 +284,7 @@ where
 impl<'info, T, S> SignedAccount<'info> for Seeded<T, S, CurrentProgram>
 where
     T: SingleAccountSet<'info>,
-    S: GetSeeds,
+    S: GetSeeds + Clone,
 {
     fn signer_seeds(&self) -> Option<Vec<&[u8]>> {
         Some(self.access_seeds().seeds_with_bump())
@@ -291,7 +294,7 @@ where
 impl<'info, T, S, P> HasSeeds for Seeded<T, S, P>
 where
     T: SingleAccountSet<'info>,
-    S: GetSeeds,
+    S: GetSeeds + Clone,
     P: SeedProgram,
 {
     type Seeds = S;
@@ -301,7 +304,7 @@ where
 impl<'info, T, S, A> CanInitAccount<'info, A> for Seeded<T, S, CurrentProgram>
 where
     T: SingleAccountSet<'info> + CanInitAccount<'info, A>,
-    S: GetSeeds,
+    S: GetSeeds + Clone,
 {
     fn init_account<const IF_NEEDED: bool>(
         &mut self,
@@ -313,8 +316,13 @@ where
         if account_seeds.is_some() {
             bail!("Conflicting account seeds during init!");
         }
-        let seeds = self.seeds.as_ref().map(|s| s.seeds_with_bump());
-        self.account.init_account::<IF_NEEDED>(arg, seeds, syscalls)
+        let seeds = self
+            .seeds
+            .as_ref()
+            .map(|s| s.seeds_with_bump())
+            .context("Seeds not set for `Seeded` during init!")?;
+        self.account
+            .init_account::<IF_NEEDED>(arg, Some(seeds), syscalls)
     }
 }
 
@@ -328,7 +336,7 @@ mod idl_impl {
     impl<'info, T, A, S, P, F> AccountSetToIdl<'info, (Seeds<F>, A)> for Seeded<T, S, P>
     where
         T: AccountSetToIdl<'info, A> + SingleAccountSet<'info>,
-        S: GetSeeds,
+        S: GetSeeds + Clone,
         P: SeedProgram,
         F: FindIdlSeeds,
     {
@@ -339,10 +347,10 @@ mod idl_impl {
             let mut set = T::account_set_to_idl(idl_definition, arg.1)?;
             let single = set.single()?;
             if single.seeds.is_some() {
-                bail!("Seeds already set for `Seeded`. Got: {:?}", single);
+                bail!("Seeds already set for `Seeded`. Got: {single:?}");
             }
             if single.is_init {
-                bail!("`Seeded` should not wrap an init account. Wrap `Seeded` with `Init` instead. Got: {:?}", single);
+                bail!("`Seeded` should not wrap an init account. Wrap `Seeded` with `Init` instead. Got: {single:?}");
             }
             let seeds = IdlFindSeeds {
                 seeds: F::find_seeds(&arg.0 .0)?,
@@ -357,7 +365,7 @@ mod idl_impl {
     impl<'info, T, S, P, F> AccountSetToIdl<'info, Seeds<F>> for Seeded<T, S, P>
     where
         T: AccountSetToIdl<'info, ()> + SingleAccountSet<'info>,
-        S: GetSeeds,
+        S: GetSeeds + Clone,
         P: SeedProgram,
         F: FindIdlSeeds,
     {
@@ -372,7 +380,7 @@ mod idl_impl {
     impl<'info, T, S, P> AccountSetToIdl<'info, ()> for Seeded<T, S, P>
     where
         T: AccountSetToIdl<'info, ()> + SingleAccountSet<'info>,
-        S: GetSeeds,
+        S: GetSeeds + Clone,
         P: SeedProgram,
     {
         fn account_set_to_idl(
@@ -404,7 +412,7 @@ mod tests {
     fn test_unit_struct() {
         let unit_seeds = UnitSeeds {};
         let seeds = <UnitSeeds as crate::prelude::GetSeeds>::seeds(&unit_seeds);
-        assert_eq!(seeds.len(), 0);
+        assert_eq!(seeds, &[&[] as &[u8]]);
     }
 
     #[derive(Debug, GetSeeds, Clone)]
@@ -416,10 +424,9 @@ mod tests {
         let single_key = SingleKey {
             key: Pubkey::new_unique(),
         };
-        let intended_seeds = vec![single_key.key.seed()];
+        let intended_seeds = vec![single_key.key.seed(), &[]];
         let seeds = single_key.seeds();
         assert_eq!(seeds, intended_seeds);
-        assert_eq!(seeds.len(), 1);
     }
 
     #[derive(Debug, GetSeeds, Clone)]
@@ -433,10 +440,9 @@ mod tests {
             key1: Pubkey::new_unique(),
             key2: Pubkey::new_unique(),
         };
-        let intended_seeds = vec![two_keys.key1.seed(), two_keys.key2.seed()];
+        let intended_seeds = vec![two_keys.key1.seed(), two_keys.key2.seed(), &[]];
         let seeds = two_keys.seeds();
         assert_eq!(seeds, intended_seeds);
-        assert_eq!(seeds.len(), 2);
     }
 
     #[derive(Debug, GetSeeds, Clone)]
@@ -450,10 +456,9 @@ mod tests {
             key: Pubkey::new_unique(),
             number: 42,
         };
-        let intended_seeds = vec![key_and_number.key.seed(), key_and_number.number.seed()];
+        let intended_seeds = vec![key_and_number.key.seed(), key_and_number.number.seed(), &[]];
         let seeds = key_and_number.seeds();
         assert_eq!(seeds, intended_seeds);
-        assert_eq!(seeds.len(), 2);
     }
 
     #[derive(Debug, GetSeeds, Clone)]
@@ -463,9 +468,8 @@ mod tests {
     fn test_unit_with_const_seed() {
         let only_const_seed = OnlyConstSeed {};
         let seeds = only_const_seed.seeds();
-        let intended_seeds = vec![b"TEST_CONST".as_ref()];
+        let intended_seeds = vec![b"TEST_CONST".as_ref(), &[]];
         assert_eq!(seeds, intended_seeds);
-        assert_eq!(seeds.len(), 1);
     }
 
     #[derive(Debug, GetSeeds, Clone)]
@@ -478,10 +482,9 @@ mod tests {
         let account = OneKeyConstSeed {
             key: Pubkey::new_unique(),
         };
-        let intended_seeds = vec![b"TEST_CONST".as_ref(), account.key.seed()];
+        let intended_seeds = vec![b"TEST_CONST".as_ref(), account.key.seed(), &[]];
         let seeds = account.seeds();
         assert_eq!(seeds, intended_seeds);
-        assert_eq!(seeds.len(), 2);
     }
 
     pub struct Cool {}
@@ -496,8 +499,7 @@ mod tests {
     fn test_path_seed() {
         let account = SeedPath {};
         let seeds = account.seeds();
-        let intended_seeds = vec![b"TEST_CONST".as_ref()];
+        let intended_seeds = vec![b"TEST_CONST".as_ref(), &[]];
         assert_eq!(seeds, intended_seeds);
-        assert_eq!(seeds.len(), 1);
     }
 }
