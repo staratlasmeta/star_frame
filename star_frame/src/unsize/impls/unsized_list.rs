@@ -966,6 +966,10 @@ where
             std::ops::Bound::Unbounded => self.len(),
         };
 
+        if start == 0 && end == self.len() {
+            return self.clear();
+        }
+
         ensure!(start <= end);
         ensure!(end <= self.len());
 
@@ -1021,6 +1025,31 @@ where
             }
         }
 
+        Ok(())
+    }
+
+    #[exclusive]
+    pub fn clear(&mut self) -> Result<()> {
+        {
+            let start_ptr = self
+                .offset_list
+                .as_mut_ptr()
+                // Leave enough room for the unsized len copy
+                .wrapping_byte_add(U32_SIZE)
+                .cast::<()>();
+            let end_ptr = self
+                .unsized_data_ptr_mut()
+                .wrapping_byte_add(self.unsized_size.usize())
+                .cast::<()>();
+
+            let source_ptr = self.list_ptr.cast_const().cast::<()>();
+            unsafe { ExclusiveRecurse::remove_bytes(self, source_ptr, start_ptr..end_ptr)? };
+        }
+
+        self.list_ptr = ptr_meta::from_raw_parts_mut(self.list_ptr.cast::<()>(), 0);
+        self.len.0 = 0;
+        self.unsized_list_len().0 = 0;
+        self.unsized_size.0 = 0;
         Ok(())
     }
 }
@@ -1480,6 +1509,24 @@ mod tests {
         assert_eq!(&***second_item, &*second_item_owned);
 
         drop(data);
+        let data_to_owned = map.owned()?;
+        assert_eq!(owned_list, data_to_owned);
+        let mut data_mut = map.data_mut()?;
+        data_mut.clear()?;
+        owned_list.clear();
+
+        data_mut.push([0, 1, 2])?;
+        owned_list.push(vec![0, 1, 2]);
+        data_mut.push([10, 11, 12])?;
+        owned_list.push(vec![10, 11, 12]);
+
+        let slice1 = data_mut.get(0)?.unwrap();
+        assert_eq!(&**slice1, &[0, 1, 2]);
+        let mut slice2 = data_mut.get_mut(1)?.unwrap();
+        slice2[0] = 100;
+        owned_list[1][0] = 100;
+        assert_eq!(&**slice2, &[100, 11, 12]);
+        drop(data_mut);
         let data_to_owned = map.owned()?;
         assert_eq!(owned_list, data_to_owned);
         Ok(())

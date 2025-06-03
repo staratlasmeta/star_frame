@@ -553,6 +553,12 @@ where
         }
         Ok(())
     }
+
+    #[inline]
+    #[exclusive]
+    pub fn clear(&mut self) -> Result<()> {
+        self.remove_range(..)
+    }
 }
 unsafe impl<T, L> UnsizedInit<DefaultInit> for List<T, L>
 where
