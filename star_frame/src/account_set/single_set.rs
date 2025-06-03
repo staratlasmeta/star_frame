@@ -130,10 +130,12 @@ pub trait SingleAccountSet<'info>: AccountSet<'info> {
     }
 }
 
+static_assertions::assert_obj_safe!(CanCloseAccount<'_>, CanReceiveRent<'_>, CanFundRent<'_>);
+
 pub trait CanCloseAccount<'info>: SingleAccountSet<'info> {
     /// Closes the account by zeroing the lamports and replacing the discriminant with all `u8::MAX`,
     /// reallocating down to size.
-    fn close(&self, recipient: &dyn CanReceiveRent<'info>) -> Result<()>
+    fn close(&self, recipient: &(impl CanReceiveRent<'info> + ?Sized)) -> Result<()>
     where
         Self: HasOwnerProgram,
         Self: Sized,
@@ -163,7 +165,7 @@ pub trait CanCloseAccount<'info>: SingleAccountSet<'info> {
     }
 }
 
-impl<'info, T> CanCloseAccount<'info> for T where T: SingleAccountSet<'info> {}
+impl<'info, T> CanCloseAccount<'info> for T where T: SingleAccountSet<'info> + ?Sized {}
 
 pub trait CanReceiveRent<'info> {
     fn account_to_modify(&self) -> &AccountInfo<'info>;
@@ -175,7 +177,7 @@ pub trait CanReceiveRent<'info> {
 
 impl<'info, T> CanReceiveRent<'info> for T
 where
-    T: WritableAccount<'info>,
+    T: WritableAccount<'info> + ?Sized,
 {
     fn account_to_modify(&self) -> &AccountInfo<'info> {
         self.account_info()
@@ -201,7 +203,7 @@ pub trait CanFundRent<'info>: CanReceiveRent<'info> {
 
 impl<'info, T> CanFundRent<'info> for T
 where
-    T: CanReceiveRent<'info> + SignedAccount<'info>,
+    T: CanReceiveRent<'info> + SignedAccount<'info> + ?Sized,
 {
     fn can_create_account(&self) -> bool {
         true
@@ -240,8 +242,8 @@ pub trait CanModifyRent<'info> {
     /// If the account has 0 lamports (i.e., it is set to be closed), this will do nothing.
     fn normalize_rent(
         &self,
-        funder: &dyn CanFundRent<'info>,
-        syscalls: &impl SyscallInvoke<'info>,
+        funder: &(impl CanFundRent<'info> + ?Sized),
+        syscalls: &dyn SyscallInvoke<'info>,
     ) -> Result<()> {
         let account = self.account_to_modify();
         let rent = syscalls.get_rent()?;
@@ -273,8 +275,8 @@ pub trait CanModifyRent<'info> {
     /// If the account has 0 lamports (i.e., it is set to be closed), this will do nothing.
     fn refund_rent(
         &self,
-        recipient: &dyn CanReceiveRent<'info>,
-        syscalls: &impl SyscallInvoke<'info>,
+        recipient: &(impl CanReceiveRent<'info> + ?Sized),
+        syscalls: &(impl SyscallInvoke<'info> + ?Sized),
     ) -> Result<()> {
         let account = self.account_to_modify();
         let rent = syscalls.get_rent()?;
@@ -308,8 +310,8 @@ pub trait CanModifyRent<'info> {
     /// If the account has 0 lamports (i.e., it is set to be closed), this will do nothing.
     fn receive_rent(
         &self,
-        funder: &dyn CanFundRent<'info>,
-        syscalls: &impl SyscallInvoke<'info>,
+        funder: &(impl CanFundRent<'info> + ?Sized),
+        syscalls: &dyn SyscallInvoke<'info>,
     ) -> Result<()> {
         let account = self.account_to_modify();
         let rent = syscalls.get_rent()?;
@@ -328,7 +330,7 @@ pub trait CanModifyRent<'info> {
 
     /// Emits a warning message if the account has more lamports than required by rent.
     #[cfg_attr(not(feature = "cleanup_rent_warning"), allow(unused_variables))]
-    fn check_cleanup(&self, sys_calls: &impl SyscallCore) -> Result<()> {
+    fn check_cleanup(&self, sys_calls: &(impl SyscallCore + ?Sized)) -> Result<()> {
         #[cfg(feature = "cleanup_rent_warning")]
         {
             use std::cmp::Ordering;
@@ -352,7 +354,7 @@ pub trait CanModifyRent<'info> {
 
 impl<'info, T> CanModifyRent<'info> for T
 where
-    T: SingleAccountSet<'info>,
+    T: SingleAccountSet<'info> + ?Sized,
 {
     fn account_to_modify(&self) -> &AccountInfo<'info> {
         self.account_info()
@@ -369,7 +371,7 @@ pub trait CanSystemCreateAccount<'info> {
         owner: Pubkey,
         space: usize,
         account_seeds: &Option<Vec<&[u8]>>,
-        syscalls: &impl SyscallInvoke<'info>,
+        syscalls: &dyn SyscallInvoke<'info>,
     ) -> Result<()> {
         let account = self.account_to_create();
         if account.owner() != &System::ID {
@@ -430,7 +432,7 @@ pub trait CanSystemCreateAccount<'info> {
 
 impl<'info, T> CanSystemCreateAccount<'info> for T
 where
-    T: SingleAccountSet<'info>,
+    T: SingleAccountSet<'info> + ?Sized,
 {
     fn account_to_create(&self) -> &AccountInfo<'info> {
         self.account_info()
