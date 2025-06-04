@@ -1,6 +1,6 @@
 use crate::data_types::PodBool;
 use crate::idl::TypeToIdl;
-use crate::program::system_program::System;
+use crate::program::system::System;
 use crate::Result;
 use solana_pubkey::Pubkey;
 use star_frame_idl::ty::IdlStructField;
@@ -10,7 +10,7 @@ use star_frame_idl::IdlDefinition;
 macro_rules! impl_type_to_idl_for_primitive {
     (@impl $ty:ty: $ident:ident) => {
         impl $crate::idl::TypeToIdl for $ty {
-            type AssociatedProgram = $crate::program::system_program::System;
+            type AssociatedProgram = $crate::program::system::System;
 
             fn type_to_idl(_idl_definition: &mut $crate::star_frame_idl::IdlDefinition) -> $crate::Result<$crate::star_frame_idl::ty::IdlTypeDef> {
                 Ok($crate::star_frame_idl::ty::IdlTypeDef::$ident)

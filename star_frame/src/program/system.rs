@@ -14,7 +14,7 @@ impl StarFrameProgram for System {
     ///
     /// ```
     /// use solana_system_interface::program::ID;
-    /// use star_frame::program::system::System;
+    /// use star_frame::prelude::*;
     /// assert_eq!(solana_system_interface::program::ID, System::ID);
     /// ```
     const ID: Pubkey = Pubkey::new_from_array([0; 32]);

@@ -1,4 +1,4 @@
-pub mod system_program;
+pub mod system;
 
 use crate::instruction::InstructionSet;
 use crate::prelude::SolanaRuntime;

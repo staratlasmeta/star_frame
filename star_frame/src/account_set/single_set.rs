@@ -2,7 +2,7 @@ use crate::account_set::{HasOwnerProgram, SignedAccount, WritableAccount};
 use crate::anyhow::Result;
 use crate::client::MakeCpi;
 use crate::prelude::{StarFrameProgram, SyscallInvoke, System};
-use crate::program::system_program;
+use crate::program::system;
 use crate::syscalls::SyscallCore;
 use anyhow::{anyhow, bail, Context};
 use pinocchio::account_info::{AccountInfo, Ref, RefMut};
@@ -211,8 +211,8 @@ where
         syscalls: &dyn SyscallInvoke,
     ) -> Result<()> {
         let cpi = System::cpi(
-            &system_program::Transfer { lamports },
-            system_program::TransferCpiAccounts {
+            &system::Transfer { lamports },
+            system::TransferCpiAccounts {
                 funder: *self.account_info(),
                 recipient: *recipient.account_info(),
             },
@@ -385,12 +385,12 @@ pub trait CanSystemCreateAccount {
                 (None, None) => &[],
             };
             System::cpi(
-                &system_program::CreateAccount {
+                &system::CreateAccount {
                     lamports: exempt_lamports,
                     space: space as u64,
                     owner,
                 },
-                system_program::CreateAccountCpiAccounts {
+                system::CreateAccountCpiAccounts {
                     funder: funder.account_to_modify(),
                     new_account: account,
                 },
@@ -406,15 +406,15 @@ pub trait CanSystemCreateAccount {
                 None => &[],
             };
             System::cpi(
-                &system_program::Allocate {
+                &system::Allocate {
                     space: space as u64,
                 },
-                system_program::AllocateCpiAccounts { account },
+                system::AllocateCpiAccounts { account },
             )?
             .invoke_signed(account_seeds, syscalls)?;
             System::cpi(
-                &system_program::Assign { owner },
-                system_program::AssignCpiAccounts { account },
+                &system::Assign { owner },
+                system::AssignCpiAccounts { account },
             )?
             .invoke_signed(account_seeds, syscalls)?;
         }
