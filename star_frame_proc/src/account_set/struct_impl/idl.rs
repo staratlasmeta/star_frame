@@ -40,12 +40,7 @@ pub(super) fn idls(
     }: StepInput,
 ) -> Vec<TokenStream> {
     let ident = &input.ident;
-    let AccountSetGenerics {
-        main_generics,
-        other_generics,
-        info_lifetime,
-        ..
-    } = account_set_generics;
+    let AccountSetGenerics { main_generics, .. } = account_set_generics;
     let Paths {
         result,
         idl_ident,
@@ -127,7 +122,7 @@ pub(super) fn idls(
         .into_iter()
         .map(|(id, idl_struct_args)| {
             let (_, ty_generics, _) = main_generics.split_for_impl();
-            let mut generics = other_generics.clone();
+            let mut generics = main_generics.clone();
             let mut idl_type: Type = syn::parse_quote!(());
             let mut default_idl_arg: Expr = syn::parse_quote!(());
             if let Some(extra_generics) = idl_struct_args.generics.map(|g| g.into_inner()) {
@@ -144,7 +139,7 @@ pub(super) fn idls(
                 idl_type = syn::parse_quote!(#generic_arg);
                 generics.params.push(syn::parse_quote!(#generic_arg));
                 let single_ty = &single_set_field.ty;
-                generics.make_where_clause().predicates.push(syn::parse_quote!(#single_ty: #prelude::AccountSetToIdl<#info_lifetime, #generic_arg>));
+                generics.make_where_clause().predicates.push(syn::parse_quote!(#single_ty: #prelude::AccountSetToIdl<#generic_arg>));
             }
             let idl_type: Type = idl_struct_args.arg.unwrap_or(idl_type);
             let (idl_args, idl_addresses): (Vec<Option<Expr>>, Vec<Option<Expr>>) = field_idls
@@ -169,7 +164,7 @@ pub(super) fn idls(
 
             let account_set_defs = relevant_field_types.iter().zip(idl_args).zip(idl_addresses).map(|((ty, idl_arg), idl_address)| {
                 let expression = quote! {
-                    <#ty as #prelude::AccountSetToIdl<#info_lifetime, _>>::account_set_to_idl(idl_definition, #idl_arg)
+                    <#ty as #prelude::AccountSetToIdl<_>>::account_set_to_idl(idl_definition, #idl_arg)
                 };
                 if let Some(address) = idl_address {
                     quote! (#expression?.with_single_address(#address))
@@ -214,7 +209,7 @@ pub(super) fn idls(
             quote! {
                 #[cfg(all(feature = "idl", not(target_os = "solana")))]
                 #[automatically_derived]
-                impl #impl_generics #prelude::AccountSetToIdl<#info_lifetime, #idl_type> for #ident #ty_generics #where_clause {
+                impl #impl_generics #prelude::AccountSetToIdl<#idl_type> for #ident #ty_generics #where_clause {
                     fn account_set_to_idl(
                         idl_definition: &mut #prelude::IdlDefinition,
                         arg: #idl_type,

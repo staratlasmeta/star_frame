@@ -1,6 +1,6 @@
 //! Alignment to 1 byte.
 
-use solana_program::pubkey::Pubkey;
+use solana_pubkey::Pubkey;
 pub use star_frame_proc::Align1;
 use std::marker::PhantomData;
 use std::num::{NonZeroI8, NonZeroU8};

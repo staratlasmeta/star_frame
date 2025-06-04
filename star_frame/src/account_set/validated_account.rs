@@ -9,14 +9,14 @@ pub trait AccountValidate<ValidateArg>: UnsizedType {
 #[derive(AccountSet, Debug, Deref, DerefMut, derive_where::DeriveWhere)]
 #[derive_where(Clone)]
 #[validate(generics = [<ValidateArg> where T: AccountValidate<ValidateArg>], arg = ValidateArg, extra_validation = T::validate(&*self.account.data()?, arg))]
-#[idl(generics = [<A> where T: AccountToIdl, Account<'info, T>: AccountSetToIdl<'info, A>], arg = A)]
-pub struct ValidatedAccount<'info, T>
+#[idl(generics = [<A> where T: AccountToIdl, Account<T>: AccountSetToIdl<A>], arg = A)]
+pub struct ValidatedAccount<T>
 where
     T: ProgramAccount + UnsizedType + ?Sized,
 {
     #[single_account_set]
     #[idl(arg = arg)]
-    account: Account<'info, T>,
+    account: Account<T>,
 }
 
 macro_rules! account_validate_tuple {

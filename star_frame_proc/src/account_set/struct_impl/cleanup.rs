@@ -37,12 +37,7 @@ pub(super) fn cleanups(
     }: StepInput,
 ) -> Vec<TokenStream> {
     let ident = &input.ident;
-    let AccountSetGenerics {
-        main_generics,
-        other_generics,
-        info_lifetime,
-        ..
-    } = account_set_generics;
+    let AccountSetGenerics { main_generics, .. } = account_set_generics;
     let Paths {
         result,
         syscall_invoke,
@@ -103,7 +98,7 @@ pub(super) fn cleanups(
 
     cleanup_ids.into_iter().map(|(id, cleanup_struct_args)| {
         let (_, ty_generics, _) = main_generics.split_for_impl();
-        let mut generics = other_generics.clone();
+        let mut generics = main_generics.clone();
         let mut cleanup_type: Type = syn::parse_quote!(());
         let mut default_cleanup_arg: Expr = syn::parse_quote!(());
         if let Some(extra_generics) = cleanup_struct_args.generics.map(|g| g.into_inner()) {
@@ -120,7 +115,7 @@ pub(super) fn cleanups(
             cleanup_type = syn::parse_quote!(#generic_arg);
             generics.params.push(syn::parse_quote!(#generic_arg));
             let single_ty = &single_set_field.ty;
-            generics.make_where_clause().predicates.push(syn::parse_quote!(#single_ty: #account_set_cleanup<#info_lifetime, #generic_arg> + #prelude::SingleAccountSet<#info_lifetime>));
+            generics.make_where_clause().predicates.push(syn::parse_quote!(#single_ty: #account_set_cleanup<#generic_arg> + #prelude::SingleAccountSet));
         }
         let cleanup_type = cleanup_struct_args.arg.unwrap_or(cleanup_type);
 
@@ -138,11 +133,11 @@ pub(super) fn cleanups(
 
         quote! {
             #[automatically_derived]
-            impl #impl_generics #account_set_cleanup<#info_lifetime, #cleanup_type> for #ident #ty_generics #where_clause {
+            impl #impl_generics #account_set_cleanup<#cleanup_type> for #ident #ty_generics #where_clause {
                 fn cleanup_accounts(
                     &mut self,
                     arg: #cleanup_type,
-                    syscalls: &mut impl #syscall_invoke<#info_lifetime>,
+                    syscalls: &mut impl #syscall_invoke,
                 ) -> #result<()> {
                     #(
                         let __arg = #cleanup_args;

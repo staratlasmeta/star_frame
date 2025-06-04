@@ -1,7 +1,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use star_frame::empty_star_frame_instruction;
+use star_frame::pinocchio::sysvars::rent::Rent;
 use star_frame::prelude::*;
-use star_frame::solana_program::rent::Rent;
 
 #[derive(Copy, Debug, Clone, PartialEq, Eq, InstructionSet)]
 #[ix_set(use_repr)]
@@ -60,9 +60,9 @@ pub struct InitializeMint {
 }
 /// Accounts for the [`InitializeMint`] instruction.
 #[derive(Debug, Clone, AccountSet)]
-pub struct InitializeMintAccounts<'info> {
-    pub mint: Mut<AccountInfo<'info>>,
-    pub rent: Sysvar<'info, Rent>,
+pub struct InitializeMintAccounts {
+    pub mint: Mut<AccountInfo>,
+    pub rent: Sysvar<Rent>,
 }
 empty_star_frame_instruction!(InitializeMint, InitializeMintAccounts);
 
@@ -73,11 +73,11 @@ empty_star_frame_instruction!(InitializeMint, InitializeMintAccounts);
 pub struct InitializeAccount;
 /// Accounts for the [`InitializeAccount`] instruction.
 #[derive(Debug, Clone, AccountSet)]
-pub struct InitializeAccountAccounts<'info> {
-    pub account: Mut<AccountInfo<'info>>,
-    pub mint: AccountInfo<'info>,
-    pub owner: AccountInfo<'info>,
-    pub rent: Sysvar<'info, Rent>,
+pub struct InitializeAccountAccounts {
+    pub account: Mut<AccountInfo>,
+    pub mint: AccountInfo,
+    pub owner: AccountInfo,
+    pub rent: Sysvar<Rent>,
 }
 empty_star_frame_instruction!(InitializeAccount, InitializeAccountAccounts);
 
@@ -90,10 +90,10 @@ pub struct InitializeMultisig {
 }
 /// Accounts for the [`InitializeMultisig`] instruction.
 #[derive(Debug, Clone, AccountSet)]
-pub struct InitializeMultisigAccounts<'info> {
-    pub multisig: Mut<AccountInfo<'info>>,
-    pub rent: Sysvar<'info, Rent>,
-    pub signers: Rest<AccountInfo<'info>>,
+pub struct InitializeMultisigAccounts {
+    pub multisig: Mut<AccountInfo>,
+    pub rent: Sysvar<Rent>,
+    pub signers: Rest<AccountInfo>,
 }
 empty_star_frame_instruction!(InitializeMultisig, InitializeMultisigAccounts);
 
@@ -107,10 +107,10 @@ pub struct Transfer {
 // todo: handle multisig with AccountSet enums
 /// Accounts for the [`Transfer`] instruction.
 #[derive(Debug, Clone, AccountSet)]
-pub struct TransferAccounts<'info> {
-    pub source: Mut<AccountInfo<'info>>,
-    pub destination: Mut<AccountInfo<'info>>,
-    pub owner: Signer<AccountInfo<'info>>,
+pub struct TransferAccounts {
+    pub source: Mut<AccountInfo>,
+    pub destination: Mut<AccountInfo>,
+    pub owner: Signer<AccountInfo>,
 }
 empty_star_frame_instruction!(Transfer, TransferAccounts);
 
@@ -124,10 +124,10 @@ pub struct Approve {
 // todo: handle multisig with AccountSet enums
 /// Accounts for the [`Approve`] instruction.
 #[derive(Debug, Clone, AccountSet)]
-pub struct ApproveAccounts<'info> {
-    pub source: Mut<AccountInfo<'info>>,
-    pub delegate: AccountInfo<'info>,
-    pub owner: Signer<AccountInfo<'info>>,
+pub struct ApproveAccounts {
+    pub source: Mut<AccountInfo>,
+    pub delegate: AccountInfo,
+    pub owner: Signer<AccountInfo>,
 }
 empty_star_frame_instruction!(Approve, ApproveAccounts);
 
@@ -139,9 +139,9 @@ pub struct Revoke;
 // todo: handle multisig with AccountSet enums
 /// Accounts for the [`Revoke`] instruction.
 #[derive(Debug, Clone, AccountSet)]
-pub struct RevokeAccounts<'info> {
-    pub source: Mut<AccountInfo<'info>>,
-    pub owner: Signer<AccountInfo<'info>>,
+pub struct RevokeAccounts {
+    pub source: Mut<AccountInfo>,
+    pub owner: Signer<AccountInfo>,
 }
 empty_star_frame_instruction!(Revoke, RevokeAccounts);
 
@@ -156,9 +156,9 @@ pub struct SetAuthority {
 // todo: handle multisig with AccountSet enums
 /// Accounts for the [`SetAuthority`] instruction.
 #[derive(Debug, Clone, AccountSet)]
-pub struct SetAuthorityAccounts<'info> {
-    pub account: Mut<AccountInfo<'info>>,
-    pub current_authority: Signer<AccountInfo<'info>>,
+pub struct SetAuthorityAccounts {
+    pub account: Mut<AccountInfo>,
+    pub current_authority: Signer<AccountInfo>,
 }
 empty_star_frame_instruction!(SetAuthority, SetAuthorityAccounts);
 
@@ -172,10 +172,10 @@ pub struct MintTo {
 // todo: handle multisig with AccountSet enums
 /// Accounts for the [`MintTo`] instruction.
 #[derive(Debug, Clone, AccountSet)]
-pub struct MintToAccounts<'info> {
-    pub mint: Mut<AccountInfo<'info>>,
-    pub account: Mut<AccountInfo<'info>>,
-    pub mint_authority: Signer<AccountInfo<'info>>,
+pub struct MintToAccounts {
+    pub mint: Mut<AccountInfo>,
+    pub account: Mut<AccountInfo>,
+    pub mint_authority: Signer<AccountInfo>,
 }
 empty_star_frame_instruction!(MintTo, MintToAccounts);
 
@@ -189,10 +189,10 @@ pub struct Burn {
 // todo: handle multisig with AccountSet enums
 /// Accounts for the [`Burn`] instruction.
 #[derive(Debug, Clone, AccountSet)]
-pub struct BurnAccounts<'info> {
-    pub account: Mut<AccountInfo<'info>>,
-    pub mint: Mut<AccountInfo<'info>>,
-    pub owner: Signer<AccountInfo<'info>>,
+pub struct BurnAccounts {
+    pub account: Mut<AccountInfo>,
+    pub mint: Mut<AccountInfo>,
+    pub owner: Signer<AccountInfo>,
 }
 empty_star_frame_instruction!(Burn, BurnAccounts);
 
@@ -204,10 +204,10 @@ pub struct CloseAccount;
 // todo: handle multisig with AccountSet enums
 /// Accounts for the [`CloseAccount`] instruction.
 #[derive(Debug, Clone, AccountSet)]
-pub struct CloseAccountAccounts<'info> {
-    pub account: Mut<AccountInfo<'info>>,
-    pub destination: Mut<AccountInfo<'info>>,
-    pub owner: Signer<AccountInfo<'info>>,
+pub struct CloseAccountAccounts {
+    pub account: Mut<AccountInfo>,
+    pub destination: Mut<AccountInfo>,
+    pub owner: Signer<AccountInfo>,
 }
 empty_star_frame_instruction!(CloseAccount, CloseAccountAccounts);
 
@@ -219,10 +219,10 @@ pub struct FreezeAccount;
 // todo: handle multisig with AccountSet enums
 /// Accounts for the [`FreezeAccount`] instruction.
 #[derive(Debug, Clone, AccountSet)]
-pub struct FreezeAccountAccounts<'info> {
-    pub account: Mut<AccountInfo<'info>>,
-    pub mint: AccountInfo<'info>,
-    pub authority: Signer<AccountInfo<'info>>,
+pub struct FreezeAccountAccounts {
+    pub account: Mut<AccountInfo>,
+    pub mint: AccountInfo,
+    pub authority: Signer<AccountInfo>,
 }
 empty_star_frame_instruction!(FreezeAccount, FreezeAccountAccounts);
 
@@ -234,10 +234,10 @@ pub struct ThawAccount;
 // todo: handle multisig with AccountSet enums
 /// Accounts for the [`ThawAccount`] instruction.
 #[derive(Debug, Clone, AccountSet)]
-pub struct ThawAccountAccounts<'info> {
-    pub account: Mut<AccountInfo<'info>>,
-    pub mint: AccountInfo<'info>,
-    pub authority: Signer<AccountInfo<'info>>,
+pub struct ThawAccountAccounts {
+    pub account: Mut<AccountInfo>,
+    pub mint: AccountInfo,
+    pub authority: Signer<AccountInfo>,
 }
 empty_star_frame_instruction!(ThawAccount, ThawAccountAccounts);
 
@@ -252,11 +252,11 @@ pub struct TransferChecked {
 /// Accounts for the [`TransferChecked`] instruction.
 /// todo: Handle multisig with AccountSet enums.
 #[derive(Debug, Clone, AccountSet)]
-pub struct TransferCheckedAccounts<'info> {
-    pub source: Mut<AccountInfo<'info>>,
-    pub mint: AccountInfo<'info>,
-    pub destination: Mut<AccountInfo<'info>>,
-    pub owner: Signer<AccountInfo<'info>>,
+pub struct TransferCheckedAccounts {
+    pub source: Mut<AccountInfo>,
+    pub mint: AccountInfo,
+    pub destination: Mut<AccountInfo>,
+    pub owner: Signer<AccountInfo>,
 }
 empty_star_frame_instruction!(TransferChecked, TransferCheckedAccounts);
 
@@ -271,11 +271,11 @@ pub struct ApproveChecked {
 /// Accounts for the [`ApproveChecked`] instruction.
 /// todo: Handle multisig with AccountSet enums.
 #[derive(Debug, Clone, AccountSet)]
-pub struct ApproveCheckedAccounts<'info> {
-    pub source: Mut<AccountInfo<'info>>,
-    pub mint: AccountInfo<'info>,
-    pub delegate: AccountInfo<'info>,
-    pub owner: Signer<AccountInfo<'info>>,
+pub struct ApproveCheckedAccounts {
+    pub source: Mut<AccountInfo>,
+    pub mint: AccountInfo,
+    pub delegate: AccountInfo,
+    pub owner: Signer<AccountInfo>,
 }
 empty_star_frame_instruction!(ApproveChecked, ApproveCheckedAccounts);
 
@@ -290,10 +290,10 @@ pub struct MintToChecked {
 /// Accounts for the [`MintToChecked`] instruction.
 /// todo: Handle multisig with AccountSet enums.
 #[derive(Debug, Clone, AccountSet)]
-pub struct MintToCheckedAccounts<'info> {
-    pub mint: Mut<AccountInfo<'info>>,
-    pub account: Mut<AccountInfo<'info>>,
-    pub mint_authority: Signer<AccountInfo<'info>>,
+pub struct MintToCheckedAccounts {
+    pub mint: Mut<AccountInfo>,
+    pub account: Mut<AccountInfo>,
+    pub mint_authority: Signer<AccountInfo>,
 }
 empty_star_frame_instruction!(MintToChecked, MintToCheckedAccounts);
 
@@ -308,10 +308,10 @@ pub struct BurnChecked {
 /// Accounts for the [`BurnChecked`] instruction.
 /// todo: Handle multisig with AccountSet enums.
 #[derive(Debug, Clone, AccountSet)]
-pub struct BurnCheckedAccounts<'info> {
-    pub account: Mut<AccountInfo<'info>>,
-    pub mint: Mut<AccountInfo<'info>>,
-    pub owner: Signer<AccountInfo<'info>>,
+pub struct BurnCheckedAccounts {
+    pub account: Mut<AccountInfo>,
+    pub mint: Mut<AccountInfo>,
+    pub owner: Signer<AccountInfo>,
 }
 empty_star_frame_instruction!(BurnChecked, BurnCheckedAccounts);
 
@@ -325,10 +325,10 @@ pub struct InitializeAccount2 {
 /// Accounts for the [`InitializeAccount2`] instruction.
 /// todo: Consider multisig ownership scenarios if required.
 #[derive(Debug, Clone, AccountSet)]
-pub struct InitializeAccount2Accounts<'info> {
-    pub account: Mut<AccountInfo<'info>>,
-    pub mint: AccountInfo<'info>,
-    pub rent: Sysvar<'info, Rent>,
+pub struct InitializeAccount2Accounts {
+    pub account: Mut<AccountInfo>,
+    pub mint: AccountInfo,
+    pub rent: Sysvar<Rent>,
 }
 empty_star_frame_instruction!(InitializeAccount2, InitializeAccount2Accounts);
 
@@ -339,8 +339,8 @@ empty_star_frame_instruction!(InitializeAccount2, InitializeAccount2Accounts);
 pub struct SyncNative;
 /// Accounts for the [`SyncNative`] instruction.
 #[derive(Debug, Clone, AccountSet)]
-pub struct SyncNativeAccounts<'info> {
-    pub account: Mut<AccountInfo<'info>>,
+pub struct SyncNativeAccounts {
+    pub account: Mut<AccountInfo>,
 }
 empty_star_frame_instruction!(SyncNative, SyncNativeAccounts);
 
@@ -353,9 +353,9 @@ pub struct InitializeAccount3 {
 }
 /// Accounts for the [`InitializeAccount3`] instruction.
 #[derive(Debug, Clone, AccountSet)]
-pub struct InitializeAccount3Accounts<'info> {
-    pub account: Mut<AccountInfo<'info>>,
-    pub mint: AccountInfo<'info>,
+pub struct InitializeAccount3Accounts {
+    pub account: Mut<AccountInfo>,
+    pub mint: AccountInfo,
 }
 empty_star_frame_instruction!(InitializeAccount3, InitializeAccount3Accounts);
 
@@ -368,9 +368,9 @@ pub struct InitializeMultisig2 {
 }
 /// Accounts for the [`InitializeMultisig2`] instruction.
 #[derive(Debug, Clone, AccountSet)]
-pub struct InitializeMultisig2Accounts<'info> {
-    pub multisig: Mut<AccountInfo<'info>>,
-    pub signers: Rest<AccountInfo<'info>>,
+pub struct InitializeMultisig2Accounts {
+    pub multisig: Mut<AccountInfo>,
+    pub signers: Rest<AccountInfo>,
 }
 empty_star_frame_instruction!(InitializeMultisig2, InitializeMultisig2Accounts);
 
@@ -385,8 +385,8 @@ pub struct InitializeMint2 {
 }
 /// Accounts for the [`InitializeMint2`] instruction.
 #[derive(Debug, Clone, AccountSet)]
-pub struct InitializeMint2Accounts<'info> {
-    pub mint: Mut<AccountInfo<'info>>,
+pub struct InitializeMint2Accounts {
+    pub mint: Mut<AccountInfo>,
 }
 empty_star_frame_instruction!(InitializeMint2, InitializeMint2Accounts);
 
@@ -397,8 +397,8 @@ empty_star_frame_instruction!(InitializeMint2, InitializeMint2Accounts);
 pub struct GetAccountDataSize;
 /// Accounts for the [`GetAccountDataSize`] instruction.
 #[derive(Debug, Clone, AccountSet)]
-pub struct GetAccountDataSizeAccounts<'info> {
-    pub mint: AccountInfo<'info>,
+pub struct GetAccountDataSizeAccounts {
+    pub mint: AccountInfo,
 }
 empty_star_frame_instruction!(GetAccountDataSize, GetAccountDataSizeAccounts);
 
@@ -409,8 +409,8 @@ empty_star_frame_instruction!(GetAccountDataSize, GetAccountDataSizeAccounts);
 pub struct InitializeImmutableOwner;
 /// Accounts for the [`InitializeImmutableOwner`] instruction.
 #[derive(Debug, Clone, AccountSet)]
-pub struct InitializeImmutableOwnerAccounts<'info> {
-    pub account: Mut<AccountInfo<'info>>,
+pub struct InitializeImmutableOwnerAccounts {
+    pub account: Mut<AccountInfo>,
 }
 empty_star_frame_instruction!(InitializeImmutableOwner, InitializeImmutableOwnerAccounts);
 
@@ -423,8 +423,8 @@ pub struct AmountToUiAmount {
 }
 /// Accounts for the [`AmountToUiAmount`] instruction.
 #[derive(Debug, Clone, AccountSet)]
-pub struct AmountToUiAmountAccounts<'info> {
-    pub mint: AccountInfo<'info>,
+pub struct AmountToUiAmountAccounts {
+    pub mint: AccountInfo,
 }
 empty_star_frame_instruction!(AmountToUiAmount, AmountToUiAmountAccounts);
 
@@ -434,7 +434,6 @@ mod tests {
     use crate::token::Token;
     use pretty_assertions::assert_eq;
     use star_frame::itertools::Itertools;
-    use star_frame::solana_program::sysvar::SysvarId;
 
     #[cfg(feature = "idl")]
     #[test]

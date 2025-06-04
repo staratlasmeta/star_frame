@@ -1,15 +1,14 @@
 use derive_more::{Deref, DerefMut};
-use solana_program::system_program;
 use star_frame::prelude::*;
 
-#[derive(AccountSet, Debug, Deref, DerefMut, Clone)]
+#[derive(AccountSet, Debug, Deref, DerefMut, Clone, Copy)]
 #[validate(extra_validation = self.check_id())]
 #[repr(transparent)]
-pub struct SystemAccount<'info>(#[single_account_set(skip_has_owner_program)] AccountInfo<'info>);
+pub struct SystemAccount(#[single_account_set(skip_has_owner_program)] AccountInfo);
 
-impl SystemAccount<'_> {
+impl SystemAccount {
     pub fn check_id(&self) -> Result<()> {
-        if self.0.owner() == &system_program::ID {
+        if self.owner_pubkey() == System::ID {
             Ok(())
         } else {
             Err(ProgramError::IllegalOwner.into())
@@ -17,6 +16,6 @@ impl SystemAccount<'_> {
     }
 }
 
-impl HasOwnerProgram for SystemAccount<'_> {
+impl HasOwnerProgram for SystemAccount {
     type OwnerProgram = System;
 }

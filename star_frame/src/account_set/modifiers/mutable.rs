@@ -16,13 +16,15 @@ pub struct MaybeMut<const MUT: bool, T>(
     pub(crate) T,
 );
 
+
+
 /// A mutable account
 pub type Mut<T> = MaybeMut<true, T>;
 
-impl<'info, T> WritableAccount<'info> for MaybeMut<true, T> where T: SingleAccountSet<'info> {}
+impl<T> WritableAccount for MaybeMut<true, T> where T: SingleAccountSet {}
 
 // A false MaybeMut just acts as a pass-through, so we need to pass this through!
-impl<'info, T> WritableAccount<'info> for MaybeMut<false, T> where T: WritableAccount<'info> {}
+impl<T> WritableAccount for MaybeMut<false, T> where T: WritableAccount {}
 
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
 mod idl_impl {
@@ -32,9 +34,9 @@ mod idl_impl {
     use star_frame_idl::account_set::IdlAccountSetDef;
     use star_frame_idl::IdlDefinition;
 
-    impl<'info, const MUT: bool, T, A> AccountSetToIdl<'info, A> for MaybeMut<MUT, T>
+    impl<const MUT: bool, T, A> AccountSetToIdl<A> for MaybeMut<MUT, T>
     where
-        T: AccountSetToIdl<'info, A> + SingleAccountSet<'info>,
+        T: AccountSetToIdl<A> + SingleAccountSet,
     {
         fn account_set_to_idl(
             idl_definition: &mut IdlDefinition,

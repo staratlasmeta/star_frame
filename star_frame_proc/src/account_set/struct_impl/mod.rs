@@ -1,7 +1,7 @@
 use crate::account_set::generics::AccountSetGenerics;
 use crate::account_set::struct_impl::decode::DecodeFieldTy;
 use crate::account_set::{AccountSetStructArgs, SingleAccountSetFieldArgs, StrippedDeriveInput};
-use crate::util::{ignore_cfg_module, make_struct, new_generic, Paths};
+use crate::util::{combine_gen, ignore_cfg_module, make_struct, new_generic, Paths};
 use easy_proc::{find_attr, ArgumentList};
 use proc_macro2::TokenStream;
 use proc_macro_error2::abort;
@@ -9,7 +9,7 @@ use quote::{format_ident, quote, ToTokens};
 use std::ops::Not;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
-use syn::{bracketed, parse_quote, token, DataStruct, Field, Ident, Index, Token, WherePredicate};
+use syn::{bracketed, parse_quote, token, DataStruct, Field, Ident, Index, Token};
 
 mod cleanup;
 mod decode;
@@ -74,17 +74,10 @@ pub(super) fn derive_account_set_impl_struct(
     input: StrippedDeriveInput,
     account_set_generics: AccountSetGenerics,
 ) -> TokenStream {
-    let AccountSetGenerics {
-        main_generics,
-        other_generics,
-        info_lifetime,
-        function_generic_type,
-        ..
-    } = &account_set_generics;
+    let AccountSetGenerics { main_generics, .. } = &account_set_generics;
 
     let Paths {
         account_info,
-        account_set,
         prelude,
         result,
         ..
@@ -180,42 +173,9 @@ pub(super) fn derive_account_set_impl_struct(
         let single_generics = main_generics.clone();
         single_set_field.replace(field.clone());
         let sg_impl = single_generics.clone();
-        let (sg_impl, _, _) = sg_impl.split_for_impl();
+        let (sg_impl, ..) = sg_impl.split_for_impl();
 
-        let mut info_sg = single_generics.clone();
-        if !info_sg.lifetimes().any(|l| l.lifetime.ident == info_lifetime.ident) {
-            info_sg.params.push(parse_quote! {
-                #info_lifetime
-            });
-        }
-
-        let info_sg_impl = info_sg.clone();
-        let (info_sg_impl, _, _) = info_sg_impl.split_for_impl();
-
-        let mut info_gen_sg = info_sg.clone();
-        let new_generic = new_generic(&info_gen_sg, None);
-
-        info_gen_sg.params.push(parse_quote! {
-            #new_generic
-        });
-
-        let info_gen_sg_impl = info_gen_sg.clone();
-        let (info_gen_sg_impl, _, _) = info_gen_sg_impl.split_for_impl();
-
-        let self_single_bound: WherePredicate = parse_quote! {
-            Self: #prelude::SingleAccountSet<#info_lifetime>
-        };
-
-        let mut single_set_generics = info_sg.clone();
-        let single_where = single_set_generics.make_where_clause();
         let field_ty = &field.ty;
-
-        single_where.predicates.push(parse_quote! {
-            #field_ty: #prelude::SingleAccountSet<#info_lifetime>
-        });
-        single_where.predicates.push(parse_quote! {
-            Self: #prelude::AccountSet<#info_lifetime>
-        });
 
         let meta = args.meta.map_or_else(
             || {
@@ -225,7 +185,7 @@ pub(super) fn derive_account_set_impl_struct(
                     #prelude::SingleSetMeta {
                         #signer
                         #writable
-                        ..<#field_ty as #prelude::SingleAccountSet<#info_lifetime>>::meta()
+                        ..<#field_ty as #prelude::SingleAccountSet>::meta()
                     }
                 }
             },
@@ -240,31 +200,40 @@ pub(super) fn derive_account_set_impl_struct(
             }
         );
 
+        let single_set_gen = combine_gen!(single_generics; where #field_ty: for<'__a> #prelude::SingleAccountSet);
+        let (_, _, single_set_wc) = single_set_gen.split_for_impl();
+
+        let client_set_gen = combine_gen!(single_generics; where #field_ty: for<'__a> #prelude::ClientAccountSet + #prelude::SingleAccountSet);
+        let (_, _, client_set_wc) = client_set_gen.split_for_impl();
+
+        let cpi_set_gen = combine_gen!(single_generics; where #field_ty: for<'__a> #prelude::CpiAccountSet + #prelude::SingleAccountSet);
+        let (_, _, cpi_set_wc) = cpi_set_gen.split_for_impl();
+
 
         let single = quote! {
             #[automatically_derived]
-            impl #info_sg_impl #prelude::SingleAccountSet<#info_lifetime> for #ident #ty_generics #single_where {
+            impl #sg_impl #prelude::SingleAccountSet for #ident #ty_generics #single_set_wc {
                 #[allow(clippy::needless_update)]
                 fn meta() -> #prelude::SingleSetMeta {
                     #meta
                 }
 
                 #[inline]
-                fn account_info(&self) -> &#account_info<#info_lifetime> {
-                    <#field_ty as #prelude::SingleAccountSet<#info_lifetime>>::account_info(&self.#field_name)
+                fn account_info(&self) -> &#account_info {
+                    <#field_ty as #prelude::SingleAccountSet>::account_info(&self.#field_name)
                 }
             }
 
             #[automatically_derived]
-            impl #info_sg_impl #prelude::CpiAccountSet<#info_lifetime> for #ident #ty_generics #single_where {
-                type CpiAccounts = #prelude::AccountInfo<'info>;
+            impl #sg_impl #prelude::CpiAccountSet for #ident #ty_generics #cpi_set_wc {
+                type CpiAccounts = #prelude::AccountInfo;
                 const MIN_LEN: usize = 1;
                 #[inline]
                 fn to_cpi_accounts(&self) -> Self::CpiAccounts {
-                    self.account_info_cloned()
+                    *self.account_info()
                 }
                 #[inline]
-                fn extend_account_infos(account_info: Self::CpiAccounts, infos: &mut Vec<#prelude::AccountInfo<'info>>) {
+                fn extend_account_infos(account_info: Self::CpiAccounts, infos: &mut Vec<#prelude::AccountInfo>) {
                     infos.push(account_info);
                 }
                 #[inline]
@@ -274,15 +243,15 @@ pub(super) fn derive_account_set_impl_struct(
                     metas: &mut Vec<#prelude::AccountMeta>,
                 ) {
                     metas.push(#prelude::AccountMeta {
-                        pubkey: *account_info.key,
-                        is_signer: <Self as #prelude::SingleAccountSet<#info_lifetime>>::meta().signer,
-                        is_writable: <Self as #prelude::SingleAccountSet<#info_lifetime>>::meta().writable,
+                        pubkey: *#prelude::SingleAccountSet::pubkey(account_info),
+                        is_signer: <Self as #prelude::SingleAccountSet>::meta().signer,
+                        is_writable: <Self as #prelude::SingleAccountSet>::meta().writable,
                     });
                 }
             }
 
             #[automatically_derived]
-            impl #info_sg_impl #prelude::ClientAccountSet for #ident #ty_generics #single_where {
+            impl #sg_impl #prelude::ClientAccountSet for #ident #ty_generics #client_set_wc {
                 type ClientAccounts = #prelude::Pubkey;
                 const MIN_LEN: usize = 1;
                 #[inline]
@@ -293,125 +262,107 @@ pub(super) fn derive_account_set_impl_struct(
                 ) {
                     metas.push(#prelude::AccountMeta {
                         pubkey: *accounts,
-                        is_signer: <Self as #prelude::SingleAccountSet<#info_lifetime>>::meta().signer,
-                        is_writable: <Self as #prelude::SingleAccountSet<#info_lifetime>>::meta().writable,
+                        is_signer: <Self as #prelude::SingleAccountSet>::meta().signer,
+                        is_writable: <Self as #prelude::SingleAccountSet>::meta().writable,
                     });
                 }
             }
         };
 
         let signed_account = args.skip_signed_account.not().then(|| {
-            let mut signed_generics = info_sg.clone();
-            let signed_where = signed_generics.make_where_clause();
-            signed_where.predicates.push(parse_quote! {
-                #field_ty: #prelude::SignedAccount<#info_lifetime>
-            });
-            signed_where.predicates.push(self_single_bound.clone());
+            let single_gen = combine_gen!(single_generics; where #field_ty: for<'__a> #prelude::SignedAccount);
+            let (_, _, wc) = single_gen.split_for_impl();
             quote! {
                 #[automatically_derived]
-                impl #info_sg_impl #prelude::SignedAccount<#info_lifetime> for #ident #ty_generics #signed_where {
+                impl #sg_impl #prelude::SignedAccount for #ident #ty_generics #wc {
                     #[inline]
                     fn signer_seeds(&self) -> Option<Vec<&[u8]>> {
-                        <#field_ty as #prelude::SignedAccount<#info_lifetime>>::signer_seeds(&self.#field_name)
+                        <#field_ty as #prelude::SignedAccount>::signer_seeds(&self.#field_name)
                     }
                 }
             }
         });
 
         let writable_account = args.skip_writable_account.not().then(|| {
-            let mut writable_generics = info_sg.clone();
-            let writable_where = writable_generics.make_where_clause();
-            writable_where.predicates.push(parse_quote! {
-                #field_ty: #prelude::WritableAccount<#info_lifetime>
-            });
-            writable_where.predicates.push(self_single_bound.clone());
+            let single_gen = combine_gen!(single_generics; where #field_ty: for<'__a> #prelude::WritableAccount);
+            let (_, _, wc) = single_gen.split_for_impl();
             quote! {
                 #[automatically_derived]
-                impl #info_sg_impl #prelude::WritableAccount<#info_lifetime> for #ident #ty_generics #writable_where {}
+                impl #sg_impl #prelude::WritableAccount for #ident #ty_generics #wc {}
             }
         });
 
         let has_program_account = args.skip_has_inner_type.not().then(|| {
-            let mut program_generics = single_generics.clone();
-            let program_where = program_generics.make_where_clause();
-            program_where.predicates.push(parse_quote! {
-                #field_ty: #prelude::HasInnerType
-            });
+            let single_gen = combine_gen!(single_generics; where #field_ty: for<'__a> #prelude::HasInnerType);
+            let (_, _, wc) = single_gen.split_for_impl();
             quote! {
                 #[automatically_derived]
-                impl #sg_impl #prelude::HasInnerType for #ident #ty_generics #program_where {
+                impl #sg_impl #prelude::HasInnerType for #ident #ty_generics #wc {
                     type Inner = <#field_ty as #prelude::HasInnerType>::Inner;
                 }
             }
         });
 
         let has_owner_program = args.skip_has_owner_program.not().then(|| {
-            let mut owner_generics = single_generics.clone();
-            let owner_where = owner_generics.make_where_clause();
-            owner_where.predicates.push(parse_quote! {
-                #field_ty: #prelude::HasOwnerProgram
-            });
+            let single_gen = combine_gen!(single_generics; where #field_ty: for<'__a> #prelude::HasOwnerProgram);
+            let (_, _, wc) = single_gen.split_for_impl();
             quote! {
                 #[automatically_derived]
-                impl #sg_impl #prelude::HasOwnerProgram for #ident #ty_generics #owner_where {
+                impl #sg_impl #prelude::HasOwnerProgram for #ident #ty_generics #wc {
                     type OwnerProgram = <#field_ty as #prelude::HasOwnerProgram>::OwnerProgram;
                 }
             }
         });
 
         let has_seeds = args.skip_has_seeds.not().then(|| {
-            let mut seeds_generics = single_generics.clone();
-            let seeds_where = seeds_generics.make_where_clause();
-            seeds_where.predicates.push(parse_quote! {
-                #field_ty: #prelude::HasSeeds
-            });
+            let single_gen = combine_gen!(single_generics; where #field_ty: for<'__a> #prelude::HasSeeds);
+            let (_, _, wc) = single_gen.split_for_impl();
             quote! {
                 #[automatically_derived]
-                impl #sg_impl #prelude::HasSeeds for #ident #ty_generics #seeds_where {
+                impl #sg_impl #prelude::HasSeeds for #ident #ty_generics #wc {
                     type Seeds = <#field_ty as #prelude::HasSeeds>::Seeds;
                 }
             }
         });
 
         let can_init_seeds = args.skip_can_init_seeds.not().then(|| {
-            let mut init_seeds_generics = info_gen_sg.clone();
-            let init_seeds_where = init_seeds_generics.make_where_clause();
-            init_seeds_where.predicates.push(parse_quote! {
-                #field_ty: #prelude::CanInitSeeds<#info_lifetime, #function_generic_type>
-            });
-            init_seeds_where.predicates.push(parse_quote! {
-                Self: #prelude::AccountSetValidate<#info_lifetime, #function_generic_type>
-            });
-            init_seeds_where.predicates.push(self_single_bound.clone());
+            let new_generic = new_generic(&single_generics, None);
+            let init_seeds_gen = combine_gen!(single_generics; 
+                <#new_generic> where 
+                    #field_ty: for<'__a> #prelude::CanInitSeeds<#new_generic>,
+                    Self: #prelude::AccountSetValidate<#new_generic>
+            );
+            let (impl_gen, _, wc) = init_seeds_gen.split_for_impl();
             quote! {
                 #[automatically_derived]
-                impl #info_gen_sg_impl #prelude::CanInitSeeds<#info_lifetime, #new_generic> for #ident #ty_generics #init_seeds_where {
+                impl #impl_gen #prelude::CanInitSeeds<#new_generic> for #ident #ty_generics #wc {
                     #[inline]
-                    fn init_seeds(&mut self, arg: &#new_generic, syscalls: &impl #prelude::SyscallInvoke<#info_lifetime>) -> #result<()> {
-                        <#field_ty as #prelude::CanInitSeeds<#info_lifetime, #new_generic>>::init_seeds(&mut self.#field_name, arg, syscalls)
+                    fn init_seeds(&mut self, arg: &#new_generic, syscalls: &impl #prelude::SyscallInvoke) -> #result<()> {
+                        <#field_ty as #prelude::CanInitSeeds<#new_generic>>::init_seeds(&mut self.#field_name, arg, syscalls)
                     }
                 }
             }
         });
 
         let can_init_account = args.skip_can_init_account.not().then(|| {
-            let mut init_generics = info_gen_sg.clone();
-            let init_where = init_generics.make_where_clause();
-            init_where.predicates.push(parse_quote! {
-                #field_ty: #prelude::CanInitAccount<#info_lifetime, #new_generic>
-            });
-            let if_needed = format_ident!("__IF_NEEDED");
+            let init_gen = new_generic(&single_generics, None);
+            let if_needed = new_generic(&single_generics, Some("IF_NEEDED"));
+            
+            let init_account_gen = combine_gen!(single_generics; 
+                <#init_gen> where #field_ty: #prelude::CanInitAccount<#init_gen>
+            );
+            let (impl_gen, _, wc) = init_account_gen.split_for_impl();
             quote! {
                 #[automatically_derived]
-                impl #info_gen_sg_impl #prelude::CanInitAccount<#info_lifetime, #new_generic> for #ident #ty_generics #init_where {
+                impl #impl_gen #prelude::CanInitAccount<#init_gen> for #ident #ty_generics #wc {
                     #[inline]
                     fn init_account<const #if_needed: bool>(
                         &mut self,
-                        arg: #new_generic,
+                        arg: #init_gen,
                         account_seeds: Option<Vec<&[u8]>>,
-                        syscalls: &impl #prelude::SyscallInvoke<#info_lifetime>,
+                        syscalls: &impl #prelude::SyscallInvoke,
                     ) -> #result<()> {
-                        <#field_ty as #prelude::CanInitAccount<#info_lifetime, #new_generic>>::init_account::<#if_needed>(&mut self.#field_name, arg, account_seeds, syscalls)
+                        <#field_ty as #prelude::CanInitAccount<#init_gen>>::init_account::<#if_needed>(&mut self.#field_name, arg, account_seeds, syscalls)
                     }
                 }
             }
@@ -436,9 +387,9 @@ pub(super) fn derive_account_set_impl_struct(
     let cpi_account_set_impl = (!account_set_struct_args.skip_cpi_account_set && single_account_set_impls.is_none()).then(|| {
         let cpi_accounts_ident = format_ident!("{trimmed_ident_str}CpiAccounts");
         let (_, self_ty_gen, _) = main_generics.split_for_impl();
-        let mut cpi_gen = other_generics.clone();
+        let mut cpi_gen = main_generics.clone();
         let where_clause = cpi_gen.make_where_clause();
-        let cpi_set = quote!(#prelude::CpiAccountSet<#info_lifetime>);
+        let cpi_set = quote!(#prelude::CpiAccountSet);
         let cpi_accounts = quote!(Self::CpiAccounts);
 
         let new_fields: Vec<Field> = fields
@@ -458,13 +409,8 @@ pub(super) fn derive_account_set_impl_struct(
             })
             .collect();
 
-        let new_struct_gen = if new_fields.is_empty() {
-            main_generics
-        } else {
-            other_generics
-        };
-        let cpi_accounts_struct = make_struct(&cpi_accounts_ident, &new_fields, new_struct_gen);
-        let new_struct_ty_gen = new_struct_gen.split_for_impl().1;
+        let cpi_accounts_struct = make_struct(&cpi_accounts_ident, &new_fields, main_generics);
+        let new_struct_ty_gen = main_generics.split_for_impl().1;
 
 
         let (impl_gen, _, where_clause) = cpi_gen.split_for_impl();
@@ -490,7 +436,7 @@ pub(super) fn derive_account_set_impl_struct(
                 #[inline]
                 fn extend_account_infos(
                     accounts: #cpi_accounts,
-                    infos: &mut Vec<#account_info<#info_lifetime>>,
+                    infos: &mut Vec<#account_info>,
                 ) {
                     #(<#field_type as #cpi_set>::extend_account_infos(accounts.#field_name, infos);)*
                 }
@@ -558,23 +504,6 @@ pub(super) fn derive_account_set_impl_struct(
         }
     });
 
-    let mut generics = other_generics.clone();
-    if let Some(extra_generics) = &account_set_struct_args.generics {
-        generics.params.extend(extra_generics.params.clone());
-        if let Some(extra_where_clause) = &extra_generics.where_clause {
-            generics
-                .make_where_clause()
-                .predicates
-                .extend(extra_where_clause.predicates.clone());
-        }
-    } else if let Some(single_set_field) = &single_set_field {
-        let single_ty = &single_set_field.ty;
-        generics.make_where_clause().predicates.push(parse_quote! {
-            #single_ty: #account_set<#info_lifetime>
-        });
-    }
-    let (other_impl_generics, _, other_where_clause) = generics.split_for_impl();
-
     let decode_types = data_struct
         .fields
         .iter()
@@ -612,13 +541,6 @@ pub(super) fn derive_account_set_impl_struct(
     let cleanups = cleanup::cleanups(step_input);
     let idls = idl::idls(step_input);
 
-    let account_set_impl = account_set_struct_args.skip_account_set.not().then(|| {
-        quote! {
-            #[automatically_derived]
-            impl #other_impl_generics #account_set<#info_lifetime> for #ident #ty_generics #other_where_clause {}
-        }
-    });
-
     let idl_impls = ignore_cfg_module(
         ident,
         "_account_set_to_idl",
@@ -628,7 +550,6 @@ pub(super) fn derive_account_set_impl_struct(
     );
 
     quote! {
-        #account_set_impl
         #cpi_account_set_impl
         #client_account_set_impl
 

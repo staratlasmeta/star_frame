@@ -25,7 +25,6 @@ counter = { path = "../counter", features = ["no_entrypoint"] }
 bytemuck.workspace = true
 
 [dev-dependencies]
-solana-program-test.workspace = true
+mollusk-svm.workspace = true
+solana-account.workspace = true
 pretty_assertions.workspace = true
-solana-sdk.workspace = true
-tokio.workspace = true

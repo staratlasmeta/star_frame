@@ -143,19 +143,19 @@ pub mod instructions {
     pub struct Create;
     /// Accounts for the [`Create`] instruction.
     #[derive(Debug, Clone, AccountSet)]
-    pub struct CreateAccounts<'info> {
-        pub funder: Mut<Signer<AccountInfo<'info>>>,
+    pub struct CreateAccounts {
+        pub funder: Mut<Signer<AccountInfo>>,
         #[idl(arg =
             Seeds(FindAtaSeeds {
                 wallet: seed_path("wallet"),
                 mint: seed_path("mint"),
             })
         )]
-        pub token_account: Mut<AccountInfo<'info>>,
-        pub wallet: AccountInfo<'info>,
-        pub mint: AccountInfo<'info>,
-        pub system_program: Program<'info, System>,
-        pub token_program: Program<'info, Token>,
+        pub token_account: Mut<AccountInfo>,
+        pub wallet: AccountInfo,
+        pub mint: AccountInfo,
+        pub system_program: Program<System>,
+        pub token_program: Program<Token>,
     }
     empty_star_frame_instruction!(Create, CreateAccounts);
 
@@ -179,32 +179,32 @@ pub mod instructions {
     pub struct RecoverNested;
     /// Accounts for the [`RecoverNested`] instruction.
     #[derive(Debug, Clone, AccountSet)]
-    pub struct RecoverNestedAccounts<'info> {
+    pub struct RecoverNestedAccounts {
         #[idl(arg =
             Seeds(FindAtaSeeds {
                 wallet: seed_path("owner_ata"),
                 mint: seed_path("nested_mint"),
             })
         )]
-        pub nested_ata: Mut<AccountInfo<'info>>,
-        pub nested_mint: AccountInfo<'info>,
+        pub nested_ata: Mut<AccountInfo>,
+        pub nested_mint: AccountInfo,
         #[idl(arg =
             Seeds(FindAtaSeeds {
                 wallet: seed_path("wallet"),
                 mint: seed_path("nested_mint"),
             })
         )]
-        pub destination_ata: Mut<AccountInfo<'info>>,
+        pub destination_ata: Mut<AccountInfo>,
         #[idl(arg =
             Seeds(FindAtaSeeds {
                 wallet: seed_path("wallet"),
                 mint: seed_path("owner_mint"),
             })
         )]
-        pub owner_ata: Mut<AccountInfo<'info>>,
-        pub owner_mint: AccountInfo<'info>,
-        pub wallet: Mut<Signer<AccountInfo<'info>>>,
-        pub token_program: Program<'info, Token>,
+        pub owner_ata: Mut<AccountInfo>,
+        pub owner_mint: AccountInfo,
+        pub wallet: Mut<Signer<AccountInfo>>,
+        pub token_program: Program<Token>,
     }
     empty_star_frame_instruction!(RecoverNested, RecoverNestedAccounts);
 }
@@ -219,37 +219,34 @@ pub mod state {
         generics = [<'a>],
         extra_validation = self.validate_ata(arg)
     )]
-    pub struct AssociatedTokenAccount<'info>(
-        #[single_account_set(skip_can_init_account, skip_can_init_seeds)]
-        pub(crate)  TokenAccount<'info>,
+    pub struct AssociatedTokenAccount(
+        #[single_account_set(skip_can_init_account, skip_can_init_seeds)] pub(crate) TokenAccount,
     );
 
     // TODO: should AssociatedTokenAccount's inner type be TokenAccount or AssociatedTokenAccount?
     // Having both is sorta okay, but if for example the account set was Option<AssociatedTokenAccount>, optional_key_for would
     // only return TokenAccount since thats the inner type right now.
-    impl<'info> GetKeyFor<'info, AssociatedTokenAccount<'static>> for AssociatedTokenAccount<'info> {
-        fn key_for(&self) -> &'info KeyFor<AssociatedTokenAccount<'static>> {
-            KeyFor::new_ref(self.key())
+    impl GetKeyFor<AssociatedTokenAccount> for AssociatedTokenAccount {
+        fn key_for(&self) -> &KeyFor<AssociatedTokenAccount> {
+            KeyFor::new_ref(self.pubkey())
         }
     }
 
-    impl<'info> GetOptionalKeyFor<'info, AssociatedTokenAccount<'static>>
-        for AssociatedTokenAccount<'info>
-    {
-        fn optional_key_for(&self) -> &'info OptionalKeyFor<AssociatedTokenAccount<'static>> {
+    impl GetOptionalKeyFor<AssociatedTokenAccount> for AssociatedTokenAccount {
+        fn optional_key_for(&self) -> &OptionalKeyFor<AssociatedTokenAccount> {
             self.key_for().into()
         }
     }
 
-    impl AssociatedTokenAccount<'_> {
+    impl AssociatedTokenAccount {
         /// Validates that the given account is an associated token account.
         pub fn validate_ata(&self, validate_ata: ValidateAta) -> Result<()> {
             let expected_address =
                 AssociatedToken::find_address(validate_ata.wallet, validate_ata.mint);
-            if self.key() != &expected_address {
+            if self.pubkey() != &expected_address {
                 bail!(
                     "Account {} is not the associated token account for wallet {} and mint {}",
-                    self.key(),
+                    self.pubkey(),
                     validate_ata.wallet,
                     validate_ata.mint
                 );
@@ -258,11 +255,11 @@ pub mod state {
         }
     }
 
-    impl<'info, A> CanInitSeeds<'info, A> for AssociatedTokenAccount<'info>
+    impl<A> CanInitSeeds<A> for AssociatedTokenAccount
     where
-        Self: AccountSetValidate<'info, A>,
+        Self: AccountSetValidate<A>,
     {
-        fn init_seeds(&mut self, _arg: &A, _syscalls: &impl SyscallInvoke<'info>) -> Result<()> {
+        fn init_seeds(&mut self, _arg: &A, _syscalls: &impl SyscallInvoke) -> Result<()> {
             Ok(())
         }
     }
@@ -274,19 +271,19 @@ pub mod state {
     }
 
     #[derive(Debug, Clone, Copy)]
-    pub struct InitAta<'a, 'info, WalletInfo, MintInfo> {
+    pub struct InitAta<'a, WalletInfo, MintInfo> {
         pub wallet: &'a WalletInfo,
         pub mint: &'a MintInfo,
-        pub system_program: &'a Program<'info, System>,
-        pub token_program: &'a Program<'info, Token>,
+        pub system_program: Program<System>,
+        pub token_program: Program<Token>,
     }
 
-    impl<'a, 'info, WalletInfo, MintInfo> InitAta<'a, 'info, WalletInfo, MintInfo> {
+    impl<'a, WalletInfo, MintInfo> InitAta<'a, WalletInfo, MintInfo> {
         pub fn new(
             wallet: &'a WalletInfo,
             mint: &'a MintInfo,
-            system_program: &'a Program<'info, System>,
-            token_program: &'a Program<'info, Token>,
+            system_program: Program<System>,
+            token_program: Program<Token>,
         ) -> Self {
             Self {
                 wallet,
@@ -297,33 +294,30 @@ pub mod state {
         }
     }
 
-    impl<'a, 'info, WalletInfo, MintInfo> From<InitAta<'a, 'info, WalletInfo, MintInfo>>
-        for ValidateAta<'a>
+    impl<'a, WalletInfo, MintInfo> From<InitAta<'a, WalletInfo, MintInfo>> for ValidateAta<'a>
     where
-        WalletInfo: SingleAccountSet<'info>,
-        MintInfo: SingleAccountSet<'info>,
-        'info: 'a,
+        WalletInfo: SingleAccountSet,
+        MintInfo: SingleAccountSet,
     {
-        fn from(value: InitAta<'a, 'info, WalletInfo, MintInfo>) -> Self {
+        fn from(value: InitAta<'a, WalletInfo, MintInfo>) -> Self {
             Self {
-                mint: value.mint.key(),
-                wallet: value.wallet.key(),
+                mint: value.mint.pubkey(),
+                wallet: value.wallet.pubkey(),
             }
         }
     }
 
-    impl<'info, 'a, WalletInfo, MintInfo>
-        CanInitAccount<'info, InitAta<'a, 'info, WalletInfo, MintInfo>>
-        for AssociatedTokenAccount<'info>
+    impl<'a, WalletInfo, MintInfo> CanInitAccount<InitAta<'a, WalletInfo, MintInfo>>
+        for AssociatedTokenAccount
     where
-        WalletInfo: SingleAccountSet<'info>,
-        MintInfo: SingleAccountSet<'info>,
+        WalletInfo: SingleAccountSet,
+        MintInfo: SingleAccountSet,
     {
         fn init_account<const IF_NEEDED: bool>(
             &mut self,
-            arg: InitAta<'a, 'info, WalletInfo, MintInfo>,
+            arg: InitAta<'a, WalletInfo, MintInfo>,
             account_seeds: Option<Vec<&[u8]>>,
-            syscalls: &impl SyscallInvoke<'info>,
+            syscalls: &impl SyscallInvoke,
         ) -> Result<()> {
             let funder = syscalls
                 .get_funder()
@@ -332,27 +326,26 @@ pub mod state {
         }
     }
 
-    impl<'info, 'a, WalletInfo, MintInfo, Funder>
-        CanInitAccount<'info, (InitAta<'a, 'info, WalletInfo, MintInfo>, &Funder)>
-        for AssociatedTokenAccount<'info>
+    impl<'a, WalletInfo, MintInfo, Funder>
+        CanInitAccount<(InitAta<'a, WalletInfo, MintInfo>, &Funder)> for AssociatedTokenAccount
     where
-        WalletInfo: SingleAccountSet<'info>,
-        MintInfo: SingleAccountSet<'info>,
-        Funder: CanFundRent<'info> + ?Sized,
+        WalletInfo: SingleAccountSet,
+        MintInfo: SingleAccountSet,
+        Funder: CanFundRent + ?Sized,
     {
         fn init_account<const IF_NEEDED: bool>(
             &mut self,
-            (init_ata, funder): (InitAta<'a, 'info, WalletInfo, MintInfo>, &Funder),
+            (init_ata, funder): (InitAta<'a, WalletInfo, MintInfo>, &Funder),
             account_seeds: Option<Vec<&[u8]>>,
-            syscalls: &impl SyscallInvoke<'info>,
+            syscalls: &impl SyscallInvoke,
         ) -> Result<()> {
             if !funder.can_create_account() {
                 bail!(
                     "Funder with key `{}` does not have the ability to create accounts. This is a logic bug in the program.",
-                    funder.account_to_modify().key(),
+                    funder.account_to_modify().pubkey(),
                 );
             }
-            if IF_NEEDED && self.owner() == &Token::ID {
+            if IF_NEEDED && self.owner_pubkey() == Token::ID {
                 self.validate()?;
                 self.validate_ata(init_ata.into())?;
                 return Ok(());
@@ -370,12 +363,12 @@ pub mod state {
             AssociatedToken::cpi(
                 &instructions::Create,
                 instructions::CreateCpiAccounts {
-                    funder: funder.account_to_modify().clone(),
-                    token_account: self.account_info_cloned(),
-                    wallet: init_ata.wallet.account_info_cloned(),
-                    mint: init_ata.mint.account_info_cloned(),
-                    system_program: init_ata.system_program.account_info_cloned(),
-                    token_program: init_ata.token_program.account_info_cloned(),
+                    funder: funder.account_to_modify(),
+                    token_account: *self.account_info(),
+                    wallet: *init_ata.wallet.account_info(),
+                    mint: *init_ata.mint.account_info(),
+                    system_program: *init_ata.system_program.account_info(),
+                    token_program: *init_ata.token_program.account_info(),
                 },
             )?
             .invoke_signed(seeds, syscalls)?;

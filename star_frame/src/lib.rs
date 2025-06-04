@@ -31,11 +31,13 @@ pub extern crate fixed;
 pub extern crate itertools;
 pub extern crate num_traits;
 pub extern crate paste;
+pub extern crate pinocchio;
 pub extern crate self as star_frame;
 pub extern crate serde;
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
 pub extern crate serde_json;
-pub extern crate solana_program;
+pub extern crate solana_instruction;
+pub extern crate solana_pubkey;
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
 pub extern crate star_frame_idl;
 pub extern crate static_assertions;
@@ -62,7 +64,7 @@ pub mod util;
 pub mod __private;
 
 pub use anyhow::Result;
-pub use solana_program::instruction::Instruction as SolanaInstruction;
+pub use solana_instruction::Instruction as SolanaInstruction;
 pub use star_frame_proc::pubkey;
 pub use star_frame_proc::sighash;
 
@@ -77,7 +79,7 @@ compile_error!("You must enable the `test_helpers` feature for running tests!");
 mod tests {
     use super::*;
     use crate::program::StarFrameProgram;
-    use solana_program::pubkey::Pubkey;
+    use solana_pubkey::Pubkey;
 
     #[derive(StarFrameProgram)]
     #[program(

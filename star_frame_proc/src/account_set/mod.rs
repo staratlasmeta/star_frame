@@ -1,4 +1,4 @@
-use crate::util::{BetterGenerics, Paths};
+use crate::util::Paths;
 use easy_proc::{find_attr, ArgumentList};
 use proc_macro2::TokenStream;
 use proc_macro_error2::abort;
@@ -18,8 +18,6 @@ struct StrippedDeriveInput {
 #[derive(ArgumentList, Default, Debug)]
 struct AccountSetStructArgs {
     #[argument(presence)]
-    skip_account_set: bool,
-    #[argument(presence)]
     skip_client_account_set: bool,
     #[argument(presence)]
     skip_cpi_account_set: bool,
@@ -31,7 +29,6 @@ struct AccountSetStructArgs {
     skip_default_cleanup: bool,
     #[argument(presence)]
     skip_default_idl: bool,
-    generics: Option<BetterGenerics>,
 }
 
 #[derive(ArgumentList, Debug, Clone, Default)]

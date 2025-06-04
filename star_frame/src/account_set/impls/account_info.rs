@@ -5,72 +5,43 @@ use crate::syscalls::SyscallInvoke;
 use crate::Result;
 use advancer::AdvanceArray;
 use anyhow::Context;
-use solana_program::account_info::AccountInfo;
-use solana_program::instruction::AccountMeta;
-use solana_program::program_error::ProgramError;
-use solana_program::pubkey::Pubkey;
-use star_frame::account_set::{AccountSet, AccountSetCleanup, AccountSetValidate};
-use std::cell::{Ref, RefMut};
+use pinocchio::account_info::AccountInfo;
+use solana_instruction::AccountMeta;
+use solana_pubkey::Pubkey;
+use star_frame::account_set::{AccountSetCleanup, AccountSetValidate};
 
-impl<'info> AccountSet<'info> for AccountInfo<'info> {}
-impl<'info> AccountSet<'info> for &AccountInfo<'info> {}
-impl<'info> SingleAccountSet<'info> for AccountInfo<'info> {
+impl SingleAccountSet for AccountInfo {
     #[inline]
     fn meta() -> SingleSetMeta {
         SingleSetMeta::default()
     }
     #[inline]
-    fn account_info(&self) -> &AccountInfo<'info> {
+    fn account_info(&self) -> &AccountInfo {
         self
     }
     #[inline]
     fn account_meta(&self) -> AccountMeta {
         AccountMeta {
-            pubkey: *self.key,
-            is_signer: self.is_signer,
-            is_writable: self.is_writable,
+            pubkey: *SingleAccountSet::pubkey(self),
+            is_signer: self.is_signer(),
+            is_writable: self.is_writable(),
         }
     }
     #[inline]
     fn is_signer(&self) -> bool {
-        self.is_signer
+        self.is_signer()
     }
     #[inline]
     fn is_writable(&self) -> bool {
-        self.is_writable
+        self.is_writable()
     }
     #[inline]
-    fn key(&self) -> &'info Pubkey {
-        self.key
-    }
-    #[inline]
-    fn owner(&self) -> &'info Pubkey {
-        self.owner
-    }
-    #[inline]
-    fn info_data_bytes<'a>(&'a self) -> Result<Ref<'a, [u8]>>
-    where
-        'info: 'a,
-    {
-        self.data
-            .try_borrow()
-            .map_err(|_| ProgramError::AccountBorrowFailed)
-            .map(|d| Ref::map(d, |d| &**d))
-            .with_context(|| format!("Error borrowing data on account {}", self.key))
-    }
-    #[inline]
-    fn info_data_bytes_mut<'a>(&'a self) -> Result<RefMut<'a, &'info mut [u8]>>
-    where
-        'info: 'a,
-    {
-        self.data
-            .try_borrow_mut()
-            .map_err(|_| ProgramError::AccountBorrowFailed)
-            .with_context(|| format!("Error borrowing mut data on account {}", self.key))
+    fn pubkey(&self) -> &Pubkey {
+        bytemuck::cast_ref(self.key())
     }
 }
 
-impl ClientAccountSet for &AccountInfo<'_> {
+impl ClientAccountSet for &AccountInfo {
     type ClientAccounts = Pubkey;
     const MIN_LEN: usize = 1;
 
@@ -87,7 +58,7 @@ impl ClientAccountSet for &AccountInfo<'_> {
     }
 }
 
-impl ClientAccountSet for AccountInfo<'_> {
+impl ClientAccountSet for AccountInfo {
     type ClientAccounts = Pubkey;
     const MIN_LEN: usize = 1;
 
@@ -104,15 +75,15 @@ impl ClientAccountSet for AccountInfo<'_> {
     }
 }
 
-impl<'info> CpiAccountSet<'info> for &AccountInfo<'info> {
-    type CpiAccounts = AccountInfo<'info>;
+impl CpiAccountSet for &AccountInfo {
+    type CpiAccounts = AccountInfo;
     const MIN_LEN: usize = 1;
 
     fn to_cpi_accounts(&self) -> Self::CpiAccounts {
-        self.account_info_cloned()
+        *self.account_info()
     }
 
-    fn extend_account_infos(accounts: Self::CpiAccounts, infos: &mut Vec<AccountInfo<'info>>) {
+    fn extend_account_infos(accounts: Self::CpiAccounts, infos: &mut Vec<AccountInfo>) {
         infos.push(accounts);
     }
 
@@ -122,22 +93,22 @@ impl<'info> CpiAccountSet<'info> for &AccountInfo<'info> {
         metas: &mut Vec<AccountMeta>,
     ) {
         metas.push(AccountMeta {
-            pubkey: *accounts.key,
+            pubkey: *SingleAccountSet::pubkey(&accounts),
             is_signer: false,
             is_writable: false,
         });
     }
 }
 
-impl<'info> CpiAccountSet<'info> for AccountInfo<'info> {
-    type CpiAccounts = AccountInfo<'info>;
+impl CpiAccountSet for AccountInfo {
+    type CpiAccounts = AccountInfo;
     const MIN_LEN: usize = 1;
 
     fn to_cpi_accounts(&self) -> Self::CpiAccounts {
-        self.account_info_cloned()
+        *self.account_info()
     }
 
-    fn extend_account_infos(accounts: Self::CpiAccounts, infos: &mut Vec<AccountInfo<'info>>) {
+    fn extend_account_infos(accounts: Self::CpiAccounts, infos: &mut Vec<AccountInfo>) {
         infos.push(accounts);
     }
 
@@ -147,40 +118,40 @@ impl<'info> CpiAccountSet<'info> for AccountInfo<'info> {
         metas: &mut Vec<AccountMeta>,
     ) {
         metas.push(AccountMeta {
-            pubkey: *accounts.key,
+            pubkey: *accounts.pubkey(),
             is_signer: false,
             is_writable: false,
         });
     }
 }
 
-impl<'info> SingleAccountSet<'info> for &AccountInfo<'info> {
+impl SingleAccountSet for &AccountInfo {
     #[inline]
     fn meta() -> SingleSetMeta {
         SingleSetMeta::default()
     }
     #[inline]
-    fn account_info(&self) -> &AccountInfo<'info> {
+    fn account_info(&self) -> &AccountInfo {
         self
     }
 }
-impl<'a, 'info> AccountSetDecode<'a, 'info, ()> for AccountInfo<'info> {
+impl<'a> AccountSetDecode<'a, ()> for AccountInfo {
     unsafe fn decode_accounts(
-        accounts: &mut &'a [AccountInfo<'info>],
+        accounts: &mut &'a [AccountInfo],
         _decode_input: (),
-        _syscalls: &mut impl SyscallInvoke<'info>,
+        _syscalls: &mut impl SyscallInvoke,
     ) -> Result<Self> {
         let account: &[_; 1] = accounts
             .try_advance_array()
             .context("Not enough accounts to decode AccountInfo")?;
-        Ok(account[0].clone())
+        Ok(account[0])
     }
 }
-impl<'a, 'info> AccountSetDecode<'a, 'info, ()> for &'a AccountInfo<'info> {
+impl<'a> AccountSetDecode<'a, ()> for &'a AccountInfo {
     unsafe fn decode_accounts(
-        accounts: &mut &'a [AccountInfo<'info>],
+        accounts: &mut &'a [AccountInfo],
         _decode_input: (),
-        _syscalls: &mut impl SyscallInvoke<'info>,
+        _syscalls: &mut impl SyscallInvoke,
     ) -> Result<Self> {
         let account: &[_; 1] = accounts
             .try_advance_array()
@@ -188,40 +159,40 @@ impl<'a, 'info> AccountSetDecode<'a, 'info, ()> for &'a AccountInfo<'info> {
         Ok(&account[0])
     }
 }
-impl<'info> AccountSetValidate<'info, ()> for AccountInfo<'info> {
+impl AccountSetValidate<()> for AccountInfo {
     fn validate_accounts(
         &mut self,
         _validate_input: (),
-        _syscalls: &mut impl SyscallInvoke<'info>,
+        _syscalls: &mut impl SyscallInvoke,
     ) -> Result<()> {
         Ok(())
     }
 }
 
-impl<'info> AccountSetValidate<'info, ()> for &AccountInfo<'info> {
+impl AccountSetValidate<()> for &AccountInfo {
     fn validate_accounts(
         &mut self,
         validate_input: (),
-        _syscalls: &mut impl SyscallInvoke<'info>,
+        _syscalls: &mut impl SyscallInvoke,
     ) -> Result<()> {
         Ok(validate_input)
     }
 }
 
-impl<'info> AccountSetCleanup<'info, ()> for AccountInfo<'info> {
+impl AccountSetCleanup<()> for AccountInfo {
     fn cleanup_accounts(
         &mut self,
         cleanup_input: (),
-        _syscalls: &mut impl SyscallInvoke<'info>,
+        _syscalls: &mut impl SyscallInvoke,
     ) -> Result<()> {
         Ok(cleanup_input)
     }
 }
-impl<'info> AccountSetCleanup<'info, ()> for &AccountInfo<'info> {
+impl AccountSetCleanup<()> for &AccountInfo {
     fn cleanup_accounts(
         &mut self,
         cleanup_input: (),
-        _syscalls: &mut impl SyscallInvoke<'info>,
+        _syscalls: &mut impl SyscallInvoke,
     ) -> Result<()> {
         Ok(cleanup_input)
     }
@@ -235,7 +206,7 @@ pub mod idl_impl {
     use star_frame_idl::seeds::IdlFindSeeds;
     use star_frame_idl::IdlDefinition;
 
-    impl<'info> AccountSetToIdl<'info, ()> for AccountInfo<'info> {
+    impl AccountSetToIdl<()> for AccountInfo {
         fn account_set_to_idl(
             _idl_definition: &mut IdlDefinition,
             _arg: (),
@@ -244,7 +215,7 @@ pub mod idl_impl {
         }
     }
 
-    impl<'info, T> AccountSetToIdl<'info, Seeds<(T, Pubkey)>> for AccountInfo<'info>
+    impl<T> AccountSetToIdl<Seeds<(T, Pubkey)>> for AccountInfo
     where
         T: FindIdlSeeds,
     {
@@ -263,7 +234,7 @@ pub mod idl_impl {
         }
     }
 
-    impl<'info, T> AccountSetToIdl<'info, Seeds<T>> for AccountInfo<'info>
+    impl<T> AccountSetToIdl<Seeds<T>> for AccountInfo
     where
         T: FindIdlSeeds,
     {
@@ -281,9 +252,9 @@ pub mod idl_impl {
         }
     }
 
-    impl<'info, A> AccountSetToIdl<'info, A> for &AccountInfo<'info>
+    impl<A> AccountSetToIdl<A> for &AccountInfo
     where
-        AccountInfo<'info>: AccountSetToIdl<'info, A>,
+        AccountInfo: AccountSetToIdl<A>,
     {
         fn account_set_to_idl(
             idl_definition: &mut IdlDefinition,

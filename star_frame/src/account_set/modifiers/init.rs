@@ -6,7 +6,7 @@ use derive_more::{Deref, DerefMut};
 #[account_set(skip_default_idl, skip_default_validate)]
 #[validate(
     id = "create",
-    generics = [<C> where T: CanInitSeeds<'info, ()> + CanInitAccount<'info, C>],
+    generics = [<C> where T: CanInitSeeds<()> + CanInitAccount<C>],
     arg = Create<C>,
     before_validation = {
         self.init_seeds(&(), syscalls)?;
@@ -15,7 +15,7 @@ use derive_more::{Deref, DerefMut};
 )]
 #[validate(
     id = "create_generic",
-    generics = [<C, A> where T: CanInitSeeds<'info, A> + CanInitAccount<'info, C>],
+    generics = [<C, A> where T: CanInitSeeds<A> + CanInitAccount<C>],
     arg = (Create<C>, A),
     before_validation = {
         self.init_seeds(&arg.1, syscalls)?;
@@ -24,7 +24,7 @@ use derive_more::{Deref, DerefMut};
 )]
 #[validate(
     id = "create_if_needed",
-    generics = [<C> where T: CanInitSeeds<'info, ()> + CanInitAccount<'info, C>],
+    generics = [<C> where T: CanInitSeeds<()> + CanInitAccount<C>],
     arg = CreateIfNeeded<C>,
     before_validation = {
         self.init_seeds(&(), syscalls)?;
@@ -33,7 +33,7 @@ use derive_more::{Deref, DerefMut};
 )]
 #[validate(
     id = "create_if_needed_generic",
-    generics = [<C, A> where T: CanInitSeeds<'info, A> + CanInitAccount<'info, C>],
+    generics = [<C, A> where T: CanInitSeeds<A> + CanInitAccount<C>],
     arg = (CreateIfNeeded<C>, A),
     before_validation = {
         self.init_seeds(&arg.1, syscalls)?;
@@ -62,16 +62,15 @@ mod idl_impl {
     use star_frame_idl::account_set::IdlAccountSetDef;
     use star_frame_idl::IdlDefinition;
 
-    impl<'info, A, T> AccountSetToIdl<'info, A> for Init<T>
+    impl<A, T> AccountSetToIdl<A> for Init<T>
     where
-        T: AccountSetToIdl<'info, A> + SingleAccountSet<'info>,
+        T: AccountSetToIdl<A> + SingleAccountSet,
     {
         fn account_set_to_idl(
             idl_definition: &mut IdlDefinition,
             arg: A,
         ) -> Result<IdlAccountSetDef> {
-            let mut set =
-                <Mut<T> as AccountSetToIdl<'info, A>>::account_set_to_idl(idl_definition, arg)?;
+            let mut set = <Mut<T> as AccountSetToIdl<A>>::account_set_to_idl(idl_definition, arg)?;
             let single = set.single()?;
             if single.is_init {
                 bail!(

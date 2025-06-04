@@ -12,9 +12,9 @@ pub trait SetKeyFor<T: ?Sized, I> {
 }
 
 /// Allows getting a [`KeyFor`] from other types.
-pub trait GetKeyFor<'info, T: ?Sized> {
+pub trait GetKeyFor<T: ?Sized> {
     /// Gets the contained `KeyFor`.
-    fn key_for(&self) -> &'info KeyFor<T>;
+    fn key_for(&self) -> &KeyFor<T>;
 }
 
 /// A key for an account type
@@ -62,17 +62,15 @@ impl<T: ?Sized> KeyFor<T> {
     }
 }
 
-impl<'info, T: HasInnerType + SingleAccountSet<'info>> SetKeyFor<T::Inner, &T>
-    for KeyFor<T::Inner>
-{
+impl<T: HasInnerType + SingleAccountSet> SetKeyFor<T::Inner, &T> for KeyFor<T::Inner> {
     fn set_pubkey(&mut self, pubkey: &T) {
-        self.pubkey = *pubkey.key();
+        self.pubkey = *pubkey.pubkey();
     }
 }
 
-impl<'info, T: HasInnerType + SingleAccountSet<'info>> GetKeyFor<'info, T::Inner> for T {
-    fn key_for(&self) -> &'info KeyFor<T::Inner> {
-        KeyFor::new_ref(self.key())
+impl<T: HasInnerType + SingleAccountSet> GetKeyFor<T::Inner> for T {
+    fn key_for(&self) -> &KeyFor<T::Inner> {
+        KeyFor::new_ref(self.pubkey())
     }
 }
 

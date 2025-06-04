@@ -7,7 +7,7 @@ use quote::quote;
 use syn::{parse_quote, Expr, Fields, FieldsUnnamed, ItemEnum, Type};
 
 use crate::hash::SIGHASH_GLOBAL_NAMESPACE;
-use crate::util::{enum_discriminants, get_repr, ignore_cfg_module, new_lifetime, Paths};
+use crate::util::{enum_discriminants, get_repr, ignore_cfg_module, Paths};
 
 #[derive(Debug, ArgumentList, Clone, Default)]
 pub struct InstructionSetStructArgs {
@@ -34,7 +34,6 @@ pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
         prelude,
         instruction_set_args_ident,
     );
-    let info_lifetime = new_lifetime(&item, None);
     let (impl_generics, ty_generics, where_clause) = &item.generics.split_for_impl();
 
     let ident = &item.ident;
@@ -127,11 +126,11 @@ pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
         impl #impl_generics #prelude::InstructionSet for #ident #ty_generics #where_clause {
             type Discriminant = #discriminant_type;
 
-            fn handle_ix<#info_lifetime>(
+            fn handle_ix(
                 program_id: &#pubkey,
-                accounts: &[#account_info<#info_lifetime>],
+                accounts: &[#account_info],
                 mut ix_bytes: &[u8],
-                syscalls: &mut impl #syscalls<#info_lifetime>,
+                syscalls: &mut impl #syscalls,
             ) -> #result<()> {
                 let maybe_discriminant_bytes =
                     #prelude::Advance::try_advance(&mut ix_bytes, ::core::mem::size_of::<#discriminant_type>());

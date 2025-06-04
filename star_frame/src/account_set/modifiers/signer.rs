@@ -5,7 +5,7 @@ use crate::account_set::{
 use crate::prelude::{SingleSetMeta, SyscallInvoke};
 use crate::Result;
 use derive_more::{Deref, DerefMut};
-use solana_program::account_info::AccountInfo;
+use pinocchio::account_info::AccountInfo;
 use std::fmt::Debug;
 
 #[derive(AccountSet, Copy, Clone, Debug, Deref, DerefMut)]
@@ -22,11 +22,11 @@ pub struct MaybeSigner<const SIGNER: bool, T>(
 /// A signed account
 pub type Signer<T> = MaybeSigner<true, T>;
 
-pub type SignerInfo<'info> = Signer<AccountInfo<'info>>;
+pub type SignerInfo = Signer<AccountInfo>;
 
-impl<'info, T> SignedAccount<'info> for MaybeSigner<true, T>
+impl<T> SignedAccount for MaybeSigner<true, T>
 where
-    T: SingleAccountSet<'info>,
+    T: SingleAccountSet,
 {
     fn signer_seeds(&self) -> Option<Vec<&[u8]>> {
         None
@@ -34,9 +34,9 @@ where
 }
 
 // A false `MaybeSigner` just acts as a pass-through, so we need to pass this through!
-impl<'info, T> SignedAccount<'info> for MaybeSigner<false, T>
+impl<T> SignedAccount for MaybeSigner<false, T>
 where
-    T: SignedAccount<'info>,
+    T: SignedAccount,
 {
     fn signer_seeds(&self) -> Option<Vec<&[u8]>> {
         self.0.signer_seeds()
@@ -44,21 +44,21 @@ where
 }
 
 // `CanInitSeeds` on `Signer` is a no-op
-impl<'info, T, A> CanInitSeeds<'info, A> for MaybeSigner<true, T>
+impl<T, A> CanInitSeeds<A> for MaybeSigner<true, T>
 where
-    Self: SingleAccountSet<'info> + AccountSetValidate<'info, A>,
+    Self: SingleAccountSet + AccountSetValidate<A>,
 {
-    fn init_seeds(&mut self, _arg: &A, _syscalls: &impl SyscallInvoke<'info>) -> Result<()> {
+    fn init_seeds(&mut self, _arg: &A, _syscalls: &impl SyscallInvoke) -> Result<()> {
         Ok(())
     }
 }
 
 // A false `MaybeSigner` just acts as a pass-through, so we need to pass this through!
-impl<'info, T, A> CanInitSeeds<'info, A> for MaybeSigner<false, T>
+impl<T, A> CanInitSeeds<A> for MaybeSigner<false, T>
 where
-    T: CanInitSeeds<'info, A>,
+    T: CanInitSeeds<A>,
 {
-    fn init_seeds(&mut self, arg: &A, syscalls: &impl SyscallInvoke<'info>) -> Result<()> {
+    fn init_seeds(&mut self, arg: &A, syscalls: &impl SyscallInvoke) -> Result<()> {
         self.0.init_seeds(arg, syscalls)
     }
 }
@@ -70,9 +70,9 @@ mod idl_impl {
     use star_frame_idl::account_set::IdlAccountSetDef;
     use star_frame_idl::IdlDefinition;
 
-    impl<'info, const SIGNER: bool, T, A> AccountSetToIdl<'info, A> for MaybeSigner<SIGNER, T>
+    impl<const SIGNER: bool, T, A> AccountSetToIdl<A> for MaybeSigner<SIGNER, T>
     where
-        T: AccountSetToIdl<'info, A>,
+        T: AccountSetToIdl<A>,
     {
         fn account_set_to_idl(
             idl_definition: &mut IdlDefinition,

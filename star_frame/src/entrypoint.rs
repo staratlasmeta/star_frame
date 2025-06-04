@@ -1,4 +1,4 @@
-/// Macro to define the entrypoint for a `star_frame` program. This wraps the default [`solana_program::entrypoint!`] macro
+/// Macro to define the entrypoint for a `star_frame` program. This wraps the default [`pinocchio::entrypoint!`] macro
 /// and only needs to take in the [`StarFrameProgram`](crate::prelude::StarFrameProgram) type. This will be automatically called by the
 /// [`StarFrameProgram`](star_frame_proc::StarFrameProgram) derive macro if the `no_entrypoint` argument
 /// is not present.
@@ -29,14 +29,14 @@ macro_rules! star_frame_entrypoint (
         pub mod _entrypoint {
             use super::*;
             pub fn process_instruction<'info>(
-                program_id: &'info $crate::prelude::Pubkey,
-                accounts: &[$crate::prelude::AccountInfo<'info>],
+                program_id: &'info [u8; 32],
+                accounts: &[$crate::prelude::AccountInfo],
                 instruction_data: &[u8],
-            ) -> $crate::solana_program::entrypoint::ProgramResult {
+            ) -> $crate::pinocchio::ProgramResult {
                 <$program as $crate::program::StarFrameProgram>::processor(program_id, accounts, instruction_data)
             }
             #[cfg(not(any(feature = "no-entrypoint", feature = "no_entrypoint")))]
-            $crate::solana_program::entrypoint!(process_instruction);
+            $crate::pinocchio::entrypoint!(process_instruction);
         }
     };
 );

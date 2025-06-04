@@ -6,9 +6,9 @@ use std::fmt::{Display, Formatter};
 use std::marker::PhantomData;
 
 /// Allows getting an [`OptionalKeyFor`] from other types.
-pub trait GetOptionalKeyFor<'info, T: ?Sized> {
+pub trait GetOptionalKeyFor<T: ?Sized> {
     /// Gets the contained `OptionalKeyFor`.
-    fn optional_key_for(&self) -> &'info OptionalKeyFor<T>;
+    fn optional_key_for(&self) -> &OptionalKeyFor<T>;
 }
 
 /// A key for an account type
@@ -38,7 +38,7 @@ impl<T: ?Sized> OptionalKeyFor<T> {
     /// Gets the contained pubkey.
     /// An [`OptionalKeyFor`] with the [`None`] variant.
     pub const NONE: OptionalKeyFor<T> = OptionalKeyFor {
-        pubkey: solana_program::system_program::id(),
+        pubkey: Pubkey::new_from_array([0; 32]),
         phantom: PhantomData,
     };
 
@@ -63,7 +63,7 @@ impl<T: ?Sized> OptionalKeyFor<T> {
     /// Gets the contained pub
     #[must_use]
     pub fn pubkey(&self) -> Option<&Pubkey> {
-        if self.pubkey == solana_program::system_program::id() {
+        if self.pubkey == Pubkey::default() {
             None
         } else {
             Some(&self.pubkey)
@@ -78,38 +78,34 @@ impl<T: ?Sized> OptionalKeyFor<T> {
 
     /// Sets the contained pubkey.
     pub fn set_pubkey_direct(&mut self, pubkey: Option<Pubkey>) {
-        self.pubkey = pubkey.unwrap_or_else(solana_program::system_program::id);
+        self.pubkey = pubkey.unwrap_or_default();
     }
 }
 
-impl<'info, T: HasInnerType + SingleAccountSet<'info>> SetKeyFor<T::Inner, &T>
-    for OptionalKeyFor<T::Inner>
-{
+impl<T: HasInnerType + SingleAccountSet> SetKeyFor<T::Inner, &T> for OptionalKeyFor<T::Inner> {
     fn set_pubkey(&mut self, pubkey: &T) {
-        self.pubkey = *(pubkey.key());
+        self.pubkey = *(pubkey.pubkey());
     }
 }
 
-impl<'info, T: HasInnerType + SingleAccountSet<'info>> SetKeyFor<T::Inner, &Option<T>>
+impl<T: HasInnerType + SingleAccountSet> SetKeyFor<T::Inner, &Option<T>>
     for OptionalKeyFor<T::Inner>
 {
     fn set_pubkey(&mut self, pubkey: &Option<T>) {
         self.pubkey = pubkey
             .as_ref()
-            .map_or_else(solana_program::system_program::id, |acc| *(acc.key()));
+            .map_or_else(Pubkey::default, |acc| *(acc.pubkey()));
     }
 }
 
-impl<'info, T: HasInnerType + SingleAccountSet<'info>> GetOptionalKeyFor<'info, T::Inner> for T {
-    fn optional_key_for(&self) -> &'info OptionalKeyFor<T::Inner> {
+impl<T: HasInnerType + SingleAccountSet> GetOptionalKeyFor<T::Inner> for T {
+    fn optional_key_for(&self) -> &OptionalKeyFor<T::Inner> {
         self.key_for().into()
     }
 }
 
-impl<'info, T: HasInnerType + SingleAccountSet<'info>> GetOptionalKeyFor<'info, T::Inner>
-    for Option<T>
-{
-    fn optional_key_for(&self) -> &'info OptionalKeyFor<T::Inner> {
+impl<T: HasInnerType + SingleAccountSet> GetOptionalKeyFor<T::Inner> for Option<T> {
+    fn optional_key_for(&self) -> &OptionalKeyFor<T::Inner> {
         self.as_ref()
             .map_or(&OptionalKeyFor::NONE, GetOptionalKeyFor::optional_key_for)
     }

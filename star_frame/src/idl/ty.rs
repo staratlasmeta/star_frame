@@ -2,7 +2,7 @@ use crate::data_types::PodBool;
 use crate::idl::TypeToIdl;
 use crate::program::system_program::System;
 use crate::Result;
-use solana_program::pubkey::Pubkey;
+use solana_pubkey::Pubkey;
 use star_frame_idl::ty::IdlStructField;
 use star_frame_idl::ty::IdlTypeDef;
 use star_frame_idl::IdlDefinition;

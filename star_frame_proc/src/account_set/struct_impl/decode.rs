@@ -46,7 +46,6 @@ pub(super) fn decodes(
     let AccountSetGenerics {
         main_generics,
         decode_generics,
-        info_lifetime,
         decode_lifetime,
         ..
     } = account_set_generics;
@@ -148,7 +147,7 @@ pub(super) fn decodes(
             decode_type = syn::parse_quote!(#generic_arg);
             generics.params.push(syn::parse_quote!(#generic_arg));
             let single_ty = &single_set_field.ty;
-            generics.make_where_clause().predicates.push(syn::parse_quote!(#single_ty: #account_set_decode<#decode_lifetime, #info_lifetime, #generic_arg> + #prelude::SingleAccountSet<#info_lifetime>));
+            generics.make_where_clause().predicates.push(syn::parse_quote!(#single_ty: #account_set_decode<#decode_lifetime, #generic_arg> + #prelude::SingleAccountSet));
         }
         let decode_type = decode_struct_args.arg.unwrap_or(decode_type);
         let decode_args: Vec<Expr> = field_decodes
@@ -165,7 +164,7 @@ pub(super) fn decodes(
         let decode_inner = init(&mut decode_field_ty.iter().zip_eq(&decode_args).map(|(field_ty, decode_args)| {
             match &field_ty {
                 DecodeFieldTy::Type(field_type) => quote! {
-                        <#field_type as #account_set_decode<#decode_lifetime, #info_lifetime, _>>::decode_accounts(accounts, #decode_args, syscalls)?
+                        <#field_type as #account_set_decode<#decode_lifetime, _>>::decode_accounts(accounts, #decode_args, syscalls)?
                     },
                 DecodeFieldTy::Default(default) => quote!(#default)
             }
@@ -173,11 +172,11 @@ pub(super) fn decodes(
 
         quote!{
             #[automatically_derived]
-            impl #impl_generics #account_set_decode<#decode_lifetime, #info_lifetime, #decode_type> for #ident #ty_generics #where_clause {
+            impl #impl_generics #account_set_decode<#decode_lifetime, #decode_type> for #ident #ty_generics #where_clause {
                 unsafe fn decode_accounts(
-                    accounts: &mut &#decode_lifetime [#account_info<#info_lifetime>],
+                    accounts: &mut &#decode_lifetime [#account_info],
                     arg: #decode_type,
-                    syscalls: &mut impl #syscall_invoke<#info_lifetime>,
+                    syscalls: &mut impl #syscall_invoke,
                 ) -> #result<Self> {
                     Ok(#decode_inner)
                 }

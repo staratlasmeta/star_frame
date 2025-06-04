@@ -1,16 +1,16 @@
 use crate::instruction::InstructionSet;
 use crate::prelude::Syscalls;
-use solana_program::account_info::AccountInfo;
-use solana_program::pubkey::Pubkey;
+use pinocchio::account_info::AccountInfo;
+use solana_pubkey::Pubkey;
 
 impl InstructionSet for () {
     type Discriminant = ();
 
-    fn handle_ix<'info>(
+    fn handle_ix(
         _program_id: &Pubkey,
-        _accounts: &[AccountInfo<'info>],
+        _accounts: &[AccountInfo],
         _ix_bytes: &[u8],
-        _syscalls: &mut impl Syscalls<'info>,
+        _syscalls: &mut impl Syscalls,
     ) -> anyhow::Result<()> {
         Ok(())
     }

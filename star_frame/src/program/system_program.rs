@@ -1,10 +1,8 @@
 use crate::empty_star_frame_instruction;
 use crate::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
-use solana_program::rent::Rent;
-use solana_program::system_program;
 #[allow(deprecated)]
-use solana_program::sysvar::recent_blockhashes::RecentBlockhashes;
+use pinocchio::sysvars::rent::Rent;
 
 /// Solana's system program.
 #[derive(Debug, Copy, Clone, Align1, PartialEq, Eq, Ord, PartialOrd)]
@@ -12,7 +10,14 @@ pub struct System;
 impl StarFrameProgram for System {
     type InstructionSet = SystemInstructionSet;
     type AccountDiscriminant = ();
-    const ID: Pubkey = system_program::ID;
+    /// The system program ID is all zeroes.
+    ///
+    /// ```
+    /// use solana_system_interface::program::ID;
+    /// use star_frame::program::system::System;
+    /// assert_eq!(solana_system_interface::program::ID, System::ID);
+    /// ```
+    const ID: Pubkey = Pubkey::new_from_array([0; 32]);
 }
 
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
@@ -45,7 +50,7 @@ pub enum SystemInstructionSet {
 }
 
 // CreateAccount
-/// See [`solana_program::system_instruction::SystemInstruction::CreateAccount`].
+/// See [`solana_system_interface::instruction::SystemInstruction::CreateAccount`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize)]
 #[instruction_to_idl(program = System)]
 pub struct CreateAccount {
@@ -54,44 +59,44 @@ pub struct CreateAccount {
     pub owner: Pubkey,
 }
 /// Accounts for the [`CreateAccount`] instruction.
-#[derive(Debug, Clone, AccountSet)]
-pub struct CreateAccountAccounts<'info> {
-    pub funder: Mut<Signer<AccountInfo<'info>>>,
-    pub new_account: Mut<Signer<AccountInfo<'info>>>,
+#[derive(Debug, Copy, Clone, AccountSet)]
+pub struct CreateAccountAccounts {
+    pub funder: Mut<Signer<AccountInfo>>,
+    pub new_account: Mut<Signer<AccountInfo>>,
 }
 empty_star_frame_instruction!(CreateAccount, CreateAccountAccounts);
 
 // Assign
-/// See [`solana_program::system_instruction::SystemInstruction::Assign`].
+/// See [`solana_system_interface::instruction::SystemInstruction::Assign`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize)]
 #[instruction_to_idl(program = System)]
 pub struct Assign {
     pub owner: Pubkey,
 }
 /// Accounts for the [`Assign`] instruction.
-#[derive(Debug, Clone, AccountSet)]
-pub struct AssignAccounts<'info> {
-    pub account: Mut<Signer<AccountInfo<'info>>>,
+#[derive(Debug, Copy, Clone, AccountSet)]
+pub struct AssignAccounts {
+    pub account: Mut<Signer<AccountInfo>>,
 }
 empty_star_frame_instruction!(Assign, AssignAccounts);
 
 // Transfer
-/// See [`solana_program::system_instruction::SystemInstruction::Transfer`].
+/// See [`solana_system_interface::instruction::SystemInstruction::Transfer`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize)]
 #[instruction_to_idl(program = System)]
 pub struct Transfer {
     pub lamports: u64,
 }
 /// Accounts for the [`Transfer`] instruction.
-#[derive(Debug, Clone, AccountSet)]
-pub struct TransferAccounts<'info> {
-    pub funder: Mut<Signer<AccountInfo<'info>>>,
-    pub recipient: Mut<AccountInfo<'info>>,
+#[derive(Debug, Copy, Clone, AccountSet)]
+pub struct TransferAccounts {
+    pub funder: Mut<Signer<AccountInfo>>,
+    pub recipient: Mut<AccountInfo>,
 }
 empty_star_frame_instruction!(Transfer, TransferAccounts);
 
 // AdvanceNonceAccount
-/// See [`solana_program::system_instruction::SystemInstruction::AdvanceNonceAccount`].
+/// See [`solana_system_interface::instruction::SystemInstruction::AdvanceNonceAccount`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize)]
 #[instruction_to_idl(program = System)]
 pub struct AdvanceNonceAccount;
@@ -99,18 +104,19 @@ pub struct AdvanceNonceAccount;
 #[allow(deprecated)]
 mod advance_nonce {
     use super::*;
-    #[derive(Debug, Clone, AccountSet)]
-    pub struct AdvanceNonceAccountAccounts<'info> {
-        pub nonce_account: Mut<AccountInfo<'info>>,
-        pub recent_blockhashes: Sysvar<'info, RecentBlockhashes>,
-        pub nonce_authority: Signer<AccountInfo<'info>>,
+    #[derive(Debug, Copy, Clone, AccountSet)]
+    pub struct AdvanceNonceAccountAccounts {
+        pub nonce_account: Mut<AccountInfo>,
+        #[idl(address = RECENT_BLOCKHASHES_ID)]
+        pub recent_blockhashes: AccountInfo,
+        pub nonce_authority: Signer<AccountInfo>,
     }
 }
 pub use advance_nonce::*;
 empty_star_frame_instruction!(AdvanceNonceAccount, AdvanceNonceAccountAccounts);
 
 // WithdrawNonceAccount
-/// See [`solana_program::system_instruction::SystemInstruction::WithdrawNonceAccount`].
+/// See [`solana_system_interface::instruction::SystemInstruction::WithdrawNonceAccount`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize)]
 #[instruction_to_idl(program = System)]
 pub struct WithdrawNonceAccount(pub u64);
@@ -118,20 +124,21 @@ pub struct WithdrawNonceAccount(pub u64);
 mod withdraw_nonce {
     use super::*;
     /// Accounts for the [`WithdrawNonceAccount`] instruction.
-    #[derive(Debug, Clone, AccountSet)]
-    pub struct WithdrawNonceAccountAccounts<'info> {
-        pub nonce_account: Mut<AccountInfo<'info>>,
-        pub recipient: Mut<AccountInfo<'info>>,
-        pub recent_blockhashes: Sysvar<'info, RecentBlockhashes>,
-        pub rent: Sysvar<'info, Rent>,
-        pub nonce_authority: Signer<AccountInfo<'info>>,
+    #[derive(Debug, Copy, Clone, AccountSet)]
+    pub struct WithdrawNonceAccountAccounts {
+        pub nonce_account: Mut<AccountInfo>,
+        pub recipient: Mut<AccountInfo>,
+        #[idl(address = RECENT_BLOCKHASHES_ID)]
+        pub recent_blockhashes: AccountInfo,
+        pub rent: Sysvar<Rent>,
+        pub nonce_authority: Signer<AccountInfo>,
     }
 }
 pub use withdraw_nonce::*;
 empty_star_frame_instruction!(WithdrawNonceAccount, WithdrawNonceAccountAccounts);
 
 // InitializeNonceAccount
-/// See [`solana_program::system_instruction::SystemInstruction::InitializeNonceAccount`].
+/// See [`solana_system_interface::instruction::SystemInstruction::InitializeNonceAccount`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize)]
 #[instruction_to_idl(program = System)]
 pub struct InitializeNonceAccount(pub Pubkey);
@@ -139,52 +146,53 @@ pub struct InitializeNonceAccount(pub Pubkey);
 mod initialize_nonce {
     use super::*;
     /// Accounts for the [`InitializeNonceAccount`] instruction.
-    #[derive(Debug, Clone, AccountSet)]
-    pub struct InitializeNonceAccountAccounts<'info> {
-        pub nonce_account: Mut<AccountInfo<'info>>,
-        pub recent_blockhashes: Sysvar<'info, RecentBlockhashes>,
-        pub rent: Sysvar<'info, Rent>,
+    #[derive(Debug, Copy, Clone, AccountSet)]
+    pub struct InitializeNonceAccountAccounts {
+        pub nonce_account: Mut<AccountInfo>,
+        #[idl(address = RECENT_BLOCKHASHES_ID)]
+        pub recent_blockhashes: AccountInfo,
+        pub rent: Sysvar<Rent>,
     }
 }
 pub use initialize_nonce::*;
 empty_star_frame_instruction!(InitializeNonceAccount, InitializeNonceAccountAccounts);
 
 // AuthorizeNonceAccount
-/// See [`solana_program::system_instruction::SystemInstruction::AuthorizeNonceAccount`].
+/// See [`solana_system_interface::instruction::SystemInstruction::AuthorizeNonceAccount`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize)]
 #[instruction_to_idl(program = System)]
 pub struct AuthorizeNonceAccount(pub Pubkey);
 /// Accounts for the [`AuthorizeNonceAccount`] instruction.
-#[derive(Debug, Clone, AccountSet)]
-pub struct AuthorizeNonceAccountAccounts<'info> {
-    pub nonce_account: Mut<AccountInfo<'info>>,
-    pub nonce_authority: Signer<AccountInfo<'info>>,
+#[derive(Debug, Copy, Clone, AccountSet)]
+pub struct AuthorizeNonceAccountAccounts {
+    pub nonce_account: Mut<AccountInfo>,
+    pub nonce_authority: Signer<AccountInfo>,
 }
 empty_star_frame_instruction!(AuthorizeNonceAccount, AuthorizeNonceAccountAccounts);
 
 // Allocate
-/// See [`solana_program::system_instruction::SystemInstruction::Allocate`].
+/// See [`solana_system_interface::instruction::SystemInstruction::Allocate`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize)]
 #[instruction_to_idl(program = System)]
 pub struct Allocate {
     pub space: u64,
 }
 /// Accounts for the [`Allocate`] instruction.
-#[derive(Debug, Clone, AccountSet)]
-pub struct AllocateAccounts<'info> {
-    pub account: Mut<Signer<AccountInfo<'info>>>,
+#[derive(Debug, Copy, Clone, AccountSet)]
+pub struct AllocateAccounts {
+    pub account: Mut<Signer<AccountInfo>>,
 }
 empty_star_frame_instruction!(Allocate, AllocateAccounts);
 
 // UpgradeNonceAccount
-/// See [`solana_program::system_instruction::SystemInstruction::UpgradeNonceAccount`].
+/// See [`solana_system_interface::instruction::SystemInstruction::UpgradeNonceAccount`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize)]
 #[instruction_to_idl(program = System)]
 pub struct UpgradeNonceAccount;
 /// Accounts for the [`UpgradeNonceAccount`] instruction.
-#[derive(Debug, Clone, AccountSet)]
-pub struct UpgradeNonceAccountAccounts<'info> {
-    pub nonce_account: Mut<AccountInfo<'info>>,
+#[derive(Debug, Copy, Clone, AccountSet)]
+pub struct UpgradeNonceAccountAccounts {
+    pub nonce_account: Mut<AccountInfo>,
 }
 empty_star_frame_instruction!(UpgradeNonceAccount, UpgradeNonceAccountAccounts);
 
@@ -219,5 +227,5 @@ mod tests {
         println!("{}", serde_json::to_string_pretty(&idl).unwrap());
     }
 
-    // TODO: add tests for all the ix builders to ensure they match the solana_program::system_instruction ix methods
+    // TODO: add tests for all the ix builders to ensure they match the solana_system_interface::instruction ix methods
 }

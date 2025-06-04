@@ -12,13 +12,13 @@ pub use seeded::*;
 pub use signer::*;
 
 /// A marker trait that indicates the underlying account is a signer
-pub trait SignedAccount<'info>: SingleAccountSet<'info> {
+pub trait SignedAccount: SingleAccountSet {
     /// Gets the seeds of the account if it is seeded.
     fn signer_seeds(&self) -> Option<Vec<&[u8]>>;
 }
 
 /// A marker trait that indicates the underlying account is writable.
-pub trait WritableAccount<'info>: SingleAccountSet<'info> {}
+pub trait WritableAccount: SingleAccountSet {}
 
 /// A marker trait that indicates the underlying type has some inner type in it.
 pub trait HasInnerType {
@@ -39,16 +39,16 @@ pub trait HasSeeds {
 }
 
 /// A trait that allows setting seeds on the underlying account. This helps enable the [`Init`] and [`Seeded`] modifiers.
-pub trait CanInitSeeds<'info, A>: SingleAccountSet<'info> + AccountSetValidate<'info, A> {
-    fn init_seeds(&mut self, arg: &A, syscalls: &impl SyscallInvoke<'info>) -> Result<()>;
+pub trait CanInitSeeds<A>: SingleAccountSet + AccountSetValidate<A> {
+    fn init_seeds(&mut self, arg: &A, syscalls: &impl SyscallInvoke) -> Result<()>;
 }
 
 /// A trait that provides logic for the initializing the underlying account. This helps enable the [`Init`] and [`Seeded`] modifiers.
-pub trait CanInitAccount<'info, A>: SingleAccountSet<'info> {
+pub trait CanInitAccount<A>: SingleAccountSet {
     fn init_account<const IF_NEEDED: bool>(
         &mut self,
         arg: A,
         account_seeds: Option<Vec<&[u8]>>,
-        syscalls: &impl SyscallInvoke<'info>,
+        syscalls: &impl SyscallInvoke,
     ) -> Result<()>;
 }

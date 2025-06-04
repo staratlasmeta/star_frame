@@ -23,7 +23,7 @@ pub trait InstructionToIdl<A>: Instruction {
 }
 
 /// Derivable via [`derive@AccountSet`].
-pub trait AccountSetToIdl<'info, A>: AccountSet<'info> {
+pub trait AccountSetToIdl<A> {
     /// Adds the [`star_frame_idl::account_set::IdlAccountSetDef`] and associated account definitions to the idl definition.
     fn account_set_to_idl(idl_definition: &mut IdlDefinition, arg: A) -> Result<IdlAccountSetDef>;
 }

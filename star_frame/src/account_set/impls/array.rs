@@ -1,17 +1,15 @@
-use crate::account_set::{AccountSet, AccountSetCleanup, AccountSetDecode, AccountSetValidate};
+use crate::account_set::{AccountSetCleanup, AccountSetDecode, AccountSetValidate};
 use crate::client::{ClientAccountSet, CpiAccountSet};
 use crate::syscalls::SyscallInvoke;
 use crate::Result;
 use array_init::try_array_init;
-use solana_program::account_info::AccountInfo;
-use solana_program::instruction::AccountMeta;
-use solana_program::pubkey::Pubkey;
+use pinocchio::account_info::AccountInfo;
+use solana_instruction::AccountMeta;
+use solana_pubkey::Pubkey;
 
-impl<'info, A, const N: usize> AccountSet<'info> for [A; N] where A: AccountSet<'info> {}
-
-impl<'info, A, const N: usize> CpiAccountSet<'info> for [A; N]
+impl<A, const N: usize> CpiAccountSet for [A; N]
 where
-    A: CpiAccountSet<'info>,
+    A: CpiAccountSet,
 {
     type CpiAccounts = [A::CpiAccounts; N];
     const MIN_LEN: usize = N * A::MIN_LEN;
@@ -20,7 +18,7 @@ where
         self.each_ref().map(A::to_cpi_accounts)
     }
     #[inline]
-    fn extend_account_infos(accounts: Self::CpiAccounts, infos: &mut Vec<AccountInfo<'info>>) {
+    fn extend_account_infos(accounts: Self::CpiAccounts, infos: &mut Vec<AccountInfo>) {
         for a in accounts {
             A::extend_account_infos(a, infos);
         }
@@ -55,14 +53,14 @@ where
     }
 }
 
-impl<'a, 'info, A, const N: usize, DArg> AccountSetDecode<'a, 'info, [DArg; N]> for [A; N]
+impl<'a, A, const N: usize, DArg> AccountSetDecode<'a, [DArg; N]> for [A; N]
 where
-    A: AccountSetDecode<'a, 'info, DArg>,
+    A: AccountSetDecode<'a, DArg>,
 {
     unsafe fn decode_accounts(
-        accounts: &mut &'a [AccountInfo<'info>],
+        accounts: &mut &'a [AccountInfo],
         decode_input: [DArg; N],
-        syscalls: &mut impl SyscallInvoke<'info>,
+        syscalls: &mut impl SyscallInvoke,
     ) -> Result<Self> {
         let mut decode_input = decode_input.into_iter();
         // SAFETY: This function is unsafe too
@@ -71,15 +69,15 @@ where
         })
     }
 }
-impl<'a, 'info, A, const N: usize, DArg> AccountSetDecode<'a, 'info, (DArg,)> for [A; N]
+impl<'a, A, const N: usize, DArg> AccountSetDecode<'a, (DArg,)> for [A; N]
 where
-    A: AccountSetDecode<'a, 'info, DArg>,
+    A: AccountSetDecode<'a, DArg>,
     DArg: Clone,
 {
     unsafe fn decode_accounts(
-        accounts: &mut &'a [AccountInfo<'info>],
+        accounts: &mut &'a [AccountInfo],
         decode_input: (DArg,),
-        syscalls: &mut impl SyscallInvoke<'info>,
+        syscalls: &mut impl SyscallInvoke,
     ) -> Result<Self> {
         // SAFETY: This function is unsafe too
         try_array_init(|_| unsafe {
@@ -87,28 +85,28 @@ where
         })
     }
 }
-impl<'a, 'info, A, const N: usize> AccountSetDecode<'a, 'info, ()> for [A; N]
+impl<'a, A, const N: usize> AccountSetDecode<'a, ()> for [A; N]
 where
-    A: AccountSetDecode<'a, 'info, ()>,
+    A: AccountSetDecode<'a, ()>,
 {
     unsafe fn decode_accounts(
-        accounts: &mut &'a [AccountInfo<'info>],
+        accounts: &mut &'a [AccountInfo],
         decode_input: (),
-        syscalls: &mut impl SyscallInvoke<'info>,
+        syscalls: &mut impl SyscallInvoke,
     ) -> Result<Self> {
         // SAFETY: This function is unsafe too
         unsafe { Self::decode_accounts(accounts, (decode_input,), syscalls) }
     }
 }
 
-impl<'info, A, const N: usize, VArg> AccountSetValidate<'info, [VArg; N]> for [A; N]
+impl<A, const N: usize, VArg> AccountSetValidate<[VArg; N]> for [A; N]
 where
-    A: AccountSetValidate<'info, VArg>,
+    A: AccountSetValidate<VArg>,
 {
     fn validate_accounts(
         &mut self,
         validate_input: [VArg; N],
-        syscalls: &mut impl SyscallInvoke<'info>,
+        syscalls: &mut impl SyscallInvoke,
     ) -> Result<()> {
         for (a, v) in self.iter_mut().zip(validate_input) {
             a.validate_accounts(v, syscalls)?;
@@ -116,15 +114,15 @@ where
         Ok(())
     }
 }
-impl<'info, A, const N: usize, VArg> AccountSetValidate<'info, (VArg,)> for [A; N]
+impl<A, const N: usize, VArg> AccountSetValidate<(VArg,)> for [A; N]
 where
-    A: AccountSetValidate<'info, VArg>,
+    A: AccountSetValidate<VArg>,
     VArg: Clone,
 {
     fn validate_accounts(
         &mut self,
         validate_input: (VArg,),
-        syscalls: &mut impl SyscallInvoke<'info>,
+        syscalls: &mut impl SyscallInvoke,
     ) -> Result<()> {
         for a in self {
             a.validate_accounts(validate_input.0.clone(), syscalls)?;
@@ -132,14 +130,14 @@ where
         Ok(())
     }
 }
-impl<'info, A, const N: usize> AccountSetValidate<'info, ()> for [A; N]
+impl<A, const N: usize> AccountSetValidate<()> for [A; N]
 where
-    A: AccountSetValidate<'info, ()>,
+    A: AccountSetValidate<()>,
 {
     fn validate_accounts(
         &mut self,
         validate_input: (),
-        syscalls: &mut impl SyscallInvoke<'info>,
+        syscalls: &mut impl SyscallInvoke,
     ) -> Result<()> {
         for a in self {
             a.validate_accounts(validate_input, syscalls)?;
@@ -148,14 +146,14 @@ where
     }
 }
 
-impl<'info, A, const N: usize, VArg> AccountSetCleanup<'info, [VArg; N]> for [A; N]
+impl<A, const N: usize, VArg> AccountSetCleanup<[VArg; N]> for [A; N]
 where
-    A: AccountSetCleanup<'info, VArg>,
+    A: AccountSetCleanup<VArg>,
 {
     fn cleanup_accounts(
         &mut self,
         cleanup_input: [VArg; N],
-        syscalls: &mut impl SyscallInvoke<'info>,
+        syscalls: &mut impl SyscallInvoke,
     ) -> Result<()> {
         for (a, v) in self.iter_mut().zip(cleanup_input) {
             a.cleanup_accounts(v, syscalls)?;
@@ -163,15 +161,15 @@ where
         Ok(())
     }
 }
-impl<'info, A, const N: usize, VArg> AccountSetCleanup<'info, (VArg,)> for [A; N]
+impl<A, const N: usize, VArg> AccountSetCleanup<(VArg,)> for [A; N]
 where
-    A: AccountSetCleanup<'info, VArg>,
+    A: AccountSetCleanup<VArg>,
     VArg: Clone,
 {
     fn cleanup_accounts(
         &mut self,
         cleanup_input: (VArg,),
-        syscalls: &mut impl SyscallInvoke<'info>,
+        syscalls: &mut impl SyscallInvoke,
     ) -> Result<()> {
         for a in self {
             a.cleanup_accounts(cleanup_input.0.clone(), syscalls)?;
@@ -179,14 +177,14 @@ where
         Ok(())
     }
 }
-impl<'info, A, const N: usize> AccountSetCleanup<'info, ()> for [A; N]
+impl<A, const N: usize> AccountSetCleanup<()> for [A; N]
 where
-    A: AccountSetCleanup<'info, ()>,
+    A: AccountSetCleanup<()>,
 {
     fn cleanup_accounts(
         &mut self,
         cleanup_input: (),
-        syscalls: &mut impl SyscallInvoke<'info>,
+        syscalls: &mut impl SyscallInvoke,
     ) -> Result<()> {
         for a in self {
             a.cleanup_accounts(cleanup_input, syscalls)?;
@@ -201,9 +199,9 @@ pub mod idl_impl {
     use star_frame_idl::account_set::IdlAccountSetDef;
     use star_frame_idl::IdlDefinition;
 
-    impl<'info, T, const N: usize> AccountSetToIdl<'info, ()> for [T; N]
+    impl<T, const N: usize> AccountSetToIdl<()> for [T; N]
     where
-        T: AccountSetToIdl<'info, ()>,
+        T: AccountSetToIdl<()>,
     {
         fn account_set_to_idl(
             idl_definition: &mut IdlDefinition,
