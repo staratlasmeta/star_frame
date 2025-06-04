@@ -1077,6 +1077,7 @@ dependencies = [
  "bytemuck",
  "counter",
  "mollusk-svm",
+ "mollusk-svm-programs-token",
  "pretty_assertions",
  "solana-account",
  "star_frame",
@@ -1837,6 +1838,17 @@ dependencies = [
  "solana-instruction",
  "solana-pubkey",
  "solana-transaction-context",
+]
+
+[[package]]
+name = "mollusk-svm-programs-token"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5b8b51037f742ea93f704ab48167d1b2d4c3945956dd328487ffc4c1cefb8b16"
+dependencies = [
+ "mollusk-svm",
+ "solana-account",
+ "solana-pubkey",
 ]
 
 [[package]]

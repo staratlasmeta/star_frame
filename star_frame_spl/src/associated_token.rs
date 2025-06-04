@@ -24,11 +24,15 @@ impl AssociatedToken {
     /// );
     /// ```
     pub fn find_address(wallet: &Pubkey, mint: &Pubkey) -> Pubkey {
+        Self::find_address_with_bump(wallet, mint).0
+    }
+
+    /// Find the associated token address for the given wallet and mint, with a bump.
+    pub fn find_address_with_bump(wallet: &Pubkey, mint: &Pubkey) -> (Pubkey, u8) {
         Pubkey::find_program_address(
             &[wallet.as_ref(), Token::ID.as_ref(), mint.as_ref()],
             &Self::ID,
         )
-        .0
     }
 }
 

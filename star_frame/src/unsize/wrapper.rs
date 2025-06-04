@@ -13,7 +13,7 @@ use std::marker::PhantomData;
 use std::ops::{AddAssign, Deref, DerefMut, RangeBounds, SubAssign};
 
 /// # Safety
-/// [`Self::unsized_data_realloc`] must properly check the new length of the underlying data pointer.
+/// [`UnsizedTypeDataAccess::unsized_data_realloc`] must properly check the new length of the underlying data pointer.
 pub unsafe trait UnsizedTypeDataAccess {
     /// # Safety
     /// `data` must actually point to the same data that is returned by [`UnsizedTypeDataAccess::data_ref`] and [`UnsizedTypeDataAccess::data_mut`].
