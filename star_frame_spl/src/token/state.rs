@@ -3,11 +3,11 @@ use crate::token::instructions::{
     InitializeAccount3, InitializeAccount3CpiAccounts, InitializeMint2, InitializeMint2CpiAccounts,
 };
 use crate::token::Token;
-use pinocchio::account_info::Ref;
 use star_frame::account_set::AccountSet;
 use star_frame::anyhow::{bail, Context};
+use star_frame::bytemuck;
+use star_frame::pinocchio::account_info::Ref;
 use star_frame::prelude::*;
-use star_frame::{bytemuck, pinocchio};
 
 /// A wrapper around `AccountInfo` for the [`spl_token::state::Mint`] account.
 /// It validates the account data on validate and provides cheap accessor methods for accessing fields
@@ -291,13 +291,10 @@ pub struct TokenAccountData {
     pub close_authority: PodOption<Pubkey>,
 }
 
-#[cfg(doc)]
-use solana_program_pack::Pack;
-
 impl TokenAccount {
     /// See [`spl_token::state::Account`] LEN.
     /// ```
-    /// # use star_frame::pinocchio::program_pack::Pack;
+    /// # use solana_program_pack::Pack;
     /// # use star_frame_spl::token::state::{TokenAccount, TokenAccountData};
     /// assert_eq!(TokenAccount::LEN, spl_token::state::Account::LEN);
     /// assert_eq!(TokenAccount::LEN, core::mem::size_of::<TokenAccountData>());
