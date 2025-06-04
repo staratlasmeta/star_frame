@@ -145,8 +145,7 @@ where
         if self.is_writable() {
             self.validate()?;
         }
-        todo!()
-        // unsafe { SharedWrapper::new::<AccountDiscriminant<T>>(&self.info) }
+        SharedWrapper::new::<AccountDiscriminant<T>>(&self.info)
     }
 
     pub fn data_mut(&self) -> Result<ExclusiveWrapperTop<'_, AccountDiscriminant<T>, AccountInfo>> {
@@ -154,8 +153,7 @@ where
         if self.is_writable() {
             self.validate()?;
         }
-        todo!()
-        // ExclusiveWrapper::new(&self.info)
+        ExclusiveWrapper::new(&self.info)
     }
 }
 
