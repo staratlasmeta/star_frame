@@ -40,7 +40,10 @@ unsafe impl UnsizedTypeDataAccess for TestUnderlyingData {
         data: &mut *mut [u8],
         new_len: usize,
     ) -> Result<()> {
-        assert!(new_len <= this.original_len + MAX_PERMITTED_DATA_INCREASE, "data too large");
+        assert!(
+            new_len <= this.original_len + MAX_PERMITTED_DATA_INCREASE,
+            "data too large"
+        );
 
         this.len.set(new_len);
 

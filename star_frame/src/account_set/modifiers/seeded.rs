@@ -7,7 +7,6 @@ pub use star_frame_proc::GetSeeds;
 use std::fmt::Debug;
 use std::marker::PhantomData;
 
-
 /// A trait for getting the seed bytes of an account. The last element of the returned vector should be an empty slice, in order to replace it with a bump later on without
 /// having to push to the vector.
 ///

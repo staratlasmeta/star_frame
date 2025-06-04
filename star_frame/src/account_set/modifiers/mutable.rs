@@ -16,8 +16,6 @@ pub struct MaybeMut<const MUT: bool, T>(
     pub(crate) T,
 );
 
-
-
 /// A mutable account
 pub type Mut<T> = MaybeMut<true, T>;
 

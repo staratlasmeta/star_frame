@@ -327,8 +327,8 @@ pub(super) fn derive_account_set_impl_struct(
 
         let can_init_seeds = args.skip_can_init_seeds.not().then(|| {
             let new_generic = new_generic(&single_generics, None);
-            let init_seeds_gen = combine_gen!(single_generics; 
-                <#new_generic> where 
+            let init_seeds_gen = combine_gen!(single_generics;
+                <#new_generic> where
                     #field_ty: for<'__a> #prelude::CanInitSeeds<#new_generic>,
                     Self: #prelude::AccountSetValidate<#new_generic>
             );
@@ -347,8 +347,8 @@ pub(super) fn derive_account_set_impl_struct(
         let can_init_account = args.skip_can_init_account.not().then(|| {
             let init_gen = new_generic(&single_generics, None);
             let if_needed = new_generic(&single_generics, Some("IF_NEEDED"));
-            
-            let init_account_gen = combine_gen!(single_generics; 
+
+            let init_account_gen = combine_gen!(single_generics;
                 <#init_gen> where #field_ty: #prelude::CanInitAccount<#init_gen>
             );
             let (impl_gen, _, wc) = init_account_gen.split_for_impl();
