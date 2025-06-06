@@ -20,13 +20,17 @@ pub fn account_impl(input: &DeriveInput, args: &UnsizedTypeArgs) -> TokenStream 
         if args.seeds.is_some() {
             abort!(args.seeds, "Seeds are only allowed with #[program_account]");
         }
-        if !args.skip_idl { {
+        if !args.skip_idl {
+            {
                 derive_type_to_idl_inner(
                     input,
                     TypeToIdlArgs {
                         program: args.program.clone(),
                     },
                 )
-            } } else { Default::default() }
+            }
+        } else {
+            Default::default()
+        }
     }
 }

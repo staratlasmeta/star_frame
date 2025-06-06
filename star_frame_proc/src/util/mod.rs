@@ -132,14 +132,17 @@ where
     item.enumerate_attributes_mut().flat_map(|(index, attrs)| {
         let mut removed = vec![];
         attrs.retain(|attr| {
-            if attr.path()
-                .is_ident(attribute_name) { {
+            if attr.path().is_ident(attribute_name) {
+                {
                     removed.push(StrippedAttribute {
                         index,
                         attribute: attr.clone(),
                     });
                     false
-                } } else { true }
+                }
+            } else {
+                true
+            }
         });
         removed
     })
