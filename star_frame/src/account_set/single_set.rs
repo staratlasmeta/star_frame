@@ -109,14 +109,14 @@ pub trait SingleAccountSet {
 
     /// Gets the data of the contained account immutably.
     #[inline]
-    fn account_data(&self) -> Result<Ref<[u8]>> {
+    fn account_data(&self) -> Result<Ref<'_, [u8]>> {
         self.account_info()
             .try_borrow_data()
             .with_context(|| format!("Failed to borrow data for account {}", self.pubkey()))
     }
     /// Gets the data of the contained account mutably.
     #[inline]
-    fn account_data_mut(&self) -> Result<RefMut<[u8]>> {
+    fn account_data_mut(&self) -> Result<RefMut<'_, [u8]>> {
         self.account_info().try_borrow_mut_data().with_context(|| {
             format!(
                 "Failed to borrow mutable data for account {}",
@@ -220,7 +220,7 @@ where
         match self.signer_seeds() {
             None => cpi.invoke(syscalls)?,
             Some(seeds) => cpi.invoke_signed(&[&seeds], syscalls)?,
-        };
+        }
         Ok(())
     }
 

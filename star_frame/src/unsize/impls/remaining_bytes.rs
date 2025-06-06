@@ -78,7 +78,7 @@ unsafe impl UnsizedType for RemainingBytes {
         })?;
         let ptr = remaining_bytes.as_ptr();
         Ok(RemainingBytesRef(
-            unsafe { &*ptr_meta::from_raw_parts(ptr.cast::<()>(), remaining_bytes.len()) },
+            &raw const *ptr_meta::from_raw_parts(ptr.cast::<()>(), remaining_bytes.len()),
             PhantomData,
         ))
     }
@@ -151,7 +151,7 @@ impl RemainingBytes {
                     ExclusiveRecurse::remove_bytes(self, source_ptr, start_ptr..end_ptr)?;
                 }
             }
-        };
+        }
         self.0 = ptr_meta::from_raw_parts_mut(self.0.cast::<()>(), len);
         Ok(())
     }

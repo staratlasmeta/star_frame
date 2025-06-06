@@ -135,7 +135,7 @@ where
 
     pub fn iter_mut(&mut self) -> ListIterMut<'_, T, L> {
         ListIterMut {
-            list_bytes_ptr: &mut self.bytes,
+            list_bytes_ptr: &raw mut self.bytes,
             remaining: self.len(),
             phantom_data: Default::default(),
         }
@@ -508,7 +508,7 @@ where
     #[inline]
     #[exclusive]
     pub fn pop(&mut self) -> Result<Option<()>> {
-        if self.len() == 0 {
+        if self.is_empty() {
             return Ok(None);
         }
         self.remove(self.len() - 1).map(Some)

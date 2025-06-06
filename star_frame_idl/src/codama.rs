@@ -495,7 +495,7 @@ impl TryToCodama<TypeNode> for IdlTypeDef {
                             .iter()
                             .map(|f|{
                                 anyhow::Ok(StructFieldTypeNode {
-                                    name: f.path.clone().with_context(||format!("Missing name on named field for struct {:?}", self))?.into(),
+                                    name: f.path.clone().with_context(||format!("Missing name on named field for struct {self:?}"))?.into(),
                                     default_value_strategy: None,
                                     docs: f.description.clone().into(),
                                     r#type: f.type_def.try_to_codama(idl_def, _context)?,

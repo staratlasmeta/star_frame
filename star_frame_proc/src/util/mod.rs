@@ -132,16 +132,14 @@ where
     item.enumerate_attributes_mut().flat_map(|(index, attrs)| {
         let mut removed = vec![];
         attrs.retain(|attr| {
-            attr.path()
-                .is_ident(attribute_name)
-                .then(|| {
+            if attr.path()
+                .is_ident(attribute_name) { {
                     removed.push(StrippedAttribute {
                         index,
                         attribute: attr.clone(),
                     });
                     false
-                })
-                .unwrap_or(true)
+                } } else { true }
         });
         removed
     })
@@ -151,7 +149,7 @@ pub fn reject_attributes(attributes: &[Attribute], ident: &Ident, message: Optio
     if find_attr(attributes, ident).is_some() {
         let message = message
             .map(ToString::to_string)
-            .unwrap_or_else(|| format!("Cannot use `{}` attribute here", ident));
+            .unwrap_or_else(|| format!("Cannot use `{ident}` attribute here"));
         abort!(ident, message);
     }
 }

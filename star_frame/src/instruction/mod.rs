@@ -171,7 +171,7 @@ macro_rules! empty_star_frame_instruction {
             type ValidateArg<'a> = ();
             type RunArg<'a> = ();
             type CleanupArg<'a> = ();
-            fn split_to_args(_r: &mut Self) -> $crate::instruction::IxArgs<Self> {
+            fn split_to_args(_r: &mut Self) -> $crate::instruction::IxArgs<'_, Self> {
                 Default::default()
             }
         }

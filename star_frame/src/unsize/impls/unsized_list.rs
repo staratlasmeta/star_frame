@@ -591,7 +591,7 @@ where
             .with_context(|| unsized_data_fail(unsized_size))?;
 
         Ok(UnsizedListRef {
-            list_ptr: unsafe { &*ptr_meta::from_raw_parts(ptr.cast::<()>(), length) },
+            list_ptr: &raw const *ptr_meta::from_raw_parts(ptr.cast::<()>(), length),
             phantom: PhantomData,
         })
     }
@@ -942,7 +942,7 @@ where
 
     #[exclusive]
     pub fn pop(&mut self) -> Result<Option<()>> {
-        if self.len() == 0 {
+        if self.is_empty() {
             return Ok(None);
         }
         Some(self.remove(self.len() - 1)).transpose()

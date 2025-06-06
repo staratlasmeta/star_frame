@@ -81,7 +81,7 @@ impl MintAccount {
     }
 
     #[inline]
-    pub fn data_unchecked(&self) -> Result<Ref<MintData>> {
+    pub fn data_unchecked(&self) -> Result<Ref<'_, MintData>> {
         Ref::try_map(self.account_data()?, |data| {
             bytemuck::checked::try_from_bytes::<MintData>(data)
         })
@@ -89,7 +89,7 @@ impl MintAccount {
     }
 
     #[inline]
-    pub fn data(&self) -> Result<Ref<MintData>> {
+    pub fn data(&self) -> Result<Ref<'_, MintData>> {
         if self.is_writable() {
             self.validate()?;
         }
@@ -327,7 +327,7 @@ impl TokenAccount {
     }
 
     #[inline]
-    pub fn data_unchecked(&self) -> Result<Ref<TokenAccountData>> {
+    pub fn data_unchecked(&self) -> Result<Ref<'_, TokenAccountData>> {
         Ref::try_map(self.account_data()?, |data| {
             bytemuck::checked::try_from_bytes::<TokenAccountData>(data)
         })
@@ -335,7 +335,7 @@ impl TokenAccount {
     }
 
     #[inline]
-    pub fn data(&self) -> Result<Ref<TokenAccountData>> {
+    pub fn data(&self) -> Result<Ref<'_, TokenAccountData>> {
         if self.is_writable() {
             self.validate()?;
         }

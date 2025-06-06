@@ -60,7 +60,7 @@ fn invoke_signed_never_inline(
 }
 
 #[inline]
-fn convert_account_metas(instruction: &SolanaInstruction) -> Vec<PinocchioAccountMeta> {
+fn convert_account_metas(instruction: &SolanaInstruction) -> Vec<PinocchioAccountMeta<'_>> {
     instruction
         .accounts
         .iter()
