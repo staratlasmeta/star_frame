@@ -141,7 +141,7 @@ pub trait CanCloseAccount: SingleAccountSet {
             size_of::<<Self::OwnerProgram as StarFrameProgram>::AccountDiscriminant>(),
             false,
         )?;
-        self.account_info().try_borrow_mut_data()?.fill(u8::MAX);
+        self.account_data_mut()?.fill(u8::MAX);
         recipient.receive_rent(info.lamports())?;
         *info.try_borrow_mut_lamports()? = 0;
         Ok(())

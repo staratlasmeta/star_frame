@@ -43,7 +43,7 @@ pub trait ProgramAccount: HasOwnerProgram {
                 Self::OwnerProgram::ID
             );
         }
-        let data = info.account_info().try_borrow_mut_data().unwrap();
+        let data = info.account_data()?;
         if data.len() < size_of::<OwnerProgramDiscriminant<Self>>()
             || from_bytes::<PackedValue<OwnerProgramDiscriminant<Self>>>(
                 &data[..size_of::<OwnerProgramDiscriminant<Self>>()],

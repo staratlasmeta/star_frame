@@ -326,8 +326,7 @@ where
     ) -> Result<()> {
         if IF_NEEDED {
             let needs_init = self.owner_pubkey() == System::ID
-                || self.account_info().try_borrow_data()?
-                    [..size_of::<OwnerProgramDiscriminant<T>>()]
+                || self.account_data()?[..size_of::<OwnerProgramDiscriminant<T>>()]
                     .iter()
                     .all(|x| *x == 0);
             if !needs_init {
@@ -343,7 +342,7 @@ where
             &account_seeds,
             syscalls,
         )?;
-        let mut data_bytes = self.account_info().try_borrow_mut_data()?;
+        let mut data_bytes = self.account_data_mut()?;
         let mut data_bytes = &mut *data_bytes;
         unsafe {
             <AccountDiscriminant<T>>::init(&mut data_bytes, arg)?;

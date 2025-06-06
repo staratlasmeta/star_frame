@@ -50,10 +50,10 @@ semver = { version = "^1.0.23", features = ["serde"] }
 serde = { version = "^1.0.192", features = ["derive"] }
 serde_json = "^1.0.108"
 sha2 = "^0.10.8"
-solana-pubkey = "2.1"
-solana-program-pack = "2.1"
-solana-account = "2.1"
-solana-instruction = "2.1"
+solana-pubkey = "2.2"
+solana-program-pack = "2.2"
+solana-account = "2.2"
+solana-instruction = "2.2"
 solana-system-interface = "1.0.0"
 pinocchio = { version = "0.9.0", features = ["std"], registry = "star-atlas" }
 spl-associated-token-account = { version = "6.0.0", features = [
