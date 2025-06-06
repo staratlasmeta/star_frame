@@ -1783,14 +1783,14 @@ dependencies = [
 [[package]]
 name = "mollusk-svm"
 version = "0.1.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "31b5f9d6653145815a076efa5d1a7edd214c05d5130cd46a049ededb9f81985f"
+source = "git+https://github.com/anza-xyz/mollusk?branch=main#fa567898908fb9b4945875de77ff39efe5dba68e"
 dependencies = [
  "agave-feature-set",
  "agave-precompiles",
  "bincode",
  "mollusk-svm-error",
  "mollusk-svm-keys",
+ "mollusk-svm-result",
  "solana-account",
  "solana-bpf-loader-program",
  "solana-clock",
@@ -1801,6 +1801,7 @@ dependencies = [
  "solana-hash",
  "solana-instruction",
  "solana-loader-v3-interface",
+ "solana-loader-v4-interface",
  "solana-log-collector",
  "solana-logger",
  "solana-program-error",
@@ -1820,8 +1821,7 @@ dependencies = [
 [[package]]
 name = "mollusk-svm-error"
 version = "0.1.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4d86b4da31faa9d7117817190439362af407e4f26949c4de80456e03f58cfc9a"
+source = "git+https://github.com/anza-xyz/mollusk?branch=main#fa567898908fb9b4945875de77ff39efe5dba68e"
 dependencies = [
  "solana-pubkey",
  "thiserror 1.0.69",
@@ -1830,8 +1830,7 @@ dependencies = [
 [[package]]
 name = "mollusk-svm-keys"
 version = "0.1.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fee5fc3f637b3b3d8c2ba3f3df3173ceaaadc83792e84a8cc87dcbb41d435d74"
+source = "git+https://github.com/anza-xyz/mollusk?branch=main#fa567898908fb9b4945875de77ff39efe5dba68e"
 dependencies = [
  "mollusk-svm-error",
  "solana-account",
@@ -1843,12 +1842,23 @@ dependencies = [
 [[package]]
 name = "mollusk-svm-programs-token"
 version = "0.1.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5b8b51037f742ea93f704ab48167d1b2d4c3945956dd328487ffc4c1cefb8b16"
+source = "git+https://github.com/anza-xyz/mollusk?branch=main#fa567898908fb9b4945875de77ff39efe5dba68e"
 dependencies = [
  "mollusk-svm",
  "solana-account",
  "solana-pubkey",
+]
+
+[[package]]
+name = "mollusk-svm-result"
+version = "0.1.5"
+source = "git+https://github.com/anza-xyz/mollusk?branch=main#fa567898908fb9b4945875de77ff39efe5dba68e"
+dependencies = [
+ "solana-account",
+ "solana-instruction",
+ "solana-program-error",
+ "solana-pubkey",
+ "solana-rent",
 ]
 
 [[package]]

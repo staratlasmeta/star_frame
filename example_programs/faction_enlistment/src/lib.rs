@@ -207,10 +207,10 @@ pub struct PlayerFactionAccountSeeds {
 #[cfg(test)]
 #[allow(unused)]
 mod tests {
-    use std::env;
+    use std::{collections::HashMap, env};
 
     use super::*;
-    use mollusk_svm::{program::keyed_account_for_system_program, Mollusk};
+    use mollusk_svm::{program::keyed_account_for_system_program, result::Check, Mollusk};
     use pretty_assertions::assert_eq;
     use solana_account::Account as SolanaAccount;
     use star_frame::client::{DeserializeAccount, SerializeAccount};
@@ -244,8 +244,23 @@ mod tests {
         let player_account = Pubkey::new_unique();
         let (player_faction_account, bump) =
             PlayerFactionData::find_program_address(&PlayerFactionAccountSeeds { player_account });
+
         // let mint = Pubkey::new_unique();
         // let (token_account, bump) = AssociatedToken::find_address_with_bump(&player_account, &mint);
+
+        let mut account_store: HashMap<Pubkey, SolanaAccount> = HashMap::from_iter([
+            (
+                player_account,
+                SolanaAccount::new(LAMPORTS_PER_SOL, 0, &System::ID),
+            ),
+            (player_faction_account, SolanaAccount::default()),
+            keyed_account_for_system_program(),
+            // (token_account, SolanaAccount::default()),
+            // (mint, SolanaAccount::default()),
+            // mollusk_svm_programs_token::token::keyed_account(),
+            // mollusk_svm_programs_token::associated_token::keyed_account(),
+        ]);
+        let mollusk = mollusk.with_context(account_store);
 
         let ix = FactionEnlistment::instruction(
             &ProcessEnlistPlayerIx { bump, faction_id },
@@ -260,27 +275,7 @@ mod tests {
             },
         )?;
 
-        let clock_timestamp = mollusk.sysvars.clock.unix_timestamp;
-        let res = mollusk.process_instruction(
-            &ix,
-            &[
-                (
-                    player_account,
-                    SolanaAccount::new(LAMPORTS_PER_SOL, 0, &System::ID),
-                ),
-                (
-                    player_faction_account,
-                    SolanaAccount::new(0, 0, &System::ID),
-                ),
-                keyed_account_for_system_program(),
-                // (token_account, SolanaAccount::default()),
-                // (mint, SolanaAccount::default()),
-                // mollusk_svm_programs_token::token::keyed_account(),
-                // mollusk_svm_programs_token::associated_token::keyed_account(),
-            ],
-        );
-
-        // // let expected_faction_account = PlayerFactionDataAccountOwned::V1(PlayerFactionDataOwned {
+        let clock_timestamp = mollusk.mollusk.sysvars.clock.unix_timestamp;
         let expected_faction_account = PlayerFactionDataOwned {
             owner: player_account,
             enlisted_at_timestamp: clock_timestamp,
@@ -298,13 +293,19 @@ mod tests {
                 unsized2: vec![5],
             },
         };
-
-        assert_eq!(
-            res.get_account(&player_faction_account)
-                .expect("Player faction account exists")
-                .data,
-            PlayerFactionData::serialize_account(expected_faction_account).unwrap()
+        let res = mollusk.process_and_validate_instruction(
+            &ix,
+            &[
+                Check::success(),
+                Check::account(&player_faction_account)
+                    .data(&PlayerFactionData::serialize_account(
+                        expected_faction_account,
+                    )?)
+                    .owner(&FactionEnlistment::ID)
+                    .build(),
+            ],
         );
+
         Ok(())
     }
 }

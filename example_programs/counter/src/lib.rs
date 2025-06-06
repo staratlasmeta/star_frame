@@ -191,9 +191,11 @@ empty_star_frame_instruction!(CloseCounterIx, CloseCounterAccounts);
 #[cfg(test)]
 #[allow(unused)]
 mod tests {
+    use std::collections::HashMap;
     use std::env;
 
     use super::*;
+    use mollusk_svm::account_store::AccountStore;
     use mollusk_svm::program::keyed_account_for_system_program;
     use mollusk_svm::result::Check;
     use mollusk_svm::*;
@@ -221,17 +223,35 @@ mod tests {
         }
         let mollusk = Mollusk::new(&CounterProgram::ID, "counter");
 
-        // Init a new counter
         let owner = Pubkey::new_unique();
         let signer2 = Pubkey::new_unique();
         let funder = Pubkey::new_unique();
+        let funds_to = Pubkey::new_unique();
 
         let start_at = Some(2u64);
         let seeds = CounterAccountSeeds { owner };
         let (counter_account, bump) =
             Pubkey::find_program_address(&seeds.seeds(), &StarFrameDeclaredProgram::ID);
 
-        let mut create_count_res = mollusk.process_instruction(
+        let mollusk = mollusk.with_context(HashMap::from_iter([
+            (funder, SolanaAccount::new(1_000_000_000, 0, &System::ID)),
+            (owner, SolanaAccount::new(0, 0, &System::ID)),
+            (counter_account, SolanaAccount::new(0, 0, &System::ID)),
+            (signer2, SolanaAccount::default()),
+            (funds_to, SolanaAccount::default()),
+            keyed_account_for_system_program(),
+        ]));
+
+        let mut expected_counter = CounterAccount {
+            version: 0,
+            owner,
+            signer: owner,
+            count: 2,
+            bump,
+            data: Default::default(),
+        };
+        // Init a new counter
+        mollusk.process_and_validate_instruction(
             &CounterProgram::instruction(
                 &CreateCounterIx { start_at },
                 CreateCounterClientAccounts {
@@ -242,34 +262,17 @@ mod tests {
                 },
             )?,
             &[
-                (funder, SolanaAccount::new(1_000_000_000, 0, &System::ID)),
-                (owner, SolanaAccount::new(0, 0, &System::ID)),
-                (counter_account, SolanaAccount::new(0, 0, &System::ID)),
-                keyed_account_for_system_program(),
+                Check::success(),
+                Check::account(&counter_account)
+                    .data(&CounterAccount::serialize_account(expected_counter)?)
+                    .owner(&CounterProgram::ID)
+                    .build(),
             ],
         );
 
-        let mut expected_counter = CounterAccount {
-            version: 0,
-            owner,
-            signer: owner,
-            count: 2,
-            bump,
-            data: Default::default(),
-        };
-        let created_counter = create_count_res.get_account(&counter_account).unwrap();
-        assert_eq!(
-            expected_counter,
-            CounterAccount::deserialize_account(&created_counter.data)?
-        );
-
         // Update a counter signer
-
-        create_count_res
-            .resulting_accounts
-            .push((signer2, SolanaAccount::new(0, 0, &System::ID)));
-
-        let update_signer_res = mollusk.process_instruction(
+        expected_counter.signer = signer2;
+        mollusk.process_and_validate_instruction(
             &CounterProgram::instruction(
                 &UpdateCounterSignerIx,
                 UpdateCounterSignerClientAccounts {
@@ -278,68 +281,64 @@ mod tests {
                     counter: counter_account,
                 },
             )?,
-            &create_count_res.resulting_accounts,
-        );
-
-        expected_counter.signer = signer2;
-        let updated_counter = update_signer_res.get_account(&counter_account).unwrap();
-        assert_eq!(
-            expected_counter,
-            CounterAccount::deserialize_account(&updated_counter.data)?
+            &[
+                Check::success(),
+                Check::account(&counter_account)
+                    .data(&CounterAccount::serialize_account(expected_counter)?)
+                    .build(),
+            ],
         );
 
         const COUNT_ADD: u64 = 7;
-        const COUNT_SUB: u64 = 4;
 
+        expected_counter.count += COUNT_ADD;
         // Update count
-        let count_res = mollusk.process_instruction_chain(
-            &[
-                CounterProgram::instruction(
-                    &CountIx {
-                        amount: COUNT_ADD,
-                        subtract: false,
-                    },
-                    CountClientAccounts {
-                        owner,
-                        counter: counter_account,
-                    },
-                )?,
-                CounterProgram::instruction(
-                    &CountIx {
-                        amount: COUNT_SUB,
-                        subtract: true,
-                    },
-                    CountClientAccounts {
-                        owner,
-                        counter: counter_account,
-                    },
-                )?,
-            ],
-            &[
-                (
+        mollusk.process_and_validate_instruction(
+            &CounterProgram::instruction(
+                &CountIx {
+                    amount: COUNT_ADD,
+                    subtract: false,
+                },
+                CountClientAccounts {
                     owner,
-                    update_signer_res.get_account(&owner).unwrap().clone(),
-                ),
-                (
-                    counter_account,
-                    update_signer_res
-                        .get_account(&counter_account)
-                        .unwrap()
-                        .clone(),
-                ),
+                    counter: counter_account,
+                },
+            )?,
+            &[
+                Check::success(),
+                Check::account(&counter_account)
+                    .data(&CounterAccount::serialize_account(expected_counter)?)
+                    .build(),
+            ],
+        );
+        const COUNT_SUB: u64 = 4;
+        expected_counter.count -= COUNT_SUB;
+        mollusk.process_and_validate_instruction(
+            &CounterProgram::instruction(
+                &CountIx {
+                    amount: COUNT_SUB,
+                    subtract: true,
+                },
+                CountClientAccounts {
+                    owner,
+                    counter: counter_account,
+                },
+            )?,
+            &[
+                Check::success(),
+                Check::account(&counter_account)
+                    .data(&CounterAccount::serialize_account(expected_counter)?)
+                    .build(),
             ],
         );
 
-        expected_counter.count += (COUNT_ADD - COUNT_SUB);
-        let counted_counter = count_res.get_account(&counter_account).unwrap();
-        assert_eq!(
-            expected_counter,
-            CounterAccount::deserialize_account(&counted_counter.data)?
-        );
+        let counter_lamports = mollusk
+            .account_store
+            .borrow()
+            .get_account(&counter_account)
+            .unwrap()
+            .lamports;
 
-        let funds_to = Pubkey::new_unique();
-
-        let counter_account_res = count_res.get_account(&counter_account).unwrap();
         // Close counter
         let close_counter_res = mollusk.process_and_validate_instruction(
             &CounterProgram::instruction(
@@ -351,22 +350,12 @@ mod tests {
                 },
             )?,
             &[
-                (owner, count_res.get_account(&owner).unwrap().clone()),
-                (counter_account, counter_account_res.clone()),
-                (
-                    signer2,
-                    update_signer_res.get_account(&signer2).unwrap().clone(),
-                ),
-                (funds_to, SolanaAccount::new(0, 0, &System::ID)),
-            ],
-            &[
+                Check::success(),
                 Check::account(&counter_account)
                     .lamports(0)
                     .data(&[u8::MAX; 8])
                     .build(),
-                Check::account(&funds_to)
-                    .lamports(counter_account_res.lamports)
-                    .build(),
+                Check::account(&funds_to).lamports(counter_lamports).build(),
             ],
         );
 

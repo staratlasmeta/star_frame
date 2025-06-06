@@ -59,8 +59,8 @@ pinocchio = { version = "0.9.0", features = ["std"], registry = "star-atlas" }
 spl-associated-token-account = { version = "6.0.0", features = [
     "no-entrypoint",
 ] }
-mollusk-svm = { version = "0.1.5" }
-mollusk-svm-programs-token = "0.1.5"
+mollusk-svm = { version = "0.1.5", git = "https://github.com/anza-xyz/mollusk", branch = "main" }
+mollusk-svm-programs-token = { version = "0.1.5", git = "https://github.com/anza-xyz/mollusk", branch = "main" }
 spl-token = { version = "7.0.0", features = ["no-entrypoint"] }
 static_assertions = "^1.1.0"
 strum = { version = "^0.26.2", features = ["derive"] }
