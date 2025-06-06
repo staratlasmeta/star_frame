@@ -340,7 +340,7 @@ mod tests {
             .lamports;
 
         // Close counter
-        let close_counter_res = mollusk.process_and_validate_instruction(
+        mollusk.process_and_validate_instruction(
             &CounterProgram::instruction(
                 &CloseCounterIx,
                 CloseCounterClientAccounts {
