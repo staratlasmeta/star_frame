@@ -71,10 +71,15 @@ impl<'a, T> SharedWrapper<'a, T> {
         let _ = U::ZST_STATUS;
         let data = UnsizedTypeDataAccess::data_ref(underlying_data)?;
         let data_ptr = ptr::from_ref(&*data);
-        let the_box = Box::new(data);
+
+        // SAFETY:
+        // We are technically extending the lifetime here of the returned data, but it's okay because we keep data alive in the to_drop,
+        // and the reference is never exposed. We do this to get a U::Ref<'a>, but since UnsizedType::Ref cannot be copied out from behind a reference,
+        // that lifetime cannot escape through the Deref/DerefMut on SharedWrapper.
+        let mut data_bytes: &'a [u8] = unsafe { &*data_ptr };
         Ok(SharedWrapper {
-            _to_drop: the_box,
-            top_ref: U::get_ref(unsafe { &mut &*data_ptr })?,
+            _to_drop: Box::new(data),
+            top_ref: U::get_ref(&mut data_bytes)?,
             phantom: PhantomData,
         })
     }
@@ -140,8 +145,9 @@ where
         // ensure no ZSTs in middle of struct
         let _ = Top::ZST_STATUS;
         let mut data = UnsizedTypeDataAccess::data_mut(info)?;
-        let data_bytes = &mut *data;
-        let mut data_ptr = ptr::from_mut(data_bytes);
+        // We are technically extending the lifetime here of the returned data, but it's okay because we keep data alive in the to_drop,
+        // and the reference is never exposed.
+        let mut data_ptr = ptr::from_mut(&mut *data);
         let top_data_ptr = data_ptr;
         Ok(Self(ExclusiveWrapperEnum::Top {
             _to_drop: Box::new(data),
