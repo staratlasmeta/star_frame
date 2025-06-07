@@ -24,8 +24,8 @@ pub struct ReceiveRent<T>(pub T);
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
 pub struct CloseAccount<T>(pub T);
 
-#[derive(AccountSet, derive_more::Debug, derive_where::DeriveWhere)]
-#[derive_where(Clone)]
+#[derive(AccountSet, derive_where::DeriveWhere)]
+#[derive_where(Clone, Debug, Copy)]
 #[account_set(skip_default_idl, skip_default_cleanup)]
 #[validate(extra_validation = self.validate())]
 #[cleanup(
@@ -99,7 +99,6 @@ pub struct Account<T: ProgramAccount + UnsizedType + ?Sized> {
         skip_has_seeds,
         skip_has_owner_program
     )]
-    #[debug(skip)]
     info: AccountInfo,
     #[account_set(skip = PhantomData)]
     phantom_t: PhantomData<T>,

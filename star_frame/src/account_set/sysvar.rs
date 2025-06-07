@@ -33,8 +33,8 @@ impl SysvarId for pinocchio::sysvars::fees::Fees {
     }
 }
 
-#[derive(AccountSet, derive_more::Debug, derive_where::DeriveWhere)]
-#[derive_where(Clone, Copy)]
+#[derive(AccountSet, derive_where::DeriveWhere)]
+#[derive_where(Clone, Copy, Debug)]
 #[idl(generics = [])]
 #[validate(generics = [])]
 pub struct Sysvar<T>
@@ -44,7 +44,6 @@ where
     #[single_account_set]
     #[idl(address = T::id())]
     #[validate(address = &T::id())]
-    #[debug(skip)]
     info: AccountInfo,
     #[account_set(skip = PhantomData)]
     phantom_t: PhantomData<fn() -> T>,

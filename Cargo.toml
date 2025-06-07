@@ -52,15 +52,15 @@ serde_json = "^1.0.108"
 sha2 = "^0.10.8"
 solana-pubkey = "2.2"
 solana-program-pack = "2.2"
-solana-account = "2.2"
 solana-instruction = "2.2"
 solana-system-interface = "1.0.0"
+solana-account = "2.2"
 pinocchio = { version = "0.9.0", features = ["std"], registry = "star-atlas" }
+mollusk-svm = { version = "0.1.5", git = "https://github.com/anza-xyz/mollusk", branch = "main" }
+mollusk-svm-programs-token = { version = "0.1.5", git = "https://github.com/anza-xyz/mollusk", branch = "main" }
 spl-associated-token-account = { version = "6.0.0", features = [
     "no-entrypoint",
 ] }
-mollusk-svm = { version = "0.1.5", git = "https://github.com/anza-xyz/mollusk", branch = "main" }
-mollusk-svm-programs-token = { version = "0.1.5", git = "https://github.com/anza-xyz/mollusk", branch = "main" }
 spl-token = { version = "7.0.0", features = ["no-entrypoint"] }
 static_assertions = "^1.1.0"
 strum = { version = "^0.26.2", features = ["derive"] }

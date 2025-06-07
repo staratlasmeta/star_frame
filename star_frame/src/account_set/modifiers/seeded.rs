@@ -122,7 +122,8 @@ where
     }
 }
 
-#[derive(Debug, AccountSet, Deref, DerefMut, Clone)]
+#[derive(AccountSet, Deref, DerefMut, derive_where::DeriveWhere)]
+#[derive_where(Debug, Clone; T, SeedsWithBump<S>)]
 #[account_set(skip_default_idl, skip_default_validate)]
 #[validate(
     id = "seeds",

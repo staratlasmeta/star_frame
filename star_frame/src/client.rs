@@ -12,9 +12,10 @@ use bytemuck::bytes_of;
 use pinocchio::account_info::AccountInfo;
 use solana_instruction::{AccountMeta, Instruction as SolanaInstruction};
 use solana_pubkey::Pubkey;
+use std::fmt::Debug;
 
 pub trait CpiAccountSet {
-    type CpiAccounts: Clone;
+    type CpiAccounts: Clone + Debug;
     /// The minimum number of accounts this CPI might use
     const MIN_LEN: usize;
 
@@ -28,7 +29,7 @@ pub trait CpiAccountSet {
 }
 
 pub trait ClientAccountSet {
-    type ClientAccounts: Clone;
+    type ClientAccounts: Clone + Debug;
     /// The minimum number of accounts this CPI might use
     const MIN_LEN: usize;
     fn extend_account_metas(
