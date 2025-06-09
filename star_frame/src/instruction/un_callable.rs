@@ -12,7 +12,7 @@ impl InstructionSet for UnCallable {
         _program_id: &Pubkey,
         _accounts: &[AccountInfo],
         _ix_bytes: &[u8],
-        _syscalls: &mut impl Syscalls,
+        _ctx: &mut impl Context,
     ) -> Result<()> {
         panic!("Cannot call handle_ix on Uncallable")
     }

@@ -78,7 +78,7 @@ impl StarFrameInstruction for CreateCounterIx {
     fn run_instruction(
         account_set: &mut Self::Accounts<'_, '_>,
         start_at: Self::RunArg<'_>,
-        _syscalls: &mut impl SyscallInvoke,
+        _ctx: &mut impl Context,
     ) -> Result<Self::ReturnType> {
         **account_set.counter.data_mut()? = CounterAccount {
             version: 0,
@@ -121,7 +121,7 @@ impl StarFrameInstruction for UpdateCounterSignerIx {
     fn run_instruction(
         account_set: &mut Self::Accounts<'_, '_>,
         _run_args: Self::RunArg<'_>,
-        _syscalls: &mut impl SyscallInvoke,
+        _ctx: &mut impl Context,
     ) -> Result<Self::ReturnType> {
         let mut counter = account_set.counter.data_mut()?;
         counter.signer = *account_set.new_signer.pubkey();
@@ -160,7 +160,7 @@ impl StarFrameInstruction for CountIx {
     fn run_instruction(
         account_set: &mut Self::Accounts<'_, '_>,
         CountIx { amount, subtract }: Self::RunArg<'_>,
-        _syscalls: &mut impl SyscallInvoke,
+        _ctx: &mut impl Context,
     ) -> Result<Self::ReturnType> {
         let mut counter = account_set.counter.data_mut()?;
         let new_count: u64 = if subtract {

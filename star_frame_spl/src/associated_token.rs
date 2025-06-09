@@ -123,7 +123,7 @@ mod idl_impl {
 
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
 pub use idl_impl::*;
-use star_frame::anyhow::{bail, Context};
+use star_frame::anyhow::{bail, Context as _};
 use star_frame::derive_more::{Deref, DerefMut};
 
 pub mod instructions {
@@ -263,7 +263,7 @@ pub mod state {
     where
         Self: AccountSetValidate<A>,
     {
-        fn init_seeds(&mut self, _arg: &A, _syscalls: &impl SyscallInvoke) -> Result<()> {
+        fn init_seeds(&mut self, _arg: &A, _ctx: &impl Context) -> Result<()> {
             Ok(())
         }
     }
@@ -321,12 +321,12 @@ pub mod state {
             &mut self,
             arg: InitAta<'a, WalletInfo, MintInfo>,
             account_seeds: Option<Vec<&[u8]>>,
-            syscalls: &impl SyscallInvoke,
+            ctx: &impl Context,
         ) -> Result<()> {
-            let funder = syscalls
+            let funder = ctx
                 .get_funder()
                 .context("Missing tagged `funder` for AssociatedTokenAccount `init_account`")?;
-            self.init_account::<IF_NEEDED>((arg, funder), account_seeds, syscalls)
+            self.init_account::<IF_NEEDED>((arg, funder), account_seeds, ctx)
         }
     }
 
@@ -341,7 +341,7 @@ pub mod state {
             &mut self,
             (init_ata, funder): (InitAta<'a, WalletInfo, MintInfo>, &Funder),
             account_seeds: Option<Vec<&[u8]>>,
-            syscalls: &impl SyscallInvoke,
+            _ctx: &impl Context,
         ) -> Result<()> {
             if !funder.can_create_account() {
                 bail!(
@@ -375,7 +375,7 @@ pub mod state {
                     token_program: *init_ata.token_program.account_info(),
                 },
             )?
-            .invoke_signed(seeds, syscalls)?;
+            .invoke_signed(seeds)?;
             Ok(())
         }
     }

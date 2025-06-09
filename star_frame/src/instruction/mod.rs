@@ -1,8 +1,8 @@
+use crate::context::Context;
 use crate::prelude::*;
-use crate::syscalls::{SyscallInvoke, Syscalls};
 use borsh::{to_vec, BorshDeserialize, BorshSerialize};
 use bytemuck::{bytes_of, Pod};
-use pinocchio::account_info::AccountInfo;
+use pinocchio::{account_info::AccountInfo, cpi::set_return_data};
 use solana_pubkey::Pubkey;
 pub use star_frame_proc::{InstructionArgs, InstructionSet, InstructionToIdl};
 
@@ -16,13 +16,13 @@ pub trait InstructionSet {
     /// The discriminant type used by this program's instructions.
     type Discriminant: Pod;
 
-    /// Handles the input from the program entrypoint (along with the `syscalls`).
+    /// Handles the input from the program entrypoint (along with the `context`).
     /// This is called directly in [`StarFrameProgram::processor`].
     fn handle_ix(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         ix_bytes: &[u8],
-        syscalls: &mut impl Syscalls,
+        ctx: &mut impl Context,
     ) -> Result<()>;
 }
 
@@ -51,7 +51,7 @@ pub trait Instruction {
     fn run_ix_from_raw(
         accounts: &[AccountInfo],
         data: &mut Self::SelfData<'_>,
-        syscalls: &mut impl Syscalls,
+        ctx: &mut impl Context,
     ) -> Result<()>;
 }
 
@@ -110,7 +110,7 @@ pub trait StarFrameInstruction: BorshDeserialize + InstructionArgs {
     fn extra_validations(
         account_set: &mut Self::Accounts<'_, '_>,
         run_arg: &mut Self::RunArg<'_>,
-        syscalls: &mut impl SyscallInvoke,
+        ctx: &mut impl Context,
     ) -> Result<()> {
         Ok(())
     }
@@ -118,7 +118,7 @@ pub trait StarFrameInstruction: BorshDeserialize + InstructionArgs {
     fn run_instruction(
         account_set: &mut Self::Accounts<'_, '_>,
         run_arg: Self::RunArg<'_>,
-        syscalls: &mut impl SyscallInvoke,
+        ctx: &mut impl Context,
     ) -> Result<Self::ReturnType>;
 }
 
@@ -135,7 +135,7 @@ where
     fn run_ix_from_raw(
         mut accounts: &[AccountInfo],
         data: &mut Self,
-        syscalls: &mut impl Syscalls,
+        ctx: &mut impl Context,
     ) -> Result<()> {
         let IxArgs {
             decode,
@@ -145,19 +145,15 @@ where
         } = Self::split_to_args(data);
         // SAFETY: .validate_accounts is called after .decode_accounts
         let mut account_set = unsafe {
-            <Self as StarFrameInstruction>::Accounts::decode_accounts(
-                &mut accounts,
-                decode,
-                syscalls,
-            )
+            <Self as StarFrameInstruction>::Accounts::decode_accounts(&mut accounts, decode, ctx)
         }?;
-        account_set.validate_accounts(validate, syscalls)?;
-        Self::extra_validations(&mut account_set, &mut run, syscalls)?;
-        let ret = Self::run_instruction(&mut account_set, run, syscalls)?;
-        account_set.cleanup_accounts(cleanup, syscalls)?;
+        account_set.validate_accounts(validate, ctx)?;
+        Self::extra_validations(&mut account_set, &mut run, ctx)?;
+        let ret = Self::run_instruction(&mut account_set, run, ctx)?;
+        account_set.cleanup_accounts(cleanup, ctx)?;
         let return_data = to_vec(&ret)?;
         if !return_data.is_empty() {
-            syscalls.set_return_data(&return_data);
+            set_return_data(&return_data);
         }
         Ok(())
     }
@@ -182,7 +178,7 @@ macro_rules! empty_star_frame_instruction {
             fn run_instruction(
                 _account_set: &mut Self::Accounts<'_, '_>,
                 _run_args: Self::RunArg<'_>,
-                _syscalls: &mut impl $crate::syscalls::SyscallInvoke,
+                _ctx: &mut impl $crate::context::Context,
             ) -> $crate::Result<Self::ReturnType> {
                 Ok(())
             }
@@ -204,7 +200,7 @@ macro_rules! impl_blank_ix {
                 fn run_ix_from_raw(
                     _accounts: &[$crate::prelude::AccountInfo],
                     _data: &mut Self::SelfData<'_>,
-                    _syscalls: &mut impl $crate::prelude::Syscalls,
+                    _ctx: &mut impl $crate::prelude::Context,
                 ) -> $crate::Result<()> {
                     todo!()
                 }

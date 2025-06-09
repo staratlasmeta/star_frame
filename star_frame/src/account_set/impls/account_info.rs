@@ -1,10 +1,9 @@
 use crate::account_set::{AccountSetDecode, SingleAccountSet, SingleSetMeta};
 use crate::client::ClientAccountSet;
-use crate::prelude::CpiAccountSet;
-use crate::syscalls::SyscallInvoke;
+use crate::prelude::{Context, CpiAccountSet};
 use crate::Result;
 use advancer::AdvanceArray;
-use anyhow::Context;
+use anyhow::Context as _;
 use pinocchio::account_info::AccountInfo;
 use solana_instruction::AccountMeta;
 use solana_pubkey::Pubkey;
@@ -139,7 +138,7 @@ impl<'a> AccountSetDecode<'a, ()> for AccountInfo {
     unsafe fn decode_accounts(
         accounts: &mut &'a [AccountInfo],
         _decode_input: (),
-        _syscalls: &mut impl SyscallInvoke,
+        _ctx: &mut impl Context,
     ) -> Result<Self> {
         let account: &[_; 1] = accounts
             .try_advance_array()
@@ -151,7 +150,7 @@ impl<'a> AccountSetDecode<'a, ()> for &'a AccountInfo {
     unsafe fn decode_accounts(
         accounts: &mut &'a [AccountInfo],
         _decode_input: (),
-        _syscalls: &mut impl SyscallInvoke,
+        _ctx: &mut impl Context,
     ) -> Result<Self> {
         let account: &[_; 1] = accounts
             .try_advance_array()
@@ -160,40 +159,24 @@ impl<'a> AccountSetDecode<'a, ()> for &'a AccountInfo {
     }
 }
 impl AccountSetValidate<()> for AccountInfo {
-    fn validate_accounts(
-        &mut self,
-        _validate_input: (),
-        _syscalls: &mut impl SyscallInvoke,
-    ) -> Result<()> {
+    fn validate_accounts(&mut self, _validate_input: (), _ctx: &mut impl Context) -> Result<()> {
         Ok(())
     }
 }
 
 impl AccountSetValidate<()> for &AccountInfo {
-    fn validate_accounts(
-        &mut self,
-        validate_input: (),
-        _syscalls: &mut impl SyscallInvoke,
-    ) -> Result<()> {
+    fn validate_accounts(&mut self, validate_input: (), _context: &mut impl Context) -> Result<()> {
         Ok(validate_input)
     }
 }
 
 impl AccountSetCleanup<()> for AccountInfo {
-    fn cleanup_accounts(
-        &mut self,
-        cleanup_input: (),
-        _syscalls: &mut impl SyscallInvoke,
-    ) -> Result<()> {
+    fn cleanup_accounts(&mut self, cleanup_input: (), _context: &mut impl Context) -> Result<()> {
         Ok(cleanup_input)
     }
 }
 impl AccountSetCleanup<()> for &AccountInfo {
-    fn cleanup_accounts(
-        &mut self,
-        cleanup_input: (),
-        _syscalls: &mut impl SyscallInvoke,
-    ) -> Result<()> {
+    fn cleanup_accounts(&mut self, cleanup_input: (), _context: &mut impl Context) -> Result<()> {
         Ok(cleanup_input)
     }
 }

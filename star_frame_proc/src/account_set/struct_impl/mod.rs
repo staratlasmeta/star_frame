@@ -337,8 +337,8 @@ pub(super) fn derive_account_set_impl_struct(
                 #[automatically_derived]
                 impl #impl_gen #prelude::CanInitSeeds<#new_generic> for #ident #ty_generics #wc {
                     #[inline]
-                    fn init_seeds(&mut self, arg: &#new_generic, syscalls: &impl #prelude::SyscallInvoke) -> #result<()> {
-                        <#field_ty as #prelude::CanInitSeeds<#new_generic>>::init_seeds(&mut self.#field_name, arg, syscalls)
+                    fn init_seeds(&mut self, arg: &#new_generic, ctx: &impl #prelude::Context) -> #result<()> {
+                        <#field_ty as #prelude::CanInitSeeds<#new_generic>>::init_seeds(&mut self.#field_name, arg, ctx)
                     }
                 }
             }
@@ -360,9 +360,9 @@ pub(super) fn derive_account_set_impl_struct(
                         &mut self,
                         arg: #init_gen,
                         account_seeds: Option<Vec<&[u8]>>,
-                        syscalls: &impl #prelude::SyscallInvoke,
+                        ctx: &impl #prelude::Context,
                     ) -> #result<()> {
-                        <#field_ty as #prelude::CanInitAccount<#init_gen>>::init_account::<#if_needed>(&mut self.#field_name, arg, account_seeds, syscalls)
+                        <#field_ty as #prelude::CanInitAccount<#init_gen>>::init_account::<#if_needed>(&mut self.#field_name, arg, account_seeds, ctx)
                     }
                 }
             }

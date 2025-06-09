@@ -30,7 +30,6 @@ pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
         instruction,
         pubkey,
         result,
-        syscalls,
         prelude,
         instruction_set_args_ident,
     );
@@ -130,7 +129,7 @@ pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
                 program_id: &#pubkey,
                 accounts: &[#account_info],
                 mut ix_bytes: &[u8],
-                syscalls: &mut impl #syscalls,
+                ctx: &mut impl #prelude::Context,
             ) -> #result<()> {
                 let maybe_discriminant_bytes =
                     #prelude::Advance::try_advance(&mut ix_bytes, ::core::mem::size_of::<#discriminant_type>());
@@ -142,7 +141,7 @@ pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
                         <#variant_tys as #prelude::InstructionDiscriminant<#ident #ty_generics>>::DISCRIMINANT => {
                             #prelude::msg!(#ix_message);
                             let mut data = <#variant_tys as #instruction>::data_from_bytes(&mut ix_bytes)?;
-                            <#variant_tys as #instruction>::run_ix_from_raw(accounts, &mut data, syscalls)
+                            <#variant_tys as #instruction>::run_ix_from_raw(accounts, &mut data, ctx)
                         }
                     )*
                     x => #prelude::bail!("Invalid ix discriminant: {:?}", x),

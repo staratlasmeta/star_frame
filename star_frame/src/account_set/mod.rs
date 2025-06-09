@@ -20,8 +20,7 @@ pub use system_account::*;
 pub use sysvar::*;
 pub use validated_account::*;
 
-use crate::prelude::{PackedValue, StarFrameProgram};
-use crate::syscalls::SyscallInvoke;
+use crate::prelude::{Context, PackedValue, StarFrameProgram};
 use crate::Result;
 use bytemuck::{bytes_of, from_bytes};
 use pinocchio::account_info::AccountInfo;
@@ -70,11 +69,11 @@ pub trait TryFromAccountsWithArgs<'a, D, V>:
         accounts: &mut &'a [AccountInfo],
         decode: D,
         validate: V,
-        syscalls: &mut impl SyscallInvoke,
+        ctx: &mut impl Context,
     ) -> Result<Self> {
         // SAFETY: We are calling .validate_accounts() immediately after decoding
-        let mut set = unsafe { Self::decode_accounts(accounts, decode, syscalls)? };
-        set.validate_accounts(validate, syscalls)?;
+        let mut set = unsafe { Self::decode_accounts(accounts, decode, ctx)? };
+        set.validate_accounts(validate, ctx)?;
         Ok(set)
     }
 
@@ -82,30 +81,27 @@ pub trait TryFromAccountsWithArgs<'a, D, V>:
         account: &'a AccountInfo,
         decode: D,
         validate: V,
-        syscalls: &mut impl SyscallInvoke,
+        ctx: &mut impl Context,
     ) -> Result<Self>
     where
         Self: SingleAccountSet,
     {
         let accounts = &mut slice::from_ref(account);
-        Self::try_from_accounts_with_args(accounts, decode, validate, syscalls)
+        Self::try_from_accounts_with_args(accounts, decode, validate, ctx)
     }
 }
 
 /// Additional convenience methods around [`TryFromAccountsWithArgs`] for when the [`AccountSetDecode`] and [`AccountSetValidate`] args are `()`.
 pub trait TryFromAccounts<'a>: TryFromAccountsWithArgs<'a, (), ()> {
-    fn try_from_accounts(
-        accounts: &mut &'a [AccountInfo],
-        syscalls: &mut impl SyscallInvoke,
-    ) -> Result<Self> {
-        Self::try_from_accounts_with_args(accounts, (), (), syscalls)
+    fn try_from_accounts(accounts: &mut &'a [AccountInfo], ctx: &mut impl Context) -> Result<Self> {
+        Self::try_from_accounts_with_args(accounts, (), (), ctx)
     }
 
-    fn try_from_account(account: &'a AccountInfo, syscalls: &mut impl SyscallInvoke) -> Result<Self>
+    fn try_from_account(account: &'a AccountInfo, ctx: &mut impl Context) -> Result<Self>
     where
         Self: SingleAccountSet,
     {
-        Self::try_from_account_with_args(account, (), (), syscalls)
+        Self::try_from_account_with_args(account, (), (), ctx)
     }
 }
 
@@ -127,7 +123,7 @@ pub trait AccountSetDecode<'a, A>: Sized {
     unsafe fn decode_accounts(
         accounts: &mut &'a [AccountInfo],
         decode_input: A,
-        syscalls: &mut impl SyscallInvoke,
+        ctx: &mut impl Context,
     ) -> Result<Self>;
 }
 
@@ -137,11 +133,7 @@ pub trait AccountSetDecode<'a, A>: Sized {
 /// Derivable via [`derive@AccountSet`].
 pub trait AccountSetValidate<A> {
     /// Validate the accounts using `validate_input`.
-    fn validate_accounts(
-        &mut self,
-        validate_input: A,
-        syscalls: &mut impl SyscallInvoke,
-    ) -> Result<()>;
+    fn validate_accounts(&mut self, validate_input: A, ctx: &mut impl Context) -> Result<()>;
 }
 
 /// An [`AccountSet`] that can be cleaned up using arg `A`.
@@ -149,11 +141,7 @@ pub trait AccountSetValidate<A> {
 /// Derivable via [`derive@AccountSet`].
 pub trait AccountSetCleanup<A> {
     /// Clean up the accounts using `cleanup_input`.
-    fn cleanup_accounts(
-        &mut self,
-        cleanup_input: A,
-        syscalls: &mut impl SyscallInvoke,
-    ) -> Result<()>;
+    fn cleanup_accounts(&mut self, cleanup_input: A, ctx: &mut impl Context) -> Result<()>;
 }
 
 #[doc(hidden)]
@@ -164,37 +152,36 @@ pub(crate) mod internal_reverse {
     pub fn _account_set_validate_reverse<T, A>(
         validate_input: A,
         this: &mut T,
-        syscalls: &mut impl SyscallInvoke,
+        ctx: &mut impl Context,
     ) -> Result<()>
     where
         T: AccountSetValidate<A>,
     {
-        this.validate_accounts(validate_input, syscalls)
+        this.validate_accounts(validate_input, ctx)
     }
 
     #[inline]
     pub fn _account_set_cleanup_reverse<T, A>(
         cleanup_input: A,
         this: &mut T,
-        syscalls: &mut impl SyscallInvoke,
+        ctx: &mut impl Context,
     ) -> Result<()>
     where
         T: AccountSetCleanup<A>,
     {
-        this.cleanup_accounts(cleanup_input, syscalls)
+        this.cleanup_accounts(cleanup_input, ctx)
     }
 }
 
 #[cfg(test)]
 mod test {
     use crate::account_set::AccountSetValidate;
-    use crate::syscalls::{SyscallCore, SyscallInvoke};
-    use crate::{Result, SolanaInstruction};
-    use pinocchio::account_info::AccountInfo;
+    use crate::context::ContextCore;
+    use crate::Result;
     use pinocchio::sysvars::clock::Clock;
     use pinocchio::sysvars::rent::Rent;
     use solana_pubkey::Pubkey;
-    use star_frame::syscalls::SyscallAccountCache;
+    use star_frame::context::ContextAccountCache;
     use star_frame_proc::AccountSet;
 
     #[derive(AccountSet)]
@@ -246,7 +233,7 @@ mod test {
     }
 
     struct DummyRuntime;
-    impl SyscallCore for DummyRuntime {
+    impl ContextCore for DummyRuntime {
         fn current_program_id(&self) -> &Pubkey {
             unimplemented!()
         }
@@ -260,25 +247,7 @@ mod test {
         }
     }
 
-    impl SyscallAccountCache for DummyRuntime {}
-    impl SyscallInvoke for DummyRuntime {
-        fn invoke(
-            &self,
-            _instruction: &SolanaInstruction,
-            _accounts: &[AccountInfo],
-        ) -> Result<()> {
-            unimplemented!()
-        }
-
-        fn invoke_signed(
-            &self,
-            _instruction: &SolanaInstruction,
-            _accounts: &[AccountInfo],
-            _signers_seeds: &[&[&[u8]]],
-        ) -> Result<()> {
-            unimplemented!()
-        }
-    }
+    impl ContextAccountCache for DummyRuntime {}
 
     #[test]
     fn test_validate() {

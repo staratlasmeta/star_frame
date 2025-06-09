@@ -15,7 +15,7 @@ pub mod macro_prelude {
     };
     pub use crate::program::StarFrameProgram;
 
-    pub use crate::syscalls::{SyscallAccountCache, SyscallInvoke};
+    pub use crate::context::{Context, ContextAccountCache};
     pub use crate::unsize::{
         init::{DefaultInit, UnsizedInit},
         wrapper::{

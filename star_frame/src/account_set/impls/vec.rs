@@ -1,6 +1,6 @@
 use crate::account_set::{AccountSetCleanup, AccountSetDecode, AccountSetValidate};
-use crate::prelude::{ClientAccountSet, CpiAccountSet};
-use crate::syscalls::SyscallInvoke;
+
+use crate::prelude::{ClientAccountSet, Context, CpiAccountSet};
 use crate::Result;
 use anyhow::bail;
 use pinocchio::account_info::AccountInfo;
@@ -60,15 +60,11 @@ where
     unsafe fn decode_accounts(
         accounts: &mut &'a [AccountInfo],
         len: usize,
-        syscalls: &mut impl SyscallInvoke,
+        ctx: &mut impl Context,
     ) -> Result<Self> {
         // SAFETY: This function is unsafe too
         unsafe {
-            <Self as AccountSetDecode<'a, (usize, ())>>::decode_accounts(
-                accounts,
-                (len, ()),
-                syscalls,
-            )
+            <Self as AccountSetDecode<'a, (usize, ())>>::decode_accounts(accounts, (len, ()), ctx)
         }
     }
 }
@@ -80,12 +76,12 @@ where
     unsafe fn decode_accounts(
         accounts: &mut &'a [AccountInfo],
         (len, decode_input): (usize, TA),
-        syscalls: &mut impl SyscallInvoke,
+        ctx: &mut impl Context,
     ) -> Result<Self> {
         let mut output = Self::with_capacity(len);
         for _ in 0..len {
             // SAFETY: This function is unsafe too
-            output.push(unsafe { T::decode_accounts(accounts, decode_input.clone(), syscalls) }?);
+            output.push(unsafe { T::decode_accounts(accounts, decode_input.clone(), ctx) }?);
         }
         Ok(output)
     }
@@ -97,13 +93,13 @@ where
     unsafe fn decode_accounts(
         accounts: &mut &'a [AccountInfo],
         decode_input: [TA; N],
-        syscalls: &mut impl SyscallInvoke,
+        ctx: &mut impl Context,
     ) -> Result<Self> {
         decode_input
             .into_iter()
             .map(|input| {
                 // SAFETY: This function is unsafe too
-                unsafe { T::decode_accounts(accounts, input, syscalls) }
+                unsafe { T::decode_accounts(accounts, input, ctx) }
             })
             .collect()
     }
@@ -115,13 +111,13 @@ where
     unsafe fn decode_accounts(
         accounts: &mut &'a [AccountInfo],
         decode_input: &'b [TA; N],
-        syscalls: &mut impl SyscallInvoke,
+        ctx: &mut impl Context,
     ) -> Result<Self> {
         decode_input
             .iter()
             .map(|input| {
                 // SAFETY: This function is unsafe too
-                unsafe { T::decode_accounts(accounts, input, syscalls) }
+                unsafe { T::decode_accounts(accounts, input, ctx) }
             })
             .collect()
     }
@@ -133,13 +129,13 @@ where
     unsafe fn decode_accounts(
         accounts: &mut &'a [AccountInfo],
         decode_input: &'b mut [TA; N],
-        syscalls: &mut impl SyscallInvoke,
+        ctx: &mut impl Context,
     ) -> Result<Self> {
         decode_input
             .iter_mut()
             .map(|input| {
                 // SAFETY: This function is unsafe too
-                unsafe { T::decode_accounts(accounts, input, syscalls) }
+                unsafe { T::decode_accounts(accounts, input, ctx) }
             })
             .collect()
     }
@@ -152,14 +148,14 @@ where
     unsafe fn decode_accounts(
         accounts: &mut &'a [AccountInfo],
         decode_input: (I,),
-        syscalls: &mut impl SyscallInvoke,
+        ctx: &mut impl Context,
     ) -> Result<Self> {
         decode_input
             .0
             .into_iter()
             .map(|input| {
                 // SAFETY: This function is unsafe too
-                unsafe { T::decode_accounts(accounts, input, syscalls) }
+                unsafe { T::decode_accounts(accounts, input, ctx) }
             })
             .collect()
     }
@@ -169,13 +165,9 @@ impl<T> AccountSetValidate<()> for Vec<T>
 where
     T: AccountSetValidate<()>,
 {
-    fn validate_accounts(
-        &mut self,
-        validate_input: (),
-        sys_calls: &mut impl SyscallInvoke,
-    ) -> Result<()> {
+    fn validate_accounts(&mut self, validate_input: (), ctx: &mut impl Context) -> Result<()> {
         for account in self {
-            account.validate_accounts(validate_input, sys_calls)?;
+            account.validate_accounts(validate_input, ctx)?;
         }
         Ok(())
     }
@@ -186,13 +178,9 @@ where
     T: AccountSetValidate<TA>,
     TA: Clone,
 {
-    fn validate_accounts(
-        &mut self,
-        validate_input: (TA,),
-        sys_calls: &mut impl SyscallInvoke,
-    ) -> Result<()> {
+    fn validate_accounts(&mut self, validate_input: (TA,), ctx: &mut impl Context) -> Result<()> {
         for account in self {
-            account.validate_accounts(validate_input.0.clone(), sys_calls)?;
+            account.validate_accounts(validate_input.0.clone(), ctx)?;
         }
         Ok(())
     }
@@ -201,11 +189,7 @@ impl<T, TA> AccountSetValidate<Vec<TA>> for Vec<T>
 where
     T: AccountSetValidate<TA>,
 {
-    fn validate_accounts(
-        &mut self,
-        validate_input: Vec<TA>,
-        sys_calls: &mut impl SyscallInvoke,
-    ) -> Result<()> {
+    fn validate_accounts(&mut self, validate_input: Vec<TA>, ctx: &mut impl Context) -> Result<()> {
         if validate_input.len() < self.len() {
             bail!(
                 "Invalid account data: validate input length {} is less than required length {}",
@@ -215,7 +199,7 @@ where
         }
 
         for (account, input) in self.iter_mut().zip(validate_input) {
-            account.validate_accounts(input, sys_calls)?;
+            account.validate_accounts(input, ctx)?;
         }
 
         Ok(())
@@ -225,11 +209,7 @@ impl<T, TA, const N: usize> AccountSetValidate<[TA; N]> for Vec<T>
 where
     T: AccountSetValidate<TA>,
 {
-    fn validate_accounts(
-        &mut self,
-        validate_input: [TA; N],
-        sys_calls: &mut impl SyscallInvoke,
-    ) -> Result<()> {
+    fn validate_accounts(&mut self, validate_input: [TA; N], ctx: &mut impl Context) -> Result<()> {
         if validate_input.len() != self.len() {
             bail!(
                 "Invalid account data: validate input length {} does not match required length {}",
@@ -239,7 +219,7 @@ where
         }
 
         for (account, input) in self.iter_mut().zip(validate_input) {
-            account.validate_accounts(input, sys_calls)?;
+            account.validate_accounts(input, ctx)?;
         }
 
         Ok(())
@@ -252,14 +232,14 @@ where
     fn validate_accounts(
         &mut self,
         validate_input: &'a mut [TA; N],
-        sys_calls: &mut impl SyscallInvoke,
+        ctx: &mut impl Context,
     ) -> Result<()> {
         if validate_input.len() != self.len() {
             bail!("Invalid account data");
         }
 
         for (account, input) in self.iter_mut().zip(validate_input) {
-            account.validate_accounts(input, sys_calls)?;
+            account.validate_accounts(input, ctx)?;
         }
 
         Ok(())
@@ -270,13 +250,9 @@ impl<T> AccountSetCleanup<()> for Vec<T>
 where
     T: AccountSetCleanup<()>,
 {
-    fn cleanup_accounts(
-        &mut self,
-        cleanup_input: (),
-        sys_calls: &mut impl SyscallInvoke,
-    ) -> Result<()> {
+    fn cleanup_accounts(&mut self, cleanup_input: (), ctx: &mut impl Context) -> Result<()> {
         for account in self {
-            account.cleanup_accounts(cleanup_input, sys_calls)?;
+            account.cleanup_accounts(cleanup_input, ctx)?;
         }
         Ok(())
     }
@@ -286,13 +262,9 @@ where
     T: AccountSetCleanup<TA>,
     TA: Clone,
 {
-    fn cleanup_accounts(
-        &mut self,
-        cleanup_input: (TA,),
-        sys_calls: &mut impl SyscallInvoke,
-    ) -> Result<()> {
+    fn cleanup_accounts(&mut self, cleanup_input: (TA,), ctx: &mut impl Context) -> Result<()> {
         for account in self {
-            account.cleanup_accounts(cleanup_input.0.clone(), sys_calls)?;
+            account.cleanup_accounts(cleanup_input.0.clone(), ctx)?;
         }
         Ok(())
     }
@@ -301,11 +273,7 @@ impl<T, TA> AccountSetCleanup<Vec<TA>> for Vec<T>
 where
     T: AccountSetCleanup<TA>,
 {
-    fn cleanup_accounts(
-        &mut self,
-        cleanup_input: Vec<TA>,
-        sys_calls: &mut impl SyscallInvoke,
-    ) -> Result<()> {
+    fn cleanup_accounts(&mut self, cleanup_input: Vec<TA>, ctx: &mut impl Context) -> Result<()> {
         if cleanup_input.len() < self.len() {
             bail!(
                 "Invalid account data: cleanup input length {} is less than required length {}",
@@ -315,7 +283,7 @@ where
         }
 
         for (account, input) in self.iter_mut().zip(cleanup_input) {
-            account.cleanup_accounts(input, sys_calls)?;
+            account.cleanup_accounts(input, ctx)?;
         }
 
         Ok(())
@@ -325,11 +293,7 @@ impl<T, TA, const N: usize> AccountSetCleanup<[TA; N]> for Vec<T>
 where
     T: AccountSetCleanup<TA>,
 {
-    fn cleanup_accounts(
-        &mut self,
-        cleanup_input: [TA; N],
-        sys_calls: &mut impl SyscallInvoke,
-    ) -> Result<()> {
+    fn cleanup_accounts(&mut self, cleanup_input: [TA; N], ctx: &mut impl Context) -> Result<()> {
         if cleanup_input.len() != self.len() {
             bail!(
                 "Invalid account data: cleanup input length {} does not match required length {}",
@@ -339,7 +303,7 @@ where
         }
 
         for (account, input) in self.iter_mut().zip(cleanup_input) {
-            account.cleanup_accounts(input, sys_calls)?;
+            account.cleanup_accounts(input, ctx)?;
         }
 
         Ok(())
@@ -352,14 +316,14 @@ where
     fn cleanup_accounts(
         &mut self,
         cleanup_input: &'a mut [TA; N],
-        sys_calls: &mut impl SyscallInvoke,
+        ctx: &mut impl Context,
     ) -> Result<()> {
         if cleanup_input.len() != self.len() {
             bail!("Invalid account data");
         }
 
         for (account, input) in self.iter_mut().zip(cleanup_input) {
-            account.cleanup_accounts(input, sys_calls)?;
+            account.cleanup_accounts(input, ctx)?;
         }
 
         Ok(())

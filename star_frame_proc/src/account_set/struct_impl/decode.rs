@@ -54,7 +54,6 @@ pub(super) fn decodes(
         result,
         account_set_decode,
         prelude,
-        syscall_invoke,
         decode_ident,
         ..
     } = paths;
@@ -164,7 +163,7 @@ pub(super) fn decodes(
         let decode_inner = init(&mut decode_field_ty.iter().zip_eq(&decode_args).map(|(field_ty, decode_args)| {
             match &field_ty {
                 DecodeFieldTy::Type(field_type) => quote! {
-                        <#field_type as #account_set_decode<#decode_lifetime, _>>::decode_accounts(accounts, #decode_args, syscalls)?
+                        <#field_type as #account_set_decode<#decode_lifetime, _>>::decode_accounts(accounts, #decode_args, ctx)?
                     },
                 DecodeFieldTy::Default(default) => quote!(#default)
             }
@@ -176,7 +175,7 @@ pub(super) fn decodes(
                 unsafe fn decode_accounts(
                     accounts: &mut &#decode_lifetime [#account_info],
                     arg: #decode_type,
-                    syscalls: &mut impl #syscall_invoke,
+                    ctx: &mut impl #prelude::Context,
                 ) -> #result<Self> {
                     Ok(#decode_inner)
                 }

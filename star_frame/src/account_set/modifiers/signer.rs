@@ -2,7 +2,7 @@ use crate::account_set::{
     AccountSet, AccountSetValidate, CanInitSeeds, SignedAccount, SingleAccountSet,
 };
 
-use crate::prelude::{SingleSetMeta, SyscallInvoke};
+use crate::prelude::{Context, SingleSetMeta};
 use crate::Result;
 use derive_more::{Deref, DerefMut};
 use pinocchio::account_info::AccountInfo;
@@ -48,7 +48,7 @@ impl<T, A> CanInitSeeds<A> for MaybeSigner<true, T>
 where
     Self: SingleAccountSet + AccountSetValidate<A>,
 {
-    fn init_seeds(&mut self, _arg: &A, _syscalls: &impl SyscallInvoke) -> Result<()> {
+    fn init_seeds(&mut self, _arg: &A, _ctx: &impl Context) -> Result<()> {
         Ok(())
     }
 }
@@ -58,8 +58,8 @@ impl<T, A> CanInitSeeds<A> for MaybeSigner<false, T>
 where
     T: CanInitSeeds<A>,
 {
-    fn init_seeds(&mut self, arg: &A, syscalls: &impl SyscallInvoke) -> Result<()> {
-        self.0.init_seeds(arg, syscalls)
+    fn init_seeds(&mut self, arg: &A, ctx: &impl Context) -> Result<()> {
+        self.0.init_seeds(arg, ctx)
     }
 }
 

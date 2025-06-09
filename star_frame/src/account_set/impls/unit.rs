@@ -1,6 +1,6 @@
 use crate::account_set::{AccountSetCleanup, AccountSetDecode, AccountSetValidate};
-use crate::prelude::{ClientAccountSet, CpiAccountSet};
-use crate::syscalls::SyscallInvoke;
+
+use crate::prelude::{ClientAccountSet, Context, CpiAccountSet};
 use crate::Result;
 use pinocchio::account_info::AccountInfo;
 use solana_instruction::AccountMeta;
@@ -38,27 +38,19 @@ impl<'a> AccountSetDecode<'a, ()> for () {
     unsafe fn decode_accounts(
         _accounts: &mut &'a [AccountInfo],
         decode_input: (),
-        _syscalls: &mut impl SyscallInvoke,
+        _ctx: &mut impl Context,
     ) -> Result<Self> {
         Ok(decode_input)
     }
 }
 impl AccountSetValidate<()> for () {
-    fn validate_accounts(
-        &mut self,
-        validate_input: (),
-        _syscalls: &mut impl SyscallInvoke,
-    ) -> Result<()> {
+    fn validate_accounts(&mut self, validate_input: (), _context: &mut impl Context) -> Result<()> {
         Ok(validate_input)
     }
 }
 
 impl AccountSetCleanup<()> for () {
-    fn cleanup_accounts(
-        &mut self,
-        cleanup_input: (),
-        _syscalls: &mut impl SyscallInvoke,
-    ) -> Result<()> {
+    fn cleanup_accounts(&mut self, cleanup_input: (), _context: &mut impl Context) -> Result<()> {
         Ok(cleanup_input)
     }
 }

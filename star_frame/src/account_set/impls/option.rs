@@ -1,7 +1,6 @@
 use crate::account_set::{AccountSetCleanup, AccountSetDecode, AccountSetValidate};
 use crate::client::{ClientAccountSet, CpiAccountSet};
-use crate::prelude::SingleAccountSet;
-use crate::syscalls::SyscallInvoke;
+use crate::prelude::{Context, SingleAccountSet};
 use crate::Result;
 use advancer::Advance;
 use pinocchio::account_info::AccountInfo;
@@ -65,11 +64,11 @@ where
     unsafe fn decode_accounts(
         accounts: &mut &'a [AccountInfo],
         decode_input: DArg,
-        syscalls: &mut impl SyscallInvoke,
+        ctx: &mut impl Context,
     ) -> Result<Self> {
         if accounts.is_empty() {
             Ok(None)
-        } else if accounts[0].pubkey() == syscalls.current_program_id() {
+        } else if accounts[0].pubkey() == ctx.current_program_id() {
             let _program = accounts
                 .try_advance(1)
                 .expect("There is at least one account skip Option<None>");
@@ -77,7 +76,7 @@ where
         } else {
             // SAFETY: This function is unsafe too
             Ok(Some(unsafe {
-                A::decode_accounts(accounts, decode_input, syscalls)?
+                A::decode_accounts(accounts, decode_input, ctx)?
             }))
         }
     }
@@ -87,13 +86,9 @@ impl<A, VArg> AccountSetValidate<VArg> for Option<A>
 where
     A: AccountSetValidate<VArg>,
 {
-    fn validate_accounts(
-        &mut self,
-        validate_input: VArg,
-        sys_calls: &mut impl SyscallInvoke,
-    ) -> Result<()> {
+    fn validate_accounts(&mut self, validate_input: VArg, ctx: &mut impl Context) -> Result<()> {
         if let Some(inner) = self {
-            inner.validate_accounts(validate_input, sys_calls)
+            inner.validate_accounts(validate_input, ctx)
         } else {
             Ok(())
         }
@@ -104,13 +99,9 @@ impl<A, CArg> AccountSetCleanup<CArg> for Option<A>
 where
     A: AccountSetCleanup<CArg>,
 {
-    fn cleanup_accounts(
-        &mut self,
-        cleanup_input: CArg,
-        sys_calls: &mut impl SyscallInvoke,
-    ) -> Result<()> {
+    fn cleanup_accounts(&mut self, cleanup_input: CArg, ctx: &mut impl Context) -> Result<()> {
         if let Some(inner) = self {
-            inner.cleanup_accounts(cleanup_input, sys_calls)
+            inner.cleanup_accounts(cleanup_input, ctx)
         } else {
             Ok(())
         }

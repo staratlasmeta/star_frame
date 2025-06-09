@@ -40,7 +40,6 @@ pub(super) fn cleanups(
     let AccountSetGenerics { main_generics, .. } = account_set_generics;
     let Paths {
         result,
-        syscall_invoke,
         cleanup_ident,
         prelude,
         account_set_cleanup,
@@ -137,14 +136,14 @@ pub(super) fn cleanups(
                 fn cleanup_accounts(
                     &mut self,
                     arg: #cleanup_type,
-                    syscalls: &mut impl #syscall_invoke,
+                    ctx: &mut impl #prelude::Context,
                 ) -> #result<()> {
                     #(
                         let __arg = #cleanup_args;
                         #prelude::_account_set_cleanup_reverse::<#field_type, _>(
                             __arg,
                             &mut self.#field_name,
-                            syscalls
+                            ctx,
                         )?;
                     )*
                     #extra_cleanup

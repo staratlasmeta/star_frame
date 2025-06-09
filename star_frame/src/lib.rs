@@ -49,13 +49,14 @@ pub mod client;
 pub mod data_types;
 pub mod entrypoint;
 pub mod errors;
+pub mod cpi;
 
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
 pub mod idl;
 pub mod instruction;
 pub mod prelude;
 pub mod program;
-pub mod syscalls;
+pub mod context;
 pub mod unsize;
 pub mod util;
 
