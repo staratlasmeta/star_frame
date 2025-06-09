@@ -1,17 +1,16 @@
-use crate::account_set::{AccountSet, AccountSetCleanup, AccountSetDecode, AccountSetValidate};
+use crate::account_set::{AccountSetCleanup, AccountSetDecode, AccountSetValidate};
 use crate::client::{ClientAccountSet, CpiAccountSet};
+use crate::prelude::SingleAccountSet;
 use crate::syscalls::SyscallInvoke;
 use crate::Result;
 use advancer::Advance;
-use solana_program::account_info::AccountInfo;
-use solana_program::instruction::AccountMeta;
-use solana_program::pubkey::Pubkey;
+use pinocchio::account_info::AccountInfo;
+use solana_instruction::AccountMeta;
+use solana_pubkey::Pubkey;
 
-impl<'info, A> AccountSet<'info> for Option<A> where A: AccountSet<'info> {}
-
-impl<'info, T> CpiAccountSet<'info> for Option<T>
+impl<T> CpiAccountSet for Option<T>
 where
-    T: CpiAccountSet<'info>,
+    T: CpiAccountSet,
 {
     type CpiAccounts = Option<T::CpiAccounts>;
     const MIN_LEN: usize = 1;
@@ -20,7 +19,7 @@ where
         self.as_ref().map(T::to_cpi_accounts)
     }
     #[inline]
-    fn extend_account_infos(accounts: Self::CpiAccounts, infos: &mut Vec<AccountInfo<'info>>) {
+    fn extend_account_infos(accounts: Self::CpiAccounts, infos: &mut Vec<AccountInfo>) {
         if let Some(accounts) = accounts {
             T::extend_account_infos(accounts, infos);
         }
@@ -59,18 +58,18 @@ where
     }
 }
 
-impl<'a, 'info, A, DArg> AccountSetDecode<'a, 'info, DArg> for Option<A>
+impl<'a, A, DArg> AccountSetDecode<'a, DArg> for Option<A>
 where
-    A: AccountSetDecode<'a, 'info, DArg>,
+    A: AccountSetDecode<'a, DArg>,
 {
     unsafe fn decode_accounts(
-        accounts: &mut &'a [AccountInfo<'info>],
+        accounts: &mut &'a [AccountInfo],
         decode_input: DArg,
-        syscalls: &mut impl SyscallInvoke<'info>,
+        syscalls: &mut impl SyscallInvoke,
     ) -> Result<Self> {
         if accounts.is_empty() {
             Ok(None)
-        } else if accounts[0].key == syscalls.current_program_id() {
+        } else if accounts[0].pubkey() == syscalls.current_program_id() {
             let _program = accounts
                 .try_advance(1)
                 .expect("There is at least one account skip Option<None>");
@@ -84,14 +83,14 @@ where
     }
 }
 
-impl<'info, A, VArg> AccountSetValidate<'info, VArg> for Option<A>
+impl<A, VArg> AccountSetValidate<VArg> for Option<A>
 where
-    A: AccountSetValidate<'info, VArg>,
+    A: AccountSetValidate<VArg>,
 {
     fn validate_accounts(
         &mut self,
         validate_input: VArg,
-        sys_calls: &mut impl SyscallInvoke<'info>,
+        sys_calls: &mut impl SyscallInvoke,
     ) -> Result<()> {
         if let Some(inner) = self {
             inner.validate_accounts(validate_input, sys_calls)
@@ -101,14 +100,14 @@ where
     }
 }
 
-impl<'info, A, CArg> AccountSetCleanup<'info, CArg> for Option<A>
+impl<A, CArg> AccountSetCleanup<CArg> for Option<A>
 where
-    A: AccountSetCleanup<'info, CArg>,
+    A: AccountSetCleanup<CArg>,
 {
     fn cleanup_accounts(
         &mut self,
         cleanup_input: CArg,
-        sys_calls: &mut impl SyscallInvoke<'info>,
+        sys_calls: &mut impl SyscallInvoke,
     ) -> Result<()> {
         if let Some(inner) = self {
             inner.cleanup_accounts(cleanup_input, sys_calls)
@@ -128,9 +127,9 @@ mod idl_impl {
     // todo: figure out our optionals for IDLs. Thinking we should remove our separate decode
     //  strategies and just use the program id method. This would make using option much simpler on
     //  arg side and be more in line with how the rest of the ecosystem handles optionals.
-    impl<'info, A, Arg> AccountSetToIdl<'info, Arg> for Option<A>
+    impl<A, Arg> AccountSetToIdl<Arg> for Option<A>
     where
-        A: AccountSetToIdl<'info, Arg>,
+        A: AccountSetToIdl<Arg>,
     {
         fn account_set_to_idl(
             idl_definition: &mut IdlDefinition,

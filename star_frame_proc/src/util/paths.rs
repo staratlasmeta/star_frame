@@ -34,7 +34,6 @@ pub struct Paths {
     pub size_of: TokenStream,
 
     // account set
-    pub account_set: TokenStream,
     pub account_set_decode: TokenStream,
     pub account_set_validate: TokenStream,
     pub account_set_cleanup: TokenStream,
@@ -103,7 +102,6 @@ impl Default for Paths {
             ptr: quote! { ::core::ptr },
             size_of: quote! { ::core::mem::size_of },
             // account set
-            account_set: quote! { #crate_name::account_set::AccountSet },
             account_set_decode: quote! { #crate_name::account_set::AccountSetDecode },
             account_set_validate: quote! { #crate_name::account_set::AccountSetValidate },
             account_set_cleanup: quote! { #crate_name::account_set::AccountSetCleanup },

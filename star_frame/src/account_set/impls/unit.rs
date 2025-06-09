@@ -1,20 +1,18 @@
-use crate::account_set::{AccountSet, AccountSetCleanup, AccountSetDecode, AccountSetValidate};
+use crate::account_set::{AccountSetCleanup, AccountSetDecode, AccountSetValidate};
 use crate::prelude::{ClientAccountSet, CpiAccountSet};
 use crate::syscalls::SyscallInvoke;
 use crate::Result;
-use solana_program::account_info::AccountInfo;
-use solana_program::instruction::AccountMeta;
-use solana_program::pubkey::Pubkey;
+use pinocchio::account_info::AccountInfo;
+use solana_instruction::AccountMeta;
+use solana_pubkey::Pubkey;
 
-impl AccountSet<'_> for () {}
-
-impl<'info> CpiAccountSet<'info> for () {
+impl CpiAccountSet for () {
     type CpiAccounts = ();
     const MIN_LEN: usize = 0;
     #[inline]
     fn to_cpi_accounts(&self) -> Self::CpiAccounts {}
     #[inline]
-    fn extend_account_infos(_accounts: Self::CpiAccounts, _infos: &mut Vec<AccountInfo<'info>>) {}
+    fn extend_account_infos(_accounts: Self::CpiAccounts, _infos: &mut Vec<AccountInfo>) {}
     #[inline]
     fn extend_account_metas(
         _program_id: &Pubkey,
@@ -36,30 +34,30 @@ impl ClientAccountSet for () {
     }
 }
 
-impl<'a, 'info> AccountSetDecode<'a, 'info, ()> for () {
+impl<'a> AccountSetDecode<'a, ()> for () {
     unsafe fn decode_accounts(
         _accounts: &mut &'a [AccountInfo],
         decode_input: (),
-        _syscalls: &mut impl SyscallInvoke<'info>,
+        _syscalls: &mut impl SyscallInvoke,
     ) -> Result<Self> {
         Ok(decode_input)
     }
 }
-impl<'info> AccountSetValidate<'info, ()> for () {
+impl AccountSetValidate<()> for () {
     fn validate_accounts(
         &mut self,
         validate_input: (),
-        _syscalls: &mut impl SyscallInvoke<'info>,
+        _syscalls: &mut impl SyscallInvoke,
     ) -> Result<()> {
         Ok(validate_input)
     }
 }
 
-impl<'info> AccountSetCleanup<'info, ()> for () {
+impl AccountSetCleanup<()> for () {
     fn cleanup_accounts(
         &mut self,
         cleanup_input: (),
-        _syscalls: &mut impl SyscallInvoke<'info>,
+        _syscalls: &mut impl SyscallInvoke,
     ) -> Result<()> {
         Ok(cleanup_input)
     }

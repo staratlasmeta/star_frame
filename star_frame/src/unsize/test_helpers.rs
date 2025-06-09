@@ -1,10 +1,11 @@
 #![allow(unused)]
+use pinocchio::account_info::MAX_PERMITTED_DATA_INCREASE;
+
 use crate::unsize::init::{DefaultInit, UnsizedInit};
 use crate::unsize::wrapper::{SharedWrapper, UnsizedTypeDataAccess};
 use crate::unsize::UnsizedType;
 use crate::Result;
-use solana_program::entrypoint::MAX_PERMITTED_DATA_INCREASE;
-use std::cell::{Ref, RefCell, RefMut};
+use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::marker::PhantomData;
 use std::mem::MaybeUninit;
 use std::ptr::slice_from_raw_parts_mut;
@@ -14,60 +15,60 @@ use super::wrapper::{ExclusiveWrapper, ExclusiveWrapperTop, ExclusiveWrapperTopM
 use super::FromOwned;
 
 #[derive(Debug)]
-pub struct TestUnderlyingData<'info> {
-    original_data_len: usize,
-    data: RefCell<&'info mut [u8]>,
+pub struct TestUnderlyingData {
+    len: Cell<usize>,
+    original_len: usize,
+    data: RefCell<Vec<u8>>,
 }
-impl<'info> TestUnderlyingData<'info> {
-    pub fn new(backing: &'info mut Vec<u8>, data_len: usize) -> Self {
-        backing.resize(data_len + MAX_PERMITTED_DATA_INCREASE, 0);
+impl TestUnderlyingData {
+    #[must_use]
+    pub fn new(data_len: usize) -> Self {
+        let vec = vec![0u8; data_len + MAX_PERMITTED_DATA_INCREASE];
         Self {
-            original_data_len: data_len,
-            data: RefCell::new(&mut backing[..data_len]),
+            len: Cell::new(data_len),
+            original_len: data_len,
+            data: RefCell::new(vec),
         }
     }
 }
 
 /// # Safety
 /// We are properly checking the bounds in `unsized_data_realloc`.
-unsafe impl<'info> UnsizedTypeDataAccess<'info> for TestUnderlyingData<'info> {
+unsafe impl UnsizedTypeDataAccess for TestUnderlyingData {
     unsafe fn unsized_data_realloc(
         this: &Self,
         data: &mut *mut [u8],
         new_len: usize,
     ) -> Result<()> {
         assert!(
-            new_len <= this.original_data_len + MAX_PERMITTED_DATA_INCREASE,
+            new_len <= this.original_len + MAX_PERMITTED_DATA_INCREASE,
             "data too large"
         );
+
+        this.len.set(new_len);
 
         unsafe {
             *data = ptr_meta::from_raw_parts_mut(data.cast::<()>(), new_len);
         }
         Ok(())
     }
-    fn data_ref(this: &Self) -> Result<Ref<&'info mut [u8]>> {
-        this.data.try_borrow().map_err(Into::into)
+
+    fn data_ref(this: &Self) -> Result<impl std::ops::Deref<Target = [u8]>> {
+        Ok(Ref::map(this.data.borrow(), |data| &data[..this.len.get()]))
     }
 
-    fn data_mut(this: &Self) -> Result<RefMut<&'info mut [u8]>> {
-        this.data.try_borrow_mut().map_err(Into::into)
+    fn data_mut(this: &Self) -> Result<impl std::ops::DerefMut<Target = [u8]>> {
+        Ok(RefMut::map(this.data.borrow_mut(), |data| {
+            &mut data[..this.len.get()]
+        }))
     }
 }
 
 /// A way to work with [`UnsizedType`] types off-chain. Uses a [`TestUnderlyingData`] internally.
 #[derive(Debug)]
 pub struct TestByteSet<T: ?Sized + UnsizedType> {
-    test_data: *mut TestUnderlyingData<'static>,
-    data_ptr: *mut Vec<u8>,
+    test_data: TestUnderlyingData,
     phantom_t: PhantomData<T>,
-}
-
-impl<T: ?Sized + UnsizedType> Drop for TestByteSet<T> {
-    fn drop(&mut self) {
-        drop(unsafe { Box::from_raw(self.test_data) });
-        drop(unsafe { Box::from_raw(self.data_ptr) });
-    }
 }
 
 impl<T> TestByteSet<T>
@@ -76,11 +77,9 @@ where
 {
     fn initialize(size: usize, init: impl FnOnce(&mut &mut [u8]) -> Result<()>) -> Result<Self> {
         // Temporarily leak the data. It will be cleaned up in the Drop implementation.
-        let data: &mut Vec<u8> = Box::leak(Box::default());
-        let data_ptr: *mut Vec<u8> = data;
-        let test_account = Box::leak(Box::new(TestUnderlyingData::new(data, size)));
+        let test_account = TestUnderlyingData::new(size);
         {
-            let mut data = &mut UnsizedTypeDataAccess::data_mut(test_account)?[..];
+            let mut data = &mut UnsizedTypeDataAccess::data_mut(&test_account)?[..];
             unsafe {
                 init(&mut data)?;
             }
@@ -88,16 +87,7 @@ where
         Ok(Self {
             test_data: test_account,
             phantom_t: PhantomData,
-            data_ptr,
         })
-    }
-
-    /// # Safety
-    ///
-    /// We need to ensure this value is never exposed to the user, since it could outlive Self and lead
-    /// to use after free errors.
-    unsafe fn test_data_ref(&self) -> &'static TestUnderlyingData<'static> {
-        unsafe { &*self.test_data }
     }
 
     /// Creates a new [`TestByteSet`] from the owned value
@@ -127,25 +117,19 @@ where
     }
 
     pub fn data(&self) -> Result<SharedWrapper<'_, T::Ref<'_>>> {
-        unsafe { SharedWrapper::new::<T>(self.test_data_ref()) }
+        SharedWrapper::new::<T>(&self.test_data)
     }
 
-    pub fn data_mut(&self) -> Result<ExclusiveWrapperTop<'_, T, TestUnderlyingData<'static>>> {
-        // SAFETY: test_data_ref is not being returned to the user; ExclusiveWrapper doesn't expose it.
-        let test_data_ref = unsafe { self.test_data_ref() };
-        ExclusiveWrapper::new(test_data_ref)
+    pub fn data_mut(&self) -> Result<ExclusiveWrapperTop<'_, T, TestUnderlyingData>> {
+        ExclusiveWrapper::new(&self.test_data)
     }
 
     pub fn owned(&self) -> Result<T::Owned> {
-        // SAFETY: test_data is not being returned to the user
-        let test_data = unsafe { self.test_data_ref() };
-        T::owned(&test_data.data.try_borrow()?)
+        T::owned(&self.test_data.data.try_borrow()?[..])
     }
 
     pub fn underlying_data(&self) -> Result<Vec<u8>> {
-        // SAFETY: test_data is not being returned to the user
-        let test_data = unsafe { self.test_data_ref() };
-        Ok(test_data.data.try_borrow()?.to_vec())
+        Ok(self.test_data.data.try_borrow()?.to_vec())
     }
 }
 
@@ -193,7 +177,7 @@ pub trait ModifyOwned: Clone {
     fn modify_owned<U>(
         &mut self,
         modify: impl for<'a, 'top> FnOnce(
-            &'a mut ExclusiveWrapperTop<'top, U, TestUnderlyingData<'static>>,
+            &'a mut ExclusiveWrapperTop<'top, U, TestUnderlyingData>,
         ) -> Result<()>,
     ) -> Result<()>
     where

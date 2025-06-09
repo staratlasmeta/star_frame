@@ -1,6 +1,5 @@
 pub mod impls;
 pub mod init;
-mod owned_ref;
 #[cfg(all(feature = "test_helpers", not(target_os = "solana")))]
 mod test_helpers;
 #[cfg(all(test, feature = "test_helpers"))]
@@ -8,7 +7,6 @@ mod tests;
 pub mod wrapper;
 
 use anyhow::ensure;
-use owned_ref::*;
 pub use star_frame_proc::{unsized_impl, unsized_type};
 #[cfg(all(feature = "test_helpers", not(target_os = "solana")))]
 pub use test_helpers::*;

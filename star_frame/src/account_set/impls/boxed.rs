@@ -1,33 +1,31 @@
 use crate::account_set::{
-    AccountSet, AccountSetCleanup, AccountSetDecode, AccountSetValidate, SingleAccountSet,
-    SingleSetMeta,
+    AccountSetCleanup, AccountSetDecode, AccountSetValidate, SingleAccountSet, SingleSetMeta,
 };
 use crate::client::{ClientAccountSet, CpiAccountSet};
 use crate::syscalls::SyscallInvoke;
 use crate::Result;
-use solana_program::account_info::AccountInfo;
-use solana_program::instruction::AccountMeta;
-use solana_program::pubkey::Pubkey;
+use pinocchio::account_info::AccountInfo;
+use solana_instruction::AccountMeta;
+use solana_pubkey::Pubkey;
 
-impl<'info, T> AccountSet<'info> for Box<T> where T: AccountSet<'info> {}
-
-impl<'info, T> SingleAccountSet<'info> for Box<T>
+impl<T> SingleAccountSet for Box<T>
 where
-    T: SingleAccountSet<'info>,
+    T: SingleAccountSet,
 {
     #[inline]
     fn meta() -> SingleSetMeta {
         T::meta()
     }
+
     #[inline]
-    fn account_info(&self) -> &AccountInfo<'info> {
+    fn account_info(&self) -> &AccountInfo {
         T::account_info(self)
     }
 }
 
-impl<'info, T> CpiAccountSet<'info> for Box<T>
+impl<T> CpiAccountSet for Box<T>
 where
-    T: CpiAccountSet<'info>,
+    T: CpiAccountSet,
 {
     type CpiAccounts = T::CpiAccounts;
     const MIN_LEN: usize = T::MIN_LEN;
@@ -36,7 +34,7 @@ where
         T::to_cpi_accounts(self)
     }
     #[inline]
-    fn extend_account_infos(accounts: Self::CpiAccounts, infos: &mut Vec<AccountInfo<'info>>) {
+    fn extend_account_infos(accounts: Self::CpiAccounts, infos: &mut Vec<AccountInfo>) {
         T::extend_account_infos(accounts, infos);
     }
     #[inline]
@@ -65,41 +63,41 @@ where
     }
 }
 
-impl<'a, 'info, T, DArg> AccountSetDecode<'a, 'info, DArg> for Box<T>
+impl<'a, T, DArg> AccountSetDecode<'a, DArg> for Box<T>
 where
-    T: AccountSetDecode<'a, 'info, DArg>,
+    T: AccountSetDecode<'a, DArg>,
 {
     unsafe fn decode_accounts(
-        accounts: &mut &'a [AccountInfo<'info>],
+        accounts: &mut &'a [AccountInfo],
         decode_input: DArg,
-        syscalls: &mut impl SyscallInvoke<'info>,
+        syscalls: &mut impl SyscallInvoke,
     ) -> Result<Self> {
         // SAFETY: This function is unsafe too
         unsafe { T::decode_accounts(accounts, decode_input, syscalls).map(Box::new) }
     }
 }
 
-impl<'info, T, VArg> AccountSetValidate<'info, VArg> for Box<T>
+impl<T, VArg> AccountSetValidate<VArg> for Box<T>
 where
-    T: AccountSetValidate<'info, VArg>,
+    T: AccountSetValidate<VArg>,
 {
     fn validate_accounts(
         &mut self,
         validate_input: VArg,
-        sys_calls: &mut impl SyscallInvoke<'info>,
+        sys_calls: &mut impl SyscallInvoke,
     ) -> Result<()> {
         T::validate_accounts(self, validate_input, sys_calls)
     }
 }
 
-impl<'info, T, CArg> AccountSetCleanup<'info, CArg> for Box<T>
+impl<T, CArg> AccountSetCleanup<CArg> for Box<T>
 where
-    T: AccountSetCleanup<'info, CArg>,
+    T: AccountSetCleanup<CArg>,
 {
     fn cleanup_accounts(
         &mut self,
         cleanup_input: CArg,
-        sys_calls: &mut impl SyscallInvoke<'info>,
+        sys_calls: &mut impl SyscallInvoke,
     ) -> Result<()> {
         T::cleanup_accounts(self, cleanup_input, sys_calls)
     }
@@ -112,9 +110,9 @@ mod idl_impl {
     use star_frame_idl::account_set::IdlAccountSetDef;
     use star_frame_idl::IdlDefinition;
 
-    impl<'info, T, Arg> AccountSetToIdl<'info, Arg> for Box<T>
+    impl<T, Arg> AccountSetToIdl<Arg> for Box<T>
     where
-        T: AccountSetToIdl<'info, Arg>,
+        T: AccountSetToIdl<Arg>,
     {
         fn account_set_to_idl(
             idl_definition: &mut IdlDefinition,

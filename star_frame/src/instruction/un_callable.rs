@@ -8,11 +8,11 @@ pub struct UnCallable;
 impl InstructionSet for UnCallable {
     type Discriminant = ();
 
-    fn handle_ix<'info>(
+    fn handle_ix(
         _program_id: &Pubkey,
-        _accounts: &[AccountInfo<'info>],
+        _accounts: &[AccountInfo],
         _ix_bytes: &[u8],
-        _syscalls: &mut impl Syscalls<'info>,
+        _syscalls: &mut impl Syscalls,
     ) -> Result<()> {
         panic!("Cannot call handle_ix on Uncallable")
     }

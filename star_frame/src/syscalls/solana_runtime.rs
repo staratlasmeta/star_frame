@@ -3,48 +3,88 @@
 use crate::prelude::*;
 use crate::syscalls::SyscallAccountCache;
 use crate::SolanaInstruction;
-use solana_program::clock::Clock;
-use solana_program::program::{get_return_data, invoke_signed_unchecked, set_return_data};
-use solana_program::rent::Rent;
-use solana_program::sysvar::Sysvar;
-use std::cell::RefCell;
+use itertools::Itertools;
+use pinocchio::cpi::{slice_invoke_signed, ReturnData};
+use pinocchio::instruction::{
+    AccountMeta as PinocchioAccountMeta, Instruction as PinocchioInstruction,
+    Seed as PinocchioSeed, Signer as PinocchioSigner,
+};
+use pinocchio::sysvars::rent::Rent;
+use pinocchio::sysvars::{clock::Clock, Sysvar};
+use pinocchio::ProgramResult;
+use std::cell::Cell;
 
 /// Syscalls provided by the solana runtime.
 #[derive(derive_more::Debug)]
-pub struct SolanaRuntime<'info> {
+pub struct SolanaRuntime {
     /// The program id of the currently executing program.
     pub program_id: Pubkey,
-    rent_cache: RefCell<Option<Rent>>,
-    clock_cache: RefCell<Option<Clock>>,
+    rent_cache: Cell<Option<Rent>>,
+    clock_cache: Cell<Option<Clock>>,
     #[debug("{:?}", recipient.as_ref().map(|r| std::any::type_name_of_val(r)))]
-    recipient: Option<Box<dyn CanReceiveRent<'info> + 'info>>,
+    recipient: Option<Box<dyn CanReceiveRent>>,
     #[debug("{:?}", funder.as_ref().map(|f| std::any::type_name_of_val(f)))]
-    funder: Option<Box<dyn CanFundRent<'info> + 'info>>,
+    funder: Option<Box<dyn CanFundRent>>,
 }
 
-impl SolanaRuntime<'_> {
+impl SolanaRuntime {
     /// Create a new solana runtime.
     #[must_use]
     pub fn new(program_id: Pubkey) -> Self {
         Self {
             program_id,
-            rent_cache: RefCell::new(None),
-            clock_cache: RefCell::new(None),
+            rent_cache: Cell::new(None),
+            clock_cache: Cell::new(None),
             recipient: None,
             funder: None,
         }
     }
 }
-impl SyscallReturn for SolanaRuntime<'_> {
+impl SyscallReturn for SolanaRuntime {
     fn set_return_data(&self, data: &[u8]) {
-        set_return_data(data);
+        pinocchio::cpi::set_return_data(data);
     }
 
-    fn get_return_data(&self) -> Option<(Pubkey, Vec<u8>)> {
-        get_return_data()
+    fn get_return_data(&self) -> Option<ReturnData> {
+        pinocchio::cpi::get_return_data()
     }
 }
-impl<'info> SyscallInvoke<'info> for SolanaRuntime<'info> {
+
+#[inline(never)]
+fn invoke_signed_never_inline(
+    instruction: &PinocchioInstruction,
+    accounts: &[&AccountInfo],
+    signers: &[PinocchioSigner],
+) -> ProgramResult {
+    slice_invoke_signed(instruction, accounts, signers)
+}
+
+#[inline]
+fn convert_account_metas(instruction: &SolanaInstruction) -> Vec<PinocchioAccountMeta<'_>> {
+    instruction
+        .accounts
+        .iter()
+        .map(|meta| PinocchioAccountMeta {
+            pubkey: meta.pubkey.as_array(),
+            is_writable: meta.is_writable,
+            is_signer: meta.is_signer,
+        })
+        .collect_vec()
+}
+
+#[inline]
+fn convert_instruction<'a>(
+    instruction: &'a SolanaInstruction,
+    metas: &'a [PinocchioAccountMeta<'a>],
+) -> PinocchioInstruction<'a, 'a, 'a, 'a> {
+    PinocchioInstruction {
+        program_id: instruction.program_id.as_array(),
+        data: instruction.data.as_slice(),
+        accounts: metas,
+    }
+}
+
+impl SyscallInvoke for SolanaRuntime {
     fn invoke(&self, instruction: &SolanaInstruction, accounts: &[AccountInfo]) -> Result<()> {
         self.invoke_signed(instruction, accounts, &[])
     }
@@ -55,88 +95,71 @@ impl<'info> SyscallInvoke<'info> for SolanaRuntime<'info> {
         accounts: &[AccountInfo],
         signers_seeds: &[&[&[u8]]],
     ) -> Result<()> {
-        // Check that the account RefCells are consistent with the request
-        for account_meta in &instruction.accounts {
-            for account_info in accounts {
-                if account_meta.pubkey == *account_info.key {
-                    if account_meta.is_writable {
-                        let _ = account_info
-                            .account_info()
-                            .lamports
-                            .try_borrow_mut()
-                            .map_err(|_| {
-                                msg!("lamports borrow failed for {}", account_info.key);
-                                ProgramError::AccountBorrowFailed
-                            })?;
-                        let _ = account_info.info_data_bytes_mut()?;
-                    } else {
-                        let _ =
-                            account_info
-                                .account_info()
-                                .lamports
-                                .try_borrow()
-                                .map_err(|_| {
-                                    msg!("lamports borrow failed for {}", account_info.key);
-                                    ProgramError::AccountBorrowFailed
-                                })?;
-                        let _ = account_info.info_data_bytes()?;
-                    }
-                    break;
-                }
-            }
-        }
+        let metas = convert_account_metas(instruction);
+        let pinocchio_ix = convert_instruction(instruction, &metas);
+        let accounts = accounts.iter().collect_vec();
 
-        // Safety: check logic for solana's invoke_signed is duplicated, with the only difference
-        // being the problematic pubkeys are now logged out on error.
-        invoke_signed_unchecked(instruction, accounts, signers_seeds)?;
+        let nested_seeds: Vec<Vec<PinocchioSeed>> = signers_seeds
+            .iter()
+            .map(|seeds| {
+                seeds
+                    .iter()
+                    .map(|seed| PinocchioSeed::from(*seed))
+                    .collect_vec()
+            })
+            .collect_vec();
+        let signers = nested_seeds
+            .iter()
+            .map(|seeds| seeds.as_slice().into())
+            .collect_vec();
+
+        // TODO: Make this log the errors better
+        invoke_signed_never_inline(&pinocchio_ix, &accounts, &signers)?;
         Ok(())
     }
 }
-impl SyscallCore for SolanaRuntime<'_> {
+impl SyscallCore for SolanaRuntime {
     fn current_program_id(&self) -> &Pubkey {
         &self.program_id
     }
 
     fn get_rent(&self) -> Result<Rent> {
-        let mut rent = self.rent_cache.borrow_mut();
-        #[allow(clippy::clone_on_copy)]
-        match &*rent {
+        match self.rent_cache.get() {
             None => {
                 let new_rent = Rent::get()?;
-                *rent = Some(new_rent.clone());
+                self.rent_cache.set(Some(new_rent));
                 Ok(new_rent)
             }
-            Some(rent) => Ok(rent.clone()),
+            Some(rent) => Ok(rent),
         }
     }
 
     fn get_clock(&self) -> Result<Clock> {
-        let mut clock = self.clock_cache.borrow_mut();
-        match &*clock {
+        match self.clock_cache.get() {
             None => {
                 let new_clock = Clock::get()?;
-                *clock = Some(new_clock.clone());
+                self.clock_cache.set(Some(new_clock));
                 Ok(new_clock)
             }
-            Some(clock) => Ok(clock.clone()),
+            Some(clock) => Ok(clock),
         }
     }
 }
 
-impl<'info> SyscallAccountCache<'info> for SolanaRuntime<'info> {
-    fn get_funder(&self) -> Option<&dyn CanFundRent<'info>> {
+impl SyscallAccountCache for SolanaRuntime {
+    fn get_funder(&self) -> Option<&dyn CanFundRent> {
         self.funder.as_ref().map(std::convert::AsRef::as_ref)
     }
 
-    fn set_funder(&mut self, funder: Box<dyn CanFundRent<'info> + 'info>) {
+    fn set_funder(&mut self, funder: Box<dyn CanFundRent>) {
         self.funder.replace(funder);
     }
 
-    fn get_recipient(&self) -> Option<&dyn CanReceiveRent<'info>> {
+    fn get_recipient(&self) -> Option<&dyn CanReceiveRent> {
         self.recipient.as_ref().map(std::convert::AsRef::as_ref)
     }
 
-    fn set_recipient(&mut self, recipient: Box<dyn CanReceiveRent<'info> + 'info>) {
+    fn set_recipient(&mut self, recipient: Box<dyn CanReceiveRent>) {
         self.recipient.replace(recipient);
     }
 }

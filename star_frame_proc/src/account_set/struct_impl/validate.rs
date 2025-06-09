@@ -46,12 +46,7 @@ pub(super) fn validates(
     }: StepInput,
 ) -> Vec<TokenStream> {
     let ident = &input.ident;
-    let AccountSetGenerics {
-        main_generics,
-        other_generics,
-        info_lifetime,
-        ..
-    } = account_set_generics;
+    let AccountSetGenerics { main_generics, .. } = account_set_generics;
     let Paths {
         result,
         syscall_invoke,
@@ -123,7 +118,7 @@ pub(super) fn validates(
     validate_ids.into_iter().map(|(id, validate_struct_args)| {
         let relevant_field_validates = field_validates.iter().map(|f| f.iter().find(|f| f.id.as_ref().map(LitStr::value) == id).cloned().unwrap_or_default()).collect::<Vec<_>>();
         let (_, ty_generics, _) = main_generics.split_for_impl();
-        let mut generics = other_generics.clone();
+        let mut generics = main_generics.clone();
         let mut validate_type: Type = syn::parse_quote!(());
         let mut default_validate_arg: Expr = syn::parse_quote!(());
         if let Some(extra_generics) = validate_struct_args.generics.map(|g| g.into_inner()) {
@@ -140,7 +135,7 @@ pub(super) fn validates(
             validate_type = syn::parse_quote!(#generic_arg);
             generics.params.push(syn::parse_quote!(#generic_arg));
             let single_ty = &single_set_field.ty;
-            generics.make_where_clause().predicates.push(syn::parse_quote!(#single_ty: #account_set_validate<#info_lifetime, #generic_arg> + #prelude::SingleAccountSet<#info_lifetime>));
+            generics.make_where_clause().predicates.push(syn::parse_quote!(#single_ty: #account_set_validate<#generic_arg> + #prelude::SingleAccountSet));
         }
 
         validate_type = validate_struct_args.arg.unwrap_or(validate_type);
@@ -219,7 +214,7 @@ pub(super) fn validates(
                 quote! {}
             } else {
                 let address_check = validate_address.as_ref().map(|address| quote! {
-                    <#field_type as #prelude::SingleAccountSet<#info_lifetime>>::check_key(&self.#field_name, #address)?;
+                    <#field_type as #prelude::SingleAccountSet>::check_key(&self.#field_name, #address)?;
                 });
                 let temp = temp.as_ref().map(|temp| quote! {
                     let temp = #temp;
@@ -289,11 +284,11 @@ pub(super) fn validates(
 
         quote! {
             #[automatically_derived]
-            impl #impl_generics #account_set_validate<#info_lifetime, #validate_type> for #ident #ty_generics #where_clause {
+            impl #impl_generics #account_set_validate<#validate_type> for #ident #ty_generics #where_clause {
                 fn validate_accounts(
                     &mut self,
                     arg: #validate_type,
-                    syscalls: &mut impl #syscall_invoke<#info_lifetime>,
+                    syscalls: &mut impl #syscall_invoke,
                 ) -> #result<()> {
                     #before_validation
                     #(#validates)*

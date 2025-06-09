@@ -41,9 +41,9 @@ pub mod macro_prelude {
 
     pub use core::any::type_name;
 
-    pub use solana_program::{
-        account_info::AccountInfo, instruction::AccountMeta, msg, pubkey::Pubkey,
-    };
+    pub use pinocchio::{account_info::AccountInfo, msg, pubkey::Pubkey as PinocchioPubkey};
+    pub use solana_instruction::{AccountMeta, Instruction as SolanaInstruction};
+    pub use solana_pubkey::Pubkey;
 
     #[cfg(all(feature = "idl", not(target_os = "solana")))]
     pub use star_frame_idl::{

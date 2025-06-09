@@ -17,11 +17,7 @@ struct ProgramSdkPubkey(proc_macro2::TokenStream);
 impl Parse for ProgramSdkPubkey {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let crate_name = get_crate_name();
-        parse_id(
-            input,
-            quote! { #crate_name::solana_program::pubkey::Pubkey },
-        )
-        .map(Self)
+        parse_id(input, quote! { #crate_name::solana_pubkey::Pubkey }).map(Self)
     }
 }
 

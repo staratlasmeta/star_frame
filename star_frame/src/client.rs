@@ -7,21 +7,20 @@ use crate::program::StarFrameProgram;
 use crate::syscalls::SyscallInvoke;
 use crate::unsize::{FromOwned, UnsizedType};
 use crate::Result;
-use crate::SolanaInstruction;
 use borsh::{object_length, BorshSerialize};
 use bytemuck::bytes_of;
-use solana_program::account_info::AccountInfo;
-use solana_program::instruction::AccountMeta;
-use solana_program::pubkey::Pubkey;
+use pinocchio::account_info::AccountInfo;
+use solana_instruction::{AccountMeta, Instruction as SolanaInstruction};
+use solana_pubkey::Pubkey;
 use std::fmt::Debug;
 
-pub trait CpiAccountSet<'info> {
-    type CpiAccounts: Debug + Clone;
+pub trait CpiAccountSet {
+    type CpiAccounts: Clone + Debug;
     /// The minimum number of accounts this CPI might use
     const MIN_LEN: usize;
 
     fn to_cpi_accounts(&self) -> Self::CpiAccounts;
-    fn extend_account_infos(accounts: Self::CpiAccounts, infos: &mut Vec<AccountInfo<'info>>);
+    fn extend_account_infos(accounts: Self::CpiAccounts, infos: &mut Vec<AccountInfo>);
     fn extend_account_metas(
         program_id: &Pubkey,
         accounts: &Self::CpiAccounts,
@@ -30,7 +29,7 @@ pub trait CpiAccountSet<'info> {
 }
 
 pub trait ClientAccountSet {
-    type ClientAccounts: Debug + Clone;
+    type ClientAccounts: Clone + Debug;
     /// The minimum number of accounts this CPI might use
     const MIN_LEN: usize;
     fn extend_account_metas(
@@ -53,15 +52,16 @@ where
 }
 
 #[must_use = "Did you forget to invoke the builder?"]
-#[derive(Debug, Clone)]
-pub struct CpiBuilder<'info> {
+#[derive(derive_more::Debug, Clone)]
+pub struct CpiBuilder {
     pub instruction: SolanaInstruction,
-    pub accounts: Vec<AccountInfo<'info>>,
+    #[debug("{} accounts", self.accounts.len())]
+    pub accounts: Vec<AccountInfo>,
 }
 
-impl<'info> CpiBuilder<'info> {
+impl CpiBuilder {
     #[inline]
-    pub fn invoke(&self, syscalls: &(impl SyscallInvoke<'info> + ?Sized)) -> Result<()> {
+    pub fn invoke(&self, syscalls: &(impl SyscallInvoke + ?Sized)) -> Result<()> {
         syscalls.invoke(&self.instruction, &self.accounts)
     }
 
@@ -69,34 +69,34 @@ impl<'info> CpiBuilder<'info> {
     pub fn invoke_signed(
         &self,
         signer_seeds: &[&[&[u8]]],
-        syscalls: &(impl SyscallInvoke<'info> + ?Sized),
+        syscalls: &(impl SyscallInvoke + ?Sized),
     ) -> Result<()> {
         syscalls.invoke_signed(&self.instruction, &self.accounts, signer_seeds)
     }
 }
 
-pub trait MakeCpi<'info>: StarFrameProgram {
-    fn cpi<I, A>(data: &I, accounts: A::CpiAccounts) -> Result<CpiBuilder<'info>>
+pub trait MakeCpi: StarFrameProgram {
+    fn cpi<I, A>(data: &I, accounts: A::CpiAccounts) -> Result<CpiBuilder>
     where
-        I: StarFrameInstruction<Accounts<'static, 'static, 'info> = A>
+        I: StarFrameInstruction<Accounts<'static, 'static> = A>
             + InstructionDiscriminant<Self::InstructionSet>
             + BorshSerialize,
-        A: CpiAccountSet<'info>,
+        A: CpiAccountSet,
     {
         CpiBuilder::new::<Self::InstructionSet, I, A>(Self::ID, data, accounts)
     }
 }
 
-impl<T> MakeCpi<'_> for T where T: StarFrameProgram + ?Sized {}
+impl<T> MakeCpi for T where T: StarFrameProgram + ?Sized {}
 
-impl<'info> CpiBuilder<'info> {
+impl CpiBuilder {
     pub fn new<S, I, A>(program_id: Pubkey, data: &I, accounts: A::CpiAccounts) -> Result<Self>
     where
         S: InstructionSet,
-        I: StarFrameInstruction<Accounts<'static, 'static, 'info> = A>
+        I: StarFrameInstruction<Accounts<'static, 'static> = A>
             + InstructionDiscriminant<S>
             + BorshSerialize,
-        A: CpiAccountSet<'info>,
+        A: CpiAccountSet,
     {
         let mut metas = Vec::with_capacity(A::MIN_LEN);
         A::extend_account_metas(&program_id, &accounts, &mut metas);
@@ -114,10 +114,10 @@ impl<'info> CpiBuilder<'info> {
     }
 }
 
-pub trait MakeInstruction<'info>: StarFrameProgram {
+pub trait MakeInstruction: StarFrameProgram {
     fn instruction<I, A>(data: &I, accounts: A::ClientAccounts) -> Result<SolanaInstruction>
     where
-        I: StarFrameInstruction<Accounts<'static, 'static, 'info> = A>
+        I: StarFrameInstruction<Accounts<'static, 'static> = A>
             + InstructionDiscriminant<Self::InstructionSet>
             + BorshSerialize,
         A: ClientAccountSet,
@@ -133,7 +133,7 @@ pub trait MakeInstruction<'info>: StarFrameProgram {
     }
 }
 
-impl<T> MakeInstruction<'_> for T where T: StarFrameProgram + ?Sized {}
+impl<T> MakeInstruction for T where T: StarFrameProgram + ?Sized {}
 
 pub trait FindProgramAddress: HasSeeds + HasOwnerProgram {
     fn find_program_address(seeds: &Self::Seeds) -> (Pubkey, u8) {

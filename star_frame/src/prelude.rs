@@ -26,14 +26,14 @@ pub use crate::client::{
     ClientAccountSet, CpiAccountSet, CpiBuilder, FindProgramAddress, MakeCpi, MakeInstruction,
 };
 
-pub use crate::program::{system_program::System, StarFrameProgram};
+pub use crate::program::{system::System, StarFrameProgram};
 pub use crate::pubkey;
 
 pub use crate::Result;
 
-pub use crate::solana_program::{
-    account_info::AccountInfo, msg, program_error::ProgramError, pubkey::Pubkey,
-};
+pub use crate::pinocchio::{account_info::AccountInfo, msg, program_error::ProgramError};
+
+pub use solana_pubkey::Pubkey;
 
 pub use crate::anyhow;
 pub use crate::create_unit_system;

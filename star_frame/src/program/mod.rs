@@ -1,11 +1,11 @@
-pub mod system_program;
+pub mod system;
 
 use crate::instruction::InstructionSet;
 use crate::prelude::SolanaRuntime;
 use bytemuck::Pod;
-use solana_program::account_info::AccountInfo;
-use solana_program::entrypoint::ProgramResult;
-use solana_program::pubkey::Pubkey;
+use pinocchio::account_info::AccountInfo;
+use pinocchio::ProgramResult;
+use solana_pubkey::Pubkey;
 pub use star_frame_proc::StarFrameProgram;
 
 /// A Solana program's definition. This should be derived using the [`StarFrameProgram`](derive@StarFrameProgram) macro,
@@ -21,10 +21,11 @@ pub trait StarFrameProgram {
     /// The entrypoint for the program. This has the same signature as the Solana program entrypoint, and
     /// is called by [`star_frame_entrypoint`](crate::star_frame_entrypoint) macro.
     fn processor(
-        program_id: &Pubkey,
+        program_id: &pinocchio::pubkey::Pubkey,
         accounts: &[AccountInfo],
         instruction_data: &[u8],
     ) -> ProgramResult {
+        let program_id = bytemuck::cast_ref(program_id);
         Self::InstructionSet::handle_ix(
             program_id,
             accounts,

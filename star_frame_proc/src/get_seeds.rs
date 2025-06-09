@@ -1,4 +1,4 @@
-use crate::util::{get_docs, ignore_cfg_module, Paths};
+use crate::util::{get_docs, ignore_cfg_module, new_lifetime, Paths};
 use easy_proc::{find_attr, ArgumentList};
 use proc_macro2::TokenStream;
 use proc_macro_error2::abort;
@@ -35,6 +35,7 @@ pub fn derive_get_seeds_impl(input: DeriveInput) -> TokenStream {
         .unwrap_or_default();
 
     let ident = &input.ident;
+    let wc_for = new_lifetime(&input.generics, Some("wc"));
     let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
 
     if matches!(data_struct.fields, syn::Fields::Unnamed(_)) {
@@ -60,7 +61,7 @@ pub fn derive_get_seeds_impl(input: DeriveInput) -> TokenStream {
                         .expect("Field must have an identifier")
                         .to_string();
                     where_clause.predicates.push(parse_quote! {
-                        #ty: #prelude::TypeToIdl
+                        #ty: for<#wc_for> #prelude::TypeToIdl
                     });
                     quote! {
                         #prelude::IdlSeed::Variable {

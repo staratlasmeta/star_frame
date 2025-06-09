@@ -24,8 +24,8 @@ pub struct ReceiveRent<T>(pub T);
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
 pub struct CloseAccount<T>(pub T);
 
-#[derive(AccountSet, Debug, derive_where::DeriveWhere)]
-#[derive_where(Clone)]
+#[derive(AccountSet, derive_where::DeriveWhere)]
+#[derive_where(Clone, Debug, Copy)]
 #[account_set(skip_default_idl, skip_default_cleanup)]
 #[validate(extra_validation = self.validate())]
 #[cleanup(
@@ -34,7 +34,7 @@ pub struct CloseAccount<T>(pub T);
 )]
 #[cleanup(
     id = "normalize_rent",
-    generics = [<'a, Funder> where Funder: CanFundRent<'info>],
+    generics = [<'a, Funder> where Funder: CanFundRent],
     arg = NormalizeRent<&'a Funder>,
     extra_cleanup = self.normalize_rent(arg.0, syscalls)
 )]
@@ -49,7 +49,7 @@ pub struct CloseAccount<T>(pub T);
 )]
 #[cleanup(
     id = "receive_rent",
-    generics = [<'a, Funder> where Funder: CanFundRent<'info>],
+    generics = [<'a, Funder> where Funder: CanFundRent],
     arg = ReceiveRent<&'a Funder>,
     extra_cleanup = self.receive_rent(arg.0, syscalls)
 )]
@@ -64,7 +64,7 @@ pub struct CloseAccount<T>(pub T);
 )]
 #[cleanup(
     id = "refund_rent",
-    generics = [<'a, Recipient> where Recipient: CanReceiveRent<'info>],
+    generics = [<'a, Recipient> where Recipient: CanReceiveRent],
     arg = RefundRent<&'a Recipient>,
     extra_cleanup = self.refund_rent(arg.0, syscalls)
 )]
@@ -79,7 +79,7 @@ pub struct CloseAccount<T>(pub T);
 )]
 #[cleanup(
     id = "close_account",
-    generics = [<'a, Recipient> where Recipient: CanReceiveRent<'info>],
+    generics = [<'a, Recipient> where Recipient: CanReceiveRent],
     arg = CloseAccount<&'a Recipient>,
     extra_cleanup = self.close(arg.0)
 )]
@@ -92,14 +92,14 @@ pub struct CloseAccount<T>(pub T);
         self.close(recipient)
     }
 )]
-pub struct Account<'info, T: ProgramAccount + UnsizedType + ?Sized> {
+pub struct Account<T: ProgramAccount + UnsizedType + ?Sized> {
     #[single_account_set(
         skip_has_inner_type,
         skip_can_init_account,
         skip_has_seeds,
         skip_has_owner_program
     )]
-    info: AccountInfo<'info>,
+    info: AccountInfo,
     #[account_set(skip = PhantomData)]
     phantom_t: PhantomData<T>,
 }
@@ -111,17 +111,16 @@ mod idl_impl {
     use star_frame_idl::account_set::IdlAccountSetDef;
     use star_frame_idl::IdlDefinition;
 
-    impl<'info, T: ProgramAccount + UnsizedType + ?Sized, A> AccountSetToIdl<'info, A>
-        for Account<'info, T>
+    impl<T: ProgramAccount + UnsizedType + ?Sized, A> AccountSetToIdl<A> for Account<T>
     where
-        AccountInfo<'info>: AccountSetToIdl<'info, A>,
+        AccountInfo: AccountSetToIdl<A>,
         T: AccountToIdl,
     {
         fn account_set_to_idl(
             idl_definition: &mut IdlDefinition,
             arg: A,
         ) -> Result<IdlAccountSetDef> {
-            let mut set = <AccountInfo<'info>>::account_set_to_idl(idl_definition, arg)?;
+            let mut set = <AccountInfo>::account_set_to_idl(idl_definition, arg)?;
             set.single()?
                 .program_accounts
                 .push(T::account_to_idl(idl_definition)?);
@@ -130,7 +129,7 @@ mod idl_impl {
     }
 }
 
-impl<'info, T> Account<'info, T>
+impl<T> Account<T>
 where
     T: ProgramAccount + UnsizedType + ?Sized,
 {
@@ -145,12 +144,10 @@ where
         if self.is_writable() {
             self.validate()?;
         }
-        unsafe { SharedWrapper::new::<AccountDiscriminant<T>>(&self.info) }
+        SharedWrapper::new::<AccountDiscriminant<T>>(&self.info)
     }
 
-    pub fn data_mut(
-        &self,
-    ) -> Result<ExclusiveWrapperTop<'_, AccountDiscriminant<T>, AccountInfo<'info>>> {
+    pub fn data_mut(&self) -> Result<ExclusiveWrapperTop<'_, AccountDiscriminant<T>, AccountInfo>> {
         // If the account is writable, changes could have been made after AccountSetValidate has been run
         if self.is_writable() {
             self.validate()?;
@@ -268,23 +265,22 @@ pub mod discriminant {
 }
 use discriminant::AccountDiscriminant;
 
-impl<T: ProgramAccount + UnsizedType + ?Sized> HasInnerType for Account<'_, T> {
+impl<T: ProgramAccount + UnsizedType + ?Sized> HasInnerType for Account<T> {
     type Inner = T;
 }
 
-impl<T: ProgramAccount + UnsizedType + ?Sized> HasOwnerProgram for Account<'_, T> {
+impl<T: ProgramAccount + UnsizedType + ?Sized> HasOwnerProgram for Account<T> {
     type OwnerProgram = T::OwnerProgram;
 }
 
-impl<T: ProgramAccount + UnsizedType + ?Sized> HasSeeds for Account<'_, T>
+impl<T: ProgramAccount + UnsizedType + ?Sized> HasSeeds for Account<T>
 where
     T: HasSeeds,
 {
     type Seeds = T::Seeds;
 }
 
-impl<'info, T: ProgramAccount + UnsizedType + ?Sized> CanInitAccount<'info, ()>
-    for Account<'info, T>
+impl<T: ProgramAccount + UnsizedType + ?Sized> CanInitAccount<()> for Account<T>
 where
     T: UnsizedInit<DefaultInit>,
 {
@@ -292,14 +288,13 @@ where
         &mut self,
         _arg: (),
         account_seeds: Option<Vec<&[u8]>>,
-        syscalls: &impl SyscallInvoke<'info>,
+        syscalls: &impl SyscallInvoke,
     ) -> Result<()> {
         self.init_account::<IF_NEEDED>((DefaultInit,), account_seeds, syscalls)
     }
 }
 
-impl<'info, T: ProgramAccount + UnsizedType + ?Sized, InitArg> CanInitAccount<'info, (InitArg,)>
-    for Account<'info, T>
+impl<T: ProgramAccount + UnsizedType + ?Sized, InitArg> CanInitAccount<(InitArg,)> for Account<T>
 where
     T: UnsizedInit<InitArg>,
 {
@@ -307,7 +302,7 @@ where
         &mut self,
         arg: (InitArg,),
         account_seeds: Option<Vec<&[u8]>>,
-        syscalls: &impl SyscallInvoke<'info>,
+        syscalls: &impl SyscallInvoke,
     ) -> Result<()> {
         let funder = syscalls
             .get_funder()
@@ -316,21 +311,21 @@ where
     }
 }
 
-impl<'info, T: ProgramAccount + UnsizedType + ?Sized, InitArg, Funder>
-    CanInitAccount<'info, (InitArg, &Funder)> for Account<'info, T>
+impl<T: ProgramAccount + UnsizedType + ?Sized, InitArg, Funder> CanInitAccount<(InitArg, &Funder)>
+    for Account<T>
 where
     T: UnsizedInit<InitArg>,
-    Funder: CanFundRent<'info> + ?Sized,
+    Funder: CanFundRent + ?Sized,
 {
     fn init_account<const IF_NEEDED: bool>(
         &mut self,
         arg: (InitArg, &Funder),
         account_seeds: Option<Vec<&[u8]>>,
-        syscalls: &impl SyscallInvoke<'info>,
+        syscalls: &impl SyscallInvoke,
     ) -> Result<()> {
         if IF_NEEDED {
-            let needs_init = self.owner() == &System::ID
-                || self.info_data_bytes()?[..size_of::<OwnerProgramDiscriminant<T>>()]
+            let needs_init = self.owner_pubkey() == System::ID
+                || self.account_data()?[..size_of::<OwnerProgramDiscriminant<T>>()]
                     .iter()
                     .all(|x| *x == 0);
             if !needs_init {
@@ -346,8 +341,8 @@ where
             &account_seeds,
             syscalls,
         )?;
-        let mut data_bytes = self.info_data_bytes_mut()?;
-        let mut data_bytes = &mut **data_bytes;
+        let mut data_bytes = self.account_data_mut()?;
+        let mut data_bytes = &mut *data_bytes;
         unsafe {
             <AccountDiscriminant<T>>::init(&mut data_bytes, arg)?;
         }

@@ -183,7 +183,7 @@ pub fn program_account(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
 /// - Solana entrypoint - This will call the `star_frame_entrypoint` macro with the program struct.
 /// - `StarFrameDeclaredProgram` - This is a type alias around the struct that is used in other `star_frame` macros. This
 /// derive should be placed at the root of the crate, or be re-exported there.
-/// - `declare_id!` - It also generates the `crate::ID` and `id()` constants like how the `solana_program::declare_id` macro works.
+/// - `declare_id!` - It also generates the `crate::ID` and `id()` constants like how the `pinocchio::declare_id` macro works.
 ///
 /// Both the `ID`s and `StarFrameDeclaredProgram` items are generated with the `star_frame::program_setup` macro.
 ///

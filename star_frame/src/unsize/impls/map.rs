@@ -77,7 +77,7 @@ where
     fn from_iter<I: IntoIterator<Item = (K, V)>>(iter: I) -> Self {
         let mut map = Self::new();
         for (key, value) in iter {
-            map.insert(key, value).unwrap();
+            map.insert(key, value);
         }
         map
     }

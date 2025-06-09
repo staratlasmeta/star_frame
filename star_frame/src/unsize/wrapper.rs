@@ -1,15 +1,11 @@
 use super::{AsShared, UnsizedType};
-use super::{OwnedRef, OwnedRefMut};
-use crate::prelude::UnsizedInit;
+use crate::prelude::{SingleAccountSet, UnsizedInit};
 use crate::Result;
-use anyhow::{ensure, Context};
+use anyhow::ensure;
 use core::ptr;
 use derive_more::{Debug, Deref, DerefMut};
-use solana_program::account_info::AccountInfo;
-use solana_program::entrypoint::MAX_PERMITTED_DATA_INCREASE;
-use solana_program::program_error::ProgramError;
-use solana_program::program_memory::sol_memmove;
-use std::cell::{Ref, RefMut};
+use pinocchio::account_info::AccountInfo;
+use pinocchio::memory::sol_memmove;
 use std::cmp::Ordering;
 use std::collections::Bound;
 use std::convert::Infallible;
@@ -17,19 +13,19 @@ use std::marker::PhantomData;
 use std::ops::{AddAssign, Deref, DerefMut, RangeBounds, SubAssign};
 
 /// # Safety
-/// [`Self::unsized_data_realloc`] must properly check the new length of the underlying data pointer.
-pub unsafe trait UnsizedTypeDataAccess<'info> {
+/// [`UnsizedTypeDataAccess::unsized_data_realloc`] must properly check the new length of the underlying data pointer.
+pub unsafe trait UnsizedTypeDataAccess {
     /// # Safety
     /// `data` must actually point to the same data that is returned by [`UnsizedTypeDataAccess::data_ref`] and [`UnsizedTypeDataAccess::data_mut`].
     unsafe fn unsized_data_realloc(this: &Self, data: &mut *mut [u8], new_len: usize)
         -> Result<()>;
-    fn data_ref(this: &Self) -> Result<Ref<&'info mut [u8]>>;
-    fn data_mut(this: &Self) -> Result<RefMut<&'info mut [u8]>>;
+    fn data_ref(this: &Self) -> Result<impl Deref<Target = [u8]>>;
+    fn data_mut(this: &Self) -> Result<impl DerefMut<Target = [u8]>>;
 }
 
 /// # Safety
 /// We are checking the length of the underlying data pointer in [`Self::unsized_data_realloc`].
-unsafe impl<'info> UnsizedTypeDataAccess<'info> for AccountInfo<'info> {
+unsafe impl UnsizedTypeDataAccess for AccountInfo {
     /// Sets the data length in the serialized data. This is identical to how [`AccountInfo::realloc`] works, minus the `RefCell::borrow_mut` call.
     /// # Safety
     /// `data` must actually point to the underlying data of the account, and `Self` needs to be from the entrypoint of a program or
@@ -39,70 +35,60 @@ unsafe impl<'info> UnsizedTypeDataAccess<'info> for AccountInfo<'info> {
         data: &mut *mut [u8],
         new_len: usize,
     ) -> Result<()> {
-        // Return early if the length increase from the original serialized data
-        // length is too large and would result in an out of bounds allocation.
-        let original_data_len = unsafe { this.original_data_len() };
-        ensure!(
-            new_len.saturating_sub(original_data_len) <= MAX_PERMITTED_DATA_INCREASE,
-            "Tried to realloc data to {new_len}. An increase over {MAX_PERMITTED_DATA_INCREASE} is not permitted",
-        );
-
-        // Set new length in the serialized data. Very questionable, but it's what solana does in `Self::realloc`.
-        unsafe {
-            data.cast::<u8>()
-                .wrapping_offset(-8)
-                .cast::<u64>()
-                .write_unaligned(new_len as u64);
-        }
-
+        // Set the data len on the account (This will check that the increase is within bounds)
+        this.set_data_len_checked(new_len)?;
         // Then recreate the local slice with the new length
         *data = ptr_meta::from_raw_parts_mut(data.cast(), new_len);
         Ok(())
     }
 
-    fn data_ref(this: &Self) -> Result<Ref<&'info mut [u8]>> {
-        this.data
-            .try_borrow()
-            .map_err(|_| ProgramError::AccountBorrowFailed)
-            .with_context(|| format!("Error borrowing data on account {}", this.key))
+    fn data_ref(this: &Self) -> Result<impl Deref<Target = [u8]>> {
+        this.account_data()
     }
 
-    fn data_mut(this: &Self) -> Result<RefMut<&'info mut [u8]>> {
-        this.data
-            .try_borrow_mut()
-            .map_err(|_| ProgramError::AccountBorrowFailed)
-            .with_context(|| format!("Error borrowing data on account {}", this.key))
+    fn data_mut(this: &Self) -> Result<impl DerefMut<Target = [u8]>> {
+        this.account_data_mut()
     }
 }
 
-#[derive(Debug)]
+#[derive(derive_more::Debug)]
 pub struct SharedWrapper<'top, T> {
-    r: OwnedRef<'top, T>,
+    top_ref: T,
+    #[debug(skip)]
+    _to_drop: Box<dyn Deref<Target = [u8]> + 'top>,
+    phantom: PhantomData<&'top ()>,
 }
 
 impl<'a, T> SharedWrapper<'a, T> {
     /// # Safety
     /// todo
-    pub unsafe fn new<'info, U>(
-        underlying_data: &'a impl UnsizedTypeDataAccess<'info>,
-    ) -> Result<Self>
+    pub fn new<U>(underlying_data: &'a impl UnsizedTypeDataAccess) -> Result<Self>
     where
-        'info: 'a,
         T: 'a,
         U: UnsizedType<Ref<'a> = T> + ?Sized,
     {
         // ensure no ZSTs in middle of struct
         let _ = U::ZST_STATUS;
         let data = UnsizedTypeDataAccess::data_ref(underlying_data)?;
-        let r = OwnedRef::try_new(data, |r| U::get_ref(&mut &**r))?;
-        Ok(SharedWrapper { r })
+        let data_ptr = ptr::from_ref(&*data);
+
+        // SAFETY:
+        // We are technically extending the lifetime here of the returned data, but it's okay because we keep data alive in the to_drop,
+        // and the reference is never exposed. We do this to get a U::Ref<'a>, but since UnsizedType::Ref cannot be copied out from behind a reference,
+        // that lifetime cannot escape through the Deref/DerefMut on SharedWrapper.
+        let mut data_bytes: &'a [u8] = unsafe { &*data_ptr };
+        Ok(SharedWrapper {
+            _to_drop: Box::new(data),
+            top_ref: U::get_ref(&mut data_bytes)?,
+            phantom: PhantomData,
+        })
     }
 }
 impl<T> Deref for SharedWrapper<'_, T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        &self.r
+        &self.top_ref
     }
 }
 
@@ -116,7 +102,11 @@ pub struct ExclusiveWrapper<'parent, 'top, Mut, P>(ExclusiveWrapperEnum<'parent,
 enum ExclusiveWrapperEnum<'parent, 'top, Mut, P> {
     Top {
         // We Box the Mut so its derived from a separate allocation, so dereferencing parent in inners wont invalidate the top Mut.
-        data: OwnedRefMut<'top, (P, Box<Mut>)>,
+        // data: OwnedRefMut<'top, (P, Box<Mut>)>,
+        exclusive_top: P,
+        top_mut: Box<Mut>,
+        #[debug(skip)]
+        _to_drop: Box<dyn DerefMut<Target = [u8]> + 'top>,
     },
     Inner {
         parent_lt: PhantomData<&'parent ()>,
@@ -124,14 +114,6 @@ enum ExclusiveWrapperEnum<'parent, 'top, Mut, P> {
         field: *mut Mut,
     },
 }
-
-type ExclusiveWrapperTopVariant<'top, Top, A> = OwnedRefMut<
-    'top,
-    (
-        ExclusiveWrapperTopMeta<'top, Top, A>,
-        Box<<Top as UnsizedType>::Mut<'top>>,
-    ),
->;
 
 pub type ExclusiveWrapperTop<'top, Top, A> = ExclusiveWrapper<
     'top,
@@ -148,39 +130,33 @@ where
 {
     info: &'top A,
     /// The pointer to the contiguous allocated slice. The len metadata may be shorter than the actual length of the allocated slice.
-    /// It's lifetimes should match `&'top mut &'info mut [u8]` when run in [`ExclusiveWrapperTop::new`].
-    data: *mut *mut [u8],
+    /// It's lifetimes should match `&'top mut [u8]` when run in [`ExclusiveWrapperTop::new`].
+    data: *mut [u8],
     /// This allows inherent implemenations on [`ExclusiveWrapperTop`].
     top_phantom: PhantomData<fn() -> Top>,
 }
 
-impl<'top, 'info, Top, A> ExclusiveWrapperTop<'top, Top, A>
+impl<'top, Top, A> ExclusiveWrapperTop<'top, Top, A>
 where
-    'info: 'top,
     Top: UnsizedType + ?Sized,
-    A: UnsizedTypeDataAccess<'info>,
+    A: UnsizedTypeDataAccess,
 {
     pub fn new(info: &'top A) -> Result<Self> {
         // ensure no ZSTs in middle of struct
         let _ = Top::ZST_STATUS;
-        let data: RefMut<'top, &mut [u8]> = UnsizedTypeDataAccess::data_mut(info)?;
+        let mut data = UnsizedTypeDataAccess::data_mut(info)?;
+        // We are technically extending the lifetime here of the returned data, but it's okay because we keep data alive in the to_drop,
+        // and the reference is never exposed.
+        let mut data_ptr = ptr::from_mut(&mut *data);
+        let top_data_ptr = data_ptr;
         Ok(Self(ExclusiveWrapperEnum::Top {
-            data: OwnedRefMut::try_new(data, |data| {
-                let data_ptr = ptr::from_mut(data).cast::<*mut [u8]>();
-                // SAFETY:
-                // we just made this pointer, so its safe to dereference.
-                let mut data = unsafe { *data_ptr }; // pointer lasts for 'top.
-                anyhow::Ok((
-                    ExclusiveWrapperTopMeta {
-                        info,
-                        data: data_ptr,
-                        top_phantom: PhantomData,
-                    },
-                    // SAFETY:
-                    // The pointer lasts for 'top, and we made the pointer from a properly formed slice, so its metadata is valid.
-                    unsafe { Box::new(Top::get_mut(&mut data)?) },
-                ))
-            })?,
+            _to_drop: Box::new(data),
+            top_mut: Box::new(unsafe { Top::get_mut(&mut data_ptr)? }),
+            exclusive_top: ExclusiveWrapperTopMeta {
+                info,
+                data: top_data_ptr,
+                top_phantom: PhantomData,
+            },
         }))
     }
 }
@@ -188,7 +164,7 @@ where
 impl<Mut, P> ExclusiveWrapper<'_, '_, Mut, P> {
     fn mut_ref(this: &Self) -> &Mut {
         match &this.0 {
-            ExclusiveWrapperEnum::Top { data, .. } => &data.1,
+            ExclusiveWrapperEnum::Top { top_mut, .. } => top_mut,
             ExclusiveWrapperEnum::Inner { field, .. } => {
                 // SAFETY:
                 // We have shared access to self right now, so no mutable references to self can exist.
@@ -203,7 +179,7 @@ impl<Mut, P> ExclusiveWrapper<'_, '_, Mut, P> {
 
     fn mut_mut(this: &mut Self) -> *mut Mut {
         match &mut this.0 {
-            ExclusiveWrapperEnum::Top { data, .. } => &raw mut *(data.1),
+            ExclusiveWrapperEnum::Top { top_mut, .. } => &raw mut **top_mut,
             ExclusiveWrapperEnum::Inner { field, .. } => {
                 // SAFETY:
                 // We have exclusive access to self right now, so no mutable references to self can exist.
@@ -279,11 +255,10 @@ where
     }
 }
 
-impl<'top, 'info, Top, A> ExclusiveRecurse for ExclusiveWrapperTop<'top, Top, A>
+impl<Top, A> ExclusiveRecurse for ExclusiveWrapperTop<'_, Top, A>
 where
     Top: UnsizedType + ?Sized,
-    A: UnsizedTypeDataAccess<'info>,
-    'info: 'top,
+    A: UnsizedTypeDataAccess,
 {
     unsafe fn add_bytes(
         wrapper: &mut Self,
@@ -291,15 +266,19 @@ where
         start: *mut (),
         amount: usize,
     ) -> Result<()> {
-        let s: &mut ExclusiveWrapperTopVariant<'top, Top, A> = match &mut wrapper.0 {
-            ExclusiveWrapperEnum::Top { data, .. } => data,
+        let (top_meta, top_mut) = match &mut wrapper.0 {
+            ExclusiveWrapperEnum::Top {
+                exclusive_top,
+                top_mut,
+                ..
+            } => (exclusive_top, top_mut),
             ExclusiveWrapperEnum::Inner { .. } => unreachable!(),
         };
 
         {
             // SAFETY:
             // We are at the top level now, and all the child `field()`s can only contain mutable pointers to the data, so we are the only one
-            let data_ptr = unsafe { &mut *s.0.data };
+            let data_ptr = &mut top_meta.data;
             let old_len = data_ptr.len();
 
             let data_addr = data_ptr.addr();
@@ -315,7 +294,9 @@ where
             let new_len = old_len + amount;
 
             // realloc
-            unsafe { UnsizedTypeDataAccess::unsized_data_realloc(s.0.info, data_ptr, new_len) }?;
+            unsafe {
+                UnsizedTypeDataAccess::unsized_data_realloc(top_meta.info, data_ptr, new_len)
+            }?;
 
             if start_addr != data_addr + old_len {
                 // SAFETY:
@@ -332,7 +313,7 @@ where
 
         // TODO: Figure out the safety requirements of calling this. I think it is safe to call here assuming the UnsizedType is implemented correctly.
         unsafe {
-            Top::resize_notification(&mut s.1, source_ptr, amount.try_into()?)?;
+            Top::resize_notification(top_mut, source_ptr, amount.try_into()?)?;
         }
 
         Ok(())
@@ -344,15 +325,19 @@ where
         range: impl RangeBounds<*mut ()>,
         // after_remove: impl FnOnce(&mut Self::T) -> Result<()>,
     ) -> Result<()> {
-        let s = match &mut wrapper.0 {
-            ExclusiveWrapperEnum::Top { data, .. } => data,
+        let (top_meta, top_mut) = match &mut wrapper.0 {
+            ExclusiveWrapperEnum::Top {
+                exclusive_top,
+                top_mut,
+                ..
+            } => (exclusive_top, top_mut),
             ExclusiveWrapperEnum::Inner { .. } => unreachable!(),
         };
 
         let amount = {
             // SAFETY:
             // we have exclusive access to self, so no one else has a mutable reference to the data pointer.
-            let data_ptr = unsafe { &mut *s.0.data };
+            let data_ptr = &mut top_meta.data;
             let old_len = data_ptr.len();
 
             let data_addr = data_ptr.addr();
@@ -400,14 +385,14 @@ where
             // SAFETY:
             // Data ptr is derived from the info.
             unsafe {
-                UnsizedTypeDataAccess::unsized_data_realloc(s.0.info, data_ptr, new_len)?;
+                UnsizedTypeDataAccess::unsized_data_realloc(top_meta.info, data_ptr, new_len)?;
             }
 
             amount
         };
 
         unsafe {
-            Top::resize_notification(&mut s.1, source_ptr, -amount.try_into()?)?;
+            Top::resize_notification(top_mut, source_ptr, -amount.try_into()?)?;
         }
         Ok(())
     }

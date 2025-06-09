@@ -20,7 +20,7 @@ pub fn hash_str(s: &str) -> [u8; 8] {
 }
 
 pub fn hash_tts(hash: &[u8; 8]) -> TokenStream {
-    let hash_tts = format!("{:?}", hash);
+    let hash_tts = format!("{hash:?}");
     TokenStream::from_str(&hash_tts).expect("Hash should be valid tts")
 }
 

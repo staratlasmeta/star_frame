@@ -31,7 +31,7 @@ pub fn derive_instruction_to_idl(input: &DeriveInput) -> TokenStream {
     let generic_arg: Ident = format_ident!("__A");
 
     where_clause.predicates.push(
-        parse_quote!(<Self as #prelude::StarFrameInstruction>::Accounts<'b, 'c, 'info>: #prelude::AccountSetToIdl<'info, #generic_arg>),
+        parse_quote!(<Self as #prelude::StarFrameInstruction>::Accounts<'b, 'c>: #prelude::AccountSetToIdl<#generic_arg>),
     );
 
     let ix_to_idl_impl = ignore_cfg_module(
@@ -40,9 +40,9 @@ pub fn derive_instruction_to_idl(input: &DeriveInput) -> TokenStream {
         quote! {
             #[cfg(all(feature = "idl", not(target_os = "solana")))]
             #[automatically_derived]
-            impl<'b, 'c, 'info, #generic_arg> #prelude::InstructionToIdl<#generic_arg> for #ident #where_clause {
+            impl<'b, 'c, #generic_arg> #prelude::InstructionToIdl<#generic_arg> for #ident #where_clause {
                 fn instruction_to_idl(idl_definition: &mut #prelude::IdlDefinition, arg: #generic_arg) -> Result<#prelude::IdlInstructionDef> {
-                    let account_set = <<#ident as #prelude::StarFrameInstruction>::Accounts<'b, 'c, 'info> as #prelude::AccountSetToIdl<'info, #generic_arg>>::account_set_to_idl(idl_definition, arg)?;
+                    let account_set = <<#ident as #prelude::StarFrameInstruction>::Accounts<'b, 'c> as #prelude::AccountSetToIdl<#generic_arg>>::account_set_to_idl(idl_definition, arg)?;
                     let type_def = <#ident as #prelude::TypeToIdl>::type_to_idl(idl_definition)?;
                     let type_id = type_def.assert_defined()?.clone();
                     Ok(#prelude::IdlInstructionDef {
