@@ -129,7 +129,7 @@ pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
                 program_id: &#pubkey,
                 accounts: &[#account_info],
                 mut ix_bytes: &[u8],
-                ctx: &mut impl #prelude::Context,
+                ctx: &mut #prelude::Context,
             ) -> #result<()> {
                 let maybe_discriminant_bytes =
                     #prelude::Advance::try_advance(&mut ix_bytes, ::core::mem::size_of::<#discriminant_type>());

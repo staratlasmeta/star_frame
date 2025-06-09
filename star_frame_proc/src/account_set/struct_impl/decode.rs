@@ -175,7 +175,7 @@ pub(super) fn decodes(
                 unsafe fn decode_accounts(
                     accounts: &mut &#decode_lifetime [#account_info],
                     arg: #decode_type,
-                    ctx: &mut impl #prelude::Context,
+                    ctx: &mut #prelude::Context,
                 ) -> #result<Self> {
                     Ok(#decode_inner)
                 }

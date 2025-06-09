@@ -263,7 +263,7 @@ pub mod state {
     where
         Self: AccountSetValidate<A>,
     {
-        fn init_seeds(&mut self, _arg: &A, _ctx: &impl Context) -> Result<()> {
+        fn init_seeds(&mut self, _arg: &A, _ctx: &Context) -> Result<()> {
             Ok(())
         }
     }
@@ -321,7 +321,7 @@ pub mod state {
             &mut self,
             arg: InitAta<'a, WalletInfo, MintInfo>,
             account_seeds: Option<Vec<&[u8]>>,
-            ctx: &impl Context,
+            ctx: &Context,
         ) -> Result<()> {
             let funder = ctx
                 .get_funder()
@@ -341,7 +341,7 @@ pub mod state {
             &mut self,
             (init_ata, funder): (InitAta<'a, WalletInfo, MintInfo>, &Funder),
             account_seeds: Option<Vec<&[u8]>>,
-            _ctx: &impl Context,
+            _ctx: &Context,
         ) -> Result<()> {
             if !funder.can_create_account() {
                 bail!(

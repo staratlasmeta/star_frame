@@ -191,7 +191,7 @@ impl<'a> CanInitAccount<InitMint<'a>> for MintAccount {
         &mut self,
         arg: InitMint<'a>,
         account_seeds: Option<Vec<&[u8]>>,
-        ctx: &impl Context,
+        ctx: &Context,
     ) -> Result<()> {
         let funder = ctx
             .get_funder()
@@ -208,7 +208,7 @@ where
         &mut self,
         arg: (InitMint, &Funder),
         account_seeds: Option<Vec<&[u8]>>,
-        ctx: &impl Context,
+        ctx: &Context,
     ) -> Result<()> {
         let (init_mint, funder) = arg;
         if IF_NEEDED && self.owner_pubkey() == Token::ID {
@@ -402,7 +402,7 @@ where
         &mut self,
         arg: InitToken<MintInfo>,
         account_seeds: Option<Vec<&[u8]>>,
-        ctx: &impl Context,
+        ctx: &Context,
     ) -> Result<()> {
         let funder = ctx
             .get_funder()
@@ -420,7 +420,7 @@ where
         &mut self,
         arg: (InitToken<MintInfo>, &Funder),
         account_seeds: Option<Vec<&[u8]>>,
-        ctx: &impl Context,
+        ctx: &Context,
     ) -> Result<()> {
         if IF_NEEDED && self.owner_pubkey() == Token::ID {
             self.validate()?;

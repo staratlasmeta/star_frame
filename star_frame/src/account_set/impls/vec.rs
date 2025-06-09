@@ -60,7 +60,7 @@ where
     unsafe fn decode_accounts(
         accounts: &mut &'a [AccountInfo],
         len: usize,
-        ctx: &mut impl Context,
+        ctx: &mut Context,
     ) -> Result<Self> {
         // SAFETY: This function is unsafe too
         unsafe {
@@ -76,7 +76,7 @@ where
     unsafe fn decode_accounts(
         accounts: &mut &'a [AccountInfo],
         (len, decode_input): (usize, TA),
-        ctx: &mut impl Context,
+        ctx: &mut Context,
     ) -> Result<Self> {
         let mut output = Self::with_capacity(len);
         for _ in 0..len {
@@ -93,7 +93,7 @@ where
     unsafe fn decode_accounts(
         accounts: &mut &'a [AccountInfo],
         decode_input: [TA; N],
-        ctx: &mut impl Context,
+        ctx: &mut Context,
     ) -> Result<Self> {
         decode_input
             .into_iter()
@@ -111,7 +111,7 @@ where
     unsafe fn decode_accounts(
         accounts: &mut &'a [AccountInfo],
         decode_input: &'b [TA; N],
-        ctx: &mut impl Context,
+        ctx: &mut Context,
     ) -> Result<Self> {
         decode_input
             .iter()
@@ -129,7 +129,7 @@ where
     unsafe fn decode_accounts(
         accounts: &mut &'a [AccountInfo],
         decode_input: &'b mut [TA; N],
-        ctx: &mut impl Context,
+        ctx: &mut Context,
     ) -> Result<Self> {
         decode_input
             .iter_mut()
@@ -148,7 +148,7 @@ where
     unsafe fn decode_accounts(
         accounts: &mut &'a [AccountInfo],
         decode_input: (I,),
-        ctx: &mut impl Context,
+        ctx: &mut Context,
     ) -> Result<Self> {
         decode_input
             .0
@@ -165,7 +165,7 @@ impl<T> AccountSetValidate<()> for Vec<T>
 where
     T: AccountSetValidate<()>,
 {
-    fn validate_accounts(&mut self, validate_input: (), ctx: &mut impl Context) -> Result<()> {
+    fn validate_accounts(&mut self, validate_input: (), ctx: &mut Context) -> Result<()> {
         for account in self {
             account.validate_accounts(validate_input, ctx)?;
         }
@@ -178,7 +178,7 @@ where
     T: AccountSetValidate<TA>,
     TA: Clone,
 {
-    fn validate_accounts(&mut self, validate_input: (TA,), ctx: &mut impl Context) -> Result<()> {
+    fn validate_accounts(&mut self, validate_input: (TA,), ctx: &mut Context) -> Result<()> {
         for account in self {
             account.validate_accounts(validate_input.0.clone(), ctx)?;
         }
@@ -189,7 +189,7 @@ impl<T, TA> AccountSetValidate<Vec<TA>> for Vec<T>
 where
     T: AccountSetValidate<TA>,
 {
-    fn validate_accounts(&mut self, validate_input: Vec<TA>, ctx: &mut impl Context) -> Result<()> {
+    fn validate_accounts(&mut self, validate_input: Vec<TA>, ctx: &mut Context) -> Result<()> {
         if validate_input.len() < self.len() {
             bail!(
                 "Invalid account data: validate input length {} is less than required length {}",
@@ -209,7 +209,7 @@ impl<T, TA, const N: usize> AccountSetValidate<[TA; N]> for Vec<T>
 where
     T: AccountSetValidate<TA>,
 {
-    fn validate_accounts(&mut self, validate_input: [TA; N], ctx: &mut impl Context) -> Result<()> {
+    fn validate_accounts(&mut self, validate_input: [TA; N], ctx: &mut Context) -> Result<()> {
         if validate_input.len() != self.len() {
             bail!(
                 "Invalid account data: validate input length {} does not match required length {}",
@@ -232,7 +232,7 @@ where
     fn validate_accounts(
         &mut self,
         validate_input: &'a mut [TA; N],
-        ctx: &mut impl Context,
+        ctx: &mut Context,
     ) -> Result<()> {
         if validate_input.len() != self.len() {
             bail!("Invalid account data");
@@ -250,7 +250,7 @@ impl<T> AccountSetCleanup<()> for Vec<T>
 where
     T: AccountSetCleanup<()>,
 {
-    fn cleanup_accounts(&mut self, cleanup_input: (), ctx: &mut impl Context) -> Result<()> {
+    fn cleanup_accounts(&mut self, cleanup_input: (), ctx: &mut Context) -> Result<()> {
         for account in self {
             account.cleanup_accounts(cleanup_input, ctx)?;
         }
@@ -262,7 +262,7 @@ where
     T: AccountSetCleanup<TA>,
     TA: Clone,
 {
-    fn cleanup_accounts(&mut self, cleanup_input: (TA,), ctx: &mut impl Context) -> Result<()> {
+    fn cleanup_accounts(&mut self, cleanup_input: (TA,), ctx: &mut Context) -> Result<()> {
         for account in self {
             account.cleanup_accounts(cleanup_input.0.clone(), ctx)?;
         }
@@ -273,7 +273,7 @@ impl<T, TA> AccountSetCleanup<Vec<TA>> for Vec<T>
 where
     T: AccountSetCleanup<TA>,
 {
-    fn cleanup_accounts(&mut self, cleanup_input: Vec<TA>, ctx: &mut impl Context) -> Result<()> {
+    fn cleanup_accounts(&mut self, cleanup_input: Vec<TA>, ctx: &mut Context) -> Result<()> {
         if cleanup_input.len() < self.len() {
             bail!(
                 "Invalid account data: cleanup input length {} is less than required length {}",
@@ -293,7 +293,7 @@ impl<T, TA, const N: usize> AccountSetCleanup<[TA; N]> for Vec<T>
 where
     T: AccountSetCleanup<TA>,
 {
-    fn cleanup_accounts(&mut self, cleanup_input: [TA; N], ctx: &mut impl Context) -> Result<()> {
+    fn cleanup_accounts(&mut self, cleanup_input: [TA; N], ctx: &mut Context) -> Result<()> {
         if cleanup_input.len() != self.len() {
             bail!(
                 "Invalid account data: cleanup input length {} does not match required length {}",
@@ -316,7 +316,7 @@ where
     fn cleanup_accounts(
         &mut self,
         cleanup_input: &'a mut [TA; N],
-        ctx: &mut impl Context,
+        ctx: &mut Context,
     ) -> Result<()> {
         if cleanup_input.len() != self.len() {
             bail!("Invalid account data");

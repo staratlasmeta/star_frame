@@ -288,7 +288,7 @@ where
         &mut self,
         _arg: (),
         account_seeds: Option<Vec<&[u8]>>,
-        ctx: &impl Context,
+        ctx: &Context,
     ) -> Result<()> {
         self.init_account::<IF_NEEDED>((DefaultInit,), account_seeds, ctx)
     }
@@ -302,7 +302,7 @@ where
         &mut self,
         arg: (InitArg,),
         account_seeds: Option<Vec<&[u8]>>,
-        ctx: &impl Context,
+        ctx: &Context,
     ) -> Result<()> {
         let funder = ctx
             .get_funder()
@@ -321,7 +321,7 @@ where
         &mut self,
         arg: (InitArg, &Funder),
         account_seeds: Option<Vec<&[u8]>>,
-        ctx: &impl Context,
+        ctx: &Context,
     ) -> Result<()> {
         if IF_NEEDED {
             let needs_init = self.owner_pubkey() == System::ID

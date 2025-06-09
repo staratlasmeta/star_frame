@@ -1,7 +1,6 @@
 use crate::account_set::{HasOwnerProgram, SignedAccount, WritableAccount};
 use crate::anyhow::Result;
 use crate::client::MakeCpi;
-use crate::context::ContextCore;
 use crate::prelude::{Context, StarFrameProgram, System};
 use crate::program::system;
 use anyhow::{anyhow, bail, Context as _};
@@ -189,7 +188,7 @@ pub trait CanFundRent: CanReceiveRent {
         &self,
         recipient: &dyn SingleAccountSet,
         lamports: u64,
-        ctx: &dyn Context,
+        ctx: &Context,
     ) -> Result<()>;
 
     fn signer_seeds(&self) -> Option<Vec<&[u8]>> {
@@ -208,7 +207,7 @@ where
         &self,
         recipient: &dyn SingleAccountSet,
         lamports: u64,
-        _ctx: &dyn Context,
+        _ctx: &Context,
     ) -> Result<()> {
         let cpi = System::cpi(
             &system::Transfer { lamports },
@@ -236,11 +235,7 @@ pub trait CanModifyRent {
     /// Assumes `Self` is mutable and owned by this program.
     ///
     /// If the account has 0 lamports (i.e., it is set to be closed), this will do nothing.
-    fn normalize_rent(
-        &self,
-        funder: &(impl CanFundRent + ?Sized),
-        ctx: &dyn Context,
-    ) -> Result<()> {
+    fn normalize_rent(&self, funder: &(impl CanFundRent + ?Sized), ctx: &Context) -> Result<()> {
         let account = self.account_to_modify();
         let rent = ctx.get_rent()?;
         let lamports = *account.try_borrow_lamports()?;
@@ -269,11 +264,7 @@ pub trait CanModifyRent {
     /// Assumes `Self` is owned by this program and is mutable.
     ///
     /// If the account has 0 lamports (i.e., it is set to be closed), this will do nothing.
-    fn refund_rent(
-        &self,
-        recipient: &(impl CanReceiveRent + ?Sized),
-        ctx: &(impl Context + ?Sized),
-    ) -> Result<()> {
+    fn refund_rent(&self, recipient: &(impl CanReceiveRent + ?Sized), ctx: &Context) -> Result<()> {
         let account = self.account_to_modify();
         let rent = ctx.get_rent()?;
         let lamports = *account.try_borrow_lamports()?;
@@ -304,7 +295,7 @@ pub trait CanModifyRent {
     /// Assumes `Self` is owned by this program and is mutable.
     ///
     /// If the account has 0 lamports (i.e., it is set to be closed), this will do nothing.
-    fn receive_rent(&self, funder: &(impl CanFundRent + ?Sized), ctx: &dyn Context) -> Result<()> {
+    fn receive_rent(&self, funder: &(impl CanFundRent + ?Sized), ctx: &Context) -> Result<()> {
         let account = self.account_to_modify();
         let rent = ctx.get_rent()?;
         let lamports = *account.try_borrow_lamports()?;
@@ -322,7 +313,7 @@ pub trait CanModifyRent {
 
     /// Emits a warning message if the account has more lamports than required by rent.
     #[cfg_attr(not(feature = "cleanup_rent_warning"), allow(unused_variables))]
-    fn check_cleanup(&self, ctx: &(impl ContextCore + ?Sized)) -> Result<()> {
+    fn check_cleanup(&self, ctx: &Context) -> Result<()> {
         #[cfg(feature = "cleanup_rent_warning")]
         {
             use std::cmp::Ordering;
@@ -363,7 +354,7 @@ pub trait CanSystemCreateAccount {
         owner: Pubkey,
         space: usize,
         account_seeds: &Option<Vec<&[u8]>>,
-        ctx: &dyn Context,
+        ctx: &Context,
     ) -> Result<()> {
         let account = self.account_to_create();
         if account.owner_pubkey() != System::ID {

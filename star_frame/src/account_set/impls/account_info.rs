@@ -138,7 +138,7 @@ impl<'a> AccountSetDecode<'a, ()> for AccountInfo {
     unsafe fn decode_accounts(
         accounts: &mut &'a [AccountInfo],
         _decode_input: (),
-        _ctx: &mut impl Context,
+        _ctx: &mut Context,
     ) -> Result<Self> {
         let account: &[_; 1] = accounts
             .try_advance_array()
@@ -150,7 +150,7 @@ impl<'a> AccountSetDecode<'a, ()> for &'a AccountInfo {
     unsafe fn decode_accounts(
         accounts: &mut &'a [AccountInfo],
         _decode_input: (),
-        _ctx: &mut impl Context,
+        _ctx: &mut Context,
     ) -> Result<Self> {
         let account: &[_; 1] = accounts
             .try_advance_array()
@@ -159,24 +159,24 @@ impl<'a> AccountSetDecode<'a, ()> for &'a AccountInfo {
     }
 }
 impl AccountSetValidate<()> for AccountInfo {
-    fn validate_accounts(&mut self, _validate_input: (), _ctx: &mut impl Context) -> Result<()> {
+    fn validate_accounts(&mut self, _validate_input: (), _ctx: &mut Context) -> Result<()> {
         Ok(())
     }
 }
 
 impl AccountSetValidate<()> for &AccountInfo {
-    fn validate_accounts(&mut self, validate_input: (), _context: &mut impl Context) -> Result<()> {
+    fn validate_accounts(&mut self, validate_input: (), _context: &mut Context) -> Result<()> {
         Ok(validate_input)
     }
 }
 
 impl AccountSetCleanup<()> for AccountInfo {
-    fn cleanup_accounts(&mut self, cleanup_input: (), _context: &mut impl Context) -> Result<()> {
+    fn cleanup_accounts(&mut self, cleanup_input: (), _context: &mut Context) -> Result<()> {
         Ok(cleanup_input)
     }
 }
 impl AccountSetCleanup<()> for &AccountInfo {
-    fn cleanup_accounts(&mut self, cleanup_input: (), _context: &mut impl Context) -> Result<()> {
+    fn cleanup_accounts(&mut self, cleanup_input: (), _context: &mut Context) -> Result<()> {
         Ok(cleanup_input)
     }
 }

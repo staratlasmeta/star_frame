@@ -69,7 +69,7 @@ where
     unsafe fn decode_accounts(
         accounts: &mut &'a [AccountInfo],
         decode_input: A,
-        ctx: &mut impl Context,
+        ctx: &mut Context,
     ) -> crate::Result<Self> {
         let mut out = vec![];
         while !accounts.is_empty() {

@@ -22,7 +22,7 @@ pub trait InstructionSet {
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         ix_bytes: &[u8],
-        ctx: &mut impl Context,
+        ctx: &mut Context,
     ) -> Result<()>;
 }
 
@@ -51,7 +51,7 @@ pub trait Instruction {
     fn run_ix_from_raw(
         accounts: &[AccountInfo],
         data: &mut Self::SelfData<'_>,
-        ctx: &mut impl Context,
+        ctx: &mut Context,
     ) -> Result<()>;
 }
 
@@ -110,7 +110,7 @@ pub trait StarFrameInstruction: BorshDeserialize + InstructionArgs {
     fn extra_validations(
         account_set: &mut Self::Accounts<'_, '_>,
         run_arg: &mut Self::RunArg<'_>,
-        ctx: &mut impl Context,
+        ctx: &mut Context,
     ) -> Result<()> {
         Ok(())
     }
@@ -118,7 +118,7 @@ pub trait StarFrameInstruction: BorshDeserialize + InstructionArgs {
     fn run_instruction(
         account_set: &mut Self::Accounts<'_, '_>,
         run_arg: Self::RunArg<'_>,
-        ctx: &mut impl Context,
+        ctx: &mut Context,
     ) -> Result<Self::ReturnType>;
 }
 
@@ -135,7 +135,7 @@ where
     fn run_ix_from_raw(
         mut accounts: &[AccountInfo],
         data: &mut Self,
-        ctx: &mut impl Context,
+        ctx: &mut Context,
     ) -> Result<()> {
         let IxArgs {
             decode,
@@ -178,7 +178,7 @@ macro_rules! empty_star_frame_instruction {
             fn run_instruction(
                 _account_set: &mut Self::Accounts<'_, '_>,
                 _run_args: Self::RunArg<'_>,
-                _ctx: &mut impl $crate::context::Context,
+                _ctx: &mut $crate::context::Context,
             ) -> $crate::Result<Self::ReturnType> {
                 Ok(())
             }
@@ -200,7 +200,7 @@ macro_rules! impl_blank_ix {
                 fn run_ix_from_raw(
                     _accounts: &[$crate::prelude::AccountInfo],
                     _data: &mut Self::SelfData<'_>,
-                    _ctx: &mut impl $crate::prelude::Context,
+                    _ctx: &mut $crate::prelude::Context,
                 ) -> $crate::Result<()> {
                     todo!()
                 }

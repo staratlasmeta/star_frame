@@ -1,37 +1,77 @@
-pub mod solana_runtime;
 use crate::prelude::{CanFundRent, CanReceiveRent};
 use crate::Result;
 use pinocchio::sysvars::clock::Clock;
 use pinocchio::sysvars::rent::Rent;
+use pinocchio::sysvars::Sysvar;
 use solana_pubkey::Pubkey;
 
-/// Trait for context provided by the solana runtime.
-pub trait Context: ContextCore + ContextAccountCache {}
-impl<T> Context for T where T: ContextCore + ContextAccountCache {}
+use std::cell::Cell;
 
-/// A trait for caching commonly used accounts in the Context. This allows [`crate::account_set::AccountSetValidate`]
-/// implementations to pull from this cache instead of requiring the user to explicitly pass in the accounts.
-pub trait ContextAccountCache {
-    /// Gets a cached version of the funder if exists and Self has a funder cache
-    fn get_funder(&self) -> Option<&dyn CanFundRent> {
-        None
-    }
-    /// Sets the funder cache if Self has one. No-op if it doesn't.
-    fn set_funder(&mut self, _funder: Box<dyn CanFundRent>) {}
-    /// Gets a cached version of the recipient if exists and Self has a recipient cache
-    fn get_recipient(&self) -> Option<&dyn CanReceiveRent> {
-        None
-    }
-    /// Sets the recipient cache if Self has one. No-op if it doesn't.
-    fn set_recipient(&mut self, _recipient: Box<dyn CanReceiveRent>) {}
+/// Additional context to be used by star frame programs.
+#[derive(derive_more::Debug, Default)]
+pub struct Context {
+    /// The program id of the currently executing program.
+    program_id: Pubkey,
+    rent_cache: Cell<Option<Rent>>,
+    clock_cache: Cell<Option<Clock>>,
+    #[debug("{:?}", recipient.as_ref().map(|r| std::any::type_name_of_val(r)))]
+    recipient: Option<Box<dyn CanReceiveRent>>,
+    #[debug("{:?}", funder.as_ref().map(|f| std::any::type_name_of_val(f)))]
+    funder: Option<Box<dyn CanFundRent>>,
 }
 
-/// System calls that all context implementations must provide.
-pub trait ContextCore {
-    /// Get the current program id.
-    fn current_program_id(&self) -> &Pubkey;
-    /// Get the rent sysvar.
-    fn get_rent(&self) -> Result<Rent>;
-    /// Get the clock.
-    fn get_clock(&self) -> Result<Clock>;
+impl Context {
+    /// Create a new solana runtime.
+    #[must_use]
+    pub fn new(program_id: Pubkey) -> Self {
+        Self {
+            program_id,
+            rent_cache: Cell::new(None),
+            clock_cache: Cell::new(None),
+            recipient: None,
+            funder: None,
+        }
+    }
+
+    pub fn current_program_id(&self) -> &Pubkey {
+        &self.program_id
+    }
+
+    pub fn get_rent(&self) -> Result<Rent> {
+        match self.rent_cache.get() {
+            None => {
+                let new_rent = Rent::get()?;
+                self.rent_cache.set(Some(new_rent));
+                Ok(new_rent)
+            }
+            Some(rent) => Ok(rent),
+        }
+    }
+
+    pub fn get_clock(&self) -> Result<Clock> {
+        match self.clock_cache.get() {
+            None => {
+                let new_clock = Clock::get()?;
+                self.clock_cache.set(Some(new_clock));
+                Ok(new_clock)
+            }
+            Some(clock) => Ok(clock),
+        }
+    }
+
+    pub fn get_funder(&self) -> Option<&dyn CanFundRent> {
+        self.funder.as_ref().map(std::convert::AsRef::as_ref)
+    }
+
+    pub fn set_funder(&mut self, funder: Box<dyn CanFundRent>) {
+        self.funder.replace(funder);
+    }
+
+    pub fn get_recipient(&self) -> Option<&dyn CanReceiveRent> {
+        self.recipient.as_ref().map(std::convert::AsRef::as_ref)
+    }
+
+    pub fn set_recipient(&mut self, recipient: Box<dyn CanReceiveRent>) {
+        self.recipient.replace(recipient);
+    }
 }

@@ -287,7 +287,7 @@ pub(super) fn validates(
                 fn validate_accounts(
                     &mut self,
                     arg: #validate_type,
-                    ctx: &mut impl #prelude::Context,
+                    ctx: &mut #prelude::Context,
                 ) -> #result<()> {
                     #before_validation
                     #(#validates)*

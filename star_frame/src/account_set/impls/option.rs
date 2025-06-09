@@ -64,7 +64,7 @@ where
     unsafe fn decode_accounts(
         accounts: &mut &'a [AccountInfo],
         decode_input: DArg,
-        ctx: &mut impl Context,
+        ctx: &mut Context,
     ) -> Result<Self> {
         if accounts.is_empty() {
             Ok(None)
@@ -86,7 +86,7 @@ impl<A, VArg> AccountSetValidate<VArg> for Option<A>
 where
     A: AccountSetValidate<VArg>,
 {
-    fn validate_accounts(&mut self, validate_input: VArg, ctx: &mut impl Context) -> Result<()> {
+    fn validate_accounts(&mut self, validate_input: VArg, ctx: &mut Context) -> Result<()> {
         if let Some(inner) = self {
             inner.validate_accounts(validate_input, ctx)
         } else {
@@ -99,7 +99,7 @@ impl<A, CArg> AccountSetCleanup<CArg> for Option<A>
 where
     A: AccountSetCleanup<CArg>,
 {
-    fn cleanup_accounts(&mut self, cleanup_input: CArg, ctx: &mut impl Context) -> Result<()> {
+    fn cleanup_accounts(&mut self, cleanup_input: CArg, ctx: &mut Context) -> Result<()> {
         if let Some(inner) = self {
             inner.cleanup_accounts(cleanup_input, ctx)
         } else {

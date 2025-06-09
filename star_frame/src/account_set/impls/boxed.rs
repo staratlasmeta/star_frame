@@ -70,7 +70,7 @@ where
     unsafe fn decode_accounts(
         accounts: &mut &'a [AccountInfo],
         decode_input: DArg,
-        ctx: &mut impl Context,
+        ctx: &mut Context,
     ) -> Result<Self> {
         // SAFETY: This function is unsafe too
         unsafe { T::decode_accounts(accounts, decode_input, ctx).map(Box::new) }
@@ -81,7 +81,7 @@ impl<T, VArg> AccountSetValidate<VArg> for Box<T>
 where
     T: AccountSetValidate<VArg>,
 {
-    fn validate_accounts(&mut self, validate_input: VArg, ctx: &mut impl Context) -> Result<()> {
+    fn validate_accounts(&mut self, validate_input: VArg, ctx: &mut Context) -> Result<()> {
         T::validate_accounts(self, validate_input, ctx)
     }
 }
@@ -90,7 +90,7 @@ impl<T, CArg> AccountSetCleanup<CArg> for Box<T>
 where
     T: AccountSetCleanup<CArg>,
 {
-    fn cleanup_accounts(&mut self, cleanup_input: CArg, ctx: &mut impl Context) -> Result<()> {
+    fn cleanup_accounts(&mut self, cleanup_input: CArg, ctx: &mut Context) -> Result<()> {
         T::cleanup_accounts(self, cleanup_input, ctx)
     }
 }

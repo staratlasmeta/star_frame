@@ -60,7 +60,7 @@ where
     unsafe fn decode_accounts(
         accounts: &mut &'a [AccountInfo],
         decode_input: [DArg; N],
-        ctx: &mut impl Context,
+        ctx: &mut Context,
     ) -> Result<Self> {
         let mut decode_input = decode_input.into_iter();
         // SAFETY: This function is unsafe too
@@ -77,7 +77,7 @@ where
     unsafe fn decode_accounts(
         accounts: &mut &'a [AccountInfo],
         decode_input: (DArg,),
-        ctx: &mut impl Context,
+        ctx: &mut Context,
     ) -> Result<Self> {
         // SAFETY: This function is unsafe too
         try_array_init(|_| unsafe { A::decode_accounts(accounts, decode_input.0.clone(), ctx) })
@@ -90,7 +90,7 @@ where
     unsafe fn decode_accounts(
         accounts: &mut &'a [AccountInfo],
         decode_input: (),
-        ctx: &mut impl Context,
+        ctx: &mut Context,
     ) -> Result<Self> {
         // SAFETY: This function is unsafe too
         unsafe { Self::decode_accounts(accounts, (decode_input,), ctx) }
@@ -101,11 +101,7 @@ impl<A, const N: usize, VArg> AccountSetValidate<[VArg; N]> for [A; N]
 where
     A: AccountSetValidate<VArg>,
 {
-    fn validate_accounts(
-        &mut self,
-        validate_input: [VArg; N],
-        ctx: &mut impl Context,
-    ) -> Result<()> {
+    fn validate_accounts(&mut self, validate_input: [VArg; N], ctx: &mut Context) -> Result<()> {
         for (a, v) in self.iter_mut().zip(validate_input) {
             a.validate_accounts(v, ctx)?;
         }
@@ -117,7 +113,7 @@ where
     A: AccountSetValidate<VArg>,
     VArg: Clone,
 {
-    fn validate_accounts(&mut self, validate_input: (VArg,), ctx: &mut impl Context) -> Result<()> {
+    fn validate_accounts(&mut self, validate_input: (VArg,), ctx: &mut Context) -> Result<()> {
         for a in self {
             a.validate_accounts(validate_input.0.clone(), ctx)?;
         }
@@ -128,7 +124,7 @@ impl<A, const N: usize> AccountSetValidate<()> for [A; N]
 where
     A: AccountSetValidate<()>,
 {
-    fn validate_accounts(&mut self, validate_input: (), ctx: &mut impl Context) -> Result<()> {
+    fn validate_accounts(&mut self, validate_input: (), ctx: &mut Context) -> Result<()> {
         for a in self {
             a.validate_accounts(validate_input, ctx)?;
         }
@@ -140,7 +136,7 @@ impl<A, const N: usize, VArg> AccountSetCleanup<[VArg; N]> for [A; N]
 where
     A: AccountSetCleanup<VArg>,
 {
-    fn cleanup_accounts(&mut self, cleanup_input: [VArg; N], ctx: &mut impl Context) -> Result<()> {
+    fn cleanup_accounts(&mut self, cleanup_input: [VArg; N], ctx: &mut Context) -> Result<()> {
         for (a, v) in self.iter_mut().zip(cleanup_input) {
             a.cleanup_accounts(v, ctx)?;
         }
@@ -152,7 +148,7 @@ where
     A: AccountSetCleanup<VArg>,
     VArg: Clone,
 {
-    fn cleanup_accounts(&mut self, cleanup_input: (VArg,), ctx: &mut impl Context) -> Result<()> {
+    fn cleanup_accounts(&mut self, cleanup_input: (VArg,), ctx: &mut Context) -> Result<()> {
         for a in self {
             a.cleanup_accounts(cleanup_input.0.clone(), ctx)?;
         }
@@ -163,7 +159,7 @@ impl<A, const N: usize> AccountSetCleanup<()> for [A; N]
 where
     A: AccountSetCleanup<()>,
 {
-    fn cleanup_accounts(&mut self, cleanup_input: (), ctx: &mut impl Context) -> Result<()> {
+    fn cleanup_accounts(&mut self, cleanup_input: (), ctx: &mut Context) -> Result<()> {
         for a in self {
             a.cleanup_accounts(cleanup_input, ctx)?;
         }

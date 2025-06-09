@@ -40,7 +40,7 @@ pub trait HasSeeds {
 
 /// A trait that allows setting seeds on the underlying account. This helps enable the [`Init`] and [`Seeded`] modifiers.
 pub trait CanInitSeeds<A>: SingleAccountSet + AccountSetValidate<A> {
-    fn init_seeds(&mut self, arg: &A, ctx: &impl Context) -> Result<()>;
+    fn init_seeds(&mut self, arg: &A, ctx: &Context) -> Result<()>;
 }
 
 /// A trait that provides logic for the initializing the underlying account. This helps enable the [`Init`] and [`Seeded`] modifiers.
@@ -49,6 +49,6 @@ pub trait CanInitAccount<A>: SingleAccountSet {
         &mut self,
         arg: A,
         account_seeds: Option<Vec<&[u8]>>,
-        ctx: &impl Context,
+        ctx: &Context,
     ) -> Result<()>;
 }

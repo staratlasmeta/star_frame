@@ -48,7 +48,7 @@ impl<T, A> CanInitSeeds<A> for MaybeSigner<true, T>
 where
     Self: SingleAccountSet + AccountSetValidate<A>,
 {
-    fn init_seeds(&mut self, _arg: &A, _ctx: &impl Context) -> Result<()> {
+    fn init_seeds(&mut self, _arg: &A, _ctx: &Context) -> Result<()> {
         Ok(())
     }
 }
@@ -58,7 +58,7 @@ impl<T, A> CanInitSeeds<A> for MaybeSigner<false, T>
 where
     T: CanInitSeeds<A>,
 {
-    fn init_seeds(&mut self, arg: &A, ctx: &impl Context) -> Result<()> {
+    fn init_seeds(&mut self, arg: &A, ctx: &Context) -> Result<()> {
         self.0.init_seeds(arg, ctx)
     }
 }

@@ -136,7 +136,7 @@ pub(super) fn cleanups(
                 fn cleanup_accounts(
                     &mut self,
                     arg: #cleanup_type,
-                    ctx: &mut impl #prelude::Context,
+                    ctx: &mut #prelude::Context,
                 ) -> #result<()> {
                     #(
                         let __arg = #cleanup_args;

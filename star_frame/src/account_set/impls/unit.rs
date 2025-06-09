@@ -38,19 +38,19 @@ impl<'a> AccountSetDecode<'a, ()> for () {
     unsafe fn decode_accounts(
         _accounts: &mut &'a [AccountInfo],
         decode_input: (),
-        _ctx: &mut impl Context,
+        _ctx: &mut Context,
     ) -> Result<Self> {
         Ok(decode_input)
     }
 }
 impl AccountSetValidate<()> for () {
-    fn validate_accounts(&mut self, validate_input: (), _context: &mut impl Context) -> Result<()> {
+    fn validate_accounts(&mut self, validate_input: (), _context: &mut Context) -> Result<()> {
         Ok(validate_input)
     }
 }
 
 impl AccountSetCleanup<()> for () {
-    fn cleanup_accounts(&mut self, cleanup_input: (), _context: &mut impl Context) -> Result<()> {
+    fn cleanup_accounts(&mut self, cleanup_input: (), _context: &mut Context) -> Result<()> {
         Ok(cleanup_input)
     }
 }

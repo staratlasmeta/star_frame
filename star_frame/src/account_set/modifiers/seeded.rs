@@ -94,13 +94,13 @@ pub struct Seeds<T>(pub T);
 #[derive(Debug, Clone, Copy)]
 pub struct CurrentProgram;
 pub trait SeedProgram {
-    fn id(ctx: &impl ContextCore) -> Result<Pubkey>;
+    fn id(ctx: &Context) -> Result<Pubkey>;
     #[cfg(all(feature = "idl", not(target_os = "solana")))]
     fn idl_program() -> Option<Pubkey>;
 }
 
 impl SeedProgram for CurrentProgram {
-    fn id(ctx: &impl ContextCore) -> Result<Pubkey> {
+    fn id(ctx: &Context) -> Result<Pubkey> {
         Ok(*ctx.current_program_id())
     }
     #[cfg(all(feature = "idl", not(target_os = "solana")))]
@@ -113,7 +113,7 @@ impl<P> SeedProgram for P
 where
     P: StarFrameProgram,
 {
-    fn id(_ctx: &impl ContextCore) -> Result<Pubkey> {
+    fn id(_ctx: &Context) -> Result<Pubkey> {
         Ok(P::ID)
     }
 
@@ -177,7 +177,7 @@ where
     S: GetSeeds + Clone,
     P: SeedProgram,
 {
-    fn init_seeds(&mut self, arg: &(Seeds<S>, A), ctx: &impl Context) -> Result<()> {
+    fn init_seeds(&mut self, arg: &(Seeds<S>, A), ctx: &Context) -> Result<()> {
         self.validate_and_set_seeds(&arg.0, ctx)
     }
 }
@@ -188,7 +188,7 @@ where
     S: GetSeeds + Clone,
     P: SeedProgram,
 {
-    fn init_seeds(&mut self, arg: &Seeds<S>, ctx: &impl Context) -> Result<()> {
+    fn init_seeds(&mut self, arg: &Seeds<S>, ctx: &Context) -> Result<()> {
         self.validate_and_set_seeds(arg, ctx)
     }
 }
@@ -199,7 +199,7 @@ where
     S: GetSeeds + Clone,
     P: SeedProgram,
 {
-    fn init_seeds(&mut self, arg: &(SeedsWithBump<S>, A), ctx: &impl Context) -> Result<()> {
+    fn init_seeds(&mut self, arg: &(SeedsWithBump<S>, A), ctx: &Context) -> Result<()> {
         self.validate_and_set_seeds_with_bump(&arg.0, ctx)
     }
 }
@@ -210,7 +210,7 @@ where
     S: GetSeeds + Clone,
     P: SeedProgram,
 {
-    fn init_seeds(&mut self, arg: &SeedsWithBump<S>, ctx: &impl Context) -> Result<()> {
+    fn init_seeds(&mut self, arg: &SeedsWithBump<S>, ctx: &Context) -> Result<()> {
         self.validate_and_set_seeds_with_bump(arg, ctx)
     }
 }
@@ -221,7 +221,7 @@ where
     S: GetSeeds + Clone,
     P: SeedProgram,
 {
-    fn validate_and_set_seeds(&mut self, seeds: &Seeds<S>, ctx: &impl Context) -> Result<()> {
+    fn validate_and_set_seeds(&mut self, seeds: &Seeds<S>, ctx: &Context) -> Result<()> {
         if self.seeds.is_some() {
             return Ok(());
         }
@@ -239,7 +239,7 @@ where
     fn validate_and_set_seeds_with_bump(
         &mut self,
         seeds: &SeedsWithBump<S>,
-        ctx: &impl Context,
+        ctx: &Context,
     ) -> Result<()> {
         if self.seeds.is_some() {
             return Ok(());
@@ -296,7 +296,7 @@ where
         &mut self,
         arg: A,
         account_seeds: Option<Vec<&[u8]>>,
-        ctx: &impl Context,
+        ctx: &Context,
     ) -> Result<()> {
         // override seeds. Init should be called after seeds are set
         if account_seeds.is_some() {
