@@ -22,6 +22,6 @@ bytemuck = { workspace = true }
 star_frame = { workspace = true }
 
 [dev-dependencies]
-codama-nodes.workspace = true
-mollusk-svm.workspace = true
-solana-account.workspace = true
+codama-nodes = { workspace = true }
+mollusk-svm = { workspace = true }
+solana-account = { workspace = true }
