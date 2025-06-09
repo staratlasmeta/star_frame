@@ -33,6 +33,7 @@ pub use crate::Result;
 
 pub use crate::pinocchio::{account_info::AccountInfo, msg, program_error::ProgramError};
 
+pub use solana_instruction::AccountMeta;
 pub use solana_pubkey::Pubkey;
 
 pub use crate::anyhow;

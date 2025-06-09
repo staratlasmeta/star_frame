@@ -190,30 +190,27 @@ macro_rules! empty_star_frame_instruction {
     };
 }
 
-#[cfg(feature = "test_helpers")]
-mod test_helpers {
-    /// A helper macro for implementing blank instructions for testing.
-    #[macro_export]
-    macro_rules! impl_blank_ix {
-        ($($ix:ident),*) => {
-            $(
-                impl $crate::prelude::Instruction for $ix {
-                    type SelfData<'a> = ();
-                    fn data_from_bytes<'a>(_bytes: &mut &'a [u8]) -> $crate::Result<Self::SelfData<'a>> {
-                        todo!()
-                    }
-
-                    fn run_ix_from_raw(
-                        _accounts: &[$crate::prelude::AccountInfo],
-                        _data: &mut Self::SelfData<'_>,
-                        _syscalls: &mut impl $crate::prelude::Syscalls,
-                    ) -> $crate::Result<()> {
-                        todo!()
-                    }
+/// A helper macro for implementing blank instructions for testing.
+#[macro_export]
+macro_rules! impl_blank_ix {
+    ($($ix:ident),*) => {
+        $(
+            impl $crate::prelude::Instruction for $ix {
+                type SelfData<'a> = ();
+                fn data_from_bytes<'a>(_bytes: &mut &'a [u8]) -> $crate::Result<Self::SelfData<'a>> {
+                    todo!()
                 }
-            )*
-        };
-    }
+
+                fn run_ix_from_raw(
+                    _accounts: &[$crate::prelude::AccountInfo],
+                    _data: &mut Self::SelfData<'_>,
+                    _syscalls: &mut impl $crate::prelude::Syscalls,
+                ) -> $crate::Result<()> {
+                    todo!()
+                }
+            }
+        )*
+    };
 }
 
 #[cfg(test)]
