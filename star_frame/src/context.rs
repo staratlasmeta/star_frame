@@ -4,24 +4,25 @@ use pinocchio::sysvars::clock::Clock;
 use pinocchio::sysvars::rent::Rent;
 use pinocchio::sysvars::Sysvar;
 use solana_pubkey::Pubkey;
-
 use std::cell::Cell;
 
-/// Additional context to be used by star frame programs.
-#[derive(derive_more::Debug, Default)]
+/// Additional context given to [`crate::instruction::Instruction`]s, enabling programs to cache and retrieve helpful information during instruction execution.
+#[derive(Debug, Default)]
 pub struct Context {
     /// The program id of the currently executing program.
     program_id: Pubkey,
+    // Rent cache to avoid repeated `Rent::get()` calls
     rent_cache: Cell<Option<Rent>>,
+    // Clock cache to avoid repeated `Clock::get()` calls
     clock_cache: Cell<Option<Clock>>,
-    #[debug("{:?}", recipient.as_ref().map(|r| std::any::type_name_of_val(r)))]
+    // Cached recipient for rent. Usually set during `AccountSetValidate`
     recipient: Option<Box<dyn CanReceiveRent>>,
-    #[debug("{:?}", funder.as_ref().map(|f| std::any::type_name_of_val(f)))]
+    // Cached funder for rent. Usually set during `AccountSetValidate`
     funder: Option<Box<dyn CanFundRent>>,
 }
 
 impl Context {
-    /// Create a new solana runtime.
+    /// Create a new context from a program id.
     #[must_use]
     pub fn new(program_id: Pubkey) -> Self {
         Self {
@@ -33,10 +34,12 @@ impl Context {
         }
     }
 
+    /// Get the program id of the currently executing program.
     pub fn current_program_id(&self) -> &Pubkey {
         &self.program_id
     }
 
+    /// Gets the rent sysvar from the cache, populating the cache with a call to `Rent::get()` if empty.
     pub fn get_rent(&self) -> Result<Rent> {
         match self.rent_cache.get() {
             None => {
@@ -48,6 +51,7 @@ impl Context {
         }
     }
 
+    /// Gets the clock sysvar from the cache, populating the cache with a call to `Clock::get()` if empty.
     pub fn get_clock(&self) -> Result<Clock> {
         match self.clock_cache.get() {
             None => {
@@ -59,18 +63,22 @@ impl Context {
         }
     }
 
+    /// Gets the cached funder for rent if it has been set.
     pub fn get_funder(&self) -> Option<&dyn CanFundRent> {
         self.funder.as_ref().map(std::convert::AsRef::as_ref)
     }
 
+    /// Sets the funder for rent.
     pub fn set_funder(&mut self, funder: Box<dyn CanFundRent>) {
         self.funder.replace(funder);
     }
 
+    /// Gets the cached recipient for rent if it has been set.
     pub fn get_recipient(&self) -> Option<&dyn CanReceiveRent> {
         self.recipient.as_ref().map(std::convert::AsRef::as_ref)
     }
 
+    /// Sets the recipient for rent.
     pub fn set_recipient(&mut self, recipient: Box<dyn CanReceiveRent>) {
         self.recipient.replace(recipient);
     }

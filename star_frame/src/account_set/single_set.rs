@@ -9,6 +9,7 @@ use pinocchio::program_error::ProgramError;
 use solana_instruction::AccountMeta;
 use solana_pubkey::Pubkey;
 use std::cmp::Ordering;
+use std::fmt::Debug;
 use std::mem::size_of;
 
 #[derive(Debug, Clone, Copy)]
@@ -162,7 +163,7 @@ pub trait CanCloseAccount: SingleAccountSet {
 
 impl<T> CanCloseAccount for T where T: SingleAccountSet + ?Sized {}
 
-pub trait CanReceiveRent {
+pub trait CanReceiveRent: Debug {
     fn account_to_modify(&self) -> AccountInfo;
     fn receive_rent(&self, lamports: u64) -> Result<()> {
         *self.account_to_modify().try_borrow_mut_lamports()? += lamports;
@@ -172,7 +173,7 @@ pub trait CanReceiveRent {
 
 impl<T> CanReceiveRent for T
 where
-    T: WritableAccount + ?Sized,
+    T: WritableAccount + Debug + ?Sized,
 {
     fn account_to_modify(&self) -> AccountInfo {
         *self.account_info()
