@@ -54,6 +54,7 @@ mod idl_impl {
     use star_frame::idl::{FindIdlSeeds, FindSeed, SeedsToIdl};
     use star_frame::star_frame_idl::seeds::{IdlFindSeed, IdlSeed, IdlSeeds};
 
+    use crate::token::state::MintAccount;
     use crate::token::Token;
     use star_frame::star_frame_idl::IdlDefinition;
 
@@ -61,7 +62,7 @@ mod idl_impl {
     #[derive(Debug, Clone, PartialEq, Eq, BorshDeserialize, BorshSerialize)]
     pub struct AssociatedTokenSeeds {
         pub wallet: Pubkey,
-        pub mint: Pubkey,
+        pub mint: KeyFor<MintAccount>,
     }
 
     pub type AtaSeeds = AssociatedTokenSeeds;

@@ -281,7 +281,7 @@ pub enum AccountState {
 #[derive(Clone, Copy, Debug, Default, PartialEq, CheckedBitPattern, Zeroable)]
 #[repr(C, packed)]
 pub struct TokenAccountData {
-    pub mint: Pubkey,
+    pub mint: KeyFor<MintAccount>,
     pub owner: Pubkey,
     pub amount: u64,
     pub delegate: PodOption<Pubkey>,
@@ -371,7 +371,7 @@ impl TokenAccount {
 
 #[derive(Debug, Clone, PartialEq, Eq, Copy, Default)]
 pub struct ValidateToken<'a> {
-    pub mint: Option<&'a Pubkey>,
+    pub mint: Option<&'a KeyFor<MintAccount>>,
     pub owner: Option<&'a Pubkey>,
     // pub token_program: Option<Pubkey>,
 }
@@ -388,7 +388,7 @@ where
 {
     fn from(value: InitToken<'a, MintInfo>) -> Self {
         Self {
-            mint: Some(value.mint.pubkey()),
+            mint: Some(KeyFor::new_ref(value.mint.pubkey())),
             owner: Some(value.owner),
         }
     }
