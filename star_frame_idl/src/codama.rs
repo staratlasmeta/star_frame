@@ -210,13 +210,15 @@ fn seeds_to_pda_value_node(seeds: &IdlFindSeeds, paths: &PathInfo) -> PdaValueNo
             IdlFindSeed::AccountPath(account_path) => {
                 let name = format!("{account_path}{index}");
                 let value = VariablePdaSeedNode::new(name.clone(), PublicKeyTypeNode {}).into();
-                let account_path = paths.create_next(Some(account_path), index);
+                // Account paths that start with a colon are interpreted as root paths
+                let path_name = if let Some(stripped) = account_path.strip_prefix(':') {
+                    stripped.into()
+                } else {
+                    paths.create_next(Some(account_path), index).name()
+                };
                 let lookup = PdaSeedValueNode {
-                    name: name.into(),
-                    value: AccountValueNode {
-                        name: account_path.name(),
-                    }
-                    .into(),
+                    name: path_name,
+                    value: AccountValueNode { name: name.into() }.into(),
                 };
                 (value, Some(lookup))
             }

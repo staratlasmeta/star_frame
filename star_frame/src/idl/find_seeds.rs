@@ -27,6 +27,9 @@ impl<const N: usize> FindIdlSeeds for [IdlFindSeed; N] {
 pub fn seed_const<T: NoUninit>(seed: T) -> FindSeed<T> {
     FindSeed::Const(seed)
 }
+/// Creates a seed that references an account path. For nested account sets, the fields should be split with a space. If
+/// you want to specify that a path is from the root and not nested (even if it's nested in another account set), prefix
+/// the path with a colon.
 #[must_use]
 pub fn seed_path<T: NoUninit>(path: &str) -> FindSeed<T> {
     FindSeed::Path(path.to_string())
