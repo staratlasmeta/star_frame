@@ -12,7 +12,7 @@ pub struct ListItemSized<K: UnsizedGenerics, V: UnsizedGenerics> {
 }
 
 const _: fn() = || {
-    #[allow(clippy::missing_const_for_fn)]
+    #[allow(clippy::missing_const_for_fn, unused)]
     #[doc(hidden)]
     fn check<K: UnsizedGenerics, V: UnsizedGenerics>() {
         fn assert_impl<T: NoUninit + Zeroable + CheckedBitPattern>() {}
