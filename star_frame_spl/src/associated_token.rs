@@ -1,3 +1,4 @@
+use crate::token::state::MintAccount;
 use crate::token::{state::TokenAccount, Token};
 use borsh::{BorshDeserialize, BorshSerialize};
 use star_frame::derive_more;
@@ -23,14 +24,14 @@ impl AssociatedToken {
     ///     get_associated_token_address(&wallet, &mint),
     /// );
     /// ```
-    pub fn find_address(wallet: &Pubkey, mint: &Pubkey) -> Pubkey {
+    pub fn find_address(wallet: &Pubkey, mint: &KeyFor<MintAccount>) -> Pubkey {
         Self::find_address_with_bump(wallet, mint).0
     }
 
     /// Find the associated token address for the given wallet and mint, with a bump.
-    pub fn find_address_with_bump(wallet: &Pubkey, mint: &Pubkey) -> (Pubkey, u8) {
+    pub fn find_address_with_bump(wallet: &Pubkey, mint: &KeyFor<MintAccount>) -> (Pubkey, u8) {
         Pubkey::find_program_address(
-            &[wallet.as_ref(), Token::ID.as_ref(), mint.as_ref()],
+            &[wallet.as_ref(), Token::ID.as_ref(), mint.pubkey().as_ref()],
             &Self::ID,
         )
     }
@@ -272,7 +273,7 @@ pub mod state {
     #[derive(Debug, Clone, PartialEq, Eq, Copy)]
     pub struct ValidateAta<'a> {
         pub wallet: &'a Pubkey,
-        pub mint: &'a Pubkey,
+        pub mint: &'a KeyFor<MintAccount>,
     }
 
     #[derive(Debug, Clone, Copy)]
@@ -306,7 +307,7 @@ pub mod state {
     {
         fn from(value: InitAta<'a, WalletInfo, MintInfo>) -> Self {
             Self {
-                mint: value.mint.pubkey(),
+                mint: KeyFor::new_ref(value.mint.pubkey()),
                 wallet: value.wallet.pubkey(),
             }
         }
