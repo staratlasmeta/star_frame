@@ -13,15 +13,15 @@ impl AssociatedToken {
     ///
     /// See [`spl_associated_token_account::get_associated_token_address`].
     /// ```
-    /// # use star_frame_spl::associated_token::AssociatedToken;
+    /// # use star_frame_spl::{token::state::MintAccount,associated_token::AssociatedToken};
     /// # use spl_associated_token_account::get_associated_token_address;
     /// # use pretty_assertions::assert_eq;
-    /// # use star_frame::prelude::Pubkey;
+    /// # use star_frame::prelude::{KeyFor, Pubkey};
     /// let wallet = Pubkey::new_unique();
     /// let mint = KeyFor::<MintAccount>::new(Pubkey::new_unique());
     /// assert_eq!(
     ///     AssociatedToken::find_address(&wallet, &mint),
-    ///     get_associated_token_address(&wallet, &mint),
+    ///     get_associated_token_address(&wallet, &mint.pubkey()),
     /// );
     /// ```
     pub fn find_address(wallet: &Pubkey, mint: &KeyFor<MintAccount>) -> Pubkey {
