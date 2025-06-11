@@ -165,18 +165,18 @@ impl AccountSetValidate<()> for AccountInfo {
 }
 
 impl AccountSetValidate<()> for &AccountInfo {
-    fn validate_accounts(&mut self, validate_input: (), _context: &mut Context) -> Result<()> {
+    fn validate_accounts(&mut self, validate_input: (), _ctx: &mut Context) -> Result<()> {
         Ok(validate_input)
     }
 }
 
 impl AccountSetCleanup<()> for AccountInfo {
-    fn cleanup_accounts(&mut self, cleanup_input: (), _context: &mut Context) -> Result<()> {
+    fn cleanup_accounts(&mut self, cleanup_input: (), _ctx: &mut Context) -> Result<()> {
         Ok(cleanup_input)
     }
 }
 impl AccountSetCleanup<()> for &AccountInfo {
-    fn cleanup_accounts(&mut self, cleanup_input: (), _context: &mut Context) -> Result<()> {
+    fn cleanup_accounts(&mut self, cleanup_input: (), _ctx: &mut Context) -> Result<()> {
         Ok(cleanup_input)
     }
 }

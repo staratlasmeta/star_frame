@@ -44,13 +44,13 @@ impl<'a> AccountSetDecode<'a, ()> for () {
     }
 }
 impl AccountSetValidate<()> for () {
-    fn validate_accounts(&mut self, validate_input: (), _context: &mut Context) -> Result<()> {
+    fn validate_accounts(&mut self, validate_input: (), _ctx: &mut Context) -> Result<()> {
         Ok(validate_input)
     }
 }
 
 impl AccountSetCleanup<()> for () {
-    fn cleanup_accounts(&mut self, cleanup_input: (), _context: &mut Context) -> Result<()> {
+    fn cleanup_accounts(&mut self, cleanup_input: (), _ctx: &mut Context) -> Result<()> {
         Ok(cleanup_input)
     }
 }
