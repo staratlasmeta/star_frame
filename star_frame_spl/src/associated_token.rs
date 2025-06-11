@@ -18,7 +18,7 @@ impl AssociatedToken {
     /// # use pretty_assertions::assert_eq;
     /// # use star_frame::prelude::Pubkey;
     /// let wallet = Pubkey::new_unique();
-    /// let mint = Pubkey::new_unique();
+    /// let mint = KeyFor::<MintAccount>::new(Pubkey::new_unique());
     /// assert_eq!(
     ///     AssociatedToken::find_address(&wallet, &mint),
     ///     get_associated_token_address(&wallet, &mint),
