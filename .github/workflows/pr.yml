@@ -75,7 +75,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ env.rust_miri_nightly }}
-          components: miri
+          components: miri, rust-src
       - name: Override rust-toolchain for Miri
         run: rustup override set ${{ env.rust_miri_nightly }}
       - uses: Swatinem/rust-cache@v2
