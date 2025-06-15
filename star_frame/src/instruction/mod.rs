@@ -84,7 +84,7 @@ pub trait InstructionArgs: Sized {
     /// The instruction data type used to cleanup accounts.
     type CleanupArg<'a>;
     /// Splits self into decode, validate, cleanup, and run args.
-    fn split_to_args(r: &mut Self) -> IxArgs<Self>;
+    fn split_to_args(r: &mut Self) -> IxArgs<'_, Self>;
 }
 
 /// A `star_frame` defined instruction using [`AccountSet`] and other traits.
