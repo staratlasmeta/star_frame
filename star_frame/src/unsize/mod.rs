@@ -78,7 +78,7 @@ pub trait RawSliceAdvance: Sized + sealed::Sealed {
 
 impl RawSliceAdvance for *mut [u8] {
     /// Advances the pointer by `advance` bytes, returning a pointer to the advanced over section.
-    /// This uses [`Self::wrapping_add`] to advance the pointer, so while this method is safe to call,
+    /// This uses the `wrapping_add` method on `*mut T` to advance the pointer, so while this method is safe to call,
     /// the resulting pointer may be unsafe to dereference if Self and its metadata (slice length) are not valid.
     ///
     /// # Examples

@@ -46,7 +46,7 @@ pub struct MintData {
 }
 
 impl MintAccount {
-    /// See [`spl_token::state::Mint::LEN`].
+    /// See [`spl_token::state::Mint`]'s `LEN` const from `solana-program-pack`.
     /// ```
     /// # use solana_program_pack::Pack;
     /// # use star_frame_spl::token::state::{MintAccount, MintData};
