@@ -1,4 +1,4 @@
-name: build-lint-test
+name: CI
 permissions:
   contents: read
   pull-requests: write
@@ -9,25 +9,17 @@ on:
     branches: ['main']
     types: [synchronize, opened, reopened]
 
-jobs:
-  build:
-    runs-on:
-      group: sa-runners
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
-      - uses: ./.github/actions/setup_shipyard
-        with:
-          ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
-          private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
-      - run: cargo build --all-features
+env:
+  rust_miri_nightly: 'nightly-2025-06-15'
 
+jobs:
   lint:
     runs-on:
       group: sa-runners
     steps:
       - uses: actions/checkout@v4
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
       - uses: ./.github/actions/setup_shipyard
         with:
           ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
@@ -39,21 +31,35 @@ jobs:
       group: sa-runners
     steps:
       - uses: actions/checkout@v4
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
-        with:
-          cache: 'false'
+      - uses: dtolnay/rust-toolchain@stable
       - uses: ./.github/actions/setup_shipyard
         with:
           ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
           private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
       - run: cargo fmt --all --check
 
+  doc:
+    runs-on:
+      group: sa-runners
+    env:
+      RUSTDOCFLAGS: '-Dwarnings'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: ./.github/actions/setup_shipyard
+        with:
+          ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
+          private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+      - run: cargo doc --all-features --no-deps --document-private-items
+
   test:
     runs-on:
       group: sa-runners
     steps:
       - uses: actions/checkout@v4
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
       - uses: ./.github/actions/setup_shipyard
         with:
           ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
@@ -65,14 +71,14 @@ jobs:
       group: sa-runners
     steps:
       - uses: actions/checkout@v4
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - name: Install Rust ${{ env.rust_miri_nightly }}
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 'nightly'
-          components: 'miri, rust-src'
-      - name: Set up miri
-        run: |
-          rustup override set nightly
-          cargo miri setup
+          toolchain: ${{ env.rust_miri_nightly }}
+          components: miri
+      - name: Override rust-toolchain for Miri
+        run: rustup override set ${{ env.rust_miri_nightly }}
+      - uses: Swatinem/rust-cache@v2
       - uses: taiki-e/install-action@nextest
       - uses: ./.github/actions/setup_shipyard
         with:
