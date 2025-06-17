@@ -18,7 +18,7 @@ jobs:
       group: sa-runners
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - run: rustup install
       - uses: Swatinem/rust-cache@v2
       - uses: ./.github/actions/setup_shipyard
         with:
@@ -31,7 +31,7 @@ jobs:
       group: sa-runners
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - run: rustup install
       - uses: ./.github/actions/setup_shipyard
         with:
           ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
@@ -45,7 +45,7 @@ jobs:
       RUSTDOCFLAGS: '-Dwarnings'
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - run: rustup install
       - uses: Swatinem/rust-cache@v2
       - uses: ./.github/actions/setup_shipyard
         with:
@@ -58,7 +58,7 @@ jobs:
       group: sa-runners
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - run: rustup install
       - uses: Swatinem/rust-cache@v2
       - uses: ./.github/actions/setup_shipyard
         with:
@@ -72,7 +72,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install Rust ${{ env.rust_miri_nightly }}
-        uses: dtolnay/rust-toolchain@stable
+        uses: rustup install
         with:
           toolchain: ${{ env.rust_miri_nightly }}
           components: miri, rust-src
