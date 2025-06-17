@@ -73,6 +73,10 @@ jobs:
           cache-provider: buildjet
           toolchain: ${{ env.rust_miri_nightly }}
           components: miri,rust-src
+      - name: Set up Miri and nightly
+        run: |
+          rustup override set nightly
+          cargo miri setup --print-sysroot
       - uses: taiki-e/install-action@nextest
       - uses: ./.github/actions/setup_shipyard
         with:
