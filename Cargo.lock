@@ -1782,8 +1782,9 @@ dependencies = [
 
 [[package]]
 name = "mollusk-svm"
-version = "0.1.5"
-source = "git+https://github.com/anza-xyz/mollusk?branch=main#fa567898908fb9b4945875de77ff39efe5dba68e"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "71578c87cdca466b5c79b0392da3f9fa6e7788763f3588de27a2f640bbe9c46a"
 dependencies = [
  "agave-feature-set",
  "agave-precompiles",
@@ -1797,7 +1798,6 @@ dependencies = [
  "solana-compute-budget",
  "solana-epoch-rewards",
  "solana-epoch-schedule",
- "solana-fee-structure",
  "solana-hash",
  "solana-instruction",
  "solana-loader-v3-interface",
@@ -1820,8 +1820,9 @@ dependencies = [
 
 [[package]]
 name = "mollusk-svm-error"
-version = "0.1.5"
-source = "git+https://github.com/anza-xyz/mollusk?branch=main#fa567898908fb9b4945875de77ff39efe5dba68e"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "346bdea47a3f974017db0462da59d3c7a46182cde8b13ef8883914681caad0fd"
 dependencies = [
  "solana-pubkey",
  "thiserror 1.0.69",
@@ -1829,8 +1830,9 @@ dependencies = [
 
 [[package]]
 name = "mollusk-svm-keys"
-version = "0.1.5"
-source = "git+https://github.com/anza-xyz/mollusk?branch=main#fa567898908fb9b4945875de77ff39efe5dba68e"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6b0ef51ce439ce41889d1e6b469272c2f6c1a9e730326b0b7ca7a588065f3687"
 dependencies = [
  "mollusk-svm-error",
  "solana-account",
@@ -1841,8 +1843,9 @@ dependencies = [
 
 [[package]]
 name = "mollusk-svm-programs-token"
-version = "0.1.5"
-source = "git+https://github.com/anza-xyz/mollusk?branch=main#fa567898908fb9b4945875de77ff39efe5dba68e"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f657a62ec41dedd7354875befb8e7c578286725677b8b6471284a3642b2c8721"
 dependencies = [
  "mollusk-svm",
  "solana-account",
@@ -1851,8 +1854,9 @@ dependencies = [
 
 [[package]]
 name = "mollusk-svm-result"
-version = "0.1.5"
-source = "git+https://github.com/anza-xyz/mollusk?branch=main#fa567898908fb9b4945875de77ff39efe5dba68e"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5ae0d108159ee8e5b7ba0328569a93b7a852a0ac59e435e759585a3aba206f5c"
 dependencies = [
  "solana-account",
  "solana-instruction",
