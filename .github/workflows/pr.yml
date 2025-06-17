@@ -15,7 +15,7 @@ env:
 jobs:
   lint:
     runs-on:
-      group: sa-runner-2-core
+      labels: sa-runner-2-core
     steps:
       - uses: actions/checkout@v4
       - run: rustup self update # TODO: Remove this once buildjet updates their image to use rustup 1.28.2
@@ -29,7 +29,7 @@ jobs:
 
   fmt:
     runs-on:
-      group: sa-runner-2-core
+      labels: sa-runner-2-core
     steps:
       - uses: actions/checkout@v4
       - run: rustup self update # TODO: Remove this once buildjet updates their image to use rustup 1.28.2
@@ -60,7 +60,7 @@ jobs:
 
   doc2:
     runs-on:
-      group: sa-runner-2-core
+      labels: sa-runner-2-core
     env:
       RUSTDOCFLAGS: '-Dwarnings'
     steps:
@@ -78,7 +78,7 @@ jobs:
 
   doc3:
     runs-on:
-      group: sa-runner-2-core
+      labels: sa-runner-2-core
     env:
       RUSTDOCFLAGS: '-Dwarnings'
     steps:
@@ -96,7 +96,7 @@ jobs:
 
   doc4:
     runs-on:
-      group: sa-runner-2-core
+      labels: sa-runner-2-core
     env:
       RUSTDOCFLAGS: '-Dwarnings'
     steps:
@@ -114,7 +114,7 @@ jobs:
 
   doc5:
     runs-on:
-      group: sa-runner-2-core
+      labels: sa-runner-2-core
     env:
       RUSTDOCFLAGS: '-Dwarnings'
     steps:
