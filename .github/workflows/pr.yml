@@ -14,8 +14,7 @@ env:
 
 jobs:
   lint:
-    runs-on:
-      group: sa-runners
+    runs-on: buildjet-4vcpu-ubuntu-2204
     steps:
       - uses: actions/checkout@v4
       - run: rustup install
@@ -29,8 +28,7 @@ jobs:
       - run: cargo clippy --all-targets --all-features
 
   fmt:
-    runs-on:
-      group: sa-runners
+    runs-on: buildjet-4vcpu-ubuntu-2204
     steps:
       - uses: actions/checkout@v4
       - run: rustup install
@@ -41,8 +39,7 @@ jobs:
       - run: cargo fmt --all --check
 
   doc:
-    runs-on:
-      group: sa-runners
+    runs-on: buildjet-4vcpu-ubuntu-2204
     env:
       RUSTDOCFLAGS: '-Dwarnings'
     steps:
@@ -58,8 +55,7 @@ jobs:
       - run: cargo doc --all-features --no-deps --document-private-items
 
   test:
-    runs-on:
-      group: sa-runners
+    runs-on: buildjet-4vcpu-ubuntu-2204
     steps:
       - uses: actions/checkout@v4
       - run: rustup install
@@ -73,8 +69,7 @@ jobs:
       - run: cargo test --all-features
 
   miri:
-    runs-on:
-      group: sa-runners
+    runs-on: buildjet-4vcpu-ubuntu-2204
     steps:
       - uses: actions/checkout@v4
       - name: Install Rust ${{ env.rust_miri_nightly }} and set override
