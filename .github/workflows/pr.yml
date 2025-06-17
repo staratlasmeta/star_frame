@@ -14,8 +14,7 @@ env:
 
 jobs:
   lint:
-    runs-on:
-      labels: sa-runner-2-core
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - run: rustup self update # TODO: Remove this once buildjet updates their image to use rustup 1.28.2
@@ -28,8 +27,7 @@ jobs:
       - run: cargo clippy --all-targets --all-features
 
   fmt:
-    runs-on:
-      labels: sa-runner-2-core
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - run: rustup self update # TODO: Remove this once buildjet updates their image to use rustup 1.28.2
@@ -59,8 +57,7 @@ jobs:
       - run: cargo doc --all-features --no-deps --document-private-items
 
   doc2:
-    runs-on:
-      labels: sa-runner-2-core
+    runs-on: ubuntu-latest
     env:
       RUSTDOCFLAGS: '-Dwarnings'
     steps:
@@ -77,8 +74,7 @@ jobs:
       - run: cargo doc --all-features --no-deps --document-private-items
 
   doc3:
-    runs-on:
-      labels: sa-runner-2-core
+    runs-on: ubuntu-latest
     env:
       RUSTDOCFLAGS: '-Dwarnings'
     steps:
@@ -95,8 +91,7 @@ jobs:
       - run: cargo doc --all-features --no-deps --document-private-items
 
   doc4:
-    runs-on:
-      labels: sa-runner-2-core
+    runs-on: ubuntu-latest
     env:
       RUSTDOCFLAGS: '-Dwarnings'
     steps:
@@ -113,8 +108,7 @@ jobs:
       - run: cargo doc --all-features --no-deps --document-private-items
 
   doc5:
-    runs-on:
-      labels: sa-runner-2-core
+    runs-on: ubuntu-latest
     env:
       RUSTDOCFLAGS: '-Dwarnings'
     steps:
