@@ -17,7 +17,8 @@ jobs:
     runs-on: buildjet-4vcpu-ubuntu-2204
     steps:
       - uses: actions/checkout@v4
-      - run: rustup show # Auto install from rust-toolchain.toml
+      - run: rustup self update # TODO: Remove this once buildjet updates their image to use rustup 1.28.2
+      - run: rustup install
       - uses: Swatinem/rust-cache@v2
         with:
           cache-provider: buildjet
@@ -31,7 +32,8 @@ jobs:
     runs-on: buildjet-4vcpu-ubuntu-2204
     steps:
       - uses: actions/checkout@v4
-      - run: rustup show # Auto install from rust-toolchain.toml
+      - run: rustup self update # TODO: Remove this once buildjet updates their image to use rustup 1.28.2
+      - run: rustup install
       - uses: ./.github/actions/setup_shipyard
         with:
           ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
@@ -44,7 +46,8 @@ jobs:
       RUSTDOCFLAGS: '-Dwarnings'
     steps:
       - uses: actions/checkout@v4
-      - run: rustup show # Auto install from rust-toolchain.toml
+      - run: rustup self update # TODO: Remove this once buildjet updates their image to use rustup 1.28.2
+      - run: rustup install
       - uses: Swatinem/rust-cache@v2
         with:
           cache-provider: buildjet
@@ -58,7 +61,8 @@ jobs:
     runs-on: buildjet-4vcpu-ubuntu-2204
     steps:
       - uses: actions/checkout@v4
-      - run: rustup show # Auto install from rust-toolchain.toml
+      - run: rustup self update # TODO: Remove this once buildjet updates their image to use rustup 1.28.2
+      - run: rustup install
       - uses: Swatinem/rust-cache@v2
         with:
           cache-provider: buildjet
@@ -72,8 +76,9 @@ jobs:
     runs-on: buildjet-4vcpu-ubuntu-2204
     steps:
       - uses: actions/checkout@v4
+      - run: rustup self update # TODO: Remove this once buildjet updates their image to use rustup 1.28.2
       - name: Install Rust ${{ env.rust_miri_nightly }}
-        run: rustup install -c miri,rust-src --profile minimal --no-self-update ${{ env.rust_miri_nightly }}
+        run: rustup install -c miri,rust-src --profile minimal ${{ env.rust_miri_nightly }}
       - run: rustup override set ${{ env.rust_miri_nightly }}
       - uses: Swatinem/rust-cache@v2
         with:
