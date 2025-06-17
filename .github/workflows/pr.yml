@@ -40,7 +40,7 @@ jobs:
 
   doc:
     runs-on:
-      group: sa-runner-2-core
+      labels: sa-runner-2-core
     env:
       RUSTDOCFLAGS: '-Dwarnings'
     steps:
