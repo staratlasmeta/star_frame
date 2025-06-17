@@ -72,10 +72,9 @@ jobs:
     runs-on: buildjet-4vcpu-ubuntu-2204
     steps:
       - uses: actions/checkout@v4
-      - name: Install Rust ${{ env.rust_miri_nightly }} and set override
-        run: |
-          rustup install -c miri,rust-src --profile minimal --no-self-update ${{ env.rust_miri_nightly }}
-          rustup override set ${{ env.rust_miri_nightly }}
+      - name: Install Rust ${{ env.rust_miri_nightly }}
+        run: rustup install -c miri,rust-src --profile minimal --no-self-update ${{ env.rust_miri_nightly }}
+      - run: rustup override set ${{ env.rust_miri_nightly }}
       - uses: Swatinem/rust-cache@v2
         with:
           cache-provider: buildjet
@@ -84,5 +83,5 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
           private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
-      - run: 'MIRIFLAGS="-Zmiri-tree-borrows -Zmiri-strict-provenance" cargo miri nextest run --features "test_helpers" unsize::'
+      - run: 'MIRIFLAGS="-Zmiri-tree-borrows -Zmiri-strict-provenance" cargo nextest run --features "test_helpers" unsize::'
         working-directory: star_frame
