@@ -45,11 +45,8 @@ jobs:
       RUSTDOCFLAGS: '-Dwarnings'
     steps:
       - uses: actions/checkout@v4
-      - run: rustup self update # TODO: Remove this once buildjet updates their image to use rustup 1.28.2
       - run: rustup install
       - uses: Swatinem/rust-cache@v2
-        # with:
-        # cache-provider: buildjet
       - uses: ./.github/actions/setup_shipyard
         with:
           ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
