@@ -58,7 +58,7 @@ jobs:
     runs-on: buildjet-4vcpu-ubuntu-2204
     steps:
       - uses: actions/checkout@v4
-      - run: rustup install
+      - run: rustup show # Auto install from rust-toolchain.toml
       - uses: Swatinem/rust-cache@v2
         with:
           cache-provider: buildjet
@@ -74,7 +74,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install Rust ${{ env.rust_miri_nightly }} and set override
         run: |
-          rustup install --component miri,rust-src --profile minimal ${{ env.rust_miri_nightly }} --no-self-update
+          rustup install -c miri,rust-src --profile minimal --no-self-update ${{ env.rust_miri_nightly }}
           rustup override set ${{ env.rust_miri_nightly }}
       - uses: Swatinem/rust-cache@v2
         with:
