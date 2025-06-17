@@ -26,7 +26,7 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
           private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
-      - run: cargo clippy --all-targets --all-features
+      - run: cargo clippy --all-targets --all-features --no-deps
 
   fmt:
     runs-on: ubuntu-latest
@@ -40,7 +40,8 @@ jobs:
       - run: cargo fmt --all --check
 
   doc:
-    runs-on: buildjet-4vcpu-ubuntu-2204
+    # runs-on: buildjet-4vcpu-ubuntu-2204
+    runs-on: ubuntu-latest
     env:
       RUSTDOCFLAGS: '-Dwarnings'
     steps:
