@@ -14,7 +14,7 @@ env:
 
 jobs:
   lint:
-    runs-on: buildjet-4vcpu-ubuntu-2204
+    runs-on: buildjet-2vcpu-ubuntu-2204
     steps:
       - uses: actions/checkout@v4
       - run: rustup self update # TODO: Remove this once buildjet updates their image to use rustup 1.28.2
@@ -41,7 +41,7 @@ jobs:
       - run: cargo fmt --all --check
 
   doc:
-    runs-on: buildjet-4vcpu-ubuntu-2204
+    runs-on: buildjet-2vcpu-ubuntu-2204
     env:
       RUSTDOCFLAGS: '-Dwarnings'
     steps:
@@ -73,7 +73,7 @@ jobs:
       - run: cargo test --all-features
 
   miri:
-    runs-on: buildjet-8vcpu-ubuntu-2204
+    runs-on: buildjet-4vcpu-ubuntu-2204
     steps:
       - uses: actions/checkout@v4
       - run: rustup self update # TODO: Remove this once buildjet updates their image to use rustup 1.28.2
