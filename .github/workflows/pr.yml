@@ -17,12 +17,7 @@ jobs:
     runs-on: buildjet-4vcpu-ubuntu-2204
     steps:
       - uses: actions/checkout@v4
-      - run: |
-          rustup --version
-          rustc -V
-          cat .
-          rustup install
-
+      - run: rustup show # Auto install from rust-toolchain.toml
       - uses: Swatinem/rust-cache@v2
         with:
           cache-provider: buildjet
@@ -32,62 +27,62 @@ jobs:
           private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
       - run: cargo clippy --all-targets --all-features
 
-  # fmt:
-  #   runs-on: buildjet-4vcpu-ubuntu-2204
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - run: rustup install
-  #     - uses: ./.github/actions/setup_shipyard
-  #       with:
-  #         ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
-  #         private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
-  #     - run: cargo fmt --all --check
+  fmt:
+    runs-on: buildjet-4vcpu-ubuntu-2204
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup show # Auto install from rust-toolchain.toml
+      - uses: ./.github/actions/setup_shipyard
+        with:
+          ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
+          private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+      - run: cargo fmt --all --check
 
-  # doc:
-  #   runs-on: buildjet-4vcpu-ubuntu-2204
-  #   env:
-  #     RUSTDOCFLAGS: '-Dwarnings'
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - run: rustup install
-  #     - uses: Swatinem/rust-cache@v2
-  #       with:
-  #         cache-provider: buildjet
-  #     - uses: ./.github/actions/setup_shipyard
-  #       with:
-  #         ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
-  #         private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
-  #     - run: cargo doc --all-features --no-deps --document-private-items
+  doc:
+    runs-on: buildjet-4vcpu-ubuntu-2204
+    env:
+      RUSTDOCFLAGS: '-Dwarnings'
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup show # Auto install from rust-toolchain.toml
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-provider: buildjet
+      - uses: ./.github/actions/setup_shipyard
+        with:
+          ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
+          private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+      - run: cargo doc --all-features --no-deps --document-private-items
 
-  # test:
-  #   runs-on: buildjet-4vcpu-ubuntu-2204
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - run: rustup install
-  #     - uses: Swatinem/rust-cache@v2
-  #       with:
-  #         cache-provider: buildjet
-  #     - uses: ./.github/actions/setup_shipyard
-  #       with:
-  #         ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
-  #         private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
-  #     - run: cargo test --all-features
+  test:
+    runs-on: buildjet-4vcpu-ubuntu-2204
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup install
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-provider: buildjet
+      - uses: ./.github/actions/setup_shipyard
+        with:
+          ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
+          private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+      - run: cargo test --all-features
 
-  # miri:
-  #   runs-on: buildjet-4vcpu-ubuntu-2204
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - name: Install Rust ${{ env.rust_miri_nightly }} and set override
-  #       run: |
-  #         rustup install ${{ env.rust_miri_nightly }} --component miri,rust-src --profile minimal
-  #         rustup override set ${{ env.rust_miri_nightly }}
-  #     - uses: Swatinem/rust-cache@v2
-  #       with:
-  #         cache-provider: buildjet
-  #     - uses: taiki-e/install-action@nextest
-  #     - uses: ./.github/actions/setup_shipyard
-  #       with:
-  #         ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
-  #         private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
-  #     - run: 'MIRIFLAGS="-Zmiri-tree-borrows -Zmiri-strict-provenance" cargo miri nextest run --features "test_helpers" unsize::'
-  #       working-directory: star_frame
+  miri:
+    runs-on: buildjet-4vcpu-ubuntu-2204
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust ${{ env.rust_miri_nightly }} and set override
+        run: |
+          rustup install --component miri,rust-src --profile minimal ${{ env.rust_miri_nightly }} --no-self-update
+          rustup override set ${{ env.rust_miri_nightly }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-provider: buildjet
+      - uses: taiki-e/install-action@nextest
+      - uses: ./.github/actions/setup_shipyard
+        with:
+          ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
+          private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+      - run: 'MIRIFLAGS="-Zmiri-tree-borrows -Zmiri-strict-provenance" cargo miri nextest run --features "test_helpers" unsize::'
+        working-directory: star_frame
