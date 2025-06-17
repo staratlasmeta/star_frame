@@ -88,5 +88,5 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
           private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
-      - run: 'MIRIFLAGS="-Zmiri-tree-borrows -Zmiri-strict-provenance" cargo nextest run --features "test_helpers" unsize::'
+      - run: 'MIRIFLAGS="-Zmiri-tree-borrows -Zmiri-strict-provenance" cargo miri nextest run --features "test_helpers" unsize::'
         working-directory: star_frame
