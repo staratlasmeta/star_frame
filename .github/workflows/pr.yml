@@ -14,10 +14,10 @@ env:
 
 jobs:
   lint:
-    runs-on: buildjet-4vcpu-ubuntu-2204
+    runs-on: warp-ubuntu-latest-x64-4x
     steps:
       - uses: actions/checkout@v4
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: stegaBOB/setup-rust-toolchain@stegaBOB/feat/warpbuild
         with:
           cache-provider: buildjet
       - uses: ./.github/actions/setup_shipyard
@@ -40,12 +40,12 @@ jobs:
       - run: cargo fmt --all --check
 
   doc:
-    runs-on: ubuntu-latest
+    runs-on: warp-ubuntu-latest-x64-4x
     env:
       RUSTDOCFLAGS: '-Dwarnings'
     steps:
       - uses: actions/checkout@v4
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: stegaBOB/setup-rust-toolchain@stegaBOB/feat/warpbuild
       - uses: ./.github/actions/setup_shipyard
         with:
           ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
@@ -53,12 +53,12 @@ jobs:
       - run: cargo doc --all-features --no-deps --document-private-items
 
   test:
-    runs-on: buildjet-4vcpu-ubuntu-2204
+    runs-on: warp-ubuntu-latest-x64-4x
     steps:
       - uses: actions/checkout@v4
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: stegaBOB/setup-rust-toolchain@stegaBOB/feat/warpbuild
         with:
-          cache-provider: buildjet
+          cache-provider: warpbuild
       - uses: ./.github/actions/setup_shipyard
         with:
           ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
@@ -66,10 +66,10 @@ jobs:
       - run: cargo test --all-features
 
   miri:
-    runs-on: buildjet-4vcpu-ubuntu-2204
+    runs-on: warp-ubuntu-latest-x64-4x
     steps:
       - uses: actions/checkout@v4
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: stegaBOB/setup-rust-toolchain@stegaBOB/feat/warpbuild
         with:
           cache-provider: buildjet
           toolchain: ${{ env.rust_miri_nightly }}
