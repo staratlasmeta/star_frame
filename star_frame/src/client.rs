@@ -24,7 +24,7 @@ pub trait CpiAccountSet {
     fn extend_account_metas(
         program_id: &Pubkey,
         accounts: &Self::CpiAccounts,
-        metas: &mut Vec<AccountMeta>,
+        metas: &mut Vec<AccountMeta    >,
     );
 }
 
@@ -42,7 +42,8 @@ pub trait ClientAccountSet {
 pub fn star_frame_instruction_data<S, I>(data: &I) -> Result<Vec<u8>>
 where
     S: InstructionSet,
-    I: InstructionDiscriminant<S> + BorshSerialize,
+    I: InstructionDiscriminant
+    <S> + BorshSerialize,
 {
     let data_len = std::mem::size_of::<S::Discriminant>() + object_length(data)?;
     let mut ix_data = Vec::with_capacity(data_len);
