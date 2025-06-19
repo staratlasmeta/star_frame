@@ -49,7 +49,6 @@ pub(super) fn validates(
     let AccountSetGenerics { main_generics, .. } = account_set_generics;
     let Paths {
         result,
-        syscall_invoke,
         validate_ident,
         prelude,
         account_set_validate,
@@ -178,8 +177,8 @@ pub(super) fn validates(
                 }
                 has_funder = true;
                 tokens.extend(quote! {
-                    if syscalls.get_funder().is_none() {
-                        syscalls.set_funder(Box::new(#clone::clone(&self.#name)));
+                    if ctx.get_funder().is_none() {
+                        ctx.set_funder(Box::new(#clone::clone(&self.#name)));
                     }
                 });
             }
@@ -189,8 +188,8 @@ pub(super) fn validates(
                 }
                 has_recipient = true;
                 tokens.extend(quote! {
-                    if syscalls.get_recipient().is_none() {
-                        syscalls.set_recipient(#box_ty::new(#clone::clone(&self.#name)));
+                    if ctx.get_recipient().is_none() {
+                        ctx.set_recipient(#box_ty::new(#clone::clone(&self.#name)));
                     }
                 });
             }
@@ -227,7 +226,7 @@ pub(super) fn validates(
                         #prelude::_account_set_validate_reverse::<#field_type, #validate_ty>(
                             __arg,
                             &mut self.#field_name,
-                            syscalls
+                            ctx
                         )?;
                     }
                 }
@@ -288,7 +287,7 @@ pub(super) fn validates(
                 fn validate_accounts(
                     &mut self,
                     arg: #validate_type,
-                    syscalls: &mut impl #syscall_invoke,
+                    ctx: &mut #prelude::Context,
                 ) -> #result<()> {
                     #before_validation
                     #(#validates)*

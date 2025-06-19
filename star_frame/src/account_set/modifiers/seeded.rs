@@ -1,6 +1,7 @@
 use crate::account_set::SignedAccount;
+use crate::context::Context;
 use crate::prelude::*;
-use anyhow::{bail, ensure, Context};
+use anyhow::{bail, ensure, Context as _};
 use bytemuck::bytes_of;
 use derive_more::{Deref, DerefMut};
 pub use star_frame_proc::GetSeeds;
@@ -93,14 +94,14 @@ pub struct Seeds<T>(pub T);
 #[derive(Debug, Clone, Copy)]
 pub struct CurrentProgram;
 pub trait SeedProgram {
-    fn id(sys_calls: &impl SyscallCore) -> Result<Pubkey>;
+    fn id(ctx: &Context) -> Result<Pubkey>;
     #[cfg(all(feature = "idl", not(target_os = "solana")))]
     fn idl_program() -> Option<Pubkey>;
 }
 
 impl SeedProgram for CurrentProgram {
-    fn id(sys_calls: &impl SyscallCore) -> Result<Pubkey> {
-        Ok(*sys_calls.current_program_id())
+    fn id(ctx: &Context) -> Result<Pubkey> {
+        Ok(*ctx.current_program_id())
     }
     #[cfg(all(feature = "idl", not(target_os = "solana")))]
     fn idl_program() -> Option<Pubkey> {
@@ -112,7 +113,7 @@ impl<P> SeedProgram for P
 where
     P: StarFrameProgram,
 {
-    fn id(_syscalls: &impl SyscallCore) -> Result<Pubkey> {
+    fn id(_ctx: &Context) -> Result<Pubkey> {
         Ok(P::ID)
     }
 
@@ -129,23 +130,23 @@ where
     id = "seeds",
     generics = [where T: AccountSetValidate<()> + SingleAccountSet],
     arg = Seeds<S>,
-    before_validation = self.validate_and_set_seeds(&arg, syscalls)
+    before_validation = self.validate_and_set_seeds(&arg, ctx)
 )]
 #[validate(
     id = "seeds_generic",
     arg = (Seeds<S>, A),
-    before_validation = self.validate_and_set_seeds(&arg.0, syscalls)
+    before_validation = self.validate_and_set_seeds(&arg.0, ctx)
 )]
 #[validate(
     id = "seeds_with_bump",
     generics = [where T: AccountSetValidate<()> + SingleAccountSet],
     arg = SeedsWithBump<S>,
-    before_validation = self.validate_and_set_seeds_with_bump(&arg, syscalls)
+    before_validation = self.validate_and_set_seeds_with_bump(&arg, ctx)
 )]
 #[validate(
     id = "seeds_with_bump_generic",
     arg = (SeedsWithBump<S>, A),
-    before_validation = self.validate_and_set_seeds_with_bump(&arg.0, syscalls)
+    before_validation = self.validate_and_set_seeds_with_bump(&arg.0, ctx)
 )]
 pub struct Seeded<T, S = <T as HasSeeds>::Seeds, P = CurrentProgram>
 where
@@ -176,8 +177,8 @@ where
     S: GetSeeds + Clone,
     P: SeedProgram,
 {
-    fn init_seeds(&mut self, arg: &(Seeds<S>, A), syscalls: &impl SyscallInvoke) -> Result<()> {
-        self.validate_and_set_seeds(&arg.0, syscalls)
+    fn init_seeds(&mut self, arg: &(Seeds<S>, A), ctx: &Context) -> Result<()> {
+        self.validate_and_set_seeds(&arg.0, ctx)
     }
 }
 
@@ -187,8 +188,8 @@ where
     S: GetSeeds + Clone,
     P: SeedProgram,
 {
-    fn init_seeds(&mut self, arg: &Seeds<S>, syscalls: &impl SyscallInvoke) -> Result<()> {
-        self.validate_and_set_seeds(arg, syscalls)
+    fn init_seeds(&mut self, arg: &Seeds<S>, ctx: &Context) -> Result<()> {
+        self.validate_and_set_seeds(arg, ctx)
     }
 }
 
@@ -198,12 +199,8 @@ where
     S: GetSeeds + Clone,
     P: SeedProgram,
 {
-    fn init_seeds(
-        &mut self,
-        arg: &(SeedsWithBump<S>, A),
-        syscalls: &impl SyscallInvoke,
-    ) -> Result<()> {
-        self.validate_and_set_seeds_with_bump(&arg.0, syscalls)
+    fn init_seeds(&mut self, arg: &(SeedsWithBump<S>, A), ctx: &Context) -> Result<()> {
+        self.validate_and_set_seeds_with_bump(&arg.0, ctx)
     }
 }
 
@@ -213,8 +210,8 @@ where
     S: GetSeeds + Clone,
     P: SeedProgram,
 {
-    fn init_seeds(&mut self, arg: &SeedsWithBump<S>, syscalls: &impl SyscallInvoke) -> Result<()> {
-        self.validate_and_set_seeds_with_bump(arg, syscalls)
+    fn init_seeds(&mut self, arg: &SeedsWithBump<S>, ctx: &Context) -> Result<()> {
+        self.validate_and_set_seeds_with_bump(arg, ctx)
     }
 }
 
@@ -224,16 +221,12 @@ where
     S: GetSeeds + Clone,
     P: SeedProgram,
 {
-    fn validate_and_set_seeds(
-        &mut self,
-        seeds: &Seeds<S>,
-        sys_calls: &impl SyscallInvoke,
-    ) -> Result<()> {
+    fn validate_and_set_seeds(&mut self, seeds: &Seeds<S>, ctx: &Context) -> Result<()> {
         if self.seeds.is_some() {
             return Ok(());
         }
         let seeds = seeds.clone().0;
-        let (address, bump) = Pubkey::find_program_address(&seeds.seeds(), &P::id(sys_calls)?);
+        let (address, bump) = Pubkey::find_program_address(&seeds.seeds(), &P::id(ctx)?);
         let expected = self.account.account_info().pubkey();
         ensure!(
             &address == expected,
@@ -246,13 +239,13 @@ where
     fn validate_and_set_seeds_with_bump(
         &mut self,
         seeds: &SeedsWithBump<S>,
-        sys_calls: &impl SyscallInvoke,
+        ctx: &Context,
     ) -> Result<()> {
         if self.seeds.is_some() {
             return Ok(());
         }
         let arg_seeds = seeds.seeds_with_bump();
-        let address = Pubkey::create_program_address(&arg_seeds, &P::id(sys_calls)?)?;
+        let address = Pubkey::create_program_address(&arg_seeds, &P::id(ctx)?)?;
         let expected = self.account.account_info().pubkey();
         ensure!(
             &address == expected,
@@ -303,7 +296,7 @@ where
         &mut self,
         arg: A,
         account_seeds: Option<Vec<&[u8]>>,
-        syscalls: &impl SyscallInvoke,
+        ctx: &Context,
     ) -> Result<()> {
         // override seeds. Init should be called after seeds are set
         if account_seeds.is_some() {
@@ -315,7 +308,7 @@ where
             .map(|s| s.seeds_with_bump())
             .context("Seeds not set for `Seeded` during init!")?;
         self.account
-            .init_account::<IF_NEEDED>(arg, Some(seeds), syscalls)
+            .init_account::<IF_NEEDED>(arg, Some(seeds), ctx)
     }
 }
 

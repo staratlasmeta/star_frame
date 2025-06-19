@@ -1,4 +1,4 @@
-name: build-lint-test
+name: CI
 permissions:
   contents: read
   pull-requests: write
@@ -9,34 +9,25 @@ on:
     branches: ['main']
     types: [synchronize, opened, reopened]
 
-jobs:
-  build:
-    runs-on:
-      group: sa-runners
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
-      - uses: ./.github/actions/setup_shipyard
-        with:
-          ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
-          private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
-      - run: cargo build --all-features
+env:
+  rust_miri_nightly: 'nightly-2025-06-15'
 
+jobs:
   lint:
-    runs-on:
-      group: sa-runners
+    runs-on: warp-ubuntu-latest-x64-4x
     steps:
       - uses: actions/checkout@v4
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: stegaBOB/setup-rust-toolchain@stegaBOB/feat/warpbuild
+        with:
+          cache-provider: buildjet
       - uses: ./.github/actions/setup_shipyard
         with:
           ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
           private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
-      - run: cargo clippy --all-targets --all-features
+      - run: cargo clippy --all-targets --all-features --no-deps
 
   fmt:
-    runs-on:
-      group: sa-runners
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions-rust-lang/setup-rust-toolchain@v1
@@ -48,12 +39,26 @@ jobs:
           private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
       - run: cargo fmt --all --check
 
-  test:
-    runs-on:
-      group: sa-runners
+  doc:
+    runs-on: warp-ubuntu-latest-x64-4x
+    env:
+      RUSTDOCFLAGS: '-Dwarnings'
     steps:
       - uses: actions/checkout@v4
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: stegaBOB/setup-rust-toolchain@stegaBOB/feat/warpbuild
+      - uses: ./.github/actions/setup_shipyard
+        with:
+          ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
+          private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+      - run: cargo doc --all-features --no-deps --document-private-items
+
+  test:
+    runs-on: warp-ubuntu-latest-x64-4x
+    steps:
+      - uses: actions/checkout@v4
+      - uses: stegaBOB/setup-rust-toolchain@stegaBOB/feat/warpbuild
+        with:
+          cache-provider: warpbuild
       - uses: ./.github/actions/setup_shipyard
         with:
           ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
@@ -61,22 +66,22 @@ jobs:
       - run: cargo test --all-features
 
   miri:
-    runs-on:
-      group: sa-runners
+    runs-on: warp-ubuntu-latest-x64-4x
     steps:
       - uses: actions/checkout@v4
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: stegaBOB/setup-rust-toolchain@stegaBOB/feat/warpbuild
         with:
-          toolchain: 'nightly'
-          components: 'miri, rust-src'
-      - name: Set up miri
+          cache-provider: buildjet
+          toolchain: ${{ env.rust_miri_nightly }}
+          components: miri,rust-src
+      - name: Set up Miri and nightly
         run: |
-          rustup override set nightly
-          cargo miri setup
+          rustup override set ${{ env.rust_miri_nightly }}
+          cargo miri setup --print-sysroot
       - uses: taiki-e/install-action@nextest
       - uses: ./.github/actions/setup_shipyard
         with:
           ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
           private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
-      - run: 'MIRIFLAGS="-Zmiri-tree-borrows" cargo miri nextest run --features "test_helpers" unsize::'
+      - run: 'MIRIFLAGS="-Zmiri-tree-borrows -Zmiri-strict-provenance" cargo miri nextest run --features "test_helpers" unsize::'
         working-directory: star_frame

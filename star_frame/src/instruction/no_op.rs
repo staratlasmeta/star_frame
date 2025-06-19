@@ -1,5 +1,5 @@
 use crate::instruction::InstructionSet;
-use crate::prelude::Syscalls;
+use crate::prelude::Context;
 use pinocchio::account_info::AccountInfo;
 use solana_pubkey::Pubkey;
 
@@ -10,7 +10,7 @@ impl InstructionSet for () {
         _program_id: &Pubkey,
         _accounts: &[AccountInfo],
         _ix_bytes: &[u8],
-        _syscalls: &mut impl Syscalls,
+        _ctx: &mut Context,
     ) -> anyhow::Result<()> {
         Ok(())
     }

@@ -1,10 +1,7 @@
 pub use crate::account_set::*;
 pub use crate::data_types::*;
 
-pub use crate::syscalls::solana_runtime::SolanaRuntime;
-pub use crate::syscalls::{
-    SyscallAccountCache, SyscallCore, SyscallInvoke, SyscallReturn, Syscalls,
-};
+pub use crate::context::Context;
 
 pub use crate::util::borsh_bytemuck;
 

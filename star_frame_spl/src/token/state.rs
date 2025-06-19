@@ -4,7 +4,7 @@ use crate::token::instructions::{
 };
 use crate::token::Token;
 use star_frame::account_set::AccountSet;
-use star_frame::anyhow::{bail, Context};
+use star_frame::anyhow::{bail, Context as _};
 use star_frame::bytemuck;
 use star_frame::pinocchio::account_info::Ref;
 use star_frame::prelude::*;
@@ -46,7 +46,7 @@ pub struct MintData {
 }
 
 impl MintAccount {
-    /// See [`spl_token::state::Mint::LEN`].
+    /// See [`spl_token::state::Mint`]'s `LEN` const from `solana-program-pack`.
     /// ```
     /// # use solana_program_pack::Pack;
     /// # use star_frame_spl::token::state::{MintAccount, MintData};
@@ -191,12 +191,12 @@ impl<'a> CanInitAccount<InitMint<'a>> for MintAccount {
         &mut self,
         arg: InitMint<'a>,
         account_seeds: Option<Vec<&[u8]>>,
-        syscalls: &impl SyscallInvoke,
+        ctx: &Context,
     ) -> Result<()> {
-        let funder = syscalls
+        let funder = ctx
             .get_funder()
             .context("Missing tagged `funder` for MintAccount `init_account`")?;
-        self.init_account::<IF_NEEDED>((arg, funder), account_seeds, syscalls)
+        self.init_account::<IF_NEEDED>((arg, funder), account_seeds, ctx)
     }
 }
 
@@ -208,7 +208,7 @@ where
         &mut self,
         arg: (InitMint, &Funder),
         account_seeds: Option<Vec<&[u8]>>,
-        syscalls: &impl SyscallInvoke,
+        ctx: &Context,
     ) -> Result<()> {
         let (init_mint, funder) = arg;
         if IF_NEEDED && self.owner_pubkey() == Token::ID {
@@ -217,7 +217,7 @@ where
             return Ok(());
         }
         self.check_writable()?;
-        self.system_create_account(funder, Token::ID, Self::LEN, &account_seeds, syscalls)?;
+        self.system_create_account(funder, Token::ID, Self::LEN, &account_seeds, ctx)?;
         let account_seeds: &[&[&[u8]]] = match &account_seeds {
             Some(seeds) => &[seeds],
             None => &[],
@@ -232,7 +232,7 @@ where
                 mint: *self.account_info(),
             },
         )?
-        .invoke_signed(account_seeds, syscalls)?;
+        .invoke_signed(account_seeds)?;
         Ok(())
     }
 }
@@ -281,7 +281,7 @@ pub enum AccountState {
 #[derive(Clone, Copy, Debug, Default, PartialEq, CheckedBitPattern, Zeroable)]
 #[repr(C, packed)]
 pub struct TokenAccountData {
-    pub mint: Pubkey,
+    pub mint: KeyFor<MintAccount>,
     pub owner: Pubkey,
     pub amount: u64,
     pub delegate: PodOption<Pubkey>,
@@ -371,7 +371,7 @@ impl TokenAccount {
 
 #[derive(Debug, Clone, PartialEq, Eq, Copy, Default)]
 pub struct ValidateToken<'a> {
-    pub mint: Option<&'a Pubkey>,
+    pub mint: Option<&'a KeyFor<MintAccount>>,
     pub owner: Option<&'a Pubkey>,
     // pub token_program: Option<Pubkey>,
 }
@@ -388,7 +388,7 @@ where
 {
     fn from(value: InitToken<'a, MintInfo>) -> Self {
         Self {
-            mint: Some(value.mint.pubkey()),
+            mint: Some(KeyFor::new_ref(value.mint.pubkey())),
             owner: Some(value.owner),
         }
     }
@@ -402,12 +402,12 @@ where
         &mut self,
         arg: InitToken<MintInfo>,
         account_seeds: Option<Vec<&[u8]>>,
-        syscalls: &impl SyscallInvoke,
+        ctx: &Context,
     ) -> Result<()> {
-        let funder = syscalls
+        let funder = ctx
             .get_funder()
             .context("Missing tagged `funder` for TokenAccount `init_account`")?;
-        self.init_account::<IF_NEEDED>((arg, funder), account_seeds, syscalls)
+        self.init_account::<IF_NEEDED>((arg, funder), account_seeds, ctx)
     }
 }
 
@@ -420,7 +420,7 @@ where
         &mut self,
         arg: (InitToken<MintInfo>, &Funder),
         account_seeds: Option<Vec<&[u8]>>,
-        syscalls: &impl SyscallInvoke,
+        ctx: &Context,
     ) -> Result<()> {
         if IF_NEEDED && self.owner_pubkey() == Token::ID {
             self.validate()?;
@@ -429,7 +429,7 @@ where
         }
         self.check_writable()?;
         let (init_token, funder) = arg;
-        self.system_create_account(funder, Token::ID, Self::LEN, &account_seeds, syscalls)?;
+        self.system_create_account(funder, Token::ID, Self::LEN, &account_seeds, ctx)?;
         let account_seeds: &[&[&[u8]]] = match &account_seeds {
             Some(seeds) => &[seeds],
             None => &[],
@@ -443,7 +443,7 @@ where
                 mint: *init_token.mint.account_info(),
             },
         )?
-        .invoke_signed(account_seeds, syscalls)?;
+        .invoke_signed(account_seeds)?;
         Ok(())
     }
 }

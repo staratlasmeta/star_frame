@@ -2,7 +2,7 @@ use crate::account_set::{
     AccountSetCleanup, AccountSetDecode, AccountSetValidate, SingleAccountSet, SingleSetMeta,
 };
 use crate::client::{ClientAccountSet, CpiAccountSet};
-use crate::syscalls::SyscallInvoke;
+use crate::prelude::Context;
 use crate::Result;
 use pinocchio::account_info::AccountInfo;
 use solana_instruction::AccountMeta;
@@ -70,10 +70,10 @@ where
     unsafe fn decode_accounts(
         accounts: &mut &'a [AccountInfo],
         decode_input: DArg,
-        syscalls: &mut impl SyscallInvoke,
+        ctx: &mut Context,
     ) -> Result<Self> {
         // SAFETY: This function is unsafe too
-        unsafe { T::decode_accounts(accounts, decode_input, syscalls).map(Box::new) }
+        unsafe { T::decode_accounts(accounts, decode_input, ctx).map(Box::new) }
     }
 }
 
@@ -81,12 +81,8 @@ impl<T, VArg> AccountSetValidate<VArg> for Box<T>
 where
     T: AccountSetValidate<VArg>,
 {
-    fn validate_accounts(
-        &mut self,
-        validate_input: VArg,
-        sys_calls: &mut impl SyscallInvoke,
-    ) -> Result<()> {
-        T::validate_accounts(self, validate_input, sys_calls)
+    fn validate_accounts(&mut self, validate_input: VArg, ctx: &mut Context) -> Result<()> {
+        T::validate_accounts(self, validate_input, ctx)
     }
 }
 
@@ -94,12 +90,8 @@ impl<T, CArg> AccountSetCleanup<CArg> for Box<T>
 where
     T: AccountSetCleanup<CArg>,
 {
-    fn cleanup_accounts(
-        &mut self,
-        cleanup_input: CArg,
-        sys_calls: &mut impl SyscallInvoke,
-    ) -> Result<()> {
-        T::cleanup_accounts(self, cleanup_input, sys_calls)
+    fn cleanup_accounts(&mut self, cleanup_input: CArg, ctx: &mut Context) -> Result<()> {
+        T::cleanup_accounts(self, cleanup_input, ctx)
     }
 }
 

@@ -37,9 +37,6 @@ pub struct Paths {
     pub account_set_decode: TokenStream,
     pub account_set_validate: TokenStream,
     pub account_set_cleanup: TokenStream,
-    // syscalls
-    pub syscalls: TokenStream,
-    pub syscall_invoke: TokenStream,
     pub result: TokenStream,
     pub instruction: TokenStream,
     pub declared_program_type: Type,
@@ -105,9 +102,6 @@ impl Default for Paths {
             account_set_decode: quote! { #crate_name::account_set::AccountSetDecode },
             account_set_validate: quote! { #crate_name::account_set::AccountSetValidate },
             account_set_cleanup: quote! { #crate_name::account_set::AccountSetCleanup },
-            // syscalls
-            syscalls: quote! { #crate_name::syscalls::Syscalls },
-            syscall_invoke: quote! { #crate_name::syscalls::SyscallInvoke },
             result: quote! { #prelude::Result },
 
             // instruction

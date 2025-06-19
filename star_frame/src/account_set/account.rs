@@ -2,7 +2,7 @@ use crate::prelude::*;
 use crate::unsize::init::DefaultInit;
 use crate::unsize::UnsizedType;
 use advancer::Advance;
-use anyhow::Context;
+use anyhow::Context as _;
 use bytemuck::bytes_of;
 pub use star_frame_proc::ProgramAccount;
 use std::marker::PhantomData;
@@ -30,51 +30,51 @@ pub struct CloseAccount<T>(pub T);
 #[validate(extra_validation = self.validate())]
 #[cleanup(
     generics = [],
-    extra_cleanup = self.check_cleanup(syscalls),
+    extra_cleanup = self.check_cleanup(ctx),
 )]
 #[cleanup(
     id = "normalize_rent",
     generics = [<'a, Funder> where Funder: CanFundRent],
     arg = NormalizeRent<&'a Funder>,
-    extra_cleanup = self.normalize_rent(arg.0, syscalls)
+    extra_cleanup = self.normalize_rent(arg.0, ctx)
 )]
 #[cleanup(
     id = "normalize_rent_cached",
     arg = NormalizeRent<()>,
     generics = [],
     extra_cleanup = {
-        let funder = syscalls.get_funder().context("Missing `funder` in cache for `NormalizeRent`")?;
-        self.normalize_rent(funder, syscalls)
+        let funder = ctx.get_funder().context("Missing `funder` in cache for `NormalizeRent`")?;
+        self.normalize_rent(funder, ctx)
     },
 )]
 #[cleanup(
     id = "receive_rent",
     generics = [<'a, Funder> where Funder: CanFundRent],
     arg = ReceiveRent<&'a Funder>,
-    extra_cleanup = self.receive_rent(arg.0, syscalls)
+    extra_cleanup = self.receive_rent(arg.0, ctx)
 )]
 #[cleanup(
     id = "receive_rent_cached",
     arg = ReceiveRent<()>,
     generics = [],
     extra_cleanup = {
-        let funder = syscalls.get_funder().context("Missing `funder` in cache for `ReceiveRent`")?;
-        self.receive_rent(funder, syscalls)
+        let funder = ctx.get_funder().context("Missing `funder` in cache for `ReceiveRent`")?;
+        self.receive_rent(funder, ctx)
     }
 )]
 #[cleanup(
     id = "refund_rent",
     generics = [<'a, Recipient> where Recipient: CanReceiveRent],
     arg = RefundRent<&'a Recipient>,
-    extra_cleanup = self.refund_rent(arg.0, syscalls)
+    extra_cleanup = self.refund_rent(arg.0, ctx)
 )]
 #[cleanup(
     id = "refund_rent_cached",
     arg = RefundRent<()>,
     generics = [],
     extra_cleanup = {
-        let recipient = syscalls.get_recipient().context("Missing `recipient` in cache for `RefundRent`")?;
-        self.refund_rent(recipient, syscalls)
+        let recipient = ctx.get_recipient().context("Missing `recipient` in cache for `RefundRent`")?;
+        self.refund_rent(recipient, ctx)
     }
 )]
 #[cleanup(
@@ -88,7 +88,7 @@ pub struct CloseAccount<T>(pub T);
     arg = CloseAccount<()>,
     generics = [],
     extra_cleanup = {
-        let recipient = syscalls.get_recipient().context("Missing `recipient` in cache for `CloseAccount`")?;
+        let recipient = ctx.get_recipient().context("Missing `recipient` in cache for `CloseAccount`")?;
         self.close(recipient)
     }
 )]
@@ -288,9 +288,9 @@ where
         &mut self,
         _arg: (),
         account_seeds: Option<Vec<&[u8]>>,
-        syscalls: &impl SyscallInvoke,
+        ctx: &Context,
     ) -> Result<()> {
-        self.init_account::<IF_NEEDED>((DefaultInit,), account_seeds, syscalls)
+        self.init_account::<IF_NEEDED>((DefaultInit,), account_seeds, ctx)
     }
 }
 
@@ -302,12 +302,12 @@ where
         &mut self,
         arg: (InitArg,),
         account_seeds: Option<Vec<&[u8]>>,
-        syscalls: &impl SyscallInvoke,
+        ctx: &Context,
     ) -> Result<()> {
-        let funder = syscalls
+        let funder = ctx
             .get_funder()
             .context("Missing tagged `funder` for Account `init_account`")?;
-        self.init_account::<IF_NEEDED>((arg.0, funder), account_seeds, syscalls)
+        self.init_account::<IF_NEEDED>((arg.0, funder), account_seeds, ctx)
     }
 }
 
@@ -321,7 +321,7 @@ where
         &mut self,
         arg: (InitArg, &Funder),
         account_seeds: Option<Vec<&[u8]>>,
-        syscalls: &impl SyscallInvoke,
+        ctx: &Context,
     ) -> Result<()> {
         if IF_NEEDED {
             let needs_init = self.owner_pubkey() == System::ID
@@ -339,7 +339,7 @@ where
             T::OwnerProgram::ID,
             <AccountDiscriminant<T>>::INIT_BYTES,
             &account_seeds,
-            syscalls,
+            ctx,
         )?;
         let mut data_bytes = self.account_data_mut()?;
         let mut data_bytes = &mut *data_bytes;

@@ -97,7 +97,7 @@ fn unsized_enum_test() -> Result<()> {
         a.sized = 10;
     } else {
         bail!("Expected Unsized1");
-    };
+    }
     if let UnsizedEnumTestOwned::Unsized1(unsized1) = &mut owned.enum_test {
         unsized1.list.push(150);
         unsized1.list.push(151);

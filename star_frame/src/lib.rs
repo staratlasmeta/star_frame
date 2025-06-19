@@ -46,16 +46,17 @@ pub extern crate typenum;
 pub mod account_set;
 pub mod align1;
 pub mod client;
+pub mod cpi;
 pub mod data_types;
 pub mod entrypoint;
 pub mod errors;
 
+pub mod context;
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
 pub mod idl;
 pub mod instruction;
 pub mod prelude;
 pub mod program;
-pub mod syscalls;
 pub mod unsize;
 pub mod util;
 

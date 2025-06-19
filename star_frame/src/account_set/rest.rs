@@ -1,6 +1,6 @@
 use crate::account_set::{AccountSet, AccountSetCleanup, AccountSetDecode, AccountSetValidate};
 use crate::client::{ClientAccountSet, CpiAccountSet};
-use crate::syscalls::SyscallInvoke;
+use crate::context::Context;
 use derive_more::{Deref, DerefMut};
 use pinocchio::account_info::AccountInfo;
 use solana_instruction::AccountMeta;
@@ -69,13 +69,13 @@ where
     unsafe fn decode_accounts(
         accounts: &mut &'a [AccountInfo],
         decode_input: A,
-        syscalls: &mut impl SyscallInvoke,
+        ctx: &mut Context,
     ) -> crate::Result<Self> {
         let mut out = vec![];
         while !accounts.is_empty() {
             out.push(
                 // SAFETY: This function is unsafe too
-                unsafe { T::decode_accounts(accounts, decode_input.clone(), syscalls)? },
+                unsafe { T::decode_accounts(accounts, decode_input.clone(), ctx)? },
             );
         }
         Ok(Self(out))

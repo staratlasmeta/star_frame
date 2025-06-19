@@ -1,3 +1,4 @@
+use crate::token::state::MintAccount;
 use crate::token::{state::TokenAccount, Token};
 use borsh::{BorshDeserialize, BorshSerialize};
 use star_frame::derive_more;
@@ -12,25 +13,25 @@ impl AssociatedToken {
     ///
     /// See [`spl_associated_token_account::get_associated_token_address`].
     /// ```
-    /// # use star_frame_spl::associated_token::AssociatedToken;
+    /// # use star_frame_spl::{token::state::MintAccount,associated_token::AssociatedToken};
     /// # use spl_associated_token_account::get_associated_token_address;
     /// # use pretty_assertions::assert_eq;
-    /// # use star_frame::prelude::Pubkey;
+    /// # use star_frame::prelude::{KeyFor, Pubkey};
     /// let wallet = Pubkey::new_unique();
-    /// let mint = Pubkey::new_unique();
+    /// let mint = KeyFor::<MintAccount>::new(Pubkey::new_unique());
     /// assert_eq!(
     ///     AssociatedToken::find_address(&wallet, &mint),
-    ///     get_associated_token_address(&wallet, &mint),
+    ///     get_associated_token_address(&wallet, &mint.pubkey()),
     /// );
     /// ```
-    pub fn find_address(wallet: &Pubkey, mint: &Pubkey) -> Pubkey {
+    pub fn find_address(wallet: &Pubkey, mint: &KeyFor<MintAccount>) -> Pubkey {
         Self::find_address_with_bump(wallet, mint).0
     }
 
     /// Find the associated token address for the given wallet and mint, with a bump.
-    pub fn find_address_with_bump(wallet: &Pubkey, mint: &Pubkey) -> (Pubkey, u8) {
+    pub fn find_address_with_bump(wallet: &Pubkey, mint: &KeyFor<MintAccount>) -> (Pubkey, u8) {
         Pubkey::find_program_address(
-            &[wallet.as_ref(), Token::ID.as_ref(), mint.as_ref()],
+            &[wallet.as_ref(), Token::ID.as_ref(), mint.pubkey().as_ref()],
             &Self::ID,
         )
     }
@@ -54,6 +55,7 @@ mod idl_impl {
     use star_frame::idl::{FindIdlSeeds, FindSeed, SeedsToIdl};
     use star_frame::star_frame_idl::seeds::{IdlFindSeed, IdlSeed, IdlSeeds};
 
+    use crate::token::state::MintAccount;
     use crate::token::Token;
     use star_frame::star_frame_idl::IdlDefinition;
 
@@ -61,7 +63,7 @@ mod idl_impl {
     #[derive(Debug, Clone, PartialEq, Eq, BorshDeserialize, BorshSerialize)]
     pub struct AssociatedTokenSeeds {
         pub wallet: Pubkey,
-        pub mint: Pubkey,
+        pub mint: KeyFor<MintAccount>,
     }
 
     pub type AtaSeeds = AssociatedTokenSeeds;
@@ -123,7 +125,7 @@ mod idl_impl {
 
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
 pub use idl_impl::*;
-use star_frame::anyhow::{bail, Context};
+use star_frame::anyhow::{bail, Context as _};
 use star_frame::derive_more::{Deref, DerefMut};
 
 pub mod instructions {
@@ -263,7 +265,7 @@ pub mod state {
     where
         Self: AccountSetValidate<A>,
     {
-        fn init_seeds(&mut self, _arg: &A, _syscalls: &impl SyscallInvoke) -> Result<()> {
+        fn init_seeds(&mut self, _arg: &A, _ctx: &Context) -> Result<()> {
             Ok(())
         }
     }
@@ -271,7 +273,7 @@ pub mod state {
     #[derive(Debug, Clone, PartialEq, Eq, Copy)]
     pub struct ValidateAta<'a> {
         pub wallet: &'a Pubkey,
-        pub mint: &'a Pubkey,
+        pub mint: &'a KeyFor<MintAccount>,
     }
 
     #[derive(Debug, Clone, Copy)]
@@ -305,7 +307,7 @@ pub mod state {
     {
         fn from(value: InitAta<'a, WalletInfo, MintInfo>) -> Self {
             Self {
-                mint: value.mint.pubkey(),
+                mint: KeyFor::new_ref(value.mint.pubkey()),
                 wallet: value.wallet.pubkey(),
             }
         }
@@ -321,12 +323,12 @@ pub mod state {
             &mut self,
             arg: InitAta<'a, WalletInfo, MintInfo>,
             account_seeds: Option<Vec<&[u8]>>,
-            syscalls: &impl SyscallInvoke,
+            ctx: &Context,
         ) -> Result<()> {
-            let funder = syscalls
+            let funder = ctx
                 .get_funder()
                 .context("Missing tagged `funder` for AssociatedTokenAccount `init_account`")?;
-            self.init_account::<IF_NEEDED>((arg, funder), account_seeds, syscalls)
+            self.init_account::<IF_NEEDED>((arg, funder), account_seeds, ctx)
         }
     }
 
@@ -341,7 +343,7 @@ pub mod state {
             &mut self,
             (init_ata, funder): (InitAta<'a, WalletInfo, MintInfo>, &Funder),
             account_seeds: Option<Vec<&[u8]>>,
-            syscalls: &impl SyscallInvoke,
+            _ctx: &Context,
         ) -> Result<()> {
             if !funder.can_create_account() {
                 bail!(
@@ -375,7 +377,7 @@ pub mod state {
                     token_program: *init_ata.token_program.account_info(),
                 },
             )?
-            .invoke_signed(seeds, syscalls)?;
+            .invoke_signed(seeds)?;
             Ok(())
         }
     }

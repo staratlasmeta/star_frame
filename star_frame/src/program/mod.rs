@@ -1,7 +1,7 @@
 pub mod system;
 
+use crate::context::Context;
 use crate::instruction::InstructionSet;
-use crate::prelude::SolanaRuntime;
 use bytemuck::Pod;
 use pinocchio::account_info::AccountInfo;
 use pinocchio::ProgramResult;
@@ -30,7 +30,7 @@ pub trait StarFrameProgram {
             program_id,
             accounts,
             instruction_data,
-            &mut SolanaRuntime::new(*program_id),
+            &mut Context::new(*program_id),
         )
         .map_err(crate::errors::handle_error)
     }

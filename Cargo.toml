@@ -56,8 +56,8 @@ solana-instruction = "2.2"
 solana-system-interface = "1.0.0"
 solana-account = "2.2"
 pinocchio = { version = "0.9.0", features = ["std"], registry = "star-atlas" }
-mollusk-svm = { version = "0.1.5", git = "https://github.com/anza-xyz/mollusk", branch = "main" }
-mollusk-svm-programs-token = { version = "0.1.5", git = "https://github.com/anza-xyz/mollusk", branch = "main" }
+mollusk-svm = "0.2.1"
+mollusk-svm-programs-token = "0.2.1"
 spl-associated-token-account = { version = "6.0.0", features = [
     "no-entrypoint",
 ] }

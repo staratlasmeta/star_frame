@@ -9,8 +9,8 @@ use derive_more::{Deref, DerefMut};
     generics = [<C> where T: CanInitSeeds<()> + CanInitAccount<C>],
     arg = Create<C>,
     before_validation = {
-        self.init_seeds(&(), syscalls)?;
-        self.init_account::<false>(arg.0, None, syscalls)
+        self.init_seeds(&(), ctx)?;
+        self.init_account::<false>(arg.0, None, ctx)
     }
 )]
 #[validate(
@@ -18,8 +18,8 @@ use derive_more::{Deref, DerefMut};
     generics = [<C, A> where T: CanInitSeeds<A> + CanInitAccount<C>],
     arg = (Create<C>, A),
     before_validation = {
-        self.init_seeds(&arg.1, syscalls)?;
-        self.init_account::<false>(arg.0.0, None, syscalls)
+        self.init_seeds(&arg.1, ctx)?;
+        self.init_account::<false>(arg.0.0, None, ctx)
     }
 )]
 #[validate(
@@ -27,8 +27,8 @@ use derive_more::{Deref, DerefMut};
     generics = [<C> where T: CanInitSeeds<()> + CanInitAccount<C>],
     arg = CreateIfNeeded<C>,
     before_validation = {
-        self.init_seeds(&(), syscalls)?;
-        self.init_account::<true>(arg.0, None, syscalls)
+        self.init_seeds(&(), ctx)?;
+        self.init_account::<true>(arg.0, None, ctx)
     }
 )]
 #[validate(
@@ -36,8 +36,8 @@ use derive_more::{Deref, DerefMut};
     generics = [<C, A> where T: CanInitSeeds<A> + CanInitAccount<C>],
     arg = (CreateIfNeeded<C>, A),
     before_validation = {
-        self.init_seeds(&arg.1, syscalls)?;
-        self.init_account::<true>(arg.0.0, None, syscalls)
+        self.init_seeds(&arg.1, ctx)?;
+        self.init_account::<true>(arg.0.0, None, ctx)
     }
 )]
 pub struct Init<T>(

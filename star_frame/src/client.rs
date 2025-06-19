@@ -1,10 +1,10 @@
 use crate::account_set::{
     discriminant::AccountDiscriminant, GetSeeds, HasOwnerProgram, HasSeeds, ProgramAccount,
 };
+
 use crate::instruction::{InstructionDiscriminant, InstructionSet, StarFrameInstruction};
 use crate::prelude::UnsizedInit;
 use crate::program::StarFrameProgram;
-use crate::syscalls::SyscallInvoke;
 use crate::unsize::{FromOwned, UnsizedType};
 use crate::Result;
 use borsh::{object_length, BorshSerialize};
@@ -61,17 +61,13 @@ pub struct CpiBuilder {
 
 impl CpiBuilder {
     #[inline]
-    pub fn invoke(&self, syscalls: &(impl SyscallInvoke + ?Sized)) -> Result<()> {
-        syscalls.invoke(&self.instruction, &self.accounts)
+    pub fn invoke(&self) -> Result<()> {
+        crate::cpi::invoke(&self.instruction, &self.accounts)
     }
 
     #[inline]
-    pub fn invoke_signed(
-        &self,
-        signer_seeds: &[&[&[u8]]],
-        syscalls: &(impl SyscallInvoke + ?Sized),
-    ) -> Result<()> {
-        syscalls.invoke_signed(&self.instruction, &self.accounts, signer_seeds)
+    pub fn invoke_signed(&self, signer_seeds: &[&[&[u8]]]) -> Result<()> {
+        crate::cpi::invoke_signed(&self.instruction, &self.accounts, signer_seeds)
     }
 }
 
