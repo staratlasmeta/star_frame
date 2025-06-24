@@ -595,15 +595,13 @@ impl UnsizedEnumContext {
         }
         let unsized_init = quote!(#prelude::UnsizedInit<#prelude::DefaultInit>);
 
-        let variant_type = &self.variant_types[default_init.index];
+        let variant_type = self.variant_types[default_init.index].as_ref();
 
         let variant_size = variant_type
-            .as_ref()
             .map(|ty| quote!(<#ty as #unsized_init>::INIT_BYTES))
             .unwrap_or(quote!(0));
 
         let variant_init = variant_type
-            .as_ref()
             .map(|ty| quote!(unsafe { <#ty as #unsized_init>::init(bytes, arg) }))
             .unwrap_or(quote!(Ok(())));
 
