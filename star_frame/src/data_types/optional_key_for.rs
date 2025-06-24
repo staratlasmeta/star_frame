@@ -60,7 +60,20 @@ impl<T: ?Sized> OptionalKeyFor<T> {
         bytemuck::cast_ref(pubkey)
     }
 
-    /// Gets the contained pub
+    /// Gets the contained [`KeyFor`] if not [`None`].
+    #[must_use]
+    pub fn key_for(&self) -> Option<&KeyFor<T>>
+    where
+        T: 'static,
+    {
+        if self.pubkey == Pubkey::default() {
+            None
+        } else {
+            Some(KeyFor::new_ref(&self.pubkey))
+        }
+    }
+
+    /// Gets the contained [`Pubkey`] if not [`None`].
     #[must_use]
     pub fn pubkey(&self) -> Option<&Pubkey> {
         if self.pubkey == Pubkey::default() {
