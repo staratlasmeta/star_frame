@@ -678,7 +678,7 @@ where
         let self_ptr = self_mut.list_ptr;
         if source_ptr < self_ptr.cast_const().cast() {
             // the change happened before me
-            self_mut.list_ptr = unsafe { self_ptr.byte_offset(change) };
+            self_mut.list_ptr = self_ptr.wrapping_byte_offset(change);
         } else if source_ptr == self_ptr.cast_const().cast() {
             // updating offset list should be handled by UnsizedList directly. Do nothing!
         } else if source_ptr

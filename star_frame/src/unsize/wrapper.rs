@@ -491,7 +491,7 @@ impl<T> LengthTracker<T> {
         zst_status: bool,
     ) {
         if source_ptr < s.start {
-            s.start = unsafe { s.start.byte_offset(change) };
+            s.start = s.start.wrapping_byte_offset(change);
         }
         // if we are a ZST (ZST_STATUS is false), if changes aren't happening before us, they must be within us since we are the last field.
         else if !zst_status || source_ptr < s.start.wrapping_byte_add(s.len) {
