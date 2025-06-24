@@ -115,7 +115,7 @@ where
     ) -> Result<()> {
         let self_ptr = self_mut.0;
         if source_ptr < self_ptr.cast_const().cast() {
-            self_mut.0 = unsafe { self_ptr.byte_offset(change) };
+            self_mut.0 = self_ptr.wrapping_byte_offset(change);
         }
         Ok(())
     }
