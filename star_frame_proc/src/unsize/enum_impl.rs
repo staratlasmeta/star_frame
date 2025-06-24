@@ -816,7 +816,7 @@ impl UnsizedEnumContext {
                 let init_ident = self.init_ident(variant_ident);
 
                 quote! {
-                    unsafe { 
+                    unsafe {
                         Self::set_length_tracker_data::<#enum_type, _>(
                             self,
                             #init_ident(init)
