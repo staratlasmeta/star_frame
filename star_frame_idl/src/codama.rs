@@ -217,8 +217,8 @@ fn seeds_to_pda_value_node(seeds: &IdlFindSeeds, paths: &PathInfo) -> PdaValueNo
                     paths.create_next(Some(account_path), index).name()
                 };
                 let lookup = PdaSeedValueNode {
-                    name: path_name,
-                    value: AccountValueNode { name: name.into() }.into(),
+                    name: name.into(),
+                    value: AccountValueNode { name: path_name }.into(),
                 };
                 (value, Some(lookup))
             }
