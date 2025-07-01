@@ -1,4 +1,3 @@
-mod divisor;
 // Just impls, no need to re-export
 mod fixed_point;
 mod key_for;
@@ -8,7 +7,6 @@ mod pod_bool;
 mod remaining_data;
 mod unit_val;
 
-pub use divisor::*;
 pub use key_for::*;
 pub use optional_key_for::*;
 pub use packed_value::*;
