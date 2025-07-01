@@ -181,6 +181,7 @@ macro_rules! __unit_type_aliases {
 ///
 /// # Example
 /// ```
+/// # fn main() {} // This is needed to make the doctest work so modules aren't generated inside a function
 /// use star_frame::create_unit_system;
 /// use typenum::Z0;
 /// // Creates a unit system with 3 axis.
