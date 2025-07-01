@@ -182,7 +182,7 @@ where
 
 /// Indicates that this account can fund rent on another account, and potentially be used to create an account.
 pub trait CanFundRent: CanAddLamports {
-    /// Whether [`Self::account_to_modify`](`CanReceiveRent::account_to_modify`) can be used as the funder for a [`crate::program::system::CreateAccount`] CPI.
+    /// Whether [`Self::account_to_modify`](`CanAddLamports::account_to_modify`) can be used as the funder for a [`crate::program::system::CreateAccount`] CPI.
     fn can_create_account(&self) -> bool;
     /// Increases the rent of the recipient by `lamports`.
     fn fund_rent(
