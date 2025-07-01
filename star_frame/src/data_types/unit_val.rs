@@ -157,6 +157,26 @@ mod idl {
     }
 }
 
+/// A helper macro to create unit type aliases
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __unit_type_aliases {
+    (@ty $ident:ident $($unit:ident <$ty:ty>)*) => {
+        $ident<$($ty),*>
+    };
+    // Base case
+    ($vis:vis $ident:ident $($zeros:ident)* |) => {
+        #[allow(unused)]
+        pub type Unitless = $crate::__unit_type_aliases!(@ty $ident $($zeros <$crate::typenum::Z0>)*);
+    };
+    ($vis:vis $ident:ident $($zeros:ident)* | $p1:ident $($end_zeros:ident)*) => {
+        #[allow(unused)]
+        pub type $p1 = $crate::__unit_type_aliases!(@ty $ident $($zeros <$crate::typenum::Z0>)* $p1 <$crate::typenum::P1> $($end_zeros <$crate::typenum::Z0>)*);
+        $crate::__unit_type_aliases!($vis $ident $($zeros)* $p1 | $($end_zeros)*);
+    };
+
+}
+
 /// Creates a new unit system type.
 ///
 /// # Example
@@ -223,6 +243,11 @@ macro_rules! create_unit_system {
             #[derive_where(Copy, Clone, Default, Debug, PartialEq, Eq)]
             #[repr(transparent)]
             $vis struct $ident<$($unit,)*>(::std::marker::PhantomData<($($unit,)*)>);
+
+            $vis mod [<$ident:snake _units>] {
+                use super::*;
+                $crate::__unit_type_aliases!($vis $ident | $($unit)*);
+            }
 
             unsafe impl<$($unit,)*> $crate::bytemuck::Zeroable for $ident<$($unit,)*>
             where
@@ -338,6 +363,7 @@ mod test {
     use crate::data_types::UnitVal;
     use fixed::types::I53F11;
     use typenum::{Diff, Sum, N2, P1, Z0};
+
     create_unit_system!(struct CreatedUnitSystem<Seconds, Meters, Kilograms>);
 
     create_unit_system!(struct OtherUnitSystem<Seconds, Meters>{
@@ -349,10 +375,7 @@ mod test {
         impl<S>: <S, Z0> to OtherUnitSystem<S, Z0>
     });
 
-    type Unitless = CreatedUnitSystem<Z0, Z0, Z0>;
-    type Seconds = CreatedUnitSystem<P1, Z0, Z0>;
-    type Meters = CreatedUnitSystem<Z0, P1, Z0>;
-    type Kilograms = CreatedUnitSystem<Z0, Z0, P1>;
+    use created_unit_system_units::{Kilograms, Meters, Seconds, Unitless};
 
     type MetersPerSecond = Diff<Meters, Seconds>;
     type MetersPerSecondSquared = Diff<MetersPerSecond, Seconds>;
