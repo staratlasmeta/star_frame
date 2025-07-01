@@ -64,7 +64,7 @@ pub struct CloseAccount<T>(pub T);
 )]
 #[cleanup(
     id = "refund_rent",
-    generics = [<'a, Recipient> where Recipient: CanReceiveRent],
+    generics = [<'a, Recipient> where Recipient: CanRecieveLamports],
     arg = RefundRent<&'a Recipient>,
     extra_cleanup = self.refund_rent(arg.0, ctx)
 )]
@@ -79,7 +79,7 @@ pub struct CloseAccount<T>(pub T);
 )]
 #[cleanup(
     id = "close_account",
-    generics = [<'a, Recipient> where Recipient: CanReceiveRent],
+    generics = [<'a, Recipient> where Recipient: CanRecieveLamports],
     arg = CloseAccount<&'a Recipient>,
     extra_cleanup = self.close(arg.0)
 )]

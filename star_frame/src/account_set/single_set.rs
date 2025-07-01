@@ -126,12 +126,12 @@ pub trait SingleAccountSet {
     }
 }
 
-static_assertions::assert_obj_safe!(CanCloseAccount, CanReceiveRent, CanFundRent);
+static_assertions::assert_obj_safe!(CanCloseAccount, CanRecieveLamports, CanFundRent);
 
 pub trait CanCloseAccount: SingleAccountSet {
     /// Closes the account by zeroing the lamports and replacing the discriminant with all `u8::MAX`,
     /// reallocating down to size.
-    fn close(&self, recipient: &(impl CanReceiveRent + ?Sized)) -> Result<()>
+    fn close(&self, recipient: &(impl CanRecieveLamports + ?Sized)) -> Result<()>
     where
         Self: HasOwnerProgram,
         Self: Sized,
@@ -142,7 +142,7 @@ pub trait CanCloseAccount: SingleAccountSet {
             false,
         )?;
         self.account_data_mut()?.fill(u8::MAX);
-        recipient.receive_rent(info.lamports())?;
+        recipient.add_lamports(info.lamports())?;
         *info.try_borrow_mut_lamports()? = 0;
         Ok(())
     }
@@ -151,9 +151,9 @@ pub trait CanCloseAccount: SingleAccountSet {
     /// This is the same as calling `close` but not abusable and harder for indexer detection.
     ///
     /// It also happens to be unsound because [`AccountInfo::assign`] is unsound.
-    fn close_full(&self, recipient: &dyn CanReceiveRent) -> Result<()> {
+    fn close_full(&self, recipient: &dyn CanRecieveLamports) -> Result<()> {
         let info = self.account_info();
-        recipient.receive_rent(info.lamports())?;
+        recipient.add_lamports(info.lamports())?;
         *info.try_borrow_mut_lamports()? = 0;
         info.realloc(0, false)?;
         unsafe { info.assign(System::ID.as_array()) }; // TODO: Fix safety
@@ -163,15 +163,15 @@ pub trait CanCloseAccount: SingleAccountSet {
 
 impl<T> CanCloseAccount for T where T: SingleAccountSet + ?Sized {}
 
-pub trait CanReceiveRent: Debug {
+pub trait CanRecieveLamports: Debug {
     fn account_to_modify(&self) -> AccountInfo;
-    fn receive_rent(&self, lamports: u64) -> Result<()> {
+    fn add_lamports(&self, lamports: u64) -> Result<()> {
         *self.account_to_modify().try_borrow_mut_lamports()? += lamports;
         Ok(())
     }
 }
 
-impl<T> CanReceiveRent for T
+impl<T> CanRecieveLamports for T
 where
     T: WritableAccount + Debug + ?Sized,
 {
@@ -181,7 +181,7 @@ where
 }
 
 /// Indicates that this account can fund rent on another account, and potentially be used to create an account.
-pub trait CanFundRent: CanReceiveRent {
+pub trait CanFundRent: CanRecieveLamports {
     /// Whether [`Self::account_to_modify`](`CanReceiveRent::account_to_modify`) can be used as the funder for a [`crate::program::system::CreateAccount`] CPI.
     fn can_create_account(&self) -> bool;
     /// Increases the rent of the recipient by `lamports`.
@@ -199,7 +199,7 @@ pub trait CanFundRent: CanReceiveRent {
 
 impl<T> CanFundRent for T
 where
-    T: CanReceiveRent + SignedAccount + ?Sized,
+    T: CanRecieveLamports + SignedAccount + ?Sized,
 {
     fn can_create_account(&self) -> bool {
         true
@@ -255,7 +255,7 @@ pub trait CanModifyRent {
             Ordering::Less => {
                 let transfer_amount = lamports - rent_lamports;
                 *account.try_borrow_mut_lamports()? -= transfer_amount;
-                funder.receive_rent(transfer_amount)?;
+                funder.add_lamports(transfer_amount)?;
                 Ok(())
             }
         }
@@ -265,7 +265,11 @@ pub trait CanModifyRent {
     /// Assumes `Self` is owned by this program and is mutable.
     ///
     /// If the account has 0 lamports (i.e., it is set to be closed), this will do nothing.
-    fn refund_rent(&self, recipient: &(impl CanReceiveRent + ?Sized), ctx: &Context) -> Result<()> {
+    fn refund_rent(
+        &self,
+        recipient: &(impl CanRecieveLamports + ?Sized),
+        ctx: &Context,
+    ) -> Result<()> {
         let account = self.account_to_modify();
         let rent = ctx.get_rent()?;
         let lamports = *account.try_borrow_lamports()?;
@@ -286,7 +290,7 @@ pub trait CanModifyRent {
             Ordering::Less => {
                 let transfer_amount = lamports - rent_lamports;
                 *account.try_borrow_mut_lamports()? -= transfer_amount;
-                recipient.receive_rent(transfer_amount)?;
+                recipient.add_lamports(transfer_amount)?;
                 Ok(())
             }
         }

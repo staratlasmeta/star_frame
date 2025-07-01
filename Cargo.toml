@@ -34,7 +34,7 @@ daggy = "^0.8.0"
 derive-where = { version = "1.4.0" }
 derive_more = { version = "^2.0.1", features = ["full"] }
 easy_proc = "^0.4.0"
-fixed = "1.28.0"
+fixed = { version = "1.29.0", registry = "star-atlas" }
 heck = "^0.5.0"
 itertools = "^0.14.0"
 num-traits = "^0.2.17"

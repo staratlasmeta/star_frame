@@ -11,6 +11,9 @@ on:
 
 env:
   rust_miri_nightly: 'nightly-2025-06-15'
+defaults:
+  run:
+    shell: bash
 
 jobs:
   lint:

@@ -1,4 +1,4 @@
-use crate::prelude::{CanFundRent, CanReceiveRent};
+use crate::prelude::{CanFundRent, CanRecieveLamports};
 use crate::Result;
 use pinocchio::sysvars::clock::Clock;
 use pinocchio::sysvars::rent::Rent;
@@ -16,7 +16,7 @@ pub struct Context {
     // Clock cache to avoid repeated `Clock::get()` calls
     clock_cache: Cell<Option<Clock>>,
     // Cached recipient for rent. Usually set during `AccountSetValidate`
-    recipient: Option<Box<dyn CanReceiveRent>>,
+    recipient: Option<Box<dyn CanRecieveLamports>>,
     // Cached funder for rent. Usually set during `AccountSetValidate`
     funder: Option<Box<dyn CanFundRent>>,
 }
@@ -74,12 +74,12 @@ impl Context {
     }
 
     /// Gets the cached recipient for rent if it has been set.
-    pub fn get_recipient(&self) -> Option<&dyn CanReceiveRent> {
+    pub fn get_recipient(&self) -> Option<&dyn CanRecieveLamports> {
         self.recipient.as_ref().map(std::convert::AsRef::as_ref)
     }
 
     /// Sets the recipient for rent.
-    pub fn set_recipient(&mut self, recipient: Box<dyn CanReceiveRent>) {
+    pub fn set_recipient(&mut self, recipient: Box<dyn CanRecieveLamports>) {
         self.recipient.replace(recipient);
     }
 }
