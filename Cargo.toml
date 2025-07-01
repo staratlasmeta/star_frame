@@ -3,7 +3,7 @@ resolver = "3"
 members = ["star_*", "example_programs/*"]
 
 [workspace.package]
-version = "0.11.1"
+version = "0.12.0"
 edition = "2021"
 publish = ["star-atlas"]
 rust-version = "1.84.1"
@@ -12,10 +12,10 @@ repository = "https://github.com/staratlasmeta/star_frame"
 
 [workspace.dependencies]
 # Keep the version in sync with the workspace.package.version
-star_frame = { path = "star_frame", registry = "star-atlas", version = "0.11.1" }
-star_frame_idl = { path = "star_frame_idl", registry = "star-atlas", version = "0.11.1" }
-star_frame_proc = { path = "star_frame_proc", registry = "star-atlas", version = "0.11.1" }
-star_frame_spl = { path = "star_frame_spl", registry = "star-atlas", version = "0.11.1" }
+star_frame = { path = "star_frame", registry = "star-atlas", version = "0.12.0" }
+star_frame_idl = { path = "star_frame_idl", registry = "star-atlas", version = "0.12.0" }
+star_frame_proc = { path = "star_frame_proc", registry = "star-atlas", version = "0.12.0" }
+star_frame_spl = { path = "star_frame_spl", registry = "star-atlas", version = "0.12.0" }
 
 # Non workspace crates
 advancer = "^0.1.0"
@@ -34,7 +34,7 @@ daggy = "^0.8.0"
 derive-where = { version = "1.4.0" }
 derive_more = { version = "^2.0.1", features = ["full"] }
 easy_proc = "^0.4.0"
-fixed = "1.28.0"
+fixed = { version = "1.29.0", registry = "star-atlas" }
 heck = "^0.5.0"
 itertools = "^0.14.0"
 num-traits = "^0.2.17"

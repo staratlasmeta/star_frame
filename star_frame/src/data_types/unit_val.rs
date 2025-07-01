@@ -11,7 +11,7 @@ use typenum::{IsEqual, Mod, True, Unsigned, P2, Z0};
 
 /// A value within a unit system.
 #[derive(Serialize, Deserialize, Align1)]
-#[derive_where(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash; T)]
+#[derive_where(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default; T)]
 #[serde(bound(serialize = "T: Serialize", deserialize = "T: Deserialize<'de>"))]
 #[repr(transparent)]
 pub struct UnitVal<T, Unit> {
@@ -34,11 +34,8 @@ impl<T, Unit> UnitVal<T, Unit> {
             _unit: PhantomData,
         }
     }
-    /// Gets the value if [`Copy`].
-    pub fn val(self) -> T
-    where
-        T: Copy,
-    {
+    /// Extracts the inner value
+    pub fn val(self) -> T {
         self.val
     }
     /// Gets a reference to the value.
