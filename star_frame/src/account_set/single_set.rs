@@ -126,12 +126,12 @@ pub trait SingleAccountSet {
     }
 }
 
-static_assertions::assert_obj_safe!(CanCloseAccount, CanRecieveLamports, CanFundRent);
+static_assertions::assert_obj_safe!(CanCloseAccount, CanAddLamports, CanFundRent);
 
 pub trait CanCloseAccount: SingleAccountSet {
     /// Closes the account by zeroing the lamports and replacing the discriminant with all `u8::MAX`,
     /// reallocating down to size.
-    fn close(&self, recipient: &(impl CanRecieveLamports + ?Sized)) -> Result<()>
+    fn close(&self, recipient: &(impl CanAddLamports + ?Sized)) -> Result<()>
     where
         Self: HasOwnerProgram,
         Self: Sized,
@@ -151,7 +151,7 @@ pub trait CanCloseAccount: SingleAccountSet {
     /// This is the same as calling `close` but not abusable and harder for indexer detection.
     ///
     /// It also happens to be unsound because [`AccountInfo::assign`] is unsound.
-    fn close_full(&self, recipient: &dyn CanRecieveLamports) -> Result<()> {
+    fn close_full(&self, recipient: &dyn CanAddLamports) -> Result<()> {
         let info = self.account_info();
         recipient.add_lamports(info.lamports())?;
         *info.try_borrow_mut_lamports()? = 0;
@@ -163,7 +163,7 @@ pub trait CanCloseAccount: SingleAccountSet {
 
 impl<T> CanCloseAccount for T where T: SingleAccountSet + ?Sized {}
 
-pub trait CanRecieveLamports: Debug {
+pub trait CanAddLamports: Debug {
     fn account_to_modify(&self) -> AccountInfo;
     fn add_lamports(&self, lamports: u64) -> Result<()> {
         *self.account_to_modify().try_borrow_mut_lamports()? += lamports;
@@ -171,7 +171,7 @@ pub trait CanRecieveLamports: Debug {
     }
 }
 
-impl<T> CanRecieveLamports for T
+impl<T> CanAddLamports for T
 where
     T: WritableAccount + Debug + ?Sized,
 {
@@ -181,7 +181,7 @@ where
 }
 
 /// Indicates that this account can fund rent on another account, and potentially be used to create an account.
-pub trait CanFundRent: CanRecieveLamports {
+pub trait CanFundRent: CanAddLamports {
     /// Whether [`Self::account_to_modify`](`CanReceiveRent::account_to_modify`) can be used as the funder for a [`crate::program::system::CreateAccount`] CPI.
     fn can_create_account(&self) -> bool;
     /// Increases the rent of the recipient by `lamports`.
@@ -199,7 +199,7 @@ pub trait CanFundRent: CanRecieveLamports {
 
 impl<T> CanFundRent for T
 where
-    T: CanRecieveLamports + SignedAccount + ?Sized,
+    T: CanAddLamports + SignedAccount + ?Sized,
 {
     fn can_create_account(&self) -> bool {
         true
@@ -265,11 +265,7 @@ pub trait CanModifyRent {
     /// Assumes `Self` is owned by this program and is mutable.
     ///
     /// If the account has 0 lamports (i.e., it is set to be closed), this will do nothing.
-    fn refund_rent(
-        &self,
-        recipient: &(impl CanRecieveLamports + ?Sized),
-        ctx: &Context,
-    ) -> Result<()> {
+    fn refund_rent(&self, recipient: &(impl CanAddLamports + ?Sized), ctx: &Context) -> Result<()> {
         let account = self.account_to_modify();
         let rent = ctx.get_rent()?;
         let lamports = *account.try_borrow_lamports()?;
