@@ -57,13 +57,13 @@ where
     }
 }
 
-impl<'a, A, DArg> AccountSetDecode<'a, DArg> for Option<A>
+impl<'a, A, DArg> AccountSetDecode<'a, (DArg,)> for Option<A>
 where
     A: AccountSetDecode<'a, DArg>,
 {
     unsafe fn decode_accounts(
         accounts: &mut &'a [AccountInfo],
-        decode_input: DArg,
+        decode_input: (DArg,),
         ctx: &mut Context,
     ) -> Result<Self> {
         if accounts.is_empty() {
@@ -76,8 +76,47 @@ where
         } else {
             // SAFETY: This function is unsafe too
             Ok(Some(unsafe {
-                A::decode_accounts(accounts, decode_input, ctx)?
+                A::decode_accounts(accounts, decode_input.0, ctx)?
             }))
+        }
+    }
+}
+
+impl<'a, A, DArg> AccountSetDecode<'a, Option<DArg>> for Option<A>
+where
+    A: AccountSetDecode<'a, DArg>,
+{
+    unsafe fn decode_accounts(
+        accounts: &mut &'a [AccountInfo],
+        decode_input: Option<DArg>,
+        ctx: &mut Context,
+    ) -> Result<Self> {
+        match decode_input {
+            Some(decode_input) => {
+                // SAFETY: This function is unsafe too
+                Ok(Some(unsafe {
+                    A::decode_accounts(accounts, decode_input, ctx)?
+                }))
+            }
+            None => Ok(None),
+        }
+    }
+}
+
+impl<'a, A> AccountSetDecode<'a, bool> for Option<A>
+where
+    A: AccountSetDecode<'a, ()>,
+{
+    unsafe fn decode_accounts(
+        accounts: &mut &'a [AccountInfo],
+        decode_input: bool,
+        ctx: &mut Context,
+    ) -> Result<Self> {
+        if decode_input {
+            // SAFETY: This function is unsafe too
+            Ok(Some(unsafe { A::decode_accounts(accounts, (), ctx)? }))
+        } else {
+            Ok(None)
         }
     }
 }
