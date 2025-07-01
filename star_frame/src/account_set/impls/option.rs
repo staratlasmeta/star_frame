@@ -57,6 +57,31 @@ where
     }
 }
 
+impl<'a, A> AccountSetDecode<'a, ()> for Option<A>
+where
+    A: AccountSetDecode<'a, ()>,
+{
+    unsafe fn decode_accounts(
+        accounts: &mut &'a [AccountInfo],
+        decode_input: (),
+        ctx: &mut Context,
+    ) -> Result<Self> {
+        if accounts.is_empty() {
+            Ok(None)
+        } else if accounts[0].pubkey() == ctx.current_program_id() {
+            let _program = accounts
+                .try_advance(1)
+                .expect("There is at least one account skip Option<None>");
+            Ok(None)
+        } else {
+            // SAFETY: This function is unsafe too
+            Ok(Some(unsafe {
+                A::decode_accounts(accounts, decode_input, ctx)?
+            }))
+        }
+    }
+}
+
 impl<'a, A, DArg> AccountSetDecode<'a, (DArg,)> for Option<A>
 where
     A: AccountSetDecode<'a, DArg>,
