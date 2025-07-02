@@ -20,7 +20,7 @@
 ///
 /// star_frame_entrypoint!(MyProgram);
 /// ```
-#[macro_export(local_inner_macros)]
+#[macro_export]
 macro_rules! star_frame_entrypoint (
     ($program:ty) => {
         // todo: should this be public?
