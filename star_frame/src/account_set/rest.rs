@@ -32,8 +32,13 @@ where
         CpiAccountSet::to_cpi_accounts(&self.0)
     }
     #[inline]
-    fn extend_account_infos(accounts: Self::CpiAccounts, infos: &mut Vec<AccountInfo>) {
-        <Vec<T>>::extend_account_infos(accounts, infos);
+    fn extend_account_infos(
+        program_id: &Pubkey,
+        accounts: Self::CpiAccounts,
+        infos: &mut Vec<AccountInfo>,
+        ctx: &Context,
+    ) -> anyhow::Result<()> {
+        <Vec<T>>::extend_account_infos(program_id, accounts, infos, ctx)
     }
     #[inline]
     fn extend_account_metas(

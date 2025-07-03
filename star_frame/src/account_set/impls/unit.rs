@@ -12,7 +12,14 @@ impl CpiAccountSet for () {
     #[inline]
     fn to_cpi_accounts(&self) -> Self::CpiAccounts {}
     #[inline]
-    fn extend_account_infos(_accounts: Self::CpiAccounts, _infos: &mut Vec<AccountInfo>) {}
+    fn extend_account_infos(
+        _program_id: &Pubkey,
+        _accounts: Self::CpiAccounts,
+        _infos: &mut Vec<AccountInfo>,
+        _ctx: &Context,
+    ) -> Result<()> {
+        Ok(())
+    }
     #[inline]
     fn extend_account_metas(
         _program_id: &Pubkey,

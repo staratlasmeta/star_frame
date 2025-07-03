@@ -3,6 +3,7 @@ use crate::client::{ClientAccountSet, CpiAccountSet};
 use crate::prelude::{Context, SingleAccountSet};
 use crate::Result;
 use advancer::Advance;
+use anyhow::Context as _;
 use pinocchio::account_info::AccountInfo;
 use solana_instruction::AccountMeta;
 use solana_pubkey::Pubkey;
@@ -18,9 +19,20 @@ where
         self.as_ref().map(T::to_cpi_accounts)
     }
     #[inline]
-    fn extend_account_infos(accounts: Self::CpiAccounts, infos: &mut Vec<AccountInfo>) {
+    fn extend_account_infos(
+        program_id: &Pubkey,
+        accounts: Self::CpiAccounts,
+        infos: &mut Vec<AccountInfo>,
+        ctx: &Context,
+    ) -> Result<()> {
         if let Some(accounts) = accounts {
-            T::extend_account_infos(accounts, infos);
+            T::extend_account_infos(program_id, accounts, infos, ctx)
+        } else {
+            infos.push(
+                *ctx.program_for_key(program_id)
+                    .context(format!("Program {program_id} not found"))?,
+            );
+            Ok(())
         }
     }
     #[inline]

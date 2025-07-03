@@ -1,4 +1,5 @@
 use crate::prelude::*;
+use anyhow::Context as _;
 use derive_more::{Deref, DerefMut};
 
 #[derive(AccountSet, Clone, Debug, Deref, DerefMut)]
@@ -9,8 +10,8 @@ use derive_more::{Deref, DerefMut};
     generics = [<C> where T: CanInitSeeds<()> + CanInitAccount<C>],
     arg = Create<C>,
     before_validation = {
-        self.init_seeds(&(), ctx)?;
-        self.init_account::<false>(arg.0, None, ctx)
+        self.init_seeds(&(), ctx).context("Failed to init seeds")?;
+        self.init_account::<false>(arg.0, None, ctx).context("Failed to init account")
     }
 )]
 #[validate(
@@ -18,8 +19,8 @@ use derive_more::{Deref, DerefMut};
     generics = [<C, A> where T: CanInitSeeds<A> + CanInitAccount<C>],
     arg = (Create<C>, A),
     before_validation = {
-        self.init_seeds(&arg.1, ctx)?;
-        self.init_account::<false>(arg.0.0, None, ctx)
+        self.init_seeds(&arg.1, ctx).context("Failed to init seeds")?;
+        self.init_account::<false>(arg.0.0, None, ctx).context("Failed to init account")
     }
 )]
 #[validate(
@@ -27,8 +28,8 @@ use derive_more::{Deref, DerefMut};
     generics = [<C> where T: CanInitSeeds<()> + CanInitAccount<C>],
     arg = CreateIfNeeded<C>,
     before_validation = {
-        self.init_seeds(&(), ctx)?;
-        self.init_account::<true>(arg.0, None, ctx)
+        self.init_seeds(&(), ctx).context("Failed to init seeds")?;
+        self.init_account::<true>(arg.0, None, ctx).context("Failed to init account")
     }
 )]
 #[validate(
@@ -36,8 +37,8 @@ use derive_more::{Deref, DerefMut};
     generics = [<C, A> where T: CanInitSeeds<A> + CanInitAccount<C>],
     arg = (CreateIfNeeded<C>, A),
     before_validation = {
-        self.init_seeds(&arg.1, ctx)?;
-        self.init_account::<true>(arg.0.0, None, ctx)
+        self.init_seeds(&arg.1, ctx).context("Failed to init seeds")?;
+        self.init_account::<true>(arg.0.0, None, ctx).context("Failed to init account")
     }
 )]
 pub struct Init<T>(

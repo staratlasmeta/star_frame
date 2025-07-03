@@ -18,10 +18,16 @@ where
         self.each_ref().map(A::to_cpi_accounts)
     }
     #[inline]
-    fn extend_account_infos(accounts: Self::CpiAccounts, infos: &mut Vec<AccountInfo>) {
+    fn extend_account_infos(
+        program_id: &Pubkey,
+        accounts: Self::CpiAccounts,
+        infos: &mut Vec<AccountInfo>,
+        ctx: &Context,
+    ) -> Result<()> {
         for a in accounts {
-            A::extend_account_infos(a, infos);
+            A::extend_account_infos(program_id, a, infos, ctx)?;
         }
+        Ok(())
     }
     #[inline]
     fn extend_account_metas(

@@ -82,8 +82,14 @@ impl CpiAccountSet for &AccountInfo {
         *self.account_info()
     }
 
-    fn extend_account_infos(accounts: Self::CpiAccounts, infos: &mut Vec<AccountInfo>) {
+    fn extend_account_infos(
+        _program_id: &Pubkey,
+        accounts: Self::CpiAccounts,
+        infos: &mut Vec<AccountInfo>,
+        _ctx: &Context,
+    ) -> Result<()> {
         infos.push(accounts);
+        Ok(())
     }
 
     fn extend_account_metas(
@@ -107,8 +113,14 @@ impl CpiAccountSet for AccountInfo {
         *self.account_info()
     }
 
-    fn extend_account_infos(accounts: Self::CpiAccounts, infos: &mut Vec<AccountInfo>) {
+    fn extend_account_infos(
+        _program_id: &Pubkey,
+        accounts: Self::CpiAccounts,
+        infos: &mut Vec<AccountInfo>,
+        _ctx: &Context,
+    ) -> Result<()> {
         infos.push(accounts);
+        Ok(())
     }
 
     fn extend_account_metas(

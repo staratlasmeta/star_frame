@@ -140,11 +140,11 @@ pub(super) fn cleanups(
                 ) -> #result<()> {
                     #(
                         let __arg = #cleanup_args;
-                        #prelude::_account_set_cleanup_reverse::<#field_type, _>(
+                        #prelude::anyhow::Context::context(#prelude::_account_set_cleanup_reverse::<#field_type, _>(
                             __arg,
                             &mut self.#field_name,
                             ctx,
-                        )?;
+                        ), ::std::stringify!(#ident::#field_name(#id)))?;
                     )*
                     #extra_cleanup
                     Ok(())

@@ -233,8 +233,14 @@ pub(super) fn derive_account_set_impl_struct(
                     *self.account_info()
                 }
                 #[inline]
-                fn extend_account_infos(account_info: Self::CpiAccounts, infos: &mut Vec<#prelude::AccountInfo>) {
+                fn extend_account_infos(
+                    _program_id: &#prelude::Pubkey,
+                    account_info: Self::CpiAccounts,
+                    infos: &mut Vec<#prelude::AccountInfo>,
+                    _ctx: &#prelude::Context,
+                ) -> #prelude::Result<()> {
                     infos.push(account_info);
+                    Ok(())
                 }
                 #[inline]
                 fn extend_account_metas(
@@ -435,10 +441,13 @@ pub(super) fn derive_account_set_impl_struct(
 
                 #[inline]
                 fn extend_account_infos(
+                    program_id: &#prelude::Pubkey,
                     accounts: #cpi_accounts,
                     infos: &mut Vec<#account_info>,
-                ) {
-                    #(<#field_type as #cpi_set>::extend_account_infos(accounts.#field_name, infos);)*
+                    ctx: &#prelude::Context,
+                ) -> #prelude::Result<()> {
+                    #(<#field_type as #cpi_set>::extend_account_infos(program_id, accounts.#field_name, infos, ctx)?;)*
+                    Ok(())
                 }
 
                 #[inline]

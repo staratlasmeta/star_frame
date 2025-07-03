@@ -127,7 +127,7 @@ pub(super) fn decodes(
         }
     }
 
-    decode_ids.into_iter().map(|(id, decode_struct_args)|{
+    decode_ids.into_iter().map(|(id, decode_struct_args)| {
         let (_, ty_generics, _) = main_generics.split_for_impl();
         let mut generics = decode_generics.clone();
         let mut default_decode_arg: Expr = syn::parse_quote!(());
@@ -156,20 +156,23 @@ pub(super) fn decodes(
                     .find(|f| f.id.as_ref().map(LitStr::value) == id)
                     .map(|f| f.arg.clone())
                     .unwrap_or_else(|| default_decode_arg.clone())
-        }).collect();
+            }).collect();
 
         let (impl_generics, _, where_clause) = generics.split_for_impl();
 
-        let decode_inner = init(&mut decode_field_ty.iter().zip_eq(&decode_args).map(|(field_ty, decode_args)| {
+        let decode_inner = init(&mut decode_field_ty.iter().zip_eq(all_field_name).zip_eq(&decode_args).map(|((field_ty, field_name), decode_args)| {
             match &field_ty {
                 DecodeFieldTy::Type(field_type) => quote! {
-                        <#field_type as #account_set_decode<#decode_lifetime, _>>::decode_accounts(accounts, #decode_args, ctx)?
-                    },
+                    #prelude::anyhow::Context::context(
+                        <#field_type as #account_set_decode<#decode_lifetime, _>>::decode_accounts(accounts, #decode_args, ctx),
+                        ::std::stringify!(#ident::#field_name(#id)),
+                    )?
+                },
                 DecodeFieldTy::Default(default) => quote!(#default)
             }
         }));
 
-        quote!{
+        quote! {
             #[automatically_derived]
             impl #impl_generics #account_set_decode<#decode_lifetime, #decode_type> for #ident #ty_generics #where_clause {
                 unsafe fn decode_accounts(
