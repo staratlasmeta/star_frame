@@ -343,7 +343,7 @@ pub mod state {
             &mut self,
             (init_ata, funder): (InitAta<'a, WalletInfo, MintInfo>, &Funder),
             account_seeds: Option<Vec<&[u8]>>,
-            _ctx: &Context,
+            ctx: &Context,
         ) -> Result<()> {
             if !funder.can_create_account() {
                 bail!(
@@ -376,6 +376,7 @@ pub mod state {
                     system_program: *init_ata.system_program.account_info(),
                     token_program: *init_ata.token_program.account_info(),
                 },
+                ctx,
             )?
             .invoke_signed(seeds)?;
             Ok(())

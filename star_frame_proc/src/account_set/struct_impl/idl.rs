@@ -164,7 +164,7 @@ pub(super) fn idls(
 
             let account_set_defs = relevant_field_types.iter().zip(idl_args).zip(idl_addresses).map(|((ty, idl_arg), idl_address)| {
                 let expression = quote! {
-                    <#ty as #prelude::AccountSetToIdl<_>>::account_set_to_idl(idl_definition, #idl_arg)
+                    #prelude::anyhow::Context::context(<#ty as #prelude::AccountSetToIdl<_>>::account_set_to_idl(idl_definition, #idl_arg), ::std::stringify!(#ident::#ty))
                 };
                 if let Some(address) = idl_address {
                     quote! (#expression?.with_single_address(#address))

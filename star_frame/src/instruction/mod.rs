@@ -1,5 +1,6 @@
 use crate::context::Context;
 use crate::prelude::*;
+use anyhow::Context as _;
 use borsh::{to_vec, BorshDeserialize, BorshSerialize};
 use bytemuck::{bytes_of, Pod};
 use pinocchio::{account_info::AccountInfo, cpi::set_return_data};
@@ -146,12 +147,19 @@ where
         // SAFETY: .validate_accounts is called after .decode_accounts
         let mut account_set = unsafe {
             <Self as StarFrameInstruction>::Accounts::decode_accounts(&mut accounts, decode, ctx)
-        }?;
-        account_set.validate_accounts(validate, ctx)?;
-        Self::extra_validations(&mut account_set, &mut run, ctx)?;
-        let ret = Self::run_instruction(&mut account_set, run, ctx)?;
-        account_set.cleanup_accounts(cleanup, ctx)?;
-        let return_data = to_vec(&ret)?;
+        }
+        .context("Failed to decode accounts")?;
+        account_set
+            .validate_accounts(validate, ctx)
+            .context("Failed to validate accounts")?;
+        Self::extra_validations(&mut account_set, &mut run, ctx)
+            .context("Failed in extra validations accounts")?;
+        let ret = Self::run_instruction(&mut account_set, run, ctx)
+            .context("Failed to run instruction")?;
+        account_set
+            .cleanup_accounts(cleanup, ctx)
+            .context("Failed to cleanup accounts")?;
+        let return_data = to_vec(&ret).context("Failed to serialize return data")?;
         if !return_data.is_empty() {
             set_return_data(&return_data);
         }

@@ -340,7 +340,8 @@ where
             <AccountDiscriminant<T>>::INIT_BYTES,
             &account_seeds,
             ctx,
-        )?;
+        )
+        .context("system_create_account failed")?;
         let mut data_bytes = self.account_data_mut()?;
         let mut data_bytes = &mut *data_bytes;
         unsafe {

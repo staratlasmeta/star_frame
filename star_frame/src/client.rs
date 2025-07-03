@@ -3,7 +3,7 @@ use crate::account_set::{
 };
 
 use crate::instruction::{InstructionDiscriminant, InstructionSet, StarFrameInstruction};
-use crate::prelude::UnsizedInit;
+use crate::prelude::{Context, UnsizedInit};
 use crate::program::StarFrameProgram;
 use crate::unsize::{FromOwned, UnsizedType};
 use crate::Result;
@@ -20,7 +20,12 @@ pub trait CpiAccountSet {
     const MIN_LEN: usize;
 
     fn to_cpi_accounts(&self) -> Self::CpiAccounts;
-    fn extend_account_infos(accounts: Self::CpiAccounts, infos: &mut Vec<AccountInfo>);
+    fn extend_account_infos(
+        program_id: &Pubkey,
+        accounts: Self::CpiAccounts,
+        infos: &mut Vec<AccountInfo>,
+        ctx: &Context,
+    ) -> Result<()>;
     fn extend_account_metas(
         program_id: &Pubkey,
         accounts: &Self::CpiAccounts,
@@ -72,21 +77,26 @@ impl CpiBuilder {
 }
 
 pub trait MakeCpi: StarFrameProgram {
-    fn cpi<I, A>(data: &I, accounts: A::CpiAccounts) -> Result<CpiBuilder>
+    fn cpi<I, A>(data: &I, accounts: A::CpiAccounts, ctx: &Context) -> Result<CpiBuilder>
     where
         I: StarFrameInstruction<Accounts<'static, 'static> = A>
             + InstructionDiscriminant<Self::InstructionSet>
             + BorshSerialize,
         A: CpiAccountSet,
     {
-        CpiBuilder::new::<Self::InstructionSet, I, A>(Self::ID, data, accounts)
+        CpiBuilder::new::<Self::InstructionSet, I, A>(Self::ID, data, accounts, ctx)
     }
 }
 
 impl<T> MakeCpi for T where T: StarFrameProgram + ?Sized {}
 
 impl CpiBuilder {
-    pub fn new<S, I, A>(program_id: Pubkey, data: &I, accounts: A::CpiAccounts) -> Result<Self>
+    pub fn new<S, I, A>(
+        program_id: Pubkey,
+        data: &I,
+        accounts: A::CpiAccounts,
+        ctx: &Context,
+    ) -> Result<Self>
     where
         S: InstructionSet,
         I: StarFrameInstruction<Accounts<'static, 'static> = A>
@@ -97,7 +107,7 @@ impl CpiBuilder {
         let mut metas = Vec::with_capacity(A::MIN_LEN);
         A::extend_account_metas(&program_id, &accounts, &mut metas);
         let mut infos = Vec::with_capacity(A::MIN_LEN);
-        A::extend_account_infos(accounts, &mut infos);
+        A::extend_account_infos(&program_id, accounts, &mut infos, ctx)?;
         let data = star_frame_instruction_data::<S, I>(data)?;
         Ok(Self {
             instruction: SolanaInstruction {

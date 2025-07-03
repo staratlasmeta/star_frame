@@ -231,6 +231,7 @@ where
             InitializeMint2CpiAccounts {
                 mint: *self.account_info(),
             },
+            ctx,
         )?
         .invoke_signed(account_seeds)?;
         Ok(())
@@ -442,6 +443,7 @@ where
                 account: *self.account_info(),
                 mint: *init_token.mint.account_info(),
             },
+            ctx,
         )?
         .invoke_signed(account_seeds)?;
         Ok(())

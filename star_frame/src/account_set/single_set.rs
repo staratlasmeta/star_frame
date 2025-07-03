@@ -208,7 +208,7 @@ where
         &self,
         recipient: &dyn SingleAccountSet,
         lamports: u64,
-        _ctx: &Context,
+        ctx: &Context,
     ) -> Result<()> {
         let cpi = System::cpi(
             &system::Transfer { lamports },
@@ -216,6 +216,7 @@ where
                 funder: *self.account_info(),
                 recipient: *recipient.account_info(),
             },
+            ctx,
         )?;
         match self.signer_seeds() {
             None => cpi.invoke()?,
@@ -382,12 +383,15 @@ pub trait CanSystemCreateAccount {
                     funder: funder.account_to_modify(),
                     new_account: account,
                 },
+                ctx,
             )?
-            .invoke_signed(seeds)?;
+            .invoke_signed(seeds)
+            .context("System::CreateAccount CPI failed")?;
         } else {
             let required_lamports = exempt_lamports.saturating_sub(current_lamports).max(1);
             if required_lamports > 0 {
-                CanFundRent::fund_rent(funder, &account, required_lamports, ctx)?;
+                CanFundRent::fund_rent(funder, &account, required_lamports, ctx)
+                    .context("Failed to fund rent")?;
             }
             let account_seeds: &[&[&[u8]]] = match &account_seeds {
                 Some(seeds) => &[seeds],
@@ -398,13 +402,17 @@ pub trait CanSystemCreateAccount {
                     space: space as u64,
                 },
                 system::AllocateCpiAccounts { account },
+                ctx,
             )?
-            .invoke_signed(account_seeds)?;
+            .invoke_signed(account_seeds)
+            .context("System::Allocate CPI failed")?;
             System::cpi(
                 &system::Assign { owner },
                 system::AssignCpiAccounts { account },
+                ctx,
             )?
-            .invoke_signed(account_seeds)?;
+            .invoke_signed(account_seeds)
+            .context("System::Assign CPI failed")?;
         }
         Ok(())
     }

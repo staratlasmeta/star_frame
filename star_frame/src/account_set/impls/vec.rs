@@ -18,10 +18,16 @@ where
         self.iter().map(T::to_cpi_accounts).collect()
     }
     #[inline]
-    fn extend_account_infos(accounts: Self::CpiAccounts, infos: &mut Vec<AccountInfo>) {
+    fn extend_account_infos(
+        program_id: &Pubkey,
+        accounts: Self::CpiAccounts,
+        infos: &mut Vec<AccountInfo>,
+        ctx: &Context,
+    ) -> Result<()> {
         for a in accounts {
-            T::extend_account_infos(a, infos);
+            T::extend_account_infos(program_id, a, infos, ctx)?;
         }
+        Ok(())
     }
     #[inline]
     fn extend_account_metas(

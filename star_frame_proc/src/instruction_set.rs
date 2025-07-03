@@ -140,8 +140,8 @@ pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
                     #(
                         <#variant_tys as #prelude::InstructionDiscriminant<#ident #ty_generics>>::DISCRIMINANT => {
                             #prelude::msg!(#ix_message);
-                            let mut data = <#variant_tys as #instruction>::data_from_bytes(&mut ix_bytes)?;
-                            <#variant_tys as #instruction>::run_ix_from_raw(accounts, &mut data, ctx)
+                            let mut data = #prelude::anyhow::Context::context(<#variant_tys as #instruction>::data_from_bytes(&mut ix_bytes), "Failed to read instruction data")?;
+                            #prelude::anyhow::Context::context(<#variant_tys as #instruction>::run_ix_from_raw(accounts, &mut data, ctx), "Failed to run instruction")
                         }
                     )*
                     x => #prelude::bail!("Invalid ix discriminant: {:?}", x),
