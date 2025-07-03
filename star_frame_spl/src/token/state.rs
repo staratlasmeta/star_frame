@@ -246,6 +246,7 @@ where
 #[validate(
     id = "validate_token", 
     arg = ValidateToken,
+    generics = [],
     extra_validation = {
         self.validate()?;
         self.validate_token(arg)
