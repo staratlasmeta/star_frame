@@ -23,6 +23,3 @@ serde = { workspace = true }
 solana-pubkey = { workspace = true }
 semver = { workspace = true }
 itertools = { workspace = true }
-
-[dev-dependencies]
-rand = { workspace = true }

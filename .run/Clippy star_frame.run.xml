@@ -1,6 +1,6 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="Clippy star_frame" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
-    <option name="command" value="clippy --tests --all-features" />
+    <option name="command" value="clippy --tests --examples --all-features" />
     <option name="workingDirectory" value="file://$PROJECT_DIR$" />
     <envs />
     <option name="emulateTerminal" value="true" />
