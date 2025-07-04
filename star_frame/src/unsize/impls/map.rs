@@ -151,7 +151,11 @@ where
 
     pub fn remove(&mut self, key: &K) -> Option<V> {
         match self.list.binary_search_by(|probe| probe.key.cmp(key)) {
-            Ok(existing_index) => Some(self.list[existing_index].value),
+            Ok(existing_index) => {
+                let value = self.list[existing_index].value;
+                self.list.remove(existing_index);
+                Some(value)
+            }
             Err(_) => None,
         }
     }
