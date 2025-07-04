@@ -244,7 +244,9 @@ where
 #[derive(AccountSet, Debug, Clone)]
 #[validate(extra_validation = self.validate())]
 #[validate(
-    id = "validate_token", arg = ValidateToken<'a>, generics = [<'a>],
+    id = "validate_token", 
+    arg = ValidateToken,
+    generics = [],
     extra_validation = {
         self.validate()?;
         self.validate_token(arg)
@@ -347,7 +349,7 @@ impl TokenAccount {
     pub fn validate_token(&self, validate_token: ValidateToken) -> Result<()> {
         let data = self.data()?;
         if let Some(mint) = validate_token.mint {
-            if data.mint != *mint {
+            if data.mint != mint {
                 bail!(
                     "TokenAccount {} has mint {}, expected {}",
                     self.pubkey(),
@@ -357,7 +359,7 @@ impl TokenAccount {
             }
         }
         if let Some(owner) = validate_token.owner {
-            if data.owner != *owner {
+            if data.owner != owner {
                 bail!(
                     "TokenAccount {} has owner {}, expected {}",
                     self.pubkey(),
@@ -371,25 +373,25 @@ impl TokenAccount {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Copy, Default)]
-pub struct ValidateToken<'a> {
-    pub mint: Option<&'a KeyFor<MintAccount>>,
-    pub owner: Option<&'a Pubkey>,
+pub struct ValidateToken {
+    pub mint: Option<KeyFor<MintAccount>>,
+    pub owner: Option<Pubkey>,
     // pub token_program: Option<Pubkey>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]
 pub struct InitToken<'a, MintInfo> {
-    pub owner: &'a Pubkey,
+    pub owner: Pubkey,
     pub mint: &'a MintInfo,
 }
 
-impl<'a, MintInfo> From<InitToken<'a, MintInfo>> for ValidateToken<'a>
+impl<'a, MintInfo> From<InitToken<'a, MintInfo>> for ValidateToken
 where
     MintInfo: SingleAccountSet,
 {
     fn from(value: InitToken<'a, MintInfo>) -> Self {
         Self {
-            mint: Some(KeyFor::new_ref(value.mint.pubkey())),
+            mint: Some(KeyFor::new(*value.mint.pubkey())),
             owner: Some(value.owner),
         }
     }
@@ -437,7 +439,7 @@ where
         };
         Token::cpi(
             &InitializeAccount3 {
-                owner: *init_token.owner,
+                owner: init_token.owner,
             },
             InitializeAccount3CpiAccounts {
                 account: *self.account_info(),
