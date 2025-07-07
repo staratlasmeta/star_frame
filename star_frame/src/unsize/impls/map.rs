@@ -149,9 +149,27 @@ where
         }
     }
 
+    /// Removes the value associated with the key and returns it if it exists.
+    ///
+    /// If the key is not found, `None` is returned and the map is unchanged.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use star_frame::unsize::impls::MapOwned;
+    ///
+    /// let mut map = MapOwned::<u8, u8>::new();
+    /// map.insert(1u8, 10u8);
+    /// assert_eq!(map.remove(&1), Some(10));
+    /// assert_eq!(map.remove(&1), None);
+    /// ```
     pub fn remove(&mut self, key: &K) -> Option<V> {
         match self.list.binary_search_by(|probe| probe.key.cmp(key)) {
-            Ok(existing_index) => Some(self.list[existing_index].value),
+            Ok(existing_index) => {
+                let value = self.list[existing_index].value;
+                self.list.remove(existing_index);
+                Some(value)
+            }
             Err(_) => None,
         }
     }
