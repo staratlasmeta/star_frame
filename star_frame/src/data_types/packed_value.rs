@@ -10,7 +10,6 @@ use derive_more::From;
 use num_traits::{FromPrimitive, ToPrimitive};
 use serde::{Deserialize, Serialize};
 use star_frame::align1::Align1;
-use star_frame_idl::serde_impls::serde_base58_pubkey::serialize;
 
 /// Packs a given `T` to be align 1.
 #[allow(clippy::derive_partial_eq_without_eq)]
