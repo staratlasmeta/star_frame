@@ -8,7 +8,9 @@ use bytemuck::{AnyBitPattern, CheckedBitPattern, NoUninit, Pod, Zeroable};
 use core::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Rem, RemAssign, Sub, SubAssign};
 use derive_more::From;
 use num_traits::{FromPrimitive, ToPrimitive};
+use serde::{Deserialize, Serialize};
 use star_frame::align1::Align1;
+use star_frame_idl::serde_impls::serde_base58_pubkey::serialize;
 
 /// Packs a given `T` to be align 1.
 #[allow(clippy::derive_partial_eq_without_eq)]
@@ -36,7 +38,7 @@ where
 unsafe impl<T> NoUninit for PackedValueChecked<T> where T: NoUninit {}
 unsafe impl<T> Zeroable for PackedValueChecked<T> where T: Zeroable {}
 
-macro_rules! packed_borsh {
+macro_rules! packed_ser_deser {
     ($ident:ident) => {
         impl<T> BorshSerialize for $ident<T>
         where
@@ -55,11 +57,35 @@ macro_rules! packed_borsh {
                 T::deserialize_reader(reader).map(Self)
             }
         }
+
+        impl<T> Serialize for $ident<T>
+        where
+            T: Serialize + Copy,
+        {
+            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+            where
+                S: serde::Serializer,
+            {
+                { self.0 }.serialize(serializer)
+            }
+        }
+
+        impl<'de, T> Deserialize<'de> for $ident<T>
+        where
+            T: Deserialize<'de>,
+        {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                T::deserialize(deserializer).map(Self)
+            }
+        }
     };
 }
 
-packed_borsh!(PackedValue);
-packed_borsh!(PackedValueChecked);
+packed_ser_deser!(PackedValue);
+packed_ser_deser!(PackedValueChecked);
 
 macro_rules! packed_comparisons {
     ($ident:ident) => {
