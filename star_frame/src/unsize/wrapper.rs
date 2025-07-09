@@ -101,9 +101,8 @@ pub struct ExclusiveWrapper<'parent, 'top, Mut, P>(ExclusiveWrapperEnum<'parent,
 #[derive(Debug)]
 enum ExclusiveWrapperEnum<'parent, 'top, Mut, P> {
     Top {
-        // We Box the Mut so its derived from a separate allocation, so dereferencing parent in inners wont invalidate the top Mut.
-        // data: OwnedRefMut<'top, (P, Box<Mut>)>,
         exclusive_top: P,
+        // We Box the Mut so its derived from a separate allocation, so dereferencing parent in inners wont invalidate the top Mut.
         top_mut: Box<Mut>,
         #[debug(skip)]
         _to_drop: Box<dyn DerefMut<Target = [u8]> + 'top>,

@@ -52,6 +52,13 @@ impl<T: TypeToIdl> TypeToIdl for Option<T> {
     }
 }
 
+impl<T: TypeToIdl> TypeToIdl for Box<T> {
+    type AssociatedProgram = System;
+    fn type_to_idl(idl_definition: &mut IdlDefinition) -> Result<IdlTypeDef> {
+        T::type_to_idl(idl_definition)
+    }
+}
+
 impl<T: TypeToIdl> TypeToIdl for Vec<T> {
     type AssociatedProgram = System;
     fn type_to_idl(idl_definition: &mut IdlDefinition) -> Result<IdlTypeDef> {
