@@ -7,6 +7,7 @@ version = "0.14.2"
 edition = "2021"
 publish = ["star-atlas"]
 rust-version = "1.84.1"
+license = "Proprietary"
 repository = "https://github.com/staratlasmeta/star_frame"
 
 [workspace.dependencies]
