@@ -15,6 +15,12 @@ test_helpers = []
 rustdoc = ["solana-system-interface"]
 
 [dependencies]
+solana-pubkey = { workspace = true, features = [
+    "curve25519",
+    "borsh",
+    "serde",
+    "bytemuck",
+] }
 advancer = { workspace = true }
 anyhow = { workspace = true }
 array-init = { workspace = true }
@@ -26,11 +32,6 @@ fixed = { workspace = true }
 itertools = { workspace = true }
 num-traits = { workspace = true }
 paste = { workspace = true }
-solana-pubkey = { workspace = true, features = [
-    "curve25519",
-    "borsh",
-    "bytemuck",
-] }
 solana-instruction = { workspace = true }
 pinocchio = { workspace = true }
 star_frame_proc = { workspace = true }

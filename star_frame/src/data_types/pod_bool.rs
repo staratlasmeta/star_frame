@@ -1,10 +1,23 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use bytemuck::{Pod, Zeroable};
+use serde::{Deserialize, Serialize};
 use star_frame_proc::Align1;
 
 /// Wrapper around booleans for u8 types
 #[repr(transparent)]
-#[derive(Copy, Clone, Pod, Zeroable, Debug, BorshDeserialize, BorshSerialize, Align1)]
+#[derive(
+    Copy,
+    Clone,
+    Pod,
+    Zeroable,
+    Debug,
+    BorshDeserialize,
+    BorshSerialize,
+    Align1,
+    Serialize,
+    Deserialize,
+)]
+#[serde(transparent)]
 pub struct PodBool(u8);
 
 impl PodBool {

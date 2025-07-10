@@ -2,6 +2,7 @@ use crate::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 use bytemuck::{cast, cast_mut, cast_ref};
 use derive_where::DeriveWhere;
+use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::marker::PhantomData;
 
@@ -12,8 +13,9 @@ pub trait GetOptionalKeyFor<T: ?Sized> {
 }
 
 /// A key for an account type
-#[derive(BorshDeserialize, BorshSerialize, Align1, DeriveWhere)]
+#[derive(BorshDeserialize, BorshSerialize, Align1, DeriveWhere, Serialize, Deserialize)]
 #[derive_where(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[serde(transparent)]
 #[repr(transparent)]
 pub struct OptionalKeyFor<T: ?Sized> {
     pubkey: Pubkey,

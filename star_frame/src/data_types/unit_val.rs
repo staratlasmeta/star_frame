@@ -13,6 +13,7 @@ use typenum::{IsEqual, Mod, True, Unsigned, P2, Z0};
 #[derive(Serialize, Deserialize, Align1)]
 #[derive_where(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default; T)]
 #[serde(bound(serialize = "T: Serialize", deserialize = "T: Deserialize<'de>"))]
+#[serde(transparent)]
 #[repr(transparent)]
 pub struct UnitVal<T, Unit> {
     val: T,
