@@ -380,7 +380,10 @@ pub struct ValidateToken {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]
-pub struct InitToken<'a, MintInfo> {
+pub struct InitToken<'a, MintInfo>
+where
+    MintInfo: SingleAccountSet,
+{
     pub owner: Pubkey,
     pub mint: &'a MintInfo,
 }

@@ -277,14 +277,22 @@ pub mod state {
     }
 
     #[derive(Debug, Clone, Copy)]
-    pub struct InitAta<'a, WalletInfo, MintInfo> {
+    pub struct InitAta<'a, WalletInfo, MintInfo>
+    where
+        WalletInfo: SingleAccountSet,
+        MintInfo: SingleAccountSet,
+    {
         pub wallet: &'a WalletInfo,
         pub mint: &'a MintInfo,
         pub system_program: Program<System>,
         pub token_program: Program<Token>,
     }
 
-    impl<'a, WalletInfo, MintInfo> InitAta<'a, WalletInfo, MintInfo> {
+    impl<'a, WalletInfo, MintInfo> InitAta<'a, WalletInfo, MintInfo>
+    where
+        WalletInfo: SingleAccountSet,
+        MintInfo: SingleAccountSet,
+    {
         pub fn new(
             wallet: &'a WalletInfo,
             mint: &'a MintInfo,
@@ -345,16 +353,21 @@ pub mod state {
             account_seeds: Option<Vec<&[u8]>>,
             ctx: &Context,
         ) -> Result<()> {
-            if !funder.can_create_account() {
-                bail!(
-                    "Funder with key `{}` does not have the ability to create accounts. This is a logic bug in the program.",
-                    funder.account_to_modify().pubkey(),
-                );
-            }
             if IF_NEEDED && self.owner_pubkey() == Token::ID {
                 self.validate()?;
                 self.validate_ata(init_ata.into())?;
                 return Ok(());
+            }
+            if !funder.can_create_account() {
+                let current_lamports = self.account_info().lamports();
+                let required_rent = ctx
+                    .get_rent()?
+                    .minimum_balance(TokenAccount::LEN)
+                    .saturating_sub(current_lamports);
+                if required_rent > 0 {
+                    // Funding rent prior to the CPI call results in assoicated token instruction ignoring funder, so we don't error out.
+                    funder.fund_rent(self, required_rent, ctx)?;
+                }
             }
             if account_seeds.is_some() {
                 bail!("Account seeds are not supported for Init<AssociatedTokenAccount>");
