@@ -22,7 +22,7 @@ defaults:
 
 jobs:
   create-release-pr:
-    runs-on: warp-ubuntu-latest-x64-32x
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
