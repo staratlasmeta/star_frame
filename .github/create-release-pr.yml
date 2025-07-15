@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       level:
-        description: "SemVer level to bump by"
+        description: 'SemVer level to bump by'
         required: true
         type: choice
         options:
@@ -29,18 +29,12 @@ jobs:
       - name: Setup Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          cache-provider: "warpbuild"
-          cache-shared-key: "cargo-test"
+          cache: 'false'
 
       - uses: ./.github/actions/setup-shipyard
         with:
           ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
           private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
-
-      - name: Setup JS
-        uses: ./.github/actions/build-install
-        with:
-          npm-token: ${{ secrets.NPM_TOKEN }}
 
       - name: Install cargo-release
         uses: taiki-e/install-action@v2
@@ -54,14 +48,6 @@ jobs:
       - name: Bump Rust version
         run: cargo release version ${{ inputs.level }} -x --no-confirm
 
-      - name: Rebuild IDLs
-        working-directory: clients
-        run: pnpm run idls
-
-      - name: Bump JS versions
-        working-directory: clients
-        run: pnpm run version ${{ inputs.level }}
-
       - name: Detect the new version
         id: version
         uses: ./.github/actions/detect-version
@@ -71,11 +57,11 @@ jobs:
 
       - name: Create release branch and commit changes
         run: |
-          BRANCH="release/v${{ steps.version.outputs.rust }}"
+          BRANCH="release/v${{ steps.version.outputs.version }}"
           echo "release_branch=$BRANCH" >> "$GITHUB_ENV"
           git checkout -b $BRANCH
           git add .
-          git commit -m "chore: ${{ inputs.level }} bump to v${{ steps.version.outputs.rust }}"
+          git commit -m "chore: ${{ inputs.level }} bump to v${{ steps.version.outputs.version }}"
           git push --set-upstream origin HEAD
 
       - name: Create Pull Request
@@ -83,10 +69,9 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           BODY="## Release"
-          BODY+="\n - Rust Crates: \`v${{ steps.current_version.outputs.rust }}\` -> \`v${{ steps.version.outputs.rust }}\`"
-          BODY+="\n - JS Packages: \`v${{ steps.current_version.outputs.js }}\` -> \`v${{ steps.version.outputs.js }}\`"
+          BODY+="\n - Rust Crates: \`v${{ steps.current_version.outputs.version }}\` -> \`v${{ steps.version.outputs.version }}\`"
           git fetch origin main
-          echo -e "$BODY" | gh pr create --title "chore: release v${{ steps.version.outputs.rust }}" --body-file -
+          echo -e "$BODY" | gh pr create --title "chore: release v${{ steps.version.outputs.version }}" --body-file -
           # gh pr merge --auto --squash
 
       - name: Trigger CI
