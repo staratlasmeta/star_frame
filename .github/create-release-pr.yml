@@ -72,7 +72,6 @@ jobs:
           BODY+="\n - Rust Crates: \`v${{ steps.current_version.outputs.version }}\` -> \`v${{ steps.version.outputs.version }}\`"
           git fetch origin main
           echo -e "$BODY" | gh pr create --title "chore: release v${{ steps.version.outputs.version }}" --body-file -
-          # gh pr merge --auto --squash
 
       - name: Trigger CI
         env:
