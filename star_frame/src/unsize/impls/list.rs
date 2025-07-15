@@ -320,6 +320,19 @@ where
     }
 }
 
+impl<T, L> AsShared for ListRef<'_, T, L>
+where
+    L: ListLength,
+    T: CheckedBitPattern + NoUninit + Align1,
+{
+    type Ref<'a>
+        = ListRef<'a, T, L>
+    where
+        Self: 'a;
+    fn as_shared(&self) -> Self::Ref<'_> {
+        ListRef(self.0, PhantomData)
+    }
+}
 impl<T, L> AsShared for ListMut<'_, T, L>
 where
     L: ListLength,
@@ -343,6 +356,10 @@ where
     type Mut<'a> = ListMut<'a, T, L>;
     type Owned = Vec<T>;
     const ZST_STATUS: bool = { size_of::<L>() != 0 };
+
+    fn ref_as_ref<'a>(r: &'a Self::Ref<'_>) -> Self::Ref<'a> {
+        ListRef(r.0, PhantomData)
+    }
 
     fn mut_as_ref<'a>(m: &'a Self::Mut<'_>) -> Self::Ref<'a> {
         ListRef(m.0, PhantomData)

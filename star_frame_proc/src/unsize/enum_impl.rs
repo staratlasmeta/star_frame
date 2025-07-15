@@ -359,7 +359,12 @@ impl UnsizedEnumContext {
 
         let variant_matches = self.make_variants(|_| quote!(inner));
 
-        let variant_returns = self.make_variants(|variant_type| {
+        let variant_returns_ref = self.make_variants(|variant_type| {
+            quote! {
+                <#variant_type as #prelude::UnsizedType>::ref_as_ref(inner)
+            }
+        });
+        let variant_returns_mut = self.make_variants(|variant_type| {
             quote! {
                 <#variant_type as #prelude::UnsizedType>::mut_as_ref(inner)
             }
@@ -367,12 +372,23 @@ impl UnsizedEnumContext {
 
         quote! {
             #[automatically_derived]
+            impl #impl_gen #prelude::AsShared for #ref_ident #underscore_ty_gen #where_clause {
+                type Ref<#top_lt> = #ref_type
+                    where Self: #top_lt;
+                fn as_shared(&self) -> Self::Ref<'_> {
+                    match self {
+                        #(#ref_ident::#variant_matches => #ref_ident::#variant_returns_ref),*
+                    }
+                }
+            }
+
+            #[automatically_derived]
             impl #impl_gen #prelude::AsShared for #mut_ident #underscore_ty_gen #where_clause {
                 type Ref<#top_lt> = #ref_type
                     where Self: #top_lt;
                 fn as_shared(&self) -> Self::Ref<'_> {
                     match self {
-                        #(#mut_ident::#variant_matches => #ref_ident::#variant_returns),*
+                        #(#mut_ident::#variant_matches => #ref_ident::#variant_returns_mut),*
                     }
                 }
             }
@@ -484,6 +500,12 @@ impl UnsizedEnumContext {
 
         let mut_lt = new_lifetime(&self.generics, Some("m"));
 
+        let variant_ref_as_ref = self.make_variants(|variant_type| {
+            quote! {
+                <#variant_type as #prelude::UnsizedType>::ref_as_ref(inner)
+            }
+        });
+
         let variant_mut_as_ref = self.make_variants(|variant_type| {
             quote! {
                 <#variant_type as #prelude::UnsizedType>::mut_as_ref(inner)
@@ -518,6 +540,14 @@ impl UnsizedEnumContext {
                 const ZST_STATUS: bool = {
                     true #(&& <#filtered_variant_types as #prelude::UnsizedType>::ZST_STATUS)*
                 };
+
+                fn ref_as_ref<#mut_lt>(r: &#mut_lt Self::Ref<'_>) -> Self::Ref<#mut_lt> {
+                    match &r {
+                        #(
+                            #ref_ident::#variant_matches => #ref_ident::#variant_ref_as_ref,
+                        )*
+                    }
+                }
 
                 fn mut_as_ref<#mut_lt>(m: &#mut_lt Self::Mut<'_>) -> Self::Ref<#mut_lt> {
                     match &m.data {

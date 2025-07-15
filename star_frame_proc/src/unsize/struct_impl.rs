@@ -598,6 +598,17 @@ impl UnsizedStructContext {
 
         quote! {
             #[automatically_derived]
+            impl #impl_gen #prelude::AsShared for #ref_ident #underscore_ty_gen #where_clause {
+                type Ref<#top_lt> = #ref_type
+                    where Self: #top_lt;
+                fn as_shared(&self) -> Self::Ref<'_> {
+                    #ref_ident {
+                        #(#with_sized_idents: <#with_sized_types as #prelude::UnsizedType>::ref_as_ref(&self.#with_sized_idents),)*
+                    }
+                }
+            }
+
+            #[automatically_derived]
             impl #impl_gen #prelude::AsShared for #mut_ident #underscore_ty_gen #where_clause {
                 type Ref<#top_lt> = #ref_type
                     where Self: #top_lt;
@@ -708,6 +719,12 @@ impl UnsizedStructContext {
                     })*
                     <#last_ty as UnsizedType>::ZST_STATUS
                 };
+
+                fn ref_as_ref<#mut_lt>(r: &#mut_lt Self::Ref<'_>) -> Self::Ref<#mut_lt> {
+                    #ref_ident{
+                        #(#with_sized_idents: <#with_sized_types as #prelude::UnsizedType>::ref_as_ref(&r.#with_sized_idents),)*
+                    }
+                }
 
                 fn mut_as_ref<#mut_lt>(m: &#mut_lt Self::Mut<'_>) -> Self::Ref<#mut_lt> {
                     #ref_ident{
