@@ -1,0 +1,17 @@
+name: Detect Release
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  programs:
+    if: |
+      github.event.pull_request.merged == true &&
+      startsWith(github.event.pull_request.head.ref, 'release/v')
+    uses: ./.github/workflows/publish.yml
+    secrets: inherit

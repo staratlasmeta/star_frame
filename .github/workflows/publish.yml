@@ -1,0 +1,53 @@
+name: Publish
+
+on:
+  workflow_call:
+    secrets:
+      PRIVATE_REPO_SSH:
+        required: true
+      PRIVATE_REPO_TOKEN:
+        required: true
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  publish-crates:
+    runs-on: warp-ubuntu-latest-x64-32x
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache-provider: 'warpbuild'
+
+      - name: Setup Shipyard
+        uses: ./.github/actions/setup-shipyard
+        with:
+          ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
+          private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+
+      - name: Add cargo-release
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-release
+
+      - name: Run cargo release
+        run: cargo release --allow-branch 'main' --registry star-atlas --no-confirm -x
+
+      - id: version
+        uses: ./.github/actions/detect-version
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          make_latest: true
+          name: Release v${{ steps.version.outputs.version }}
+          tag_name: v${{ steps.version.outputs.version }}
