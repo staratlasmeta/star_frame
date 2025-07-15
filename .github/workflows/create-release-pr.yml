@@ -1,0 +1,81 @@
+name: Create Release PR
+
+on:
+  workflow_dispatch:
+    inputs:
+      level:
+        description: 'SemVer level to bump by'
+        required: true
+        type: choice
+        options:
+          - major
+          - minor
+          - patch
+
+permissions:
+  contents: write
+  pull-requests: write
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  create-release-pr:
+    runs-on: warp-ubuntu-latest-x64-32x
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: 'false'
+
+      - uses: ./.github/actions/setup-shipyard
+        with:
+          ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
+          private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+
+      - name: Install cargo-release
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-release
+
+      - name: Detect the current version
+        id: current_version
+        uses: ./.github/actions/detect-version
+
+      - name: Bump Rust version
+        run: cargo release version ${{ inputs.level }} -x --no-confirm
+
+      - name: Detect the new version
+        id: version
+        uses: ./.github/actions/detect-version
+
+      - name: Configure Actions Bot
+        uses: ./.github/actions/configure-actions-bot
+
+      - name: Create release branch and commit changes
+        run: |
+          BRANCH="release/v${{ steps.version.outputs.version }}"
+          echo "release_branch=$BRANCH" >> "$GITHUB_ENV"
+          git checkout -b $BRANCH
+          git add .
+          git commit -m "chore: ${{ inputs.level }} bump to v${{ steps.version.outputs.version }}"
+          git push --set-upstream origin HEAD
+
+      - name: Create Pull Request
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BODY="## Release"
+          BODY+="\n - Rust Crates: \`v${{ steps.current_version.outputs.version }}\` -> \`v${{ steps.version.outputs.version }}\`"
+          git fetch origin main
+          echo -e "$BODY" | gh pr create --title "chore: release v${{ steps.version.outputs.version }}" --body-file -
+
+      - name: Trigger CI
+        env:
+          GITHUB_TOKEN: ${{ secrets.CI_TRIGGER_PAT }}
+        run: |
+          gh pr close $release_branch
+          gh pr reopen $release_branch

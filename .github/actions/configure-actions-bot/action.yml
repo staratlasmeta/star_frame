@@ -1,0 +1,18 @@
+name: "Configure Actions Bot"
+description: "Configures git for the actions bot"
+
+inputs:
+  working-directory:
+    description: "Working directory"
+    required: false
+    default: "."
+
+runs:
+  using: "composite"
+  steps:
+    - name: Configure git
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}

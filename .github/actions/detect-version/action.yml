@@ -1,0 +1,16 @@
+name: Detect Version
+description: Detects current version from Rust workspace
+outputs:
+  version:
+    description: 'Current version detected'
+    value: ${{ steps.detect.outputs.version }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Detect current version
+      id: detect
+      shell: bash
+      run: |
+        VERSION=$(cargo metadata --format-version 1 --no-deps | jq -r '.packages[] | select(.name == "star_frame") | .version')
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
