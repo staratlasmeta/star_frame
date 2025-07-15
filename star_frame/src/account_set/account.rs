@@ -172,6 +172,10 @@ pub mod discriminant {
         type Owned = T::Owned;
         const ZST_STATUS: bool = T::ZST_STATUS;
 
+        fn ref_as_ref<'a>(r: &'a Self::Ref<'_>) -> Self::Ref<'a> {
+            T::ref_as_ref(r)
+        }
+
         fn mut_as_ref<'a>(m: &'a Self::Mut<'_>) -> Self::Ref<'a> {
             T::mut_as_ref(m)
         }

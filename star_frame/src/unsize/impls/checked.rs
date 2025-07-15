@@ -51,6 +51,18 @@ where
     }
 }
 
+impl<T> AsShared for CheckedRef<'_, T>
+where
+    T: CheckedBitPattern + NoUninit + Align1,
+{
+    type Ref<'a>
+        = CheckedRef<'a, T>
+    where
+        Self: 'a;
+    fn as_shared(&self) -> Self::Ref<'_> {
+        CheckedRef(self.0, PhantomData)
+    }
+}
 impl<T> AsShared for CheckedMut<'_, T>
 where
     T: CheckedBitPattern + NoUninit + Align1,
@@ -72,6 +84,10 @@ where
     type Mut<'a> = CheckedMut<'a, T>;
     type Owned = Self;
     const ZST_STATUS: bool = { size_of::<T>() != 0 };
+
+    fn ref_as_ref<'a>(r: &'a Self::Ref<'_>) -> Self::Ref<'a> {
+        CheckedRef(r.0, r.1)
+    }
 
     fn mut_as_ref<'a>(m: &'a Self::Mut<'_>) -> Self::Ref<'a> {
         CheckedRef(m.0, m.1)

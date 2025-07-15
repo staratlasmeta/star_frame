@@ -49,6 +49,15 @@ impl DerefMut for RemainingBytesMut<'_> {
     }
 }
 
+impl AsShared for RemainingBytesRef<'_> {
+    type Ref<'a>
+        = RemainingBytesRef<'a>
+    where
+        Self: 'a;
+    fn as_shared(&self) -> Self::Ref<'_> {
+        RemainingBytesRef(self.0, PhantomData)
+    }
+}
 impl AsShared for RemainingBytesMut<'_> {
     type Ref<'a>
         = RemainingBytesRef<'a>
@@ -64,6 +73,10 @@ unsafe impl UnsizedType for RemainingBytes {
     type Mut<'a> = RemainingBytesMut<'a>;
     type Owned = Vec<u8>;
     const ZST_STATUS: bool = false;
+
+    fn ref_as_ref<'a>(r: &'a Self::Ref<'_>) -> Self::Ref<'a> {
+        RemainingBytesRef(r.0, PhantomData)
+    }
 
     fn mut_as_ref<'a>(m: &'a Self::Mut<'_>) -> Self::Ref<'a> {
         RemainingBytesRef(m.0, PhantomData)

@@ -498,6 +498,19 @@ where
     }
 }
 
+impl<T, C> AsShared for UnsizedListRef<'_, T, C>
+where
+    T: UnsizedType + ?Sized,
+    C: UnsizedListOffset,
+{
+    type Ref<'b>
+        = UnsizedListRef<'b, T, C>
+    where
+        Self: 'b;
+    fn as_shared(&self) -> Self::Ref<'_> {
+        UnsizedList::ref_as_ref(self)
+    }
+}
 impl<T, C> AsShared for UnsizedListMut<'_, T, C>
 where
     T: UnsizedType + ?Sized,
@@ -528,10 +541,17 @@ where
         true
     };
 
+    fn ref_as_ref<'a>(r: &'a Self::Ref<'_>) -> Self::Ref<'a> {
+        UnsizedListRef {
+            list_ptr: r.list_ptr,
+            phantom: PhantomData,
+        }
+    }
+
     fn mut_as_ref<'a>(m: &'a Self::Mut<'_>) -> Self::Ref<'a> {
         UnsizedListRef {
             list_ptr: m.list_ptr,
-            phantom: Default::default(),
+            phantom: PhantomData,
         }
     }
 
