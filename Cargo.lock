@@ -4500,7 +4500,7 @@ checksum = "a8f112729512f8e442d81f95a8a7ddf2b7c6b8a1a6f509a95864142b30cab2d3"
 
 [[package]]
 name = "star_frame"
-version = "0.15.0"
+version = "0.16.0"
 dependencies = [
  "advancer",
  "anyhow",
@@ -4530,7 +4530,7 @@ dependencies = [
 
 [[package]]
 name = "star_frame_idl"
-version = "0.15.0"
+version = "0.16.0"
 dependencies = [
  "anyhow",
  "codama-nodes",
@@ -4544,7 +4544,7 @@ dependencies = [
 
 [[package]]
 name = "star_frame_proc"
-version = "0.15.0"
+version = "0.16.0"
 dependencies = [
  "bs58",
  "daggy",
@@ -4564,7 +4564,7 @@ dependencies = [
 
 [[package]]
 name = "star_frame_spl"
-version = "0.15.0"
+version = "0.16.0"
 dependencies = [
  "borsh 1.5.7",
  "bytemuck",
