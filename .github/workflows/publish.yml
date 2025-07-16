@@ -39,6 +39,9 @@ jobs:
         with:
           tool: cargo-release
 
+      - name: Configure Actions Bot
+        uses: ./.github/actions/configure-actions-bot
+
       - name: Run cargo release
         run: cargo release --allow-branch 'main' --registry star-atlas --no-confirm -x
 
