@@ -10,9 +10,7 @@ use crate::prelude::*;
 /// ## Unsized Type System
 /// See [`SetRef`] and [`SetMut`]. These will be used often in the `UnsizedType` system.
 /// For exclusive methods that change the underlying data size, see [`SetExclusiveImpl`].
-#[unsized_type(skip_idl, owned_attributes = [doc = "The [`UnsizedType::Owned`] variant of [`Set`].
-    It is generally easier to create an initial [`BTreeSet`] or iterator of `T`
-    and convert to this type vs working on it directly."])]
+#[unsized_type(skip_idl, owned_type = BTreeSet<T>, owned_from_ref = unsized_set_owned_from_ref::<T, L>)]
 pub struct Set<T, L = u32>
 where
     T: UnsizedGenerics + Ord,
@@ -22,182 +20,27 @@ where
     list: List<T, L>,
 }
 
-impl<T, L> From<BTreeSet<T>> for SetOwned<T, L>
+unsafe impl<T, L> FromOwned for Set<T, L>
 where
     T: UnsizedGenerics + Ord,
     L: ListLength,
 {
-    fn from(btree_set: BTreeSet<T>) -> Self {
-        let mut set = Self::new();
-        for key in btree_set {
-            set.insert(key);
-        }
-        set
+    fn byte_size(owned: &Self::Owned) -> usize {
+        List::<T, L>::byte_size_from_len(owned.len())
+    }
+
+    fn from_owned(owned: Self::Owned, bytes: &mut &mut [u8]) -> Result<usize> {
+        List::<T, L>::from_owned_from_iter(owned, bytes)
     }
 }
 
-impl<T, L> FromIterator<T> for SetOwned<T, L>
+#[allow(clippy::unnecessary_wraps)]
+fn unsized_set_owned_from_ref<T, L>(r: &SetRef<'_, T, L>) -> Result<BTreeSet<T>>
 where
     T: UnsizedGenerics + Ord,
     L: ListLength,
 {
-    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
-        let mut set = Self::new();
-        for key in iter {
-            set.insert(key);
-        }
-        set
-    }
-}
-
-impl<T, L> SetOwned<T, L>
-where
-    T: UnsizedGenerics + Ord,
-    L: ListLength,
-{
-    /// Consumes the set and returns a `BTreeSet` containing all the elements.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use star_frame::prelude::*;
-    /// use std::collections::BTreeSet;
-    /// let mut set: SetOwned<u8> = [10u8, 11, 12].into_iter().collect();
-    /// assert_eq!(set.to_btree_set(), BTreeSet::from([10u8, 11, 12]));
-    /// ```
-    #[must_use]
-    pub fn to_btree_set(self) -> BTreeSet<T> {
-        self.list.into_iter().collect()
-    }
-
-    /// Creates a new empty set.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use star_frame::prelude::*;
-    /// let set = SetOwned::<u8>::new();
-    /// assert_eq!(set.len(), 0);
-    /// ```
-    #[must_use]
-    pub fn new() -> Self {
-        Self { list: vec![] }
-    }
-
-    /// Returns the number of elements in the set.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use star_frame::prelude::*;
-    /// let set = SetOwned::<u8>::new();
-    /// assert_eq!(set.len(), 0);
-    /// let set: SetOwned<u8> = [10u8, 11, 12].into_iter().collect();
-    /// assert_eq!(set.len(), 3);
-    /// ```
-    #[must_use]
-    pub fn len(&self) -> usize {
-        self.list.len()
-    }
-
-    /// Returns `true` if the set contains no elements.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use star_frame::prelude::*;
-    /// let mut set: SetOwned<u8> = SetOwned::new();
-    /// assert!(set.is_empty());
-    /// set.insert(10u8);
-    /// assert!(!set.is_empty());
-    /// ```
-    #[must_use]
-    pub fn is_empty(&self) -> bool {
-        self.list.is_empty()
-    }
-
-    /// Returns `true` if the set contains the specified value.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use star_frame::prelude::*;
-    /// let mut set = SetOwned::<u8>::new();
-    /// assert!(!set.contains(&10u8));
-    /// set.insert(10u8);
-    /// assert!(set.contains(&10u8));
-    /// ```
-    #[must_use]
-    pub fn contains(&self, key: &T) -> bool {
-        self.list.binary_search(key).is_ok()
-    }
-
-    /// Returns `true` if the set did not already contain the specified element.
-    ///
-    /// If the set already contains this element, the method will return `false` and
-    /// leave the set unchanged.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use star_frame::prelude::*;
-    /// let mut set = SetOwned::<u8>::new();
-    /// assert_eq!(set.insert(10u8), true);
-    /// assert_eq!(set.insert(10u8), false);
-    /// ```
-    pub fn insert(&mut self, key: T) -> bool {
-        match self.list.binary_search(&key) {
-            Ok(_existing_index) => false,
-            Err(insertion_index) => {
-                self.list.insert(insertion_index, key);
-                true
-            }
-        }
-    }
-
-    /// Removes a key from the set.
-    ///
-    /// Returns `true` if the set contained the element to be removed, and `false` otherwise.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use star_frame::prelude::*;
-    /// let mut set = SetOwned::<u8>::new();
-    /// set.insert(10u8);
-    /// assert_eq!(set.remove(&10u8), true);
-    /// assert_eq!(set.remove(&10u8), false);
-    /// ```
-    pub fn remove(&mut self, key: &T) -> bool {
-        match self.list.binary_search(key) {
-            Ok(existing_index) => {
-                self.list.remove(existing_index);
-                true
-            }
-            Err(_) => false,
-        }
-    }
-
-    /// Removes all elements from the set.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use star_frame::prelude::*;
-    /// let mut set: SetOwned<u8> = [1u8, 2, 3].into_iter().collect();
-    /// assert!(!set.is_empty());
-    /// set.clear();
-    /// assert!(set.is_empty());
-    /// ```
-    pub fn clear(&mut self) {
-        self.list.clear();
-    }
-
-    /// Returns a reference to the inner list.
-    #[must_use]
-    pub fn as_inner(&self) -> &Vec<T> {
-        &self.list
-    }
+    Ok(r.list.iter().copied().collect())
 }
 
 #[unsized_impl]
