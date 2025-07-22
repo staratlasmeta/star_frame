@@ -144,6 +144,18 @@ where
         .map(Some)
     }
 
+    pub fn index(&self, index: usize) -> Result<(K, V::Ref<'_>)> {
+        let offset = self.list.offset_list[index];
+        let value = self.list.index(index)?;
+        Ok((offset.key, value))
+    }
+
+    pub fn index_mut(&mut self, index: usize) -> Result<(K, V::Mut<'_>)> {
+        let offset = self.list.offset_list[index];
+        let value = self.list.index_mut(index)?;
+        Ok((offset.key, value))
+    }
+
     /// Inserts or modifies an item into the map, returning true if the item already existed, and false otherwise.
     #[exclusive]
     pub fn insert<I>(&mut self, key: K, value: I) -> Result<bool>

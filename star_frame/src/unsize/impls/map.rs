@@ -115,6 +115,16 @@ where
         }
     }
 
+    pub fn index(&self, index: usize) -> (&K, &V) {
+        let item = &self.list[index];
+        (&item.key, &item.value)
+    }
+
+    pub fn index_mut(&mut self, index: usize) -> (&K, &mut V) {
+        let item = &mut self.list[index];
+        (&item.key, &mut item.value)
+    }
+
     pub fn get_mut(&mut self, key: &K) -> Option<&mut V> {
         match self.get_index(key) {
             Ok(existing_index) => Some(&mut self.list[existing_index].value),

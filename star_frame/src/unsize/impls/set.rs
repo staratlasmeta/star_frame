@@ -107,6 +107,29 @@ where
         self.list.binary_search(value).is_ok()
     }
 
+    /// Returns the element at the given index.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the index is out of bounds.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use star_frame::prelude::*;
+    /// # fn main() -> Result<()> {
+    /// let bytes = <Set<u8>>::new_byte_set(vec![1u8, 2, 3].into_iter().collect())?;
+    /// let set = bytes.data()?;
+    /// assert_eq!(set.index(0), &1);
+    /// assert_eq!(set.index(1), &2);
+    /// assert_eq!(set.index(2), &3);
+    /// # Ok(())
+    /// # }
+    #[must_use]
+    pub fn index(&self, index: usize) -> &T {
+        &self.list[index]
+    }
+
     /// Adds a value to the set. Returns whether the value was already present. If the value is already present, the set is unchanged.
     ///
     /// # Examples
