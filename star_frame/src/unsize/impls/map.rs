@@ -115,6 +115,22 @@ where
         }
     }
 
+    /// Accesses the items from the underlying list by index. Returns `None` if the index is out of bounds.
+    /// This makes no guarantees about the order of the items when adding or removing elements.
+    #[must_use]
+    pub fn get_by_index(&self, index: usize) -> Option<(&K, &V)> {
+        self.list.get(index).map(|item| (&item.key, &item.value))
+    }
+
+    /// Accesses the items from the underlying list by index. Returns `None` if the index is out of bounds.
+    /// This makes no guarantees about the order of the items when adding or removing elements.
+    #[must_use]
+    pub fn get_by_index_mut(&mut self, index: usize) -> Option<(&K, &mut V)> {
+        self.list
+            .get_mut(index)
+            .map(|item| (&item.key, &mut item.value))
+    }
+
     pub fn get_mut(&mut self, key: &K) -> Option<&mut V> {
         match self.get_index(key) {
             Ok(existing_index) => Some(&mut self.list[existing_index].value),

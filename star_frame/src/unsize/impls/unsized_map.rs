@@ -144,6 +144,30 @@ where
         .map(Some)
     }
 
+    /// Accesses the items from the underlying list by index. Returns `None` if the index is out of bounds.
+    /// This makes no guarantees about the order of the items when adding or removing elements.
+    pub fn get_by_index(&self, index: usize) -> Result<Option<(K, V::Ref<'_>)>> {
+        if let Some(offset) = self.list.offset_list.get(index) {
+            let offset = *offset;
+            let item = self.list.get(index)?.expect("Index exists");
+            Ok(Some((offset.key, item)))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Accesses the items from the underlying list by index. Returns `None` if the index is out of bounds.
+    /// This makes no guarantees about the order of the items when adding or removing elements.
+    pub fn get_by_index_mut(&mut self, index: usize) -> Result<Option<(K, V::Mut<'_>)>> {
+        if let Some(offset) = self.list.offset_list.get(index) {
+            let offset = *offset;
+            let item = self.list.get_mut(index)?.expect("Index exists");
+            Ok(Some((offset.key, item)))
+        } else {
+            Ok(None)
+        }
+    }
+
     /// Inserts or modifies an item into the map, returning true if the item already existed, and false otherwise.
     #[exclusive]
     pub fn insert<I>(&mut self, key: K, value: I) -> Result<bool>

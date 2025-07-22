@@ -107,6 +107,26 @@ where
         self.list.binary_search(value).is_ok()
     }
 
+    /// Accesses the items from the underlying list by index. Returns `None` if the index is out of bounds.
+    /// This makes no guarantees about the order of the items when adding or removing elements.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use star_frame::prelude::*;
+    /// # fn main() -> Result<()> {
+    /// let bytes = <Set<u8>>::new_byte_set(vec![1u8, 2, 3].into_iter().collect())?;
+    /// let set = bytes.data()?;
+    /// assert_eq!(set.get_by_index(0), Some(&1));
+    /// assert_eq!(set.get_by_index(1), Some(&2));
+    /// assert_eq!(set.get_by_index(2), Some(&3));
+    /// # Ok(())
+    /// # }
+    #[must_use]
+    pub fn get_by_index(&self, index: usize) -> Option<&T> {
+        self.list.get(index)
+    }
+
     /// Adds a value to the set. Returns whether the value was already present. If the value is already present, the set is unchanged.
     ///
     /// # Examples
