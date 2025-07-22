@@ -44,130 +44,21 @@ where
     }
 }
 
-/// The [`UnsizedType::Owned`] variant of [`UnsizedMap`].
-/// It is generally easier to create an initial [`BTreeMap`] or iterator of [`(K, V::Owned)`] and convert to this
-/// type vs working on it directly.
-#[derive(derive_where::DeriveWhere)]
-#[derive_where(Debug, Default, Copy, Clone, Eq, PartialEq, Ord, PartialOrd; Vec<(K, V::Owned)>)]
-pub struct UnsizedMapOwned<K, V>
+fn unsized_map_owned_from_ref<K, V>(r: &UnsizedMapRef<'_, K, V>) -> Result<BTreeMap<K, V::Owned>>
 where
     K: Pod + Ord + Align1,
     V: UnsizedType + ?Sized,
 {
-    list: Vec<(K, V::Owned)>,
-}
-
-impl<K, V> From<BTreeMap<K, V::Owned>> for UnsizedMapOwned<K, V>
-where
-    K: Pod + Ord + Align1,
-    V: UnsizedType + ?Sized,
-{
-    fn from(btree_map: BTreeMap<K, V::Owned>) -> Self {
-        btree_map.into_iter().collect()
-    }
-}
-impl<K, V> FromIterator<(K, V::Owned)> for UnsizedMapOwned<K, V>
-where
-    K: Pod + Ord + Align1,
-    V: UnsizedType + ?Sized,
-{
-    fn from_iter<I: IntoIterator<Item = (K, V::Owned)>>(iter: I) -> Self {
-        let mut map = Self::new();
-        for (key, value) in iter {
-            map.insert(key, value);
-        }
-        map
-    }
-}
-
-impl<K, V> UnsizedMapOwned<K, V>
-where
-    K: Pod + Ord + Align1,
-    V: UnsizedType + ?Sized,
-{
-    #[must_use]
-    pub fn to_btree_map(self) -> BTreeMap<K, V::Owned> {
-        self.list.into_iter().collect()
-    }
-
-    #[must_use]
-    pub fn new() -> Self {
-        Self { list: vec![] }
-    }
-
-    #[must_use]
-    pub fn len(&self) -> usize {
-        self.list.len()
-    }
-
-    #[must_use]
-    pub fn is_empty(&self) -> bool {
-        self.list.is_empty()
-    }
-
-    pub fn contains_key(&self, key: &K) -> bool {
-        self.list.binary_search_by(|probe| probe.0.cmp(key)).is_ok()
-    }
-
-    pub fn get(&self, key: &K) -> Option<&V::Owned> {
-        match self.list.binary_search_by(|probe| probe.0.cmp(key)) {
-            Ok(existing_index) => Some(&self.list[existing_index].1),
-            Err(_) => None,
-        }
-    }
-
-    pub fn get_mut(&mut self, key: &K) -> Option<&mut V::Owned> {
-        match self.list.binary_search_by(|probe| probe.0.cmp(key)) {
-            Ok(existing_index) => Some(&mut self.list[existing_index].1),
-            Err(_) => None,
-        }
-    }
-
-    pub fn insert(&mut self, key: K, value: V::Owned) -> Option<V::Owned> {
-        match self.list.binary_search_by(|probe| probe.0.cmp(&key)) {
-            Ok(existing_index) => {
-                let old = core::mem::replace(&mut self.list[existing_index].1, value);
-                Some(old)
-            }
-            Err(insertion_point) => {
-                self.list.insert(insertion_point, (key, value));
-                None
-            }
-        }
-    }
-
-    pub fn remove(&mut self, key: &K) -> Option<V::Owned> {
-        match self.list.binary_search_by(|probe| probe.0.cmp(key)) {
-            Ok(existing_index) => Some(self.list.remove(existing_index).1),
-            Err(_) => None,
-        }
-    }
-
-    pub fn clear(&mut self) {
-        self.list.clear();
-    }
-
-    #[must_use]
-    pub fn as_inner(&self) -> &Vec<(K, V::Owned)> {
-        &self.list
-    }
-}
-
-fn unsized_map_owned_from_ref<K, V>(r: &UnsizedMapRef<'_, K, V>) -> Result<UnsizedMapOwned<K, V>>
-where
-    K: Pod + Ord + Align1,
-    V: UnsizedType + ?Sized,
-{
-    let mut owned = UnsizedMapOwned::default();
+    let mut owned = BTreeMap::new();
     for result in r.list.iter_with_offsets() {
         let (item, ord_offset) = result?;
         let owned_item = V::owned_from_ref(&item)?;
-        owned.list.push((ord_offset.key, owned_item));
+        owned.insert(ord_offset.key, owned_item);
     }
     Ok(owned)
 }
 
-#[unsized_type(skip_idl, owned_type = UnsizedMapOwned<K, V>, owned_from_ref = unsized_map_owned_from_ref::<K, V>)]
+#[unsized_type(skip_idl, owned_type = BTreeMap<K, V::Owned>, owned_from_ref = unsized_map_owned_from_ref::<K, V>)]
 pub struct UnsizedMap<K, V>
 where
     K: Pod + Ord + Align1,
@@ -183,12 +74,12 @@ where
     V: UnsizedType + FromOwned + ?Sized,
 {
     fn byte_size(owned: &Self::Owned) -> usize {
-        UnsizedList::<V, OrdOffset<K>>::from_owned_byte_size(owned.list.iter().map(|(_, v)| v))
+        UnsizedList::<V, OrdOffset<K>>::from_owned_byte_size(owned.iter().map(|(_, v)| v))
     }
 
     fn from_owned(owned: Self::Owned, bytes: &mut &mut [u8]) -> Result<usize> {
         UnsizedList::<V, OrdOffset<K>>::from_owned_from_iter(
-            owned.list.into_iter().map(|(k, v)| (v, k)),
+            owned.into_iter().map(|(k, v)| (v, k)),
             bytes,
         )
     }

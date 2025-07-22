@@ -39,10 +39,7 @@ unsafe impl<K: UnsizedGenerics, V: UnsizedGenerics> CheckedBitPattern for ListIt
     }
 }
 
-#[unsized_type(skip_idl, owned_attributes = [doc = "The [`UnsizedType::Owned`] variant of [`Map`].
-    It is generally easier to create an initial [`BTreeMap`] or iterator of [`(K, V)`]
-    and convert to this type vs working on it directly."]
-)]
+#[unsized_type(skip_idl, owned_type = BTreeMap<K, V>, owned_from_ref = map_owned_from_ref::<K, V, L>)]
 pub struct Map<K, V, L = u32>
 where
     K: UnsizedGenerics + Ord,
@@ -53,134 +50,33 @@ where
     list: List<ListItemSized<K, V>, L>,
 }
 
-impl<K, V, L> From<BTreeMap<K, V>> for MapOwned<K, V, L>
+#[allow(clippy::unnecessary_wraps)]
+fn map_owned_from_ref<K, V, L>(r: &MapRef<'_, K, V, L>) -> Result<BTreeMap<K, V>>
 where
     K: UnsizedGenerics + Ord,
     V: UnsizedGenerics,
     L: ListLength,
 {
-    fn from(btree_map: BTreeMap<K, V>) -> Self {
-        let mut map = Self::new();
-        for (key, value) in btree_map {
-            map.insert(key, value);
-        }
-        map
-    }
+    Ok(r.list.iter().map(|item| (item.key, item.value)).collect())
 }
 
-impl<K, V, L> FromIterator<(K, V)> for MapOwned<K, V, L>
+unsafe impl<K, V, L> FromOwned for Map<K, V, L>
 where
     K: UnsizedGenerics + Ord,
     V: UnsizedGenerics,
     L: ListLength,
 {
-    fn from_iter<I: IntoIterator<Item = (K, V)>>(iter: I) -> Self {
-        let mut map = Self::new();
-        for (key, value) in iter {
-            map.insert(key, value);
-        }
-        map
-    }
-}
-
-impl<K, V, L> MapOwned<K, V, L>
-where
-    K: UnsizedGenerics + Ord,
-    V: UnsizedGenerics,
-    L: ListLength,
-{
-    #[must_use]
-    pub fn to_btree_map(self) -> BTreeMap<K, V> {
-        self.list
-            .into_iter()
-            .map(|item| (item.key, item.value))
-            .collect()
+    fn byte_size(owned: &Self::Owned) -> usize {
+        List::<ListItemSized<K, V>, L>::byte_size_from_len(owned.len())
     }
 
-    #[must_use]
-    pub fn new() -> Self {
-        Self { list: vec![] }
-    }
-
-    #[must_use]
-    pub fn len(&self) -> usize {
-        self.list.len()
-    }
-
-    #[must_use]
-    pub fn is_empty(&self) -> bool {
-        self.list.is_empty()
-    }
-
-    #[must_use]
-    pub fn contains_key(&self, key: &K) -> bool {
-        self.list
-            .binary_search_by(|probe| probe.key.cmp(key))
-            .is_ok()
-    }
-
-    #[must_use]
-    pub fn get(&self, key: &K) -> Option<&V> {
-        match self.list.binary_search_by(|probe| probe.key.cmp(key)) {
-            Ok(existing_index) => Some(&self.list[existing_index].value),
-            Err(_) => None,
-        }
-    }
-
-    #[must_use]
-    pub fn get_mut(&mut self, key: &K) -> Option<&mut V> {
-        match self.list.binary_search_by(|probe| probe.key.cmp(key)) {
-            Ok(existing_index) => Some(&mut self.list[existing_index].value),
-            Err(_) => None,
-        }
-    }
-
-    pub fn insert(&mut self, key: K, value: V) -> Option<V> {
-        match self.list.binary_search_by(|probe| probe.key.cmp(&key)) {
-            Ok(existing_index) => {
-                let old = core::mem::replace(&mut self.list[existing_index].value, value);
-                Some(old)
-            }
-            Err(insertion_index) => {
-                self.list
-                    .insert(insertion_index, ListItemSized { key, value });
-                None
-            }
-        }
-    }
-
-    /// Removes the value associated with the key and returns it if it exists.
-    ///
-    /// If the key is not found, `None` is returned and the map is unchanged.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use star_frame::unsize::impls::MapOwned;
-    ///
-    /// let mut map = MapOwned::<u8, u8>::new();
-    /// map.insert(1u8, 10u8);
-    /// assert_eq!(map.remove(&1), Some(10));
-    /// assert_eq!(map.remove(&1), None);
-    /// ```
-    pub fn remove(&mut self, key: &K) -> Option<V> {
-        match self.list.binary_search_by(|probe| probe.key.cmp(key)) {
-            Ok(existing_index) => {
-                let value = self.list[existing_index].value;
-                self.list.remove(existing_index);
-                Some(value)
-            }
-            Err(_) => None,
-        }
-    }
-
-    pub fn clear(&mut self) {
-        self.list.clear();
-    }
-
-    #[must_use]
-    pub fn as_inner(&self) -> &Vec<ListItemSized<K, V>> {
-        &self.list
+    fn from_owned(owned: Self::Owned, bytes: &mut &mut [u8]) -> Result<usize> {
+        List::<ListItemSized<K, V>, L>::from_owned_from_iter(
+            owned
+                .into_iter()
+                .map(|(key, value)| ListItemSized { key, value }),
+            bytes,
+        )
     }
 }
 
@@ -416,5 +312,20 @@ mod idl_impl {
                 value_ty: V::type_to_idl(idl_definition)?.into(),
             })
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_map_from_owned() -> Result<()> {
+        let owned: BTreeMap<u8, u8> = vec![(1, 10), (3, 30), (2, 20)].into_iter().collect();
+        let map = Map::<u8, u8>::new_byte_set(owned.clone())?;
+        map.data_mut()?;
+        let map_owned = map.owned()?;
+        assert_eq!(map_owned, owned);
+        Ok(())
     }
 }

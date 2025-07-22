@@ -435,27 +435,45 @@ where
     }
 }
 
+impl<T, L> List<T, L>
+where
+    L: ListLength,
+    T: Align1 + CheckedBitPattern + NoUninit,
+{
+    pub(super) fn byte_size_from_len(len: usize) -> usize {
+        size_of::<L>() + size_of::<T>() * len
+    }
+    pub(super) fn from_owned_from_iter<I>(items: I, bytes: &mut &mut [u8]) -> Result<usize>
+    where
+        I: IntoIterator<Item = T>,
+        I::IntoIter: ExactSizeIterator,
+    {
+        let items = items.into_iter();
+        let len = items.len();
+        bytes
+            .try_advance(size_of::<L>())?
+            .copy_from_slice(bytes_of(&L::from_usize(len).unwrap()));
+
+        for item in items {
+            bytes
+                .try_advance(size_of::<T>())?
+                .copy_from_slice(bytes_of(&item));
+        }
+        Ok(Self::byte_size_from_len(len))
+    }
+}
+
 unsafe impl<T, L> FromOwned for List<T, L>
 where
     L: ListLength,
     T: Align1 + CheckedBitPattern + NoUninit,
 {
     fn byte_size(owned: &Self::Owned) -> usize {
-        size_of::<L>() + size_of::<T>() * owned.len()
+        Self::byte_size_from_len(owned.len())
     }
 
     fn from_owned(owned: Self::Owned, bytes: &mut &mut [u8]) -> Result<usize> {
-        bytes
-            .try_advance(size_of::<L>())?
-            .copy_from_slice(bytes_of(&L::from_usize(owned.len()).unwrap()));
-
-        for item in &owned {
-            bytes
-                .try_advance(size_of::<T>())?
-                .copy_from_slice(bytes_of(item));
-        }
-
-        Ok(Self::byte_size(&owned))
+        Self::from_owned_from_iter(owned, bytes)
     }
 }
 
