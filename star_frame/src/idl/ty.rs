@@ -72,7 +72,7 @@ impl<T: TypeToIdl> TypeToIdl for Vec<T> {
             // supports `Vec<T>` is Borsh, which uses u32 for length.
             // Any other serialization would have to be implemented by the user using something
             // like the NewType pattern.
-            len_ty: Box::new(u32::type_to_idl(idl_definition)?),
+            len_ty: Box::new(IdlTypeDef::U32),
         })
     }
 }
