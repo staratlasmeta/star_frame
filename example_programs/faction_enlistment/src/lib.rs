@@ -161,9 +161,11 @@ pub struct PlayerFactionData {
     pub enlisted_at_timestamp: i64,
     pub faction_id: FactionId,
     pub bump: u8,
+    /// Some docs!
     pub counter: CounterAccountData,
     pub _padding: [u64; 5],
     #[unsized_start]
+    /// Docs for Some fields!!
     some_fields: SomeFields,
 }
 

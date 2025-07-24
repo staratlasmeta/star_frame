@@ -11,7 +11,7 @@ use proc_macro2::Ident;
 use proc_macro2::TokenStream;
 use proc_macro_error2::abort;
 use quote::{format_ident, quote};
-use syn::{parse_quote, Field, Generics, ItemStruct, Lifetime, Type, Visibility};
+use syn::{parse_quote, Attribute, Field, Generics, ItemStruct, Lifetime, Type, Visibility};
 
 #[allow(non_snake_case)]
 macro_rules! UnsizedStructContext {
@@ -120,6 +120,7 @@ pub struct UnsizedStructContext {
     sized_field_types: Vec<Type>,
     unsized_field_idents: Vec<Ident>,
     unsized_field_types: Vec<Type>,
+    with_sized_docs: Vec<Vec<Attribute>>,
     with_sized_idents: Vec<Ident>,
     with_sized_types: Vec<Type>,
     with_sized_vis: Vec<Visibility>,
@@ -212,13 +213,28 @@ impl UnsizedStructContext {
 
         let sized_field_ident = sized_ident
             .as_ref()
-            .map(|_| new_ident("__sized", get_field_idents(&all_fields), true));
+            .map(|_| new_ident("_sized", get_field_idents(&all_fields), true));
 
         let sized_field_idents = get_field_idents(&sized_fields).cloned().collect_vec();
         let sized_field_types = get_field_types(&sized_fields).cloned().collect_vec();
         let unsized_field_idents = get_field_idents(&unsized_fields).cloned().collect_vec();
         let unsized_field_types = get_field_types(&unsized_fields).cloned().collect_vec();
         let unsized_field_vis = get_field_vis(&unsized_fields).cloned().collect_vec();
+
+        let with_sized_docs = sized_field_ident
+            .as_ref()
+            .map(|_ident| {
+                vec![parse_quote! {
+                    #[doc = "Sized portion of the Unsized Type"]
+                }]
+            })
+            .into_iter()
+            .chain(
+                unsized_fields
+                    .iter()
+                    .map(|field| get_doc_attributes(&field.attrs)),
+            )
+            .collect_vec();
 
         let with_sized_idents = sized_field_ident
             .iter()
@@ -267,6 +283,7 @@ impl UnsizedStructContext {
             sized_field_types,
             unsized_field_idents,
             unsized_field_types,
+            with_sized_docs,
             with_sized_idents,
             with_sized_types,
             with_sized_vis,
@@ -308,15 +325,19 @@ impl UnsizedStructContext {
 
     fn ref_struct(&self) -> TokenStream {
         Paths!(prelude);
-        UnsizedStructContext!(self => vis, ref_ident, with_sized_vis, with_sized_idents, with_sized_types, top_lt);
+        UnsizedStructContext!(self => vis, ref_ident, with_sized_vis, with_sized_idents, with_sized_types, top_lt, with_sized_docs);
         let (generics, wc) = self.split_for_declaration(true);
         let transparent = (with_sized_idents.len() == 1).then(|| quote!(#[repr(transparent)]));
+
+        let doc = format!("Ref type for [`{}`]", self.struct_ident);
         quote! {
+            #[doc = #doc]
             #[derive(#prelude::DeriveWhere)]
             #[derive_where(Debug; #(<#with_sized_types as #prelude::UnsizedType>::Ref<#top_lt>,)*)]
             #transparent
             #vis struct #ref_ident #generics #wc {
                 #(
+                    #(#with_sized_docs)*
                     #with_sized_vis #with_sized_idents: <#with_sized_types as #prelude::UnsizedType>::Ref<#top_lt>,
                 )*
             }
@@ -325,16 +346,19 @@ impl UnsizedStructContext {
 
     fn mut_struct(&self) -> TokenStream {
         Paths!(prelude);
-        UnsizedStructContext!(self => vis, mut_ident, top_lt, with_sized_vis, with_sized_idents, with_sized_types);
+        UnsizedStructContext!(self => vis, mut_ident, top_lt, with_sized_vis, with_sized_idents, with_sized_types, with_sized_docs);
         let (generics, wc) = self.split_for_declaration(true);
         let transparent = (with_sized_idents.len() == 1).then(|| quote!(#[repr(transparent)]));
 
+        let doc = format!("Mut type for [`{}`]", self.struct_ident);
         quote! {
+            #[doc = #doc]
             #[derive(#prelude::DeriveWhere)]
             #[derive_where(Debug; #(<#with_sized_types as #prelude::UnsizedType>::Mut<#top_lt>,)*)]
             #transparent
             #vis struct #mut_ident #generics #wc {
                 #(
+                    #(#with_sized_docs)*
                     #with_sized_vis #with_sized_idents: <#with_sized_types as #prelude::UnsizedType>::Mut<#top_lt>,
                 )*
             }
@@ -351,8 +375,10 @@ impl UnsizedStructContext {
         let owned_types = get_field_types(owned_fields).collect_vec();
         let lt = new_lifetime(&self.generics, None);
 
+        let doc = format!("Owned type for [`{}`]", self.struct_ident);
         quote! {
             #(#[#additional_attributes])*
+            #[doc = #doc]
             #[derive(#prelude::DeriveWhere)]
             #[derive_where(Debug, Copy, Clone, Default, Eq, Hash, Ord, PartialEq, PartialOrd; #(for<#lt> #owned_types,)*)]
             #vis struct #owned_ident #gen #where_clause {
@@ -388,8 +414,10 @@ impl UnsizedStructContext {
                 #program_account
             )
         });
+        let doc = format!("Sized portion of [`{}`]", self.struct_ident);
         let sized_struct = quote! {
             #(#[#additional_attributes])*
+            #[doc = #doc]
             #[derive(#prelude::Align1, #sized_bytemuck_derives)]
             #sized_attributes
             #[repr(C, packed)]

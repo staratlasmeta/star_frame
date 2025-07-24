@@ -1,8 +1,8 @@
 use crate::idl::{derive_type_to_idl_inner, TypeToIdlArgs};
-use crate::util::{ignore_cfg_module, reject_attributes, reject_generics, Paths};
+use crate::util::{ignore_cfg_module, new_generic, reject_attributes, reject_generics, Paths};
 use easy_proc::{find_attr, ArgumentList};
-use proc_macro2::{Ident, TokenStream};
-use quote::{format_ident, quote};
+use proc_macro2::TokenStream;
+use quote::quote;
 use syn::{parse_quote, DeriveInput};
 
 pub fn derive_instruction_to_idl(input: &DeriveInput) -> TokenStream {
@@ -28,7 +28,7 @@ pub fn derive_instruction_to_idl(input: &DeriveInput) -> TokenStream {
     let mut generics = input.generics.clone();
     let where_clause = generics.make_where_clause();
 
-    let generic_arg: Ident = format_ident!("__A");
+    let generic_arg = new_generic(&input.generics, None);
 
     where_clause.predicates.push(
         parse_quote!(<Self as #prelude::StarFrameInstruction>::Accounts<'b, 'c>: #prelude::AccountSetToIdl<#generic_arg>),
