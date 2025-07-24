@@ -161,9 +161,11 @@ pub struct PlayerFactionData {
     pub enlisted_at_timestamp: i64,
     pub faction_id: FactionId,
     pub bump: u8,
+    /// Some docs!
     pub counter: CounterAccountData,
     pub _padding: [u64; 5],
     #[unsized_start]
+    /// Docs for Some fields!!
     some_fields: SomeFields,
 }
 
@@ -277,15 +279,19 @@ mod tests {
 
         let clock_timestamp = mollusk.mollusk.sysvars.clock.unix_timestamp;
         let expected_faction_account = PlayerFactionDataOwned {
-            owner: player_account,
-            enlisted_at_timestamp: clock_timestamp,
-            faction_id,
-            counter: Default::default(),
-            bump,
-            _padding: [0; 5],
+            _sized: PlayerFactionDataSized {
+                owner: player_account,
+                enlisted_at_timestamp: clock_timestamp,
+                faction_id,
+                counter: Default::default(),
+                bump,
+                _padding: [0; 5],
+            },
             some_fields: SomeFieldsOwned {
-                sized1: 10,
-                sized2: 0,
+                _sized: SomeFieldsSized {
+                    sized1: 10,
+                    sized2: 0,
+                },
                 unsized1: SomeUnsizedOwned {
                     unsized1: vec![],
                     unsized2: vec![],

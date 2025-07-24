@@ -183,8 +183,10 @@ impl many_unsized::ManyUnsized {
 fn test_many_unsized() -> Result<()> {
     TestByteSet::<many_unsized::ManyUnsized>::new_default()?;
     let r = TestByteSet::<many_unsized::ManyUnsized>::new(many_unsized::ManyUnsizedOwned {
-        sized1: 1,
-        sized2: 2,
+        _sized: many_unsized::ManyUnsizedSized {
+            sized1: 1,
+            sized2: 2,
+        },
         unsized1: vec![1.into()],
         unsized2: SingleUnsizedOwned { unsized1: vec![2] },
         unsized3: 3,
@@ -193,8 +195,10 @@ fn test_many_unsized() -> Result<()> {
     })?;
     r.data_mut()?.foo()?;
     let expected = ManyUnsizedOwned {
-        sized1: 1,
-        sized2: 2,
+        _sized: many_unsized::ManyUnsizedSized {
+            sized1: 1,
+            sized2: 2,
+        },
         unsized1: vec![1.into(), 2.into()],
         unsized2: SingleUnsizedOwned { unsized1: vec![2] },
         unsized3: 3,
@@ -220,14 +224,14 @@ pub struct SingleUnsizedWithSized {
 fn test_single_unsized_with_sized() -> Result<()> {
     TestByteSet::<SingleUnsizedWithSized>::new_default()?;
     let r = TestByteSet::<SingleUnsizedWithSized>::new(SingleUnsizedWithSizedOwned {
-        sized1: false,
+        _sized: SingleUnsizedWithSizedSized { sized1: false },
         unsized1: vec![1.into()],
     })?;
     let owned = r.owned()?;
     assert_eq!(
         owned,
         SingleUnsizedWithSizedOwned {
-            sized1: false,
+            _sized: SingleUnsizedWithSizedSized { sized1: false },
             unsized1: vec![1.into()],
         }
     );
@@ -250,10 +254,12 @@ pub struct SizedAndUnsized {
 fn test_sized_and_unsized() -> Result<()> {
     TestByteSet::<SizedAndUnsized>::new_default()?;
     let r = TestByteSet::<SizedAndUnsized>::new(SizedAndUnsizedOwned {
-        sized1: true,
-        sized2: 1.into(),
-        sized3: 2,
-        sized4: [3; 10],
+        _sized: SizedAndUnsizedSized {
+            sized1: true,
+            sized2: 1.into(),
+            sized3: 2,
+            sized4: [3; 10],
+        },
         unsized1: vec![4.into()],
         unsized2: vec![TestStruct { val1: 5, val2: 6 }],
         unsized3: 7,
@@ -262,10 +268,12 @@ fn test_sized_and_unsized() -> Result<()> {
     assert_eq!(
         owned,
         SizedAndUnsizedOwned {
-            sized1: true,
-            sized2: 1.into(),
-            sized3: 2,
-            sized4: [3; 10],
+            _sized: SizedAndUnsizedSized {
+                sized1: true,
+                sized2: 1.into(),
+                sized3: 2,
+                sized4: [3; 10],
+            },
             unsized1: vec![4.into()],
             unsized2: vec![TestStruct { val1: 5, val2: 6 }],
             unsized3: 7,
@@ -290,18 +298,22 @@ where
 fn test_with_sized_generics() -> Result<()> {
     TestByteSet::<WithSizedGenerics<TestStruct, bool>>::new_default()?;
     let r = TestByteSet::<WithSizedGenerics<TestStruct, bool>>::new(WithSizedGenericsOwned {
-        sized1: TestStruct { val1: 1, val2: 2 },
-        sized2: true,
-        sized3: 4,
+        _sized: WithSizedGenericsSized {
+            sized1: TestStruct { val1: 1, val2: 2 },
+            sized2: true,
+            sized3: 4,
+        },
         unsized1: vec![TestStruct { val1: 5, val2: 6 }],
     })?;
     let owned = r.owned()?;
     assert_eq!(
         owned,
         WithSizedGenericsOwned {
-            sized1: TestStruct { val1: 1, val2: 2 },
-            sized2: true,
-            sized3: 4,
+            _sized: WithSizedGenericsSized {
+                sized1: TestStruct { val1: 1, val2: 2 },
+                sized2: true,
+                sized3: 4,
+            },
             unsized1: vec![TestStruct { val1: 5, val2: 6 }],
         }
     );
@@ -324,7 +336,10 @@ fn test_with_unsized_generics() -> Result<()> {
     TestByteSet::<WithUnsizedGenerics<PackedValueChecked<u16>, TestStruct>>::new_default()?;
     let r = TestByteSet::<WithUnsizedGenerics<PackedValueChecked<u16>, TestStruct>>::new(
         WithUnsizedGenericsOwned {
-            sized1: 1,
+            _sized: WithUnsizedGenericsSized {
+                sized1: 1,
+                _generics: Default::default(),
+            },
             unsized1: vec![PackedValueChecked(u16::MAX)],
             unsized2: vec![TestStruct { val1: 3, val2: 4 }],
         },
@@ -333,7 +348,10 @@ fn test_with_unsized_generics() -> Result<()> {
     assert_eq!(
         owned,
         WithUnsizedGenericsOwned {
-            sized1: 1,
+            _sized: WithUnsizedGenericsSized {
+                sized1: 1,
+                _generics: Default::default()
+            },
             unsized1: vec![PackedValueChecked(u16::MAX)],
             unsized2: vec![TestStruct { val1: 3, val2: 4 }]
         }
@@ -403,8 +421,11 @@ fn test_with_sized_and_unsized_generics() -> Result<()> {
     let r = TestByteSet::<
         WithSizedAndUnsizedGenerics<TestStruct, PackedValueChecked<u16>, PackedValueChecked<u32>>,
     >::new(WithSizedAndUnsizedGenericsOwned {
-        sized1: TestStruct { val1: 1, val2: 2 },
-        sized2: 3.into(),
+        _sized: WithSizedAndUnsizedGenericsSized {
+            sized1: TestStruct { val1: 1, val2: 2 },
+            sized2: 3.into(),
+            _generics: Default::default(),
+        },
         unsized1: PackedValueChecked(3u16),
         unsized2: vec![5.into()],
     })?;
@@ -413,8 +434,11 @@ fn test_with_sized_and_unsized_generics() -> Result<()> {
     assert_eq!(
         owned,
         WithSizedAndUnsizedGenericsOwned {
-            sized1: TestStruct { val1: 1, val2: 2 },
-            sized2: 3.into(),
+            _sized: WithSizedAndUnsizedGenericsSized {
+                sized1: TestStruct { val1: 1, val2: 2 },
+                sized2: 3.into(),
+                _generics: Default::default(),
+            },
             unsized1: 3.into(),
             unsized2: vec![5.into(), 3.into()],
         }

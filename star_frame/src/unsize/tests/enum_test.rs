@@ -86,7 +86,7 @@ fn unsized_enum_test() -> Result<()> {
     let mut owned = EnumTestStructOwned {
         list_before: vec![],
         enum_test: UnsizedEnumTestOwned::Unsized1(Unsized1Owned {
-            sized: 0,
+            _sized: Unsized1Sized { sized: 0 },
             list: vec![],
         }),
         list_after: vec![],
@@ -124,9 +124,9 @@ fn unsized_enum_test() -> Result<()> {
     let mut enum_test = mut_bytes.enum_test();
     let mut unsized3 = enum_test.set_unsized3(DefaultInit)?;
     owned.enum_test = UnsizedEnumTestOwned::Unsized3(Unsized3Owned {
-        sized: 0.into(),
+        _sized: Unsized3Sized { sized: 0.into() },
         unsized1: Unsized2Owned {
-            sized: 0.into(),
+            _sized: Unsized2Sized { sized: 0.into() },
             list: vec![],
         },
     });
@@ -154,7 +154,7 @@ fn unsized_enum_test() -> Result<()> {
         list: [1, 2, 3, 4, 5].map(Into::into),
     })?;
     owned.enum_test = UnsizedEnumTestOwned::Unsized2(Unsized2Owned {
-        sized: 426.into(),
+        _sized: Unsized2Sized { sized: 426.into() },
         list: [1, 2, 3, 4, 5].map(Into::into).to_vec(),
     });
     compare_with_owned(&owned, &mut_bytes)?;
