@@ -127,7 +127,9 @@ where
         self.list.get(index)
     }
 
-    /// Adds a value to the set. Returns whether the value was already present. If the value is already present, the set is unchanged.
+    /// Adds a value to the set.
+    ///
+    /// Returns whether the value was newly inserted. If the value is already present, the set is unchanged and `false` is returned.
     ///
     /// # Examples
     ///
