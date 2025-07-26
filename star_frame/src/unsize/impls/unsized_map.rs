@@ -168,7 +168,7 @@ where
         }
     }
 
-    /// Inserts or modifies an item into the map, returning true if the item already existed, and false otherwise.
+    /// Inserts or modifies an item into the map, returning true if the item was newly inserted, and false otherwise.
     #[exclusive]
     pub fn insert<I>(&mut self, key: K, value: I) -> Result<bool>
     where
@@ -179,12 +179,12 @@ where
                 // TODO: optimize this by just modifying bytes to fit and then writing to them
                 self.list().remove(existing_index)?;
                 self.list().insert_with_offset(existing_index, value, key)?;
-                Ok(true)
+                Ok(false)
             }
             Err(insertion_index) => {
                 self.list()
                     .insert_with_offset(insertion_index, value, key)?;
-                Ok(false)
+                Ok(true)
             }
         }
     }
