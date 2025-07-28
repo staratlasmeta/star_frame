@@ -1,0 +1,11 @@
+{
+  "kind": "programNode",
+  "name": "marketplace",
+  "publicKey": "gBxS1f6uyyGPuW5MzGBukidSb71jdsCb5fZaoSzULE5",
+  "version": "0.0.1",
+  "accounts": [],
+  "instructions": [],
+  "definedTypes": [],
+  "pdas": [],
+  "errors": []
+}
