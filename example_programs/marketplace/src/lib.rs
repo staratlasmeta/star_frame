@@ -1,4 +1,6 @@
 use star_frame::prelude::*;
+
+use instructions::Initialize;
 mod instructions;
 mod state;
 
@@ -10,7 +12,9 @@ mod state;
 pub struct Marketplace;
 
 #[derive(InstructionSet)]
-pub enum MarketplaceInstructionSet {}
+pub enum MarketplaceInstructionSet {
+    Initialize(Initialize),
+}
 
 #[cfg(test)]
 mod tests {
