@@ -1,8 +1,8 @@
 use star_frame::prelude::*;
 
-use instructions::Initialize;
+use instructions::{CancelOrders, Initialize, PlaceOrder};
 mod instructions;
-mod state;
+pub mod state;
 
 #[derive(StarFrameProgram)]
 #[program(
@@ -14,6 +14,8 @@ pub struct Marketplace;
 #[derive(InstructionSet)]
 pub enum MarketplaceInstructionSet {
     Initialize(Initialize),
+    PlaceOrder(PlaceOrder),
+    CancelOrders(CancelOrders),
 }
 
 #[cfg(test)]

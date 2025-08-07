@@ -11,8 +11,8 @@ use star_frame_spl::token::state::MintAccount;
 pub type Price = UnitVal<PackedValue<u64>, Currency>;
 pub type Quantity = UnitVal<PackedValue<u64>, Unitless>;
 
-const ZERO_PRICE: Price = Price::new(PackedValue(0));
-const ZERO_QUANTITY: Quantity = Quantity::new(PackedValue(0));
+pub const ZERO_PRICE: Price = Price::new(PackedValue(0));
+pub const ZERO_QUANTITY: Quantity = Quantity::new(PackedValue(0));
 
 pub const ASK_ID_MASK: u64 = 1 << 63;
 

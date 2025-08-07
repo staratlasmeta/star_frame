@@ -3,9 +3,1297 @@
   "name": "marketplace",
   "publicKey": "gBxS1f6uyyGPuW5MzGBukidSb71jdsCb5fZaoSzULE5",
   "version": "0.0.1",
-  "accounts": [],
-  "instructions": [],
-  "definedTypes": [],
-  "pdas": [],
+  "accounts": [
+    {
+      "kind": "accountNode",
+      "name": "market",
+      "data": {
+        "kind": "structTypeNode",
+        "fields": [
+          {
+            "kind": "structFieldTypeNode",
+            "name": "discriminator",
+            "defaultValueStrategy": "omitted",
+            "type": {
+              "kind": "fixedSizeTypeNode",
+              "size": 8,
+              "type": {
+                "kind": "bytesTypeNode"
+              }
+            },
+            "defaultValue": {
+              "kind": "bytesValueNode",
+              "data": "dbbed53700e3c69a",
+              "encoding": "base16"
+            }
+          },
+          {
+            "kind": "structFieldTypeNode",
+            "name": "version",
+            "docs": [
+              "The version flag of this account type"
+            ],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            }
+          },
+          {
+            "kind": "structFieldTypeNode",
+            "name": "bump",
+            "docs": [
+              "The bump for the PDA"
+            ],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            }
+          },
+          {
+            "kind": "structFieldTypeNode",
+            "name": "authority",
+            "type": {
+              "kind": "publicKeyTypeNode"
+            }
+          },
+          {
+            "kind": "structFieldTypeNode",
+            "name": "currency",
+            "type": {
+              "kind": "publicKeyTypeNode"
+            }
+          },
+          {
+            "kind": "structFieldTypeNode",
+            "name": "marketToken",
+            "type": {
+              "kind": "publicKeyTypeNode"
+            }
+          },
+          {
+            "kind": "structFieldTypeNode",
+            "name": "bids",
+            "docs": [
+              "The bids for this market, with orders sorted by price from highest to lowest"
+            ],
+            "type": {
+              "kind": "definedTypeLinkNode",
+              "name": "orderBookSide"
+            }
+          },
+          {
+            "kind": "structFieldTypeNode",
+            "name": "asks",
+            "docs": [
+              "The asks for this market, with orders sorted by price from lowest to highest"
+            ],
+            "type": {
+              "kind": "definedTypeLinkNode",
+              "name": "orderBookSide"
+            }
+          }
+        ]
+      },
+      "pda": {
+        "kind": "pdaLinkNode",
+        "name": "market"
+      },
+      "discriminators": [
+        {
+          "kind": "fieldDiscriminatorNode",
+          "name": "discriminator",
+          "offset": 0
+        }
+      ]
+    }
+  ],
+  "instructions": [
+    {
+      "kind": "instructionNode",
+      "name": "cancelOrders",
+      "docs": [
+        "Cancels orders for a marketplace"
+      ],
+      "accounts": [
+        {
+          "kind": "instructionAccountNode",
+          "name": "funder",
+          "isWritable": true,
+          "isSigner": true
+        },
+        {
+          "kind": "instructionAccountNode",
+          "name": "user",
+          "isWritable": false,
+          "isSigner": true
+        },
+        {
+          "kind": "instructionAccountNode",
+          "name": "market",
+          "isWritable": true,
+          "isSigner": false,
+          "defaultValue": {
+            "kind": "pdaValueNode",
+            "pda": {
+              "kind": "pdaNode",
+              "name": "market",
+              "seeds": [
+                {
+                  "kind": "constantPdaSeedNode",
+                  "type": {
+                    "kind": "bytesTypeNode"
+                  },
+                  "value": {
+                    "kind": "bytesValueNode",
+                    "data": "6d61726b6574",
+                    "encoding": "base16"
+                  }
+                },
+                {
+                  "kind": "variablePdaSeedNode",
+                  "name": "currency1",
+                  "type": {
+                    "kind": "publicKeyTypeNode"
+                  }
+                },
+                {
+                  "kind": "variablePdaSeedNode",
+                  "name": "marketToken2",
+                  "type": {
+                    "kind": "publicKeyTypeNode"
+                  }
+                }
+              ]
+            },
+            "seeds": [
+              {
+                "kind": "pdaSeedValueNode",
+                "name": "currency1",
+                "value": {
+                  "kind": "accountValueNode",
+                  "name": "currency"
+                }
+              },
+              {
+                "kind": "pdaSeedValueNode",
+                "name": "marketToken2",
+                "value": {
+                  "kind": "accountValueNode",
+                  "name": "marketToken"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "kind": "instructionAccountNode",
+          "name": "currency",
+          "isWritable": false,
+          "isSigner": false
+        },
+        {
+          "kind": "instructionAccountNode",
+          "name": "marketToken",
+          "isWritable": false,
+          "isSigner": false
+        },
+        {
+          "kind": "instructionAccountNode",
+          "name": "marketTokenVault",
+          "isWritable": true,
+          "isSigner": false,
+          "defaultValue": {
+            "kind": "pdaValueNode",
+            "pda": {
+              "kind": "pdaNode",
+              "name": "marketTokenVault",
+              "seeds": [
+                {
+                  "kind": "variablePdaSeedNode",
+                  "name": "market0",
+                  "type": {
+                    "kind": "publicKeyTypeNode"
+                  }
+                },
+                {
+                  "kind": "constantPdaSeedNode",
+                  "type": {
+                    "kind": "bytesTypeNode"
+                  },
+                  "value": {
+                    "kind": "bytesValueNode",
+                    "data": "06ddf6e1d765a193d9cbe146ceeb79ac1cb485ed5f5b37913a8cf5857eff00a9",
+                    "encoding": "base16"
+                  }
+                },
+                {
+                  "kind": "variablePdaSeedNode",
+                  "name": "marketToken2",
+                  "type": {
+                    "kind": "publicKeyTypeNode"
+                  }
+                }
+              ]
+            },
+            "seeds": [
+              {
+                "kind": "pdaSeedValueNode",
+                "name": "market0",
+                "value": {
+                  "kind": "accountValueNode",
+                  "name": "market"
+                }
+              },
+              {
+                "kind": "pdaSeedValueNode",
+                "name": "marketToken2",
+                "value": {
+                  "kind": "accountValueNode",
+                  "name": "marketToken"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "kind": "instructionAccountNode",
+          "name": "currencyVault",
+          "isWritable": true,
+          "isSigner": false,
+          "defaultValue": {
+            "kind": "pdaValueNode",
+            "pda": {
+              "kind": "pdaNode",
+              "name": "currencyVault",
+              "seeds": [
+                {
+                  "kind": "variablePdaSeedNode",
+                  "name": "market0",
+                  "type": {
+                    "kind": "publicKeyTypeNode"
+                  }
+                },
+                {
+                  "kind": "constantPdaSeedNode",
+                  "type": {
+                    "kind": "bytesTypeNode"
+                  },
+                  "value": {
+                    "kind": "bytesValueNode",
+                    "data": "06ddf6e1d765a193d9cbe146ceeb79ac1cb485ed5f5b37913a8cf5857eff00a9",
+                    "encoding": "base16"
+                  }
+                },
+                {
+                  "kind": "variablePdaSeedNode",
+                  "name": "currency2",
+                  "type": {
+                    "kind": "publicKeyTypeNode"
+                  }
+                }
+              ]
+            },
+            "seeds": [
+              {
+                "kind": "pdaSeedValueNode",
+                "name": "market0",
+                "value": {
+                  "kind": "accountValueNode",
+                  "name": "market"
+                }
+              },
+              {
+                "kind": "pdaSeedValueNode",
+                "name": "currency2",
+                "value": {
+                  "kind": "accountValueNode",
+                  "name": "currency"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "kind": "instructionAccountNode",
+          "name": "userMarketTokenVault",
+          "isWritable": true,
+          "isSigner": false,
+          "defaultValue": {
+            "kind": "pdaValueNode",
+            "pda": {
+              "kind": "pdaNode",
+              "name": "userMarketTokenVault",
+              "seeds": [
+                {
+                  "kind": "variablePdaSeedNode",
+                  "name": "user0",
+                  "type": {
+                    "kind": "publicKeyTypeNode"
+                  }
+                },
+                {
+                  "kind": "constantPdaSeedNode",
+                  "type": {
+                    "kind": "bytesTypeNode"
+                  },
+                  "value": {
+                    "kind": "bytesValueNode",
+                    "data": "06ddf6e1d765a193d9cbe146ceeb79ac1cb485ed5f5b37913a8cf5857eff00a9",
+                    "encoding": "base16"
+                  }
+                },
+                {
+                  "kind": "variablePdaSeedNode",
+                  "name": "marketToken2",
+                  "type": {
+                    "kind": "publicKeyTypeNode"
+                  }
+                }
+              ]
+            },
+            "seeds": [
+              {
+                "kind": "pdaSeedValueNode",
+                "name": "user0",
+                "value": {
+                  "kind": "accountValueNode",
+                  "name": "user"
+                }
+              },
+              {
+                "kind": "pdaSeedValueNode",
+                "name": "marketToken2",
+                "value": {
+                  "kind": "accountValueNode",
+                  "name": "marketToken"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "kind": "instructionAccountNode",
+          "name": "userCurrencyVault",
+          "isWritable": true,
+          "isSigner": false,
+          "defaultValue": {
+            "kind": "pdaValueNode",
+            "pda": {
+              "kind": "pdaNode",
+              "name": "userCurrencyVault",
+              "seeds": [
+                {
+                  "kind": "variablePdaSeedNode",
+                  "name": "user0",
+                  "type": {
+                    "kind": "publicKeyTypeNode"
+                  }
+                },
+                {
+                  "kind": "constantPdaSeedNode",
+                  "type": {
+                    "kind": "bytesTypeNode"
+                  },
+                  "value": {
+                    "kind": "bytesValueNode",
+                    "data": "06ddf6e1d765a193d9cbe146ceeb79ac1cb485ed5f5b37913a8cf5857eff00a9",
+                    "encoding": "base16"
+                  }
+                },
+                {
+                  "kind": "variablePdaSeedNode",
+                  "name": "currency2",
+                  "type": {
+                    "kind": "publicKeyTypeNode"
+                  }
+                }
+              ]
+            },
+            "seeds": [
+              {
+                "kind": "pdaSeedValueNode",
+                "name": "user0",
+                "value": {
+                  "kind": "accountValueNode",
+                  "name": "user"
+                }
+              },
+              {
+                "kind": "pdaSeedValueNode",
+                "name": "currency2",
+                "value": {
+                  "kind": "accountValueNode",
+                  "name": "currency"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "kind": "instructionAccountNode",
+          "name": "tokenProgram",
+          "isWritable": false,
+          "isSigner": false,
+          "defaultValue": {
+            "kind": "publicKeyValueNode",
+            "publicKey": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          }
+        }
+      ],
+      "arguments": [
+        {
+          "kind": "instructionArgumentNode",
+          "name": "discriminator",
+          "defaultValueStrategy": "omitted",
+          "type": {
+            "kind": "fixedSizeTypeNode",
+            "size": 8,
+            "type": {
+              "kind": "bytesTypeNode"
+            }
+          },
+          "defaultValue": {
+            "kind": "bytesValueNode",
+            "data": "eee15f9ee36708c2",
+            "encoding": "base16"
+          }
+        },
+        {
+          "kind": "instructionArgumentNode",
+          "name": "args",
+          "type": {
+            "kind": "arrayTypeNode",
+            "item": {
+              "kind": "definedTypeLinkNode",
+              "name": "cancelOrderArgs"
+            },
+            "count": {
+              "kind": "prefixedCountNode",
+              "prefix": {
+                "kind": "numberTypeNode",
+                "format": "u32",
+                "endian": "le"
+              }
+            }
+          }
+        }
+      ],
+      "discriminators": [
+        {
+          "kind": "fieldDiscriminatorNode",
+          "name": "discriminator",
+          "offset": 0
+        }
+      ]
+    },
+    {
+      "kind": "instructionNode",
+      "name": "initialize",
+      "docs": [
+        "Initializes a marketplace for a given currency and market token"
+      ],
+      "accounts": [
+        {
+          "kind": "instructionAccountNode",
+          "name": "payer",
+          "isWritable": true,
+          "isSigner": true
+        },
+        {
+          "kind": "instructionAccountNode",
+          "name": "authority",
+          "isWritable": false,
+          "isSigner": true
+        },
+        {
+          "kind": "instructionAccountNode",
+          "name": "currency",
+          "isWritable": false,
+          "isSigner": false
+        },
+        {
+          "kind": "instructionAccountNode",
+          "name": "marketToken",
+          "isWritable": false,
+          "isSigner": false
+        },
+        {
+          "kind": "instructionAccountNode",
+          "name": "marketAccount",
+          "isWritable": true,
+          "isSigner": false,
+          "defaultValue": {
+            "kind": "pdaValueNode",
+            "pda": {
+              "kind": "pdaNode",
+              "name": "marketAccount",
+              "seeds": [
+                {
+                  "kind": "constantPdaSeedNode",
+                  "type": {
+                    "kind": "bytesTypeNode"
+                  },
+                  "value": {
+                    "kind": "bytesValueNode",
+                    "data": "6d61726b6574",
+                    "encoding": "base16"
+                  }
+                },
+                {
+                  "kind": "variablePdaSeedNode",
+                  "name": "currency1",
+                  "type": {
+                    "kind": "publicKeyTypeNode"
+                  }
+                },
+                {
+                  "kind": "variablePdaSeedNode",
+                  "name": "marketToken2",
+                  "type": {
+                    "kind": "publicKeyTypeNode"
+                  }
+                }
+              ]
+            },
+            "seeds": [
+              {
+                "kind": "pdaSeedValueNode",
+                "name": "currency1",
+                "value": {
+                  "kind": "accountValueNode",
+                  "name": "currency"
+                }
+              },
+              {
+                "kind": "pdaSeedValueNode",
+                "name": "marketToken2",
+                "value": {
+                  "kind": "accountValueNode",
+                  "name": "marketToken"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "kind": "instructionAccountNode",
+          "name": "tokenProgram",
+          "isWritable": false,
+          "isSigner": false,
+          "defaultValue": {
+            "kind": "publicKeyValueNode",
+            "publicKey": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          }
+        }
+      ],
+      "arguments": [
+        {
+          "kind": "instructionArgumentNode",
+          "name": "discriminator",
+          "defaultValueStrategy": "omitted",
+          "type": {
+            "kind": "fixedSizeTypeNode",
+            "size": 8,
+            "type": {
+              "kind": "bytesTypeNode"
+            }
+          },
+          "defaultValue": {
+            "kind": "bytesValueNode",
+            "data": "afaf6d1f0d989bed",
+            "encoding": "base16"
+          }
+        }
+      ],
+      "discriminators": [
+        {
+          "kind": "fieldDiscriminatorNode",
+          "name": "discriminator",
+          "offset": 0
+        }
+      ]
+    },
+    {
+      "kind": "instructionNode",
+      "name": "placeOrder",
+      "docs": [
+        "Opens a new order for a marketplace"
+      ],
+      "accounts": [
+        {
+          "kind": "instructionAccountNode",
+          "name": "funder",
+          "isWritable": true,
+          "isSigner": true
+        },
+        {
+          "kind": "instructionAccountNode",
+          "name": "user",
+          "isWritable": false,
+          "isSigner": true
+        },
+        {
+          "kind": "instructionAccountNode",
+          "name": "market",
+          "isWritable": true,
+          "isSigner": false,
+          "defaultValue": {
+            "kind": "pdaValueNode",
+            "pda": {
+              "kind": "pdaNode",
+              "name": "market",
+              "seeds": [
+                {
+                  "kind": "constantPdaSeedNode",
+                  "type": {
+                    "kind": "bytesTypeNode"
+                  },
+                  "value": {
+                    "kind": "bytesValueNode",
+                    "data": "6d61726b6574",
+                    "encoding": "base16"
+                  }
+                },
+                {
+                  "kind": "variablePdaSeedNode",
+                  "name": "currency1",
+                  "type": {
+                    "kind": "publicKeyTypeNode"
+                  }
+                },
+                {
+                  "kind": "variablePdaSeedNode",
+                  "name": "marketToken2",
+                  "type": {
+                    "kind": "publicKeyTypeNode"
+                  }
+                }
+              ]
+            },
+            "seeds": [
+              {
+                "kind": "pdaSeedValueNode",
+                "name": "currency1",
+                "value": {
+                  "kind": "accountValueNode",
+                  "name": "currency"
+                }
+              },
+              {
+                "kind": "pdaSeedValueNode",
+                "name": "marketToken2",
+                "value": {
+                  "kind": "accountValueNode",
+                  "name": "marketToken"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "kind": "instructionAccountNode",
+          "name": "currency",
+          "isWritable": false,
+          "isSigner": false
+        },
+        {
+          "kind": "instructionAccountNode",
+          "name": "marketToken",
+          "isWritable": false,
+          "isSigner": false
+        },
+        {
+          "kind": "instructionAccountNode",
+          "name": "marketTokenVault",
+          "isWritable": true,
+          "isSigner": false,
+          "defaultValue": {
+            "kind": "pdaValueNode",
+            "pda": {
+              "kind": "pdaNode",
+              "name": "marketTokenVault",
+              "seeds": [
+                {
+                  "kind": "variablePdaSeedNode",
+                  "name": "market0",
+                  "type": {
+                    "kind": "publicKeyTypeNode"
+                  }
+                },
+                {
+                  "kind": "constantPdaSeedNode",
+                  "type": {
+                    "kind": "bytesTypeNode"
+                  },
+                  "value": {
+                    "kind": "bytesValueNode",
+                    "data": "06ddf6e1d765a193d9cbe146ceeb79ac1cb485ed5f5b37913a8cf5857eff00a9",
+                    "encoding": "base16"
+                  }
+                },
+                {
+                  "kind": "variablePdaSeedNode",
+                  "name": "marketToken2",
+                  "type": {
+                    "kind": "publicKeyTypeNode"
+                  }
+                }
+              ]
+            },
+            "seeds": [
+              {
+                "kind": "pdaSeedValueNode",
+                "name": "market0",
+                "value": {
+                  "kind": "accountValueNode",
+                  "name": "market"
+                }
+              },
+              {
+                "kind": "pdaSeedValueNode",
+                "name": "marketToken2",
+                "value": {
+                  "kind": "accountValueNode",
+                  "name": "marketToken"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "kind": "instructionAccountNode",
+          "name": "currencyVault",
+          "isWritable": true,
+          "isSigner": false,
+          "defaultValue": {
+            "kind": "pdaValueNode",
+            "pda": {
+              "kind": "pdaNode",
+              "name": "currencyVault",
+              "seeds": [
+                {
+                  "kind": "variablePdaSeedNode",
+                  "name": "market0",
+                  "type": {
+                    "kind": "publicKeyTypeNode"
+                  }
+                },
+                {
+                  "kind": "constantPdaSeedNode",
+                  "type": {
+                    "kind": "bytesTypeNode"
+                  },
+                  "value": {
+                    "kind": "bytesValueNode",
+                    "data": "06ddf6e1d765a193d9cbe146ceeb79ac1cb485ed5f5b37913a8cf5857eff00a9",
+                    "encoding": "base16"
+                  }
+                },
+                {
+                  "kind": "variablePdaSeedNode",
+                  "name": "currency2",
+                  "type": {
+                    "kind": "publicKeyTypeNode"
+                  }
+                }
+              ]
+            },
+            "seeds": [
+              {
+                "kind": "pdaSeedValueNode",
+                "name": "market0",
+                "value": {
+                  "kind": "accountValueNode",
+                  "name": "market"
+                }
+              },
+              {
+                "kind": "pdaSeedValueNode",
+                "name": "currency2",
+                "value": {
+                  "kind": "accountValueNode",
+                  "name": "currency"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "kind": "instructionAccountNode",
+          "name": "userMarketTokenVault",
+          "isWritable": true,
+          "isSigner": false,
+          "defaultValue": {
+            "kind": "pdaValueNode",
+            "pda": {
+              "kind": "pdaNode",
+              "name": "userMarketTokenVault",
+              "seeds": [
+                {
+                  "kind": "variablePdaSeedNode",
+                  "name": "user0",
+                  "type": {
+                    "kind": "publicKeyTypeNode"
+                  }
+                },
+                {
+                  "kind": "constantPdaSeedNode",
+                  "type": {
+                    "kind": "bytesTypeNode"
+                  },
+                  "value": {
+                    "kind": "bytesValueNode",
+                    "data": "06ddf6e1d765a193d9cbe146ceeb79ac1cb485ed5f5b37913a8cf5857eff00a9",
+                    "encoding": "base16"
+                  }
+                },
+                {
+                  "kind": "variablePdaSeedNode",
+                  "name": "marketToken2",
+                  "type": {
+                    "kind": "publicKeyTypeNode"
+                  }
+                }
+              ]
+            },
+            "seeds": [
+              {
+                "kind": "pdaSeedValueNode",
+                "name": "user0",
+                "value": {
+                  "kind": "accountValueNode",
+                  "name": "user"
+                }
+              },
+              {
+                "kind": "pdaSeedValueNode",
+                "name": "marketToken2",
+                "value": {
+                  "kind": "accountValueNode",
+                  "name": "marketToken"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "kind": "instructionAccountNode",
+          "name": "userCurrencyVault",
+          "isWritable": true,
+          "isSigner": false,
+          "defaultValue": {
+            "kind": "pdaValueNode",
+            "pda": {
+              "kind": "pdaNode",
+              "name": "userCurrencyVault",
+              "seeds": [
+                {
+                  "kind": "variablePdaSeedNode",
+                  "name": "user0",
+                  "type": {
+                    "kind": "publicKeyTypeNode"
+                  }
+                },
+                {
+                  "kind": "constantPdaSeedNode",
+                  "type": {
+                    "kind": "bytesTypeNode"
+                  },
+                  "value": {
+                    "kind": "bytesValueNode",
+                    "data": "06ddf6e1d765a193d9cbe146ceeb79ac1cb485ed5f5b37913a8cf5857eff00a9",
+                    "encoding": "base16"
+                  }
+                },
+                {
+                  "kind": "variablePdaSeedNode",
+                  "name": "currency2",
+                  "type": {
+                    "kind": "publicKeyTypeNode"
+                  }
+                }
+              ]
+            },
+            "seeds": [
+              {
+                "kind": "pdaSeedValueNode",
+                "name": "user0",
+                "value": {
+                  "kind": "accountValueNode",
+                  "name": "user"
+                }
+              },
+              {
+                "kind": "pdaSeedValueNode",
+                "name": "currency2",
+                "value": {
+                  "kind": "accountValueNode",
+                  "name": "currency"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "kind": "instructionAccountNode",
+          "name": "tokenProgram",
+          "isWritable": false,
+          "isSigner": false,
+          "defaultValue": {
+            "kind": "publicKeyValueNode",
+            "publicKey": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          }
+        }
+      ],
+      "arguments": [
+        {
+          "kind": "instructionArgumentNode",
+          "name": "discriminator",
+          "defaultValueStrategy": "omitted",
+          "type": {
+            "kind": "fixedSizeTypeNode",
+            "size": 8,
+            "type": {
+              "kind": "bytesTypeNode"
+            }
+          },
+          "defaultValue": {
+            "kind": "bytesValueNode",
+            "data": "33c29baf6d82606a",
+            "encoding": "base16"
+          }
+        },
+        {
+          "kind": "instructionArgumentNode",
+          "name": "args",
+          "type": {
+            "kind": "definedTypeLinkNode",
+            "name": "processOrderArgs"
+          }
+        }
+      ],
+      "discriminators": [
+        {
+          "kind": "fieldDiscriminatorNode",
+          "name": "discriminator",
+          "offset": 0
+        }
+      ]
+    }
+  ],
+  "definedTypes": [
+    {
+      "kind": "definedTypeNode",
+      "name": "cancelOrderArgs",
+      "type": {
+        "kind": "structTypeNode",
+        "fields": [
+          {
+            "kind": "structFieldTypeNode",
+            "name": "orderId",
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u64",
+              "endian": "le"
+            }
+          },
+          {
+            "kind": "structFieldTypeNode",
+            "name": "price",
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u64",
+              "endian": "le"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "kind": "definedTypeNode",
+      "name": "makerInfo",
+      "type": {
+        "kind": "structTypeNode",
+        "fields": [
+          {
+            "kind": "structFieldTypeNode",
+            "name": "totals",
+            "type": {
+              "kind": "definedTypeLinkNode",
+              "name": "orderTotals"
+            }
+          },
+          {
+            "kind": "structFieldTypeNode",
+            "name": "orderCount",
+            "docs": [
+              "Total open orders for this maker"
+            ],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u16",
+              "endian": "le"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "kind": "definedTypeNode",
+      "name": "orderBookSide",
+      "type": {
+        "kind": "structTypeNode",
+        "fields": [
+          {
+            "kind": "structFieldTypeNode",
+            "name": "idCounter",
+            "docs": [
+              "An incrememnting counter for each order id. The first bit is set to 1 for asks."
+            ],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u64",
+              "endian": "le"
+            }
+          },
+          {
+            "kind": "structFieldTypeNode",
+            "name": "makers",
+            "type": {
+              "kind": "mapTypeNode",
+              "key": {
+                "kind": "publicKeyTypeNode"
+              },
+              "value": {
+                "kind": "definedTypeLinkNode",
+                "name": "makerInfo"
+              },
+              "count": {
+                "kind": "prefixedCountNode",
+                "prefix": {
+                  "kind": "numberTypeNode",
+                  "format": "u32",
+                  "endian": "le"
+                }
+              }
+            }
+          },
+          {
+            "kind": "structFieldTypeNode",
+            "name": "orders",
+            "type": {
+              "kind": "arrayTypeNode",
+              "item": {
+                "kind": "definedTypeLinkNode",
+                "name": "orderInfo"
+              },
+              "count": {
+                "kind": "prefixedCountNode",
+                "prefix": {
+                  "kind": "numberTypeNode",
+                  "format": "u32",
+                  "endian": "le"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "kind": "definedTypeNode",
+      "name": "orderInfo",
+      "type": {
+        "kind": "structTypeNode",
+        "fields": [
+          {
+            "kind": "structFieldTypeNode",
+            "name": "price",
+            "docs": [
+              "The price in currency (set on the market)"
+            ],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u64",
+              "endian": "le"
+            }
+          },
+          {
+            "kind": "structFieldTypeNode",
+            "name": "quantity",
+            "docs": [
+              "The quantity of market tokens being sold"
+            ],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u64",
+              "endian": "le"
+            }
+          },
+          {
+            "kind": "structFieldTypeNode",
+            "name": "orderId",
+            "docs": [
+              "A unique (for the market) id for this order"
+            ],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u64",
+              "endian": "le"
+            }
+          },
+          {
+            "kind": "structFieldTypeNode",
+            "name": "maker",
+            "docs": [
+              "The key of the maker who placed the order"
+            ],
+            "type": {
+              "kind": "publicKeyTypeNode"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "kind": "definedTypeNode",
+      "name": "orderSide",
+      "type": {
+        "kind": "enumTypeNode",
+        "variants": [
+          {
+            "kind": "enumEmptyVariantTypeNode",
+            "name": "bid",
+            "discriminator": 0
+          },
+          {
+            "kind": "enumEmptyVariantTypeNode",
+            "name": "ask",
+            "discriminator": 1
+          }
+        ],
+        "size": {
+          "kind": "numberTypeNode",
+          "format": "u8",
+          "endian": "le"
+        }
+      }
+    },
+    {
+      "kind": "definedTypeNode",
+      "name": "orderTotals",
+      "type": {
+        "kind": "structTypeNode",
+        "fields": [
+          {
+            "kind": "structFieldTypeNode",
+            "name": "currency",
+            "docs": [
+              "currency either escrowed from buy orders or released from completed sell orders"
+            ],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u64",
+              "endian": "le"
+            }
+          },
+          {
+            "kind": "structFieldTypeNode",
+            "name": "marketTokens",
+            "docs": [
+              "Market tokens either escrowed from sell orders or released from completed buy orders"
+            ],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u64",
+              "endian": "le"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "kind": "definedTypeNode",
+      "name": "processOrderArgs",
+      "type": {
+        "kind": "structTypeNode",
+        "fields": [
+          {
+            "kind": "structFieldTypeNode",
+            "name": "side",
+            "type": {
+              "kind": "definedTypeLinkNode",
+              "name": "orderSide"
+            }
+          },
+          {
+            "kind": "structFieldTypeNode",
+            "name": "price",
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u64",
+              "endian": "le"
+            }
+          },
+          {
+            "kind": "structFieldTypeNode",
+            "name": "quantity",
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u64",
+              "endian": "le"
+            }
+          },
+          {
+            "kind": "structFieldTypeNode",
+            "name": "fillOrKill",
+            "type": {
+              "kind": "booleanTypeNode",
+              "size": {
+                "kind": "numberTypeNode",
+                "format": "u8",
+                "endian": "le"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "pdas": [
+    {
+      "kind": "pdaNode",
+      "name": "market",
+      "seeds": [
+        {
+          "kind": "constantPdaSeedNode",
+          "type": {
+            "kind": "bytesTypeNode"
+          },
+          "value": {
+            "kind": "bytesValueNode",
+            "data": "6d61726b6574",
+            "encoding": "base16"
+          }
+        },
+        {
+          "kind": "variablePdaSeedNode",
+          "name": "currency",
+          "type": {
+            "kind": "publicKeyTypeNode"
+          }
+        },
+        {
+          "kind": "variablePdaSeedNode",
+          "name": "marketToken",
+          "type": {
+            "kind": "publicKeyTypeNode"
+          }
+        }
+      ]
+    }
+  ],
   "errors": []
 }

@@ -6,6 +6,7 @@ use star_frame_spl::token::{state::MintAccount, Token};
 
 use crate::state::{CreateMarketArgs, FindMarketSeeds, Market, MarketSeeds};
 
+/// Initializes a marketplace for a given currency and market token
 #[derive(InstructionArgs, BorshSerialize, BorshDeserialize, Copy, Clone, Debug)]
 #[borsh(crate = "star_frame::borsh")]
 pub struct Initialize;
