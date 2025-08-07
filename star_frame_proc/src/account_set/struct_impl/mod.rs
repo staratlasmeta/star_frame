@@ -76,12 +76,7 @@ pub(super) fn derive_account_set_impl_struct(
 ) -> TokenStream {
     let AccountSetGenerics { main_generics, .. } = &account_set_generics;
 
-    let Paths {
-        account_info,
-        prelude,
-        result,
-        ..
-    } = &paths;
+    Paths!(account_info, prelude, result, clone, debug);
 
     let ident = &input.ident;
 
@@ -424,7 +419,7 @@ pub(super) fn derive_account_set_impl_struct(
         let struct_members = cpi_accounts_struct.fields.members();
 
         quote! {
-            #[derive(Clone, Debug)]
+            #[derive(#clone, #debug)]
             #cpi_accounts_struct
 
             #[automatically_derived]
@@ -493,7 +488,7 @@ pub(super) fn derive_account_set_impl_struct(
         let (impl_gen, ty_gen, where_clause) = client_gen.split_for_impl();
 
         quote! {
-            #[derive(Clone, Debug)]
+            #[derive(#clone, #debug)]
             #client_accounts_struct
 
             #[automatically_derived]
