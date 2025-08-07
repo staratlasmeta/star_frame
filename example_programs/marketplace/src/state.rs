@@ -396,6 +396,23 @@ pub struct Market {
     pub asks: OrderBookSide,
 }
 
+pub struct ValidateMarketToken<'a>(pub &'a KeyFor<MintAccount>);
+pub struct ValidateCurrency<'a>(pub &'a KeyFor<MintAccount>);
+
+impl<'a> AccountValidate<ValidateMarketToken<'a>> for Market {
+    fn validate(self_ref: &Self::Ref<'_>, arg: ValidateMarketToken<'a>) -> Result<()> {
+        ensure!(&self_ref.market_token == arg.0, "Market token mismatch");
+        Ok(())
+    }
+}
+
+impl<'a> AccountValidate<ValidateCurrency<'a>> for Market {
+    fn validate(self_ref: &Self::Ref<'_>, arg: ValidateCurrency<'a>) -> Result<()> {
+        ensure!(&self_ref.currency == arg.0, "Currency mismatch");
+        Ok(())
+    }
+}
+
 #[unsized_impl]
 impl Market {
     pub fn initialize(&mut self, args: CreateMarketArgs) {
