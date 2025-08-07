@@ -35,7 +35,9 @@ impl HasInnerType for MintAccount {
 }
 
 /// See [`spl_token::state::Mint`].
-#[derive(Debug, Clone, PartialEq, Eq, Copy, Default, Zeroable, CheckedBitPattern, Align1)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, Copy, Default, Zeroable, CheckedBitPattern, Align1, NoUninit,
+)]
 #[repr(C, packed)]
 pub struct MintData {
     pub mint_authority: PodOption<Pubkey>,
@@ -266,7 +268,9 @@ impl HasInnerType for TokenAccount {
 }
 
 /// See [`spl_token::state::AccountState`].
-#[derive(Debug, Clone, PartialEq, Eq, Copy, Default, Zeroable, CheckedBitPattern, Align1)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, Copy, Default, Zeroable, CheckedBitPattern, Align1, NoUninit,
+)]
 #[repr(u8)]
 pub enum AccountState {
     /// Account is not yet initialized
@@ -281,7 +285,7 @@ pub enum AccountState {
 }
 
 /// See [`spl_token::state::Account`].
-#[derive(Clone, Copy, Debug, Default, PartialEq, CheckedBitPattern, Zeroable)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, CheckedBitPattern, Zeroable, NoUninit)]
 #[repr(C, packed)]
 pub struct TokenAccountData {
     pub mint: KeyFor<MintAccount>,
