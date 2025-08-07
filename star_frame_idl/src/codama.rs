@@ -477,9 +477,12 @@ impl TryToCodama<TypeNode> for IdlTypeDef {
             ).into_type_node(),
             IdlTypeDef::Pubkey => PublicKeyTypeNode {}.into_type_node(),
             IdlTypeDef::FixedPoint { ty, .. } => ty.try_to_codama(idl_def, _context)?,
-            IdlTypeDef::Option(e) => {
-                OptionTypeNode::new(e.try_to_codama(idl_def, _context)?).into_type_node()
-            }
+            IdlTypeDef::Option { ty, fixed } => 
+                OptionTypeNode {
+                    fixed: *fixed,
+                    item: Box::new(ty.try_to_codama(idl_def, _context)?),
+                    prefix: NumberTypeNode::le(Num::U8).into(),
+                }.into_type_node(),
             IdlTypeDef::List { len_ty, item_ty } => {
                 let len_ty = len_ty.try_to_codama(idl_def, _context)?.as_number()?;
                 ArrayTypeNode::prefixed(item_ty.try_to_codama(idl_def, _context)?, len_ty)

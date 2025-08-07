@@ -50,9 +50,10 @@ impl_type_to_idl_for_primitive!(
 impl<T: TypeToIdl> TypeToIdl for Option<T> {
     type AssociatedProgram = System;
     fn type_to_idl(idl_definition: &mut IdlDefinition) -> Result<IdlTypeDef> {
-        Ok(IdlTypeDef::Option(Box::new(T::type_to_idl(
-            idl_definition,
-        )?)))
+        Ok(IdlTypeDef::Option {
+            ty: Box::new(T::type_to_idl(idl_definition)?),
+            fixed: false,
+        })
     }
 }
 
