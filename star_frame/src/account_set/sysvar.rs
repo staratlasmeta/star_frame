@@ -25,6 +25,7 @@ impl SysvarId for InstructionsSysvar {
 
 #[derive(AccountSet, derive_where::DeriveWhere)]
 #[derive_where(Clone, Copy, Debug)]
+#[account_set(skip_client_account_set)]
 #[idl(generics = [])]
 #[validate(generics = [])]
 pub struct Sysvar<T>
@@ -37,6 +38,23 @@ where
     info: AccountInfo,
     #[account_set(skip = PhantomData)]
     phantom_t: PhantomData<fn() -> T>,
+}
+
+impl<T: SysvarId> ClientAccountSet for Sysvar<T> {
+    type ClientAccounts = Option<Pubkey>;
+
+    const MIN_LEN: usize = 1;
+
+    fn extend_account_metas(
+        _program_id: &Pubkey,
+        accounts: &Self::ClientAccounts,
+        metas: &mut Vec<AccountMeta>,
+    ) {
+        metas.push(AccountMeta::new_readonly(
+            accounts.unwrap_or(T::id()),
+            false,
+        ));
+    }
 }
 
 impl Sysvar<InstructionsSysvar> {

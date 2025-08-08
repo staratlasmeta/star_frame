@@ -456,10 +456,7 @@ mod tests {
                 mint_authority,
                 freeze_authority,
             },
-            InitializeMintClientAccounts {
-                mint,
-                rent: Rent::id(),
-            },
+            InitializeMintClientAccounts { mint, rent: None },
         )?;
 
         let initialize_mint_ix = spl_token::instruction::initialize_mint(
@@ -485,7 +482,7 @@ mod tests {
                 account,
                 mint,
                 owner,
-                rent: Rent::id(),
+                rent: None,
             },
         )?;
 
@@ -505,7 +502,7 @@ mod tests {
             &InitializeMultisig { m },
             InitializeMultisigClientAccounts {
                 multisig,
-                rent: Rent::id(),
+                rent: None,
                 signers: signers.clone(),
             },
         )?;
@@ -892,7 +889,7 @@ mod tests {
             InitializeAccount2ClientAccounts {
                 account,
                 mint,
-                rent: Rent::id(),
+                rent: None,
             },
         )?;
 

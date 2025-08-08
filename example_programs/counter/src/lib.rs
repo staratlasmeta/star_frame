@@ -258,7 +258,7 @@ mod tests {
                     funder,
                     owner,
                     counter: counter_account,
-                    system_program: System::ID,
+                    system_program: None,
                 },
             )?,
             &[

@@ -39,7 +39,7 @@ impl HasInnerType for MintAccount {
     Debug, Clone, PartialEq, Eq, Copy, Default, Zeroable, CheckedBitPattern, Align1, NoUninit,
 )]
 #[repr(C, packed)]
-pub struct MintData {
+pub struct MintAccountData {
     pub mint_authority: PodOption<Pubkey>,
     pub supply: u64,
     pub decimals: u8,
@@ -83,15 +83,15 @@ impl MintAccount {
     }
 
     #[inline]
-    pub fn data_unchecked(&self) -> Result<Ref<'_, MintData>> {
+    pub fn data_unchecked(&self) -> Result<Ref<'_, MintAccountData>> {
         Ref::try_map(self.account_data()?, |data| {
-            bytemuck::checked::try_from_bytes::<MintData>(data)
+            bytemuck::checked::try_from_bytes::<MintAccountData>(data)
         })
         .map_err(Into::into)
     }
 
     #[inline]
-    pub fn data(&self) -> Result<Ref<'_, MintData>> {
+    pub fn data(&self) -> Result<Ref<'_, MintAccountData>> {
         if self.is_writable() {
             self.validate()?;
         }
