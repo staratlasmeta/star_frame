@@ -51,9 +51,9 @@ impl MintAccount {
     /// See [`spl_token::state::Mint`]'s `LEN` const from `solana-program-pack`.
     /// ```
     /// # use solana_program_pack::Pack;
-    /// # use star_frame_spl::token::state::{MintAccount, MintData};
+    /// # use star_frame_spl::token::state::{MintAccount, MintAccountData};
     /// assert_eq!(MintAccount::LEN, spl_token::state::Mint::LEN);
-    /// assert_eq!(MintAccount::LEN, core::mem::size_of::<MintData>());
+    /// assert_eq!(MintAccount::LEN, core::mem::size_of::<MintAccountData>());
     /// ```
     pub const LEN: usize = 82;
 
