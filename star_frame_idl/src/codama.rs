@@ -477,7 +477,7 @@ impl TryToCodama<TypeNode> for IdlTypeDef {
             ).into_type_node(),
             IdlTypeDef::Pubkey => PublicKeyTypeNode {}.into_type_node(),
             IdlTypeDef::FixedPoint { ty, .. } => ty.try_to_codama(idl_def, _context)?,
-            IdlTypeDef::Option { ty, fixed } => 
+            IdlTypeDef::Option { ty, fixed } =>
                 OptionTypeNode {
                     fixed: *fixed,
                     item: Box::new(ty.try_to_codama(idl_def, _context)?),

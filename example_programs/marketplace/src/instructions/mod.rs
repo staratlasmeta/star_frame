@@ -6,21 +6,24 @@ pub use cancel_orders::*;
 pub use initialize::*;
 pub use place_order::*;
 
+use star_frame::prelude::*;
 #[cfg(feature = "idl")]
 use star_frame_spl::associated_token::FindAtaSeeds;
-use star_frame::prelude::*;
 use star_frame_spl::{
-    associated_token::{
-        state::{AssociatedTokenAccount, ValidateAta},
-    },
+    associated_token::state::{AssociatedTokenAccount, ValidateAta},
     token::{
-        instructions::{Transfer, TransferCpiAccounts}, state::{MintAccount, TokenAccount, ValidateToken}, Token
+        instructions::{Transfer, TransferCpiAccounts},
+        state::{MintAccount, TokenAccount, ValidateToken},
+        Token,
     },
 };
 
 #[cfg(feature = "idl")]
 use crate::state::FindMarketSeeds;
-use crate::state::{Market, MarketSeeds, OrderTotals, ValidateCurrency, ValidateMarketToken, ZERO_PRICE, ZERO_QUANTITY};
+use crate::state::{
+    Market, MarketSeeds, OrderTotals, ValidateCurrency, ValidateMarketToken, ZERO_PRICE,
+    ZERO_QUANTITY,
+};
 
 /// Accounts for managing market orders. Used in [`PlaceOrder`] and [`CancelOrders`] instructions.
 #[derive(AccountSet, Debug)]
@@ -28,12 +31,12 @@ pub struct ManageOrderAccounts {
     #[account_set(funder)]
     pub funder: Mut<Signer<SystemAccount>>,
     pub user: Signer<AccountInfo>,
-    #[idl(arg = Seeds(FindMarketSeeds { 
-        currency: seed_path("currency"), 
-        market_token: seed_path("market_token") }
-    ))]
+    #[idl(arg = Seeds(FindMarketSeeds {
+        currency: seed_path("currency"),
+        market_token: seed_path("market_token")
+    }))]
     #[validate(arg = (
-        ValidateCurrency(self.currency.key_for()), 
+        ValidateCurrency(self.currency.key_for()),
         ValidateMarketToken(self.market_token.key_for())
     ))]
     #[cleanup(arg = NormalizeRent(()))]
@@ -55,10 +58,12 @@ pub struct ManageOrderAccounts {
     pub token_program: Program<Token>,
 }
 
-
 impl ManageOrderAccounts {
     fn withdraw(&self, totals: OrderTotals, ctx: &Context) -> Result<()> {
-        let OrderTotals { market_tokens, currency } = totals;
+        let OrderTotals {
+            market_tokens,
+            currency,
+        } = totals;
         let signer_seeds = if market_tokens > ZERO_QUANTITY || currency > ZERO_PRICE {
             let market = self.market.data()?;
             let seeds_with_bump = SeedsWithBump {
@@ -105,7 +110,10 @@ impl ManageOrderAccounts {
     }
 
     fn deposit(&self, totals: OrderTotals, ctx: &Context) -> Result<()> {
-        let OrderTotals { market_tokens, currency } = totals;
+        let OrderTotals {
+            market_tokens,
+            currency,
+        } = totals;
         if market_tokens > ZERO_QUANTITY {
             Token::cpi(
                 &Transfer {
@@ -136,5 +144,4 @@ impl ManageOrderAccounts {
         }
         Ok(())
     }
-        
 }

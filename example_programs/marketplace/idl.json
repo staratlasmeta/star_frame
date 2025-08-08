@@ -579,6 +579,16 @@
         },
         {
           "kind": "instructionAccountNode",
+          "name": "systemProgram",
+          "isWritable": false,
+          "isSigner": false,
+          "defaultValue": {
+            "kind": "publicKeyValueNode",
+            "publicKey": "11111111111111111111111111111111"
+          }
+        },
+        {
+          "kind": "instructionAccountNode",
           "name": "tokenProgram",
           "isWritable": false,
           "isSigner": false,
