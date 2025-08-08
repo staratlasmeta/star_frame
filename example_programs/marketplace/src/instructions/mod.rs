@@ -6,18 +6,21 @@ pub use cancel_orders::*;
 pub use initialize::*;
 pub use place_order::*;
 
+#[cfg(feature = "idl")]
+use star_frame_spl::associated_token::FindAtaSeeds;
 use star_frame::prelude::*;
 use star_frame_spl::{
     associated_token::{
         state::{AssociatedTokenAccount, ValidateAta},
-        FindAtaSeeds,
     },
     token::{
         instructions::{Transfer, TransferCpiAccounts}, state::{MintAccount, TokenAccount, ValidateToken}, Token
     },
 };
 
-use crate::state::{FindMarketSeeds, Market, MarketSeeds, OrderTotals, ValidateCurrency, ValidateMarketToken, ZERO_PRICE, ZERO_QUANTITY};
+#[cfg(feature = "idl")]
+use crate::state::FindMarketSeeds;
+use crate::state::{Market, MarketSeeds, OrderTotals, ValidateCurrency, ValidateMarketToken, ZERO_PRICE, ZERO_QUANTITY};
 
 /// Accounts for managing market orders. Used in [`PlaceOrder`] and [`CancelOrders`] instructions.
 #[derive(AccountSet, Debug)]
@@ -90,8 +93,8 @@ impl ManageOrderAccounts {
                     amount: currency.val().0,
                 },
                 TransferCpiAccounts {
-                    source: *self.user_currency_vault.account_info(),
-                    destination: *self.currency_vault.account_info(),
+                    source: *self.currency_vault.account_info(),
+                    destination: *self.user_currency_vault.account_info(),
                     owner: *self.market.account_info(),
                 },
                 ctx,

@@ -1,4 +1,4 @@
-use std::cmp::Reverse;
+use std::{cmp::Reverse, fmt::Display};
 
 use anyhow::{bail, ensure, Context as _};
 use star_frame::{borsh_with_bytemuck, prelude::*};
@@ -161,6 +161,18 @@ pub struct OrderBookResult {
     pub remaining_quantity: Quantity,
 }
 
+impl Display for OrderBookResult {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("OrderBookResult")
+            .field("order_id", &self.order_id)
+            .field("executed_cost", &{ self.executed_cost.val().0 })
+            .field("executed_quantity", &{ self.executed_quantity.val().0 })
+            .field("remaining_cost", &{ self.remaining_cost.val().0 })
+            .field("remaining_quantity", &{ self.remaining_quantity.val().0 })
+            .finish()
+    }
+}
+
 impl OrderBookResult {
     pub fn total_cost(&self) -> Price {
         self.executed_cost + self.remaining_cost
@@ -174,10 +186,10 @@ impl OrderBookResult {
 #[unsized_type]
 pub struct OrderBookSide {
     /// An incrememnting counter for each order id. The first bit is set to 1 for asks.
-    id_counter: u64,
+    pub id_counter: u64,
     #[unsized_start]
-    makers: Map<Pubkey, MakerInfo>,
-    orders: List<OrderInfo>,
+    pub makers: Map<Pubkey, MakerInfo>,
+    pub orders: List<OrderInfo>,
 }
 
 #[unsized_impl]
@@ -573,25 +585,18 @@ impl Market {
         })
     }
 }
-
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use std::collections::BTreeMap;
 
     use pretty_assertions::assert_eq;
     use star_frame::unsize::ModifyOwned;
 
+    use crate::test_utils::{new_price, new_quantity};
+
     use super::*;
 
-    fn new_price(price: u64) -> Price {
-        Price::new(PackedValue(price))
-    }
-
-    fn new_quantity(quantity: u64) -> Quantity {
-        Quantity::new(PackedValue(quantity))
-    }
-
-    fn default_local_market() -> MarketOwned {
+    pub fn default_market() -> MarketOwned {
         MarketOwned {
             version: 0,
             bump: 0,
@@ -613,7 +618,7 @@ mod tests {
 
     #[test]
     fn unsized_test_place_orders() -> Result<()> {
-        let mut local_market = default_local_market();
+        let mut market = default_market();
         let maker = Pubkey::new_unique();
         let price = new_price(10);
         let quantity = new_quantity(10);
@@ -622,9 +627,9 @@ mod tests {
 
         let mut order_result = OrderBookResult::default();
 
-        let mut expected_market = local_market.clone();
+        let mut expected_market = market.clone();
 
-        local_market.modify_owned::<Market>(|market| {
+        market.modify_owned::<Market>(|market| {
             order_result = market.process_order(
                 ProcessOrderArgs {
                     side,
@@ -655,7 +660,7 @@ mod tests {
             },
         );
 
-        assert_eq!(local_market, expected_market);
+        assert_eq!(market, expected_market);
 
         assert_eq!(
             order_result,
@@ -670,7 +675,7 @@ mod tests {
 
         let price = new_price(20);
         let quantity = new_quantity(15);
-        local_market.modify_owned::<Market>(|market| {
+        market.modify_owned::<Market>(|market| {
             order_result = market.process_order(
                 ProcessOrderArgs {
                     side,
@@ -703,7 +708,7 @@ mod tests {
         expected_maker_info.totals.currency += price * quantity;
         expected_maker_info.order_count += 1;
 
-        assert_eq!(local_market, expected_market);
+        assert_eq!(market, expected_market);
 
         assert_eq!(
             order_result,
@@ -723,7 +728,7 @@ mod tests {
         let side = OrderSide::Ask;
         let fill_or_kill = false;
 
-        local_market.modify_owned::<Market>(|market| {
+        market.modify_owned::<Market>(|market| {
             order_result = market.process_order(
                 ProcessOrderArgs {
                     side,
@@ -754,7 +759,7 @@ mod tests {
             },
         );
 
-        assert_eq!(local_market, expected_market);
+        assert_eq!(market, expected_market);
 
         assert_eq!(
             order_result,
@@ -796,7 +801,7 @@ mod tests {
         let seller3_price = new_price(16);
         let seller3_quantity = new_quantity(6);
 
-        let mut local_market = MarketOwned {
+        let mut market = MarketOwned {
             bids: OrderBookSideOwned {
                 id_counter: 3,
                 makers: BTreeMap::from_iter([
@@ -907,7 +912,7 @@ mod tests {
                     },
                 ],
             },
-            ..default_local_market()
+            ..default_market()
         };
 
         let market_maker_buyer = Pubkey::new_unique();
@@ -915,9 +920,9 @@ mod tests {
         let mm_buy_quantity = new_quantity(15);
         let mut order_result = OrderBookResult::default();
 
-        let mut expected_market = local_market.clone();
+        let mut expected_market = market.clone();
 
-        local_market.modify_owned::<Market>(|market| {
+        market.modify_owned::<Market>(|market| {
             order_result = market.process_order(
                 ProcessOrderArgs {
                     side: OrderSide::Bid,
@@ -954,7 +959,7 @@ mod tests {
         // Remove filled order
         expected_market.asks.orders.remove(0);
 
-        assert_eq!(local_market, expected_market);
+        assert_eq!(market, expected_market);
 
         assert_eq!(
             order_result,
@@ -972,7 +977,7 @@ mod tests {
         let mm_sell_price = new_price(7);
         let mm_sell_quantity = new_quantity(20);
 
-        local_market.modify_owned::<Market>(|market| {
+        market.modify_owned::<Market>(|market| {
             order_result = market.process_order(
                 ProcessOrderArgs {
                     side: OrderSide::Ask,
@@ -1036,7 +1041,7 @@ mod tests {
             },
         );
 
-        assert_eq!(local_market, expected_market);
+        assert_eq!(market, expected_market);
 
         let expected_executed_quantity = executed_quantity_b1 + executed_quantity_b2;
         let expected_executed_cost = executed_cost_b1 + executed_cost_b2;
@@ -1200,7 +1205,7 @@ mod tests {
                     },
                 ],
             },
-            ..default_local_market()
+            ..default_market()
         };
 
         let mut expected_market = local_market.clone();
