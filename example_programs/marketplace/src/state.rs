@@ -29,23 +29,13 @@ pub struct OrderInfo {
     pub maker: Pubkey,
 }
 
-#[derive(Eq, Debug, PartialEq, Pod, Zeroable, Copy, Clone, TypeToIdl)]
+#[derive(Eq, Debug, PartialEq, Pod, Zeroable, Copy, Clone, TypeToIdl, Default)]
 #[repr(C, packed)]
 pub struct OrderTotals {
     /// currency either escrowed from buy orders or released from completed sell orders
     pub currency: Price,
     /// Market tokens either escrowed from sell orders or released from completed buy orders
     pub market_tokens: Quantity,
-}
-
-// TODO: Replace with derive once UnitVal impls default
-impl Default for OrderTotals {
-    fn default() -> Self {
-        Self {
-            currency: ZERO_PRICE,
-            market_tokens: ZERO_QUANTITY,
-        }
-    }
 }
 
 impl OrderTotals {
