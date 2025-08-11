@@ -35,9 +35,11 @@ impl HasInnerType for MintAccount {
 }
 
 /// See [`spl_token::state::Mint`].
-#[derive(Debug, Clone, PartialEq, Eq, Copy, Default, Zeroable, CheckedBitPattern, Align1)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, Copy, Default, Zeroable, CheckedBitPattern, Align1, NoUninit,
+)]
 #[repr(C, packed)]
-pub struct MintData {
+pub struct MintAccountData {
     pub mint_authority: PodOption<Pubkey>,
     pub supply: u64,
     pub decimals: u8,
@@ -49,9 +51,9 @@ impl MintAccount {
     /// See [`spl_token::state::Mint`]'s `LEN` const from `solana-program-pack`.
     /// ```
     /// # use solana_program_pack::Pack;
-    /// # use star_frame_spl::token::state::{MintAccount, MintData};
+    /// # use star_frame_spl::token::state::{MintAccount, MintAccountData};
     /// assert_eq!(MintAccount::LEN, spl_token::state::Mint::LEN);
-    /// assert_eq!(MintAccount::LEN, core::mem::size_of::<MintData>());
+    /// assert_eq!(MintAccount::LEN, core::mem::size_of::<MintAccountData>());
     /// ```
     pub const LEN: usize = 82;
 
@@ -81,15 +83,15 @@ impl MintAccount {
     }
 
     #[inline]
-    pub fn data_unchecked(&self) -> Result<Ref<'_, MintData>> {
+    pub fn data_unchecked(&self) -> Result<Ref<'_, MintAccountData>> {
         Ref::try_map(self.account_data()?, |data| {
-            bytemuck::checked::try_from_bytes::<MintData>(data)
+            bytemuck::checked::try_from_bytes::<MintAccountData>(data)
         })
         .map_err(Into::into)
     }
 
     #[inline]
-    pub fn data(&self) -> Result<Ref<'_, MintData>> {
+    pub fn data(&self) -> Result<Ref<'_, MintAccountData>> {
         if self.is_writable() {
             self.validate()?;
         }
@@ -266,7 +268,9 @@ impl HasInnerType for TokenAccount {
 }
 
 /// See [`spl_token::state::AccountState`].
-#[derive(Debug, Clone, PartialEq, Eq, Copy, Default, Zeroable, CheckedBitPattern, Align1)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, Copy, Default, Zeroable, CheckedBitPattern, Align1, NoUninit,
+)]
 #[repr(u8)]
 pub enum AccountState {
     /// Account is not yet initialized
@@ -281,7 +285,7 @@ pub enum AccountState {
 }
 
 /// See [`spl_token::state::Account`].
-#[derive(Clone, Copy, Debug, Default, PartialEq, CheckedBitPattern, Zeroable)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, CheckedBitPattern, Zeroable, NoUninit)]
 #[repr(C, packed)]
 pub struct TokenAccountData {
     pub mint: KeyFor<MintAccount>,

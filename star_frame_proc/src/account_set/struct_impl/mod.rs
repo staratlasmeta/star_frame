@@ -76,12 +76,7 @@ pub(super) fn derive_account_set_impl_struct(
 ) -> TokenStream {
     let AccountSetGenerics { main_generics, .. } = &account_set_generics;
 
-    let Paths {
-        account_info,
-        prelude,
-        result,
-        ..
-    } = &paths;
+    Paths!(account_info, prelude, result, clone, debug);
 
     let ident = &input.ident;
 
@@ -209,6 +204,63 @@ pub(super) fn derive_account_set_impl_struct(
         let cpi_set_gen = combine_gen!(single_generics; where #field_ty: for<'__a> #prelude::CpiAccountSet + #prelude::SingleAccountSet);
         let (_, _, cpi_set_wc) = cpi_set_gen.split_for_impl();
 
+        let cpi_set_impl = account_set_struct_args.skip_cpi_account_set.not().then(|| {
+            quote! {
+                #[automatically_derived]
+                impl #sg_impl #prelude::CpiAccountSet for #ident #ty_generics #cpi_set_wc {
+                    type CpiAccounts = #prelude::AccountInfo;
+                    const MIN_LEN: usize = 1;
+                    #[inline]
+                    fn to_cpi_accounts(&self) -> Self::CpiAccounts {
+                        *self.account_info()
+                    }
+                    #[inline]
+                    fn extend_account_infos(
+                        _program_id: &#prelude::Pubkey,
+                        account_info: Self::CpiAccounts,
+                        infos: &mut Vec<#prelude::AccountInfo>,
+                        _ctx: &#prelude::Context,
+                    ) -> #prelude::Result<()> {
+                        infos.push(account_info);
+                        Ok(())
+                    }
+                    #[inline]
+                    fn extend_account_metas(
+                        _program_id: &#prelude::Pubkey,
+                        account_info: &Self::CpiAccounts,
+                        metas: &mut Vec<#prelude::AccountMeta>,
+                    ) {
+                        metas.push(#prelude::AccountMeta {
+                            pubkey: *#prelude::SingleAccountSet::pubkey(account_info),
+                            is_signer: <Self as #prelude::SingleAccountSet>::meta().signer,
+                            is_writable: <Self as #prelude::SingleAccountSet>::meta().writable,
+                        });
+                    }
+                }
+            }
+        });
+
+        let client_set_impl = account_set_struct_args.skip_client_account_set.not().then(|| {
+            quote! {
+                #[automatically_derived]
+                impl #sg_impl #prelude::ClientAccountSet for #ident #ty_generics #client_set_wc {
+                    type ClientAccounts = #prelude::Pubkey;
+                    const MIN_LEN: usize = 1;
+                    #[inline]
+                    fn extend_account_metas(
+                        _program_id: &#prelude::Pubkey,
+                        accounts: &Self::ClientAccounts,
+                        metas: &mut Vec<#prelude::AccountMeta>,
+                    ) {
+                        metas.push(#prelude::AccountMeta {
+                            pubkey: *accounts,
+                            is_signer: <Self as #prelude::SingleAccountSet>::meta().signer,
+                            is_writable: <Self as #prelude::SingleAccountSet>::meta().writable,
+                        });
+                    }
+                }
+            }
+        });
 
         let single = quote! {
             #[automatically_derived]
@@ -224,55 +276,8 @@ pub(super) fn derive_account_set_impl_struct(
                 }
             }
 
-            #[automatically_derived]
-            impl #sg_impl #prelude::CpiAccountSet for #ident #ty_generics #cpi_set_wc {
-                type CpiAccounts = #prelude::AccountInfo;
-                const MIN_LEN: usize = 1;
-                #[inline]
-                fn to_cpi_accounts(&self) -> Self::CpiAccounts {
-                    *self.account_info()
-                }
-                #[inline]
-                fn extend_account_infos(
-                    _program_id: &#prelude::Pubkey,
-                    account_info: Self::CpiAccounts,
-                    infos: &mut Vec<#prelude::AccountInfo>,
-                    _ctx: &#prelude::Context,
-                ) -> #prelude::Result<()> {
-                    infos.push(account_info);
-                    Ok(())
-                }
-                #[inline]
-                fn extend_account_metas(
-                    _program_id: &#prelude::Pubkey,
-                    account_info: &Self::CpiAccounts,
-                    metas: &mut Vec<#prelude::AccountMeta>,
-                ) {
-                    metas.push(#prelude::AccountMeta {
-                        pubkey: *#prelude::SingleAccountSet::pubkey(account_info),
-                        is_signer: <Self as #prelude::SingleAccountSet>::meta().signer,
-                        is_writable: <Self as #prelude::SingleAccountSet>::meta().writable,
-                    });
-                }
-            }
-
-            #[automatically_derived]
-            impl #sg_impl #prelude::ClientAccountSet for #ident #ty_generics #client_set_wc {
-                type ClientAccounts = #prelude::Pubkey;
-                const MIN_LEN: usize = 1;
-                #[inline]
-                fn extend_account_metas(
-                    _program_id: &#prelude::Pubkey,
-                    accounts: &Self::ClientAccounts,
-                    metas: &mut Vec<#prelude::AccountMeta>,
-                ) {
-                    metas.push(#prelude::AccountMeta {
-                        pubkey: *accounts,
-                        is_signer: <Self as #prelude::SingleAccountSet>::meta().signer,
-                        is_writable: <Self as #prelude::SingleAccountSet>::meta().writable,
-                    });
-                }
-            }
+            #cpi_set_impl
+            #client_set_impl
         };
 
         let signed_account = args.skip_signed_account.not().then(|| {
@@ -424,7 +429,7 @@ pub(super) fn derive_account_set_impl_struct(
         let struct_members = cpi_accounts_struct.fields.members();
 
         quote! {
-            #[derive(Clone, Debug)]
+            #[derive(#clone, #debug)]
             #cpi_accounts_struct
 
             #[automatically_derived]
@@ -493,7 +498,7 @@ pub(super) fn derive_account_set_impl_struct(
         let (impl_gen, ty_gen, where_clause) = client_gen.split_for_impl();
 
         quote! {
-            #[derive(Clone, Debug)]
+            #[derive(#clone, #debug)]
             #client_accounts_struct
 
             #[automatically_derived]

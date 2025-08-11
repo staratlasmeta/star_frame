@@ -1767,6 +1767,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "112b39cec0b298b6c1999fee3e31427f74f676e4cb9879ed1a121b43661a4154"
 
 [[package]]
+name = "marketplace"
+version = "0.0.1"
+dependencies = [
+ "bytemuck",
+ "mollusk-svm",
+ "mollusk-svm-programs-token",
+ "pretty_assertions",
+ "solana-account",
+ "star_frame",
+ "star_frame_spl",
+]
+
+[[package]]
 name = "memchr"
 version = "2.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"

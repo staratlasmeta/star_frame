@@ -6,14 +6,12 @@ use std::marker::PhantomData;
 
 #[derive(AccountSet, Debug, RefCastCustom, derive_where::DeriveWhere)]
 #[derive_where(Clone, Copy)]
-#[account_set(skip_default_decode)]
+#[account_set(skip_default_decode, skip_client_account_set)]
 #[validate(
-    generics = [where T: StarFrameProgram],
     extra_validation = self.check_id(),
 )]
-#[idl(generics = [where T: StarFrameProgram])]
 #[repr(transparent)]
-pub struct Program<T: ?Sized>(
+pub struct Program<T: StarFrameProgram>(
     #[single_account_set]
     #[idl(address = T::ID)]
     pub(crate) AccountInfo,
@@ -22,7 +20,7 @@ pub struct Program<T: ?Sized>(
 
 impl<'a, T> AccountSetDecode<'a, ()> for Program<T>
 where
-    T: ?Sized + StarFrameProgram,
+    T: StarFrameProgram,
 {
     unsafe fn decode_accounts(
         accounts: &mut &'a [AccountInfo],
@@ -39,6 +37,20 @@ where
     }
 }
 
+impl<T: StarFrameProgram> ClientAccountSet for Program<T> {
+    type ClientAccounts = Option<Pubkey>;
+
+    const MIN_LEN: usize = 1;
+
+    fn extend_account_metas(
+        _program_id: &Pubkey,
+        accounts: &Self::ClientAccounts,
+        metas: &mut Vec<AccountMeta>,
+    ) {
+        metas.push(AccountMeta::new_readonly(accounts.unwrap_or(T::ID), false));
+    }
+}
+
 pub trait InnerProgram {
     type Program: StarFrameProgram;
 }
@@ -50,7 +62,7 @@ where
     type Program = T;
 }
 
-impl<T: StarFrameProgram + ?Sized> Program<T> {
+impl<T: StarFrameProgram> Program<T> {
     pub fn check_id(&self) -> Result<()> {
         if self.0.pubkey() == &T::ID {
             Ok(())

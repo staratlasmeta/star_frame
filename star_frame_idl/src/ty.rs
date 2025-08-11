@@ -58,7 +58,11 @@ pub enum IdlTypeDef {
         ty: Box<IdlTypeDef>,
         frac: u8,
     },
-    Option(Box<IdlTypeDef>),
+    Option {
+        ty: Box<IdlTypeDef>,
+        /// Whether or not the enum is fixed size (null will be padded with zeros if so)
+        fixed: bool,
+    },
     RemainingBytes,
     List {
         len_ty: Box<IdlTypeDef>,

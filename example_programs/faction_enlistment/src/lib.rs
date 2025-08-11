@@ -269,7 +269,7 @@ mod tests {
             ProcessEnlistPlayerClientAccounts {
                 player_faction_account,
                 player_account,
-                system_program: System::ID,
+                system_program: None,
                 // token_program: Token::ID,
                 // associated_token_program: AssociatedToken::ID,
                 // mint,

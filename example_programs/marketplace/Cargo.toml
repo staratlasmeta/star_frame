@@ -1,0 +1,29 @@
+[package]
+name = "marketplace"
+version = "0.0.1"
+edition.workspace = true
+publish = false
+
+[package.metadata]
+release.release = false
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "marketplace"
+
+[features]
+prod = []
+no_entrypoint = []
+cpi = ["no_entrypoint"]
+idl = ["star_frame/idl", "star_frame_spl/idl"]
+
+[dependencies]
+star_frame = { workspace = true, features = ["test_helpers"] }
+star_frame_spl = { workspace = true }
+bytemuck = { workspace = true }
+
+[dev-dependencies]
+mollusk-svm = { workspace = true }
+solana-account = { workspace = true }
+mollusk-svm-programs-token = { workspace = true }
+pretty_assertions = { workspace = true }

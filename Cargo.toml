@@ -14,6 +14,7 @@ repository = "https://github.com/staratlasmeta/star_frame"
 # Keep the version in sync with the workspace.package.version
 star_frame = { path = "star_frame", registry = "star-atlas", version = "0.18.0" }
 star_frame_idl = { path = "star_frame_idl", registry = "star-atlas", version = "0.18.0" }
+star_frame_spl = { path = "star_frame_spl", registry = "star-atlas", version = "0.18.0" }
 star_frame_proc = { path = "star_frame_proc", registry = "star-atlas", version = "0.18.0" }
 
 # Non workspace crates

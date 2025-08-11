@@ -119,6 +119,30 @@ pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
         .map(|v| format!("Instruction: {}", v.ident))
         .collect_vec();
 
+    let handle_ix_body = if variant_tys.is_empty() {
+        quote! {
+            #prelude::bail!("No instructions in this instruction set")
+        }
+    } else {
+        quote! {
+            let maybe_discriminant_bytes =
+                #prelude::Advance::try_advance(&mut ix_bytes, ::core::mem::size_of::<#discriminant_type>());
+            let discriminant_bytes = #prelude::anyhow::Context::context(maybe_discriminant_bytes, "Failed to read instruction discriminant bytes")?;
+            let discriminant = *#bytemuck::try_from_bytes(discriminant_bytes)?;
+            #[deny(unreachable_patterns)]
+            match discriminant {
+                #(
+                    <#variant_tys as #prelude::InstructionDiscriminant<#ident #ty_generics>>::DISCRIMINANT => {
+                        #prelude::msg!(#ix_message);
+                        let mut data = #prelude::anyhow::Context::context(<#variant_tys as #instruction>::data_from_bytes(&mut ix_bytes), "Failed to read instruction data")?;
+                        #prelude::anyhow::Context::context(<#variant_tys as #instruction>::run_ix_from_raw(accounts, &mut data, ctx), "Failed to run instruction")
+                    }
+                )*
+                x => #prelude::bail!("Invalid ix discriminant: {:?}", x),
+            }
+        }
+    };
+
     // todo: better error messages for getting the discriminant and invalid discriminants
     quote! {
         #[automatically_derived]
@@ -131,21 +155,7 @@ pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
                 mut ix_bytes: &[u8],
                 ctx: &mut #prelude::Context,
             ) -> #result<()> {
-                let maybe_discriminant_bytes =
-                    #prelude::Advance::try_advance(&mut ix_bytes, ::core::mem::size_of::<#discriminant_type>());
-                let discriminant_bytes = #prelude::anyhow::Context::context(maybe_discriminant_bytes, "Failed to read instruction discriminant bytes")?;
-                let discriminant = *#bytemuck::try_from_bytes(discriminant_bytes)?;
-                #[deny(unreachable_patterns)]
-                match discriminant {
-                    #(
-                        <#variant_tys as #prelude::InstructionDiscriminant<#ident #ty_generics>>::DISCRIMINANT => {
-                            #prelude::msg!(#ix_message);
-                            let mut data = #prelude::anyhow::Context::context(<#variant_tys as #instruction>::data_from_bytes(&mut ix_bytes), "Failed to read instruction data")?;
-                            #prelude::anyhow::Context::context(<#variant_tys as #instruction>::run_ix_from_raw(accounts, &mut data, ctx), "Failed to run instruction")
-                        }
-                    )*
-                    x => #prelude::bail!("Invalid ix discriminant: {:?}", x),
-                }
+                #handle_ix_body
             }
         }
 
