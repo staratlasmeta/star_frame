@@ -433,7 +433,7 @@ where
 
     #[inline]
     fn start_ptr(m: &Self::Mut<'_>) -> *mut () {
-m.0.cast::<()>()
+        m.0.cast::<()>()
     }
 
     fn owned_from_ref(r: &Self::Ref<'_>) -> Result<Self::Owned> {
