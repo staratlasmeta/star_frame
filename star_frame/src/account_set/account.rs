@@ -202,6 +202,16 @@ pub mod discriminant {
             unsafe { T::get_mut(data) }
         }
 
+        #[inline]
+        fn data_len(m: &Self::Mut<'_>) -> usize {
+            T::data_len(m)
+        }
+
+        #[inline]
+        fn start_ptr(m: &Self::Mut<'_>) -> *mut () {
+            T::start_ptr(m)
+        }
+
         fn owned(mut data: &[u8]) -> Result<Self::Owned> {
             data.try_advance(size_of::<OwnerProgramDiscriminant<T>>())
                 .with_context(|| {

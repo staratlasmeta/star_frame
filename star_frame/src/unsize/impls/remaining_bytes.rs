@@ -1,7 +1,7 @@
 use crate::align1::Align1;
 use crate::unsize::init::{DefaultInit, UnsizedInit};
 use crate::unsize::wrapper::ExclusiveRecurse;
-use crate::unsize::{AsShared, FromOwned, RawSliceAdvance, UnsizedType};
+use crate::unsize::{AsShared, FromOwned, RawSliceAdvance, UnsizedType, UnsizedTypeMut};
 use crate::Result;
 use advancer::Advance;
 use anyhow::bail;
@@ -68,6 +68,10 @@ impl AsShared for RemainingBytesMut<'_> {
     }
 }
 
+unsafe impl UnsizedTypeMut for RemainingBytesMut<'_> {
+    type UnsizedType = RemainingBytes;
+}
+
 unsafe impl UnsizedType for RemainingBytes {
     type Ref<'a> = RemainingBytesRef<'a>;
     type Mut<'a> = RemainingBytesMut<'a>;
@@ -104,6 +108,16 @@ unsafe impl UnsizedType for RemainingBytes {
             )
         })?;
         Ok(RemainingBytesMut(remaining_bytes as _, PhantomData))
+    }
+
+    #[inline]
+    fn data_len(m: &Self::Mut<'_>) -> usize {
+        m.len()
+    }
+
+    #[inline]
+    fn start_ptr(m: &Self::Mut<'_>) -> *mut () {
+        m.0.cast::<()>()
     }
 
     fn owned_from_ref(r: &Self::Ref<'_>) -> Result<Self::Owned> {

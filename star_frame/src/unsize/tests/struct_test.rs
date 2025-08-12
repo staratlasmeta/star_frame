@@ -80,15 +80,17 @@ fn test_unsized_test() -> Result<()> {
     drop(item); // ensure drop works properly still
     let mut some_item = banana.unsized2();
     some_item.push(204.into())?;
+    let unsized3 = UnsizedTest3Owned {
+        unsized3: [150, 151, 152, 153, 154].map(Into::into).to_vec(),
+        unsized_map: [(1u8, vec![1, 2, 3, 4, 5, 6])].into_iter().collect(),
+    };
+    banana.unsized3().set_from_owned(unsized3.clone())?;
     drop(banana);
 
     let expected = UnsizedTestOwned {
         unsized1: [100, 101, 102, 103].map(Into::into).to_vec(),
         unsized2: [200, 201, 202, 203, 204].map(Into::into).to_vec(),
-        unsized3: UnsizedTest3Owned {
-            unsized3: [150, 151, 152, 153].map(Into::into).to_vec(),
-            unsized_map: Default::default(),
-        },
+        unsized3,
         map: Default::default(),
         map2: std::iter::once((
             1,

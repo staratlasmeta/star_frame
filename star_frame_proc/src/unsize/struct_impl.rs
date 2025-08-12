@@ -61,6 +61,8 @@ pub(crate) fn unsized_type_struct_impl(
     // println!("After as_shared_impl!");
     let from_owned_impl = context.from_owned_impl();
     // println!("After from_owned_impl!");
+    let unsized_type_mut_impl = context.unsized_type_mut_impl();
+    // println!("After unsized_type_mut_impl!");
     let unsized_type_impl = context.unsized_type_impl();
     // println!("After unsized_type_impl!");
     let default_init_impl = context.unsized_init_default_impl();
@@ -83,6 +85,7 @@ pub(crate) fn unsized_type_struct_impl(
         #ref_mut_derefs
         #as_shared_impl
         #from_owned_impl
+        #unsized_type_mut_impl
         #unsized_type_impl
         #default_init_impl
         #init_struct_impl
@@ -704,6 +707,18 @@ impl UnsizedStructContext {
         })
     }
 
+    fn unsized_type_mut_impl(&self) -> TokenStream {
+        Paths!(prelude);
+        UnsizedStructContext!(self => mut_type, struct_type);
+        let (impl_gen, _, where_clause) = self.ref_mut_generics.split_for_impl();
+        quote! {
+            #[automatically_derived]
+            unsafe impl #impl_gen #prelude::UnsizedTypeMut for #mut_type #where_clause {
+                type UnsizedType = #struct_type;
+            }
+        }
+    }
+
     fn unsized_type_impl(&self) -> TokenStream {
         Paths!(prelude, result);
         UnsizedStructContext!(self => ref_type, sized_field_idents, struct_type, top_lt,
@@ -733,6 +748,8 @@ impl UnsizedStructContext {
         });
 
         let mut_lt = new_lifetime(&self.generics, Some("m"));
+        let first_field_ident = with_sized_idents.first().expect("self should have fields");
+        let first_field_type = with_sized_types.first().expect("self should have fields");
 
         quote! {
             #[automatically_derived]
@@ -770,6 +787,19 @@ impl UnsizedStructContext {
                     Ok(#mut_ident {
                         #(#with_sized_idents: unsafe {<#with_sized_types as #prelude::UnsizedType>::get_mut(data)? },)*
                     })
+                }
+
+                #[inline]
+                fn data_len(m: &Self::Mut<'_>) -> usize {
+                    #(
+                        <#with_sized_types as #prelude::UnsizedType>::data_len(&m.#with_sized_idents) +
+                    )*
+                    0
+                }
+
+                #[inline]
+                fn start_ptr(m: &Self::Mut<'_>) -> *mut () {
+                    <#first_field_type as #prelude::UnsizedType>::start_ptr(&m.#first_field_ident)
                 }
 
                 fn owned_from_ref(r: &Self::Ref<'_>) -> #result<Self::Owned> {

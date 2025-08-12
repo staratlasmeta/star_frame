@@ -20,13 +20,19 @@ pub trait AsShared {
     fn as_shared(&self) -> Self::Ref<'_>;
 }
 
-pub type UnsizedTypeMut<'a, T> = <T as UnsizedType>::Mut<'a>;
+/// A helper trait that connects an [`UnsizedType::Mut`] to its parent [`UnsizedType`].
+///
+/// # Safety
+/// The `UnsizedType` should almost always be the same as the `UnsizedTypeMut`'s parent
+pub unsafe trait UnsizedTypeMut {
+    type UnsizedType: UnsizedType + ?Sized;
+}
 
 /// # Safety
 /// Neither the `Ref` or `Mut` types should be allowed to Copy themselves from behind a reference. They definitely should not implement `Copy` or `Clone` as a result.
 pub unsafe trait UnsizedType: 'static {
     type Ref<'a>: AsShared<Ref<'a> = Self::Ref<'a>>;
-    type Mut<'a>: AsShared<Ref<'a> = Self::Ref<'a>>;
+    type Mut<'a>: AsShared<Ref<'a> = Self::Ref<'a>> + UnsizedTypeMut;
 
     type Owned;
 
@@ -49,6 +55,12 @@ pub unsafe trait UnsizedType: 'static {
     ///
     /// This implementation should probably be correct as well. TODO: check if unsafe code relies on this being correct.
     unsafe fn get_mut<'a>(data: &mut *mut [u8]) -> Result<Self::Mut<'a>>;
+
+    /// Gets the pointer to the start of the data for Self
+    fn start_ptr(m: &Self::Mut<'_>) -> *mut ();
+
+    /// Gets the length of data that Self occupies
+    fn data_len(m: &Self::Mut<'_>) -> usize;
 
     fn owned(mut data: &[u8]) -> Result<Self::Owned> {
         let data = &mut data;
