@@ -21,7 +21,7 @@ jobs:
     runs-on: warp-ubuntu-latest-x64-32x
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Rust toolchain
         uses: actions-rust-lang/setup-rust-toolchain@v1
