@@ -695,7 +695,7 @@ where
 
     #[inline]
     fn start_ptr(m: &Self::Mut<'_>) -> *mut () {
-        m.list_ptr.cast()
+m.list_ptr.cast::<()>()
     }
 
     fn owned_from_ref(r: &Self::Ref<'_>) -> Result<Self::Owned> {
