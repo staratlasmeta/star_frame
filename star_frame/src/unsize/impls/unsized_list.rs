@@ -3,7 +3,7 @@ use crate::data_types::PackedValue;
 use crate::prelude::ExclusiveWrapper;
 use crate::unsize::init::{DefaultInit, UnsizedInit};
 use crate::unsize::wrapper::ExclusiveRecurse;
-use crate::unsize::{unsized_impl, AsShared, RawSliceAdvance};
+use crate::unsize::{unsized_impl, AsShared, RawSliceAdvance, UnsizedTypeMut};
 use crate::unsize::{FromOwned, UnsizedType};
 use crate::Result;
 use advancer::{Advance, AdvanceArray};
@@ -525,6 +525,14 @@ where
     }
 }
 
+unsafe impl<T, C> UnsizedTypeMut for UnsizedListMut<'_, T, C>
+where
+    T: UnsizedType + ?Sized,
+    C: UnsizedListOffset,
+{
+    type UnsizedType = UnsizedList<T, C>;
+}
+
 unsafe impl<T, C> UnsizedType for UnsizedList<T, C>
 where
     T: UnsizedType + ?Sized,
@@ -678,6 +686,16 @@ where
             inner_initialized: false,
             phantom: PhantomData,
         })
+    }
+
+    #[inline]
+    fn data_len(m: &Self::Mut<'_>) -> usize {
+        m.total_byte_size()
+    }
+
+    #[inline]
+    fn start_ptr(m: &Self::Mut<'_>) -> *mut () {
+        m.list_ptr.cast()
     }
 
     fn owned_from_ref(r: &Self::Ref<'_>) -> Result<Self::Owned> {

@@ -1,5 +1,6 @@
 use super::{AsShared, UnsizedType};
 use crate::prelude::{SingleAccountSet, UnsizedInit};
+use crate::unsize::{FromOwned, UnsizedTypeMut};
 use crate::Result;
 use anyhow::ensure;
 use core::ptr;
@@ -10,7 +11,7 @@ use std::cmp::Ordering;
 use std::collections::Bound;
 use std::convert::Infallible;
 use std::marker::PhantomData;
-use std::ops::{AddAssign, Deref, DerefMut, RangeBounds, SubAssign};
+use std::ops::{Deref, DerefMut, RangeBounds};
 
 /// # Safety
 /// [`UnsizedTypeDataAccess::unsized_data_realloc`] must properly check the new length of the underlying data pointer.
@@ -453,15 +454,14 @@ where
 
 #[derive(Debug, Deref, DerefMut)]
 #[repr(C)]
-pub struct LengthTracker<T> {
+pub struct StartPointer<T> {
     #[deref]
     #[deref_mut]
     pub data: T,
     start: *mut (),
-    len: usize,
 }
 
-impl<T> AsShared for LengthTracker<T>
+impl<T> AsShared for StartPointer<T>
 where
     T: AsShared,
 {
@@ -474,92 +474,107 @@ where
     }
 }
 
-impl<T> LengthTracker<T> {
-    /// # Safety
-    /// todo
-    pub unsafe fn new(data: T, start: *mut (), len: usize) -> Self {
-        Self { data, start, len }
+unsafe impl<T> UnsizedTypeMut for StartPointer<T>
+where
+    T: UnsizedTypeMut,
+{
+    type UnsizedType = T::UnsizedType;
+}
+
+impl<T> StartPointer<T> {
+    pub fn start_ptr(this: &Self) -> *mut () {
+        this.start
     }
 
     /// # Safety
     /// todo
-    pub unsafe fn handle_resize_notification(
-        s: &mut Self,
-        source_ptr: *const (),
-        change: isize,
-        zst_status: bool,
-    ) {
+    pub unsafe fn new(data: T, start: *mut ()) -> Self {
+        Self { data, start }
+    }
+
+    /// # Safety
+    /// todo
+    pub unsafe fn handle_resize_notification(s: &mut Self, source_ptr: *const (), change: isize) {
         if source_ptr < s.start {
             s.start = s.start.wrapping_byte_offset(change);
-        }
-        // if we are a ZST (ZST_STATUS is false), if changes aren't happening before us, they must be within us since we are the last field.
-        else if !zst_status || source_ptr < s.start.wrapping_byte_add(s.len) {
-            match change.cmp(&0) {
-                Ordering::Less => {
-                    s.len.sub_assign(change.unsigned_abs());
-                }
-                Ordering::Equal => {}
-                Ordering::Greater => {
-                    s.len.add_assign(change.unsigned_abs());
-                }
-            }
         }
     }
 }
 
-impl<'top, Mut, P> ExclusiveWrapper<'_, 'top, LengthTracker<Mut>, P>
+impl<'top, Mut, P, U> ExclusiveWrapper<'_, 'top, Mut, P>
 where
     Self: ExclusiveRecurse,
+    U: ?Sized + UnsizedType<Mut<'top> = Mut>,
+    Mut: UnsizedTypeMut<UnsizedType = U>,
 {
-    /// # Safety
-    // TODO: I think it might be safe since we're relying on the UnsizedType implementation to be correct.
-    pub unsafe fn set_length_tracker_data<U, I>(wrapper: &mut Self, init_arg: I) -> Result<()>
-    where
-        U: UnsizedType<Mut<'top> = LengthTracker<Mut>> + UnsizedInit<I> + ?Sized,
-    {
-        let new_len = <U as UnsizedInit<I>>::INIT_BYTES;
-        let current_len = wrapper.len;
+    #[inline]
+    fn set_data_inner<I>(
+        &mut self,
+        arg: I,
+        new_len: usize,
+        initialize: impl FnOnce(&mut &mut [u8], I) -> Result<()>,
+    ) -> Result<()> {
+        let current_len = <U as UnsizedType>::data_len(self);
+        let start_ptr = <U as UnsizedType>::start_ptr(self);
 
         match current_len.cmp(&new_len) {
             Ordering::Less => {
                 // TODO: might be safe
-                unsafe {
-                    Self::add_bytes(wrapper, wrapper.start, wrapper.start, new_len - current_len)
-                }?;
+                unsafe { Self::add_bytes(self, start_ptr, start_ptr, new_len - current_len) }?;
             }
             Ordering::Equal => {}
             Ordering::Greater => {
                 // TODO: might be safe
                 unsafe {
                     Self::remove_bytes(
-                        wrapper,
-                        wrapper.start,
-                        wrapper.start..wrapper.start.wrapping_byte_add(current_len - new_len),
+                        self,
+                        start_ptr,
+                        start_ptr..start_ptr.wrapping_byte_add(current_len - new_len),
                     )
                 }?;
             }
         }
-        **wrapper = {
+        **self = {
             // SAFETY:
             // We have exclusive access to the wrapper, so no external references to the underlying data exist.
             // No other references exist in this function either. We can assume the StartPointer is valid since it was created by the UnsizedType implementation.
-            let mut slice_ptr: *mut [u8] =
-                ptr_meta::from_raw_parts_mut(wrapper.start.cast::<()>(), new_len);
+            let mut slice_ptr: *mut [u8] = ptr_meta::from_raw_parts_mut(start_ptr, new_len);
             {
                 // SAFETY:
                 // we just made the slice pointer. No one else has access to the data, so we can dereference it as we please.
                 let mut slice = unsafe { &mut *slice_ptr };
-                // TODO: this is probably safe
-                unsafe { <U as UnsizedInit<I>>::init(&mut slice, init_arg)? };
+                initialize(&mut slice, arg)?;
             }
             // SAFETY:
             // The underlying data is valid for 'top, and we just created the slice so it's length is valid.
             // We just resizd the underlying data to be enough for `len`
             let res: U::Mut<'top> = unsafe { U::get_mut(&mut slice_ptr)? };
-            debug_assert_eq!(res.len, new_len);
-            debug_assert_eq!(res.start, wrapper.start);
+            debug_assert_eq!(<U as UnsizedType>::data_len(&res), new_len);
+            debug_assert_eq!(<U as UnsizedType>::start_ptr(&res), start_ptr);
             res
         };
         Ok(())
+    }
+
+    pub fn set_from_init<I>(&mut self, init_arg: I) -> Result<()>
+    where
+        U: UnsizedInit<I>,
+    {
+        Self::set_data_inner(
+            self,
+            init_arg,
+            <U as UnsizedInit<I>>::INIT_BYTES,
+            |slice, arg| unsafe { <U as UnsizedInit<I>>::init(slice, arg) },
+        )
+    }
+
+    pub fn set_from_owned(&mut self, owned: U::Owned) -> Result<()>
+    where
+        U: FromOwned,
+    {
+        let new_len = U::byte_size(&owned);
+        Self::set_data_inner(self, owned, new_len, |slice, owned| {
+            U::from_owned(owned, slice).map(|_| ())
+        })
     }
 }

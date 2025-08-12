@@ -1,5 +1,5 @@
 use crate::unsize::init::{DefaultInit, DefaultInitable, UnsizedInit};
-use crate::unsize::{AsShared, FromOwned, RawSliceAdvance, UnsizedType};
+use crate::unsize::{AsShared, FromOwned, RawSliceAdvance, UnsizedType, UnsizedTypeMut};
 use crate::{align1::Align1, Result};
 use advancer::Advance;
 use anyhow::Context;
@@ -76,6 +76,10 @@ where
     }
 }
 
+unsafe impl<T: CheckedBitPattern + NoUninit + Align1> UnsizedTypeMut for CheckedMut<'_, T> {
+    type UnsizedType = T;
+}
+
 unsafe impl<T> UnsizedType for T
 where
     T: CheckedBitPattern + NoUninit + Align1,
@@ -117,6 +121,16 @@ where
 
         checked::try_from_bytes::<T>(unsafe { &*sized })?;
         Ok(CheckedMut(sized.cast(), PhantomData))
+    }
+
+    #[inline]
+    fn data_len(_m: &Self::Mut<'_>) -> usize {
+        size_of::<T>()
+    }
+
+    #[inline]
+    fn start_ptr(m: &Self::Mut<'_>) -> *mut () {
+        m.0.cast()
     }
 
     fn owned_from_ref(r: &Self::Ref<'_>) -> Result<Self::Owned> {

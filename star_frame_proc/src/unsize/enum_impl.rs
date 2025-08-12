@@ -40,6 +40,7 @@ pub(crate) fn unsized_type_enum_impl(
     let mut_enum = context.mut_enum();
     let as_shared_impl = context.as_shared_impl();
     let from_owned_impl = context.from_owned_impl();
+    let unsized_type_mut_impl = context.unsized_type_mut_impl();
     let unsized_type_impl = context.unsized_type_impl();
     let unsized_init_default_impl = context.unsized_init_default_impl();
     let unsized_init_struct_impls = context.unsized_init_struct_impl();
@@ -54,6 +55,7 @@ pub(crate) fn unsized_type_enum_impl(
         #mut_enum
         #as_shared_impl
         #from_owned_impl
+        #unsized_type_mut_impl
         #unsized_type_impl
         #unsized_init_default_impl
         #unsized_init_struct_impls
@@ -462,6 +464,19 @@ impl UnsizedEnumContext {
         })
     }
 
+    fn unsized_type_mut_impl(&self) -> TokenStream {
+        Paths!(prelude);
+        UnsizedEnumContext!(self => enum_type, mut_type);
+        let (impl_gen, _, where_clause) = self.ref_mut_generics.split_for_impl();
+
+        quote! {
+            #[automatically_derived]
+            unsafe impl #impl_gen #prelude::UnsizedTypeMut for #mut_type #where_clause {
+                type UnsizedType = #enum_type;
+            }
+        }
+    }
+
     fn unsized_type_impl(&self) -> TokenStream {
         Paths!(prelude, result, size_of);
         UnsizedEnumContext!(self => ref_type, top_lt,
@@ -530,11 +545,20 @@ impl UnsizedEnumContext {
             }
         }, |_| quote!(Ok(())));
 
+        let variant_data_len = self.map_variants(
+            |_, variant_type| {
+                quote! {
+                    <#variant_type as #prelude::UnsizedType>::data_len(inner)
+                }
+            },
+            |_| quote!(0),
+        );
+
         quote! {
             #[automatically_derived]
             unsafe impl #impl_gen #prelude::UnsizedType for #enum_type #where_clause {
                 type Ref<#top_lt> = #ref_type;
-                type Mut<#top_lt> = #prelude::LengthTracker<#mut_type>;
+                type Mut<#top_lt> = #prelude::StartPointer<#mut_type>;
                 type Owned = #owned_type;
 
                 const ZST_STATUS: bool = {
@@ -585,8 +609,19 @@ impl UnsizedEnumContext {
                         )*
                         _ => #prelude::bail!("Invalid enum discriminant for {}", #prelude::type_name::<#enum_type>()),
                     };
-                    let length = data.addr() - start_ptr.addr();
-                    Ok(unsafe { #prelude::LengthTracker::new(res, start_ptr, length) })
+                    Ok(unsafe { #prelude::StartPointer::new(res, start_ptr) })
+                }
+
+                fn start_ptr(m: &Self::Mut<'_>) -> *mut () {
+                    #prelude::StartPointer::start_ptr(m)
+                }
+
+                fn data_len(m: &Self::Mut<'_>) -> usize {
+                    #size_of::<#integer_repr>() + match &m.data {
+                        #(
+                            #mut_ident::#variant_matches => #variant_data_len,
+                        )*
+                    }
                 }
 
                 fn owned_from_ref(r: &Self::Ref<'_>) -> #result<Self::Owned> {
@@ -595,7 +630,7 @@ impl UnsizedEnumContext {
 
                 unsafe fn resize_notification(self_mut: &mut Self::Mut<'_>, source_ptr: *const (), change: isize) -> #result<()> {
                     unsafe {
-                        Self::Mut::handle_resize_notification(self_mut, source_ptr, change, <#enum_type as #prelude::UnsizedType>::ZST_STATUS);
+                        Self::Mut::handle_resize_notification(self_mut, source_ptr, change);
                     }
                     match &mut self_mut.data {
                         #(
@@ -797,7 +832,7 @@ impl UnsizedEnumContext {
         let ext_impl_trait_generics = combine_gen!(ext_trait_generics;
             where
                 Self: #prelude::ExclusiveRecurse + #sized,
-                #enum_type: #prelude::UnsizedType<Mut<'top> = #prelude::LengthTracker<#mut_type>>
+                #enum_type: #prelude::UnsizedType<Mut<'top> = #prelude::StartPointer<#mut_type>>
         );
         let impl_wc = ext_impl_trait_generics.split_for_impl().2;
 
@@ -845,7 +880,7 @@ impl UnsizedEnumContext {
 
                 quote! {
                     unsafe {
-                        Self::set_length_tracker_data::<#enum_type, _>(
+                        Self::set_from_init(
                             self,
                             #init_ident(init)
                         )?;
@@ -864,12 +899,10 @@ impl UnsizedEnumContext {
             |variant_ident| {
                 let init_ident = self.init_ident(variant_ident);
                 quote! {
-                    unsafe {
-                        Self::set_length_tracker_data::<#enum_type, _>(
-                            self,
-                            #init_ident
-                        )
-                    }
+                    Self::set_from_init(
+                        self,
+                        #init_ident
+                    )
                 }
             },
         );
