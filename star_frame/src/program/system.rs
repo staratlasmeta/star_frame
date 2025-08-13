@@ -51,7 +51,7 @@ pub enum SystemInstructionSet {
 
 // CreateAccount
 /// See [`solana_system_interface::instruction::SystemInstruction::CreateAccount`].
-#[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, BorshDeserialize, BorshSerialize, InstructionArgs)]
 #[instruction_to_idl(program = System)]
 pub struct CreateAccount {
     pub lamports: u64,
@@ -68,7 +68,7 @@ empty_star_frame_instruction!(CreateAccount, CreateAccountAccounts);
 
 // Assign
 /// See [`solana_system_interface::instruction::SystemInstruction::Assign`].
-#[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, BorshDeserialize, BorshSerialize, InstructionArgs)]
 #[instruction_to_idl(program = System)]
 pub struct Assign {
     pub owner: Pubkey,
@@ -82,7 +82,7 @@ empty_star_frame_instruction!(Assign, AssignAccounts);
 
 // Transfer
 /// See [`solana_system_interface::instruction::SystemInstruction::Transfer`].
-#[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionArgs, BorshDeserialize, BorshSerialize)]
 #[instruction_to_idl(program = System)]
 pub struct Transfer {
     pub lamports: u64,
@@ -97,7 +97,7 @@ empty_star_frame_instruction!(Transfer, TransferAccounts);
 
 // AdvanceNonceAccount
 /// See [`solana_system_interface::instruction::SystemInstruction::AdvanceNonceAccount`].
-#[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionArgs, BorshDeserialize, BorshSerialize)]
 #[instruction_to_idl(program = System)]
 pub struct AdvanceNonceAccount;
 /// Accounts for the [`AdvanceNonceAccount`] instruction.
@@ -117,7 +117,7 @@ empty_star_frame_instruction!(AdvanceNonceAccount, AdvanceNonceAccountAccounts);
 
 // WithdrawNonceAccount
 /// See [`solana_system_interface::instruction::SystemInstruction::WithdrawNonceAccount`].
-#[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionArgs, BorshDeserialize, BorshSerialize)]
 #[instruction_to_idl(program = System)]
 pub struct WithdrawNonceAccount(pub u64);
 #[allow(deprecated)]
@@ -139,7 +139,7 @@ empty_star_frame_instruction!(WithdrawNonceAccount, WithdrawNonceAccountAccounts
 
 // InitializeNonceAccount
 /// See [`solana_system_interface::instruction::SystemInstruction::InitializeNonceAccount`].
-#[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionArgs, BorshDeserialize, BorshSerialize)]
 #[instruction_to_idl(program = System)]
 pub struct InitializeNonceAccount(pub Pubkey);
 #[allow(deprecated)]
@@ -159,7 +159,7 @@ empty_star_frame_instruction!(InitializeNonceAccount, InitializeNonceAccountAcco
 
 // AuthorizeNonceAccount
 /// See [`solana_system_interface::instruction::SystemInstruction::AuthorizeNonceAccount`].
-#[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionArgs, BorshDeserialize, BorshSerialize)]
 #[instruction_to_idl(program = System)]
 pub struct AuthorizeNonceAccount(pub Pubkey);
 /// Accounts for the [`AuthorizeNonceAccount`] instruction.
@@ -172,7 +172,7 @@ empty_star_frame_instruction!(AuthorizeNonceAccount, AuthorizeNonceAccountAccoun
 
 // Allocate
 /// See [`solana_system_interface::instruction::SystemInstruction::Allocate`].
-#[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionArgs, BorshDeserialize, BorshSerialize)]
 #[instruction_to_idl(program = System)]
 pub struct Allocate {
     pub space: u64,
@@ -186,7 +186,7 @@ empty_star_frame_instruction!(Allocate, AllocateAccounts);
 
 // UpgradeNonceAccount
 /// See [`solana_system_interface::instruction::SystemInstruction::UpgradeNonceAccount`].
-#[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionArgs, BorshDeserialize, BorshSerialize)]
 #[instruction_to_idl(program = System)]
 pub struct UpgradeNonceAccount;
 /// Accounts for the [`UpgradeNonceAccount`] instruction.

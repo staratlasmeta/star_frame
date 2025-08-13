@@ -174,7 +174,7 @@ impl StarFrameInstruction for CountIx {
     }
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Debug, InstructionToIdl)]
+#[derive(BorshSerialize, BorshDeserialize, Debug, InstructionArgs)]
 pub struct CloseCounterIx;
 
 #[derive(AccountSet, Debug)]

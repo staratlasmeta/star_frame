@@ -2,12 +2,12 @@ use derive_more::Debug;
 use easy_proc::{find_attr, ArgumentList};
 use proc_macro2::TokenStream;
 use proc_macro_error2::abort;
-use quote::{format_ident, quote};
+use quote::{quote, ToTokens as _};
 use syn::{
     parse::{Parse, ParseStream},
     parse_quote,
     punctuated::Punctuated,
-    DeriveInput, Expr, Ident, Lifetime, Token, Type,
+    DeriveInput, Expr, Ident, Index, Lifetime, Token, Type,
 };
 
 use crate::{
@@ -95,7 +95,7 @@ impl InstructionArg {
 #[derive(Copy, Clone)]
 enum AttributeType<'a> {
     Struct(&'a Ident),
-    Field(&'a Ident, &'a Type),
+    Field(&'a TokenStream, &'a Type),
 }
 
 type ArgInfo = (Type, Expr);
@@ -163,7 +163,11 @@ pub fn derive_instruction_args_impl(input: DeriveInput) -> TokenStream {
     handle_attrs(&input.attrs, AttributeType::Struct(&input.ident), &lt);
 
     for (i, field) in data_struct.fields.iter().enumerate() {
-        let ident = field.ident.clone().unwrap_or_else(|| format_ident!("{i}"));
+        let ident = field
+            .ident
+            .clone()
+            .map(|ident| ident.into_token_stream())
+            .unwrap_or_else(|| Index::from(i).into_token_stream());
         handle_attrs(&field.attrs, AttributeType::Field(&ident, &field.ty), &lt);
     }
 

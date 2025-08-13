@@ -143,7 +143,7 @@ pub mod instructions {
     // create
     /// See [`spl_associated_token_account::instruction::AssociatedTokenAccountInstruction::Create`].
     #[derive(
-        Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize,
+        Copy, Clone, Debug, Eq, PartialEq, InstructionArgs, BorshDeserialize, BorshSerialize,
     )]
     #[instruction_to_idl(program = AssociatedToken)]
     pub struct Create;
@@ -170,7 +170,7 @@ pub mod instructions {
     ///
     /// This instruction has an identical AccountSet to [`Create`].
     #[derive(
-        Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize,
+        Copy, Clone, Debug, Eq, PartialEq, InstructionArgs, BorshDeserialize, BorshSerialize,
     )]
     #[instruction_to_idl(program = AssociatedToken)]
     pub struct CreateIdempotent;
@@ -179,7 +179,7 @@ pub mod instructions {
     // recover nested
     /// See [`spl_associated_token_account::instruction::AssociatedTokenAccountInstruction::RecoverNested`].
     #[derive(
-        Copy, Clone, Debug, Eq, PartialEq, InstructionToIdl, BorshDeserialize, BorshSerialize,
+        Copy, Clone, Debug, Eq, PartialEq, InstructionArgs, BorshDeserialize, BorshSerialize,
     )]
     #[instruction_to_idl(program = AssociatedToken)]
     pub struct RecoverNested;

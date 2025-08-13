@@ -170,15 +170,6 @@ where
 #[macro_export]
 macro_rules! empty_star_frame_instruction {
     ($ix:ident, $accounts:ident) => {
-        impl $crate::instruction::InstructionArgs for $ix {
-            type DecodeArg<'a> = ();
-            type ValidateArg<'a> = ();
-            type RunArg<'a> = ();
-            type CleanupArg<'a> = ();
-            fn split_to_args(_r: &mut Self) -> $crate::instruction::IxArgs<'_, Self> {
-                Default::default()
-            }
-        }
         impl $crate::instruction::StarFrameInstruction for $ix {
             type ReturnType = ();
             type Accounts<'b, 'c> = $accounts;

@@ -3,6 +3,7 @@ use crate::account_set::{
 };
 use crate::client::{ClientAccountSet, CpiAccountSet};
 use crate::prelude::Context;
+use crate::prelude::*;
 use crate::Result;
 use pinocchio::account_info::AccountInfo;
 use solana_instruction::AccountMeta;
@@ -97,6 +98,61 @@ where
 {
     fn cleanup_accounts(&mut self, cleanup_input: CArg, ctx: &mut Context) -> Result<()> {
         T::cleanup_accounts(self, cleanup_input, ctx)
+    }
+}
+
+impl<T> SignedAccount for Box<T>
+where
+    T: SignedAccount,
+{
+    fn signer_seeds(&self) -> Option<Vec<&[u8]>> {
+        T::signer_seeds(self)
+    }
+}
+
+impl<T> WritableAccount for Box<T> where T: WritableAccount {}
+
+impl<T> HasInnerType for Box<T>
+where
+    T: HasInnerType,
+{
+    type Inner = T::Inner;
+}
+
+impl<T> HasOwnerProgram for Box<T>
+where
+    T: HasOwnerProgram,
+{
+    type OwnerProgram = T::OwnerProgram;
+}
+
+impl<T> HasSeeds for Box<T>
+where
+    T: HasSeeds,
+{
+    type Seeds = T::Seeds;
+}
+
+impl<T, A> CanInitSeeds<A> for Box<T>
+where
+    T: CanInitSeeds<A>,
+{
+    fn init_seeds(&mut self, arg: &A, ctx: &Context) -> Result<()> {
+        T::init_seeds(self, arg, ctx)
+    }
+}
+
+impl<T, A> CanInitAccount<A> for Box<T>
+where
+    T: CanInitAccount<A>,
+{
+    fn init_account<const IF_NEEDED: bool>(
+        &mut self,
+        arg: A,
+        account_seeds: Option<Vec<&[u8]>>,
+        ctx: &Context,
+    ) -> Result<()> {
+        T::init_account::<IF_NEEDED>(self, arg, account_seeds, ctx)
     }
 }
 
