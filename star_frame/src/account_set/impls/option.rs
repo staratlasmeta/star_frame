@@ -1,6 +1,6 @@
 use crate::account_set::{AccountSetCleanup, AccountSetDecode, AccountSetValidate};
 use crate::client::{ClientAccountSet, CpiAccountSet};
-use crate::prelude::{Context, SingleAccountSet};
+use crate::prelude::{CheckKey, Context, SingleAccountSet};
 use crate::Result;
 use advancer::Advance;
 use anyhow::Context as _;
@@ -114,6 +114,19 @@ where
     fn cleanup_accounts(&mut self, cleanup_input: CArg, ctx: &mut Context) -> Result<()> {
         if let Some(inner) = self {
             inner.cleanup_accounts(cleanup_input, ctx)
+        } else {
+            Ok(())
+        }
+    }
+}
+
+impl<T> CheckKey for Option<T>
+where
+    T: CheckKey,
+{
+    fn check_key(&self, key: &Pubkey) -> Result<()> {
+        if let Some(inner) = self {
+            inner.check_key(key)
         } else {
             Ok(())
         }
