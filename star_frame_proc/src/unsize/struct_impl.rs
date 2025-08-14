@@ -127,7 +127,6 @@ pub struct UnsizedStructContext {
     with_sized_idents: Vec<Ident>,
     with_sized_types: Vec<Type>,
     with_sized_vis: Vec<Visibility>,
-    with_sized_vis_pub: Vec<Visibility>,
     args: UnsizedTypeArgs,
 }
 
@@ -249,11 +248,9 @@ impl UnsizedStructContext {
             .chain(unsized_field_types.iter())
             .cloned()
             .collect_vec();
-        let mut with_sized_vis_pub = unsized_field_vis.clone();
         let mut with_sized_vis = unsized_field_vis.clone();
         sized_field_ident.is_some().then(|| {
-            with_sized_vis_pub.insert(0, parse_quote!(pub));
-            with_sized_vis.insert(0, Visibility::Inherited);
+            with_sized_vis.insert(0, vis.clone());
         });
 
         let generics = item_struct.generics.clone();
@@ -290,7 +287,6 @@ impl UnsizedStructContext {
             with_sized_idents,
             with_sized_types,
             with_sized_vis,
-            with_sized_vis_pub,
             args,
         }
     }
@@ -840,7 +836,7 @@ impl UnsizedStructContext {
 
     fn unsized_init_struct_impl(&self) -> TokenStream {
         Paths!(prelude, result, copy, clone, debug);
-        UnsizedStructContext!(self => vis, with_sized_types, with_sized_vis_pub, struct_type, struct_ident);
+        UnsizedStructContext!(self => vis, with_sized_types, with_sized_vis, struct_type, struct_ident);
 
         let init_struct_ident = format_ident!("{struct_ident}Init");
 
@@ -883,7 +879,7 @@ impl UnsizedStructContext {
         quote! {
             #[derive(#copy, #clone, #debug)]
             #vis struct #init_struct_ident #init_generics {
-                #(#with_sized_vis_pub #sized_with_unsized_idents: #init_generic_idents,)*
+                #(#with_sized_vis #sized_with_unsized_idents: #init_generic_idents,)*
             }
 
             #[allow(trivial_bounds)]
