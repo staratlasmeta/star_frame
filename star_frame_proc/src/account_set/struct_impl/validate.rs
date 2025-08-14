@@ -214,7 +214,7 @@ pub(super) fn validates(
             } else {
                 let address_check = validate_address.as_ref().map(|address| quote! {
                     #prelude::anyhow::Context::context(
-                        <#field_type as #prelude::SingleAccountSet>::check_key(&self.#field_name, #address),
+                        <#field_type as #prelude::CheckKey>::check_key(&self.#field_name, #address),
                         ::std::stringify!(#ident::#field_name(#id)),
                     )?;
                 });
