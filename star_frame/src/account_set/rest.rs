@@ -71,17 +71,14 @@ where
     T: AccountSetDecode<'a, A>,
     A: Clone,
 {
-    unsafe fn decode_accounts(
+    fn decode_accounts(
         accounts: &mut &'a [AccountInfo],
         decode_input: A,
         ctx: &mut Context,
     ) -> crate::Result<Self> {
         let mut out = vec![];
         while !accounts.is_empty() {
-            out.push(
-                // SAFETY: This function is unsafe too
-                unsafe { T::decode_accounts(accounts, decode_input.clone(), ctx)? },
-            );
+            out.push(T::decode_accounts(accounts, decode_input.clone(), ctx)?);
         }
         Ok(Self(out))
     }

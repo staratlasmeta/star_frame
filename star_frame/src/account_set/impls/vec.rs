@@ -63,15 +63,12 @@ impl<'a, T> AccountSetDecode<'a, usize> for Vec<T>
 where
     T: AccountSetDecode<'a, ()>,
 {
-    unsafe fn decode_accounts(
+    fn decode_accounts(
         accounts: &mut &'a [AccountInfo],
         len: usize,
         ctx: &mut Context,
     ) -> Result<Self> {
-        // SAFETY: This function is unsafe too
-        unsafe {
-            <Self as AccountSetDecode<'a, (usize, ())>>::decode_accounts(accounts, (len, ()), ctx)
-        }
+        <Self as AccountSetDecode<'a, (usize, ())>>::decode_accounts(accounts, (len, ()), ctx)
     }
 }
 impl<'a, T, TA> AccountSetDecode<'a, (usize, TA)> for Vec<T>
@@ -79,15 +76,14 @@ where
     T: AccountSetDecode<'a, TA>,
     TA: Clone,
 {
-    unsafe fn decode_accounts(
+    fn decode_accounts(
         accounts: &mut &'a [AccountInfo],
         (len, decode_input): (usize, TA),
         ctx: &mut Context,
     ) -> Result<Self> {
         let mut output = Self::with_capacity(len);
         for _ in 0..len {
-            // SAFETY: This function is unsafe too
-            output.push(unsafe { T::decode_accounts(accounts, decode_input.clone(), ctx) }?);
+            output.push(T::decode_accounts(accounts, decode_input.clone(), ctx)?);
         }
         Ok(output)
     }
@@ -96,17 +92,14 @@ impl<'a, T, TA, const N: usize> AccountSetDecode<'a, [TA; N]> for Vec<T>
 where
     T: AccountSetDecode<'a, TA>,
 {
-    unsafe fn decode_accounts(
+    fn decode_accounts(
         accounts: &mut &'a [AccountInfo],
         decode_input: [TA; N],
         ctx: &mut Context,
     ) -> Result<Self> {
         decode_input
             .into_iter()
-            .map(|input| {
-                // SAFETY: This function is unsafe too
-                unsafe { T::decode_accounts(accounts, input, ctx) }
-            })
+            .map(|input| T::decode_accounts(accounts, input, ctx))
             .collect()
     }
 }
@@ -114,17 +107,14 @@ impl<'a, 'b, T, TA, const N: usize> AccountSetDecode<'a, &'b [TA; N]> for Vec<T>
 where
     T: AccountSetDecode<'a, &'b TA>,
 {
-    unsafe fn decode_accounts(
+    fn decode_accounts(
         accounts: &mut &'a [AccountInfo],
         decode_input: &'b [TA; N],
         ctx: &mut Context,
     ) -> Result<Self> {
         decode_input
             .iter()
-            .map(|input| {
-                // SAFETY: This function is unsafe too
-                unsafe { T::decode_accounts(accounts, input, ctx) }
-            })
+            .map(|input| T::decode_accounts(accounts, input, ctx))
             .collect()
     }
 }
@@ -132,17 +122,14 @@ impl<'a, 'b, T, TA, const N: usize> AccountSetDecode<'a, &'b mut [TA; N]> for Ve
 where
     T: AccountSetDecode<'a, &'b mut TA>,
 {
-    unsafe fn decode_accounts(
+    fn decode_accounts(
         accounts: &mut &'a [AccountInfo],
         decode_input: &'b mut [TA; N],
         ctx: &mut Context,
     ) -> Result<Self> {
         decode_input
             .iter_mut()
-            .map(|input| {
-                // SAFETY: This function is unsafe too
-                unsafe { T::decode_accounts(accounts, input, ctx) }
-            })
+            .map(|input| T::decode_accounts(accounts, input, ctx))
             .collect()
     }
 }
@@ -151,7 +138,7 @@ where
     I: IntoIterator,
     T: AccountSetDecode<'a, I::Item>,
 {
-    unsafe fn decode_accounts(
+    fn decode_accounts(
         accounts: &mut &'a [AccountInfo],
         decode_input: (I,),
         ctx: &mut Context,
@@ -159,10 +146,7 @@ where
         decode_input
             .0
             .into_iter()
-            .map(|input| {
-                // SAFETY: This function is unsafe too
-                unsafe { T::decode_accounts(accounts, input, ctx) }
-            })
+            .map(|input| T::decode_accounts(accounts, input, ctx))
             .collect()
     }
 }

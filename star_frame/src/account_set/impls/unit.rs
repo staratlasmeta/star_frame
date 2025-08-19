@@ -42,7 +42,7 @@ impl ClientAccountSet for () {
 }
 
 impl<'a> AccountSetDecode<'a, ()> for () {
-    unsafe fn decode_accounts(
+    fn decode_accounts(
         _accounts: &mut &'a [AccountInfo],
         decode_input: (),
         _ctx: &mut Context,

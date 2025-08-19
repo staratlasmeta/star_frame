@@ -22,7 +22,7 @@ impl<'a, T> AccountSetDecode<'a, ()> for Program<T>
 where
     T: StarFrameProgram,
 {
-    unsafe fn decode_accounts(
+    fn decode_accounts(
         accounts: &mut &'a [AccountInfo],
         _decode_input: (),
         ctx: &mut Context,

@@ -147,7 +147,7 @@ impl SingleAccountSet for &AccountInfo {
     }
 }
 impl<'a> AccountSetDecode<'a, ()> for AccountInfo {
-    unsafe fn decode_accounts(
+    fn decode_accounts(
         accounts: &mut &'a [AccountInfo],
         _decode_input: (),
         _ctx: &mut Context,
@@ -159,7 +159,7 @@ impl<'a> AccountSetDecode<'a, ()> for AccountInfo {
     }
 }
 impl<'a> AccountSetDecode<'a, ()> for &'a AccountInfo {
-    unsafe fn decode_accounts(
+    fn decode_accounts(
         accounts: &mut &'a [AccountInfo],
         _decode_input: (),
         _ctx: &mut Context,

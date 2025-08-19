@@ -73,7 +73,7 @@ impl<'a, A, DArg> AccountSetDecode<'a, DArg> for Option<A>
 where
     A: AccountSetDecode<'a, DArg>,
 {
-    unsafe fn decode_accounts(
+    fn decode_accounts(
         accounts: &mut &'a [AccountInfo],
         decode_input: DArg,
         ctx: &mut Context,
@@ -86,10 +86,7 @@ where
                 .expect("There is at least one account skip Option<None>");
             Ok(None)
         } else {
-            // SAFETY: This function is unsafe too
-            Ok(Some(unsafe {
-                A::decode_accounts(accounts, decode_input, ctx)?
-            }))
+            Ok(Some(A::decode_accounts(accounts, decode_input, ctx)?))
         }
     }
 }
