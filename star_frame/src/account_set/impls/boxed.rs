@@ -73,13 +73,12 @@ impl<'a, T, DArg> AccountSetDecode<'a, DArg> for Box<T>
 where
     T: AccountSetDecode<'a, DArg>,
 {
-    unsafe fn decode_accounts(
+    fn decode_accounts(
         accounts: &mut &'a [AccountInfo],
         decode_input: DArg,
         ctx: &mut Context,
     ) -> Result<Self> {
-        // SAFETY: This function is unsafe too
-        unsafe { T::decode_accounts(accounts, decode_input, ctx).map(Box::new) }
+        T::decode_accounts(accounts, decode_input, ctx).map(Box::new)
     }
 }
 

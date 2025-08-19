@@ -63,16 +63,13 @@ impl<'a, A, const N: usize, DArg> AccountSetDecode<'a, [DArg; N]> for [A; N]
 where
     A: AccountSetDecode<'a, DArg>,
 {
-    unsafe fn decode_accounts(
+    fn decode_accounts(
         accounts: &mut &'a [AccountInfo],
         decode_input: [DArg; N],
         ctx: &mut Context,
     ) -> Result<Self> {
         let mut decode_input = decode_input.into_iter();
-        // SAFETY: This function is unsafe too
-        try_array_init(|_| unsafe {
-            A::decode_accounts(accounts, decode_input.next().unwrap(), ctx)
-        })
+        try_array_init(|_| A::decode_accounts(accounts, decode_input.next().unwrap(), ctx))
     }
 }
 impl<'a, A, const N: usize, DArg> AccountSetDecode<'a, (DArg,)> for [A; N]
@@ -80,26 +77,24 @@ where
     A: AccountSetDecode<'a, DArg>,
     DArg: Clone,
 {
-    unsafe fn decode_accounts(
+    fn decode_accounts(
         accounts: &mut &'a [AccountInfo],
         decode_input: (DArg,),
         ctx: &mut Context,
     ) -> Result<Self> {
-        // SAFETY: This function is unsafe too
-        try_array_init(|_| unsafe { A::decode_accounts(accounts, decode_input.0.clone(), ctx) })
+        try_array_init(|_| A::decode_accounts(accounts, decode_input.0.clone(), ctx))
     }
 }
 impl<'a, A, const N: usize> AccountSetDecode<'a, ()> for [A; N]
 where
     A: AccountSetDecode<'a, ()>,
 {
-    unsafe fn decode_accounts(
+    fn decode_accounts(
         accounts: &mut &'a [AccountInfo],
         decode_input: (),
         ctx: &mut Context,
     ) -> Result<Self> {
-        // SAFETY: This function is unsafe too
-        unsafe { Self::decode_accounts(accounts, (decode_input,), ctx) }
+        Self::decode_accounts(accounts, (decode_input,), ctx)
     }
 }
 

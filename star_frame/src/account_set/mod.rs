@@ -77,8 +77,7 @@ pub trait TryFromAccountsWithArgs<'a, D, V>:
         validate: V,
         ctx: &mut Context,
     ) -> Result<Self> {
-        // SAFETY: We are calling .validate_accounts() immediately after decoding
-        let mut set = unsafe { Self::decode_accounts(accounts, decode, ctx)? };
+        let mut set = Self::decode_accounts(accounts, decode, ctx)?;
         set.validate_accounts(validate, ctx)?;
         Ok(set)
     }
@@ -123,10 +122,7 @@ impl<'a, T> TryFromAccounts<'a> for T where T: TryFromAccountsWithArgs<'a, (), (
 /// Derivable via [`derive@AccountSet`].
 pub trait AccountSetDecode<'a, A>: Sized {
     /// Decode the accounts from `accounts` using `decode_input`.
-    ///
-    /// # Safety
-    /// The output has not been validated. Calls to this function should be followed by a call to [`AccountSetValidate::validate_accounts`], if applicable.
-    unsafe fn decode_accounts(
+    fn decode_accounts(
         accounts: &mut &'a [AccountInfo],
         decode_input: A,
         ctx: &mut Context,

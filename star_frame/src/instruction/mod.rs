@@ -144,11 +144,9 @@ where
             mut run,
             cleanup,
         } = Self::split_to_args(data);
-        // SAFETY: .validate_accounts is called after .decode_accounts
-        let mut account_set = unsafe {
+        let mut account_set =
             <Self as StarFrameInstruction>::Accounts::decode_accounts(&mut accounts, decode, ctx)
-        }
-        .context("Failed to decode accounts")?;
+                .context("Failed to decode accounts")?;
         account_set
             .validate_accounts(validate, ctx)
             .context("Failed to validate accounts")?;
