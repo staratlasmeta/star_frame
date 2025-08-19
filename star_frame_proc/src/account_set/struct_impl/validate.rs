@@ -203,7 +203,10 @@ pub(super) fn validates(
                     }
                 };
                 let funder = args.funder.then(|| {
-                    has_funder = has_funder.then(|| abort!(field_name, "Only one field can be marked as funder")).unwrap_or(true);
+                    if has_funder {
+                        abort!(field_name, "Only one field can be marked as funder");
+                    }
+                    has_funder = true;
                     quote! {
                         if ctx.get_funder().is_none() {
                             ctx.set_funder(Box::new(#clone::clone(&self.#field_name)));
@@ -211,7 +214,10 @@ pub(super) fn validates(
                     }
                 });
                 let recipient = args.recipient.then(|| {
-                    has_recipient = has_recipient.then(|| abort!(field_name, "Only one field can be marked as recipient")).unwrap_or(true);
+                    if has_recipient {
+                        abort!(field_name, "Only one field can be marked as recipient");
+                    }
+                    has_recipient = true;
                     quote! {
                         if ctx.get_recipient().is_none() {
                             ctx.set_recipient(#box_ty::new(#clone::clone(&self.#field_name)));
