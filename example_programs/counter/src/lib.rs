@@ -59,7 +59,7 @@ pub struct CreateCounterIx {
 
 #[derive(AccountSet)]
 pub struct CreateCounterAccounts {
-    #[account_set(funder)]
+    #[validate(funder)]
     pub funder: Signer<Mut<SystemAccount>>,
     pub owner: SystemAccount,
     #[validate(arg = (
@@ -181,7 +181,7 @@ pub struct CloseCounterIx;
 pub struct CloseCounterAccounts {
     #[validate(address = &self.counter.data()?.signer)]
     pub signer: Signer<SystemAccount>,
-    #[account_set(recipient)]
+    #[validate(recipient)]
     pub funds_to: Mut<SystemAccount>,
     #[cleanup(arg = CloseAccount(()))]
     pub counter: Mut<WrappedCounter>,

@@ -35,23 +35,6 @@ impl Parse for Requires {
 #[derive(ArgumentList, Debug, Clone, Default)]
 struct AccountSetFieldAttrs {
     skip: Option<TokenStream>,
-    #[argument(presence)]
-    funder: bool,
-    #[argument(presence)]
-    recipient: bool,
-}
-
-impl AccountSetFieldAttrs {
-    fn skip(&self) -> bool {
-        if self.skip.is_some() {
-            if self.funder || self.recipient {
-                abort!(self.skip, "Cannot use `skip` with `funder` or `recipient`");
-            }
-            true
-        } else {
-            false
-        }
-    }
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -63,7 +46,6 @@ pub struct StepInput<'a> {
     single_set_field: Option<&'a Field>,
     field_name: &'a [TokenStream],
     fields: &'a [&'a Field],
-    field_args: &'a [AccountSetFieldAttrs],
     field_type: &'a [&'a syn::Type],
 }
 
@@ -83,7 +65,7 @@ pub(super) fn derive_account_set_impl_struct(
     let filter_skip = |f: &&Field| -> bool {
         find_attr(&f.attrs, &paths.account_set_ident)
             .map(AccountSetFieldAttrs::parse_arguments)
-            .map(|args| !args.skip())
+            .map(|args| args.skip.is_none())
             .unwrap_or(true)
     };
 
@@ -529,15 +511,6 @@ pub(super) fn derive_account_set_impl_struct(
         })
         .collect::<Vec<_>>();
 
-    let field_args = fields
-        .iter()
-        .map(|field| {
-            find_attr(&field.attrs, &paths.account_set_ident)
-                .map(AccountSetFieldAttrs::parse_arguments)
-                .unwrap_or_default()
-        })
-        .collect::<Vec<_>>();
-
     let step_input = StepInput {
         paths: &paths,
         input: &input,
@@ -546,7 +519,6 @@ pub(super) fn derive_account_set_impl_struct(
         single_set_field: single_set_field.as_ref(),
         field_name: &field_name,
         fields: &fields,
-        field_args: &field_args,
         field_type: &field_type,
     };
 

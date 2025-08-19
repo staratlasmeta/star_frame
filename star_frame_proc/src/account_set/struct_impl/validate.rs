@@ -24,6 +24,10 @@ struct ValidateStructArgs {
 struct ValidateFieldArgs {
     id: Option<LitStr>,
     #[argument(presence)]
+    funder: bool,
+    #[argument(presence)]
+    recipient: bool,
+    #[argument(presence)]
     skip: bool,
     requires: Option<Requires>,
     arg: Option<Expr>,
@@ -41,7 +45,6 @@ pub(super) fn validates(
         single_set_field,
         field_name,
         fields,
-        field_args,
         field_type,
     }: StepInput,
 ) -> Vec<TokenStream> {
@@ -139,17 +142,6 @@ pub(super) fn validates(
 
         validate_type = validate_struct_args.arg.unwrap_or(validate_type);
 
-        let validate_args: Vec<(Expr, Type, Option<Expr>)> = relevant_field_validates
-            .iter()
-            .map(|f| {
-                if f.temp.is_some() && f.arg.is_none() {
-                    abort!(f.arg, "Cannot specify `temp` when `arg` is not specified");
-                }
-                (f.arg.clone().unwrap_or_else(|| default_validate_arg.clone()), f.arg_ty.clone().unwrap_or_else(|| syn::parse_quote!(_)), f.temp.clone())
-            }).collect();
-
-        let validate_addresses = relevant_field_validates.iter().map(|f| f.address.clone()).collect_vec();
-
         // Cycle detection
         let mut field_id_map = HashMap::new();
         let mut validates_dag = Dag::<_, _, u32>::new();
@@ -169,81 +161,69 @@ pub(super) fn validates(
         // set caches
         let mut has_funder = false;
         let mut has_recipient = false;
-        let caches = field_args.iter().zip(field_name.iter()).map(|(a, name)| {
-            let mut tokens = quote!();
-            if a.funder {
-                if has_funder {
-                    abort!(name, "Only one field can be marked as funder");
-                }
-                has_funder = true;
-                tokens.extend(quote! {
-                    if ctx.get_funder().is_none() {
-                        ctx.set_funder(Box::new(#clone::clone(&self.#name)));
-                    }
-                });
-            }
-            if a.recipient {
-                if has_recipient {
-                    abort!(name, "Only one field can be marked as recipient");
-                }
-                has_recipient = true;
-                tokens.extend(quote! {
-                    if ctx.get_recipient().is_none() {
-                        ctx.set_recipient(#box_ty::new(#clone::clone(&self.#name)));
-                    }
-                });
-            }
-            tokens
-        }).collect_vec();
-
-        // build requires
 
         // build the validate calls
         let validates = field_type.iter()
             .zip_eq(field_name.iter())
-            .zip_eq(validate_args.iter())
-            .zip_eq(validate_addresses.iter())
-            .zip_eq(relevant_field_validates.iter().map(|a| {
-                if a.skip && a.arg.is_some() {
-                    abort!(a.arg, "Cannot specify arg when skip is true");
+            .zip_eq(relevant_field_validates.iter())
+            .map(|((field_type, field_name), args)| {
+                if args.temp.is_some() && args.arg.is_none() {
+                    abort!(args.arg, "Cannot specify `temp` when `arg` is not specified");
                 }
-                a.skip
-            }))
-            .map(|((((field_type, field_name), (validate_arg, validate_ty, temp)), validate_address), skip)| if skip {
-                quote! {}
-            } else {
-                let address_check = validate_address.as_ref().map(|address| quote! {
-                    #prelude::anyhow::Context::context(
-                        <#field_type as #prelude::CheckKey>::check_key(&self.#field_name, #address),
-                        ::std::stringify!(#ident::#field_name(#id)),
-                    )?;
-                });
-                let temp = temp.as_ref().map(|temp| quote! {
-                    let temp = #temp;
-                });
-                quote! {
-                    {
-                        #address_check
-                        #temp
-                        let __arg = #validate_arg;
+                let validate = if args.skip {
+                    quote! {}
+                } else {
+                    let default_expr: Type = syn::parse_quote!(_);
+                    let validate_arg = args.arg.as_ref().unwrap_or(&default_validate_arg);
+                    let validate_ty = args.arg_ty.as_ref().unwrap_or(&default_expr);
+                    let temp = args.temp.as_ref();
+                    let address_check = args.address.as_ref().map(|address| quote! {
                         #prelude::anyhow::Context::context(
-                            #prelude::_account_set_validate_reverse::<#field_type, #validate_ty>(
-                                __arg,
-                                &mut self.#field_name,
-                                ctx
-                            ),
+                            <#field_type as #prelude::CheckKey>::check_key(&self.#field_name, #address),
                             ::std::stringify!(#ident::#field_name(#id)),
                         )?;
+                    });
+                    let temp = temp.as_ref().map(|temp| quote! {
+                        let temp = #temp;
+                    });
+                    quote! {
+                        {
+                            #address_check
+                            #temp
+                            let __arg = #validate_arg;
+                            #prelude::anyhow::Context::context(
+                                #prelude::_account_set_validate_reverse::<#field_type, #validate_ty>(
+                                    __arg,
+                                    &mut self.#field_name,
+                                    ctx
+                                ),
+                                ::std::stringify!(#ident::#field_name(#id)),
+                            )?;
+                        }
                     }
+                };
+                let funder = args.funder.then(|| {
+                    has_funder = has_funder.then(|| abort!(field_name, "Only one field can be marked as funder")).unwrap_or(true);
+                    quote! {
+                        if ctx.get_funder().is_none() {
+                            ctx.set_funder(Box::new(#clone::clone(&self.#field_name)));
+                        }
+                    }
+                });
+                let recipient = args.recipient.then(|| {
+                    has_recipient = has_recipient.then(|| abort!(field_name, "Only one field can be marked as recipient")).unwrap_or(true);
+                    quote! {
+                        if ctx.get_recipient().is_none() {
+                            ctx.set_recipient(#box_ty::new(#clone::clone(&self.#field_name)));
+                        }
+                    }
+                });
+                quote! {
+                    #validate
+                    #funder
+                    #recipient
                 }
-            });
-
-        let validates = validates.zip_eq(caches).map(|(validate, cache)| {
-            quote! {
-                #validate
-                #cache
-            }
-        }).collect_vec();
+            }).collect_vec();
 
         // Stores named validates in order
         let mut out: Vec<(TokenStream, String)> = Vec::new();
