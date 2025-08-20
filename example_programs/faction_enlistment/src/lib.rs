@@ -129,7 +129,7 @@ pub struct ProcessEnlistPlayer {
     #[cleanup(arg = NormalizeRent(()))]
     pub player_faction_account: Init<Seeded<Account<PlayerFactionData>>>,
     /// The player account
-    #[account_set(funder)]
+    #[validate(funder)]
     pub player_account: Mut<Signer<SystemAccount>>,
     /// Solana System program
     pub system_program: Program<System>,

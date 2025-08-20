@@ -28,7 +28,7 @@ use crate::state::{
 /// Accounts for managing market orders. Used in [`PlaceOrder`] and [`CancelOrders`] instructions.
 #[derive(AccountSet, Debug)]
 pub struct ManageOrderAccounts {
-    #[account_set(funder)]
+    #[validate(funder)]
     pub funder: Mut<Signer<SystemAccount>>,
     pub user: Signer<AccountInfo>,
     #[idl(arg = Seeds(FindMarketSeeds {

@@ -171,7 +171,7 @@ pub struct Unsized {
 pub struct AccountEmptyInit1;
 #[derive(AccountSet, Debug)]
 pub struct AccountEmptyInit1Accounts {
-    #[account_set(funder)]
+    #[validate(funder)]
     pub payer: Mut<Signer<SystemAccount>>,
     pub system_program: Program<System>,
     #[validate(arg = Create(()))]
@@ -183,7 +183,7 @@ empty_star_frame_instruction!(AccountEmptyInit1, AccountEmptyInit1Accounts);
 pub struct AccountEmptyInit2;
 #[derive(AccountSet, Debug)]
 pub struct AccountEmptyInit2Accounts {
-    #[account_set(funder)]
+    #[validate(funder)]
     pub payer: Mut<Signer<SystemAccount>>,
     pub system_program: Program<System>,
     #[validate(arg = Create(()))]
@@ -197,7 +197,7 @@ empty_star_frame_instruction!(AccountEmptyInit2, AccountEmptyInit2Accounts);
 pub struct AccountEmptyInit4;
 #[derive(AccountSet, Debug)]
 pub struct AccountEmptyInit4Accounts {
-    #[account_set(funder)]
+    #[validate(funder)]
     pub payer: Mut<Signer<SystemAccount>>,
     pub system_program: Program<System>,
     #[validate(arg = Create(()))]
@@ -215,7 +215,7 @@ empty_star_frame_instruction!(AccountEmptyInit4, AccountEmptyInit4Accounts);
 pub struct AccountEmptyInit8;
 #[derive(AccountSet, Debug)]
 pub struct AccountEmptyInit8Accounts {
-    #[account_set(funder)]
+    #[validate(funder)]
     pub payer: Mut<Signer<SystemAccount>>,
     pub system_program: Program<System>,
     #[validate(arg = Create(()))]
@@ -284,7 +284,7 @@ empty_star_frame_instruction!(AccountEmpty8, AccountEmpty8Accounts);
 pub struct AccountSizedInit1;
 #[derive(AccountSet, Debug)]
 pub struct AccountSizedInit1Accounts {
-    #[account_set(funder)]
+    #[validate(funder)]
     pub payer: Mut<Signer<SystemAccount>>,
     pub system_program: Program<System>,
     #[validate(arg = Create(()))]
@@ -296,7 +296,7 @@ empty_star_frame_instruction!(AccountSizedInit1, AccountSizedInit1Accounts);
 pub struct AccountSizedInit2;
 #[derive(AccountSet, Debug)]
 pub struct AccountSizedInit2Accounts {
-    #[account_set(funder)]
+    #[validate(funder)]
     pub payer: Mut<Signer<SystemAccount>>,
     pub system_program: Program<System>,
     #[validate(arg = Create(()))]
@@ -310,7 +310,7 @@ empty_star_frame_instruction!(AccountSizedInit2, AccountSizedInit2Accounts);
 pub struct AccountSizedInit4;
 #[derive(AccountSet, Debug)]
 pub struct AccountSizedInit4Accounts {
-    #[account_set(funder)]
+    #[validate(funder)]
     pub payer: Mut<Signer<SystemAccount>>,
     pub system_program: Program<System>,
     #[validate(arg = Create(()))]
@@ -328,7 +328,7 @@ empty_star_frame_instruction!(AccountSizedInit4, AccountSizedInit4Accounts);
 pub struct AccountSizedInit8;
 #[derive(AccountSet, Debug)]
 pub struct AccountSizedInit8Accounts {
-    #[account_set(funder)]
+    #[validate(funder)]
     pub payer: Mut<Signer<SystemAccount>>,
     pub system_program: Program<System>,
     #[validate(arg = Create(()))]
@@ -397,7 +397,7 @@ empty_star_frame_instruction!(AccountSized8, AccountSized8Accounts);
 pub struct AccountUnsizedInit1;
 #[derive(AccountSet, Debug)]
 pub struct AccountUnsizedInit1Accounts {
-    #[account_set(funder)]
+    #[validate(funder)]
     pub payer: Mut<Signer<SystemAccount>>,
     pub system_program: Program<System>,
     #[validate(arg = Create(()))]
@@ -409,7 +409,7 @@ empty_star_frame_instruction!(AccountUnsizedInit1, AccountUnsizedInit1Accounts);
 pub struct AccountUnsizedInit2;
 #[derive(AccountSet, Debug)]
 pub struct AccountUnsizedInit2Accounts {
-    #[account_set(funder)]
+    #[validate(funder)]
     pub payer: Mut<Signer<SystemAccount>>,
     pub system_program: Program<System>,
     #[validate(arg = Create(()))]
@@ -423,7 +423,7 @@ empty_star_frame_instruction!(AccountUnsizedInit2, AccountUnsizedInit2Accounts);
 pub struct AccountUnsizedInit4;
 #[derive(AccountSet, Debug)]
 pub struct AccountUnsizedInit4Accounts {
-    #[account_set(funder)]
+    #[validate(funder)]
     pub payer: Mut<Signer<SystemAccount>>,
     pub system_program: Program<System>,
     #[validate(arg = Create(()))]
@@ -441,7 +441,7 @@ empty_star_frame_instruction!(AccountUnsizedInit4, AccountUnsizedInit4Accounts);
 pub struct AccountUnsizedInit8;
 #[derive(AccountSet, Debug)]
 pub struct AccountUnsizedInit8Accounts {
-    #[account_set(funder)]
+    #[validate(funder)]
     pub payer: Mut<Signer<SystemAccount>>,
     pub system_program: Program<System>,
     #[validate(arg = Create(()))]
@@ -510,7 +510,7 @@ empty_star_frame_instruction!(AccountUnsized8, AccountUnsized8Accounts);
 pub struct BoxedAccountEmptyInit1;
 #[derive(AccountSet, Debug)]
 pub struct BoxedAccountEmptyInit1Accounts {
-    #[account_set(funder)]
+    #[validate(funder)]
     pub payer: Mut<Signer<SystemAccount>>,
     pub system_program: Program<System>,
     #[validate(arg = Create(()))]
@@ -522,7 +522,7 @@ empty_star_frame_instruction!(BoxedAccountEmptyInit1, BoxedAccountEmptyInit1Acco
 pub struct BoxedAccountEmptyInit2;
 #[derive(AccountSet, Debug)]
 pub struct BoxedAccountEmptyInit2Accounts {
-    #[account_set(funder)]
+    #[validate(funder)]
     pub payer: Mut<Signer<SystemAccount>>,
     pub system_program: Program<System>,
     #[validate(arg = Create(()))]
@@ -536,7 +536,7 @@ empty_star_frame_instruction!(BoxedAccountEmptyInit2, BoxedAccountEmptyInit2Acco
 pub struct BoxedAccountEmptyInit4;
 #[derive(AccountSet, Debug)]
 pub struct BoxedAccountEmptyInit4Accounts {
-    #[account_set(funder)]
+    #[validate(funder)]
     pub payer: Mut<Signer<SystemAccount>>,
     pub system_program: Program<System>,
     #[validate(arg = Create(()))]
@@ -554,7 +554,7 @@ empty_star_frame_instruction!(BoxedAccountEmptyInit4, BoxedAccountEmptyInit4Acco
 pub struct BoxedAccountEmptyInit8;
 #[derive(AccountSet, Debug)]
 pub struct BoxedAccountEmptyInit8Accounts {
-    #[account_set(funder)]
+    #[validate(funder)]
     pub payer: Mut<Signer<SystemAccount>>,
     pub system_program: Program<System>,
     #[validate(arg = Create(()))]
@@ -623,7 +623,7 @@ empty_star_frame_instruction!(BoxedAccountEmpty8, BoxedAccountEmpty8Accounts);
 pub struct BoxedAccountSizedInit1;
 #[derive(AccountSet, Debug)]
 pub struct BoxedAccountSizedInit1Accounts {
-    #[account_set(funder)]
+    #[validate(funder)]
     pub payer: Mut<Signer<SystemAccount>>,
     pub system_program: Program<System>,
     #[validate(arg = Create(()))]
@@ -635,7 +635,7 @@ empty_star_frame_instruction!(BoxedAccountSizedInit1, BoxedAccountSizedInit1Acco
 pub struct BoxedAccountSizedInit2;
 #[derive(AccountSet, Debug)]
 pub struct BoxedAccountSizedInit2Accounts {
-    #[account_set(funder)]
+    #[validate(funder)]
     pub payer: Mut<Signer<SystemAccount>>,
     pub system_program: Program<System>,
     #[validate(arg = Create(()))]
@@ -649,7 +649,7 @@ empty_star_frame_instruction!(BoxedAccountSizedInit2, BoxedAccountSizedInit2Acco
 pub struct BoxedAccountSizedInit4;
 #[derive(AccountSet, Debug)]
 pub struct BoxedAccountSizedInit4Accounts {
-    #[account_set(funder)]
+    #[validate(funder)]
     pub payer: Mut<Signer<SystemAccount>>,
     pub system_program: Program<System>,
     #[validate(arg = Create(()))]
@@ -667,7 +667,7 @@ empty_star_frame_instruction!(BoxedAccountSizedInit4, BoxedAccountSizedInit4Acco
 pub struct BoxedAccountSizedInit8;
 #[derive(AccountSet, Debug)]
 pub struct BoxedAccountSizedInit8Accounts {
-    #[account_set(funder)]
+    #[validate(funder)]
     pub payer: Mut<Signer<SystemAccount>>,
     pub system_program: Program<System>,
     #[validate(arg = Create(()))]
@@ -736,7 +736,7 @@ empty_star_frame_instruction!(BoxedAccountSized8, BoxedAccountSized8Accounts);
 pub struct BoxedAccountUnsizedInit1;
 #[derive(AccountSet, Debug)]
 pub struct BoxedAccountUnsizedInit1Accounts {
-    #[account_set(funder)]
+    #[validate(funder)]
     pub payer: Mut<Signer<SystemAccount>>,
     pub system_program: Program<System>,
     #[validate(arg = Create(()))]
@@ -748,7 +748,7 @@ empty_star_frame_instruction!(BoxedAccountUnsizedInit1, BoxedAccountUnsizedInit1
 pub struct BoxedAccountUnsizedInit2;
 #[derive(AccountSet, Debug)]
 pub struct BoxedAccountUnsizedInit2Accounts {
-    #[account_set(funder)]
+    #[validate(funder)]
     pub payer: Mut<Signer<SystemAccount>>,
     pub system_program: Program<System>,
     #[validate(arg = Create(()))]
@@ -762,7 +762,7 @@ empty_star_frame_instruction!(BoxedAccountUnsizedInit2, BoxedAccountUnsizedInit2
 pub struct BoxedAccountUnsizedInit4;
 #[derive(AccountSet, Debug)]
 pub struct BoxedAccountUnsizedInit4Accounts {
-    #[account_set(funder)]
+    #[validate(funder)]
     pub payer: Mut<Signer<SystemAccount>>,
     pub system_program: Program<System>,
     #[validate(arg = Create(()))]
@@ -780,7 +780,7 @@ empty_star_frame_instruction!(BoxedAccountUnsizedInit4, BoxedAccountUnsizedInit4
 pub struct BoxedAccountUnsizedInit8;
 #[derive(AccountSet, Debug)]
 pub struct BoxedAccountUnsizedInit8Accounts {
-    #[account_set(funder)]
+    #[validate(funder)]
     pub payer: Mut<Signer<SystemAccount>>,
     pub system_program: Program<System>,
     #[validate(arg = Create(()))]

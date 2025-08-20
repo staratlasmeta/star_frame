@@ -16,7 +16,7 @@ pub struct Initialize;
 
 #[derive(AccountSet, Debug)]
 pub struct InitializeAccounts {
-    #[account_set(funder)]
+    #[validate(funder)]
     pub payer: Mut<Signer<SystemAccount>>,
     pub authority: Signer<AccountInfo>,
     pub currency: MintAccount,
