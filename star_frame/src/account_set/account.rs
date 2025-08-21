@@ -1,12 +1,12 @@
-use crate::prelude::*;
-use crate::unsize::init::DefaultInit;
-use crate::unsize::UnsizedType;
+use crate::{
+    prelude::*,
+    unsize::{init::DefaultInit, UnsizedType},
+};
 use advancer::Advance;
 use anyhow::Context as _;
 use bytemuck::bytes_of;
 pub use star_frame_proc::ProgramAccount;
-use std::marker::PhantomData;
-use std::mem::size_of;
+use std::{marker::PhantomData, mem::size_of};
 
 /// Increases or decreases the rent of self to be the minimum required using [`CanModifyRent::normalize_rent`].
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
@@ -108,8 +108,7 @@ pub struct Account<T: ProgramAccount + UnsizedType + ?Sized> {
 mod idl_impl {
     use super::*;
     use star_frame::idl::AccountSetToIdl;
-    use star_frame_idl::account_set::IdlAccountSetDef;
-    use star_frame_idl::IdlDefinition;
+    use star_frame_idl::{account_set::IdlAccountSetDef, IdlDefinition};
 
     impl<T: ProgramAccount + UnsizedType + ?Sized, A> AccountSetToIdl<A> for Account<T>
     where

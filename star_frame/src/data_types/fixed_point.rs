@@ -1,10 +1,8 @@
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
 mod idl_impl {
-    use crate::idl::TypeToIdl;
-    use crate::program::system::System;
+    use crate::{idl::TypeToIdl, program::system::System};
     use fixed::*;
-    use star_frame_idl::ty::IdlTypeDef;
-    use star_frame_idl::IdlDefinition;
+    use star_frame_idl::{ty::IdlTypeDef, IdlDefinition};
     use typenum::Unsigned;
 
     macro_rules! impl_type_to_idl_for_fixed {

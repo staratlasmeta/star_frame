@@ -1,14 +1,15 @@
-use crate::unsize::{account, UnsizedTypeArgs};
-use crate::util::{
-    combine_gen, generate_fields_are_trait, get_doc_attributes, get_field_idents, get_field_types,
-    get_field_vis, new_generic, new_ident, new_lifetime, phantom_generics_ident,
-    phantom_generics_type, pretty_path, reject_attributes, restrict_attributes,
-    strip_inner_attributes, BetterGenerics, CombineGenerics, Paths,
+use crate::{
+    unsize::{account, UnsizedTypeArgs},
+    util::{
+        combine_gen, generate_fields_are_trait, get_doc_attributes, get_field_idents,
+        get_field_types, get_field_vis, new_generic, new_ident, new_lifetime,
+        phantom_generics_ident, phantom_generics_type, pretty_path, reject_attributes,
+        restrict_attributes, strip_inner_attributes, BetterGenerics, CombineGenerics, Paths,
+    },
 };
 use heck::ToUpperCamelCase;
 use itertools::Itertools;
-use proc_macro2::Ident;
-use proc_macro2::TokenStream;
+use proc_macro2::{Ident, TokenStream};
 use proc_macro_error2::abort;
 use quote::{format_ident, quote};
 use syn::{parse_quote, Attribute, Field, Generics, ItemStruct, Lifetime, Type, Visibility};

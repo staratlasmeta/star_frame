@@ -1,9 +1,11 @@
-use star_frame::anyhow::bail;
-use star_frame::borsh::{BorshDeserialize, BorshSerialize};
-use star_frame::derive_more::{self, Deref, DerefMut};
-use star_frame::empty_star_frame_instruction;
-use star_frame::prelude::*;
-use star_frame::solana_pubkey::Pubkey;
+use star_frame::{
+    anyhow::bail,
+    borsh::{BorshDeserialize, BorshSerialize},
+    derive_more::{self, Deref, DerefMut},
+    empty_star_frame_instruction,
+    prelude::*,
+    solana_pubkey::Pubkey,
+};
 
 #[derive(StarFrameProgram)]
 #[program(
@@ -191,17 +193,17 @@ empty_star_frame_instruction!(CloseCounterIx, CloseCounterAccounts);
 #[cfg(test)]
 #[allow(unused)]
 mod tests {
-    use std::collections::HashMap;
-    use std::env;
+    use std::{collections::HashMap, env};
 
     use super::*;
-    use mollusk_svm::account_store::AccountStore;
-    use mollusk_svm::program::keyed_account_for_system_program;
-    use mollusk_svm::result::Check;
-    use mollusk_svm::*;
+    use mollusk_svm::{
+        account_store::AccountStore, program::keyed_account_for_system_program, result::Check, *,
+    };
     use solana_account::Account as SolanaAccount;
-    use star_frame::client::{DeserializeAccount, SerializeAccount};
-    use star_frame::solana_instruction::Instruction;
+    use star_frame::{
+        client::{DeserializeAccount, SerializeAccount},
+        solana_instruction::Instruction,
+    };
 
     #[cfg(feature = "idl")]
     #[test]

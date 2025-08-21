@@ -1,6 +1,8 @@
 use crate::state::{CancelOrderArgs, MarketExclusiveImpl};
-use star_frame::borsh::{BorshDeserialize, BorshSerialize};
-use star_frame::prelude::*;
+use star_frame::{
+    borsh::{BorshDeserialize, BorshSerialize},
+    prelude::*,
+};
 
 use crate::instructions::ManageOrderAccounts;
 
@@ -35,23 +37,22 @@ impl StarFrameInstruction for CancelOrders {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::instructions::ManageOrderClientAccounts;
-    use crate::state::{
-        MakerInfo, Market, MarketOwned, MarketSeeds, OrderBookSideOwned, OrderInfo, OrderTotals,
-        Price, Quantity, ASK_ID_MASK,
+    use crate::{
+        instructions::ManageOrderClientAccounts,
+        state::{
+            MakerInfo, Market, MarketOwned, MarketSeeds, OrderBookSideOwned, OrderInfo,
+            OrderTotals, Price, Quantity, ASK_ID_MASK,
+        },
+        test_utils::{new_mint_account, new_token_account, token_account_data, LAMPORTS_PER_SOL},
+        Marketplace,
     };
-    use crate::test_utils::{
-        new_mint_account, new_token_account, token_account_data, LAMPORTS_PER_SOL,
-    };
-    use crate::Marketplace;
     use mollusk_svm::result::Check;
     use solana_account::Account as SolanaAccount;
-    use star_frame::client::SerializeAccount as _;
-    use star_frame::data_types::PackedValue;
-    use star_frame::solana_pubkey::Pubkey;
+    use star_frame::{
+        client::SerializeAccount as _, data_types::PackedValue, solana_pubkey::Pubkey,
+    };
     use star_frame_spl::associated_token::AssociatedToken;
-    use std::collections::HashMap;
-    use std::env;
+    use std::{collections::HashMap, env};
 
     fn price(v: u64) -> Price {
         Price::new(PackedValue(v))

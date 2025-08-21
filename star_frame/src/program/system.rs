@@ -1,5 +1,4 @@
-use crate::empty_star_frame_instruction;
-use crate::prelude::*;
+use crate::{empty_star_frame_instruction, prelude::*};
 use borsh::{BorshDeserialize, BorshSerialize};
 #[allow(deprecated)]
 use pinocchio::sysvars::rent::Rent;
@@ -204,8 +203,7 @@ mod tests {
     #[cfg(all(feature = "idl", not(target_os = "solana")))]
     #[test]
     fn check_idl() {
-        use star_frame_idl::item_source;
-        use star_frame_idl::ty::IdlTypeDef;
+        use star_frame_idl::{item_source, ty::IdlTypeDef};
 
         let idl = System::program_to_idl().unwrap();
         let ix_set_source = item_source::<CreateAccountAccounts>();

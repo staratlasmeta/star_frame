@@ -24,8 +24,7 @@ pub mod test_utils {
 
     use mollusk_svm::Mollusk;
     use solana_account::Account as SolanaAccount;
-    use star_frame::data_types::PackedValue;
-    use star_frame::solana_pubkey::Pubkey;
+    use star_frame::{data_types::PackedValue, solana_pubkey::Pubkey};
     use star_frame_spl::token::{state::MintAccount, Token};
 
     use crate::state::{Price, Quantity};

@@ -29,8 +29,7 @@ mod idl_impl {
     use super::*;
     use crate::Result;
     use star_frame::idl::AccountSetToIdl;
-    use star_frame_idl::account_set::IdlAccountSetDef;
-    use star_frame_idl::IdlDefinition;
+    use star_frame_idl::{account_set::IdlAccountSetDef, IdlDefinition};
 
     impl<const MUT: bool, T, A> AccountSetToIdl<A> for MaybeMut<MUT, T>
     where

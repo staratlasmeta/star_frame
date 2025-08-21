@@ -1,26 +1,34 @@
-use crate::align1::Align1;
-use crate::data_types::PackedValue;
-use crate::unsize::init::{DefaultInit, UnsizedInit};
-use crate::unsize::wrapper::ExclusiveRecurse;
-use crate::unsize::{AsShared, FromOwned, RawSliceAdvance, UnsizedType, UnsizedTypeMut};
-use crate::util::uninit_array_bytes;
-use crate::Result;
+use crate::{
+    align1::Align1,
+    data_types::PackedValue,
+    unsize::{
+        init::{DefaultInit, UnsizedInit},
+        wrapper::ExclusiveRecurse,
+        AsShared, FromOwned, RawSliceAdvance, UnsizedType, UnsizedTypeMut,
+    },
+    util::uninit_array_bytes,
+    Result,
+};
 use advancer::Advance;
 use anyhow::{bail, ensure, Context};
-use bytemuck::{bytes_of, checked, from_bytes, CheckedBitPattern, NoUninit, Pod, Zeroable};
-use bytemuck::{cast_slice, cast_slice_mut};
+use bytemuck::{
+    bytes_of, cast_slice, cast_slice_mut, checked, from_bytes, CheckedBitPattern, NoUninit, Pod,
+    Zeroable,
+};
 use itertools::Itertools;
 use num_traits::{FromPrimitive, ToPrimitive, Zero};
 use ptr_meta::Pointee;
 use star_frame_proc::unsized_impl;
-use std::any::type_name;
-use std::borrow::Borrow;
-use std::cmp::Ordering;
-use std::iter;
-use std::iter::FusedIterator;
-use std::marker::PhantomData;
-use std::mem::size_of;
-use std::ops::{Deref, DerefMut, Index, IndexMut, RangeBounds};
+use std::{
+    any::type_name,
+    borrow::Borrow,
+    cmp::Ordering,
+    iter,
+    iter::FusedIterator,
+    marker::PhantomData,
+    mem::size_of,
+    ops::{Deref, DerefMut, Index, IndexMut, RangeBounds},
+};
 
 /// A marker trait for types that can be used as the length of a [`List<T> `].
 pub trait ListLength: Pod + ToPrimitive + FromPrimitive {}
@@ -41,10 +49,8 @@ where
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
 mod idl_impl {
     use super::*;
-    use crate::idl::TypeToIdl;
-    use crate::prelude::System;
-    use star_frame_idl::ty::IdlTypeDef;
-    use star_frame_idl::IdlDefinition;
+    use crate::{idl::TypeToIdl, prelude::System};
+    use star_frame_idl::{ty::IdlTypeDef, IdlDefinition};
 
     impl<T, L> TypeToIdl for List<T, L>
     where

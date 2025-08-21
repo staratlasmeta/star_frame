@@ -1,6 +1,8 @@
 use crate::prelude::*;
-use std::cell::{Ref, RefMut};
-use std::mem::size_of;
+use std::{
+    cell::{Ref, RefMut},
+    mem::size_of,
+};
 
 /// Similar to [`Ref::map`], but the closure can return an error.
 #[inline]
@@ -62,8 +64,10 @@ pub fn uninit_array_bytes<T: NoUninit, const N: usize>(array: &[T; N]) -> &[u8] 
 pub mod borsh_bytemuck {
     use crate::align1::Align1;
     use bytemuck::{CheckedBitPattern, NoUninit};
-    use std::io::{Read, Write};
-    use std::mem::{size_of, MaybeUninit};
+    use std::{
+        io::{Read, Write},
+        mem::{size_of, MaybeUninit},
+    };
 
     /// Custom `serialize_with` override for [`borsh::BorshSerialize`] that uses [`bytemuck`] to serialize.
     /// This is intended for packed structs that are probably used in account data.

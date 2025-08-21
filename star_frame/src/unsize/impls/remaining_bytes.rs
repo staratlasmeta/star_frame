@@ -1,17 +1,22 @@
-use crate::align1::Align1;
-use crate::unsize::init::{DefaultInit, UnsizedInit};
-use crate::unsize::wrapper::ExclusiveRecurse;
-use crate::unsize::{AsShared, FromOwned, RawSliceAdvance, UnsizedType, UnsizedTypeMut};
-use crate::Result;
+use crate::{
+    align1::Align1,
+    unsize::{
+        init::{DefaultInit, UnsizedInit},
+        wrapper::ExclusiveRecurse,
+        AsShared, FromOwned, RawSliceAdvance, UnsizedType, UnsizedTypeMut,
+    },
+    Result,
+};
 use advancer::Advance;
-use anyhow::bail;
-use anyhow::Context;
+use anyhow::{bail, Context};
 use derive_more::{Deref, DerefMut};
 use ptr_meta::Pointee;
 use star_frame_proc::unsized_impl;
-use std::cmp::Ordering;
-use std::marker::PhantomData;
-use std::ops::{Deref, DerefMut};
+use std::{
+    cmp::Ordering,
+    marker::PhantomData,
+    ops::{Deref, DerefMut},
+};
 
 #[derive(Debug, Deref, DerefMut, Align1, Pointee)]
 #[repr(transparent)]

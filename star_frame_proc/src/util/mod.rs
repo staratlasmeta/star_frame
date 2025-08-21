@@ -15,12 +15,12 @@ use proc_macro_crate::{crate_name, FoundCrate};
 use proc_macro_error2::abort;
 use quote::{format_ident, quote};
 use std::fmt::Debug;
-use syn::punctuated::Punctuated;
-use syn::token::{Brace, Paren};
 use syn::{
-    parse_quote, Attribute, Data, DataStruct, DataUnion, DeriveInput, Expr, ExprLit, Field, Fields,
-    FieldsNamed, FieldsUnnamed, ItemStruct, Lit, Meta, MetaNameValue, Path, Token, Type, Variant,
-    Visibility,
+    parse_quote,
+    punctuated::Punctuated,
+    token::{Brace, Paren},
+    Attribute, Data, DataStruct, DataUnion, DeriveInput, Expr, ExprLit, Field, Fields, FieldsNamed,
+    FieldsUnnamed, ItemStruct, Lit, Meta, MetaNameValue, Path, Token, Type, Variant, Visibility,
 };
 
 pub fn get_crate_name() -> TokenStream {

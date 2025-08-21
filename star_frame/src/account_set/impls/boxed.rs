@@ -1,10 +1,4 @@
-use crate::account_set::{
-    AccountSetCleanup, AccountSetDecode, AccountSetValidate, SingleAccountSet, SingleSetMeta,
-};
-use crate::client::{ClientAccountSet, CpiAccountSet};
-use crate::prelude::Context;
 use crate::prelude::*;
-use crate::Result;
 use pinocchio::account_info::AccountInfo;
 use solana_instruction::AccountMeta;
 use solana_pubkey::Pubkey;
@@ -157,10 +151,8 @@ where
 
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
 mod idl_impl {
-    use crate::idl::AccountSetToIdl;
-    use crate::Result;
-    use star_frame_idl::account_set::IdlAccountSetDef;
-    use star_frame_idl::IdlDefinition;
+    use crate::{idl::AccountSetToIdl, Result};
+    use star_frame_idl::{account_set::IdlAccountSetDef, IdlDefinition};
 
     impl<T, Arg> AccountSetToIdl<Arg> for Box<T>
     where

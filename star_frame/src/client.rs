@@ -2,11 +2,13 @@ use crate::account_set::{
     discriminant::AccountDiscriminant, GetSeeds, HasOwnerProgram, HasSeeds, ProgramAccount,
 };
 
-use crate::instruction::{InstructionDiscriminant, InstructionSet, StarFrameInstruction};
-use crate::prelude::{Context, UnsizedInit};
-use crate::program::StarFrameProgram;
-use crate::unsize::{FromOwned, UnsizedType};
-use crate::Result;
+use crate::{
+    instruction::{InstructionDiscriminant, InstructionSet, StarFrameInstruction},
+    prelude::{Context, UnsizedInit},
+    program::StarFrameProgram,
+    unsize::{FromOwned, UnsizedType},
+    Result,
+};
 use borsh::{object_length, BorshSerialize};
 use bytemuck::bytes_of;
 use pinocchio::account_info::AccountInfo;

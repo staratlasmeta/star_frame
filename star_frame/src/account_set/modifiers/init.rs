@@ -60,8 +60,7 @@ mod idl_impl {
     use super::*;
     use anyhow::bail;
     use star_frame::idl::AccountSetToIdl;
-    use star_frame_idl::account_set::IdlAccountSetDef;
-    use star_frame_idl::IdlDefinition;
+    use star_frame_idl::{account_set::IdlAccountSetDef, IdlDefinition};
 
     impl<A, T> AccountSetToIdl<A> for Init<T>
     where

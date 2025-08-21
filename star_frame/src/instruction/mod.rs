@@ -1,5 +1,4 @@
-use crate::context::Context;
-use crate::prelude::*;
+use crate::{context::Context, prelude::*};
 use anyhow::Context as _;
 use borsh::{to_vec, BorshDeserialize, BorshSerialize};
 use bytemuck::{bytes_of, Pod};

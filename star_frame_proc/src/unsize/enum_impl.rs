@@ -1,8 +1,10 @@
-use crate::unsize::account::account_impl;
-use crate::unsize::UnsizedTypeArgs;
-use crate::util::{
-    combine_gen, get_doc_attributes, get_repr, new_generic, new_lifetime, phantom_generics_type,
-    restrict_attributes, strip_inner_attributes, IntegerRepr, Paths, Representation,
+use crate::{
+    unsize::{account::account_impl, UnsizedTypeArgs},
+    util::{
+        combine_gen, get_doc_attributes, get_repr, new_generic, new_lifetime,
+        phantom_generics_type, restrict_attributes, strip_inner_attributes, IntegerRepr, Paths,
+        Representation,
+    },
 };
 use heck::{ToShoutySnakeCase, ToSnakeCase};
 use itertools::Itertools;

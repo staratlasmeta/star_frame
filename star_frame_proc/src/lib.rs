@@ -13,9 +13,10 @@ mod unsize;
 mod util;
 
 use proc_macro_error2::proc_macro_error;
-use syn::punctuated::Punctuated;
-use syn::token::Comma;
-use syn::{parse_macro_input, DeriveInput, Item, ItemEnum, ItemImpl, LitStr};
+use syn::{
+    parse_macro_input, punctuated::Punctuated, token::Comma, DeriveInput, Item, ItemEnum, ItemImpl,
+    LitStr,
+};
 
 #[proc_macro_error]
 #[proc_macro_derive(

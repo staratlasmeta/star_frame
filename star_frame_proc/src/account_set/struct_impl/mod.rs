@@ -1,15 +1,22 @@
-use crate::account_set::generics::AccountSetGenerics;
-use crate::account_set::struct_impl::decode::DecodeFieldTy;
-use crate::account_set::{AccountSetStructArgs, SingleAccountSetFieldArgs, StrippedDeriveInput};
-use crate::util::{combine_gen, ignore_cfg_module, make_struct, new_generic, Paths};
+use crate::{
+    account_set::{
+        generics::AccountSetGenerics, struct_impl::decode::DecodeFieldTy, AccountSetStructArgs,
+        SingleAccountSetFieldArgs, StrippedDeriveInput,
+    },
+    util::{combine_gen, ignore_cfg_module, make_struct, new_generic, Paths},
+};
 use easy_proc::{find_attr, ArgumentList};
 use proc_macro2::TokenStream;
 use proc_macro_error2::abort;
 use quote::{format_ident, quote, ToTokens};
 use std::ops::Not;
-use syn::parse::{Parse, ParseStream};
-use syn::punctuated::Punctuated;
-use syn::{bracketed, parse_quote, token, DataStruct, Field, Ident, Index, Token};
+use syn::{
+    bracketed,
+    parse::{Parse, ParseStream},
+    parse_quote,
+    punctuated::Punctuated,
+    token, DataStruct, Field, Ident, Index, Token,
+};
 
 mod cleanup;
 mod decode;

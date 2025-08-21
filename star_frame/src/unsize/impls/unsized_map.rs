@@ -1,6 +1,5 @@
 use crate::prelude::*;
-use std::collections::BTreeMap;
-use std::iter::FusedIterator;
+use std::{collections::BTreeMap, iter::FusedIterator};
 
 #[derive(Align1, Zeroable, Debug, Copy, Clone)]
 #[repr(C)]
@@ -348,8 +347,10 @@ map_iter!(UnsizedMapValuesMut, UnsizedListWithOffsetIterMut, V::Mut<'a>, this =>
 mod idl_impl {
     use super::*;
     use crate::idl::TypeToIdl;
-    use star_frame_idl::ty::{IdlStructField, IdlTypeDef};
-    use star_frame_idl::IdlDefinition;
+    use star_frame_idl::{
+        ty::{IdlStructField, IdlTypeDef},
+        IdlDefinition,
+    };
 
     impl<K> TypeToIdl for OrdOffset<K>
     where

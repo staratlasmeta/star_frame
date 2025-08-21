@@ -1,12 +1,13 @@
 #![allow(clippy::extra_unused_type_parameters)]
 use bytemuck::{Pod, Zeroable};
 use derive_where::derive_where;
-use num_traits::real::Real;
-use num_traits::Pow;
+use num_traits::{real::Real, Pow};
 use serde::{Deserialize, Serialize};
 use star_frame_proc::Align1;
-use std::marker::PhantomData;
-use std::ops::{Add, AddAssign, Div, Mul, Rem, Sub, SubAssign};
+use std::{
+    marker::PhantomData,
+    ops::{Add, AddAssign, Div, Mul, Rem, Sub, SubAssign},
+};
 use typenum::{IsEqual, Mod, True, Unsigned, P2, Z0};
 
 /// A value within a unit system.
@@ -147,8 +148,7 @@ pub trait Convert<Rhs> {}
 mod idl {
     use super::*;
     use crate::idl::TypeToIdl;
-    use star_frame_idl::ty::IdlTypeDef;
-    use star_frame_idl::IdlDefinition;
+    use star_frame_idl::{ty::IdlTypeDef, IdlDefinition};
     impl<T: TypeToIdl, Unit> TypeToIdl for UnitVal<T, Unit> {
         type AssociatedProgram = T::AssociatedProgram;
 

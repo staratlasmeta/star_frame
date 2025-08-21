@@ -4,10 +4,14 @@ use itertools::Itertools;
 use proc_macro2::TokenStream;
 use proc_macro_error2::abort;
 use quote::ToTokens;
-use syn::parse::{Parse, ParseStream};
-use syn::punctuated::Punctuated;
-use syn::token::Bracket;
-use syn::{bracketed, parse_quote, Attribute, Expr, Item, Meta, Path, Token, Type};
+use syn::{
+    bracketed,
+    parse::{Parse, ParseStream},
+    parse_quote,
+    punctuated::Punctuated,
+    token::Bracket,
+    Attribute, Expr, Item, Meta, Path, Token, Type,
+};
 
 mod account;
 mod enum_impl;

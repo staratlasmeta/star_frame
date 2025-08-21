@@ -4,11 +4,13 @@ use itertools::Itertools;
 use proc_macro2::Span;
 use proc_macro_error2::abort;
 use quote::{format_ident, quote, ToTokens};
-use syn::parse::{Parse, ParseStream};
-use syn::punctuated::Punctuated;
 use syn::{
-    bracketed, parse_quote, token, Attribute, ConstParam, DeriveInput, GenericParam, Generics,
-    Ident, ItemEnum, ItemStruct, Lifetime, LifetimeParam, Token, Type, TypeParam, WhereClause,
+    bracketed,
+    parse::{Parse, ParseStream},
+    parse_quote,
+    punctuated::Punctuated,
+    token, Attribute, ConstParam, DeriveInput, GenericParam, Generics, Ident, ItemEnum, ItemStruct,
+    Lifetime, LifetimeParam, Token, Type, TypeParam, WhereClause,
 };
 
 #[derive(Debug, Deref, DerefMut, Clone, Default)]

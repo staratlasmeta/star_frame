@@ -1,9 +1,7 @@
-use crate::account::IdlAccountId;
-use crate::seeds::IdlFindSeeds;
-use crate::ty::IdlTypeDef;
-use crate::{serde_base58_pubkey_option, IdlDefinition};
-use crate::{IdlGeneric, ItemInfo};
-use crate::{ItemDescription, ItemSource};
+use crate::{
+    account::IdlAccountId, seeds::IdlFindSeeds, serde_base58_pubkey_option, ty::IdlTypeDef,
+    IdlDefinition, IdlGeneric, ItemDescription, ItemInfo, ItemSource,
+};
 use anyhow::bail;
 use serde::{Deserialize, Serialize};
 use solana_pubkey::Pubkey;

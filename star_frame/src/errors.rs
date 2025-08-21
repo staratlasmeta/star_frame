@@ -1,5 +1,4 @@
-use pinocchio::msg;
-use pinocchio::program_error::ProgramError;
+use pinocchio::{msg, program_error::ProgramError};
 
 #[must_use]
 #[allow(clippy::needless_pass_by_value)]

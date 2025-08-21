@@ -1,7 +1,5 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use star_frame::empty_star_frame_instruction;
-use star_frame::pinocchio::sysvars::rent::Rent;
-use star_frame::prelude::*;
+use star_frame::{empty_star_frame_instruction, pinocchio::sysvars::rent::Rent, prelude::*};
 
 #[derive(Copy, Debug, Clone, PartialEq, Eq, InstructionSet)]
 #[ix_set(use_repr)]

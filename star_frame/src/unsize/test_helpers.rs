@@ -1,18 +1,26 @@
 #![allow(unused)]
 use pinocchio::account_info::MAX_PERMITTED_DATA_INCREASE;
 
-use crate::unsize::init::{DefaultInit, UnsizedInit};
-use crate::unsize::wrapper::{SharedWrapper, UnsizedTypeDataAccess};
-use crate::unsize::UnsizedType;
-use crate::Result;
-use std::cell::{Cell, Ref, RefCell, RefMut};
-use std::marker::PhantomData;
-use std::mem::MaybeUninit;
-use std::ptr::slice_from_raw_parts_mut;
-use std::slice::from_raw_parts_mut;
+use crate::{
+    unsize::{
+        init::{DefaultInit, UnsizedInit},
+        wrapper::{SharedWrapper, UnsizedTypeDataAccess},
+        UnsizedType,
+    },
+    Result,
+};
+use std::{
+    cell::{Cell, Ref, RefCell, RefMut},
+    marker::PhantomData,
+    mem::MaybeUninit,
+    ptr::slice_from_raw_parts_mut,
+    slice::from_raw_parts_mut,
+};
 
-use super::wrapper::{ExclusiveWrapper, ExclusiveWrapperTop, ExclusiveWrapperTopMeta};
-use super::FromOwned;
+use super::{
+    wrapper::{ExclusiveWrapper, ExclusiveWrapperTop, ExclusiveWrapperTopMeta},
+    FromOwned,
+};
 
 #[derive(Debug)]
 pub struct TestUnderlyingData {

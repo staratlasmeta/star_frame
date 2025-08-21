@@ -1,5 +1,7 @@
-use crate::idl::{derive_type_to_idl_inner, TypeToIdlArgs};
-use crate::util::{ignore_cfg_module, new_generic, reject_attributes, reject_generics, Paths};
+use crate::{
+    idl::{derive_type_to_idl_inner, TypeToIdlArgs},
+    util::{ignore_cfg_module, new_generic, reject_attributes, reject_generics, Paths},
+};
 use easy_proc::{find_attr, ArgumentList};
 use proc_macro2::TokenStream;
 use quote::quote;

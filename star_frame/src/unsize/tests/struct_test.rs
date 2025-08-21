@@ -1,7 +1,11 @@
-use crate::prelude::*;
-use crate::unsize::test_helpers::TestByteSet;
-use crate::unsize::tests::struct_test::many_unsized::{ManyUnsizedExclusiveExt, ManyUnsizedOwned};
-use crate::unsize::ModifyOwned;
+use crate::{
+    prelude::*,
+    unsize::{
+        test_helpers::TestByteSet,
+        tests::struct_test::many_unsized::{ManyUnsizedExclusiveExt, ManyUnsizedOwned},
+        ModifyOwned,
+    },
+};
 use pretty_assertions::assert_eq;
 use star_frame_proc::unsized_impl;
 

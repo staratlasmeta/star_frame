@@ -1,9 +1,9 @@
-use crate::token::state::MintAccount;
-use crate::token::{state::TokenAccount, Token};
+use crate::token::{
+    state::{MintAccount, TokenAccount},
+    Token,
+};
 use borsh::{BorshDeserialize, BorshSerialize};
-use star_frame::derive_more;
-use star_frame::empty_star_frame_instruction;
-use star_frame::prelude::*;
+use star_frame::{derive_more, empty_star_frame_instruction, prelude::*};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
 pub struct AssociatedToken;
@@ -52,11 +52,12 @@ impl StarFrameProgram for AssociatedToken {
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
 mod idl_impl {
     use super::*;
-    use star_frame::idl::{FindIdlSeeds, FindSeed, SeedsToIdl};
-    use star_frame::star_frame_idl::seeds::{IdlFindSeed, IdlSeed, IdlSeeds};
+    use star_frame::{
+        idl::{FindIdlSeeds, FindSeed, SeedsToIdl},
+        star_frame_idl::seeds::{IdlFindSeed, IdlSeed, IdlSeeds},
+    };
 
-    use crate::token::state::MintAccount;
-    use crate::token::Token;
+    use crate::token::{state::MintAccount, Token};
     use star_frame::star_frame_idl::IdlDefinition;
 
     // todo: potentially support multiple token programs here
@@ -125,8 +126,10 @@ mod idl_impl {
 
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
 pub use idl_impl::*;
-use star_frame::anyhow::{bail, Context as _};
-use star_frame::derive_more::{Deref, DerefMut};
+use star_frame::{
+    anyhow::{bail, Context as _},
+    derive_more::{Deref, DerefMut},
+};
 
 pub mod instructions {
     pub use super::*;

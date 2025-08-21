@@ -1,5 +1,4 @@
-use crate::instruction::InstructionSet;
-use crate::prelude::Context;
+use crate::{instruction::InstructionSet, prelude::Context};
 use pinocchio::account_info::AccountInfo;
 use solana_pubkey::Pubkey;
 

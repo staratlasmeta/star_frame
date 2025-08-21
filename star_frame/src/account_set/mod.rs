@@ -29,8 +29,7 @@ use crate::program::system;
 use crate::Result;
 use bytemuck::{bytes_of, from_bytes};
 use pinocchio::account_info::AccountInfo;
-use std::cmp::Ordering;
-use std::slice;
+use std::{cmp::Ordering, slice};
 
 pub trait ProgramAccount: HasOwnerProgram {
     const DISCRIMINANT: <Self::OwnerProgram as StarFrameProgram>::AccountDiscriminant;
@@ -423,8 +422,7 @@ pub(crate) mod internal_reverse {
 
 #[cfg(test)]
 mod test {
-    use crate::account_set::AccountSetValidate;
-    use crate::prelude::Context;
+    use crate::{account_set::AccountSetValidate, prelude::Context};
     use star_frame_proc::AccountSet;
 
     #[derive(AccountSet)]

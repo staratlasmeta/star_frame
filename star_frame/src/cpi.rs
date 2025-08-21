@@ -1,12 +1,14 @@
 use crate::{Result, SolanaInstruction};
 use itertools::Itertools;
-use pinocchio::account_info::AccountInfo;
-use pinocchio::cpi::slice_invoke_signed;
-use pinocchio::instruction::{
-    AccountMeta as PinocchioAccountMeta, Instruction as PinocchioInstruction,
-    Seed as PinocchioSeed, Signer as PinocchioSigner,
+use pinocchio::{
+    account_info::AccountInfo,
+    cpi::slice_invoke_signed,
+    instruction::{
+        AccountMeta as PinocchioAccountMeta, Instruction as PinocchioInstruction,
+        Seed as PinocchioSeed, Signer as PinocchioSigner,
+    },
+    ProgramResult,
 };
-use pinocchio::ProgramResult;
 
 #[inline(never)]
 fn invoke_signed_never_inline(

@@ -1,6 +1,4 @@
-use crate::account_set::IdlAccountSetDef;
-use crate::ty::IdlTypeId;
-use crate::IdlDiscriminant;
+use crate::{account_set::IdlAccountSetDef, ty::IdlTypeId, IdlDiscriminant};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

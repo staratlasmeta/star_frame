@@ -1,13 +1,14 @@
-use crate::pod::PodOption;
-use crate::token::instructions::{
-    InitializeAccount3, InitializeAccount3CpiAccounts, InitializeMint2, InitializeMint2CpiAccounts,
+use crate::{
+    pod::PodOption,
+    token::{
+        instructions::{
+            InitializeAccount3, InitializeAccount3CpiAccounts, InitializeMint2,
+            InitializeMint2CpiAccounts,
+        },
+        Token,
+    },
 };
-use crate::token::Token;
-use star_frame::account_set::AccountSet;
-use star_frame::anyhow::{bail, Context as _};
-use star_frame::bytemuck;
-use star_frame::pinocchio::account_info::Ref;
-use star_frame::prelude::*;
+use star_frame::{bytemuck, pinocchio::account_info::Ref, prelude::*};
 
 /// A wrapper around `AccountInfo` for the [`spl_token::state::Mint`] account.
 /// It validates the account data on validate and provides cheap accessor methods for accessing fields

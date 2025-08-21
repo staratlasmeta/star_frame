@@ -1,5 +1,4 @@
-use crate::account_set::SingleAccountSet;
-use crate::prelude::*;
+use crate::{account_set::SingleAccountSet, prelude::*};
 
 mod init;
 mod mutable;

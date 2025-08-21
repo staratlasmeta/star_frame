@@ -1,16 +1,18 @@
-use crate::util;
-use crate::util::{
-    discriminant_vec, enum_discriminants, get_repr, ignore_cfg_module, reject_generics,
-    IntegerRepr, Paths,
+use crate::{
+    util,
+    util::{
+        discriminant_vec, enum_discriminants, get_repr, ignore_cfg_module, reject_generics,
+        IntegerRepr, Paths,
+    },
 };
 use easy_proc::{find_attr, ArgumentList};
 use itertools::Itertools;
 use proc_macro2::{Span, TokenStream};
 use proc_macro_error2::{abort, OptionExt};
 use quote::quote;
-use syn::spanned::Spanned;
 use syn::{
-    parse_quote, Attribute, DataStruct, DataUnion, DeriveInput, Expr, Field, Fields, LitStr, Type,
+    parse_quote, spanned::Spanned, Attribute, DataStruct, DataUnion, DeriveInput, Expr, Field,
+    Fields, LitStr, Type,
 };
 
 #[derive(Debug, ArgumentList, Default)]

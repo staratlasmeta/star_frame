@@ -254,8 +254,7 @@ set_iter!(SetRef);
 mod idl_impl {
     use super::*;
     use crate::idl::TypeToIdl;
-    use star_frame_idl::ty::IdlTypeDef;
-    use star_frame_idl::IdlDefinition;
+    use star_frame_idl::{ty::IdlTypeDef, IdlDefinition};
 
     impl<T, L> TypeToIdl for Set<T, L>
     where

@@ -1,10 +1,8 @@
 pub mod system;
 
-use crate::context::Context;
-use crate::instruction::InstructionSet;
+use crate::{context::Context, instruction::InstructionSet};
 use bytemuck::Pod;
-use pinocchio::account_info::AccountInfo;
-use pinocchio::ProgramResult;
+use pinocchio::{account_info::AccountInfo, ProgramResult};
 use solana_pubkey::Pubkey;
 pub use star_frame_proc::StarFrameProgram;
 

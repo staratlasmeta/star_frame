@@ -2,8 +2,10 @@ use crate::util::get_crate_name;
 use proc_macro::TokenStream;
 use proc_macro2::Span;
 use quote::{quote, ToTokens};
-use syn::parse::{Parse, ParseStream};
-use syn::{parse_macro_input, Expr, LitByte, LitStr};
+use syn::{
+    parse::{Parse, ParseStream},
+    parse_macro_input, Expr, LitByte, LitStr,
+};
 // Almost all code from here on is copied from solana-sdk-macro, with ::solana_program replaced with
 // #crate_name to allow using this from star_frame without depending on solana_program directly
 

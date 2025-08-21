@@ -1,27 +1,32 @@
-use crate::align1::Align1;
-use crate::data_types::PackedValue;
-use crate::prelude::ExclusiveWrapper;
-use crate::unsize::init::{DefaultInit, UnsizedInit};
-use crate::unsize::wrapper::ExclusiveRecurse;
-use crate::unsize::{unsized_impl, AsShared, RawSliceAdvance, UnsizedTypeMut};
-use crate::unsize::{FromOwned, UnsizedType};
-use crate::Result;
+use crate::{
+    align1::Align1,
+    data_types::PackedValue,
+    prelude::ExclusiveWrapper,
+    unsize::{
+        init::{DefaultInit, UnsizedInit},
+        unsized_impl,
+        wrapper::ExclusiveRecurse,
+        AsShared, FromOwned, RawSliceAdvance, UnsizedType, UnsizedTypeMut,
+    },
+    Result,
+};
 use advancer::{Advance, AdvanceArray};
 use anyhow::{bail, ensure, Context};
-use bytemuck::cast_slice_mut;
-use bytemuck::{bytes_of, Pod, Zeroable};
+use bytemuck::{bytes_of, cast_slice_mut, Pod, Zeroable};
 use core::slice;
 use itertools::Itertools;
 use num_traits::ToPrimitive;
 use pinocchio::memory::sol_memmove;
 use ptr_meta::Pointee;
-use std::borrow::Borrow;
-use std::cmp::Ordering;
-use std::iter;
-use std::iter::FusedIterator;
-use std::marker::PhantomData;
-use std::mem::{size_of, MaybeUninit};
-use std::ops::{Deref, DerefMut, RangeBounds};
+use std::{
+    borrow::Borrow,
+    cmp::Ordering,
+    iter,
+    iter::FusedIterator,
+    marker::PhantomData,
+    mem::{size_of, MaybeUninit},
+    ops::{Deref, DerefMut, RangeBounds},
+};
 
 type PackedU32 = PackedValue<u32>;
 
@@ -174,10 +179,8 @@ where
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
 mod idl_impl {
     use super::*;
-    use crate::idl::TypeToIdl;
-    use crate::prelude::System;
-    use star_frame_idl::ty::IdlTypeDef;
-    use star_frame_idl::IdlDefinition;
+    use crate::{idl::TypeToIdl, prelude::System};
+    use star_frame_idl::{ty::IdlTypeDef, IdlDefinition};
 
     impl<T, C> TypeToIdl for UnsizedList<T, C>
     where
@@ -1458,9 +1461,10 @@ iter_impls!(UnsizedListIter: T::Ref<'a>, UnsizedListIterMut: T::Mut<'a>);
 #[cfg(all(test, feature = "test_helpers"))]
 mod tests {
     use super::*;
-    use crate::prelude::{List, ListExclusiveImpl};
-    use crate::unsize::test_helpers::TestByteSet;
-    use crate::unsize::NewByteSet;
+    use crate::{
+        prelude::{List, ListExclusiveImpl},
+        unsize::{test_helpers::TestByteSet, NewByteSet},
+    };
     use pretty_assertions::assert_eq;
     use star_frame_proc::unsized_type;
 

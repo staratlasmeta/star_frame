@@ -1,8 +1,7 @@
 use crate::prelude::*;
 use bytemuck::AnyBitPattern;
 use star_frame_proc::unsized_impl;
-use std::collections::BTreeMap;
-use std::iter::FusedIterator;
+use std::{collections::BTreeMap, iter::FusedIterator};
 
 #[derive(Align1, Copy, Clone, Debug, Default, PartialEq, Eq, Ord, PartialOrd, Hash)]
 #[repr(C)]
@@ -311,8 +310,7 @@ where
 mod idl_impl {
     use super::*;
     use crate::idl::TypeToIdl;
-    use star_frame_idl::ty::IdlTypeDef;
-    use star_frame_idl::IdlDefinition;
+    use star_frame_idl::{ty::IdlTypeDef, IdlDefinition};
     impl<K, V, L> TypeToIdl for Map<K, V, L>
     where
         K: UnsizedGenerics + TypeToIdl + Ord,

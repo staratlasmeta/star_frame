@@ -1,16 +1,15 @@
-use crate::account_set::generics::AccountSetGenerics;
-use crate::account_set::struct_impl::StepInput;
-use crate::util;
-use crate::util::{new_generic, BetterGenerics, Paths};
+use crate::{
+    account_set::{generics::AccountSetGenerics, struct_impl::StepInput},
+    util,
+    util::{new_generic, BetterGenerics, Paths},
+};
 use easy_proc::{find_attrs, ArgumentList};
 use itertools::Itertools;
 use proc_macro2::{Span, TokenStream};
 use proc_macro_error2::abort;
 use quote::quote;
-use std::collections::hash_map::Entry;
-use std::collections::{HashMap, HashSet};
-use syn::spanned::Spanned;
-use syn::{parse_quote, Expr, LitStr, Type};
+use std::collections::{hash_map::Entry, HashMap, HashSet};
+use syn::{parse_quote, spanned::Spanned, Expr, LitStr, Type};
 
 #[derive(ArgumentList)]
 struct IdlStructArgs {

@@ -1,7 +1,10 @@
 use crate::account_set::{AccountSetCleanup, AccountSetDecode, AccountSetValidate};
 
-use crate::prelude::{ClientAccountSet, Context, CpiAccountSet};
-use crate::Result;
+use crate::{
+    client::{ClientAccountSet, CpiAccountSet},
+    context::Context,
+    Result,
+};
 use pinocchio::account_info::AccountInfo;
 use solana_instruction::AccountMeta;
 use solana_pubkey::Pubkey;

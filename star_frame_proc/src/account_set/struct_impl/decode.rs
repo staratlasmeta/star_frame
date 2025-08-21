@@ -1,13 +1,13 @@
-use crate::account_set::generics::AccountSetGenerics;
-use crate::account_set::struct_impl::StepInput;
-use crate::util::{new_generic, BetterGenerics, Paths};
+use crate::{
+    account_set::{generics::AccountSetGenerics, struct_impl::StepInput},
+    util::{new_generic, BetterGenerics, Paths},
+};
 use easy_proc::{find_attrs, ArgumentList};
 use itertools::Itertools;
 use proc_macro2::TokenStream;
 use proc_macro_error2::abort;
 use quote::quote;
-use std::collections::hash_map::Entry;
-use std::collections::{HashMap, HashSet};
+use std::collections::{hash_map::Entry, HashMap, HashSet};
 use syn::{DataStruct, Expr, Fields, LitStr, Type};
 
 #[derive(ArgumentList)]
