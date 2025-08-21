@@ -1,6 +1,6 @@
 mod account;
 mod impls;
-mod modifiers;
+pub mod modifiers;
 mod program;
 mod rest;
 mod single_set;
@@ -23,10 +23,12 @@ pub use system_account::*;
 pub use sysvar::*;
 pub use validated_account::*;
 
-use crate::client::MakeCpi as _;
-use crate::prelude::{Context, PackedValue, StarFrameProgram, System};
-use crate::program::system;
-use crate::Result;
+use crate::{
+    client::MakeCpi as _,
+    prelude::{Context, PackedValue, StarFrameProgram, System},
+    program::system,
+    Result,
+};
 use bytemuck::{bytes_of, from_bytes};
 use pinocchio::account_info::AccountInfo;
 use std::{cmp::Ordering, slice};
