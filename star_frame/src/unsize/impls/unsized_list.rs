@@ -1,11 +1,10 @@
 use crate::{
     align1::Align1,
     data_types::PackedValue,
-    prelude::ExclusiveWrapper,
     unsize::{
         init::{DefaultInit, UnsizedInit},
         unsized_impl,
-        wrapper::ExclusiveRecurse,
+        wrapper::{ExclusiveRecurse, ExclusiveWrapper},
         AsShared, FromOwned, RawSliceAdvance, UnsizedType, UnsizedTypeMut,
     },
     Result,

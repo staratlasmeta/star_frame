@@ -1,4 +1,4 @@
-use crate::{prelude::*, unsize::UnsizedType};
+use crate::prelude::*;
 use derive_more::{Deref, DerefMut};
 
 pub trait AccountValidate<ValidateArg>: UnsizedType {

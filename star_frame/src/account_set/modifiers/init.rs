@@ -1,5 +1,4 @@
 use crate::prelude::*;
-use anyhow::Context as _;
 use derive_more::{Deref, DerefMut};
 
 #[derive(AccountSet, Clone, Debug, Deref, DerefMut)]

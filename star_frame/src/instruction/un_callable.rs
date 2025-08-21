@@ -1,5 +1,4 @@
-use crate::{prelude::*, Result};
-use star_frame_proc::Align1;
+use crate::prelude::*;
 
 #[derive(Align1, Debug, Copy, Clone)]
 pub struct UnCallable;

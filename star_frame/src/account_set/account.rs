@@ -1,13 +1,9 @@
-use crate::{
-    prelude::*,
-    unsize::{init::DefaultInit, UnsizedType},
-};
+use crate::prelude::*;
 use advancer::Advance;
-use anyhow::Context as _;
 use bytemuck::bytes_of;
-pub use star_frame_proc::ProgramAccount;
-use std::{marker::PhantomData, mem::size_of};
+use std::marker::PhantomData;
 
+pub use star_frame_proc::ProgramAccount;
 /// Increases or decreases the rent of self to be the minimum required using [`CanModifyRent::normalize_rent`].
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
 pub struct NormalizeRent<T>(pub T);

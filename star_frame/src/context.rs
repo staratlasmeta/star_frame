@@ -1,12 +1,5 @@
-use crate::{
-    prelude::{CanAddLamports, CanFundRent},
-    Result,
-};
-use pinocchio::{
-    account_info::AccountInfo,
-    sysvars::{clock::Clock, rent::Rent, Sysvar},
-};
-use solana_pubkey::Pubkey;
+use crate::prelude::*;
+use pinocchio::sysvars::{clock::Clock, rent::Rent, Sysvar};
 use std::{cell::Cell, collections::BTreeMap};
 
 /// Additional context given to [`crate::instruction::Instruction`]s, enabling programs to cache and retrieve helpful information during instruction execution.

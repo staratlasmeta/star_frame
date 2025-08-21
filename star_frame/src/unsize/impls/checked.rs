@@ -7,7 +7,7 @@ use crate::{
     Result,
 };
 use advancer::Advance;
-use anyhow::Context;
+use anyhow::Context as _;
 use bytemuck::{checked, CheckedBitPattern, NoUninit, Zeroable};
 use std::{
     marker::PhantomData,

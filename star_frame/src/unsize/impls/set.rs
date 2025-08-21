@@ -1,6 +1,5 @@
-use std::collections::BTreeSet;
-
 use crate::prelude::*;
+use std::collections::BTreeSet;
 
 /// A resizable set of unique, fixed-size elements. The [`UnsizedType`] version of [`BTreeSet`].
 ///

@@ -1,6 +1,4 @@
-use crate::{instruction::InstructionSet, prelude::Context};
-use pinocchio::account_info::AccountInfo;
-use solana_pubkey::Pubkey;
+use crate::prelude::*;
 
 impl InstructionSet for () {
     type Discriminant = ();

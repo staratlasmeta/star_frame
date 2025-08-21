@@ -1,10 +1,10 @@
-mod checked;
-mod list;
-mod map;
-mod remaining_bytes;
-mod set;
-mod unsized_list;
-mod unsized_map;
+pub mod checked;
+pub mod list;
+pub mod map;
+pub mod remaining_bytes;
+pub mod set;
+pub mod unsized_list;
+pub mod unsized_map;
 
 pub use checked::*;
 pub use list::*;

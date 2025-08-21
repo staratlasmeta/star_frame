@@ -1,6 +1,6 @@
 use std::{cmp::Reverse, fmt::Display};
 
-use anyhow::{bail, ensure, Context as _};
+use anyhow::{bail, ensure};
 use star_frame::{borsh_with_bytemuck, prelude::*};
 
 create_unit_system!(pub struct MarketplaceUnitSystem<Currency>);

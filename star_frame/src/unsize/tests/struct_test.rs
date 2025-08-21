@@ -1,10 +1,6 @@
 use crate::{
     prelude::*,
-    unsize::{
-        test_helpers::TestByteSet,
-        tests::struct_test::many_unsized::{ManyUnsizedExclusiveExt, ManyUnsizedOwned},
-        ModifyOwned,
-    },
+    unsize::{test_helpers::TestByteSet, ModifyOwned},
 };
 use pretty_assertions::assert_eq;
 use star_frame_proc::unsized_impl;
@@ -164,6 +160,8 @@ mod many_unsized {
     }
 }
 
+use many_unsized::ManyUnsizedExclusiveExt;
+
 #[unsized_impl]
 impl many_unsized::ManyUnsized {
     #[exclusive]
@@ -198,7 +196,7 @@ fn test_many_unsized() -> Result<()> {
         unsized5: vec![TestStruct { val1: 6, val2: 7 }],
     })?;
     r.data_mut()?.foo()?;
-    let expected = ManyUnsizedOwned {
+    let expected = many_unsized::ManyUnsizedOwned {
         sized1: 1,
         sized2: 2,
         unsized1: vec![1.into(), 2.into()],

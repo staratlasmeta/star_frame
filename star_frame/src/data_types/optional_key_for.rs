@@ -1,5 +1,4 @@
 use crate::prelude::*;
-use borsh::{BorshDeserialize, BorshSerialize};
 use bytemuck::{cast, cast_mut, cast_ref};
 use derive_where::DeriveWhere;
 use serde::{Deserialize, Serialize};

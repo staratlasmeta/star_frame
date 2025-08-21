@@ -1,10 +1,10 @@
-use crate::{account_set::SignedAccount, context::Context, prelude::*};
-use anyhow::{bail, ensure, Context as _};
+use crate::prelude::*;
+use anyhow::ensure;
 use bytemuck::bytes_of;
 use derive_more::{Deref, DerefMut};
-pub use star_frame_proc::GetSeeds;
-use std::{fmt::Debug, marker::PhantomData};
+use std::marker::PhantomData;
 
+pub use star_frame_proc::GetSeeds;
 /// A trait for getting the seed bytes of an account. The last element of the returned vector should be an empty slice, in order to replace it with a bump later on without
 /// having to push to the vector.
 ///

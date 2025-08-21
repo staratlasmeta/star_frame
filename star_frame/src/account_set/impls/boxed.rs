@@ -1,7 +1,4 @@
 use crate::prelude::*;
-use pinocchio::account_info::AccountInfo;
-use solana_instruction::AccountMeta;
-use solana_pubkey::Pubkey;
 
 impl<T> SingleAccountSet for Box<T>
 where

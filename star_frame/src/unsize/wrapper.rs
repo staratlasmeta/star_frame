@@ -1,7 +1,7 @@
 use super::{AsShared, UnsizedType};
 use crate::{
-    prelude::{SingleAccountSet, UnsizedInit},
-    unsize::{FromOwned, UnsizedTypeMut},
+    account_set::SingleAccountSet,
+    unsize::{init::UnsizedInit, FromOwned, UnsizedTypeMut},
     Result,
 };
 use anyhow::ensure;

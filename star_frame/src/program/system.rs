@@ -1,5 +1,4 @@
 use crate::{empty_star_frame_instruction, prelude::*};
-use borsh::{BorshDeserialize, BorshSerialize};
 #[allow(deprecated)]
 use pinocchio::sysvars::rent::Rent;
 

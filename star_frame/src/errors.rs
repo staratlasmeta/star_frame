@@ -1,5 +1,6 @@
 use pinocchio::{msg, program_error::ProgramError};
 
+// TODO: Replace Anyhow with an error system similar to anchor's
 #[must_use]
 #[allow(clippy::needless_pass_by_value)]
 pub fn handle_error(error: anyhow::Error) -> ProgramError {

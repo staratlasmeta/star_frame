@@ -1,7 +1,5 @@
-use borsh::{BorshDeserialize, BorshSerialize};
-use bytemuck::{Pod, Zeroable};
+use crate::prelude::*;
 use serde::{Deserialize, Serialize};
-use star_frame_proc::Align1;
 
 /// Wrapper around booleans for u8 types
 #[repr(transparent)]

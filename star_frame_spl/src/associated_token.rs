@@ -127,7 +127,7 @@ mod idl_impl {
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
 pub use idl_impl::*;
 use star_frame::{
-    anyhow::{bail, Context as _},
+    anyhow::bail,
     derive_more::{Deref, DerefMut},
 };
 

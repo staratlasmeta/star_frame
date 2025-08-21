@@ -1,9 +1,8 @@
-use crate::{context::Context, prelude::*};
-use anyhow::Context as _;
-use borsh::{to_vec, BorshDeserialize, BorshSerialize};
+use crate::prelude::*;
+use borsh::to_vec;
 use bytemuck::{bytes_of, Pod};
-use pinocchio::{account_info::AccountInfo, cpi::set_return_data};
-use solana_pubkey::Pubkey;
+use pinocchio::cpi::set_return_data;
+
 pub use star_frame_proc::{InstructionArgs, InstructionSet, InstructionToIdl};
 
 mod no_op;

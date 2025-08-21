@@ -1,18 +1,5 @@
-use crate::{
-    account_set::{SignedAccount, WritableAccount},
-    anyhow::Result,
-    client::MakeCpi,
-    prelude::{
-        CanAddLamports, CanCloseAccount, CanFundRent, CanModifyRent, CanSystemCreateAccount,
-        CheckKey, Context, System,
-    },
-    program::system,
-};
-use anyhow::{bail, Context as _};
-use pinocchio::account_info::{AccountInfo, Ref, RefMut};
-use solana_instruction::AccountMeta;
-use solana_pubkey::Pubkey;
-use std::fmt::Debug;
+use crate::{prelude::*, program::system};
+use pinocchio::account_info::{Ref, RefMut};
 
 #[derive(Debug, Clone, Copy)]
 pub struct SingleSetMeta {
