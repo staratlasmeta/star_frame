@@ -55,15 +55,6 @@ impl From<PodBool> for u8 {
     }
 }
 
-/// Trait for sealing Boolable trait implementations for types other than u8
-pub trait Boolable: sealed::Sealed {}
-impl Boolable for u8 {}
-
-mod sealed {
-    pub trait Sealed {}
-    impl Sealed for u8 {}
-}
-
 impl From<bool> for PodBool {
     fn from(val: bool) -> Self {
         Self::new(val)

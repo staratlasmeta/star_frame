@@ -100,7 +100,8 @@ impl<T: 'static + ?Sized> From<OptionalKeyFor<T>> for KeyFor<T> {
     }
 }
 
-// Safety: `KeyFor` is a transparent wrapper around a `Pubkey` which is `Zeroable`
+// SAFETY:
+// `KeyFor` is a transparent wrapper around a `Pubkey` which is `Zeroable`
 #[allow(trivial_bounds)]
 unsafe impl<T: ?Sized> Zeroable for KeyFor<T>
 where
@@ -113,7 +114,8 @@ where
         }
     }
 }
-// Safety: `KeyFor` is a transparent wrapper around a `Pubkey` which is `Pod`
+// SAFETY:
+// `KeyFor` is a transparent wrapper around a `Pubkey` which is `Pod`
 #[allow(trivial_bounds)]
 unsafe impl<T: 'static + ?Sized> Pod for KeyFor<T> where Pubkey: Pod {}
 
