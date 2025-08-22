@@ -9,7 +9,9 @@ use borsh::to_vec;
 use bytemuck::{bytes_of, Pod};
 use pinocchio::cpi::set_return_data;
 
-pub use star_frame_proc::{InstructionArgs, InstructionSet, InstructionToIdl};
+pub use star_frame_proc::{
+    star_frame_instruction, InstructionArgs, InstructionSet, InstructionToIdl,
+};
 
 mod no_op;
 mod un_callable;
@@ -112,7 +114,19 @@ pub trait InstructionArgs: Sized {
     fn split_to_args(r: &mut Self) -> IxArgs<'_, Self>;
 }
 
-/// An opinionated (and recommended) [`Instruction`] using [`AccountSet`] and other traits.
+#[doc(hidden)]
+#[diagnostic::on_unimplemented(
+    message = "StarFrameInstruction requires the return type to be `Result<T>`"
+)]
+/// A helper trait to get the inner T of a [`Result`] from a [`StarFrameInstruction::run_instruction`] declaration. This is used internally in the [`star_frame_instruction`] macro.
+pub trait IxReturnType {
+    type ReturnType;
+}
+impl<T, E> IxReturnType for Result<T, E> {
+    type ReturnType = T;
+}
+
+/// An opinionated (and recommended) [`Instruction`] using [`AccountSet`] and other traits. Can be derived using the [`star_frame_instruction`] macro.
 ///
 /// The steps for how this implements [`Instruction::process_from_raw`] are as follows:
 /// 1. Decode Self from bytes using [`BorshDeserialize`].

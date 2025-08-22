@@ -9,13 +9,14 @@ mod instruction_set;
 mod program;
 mod program_account;
 mod solana_pubkey;
+mod star_frame_instruction;
 mod unsize;
 mod util;
 
 use proc_macro_error2::proc_macro_error;
 use syn::{
-    parse_macro_input, punctuated::Punctuated, token::Comma, DeriveInput, Item, ItemEnum, ItemImpl,
-    LitStr,
+    parse::Nothing, parse_macro_input, punctuated::Punctuated, token::Comma, DeriveInput, Item,
+    ItemEnum, ItemFn, ItemImpl, LitStr,
 };
 
 /// Derives `AccountSet` lifecycle traits and `AccountSetToIdl` for a struct.
@@ -829,6 +830,19 @@ pub fn derive_type_to_idl(item: proc_macro::TokenStream) -> proc_macro::TokenStr
 #[proc_macro_derive(InstructionToIdl)]
 pub fn derive_instruction_to_idl(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let out = idl::derive_instruction_to_idl(&parse_macro_input!(input as DeriveInput));
+    out.into()
+}
+
+#[proc_macro_error]
+#[proc_macro_attribute]
+pub fn star_frame_instruction(
+    args: proc_macro::TokenStream,
+    item: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
+    parse_macro_input!(args as Nothing);
+
+    let out =
+        star_frame_instruction::star_frame_instruction_impl(parse_macro_input!(item as ItemFn));
     out.into()
 }
 
