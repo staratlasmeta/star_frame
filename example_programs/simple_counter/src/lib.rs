@@ -1,20 +1,3 @@
-# Star Frame
-
-A high performance, trait based framework for Solana programs.
-
-TODO: Add more info/docs
-
-### Building with "latest" rust
-
-```sh
-cargo build-sbf --tools-version v1.41
-```
-
-## Examples
-
-Below is a simple counter program demonstrating the basic features of Star Frame. In this example, only the designated authority can increment the counter.
-
-```rust
 use star_frame::{
     anyhow::ensure,
     borsh::{BorshDeserialize, BorshSerialize},
@@ -70,7 +53,7 @@ pub struct InitializeAccounts {
         Create(()),
         Seeds(CounterSeeds { authority: *self.authority.pubkey() }),
     ))]
-    #[idl(arg = Seeds(FindCounterAccountSeeds { authority: seed_path("authority") }))]
+    #[idl(arg = Seeds(FindCounterSeeds { authority: seed_path("authority") }))]
     pub counter: Init<Seeded<Account<CounterAccount>>>,
     pub system_program: Program<System>,
 }
@@ -118,5 +101,3 @@ impl StarFrameInstruction for Increment {
         Ok(())
     }
 }
-
-```
