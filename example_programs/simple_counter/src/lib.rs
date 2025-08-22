@@ -53,22 +53,13 @@ pub struct InitializeAccounts {
     pub system_program: Program<System>,
 }
 
-impl StarFrameInstruction for Initialize {
-    type ReturnType = ();
-    type Accounts<'b, 'c> = InitializeAccounts;
-
-    fn run_instruction(
-        account_set: &mut Self::Accounts<'_, '_>,
-        start_at: &Option<u64>,
-        _ctx: &mut Context,
-    ) -> Result<Self::ReturnType> {
-        **account_set.counter.data_mut()? = CounterAccount {
-            authority: *account_set.authority.pubkey(),
-            count: start_at.unwrap_or(0),
-        };
-
-        Ok(())
-    }
+#[star_frame_instruction]
+fn Initialize(account_set: &mut InitializeAccounts, start_at: &Option<u64>) -> Result<()> {
+    **account_set.counter.data_mut()? = CounterAccount {
+        authority: *account_set.authority.pubkey(),
+        count: start_at.unwrap_or(0),
+    };
+    Ok(())
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Debug, Copy, Clone, InstructionArgs)]
@@ -81,17 +72,9 @@ pub struct IncrementAccounts {
     pub counter: Mut<ValidatedAccount<CounterAccount>>,
 }
 
-impl StarFrameInstruction for Increment {
-    type ReturnType = ();
-    type Accounts<'b, 'c> = IncrementAccounts;
-
-    fn run_instruction(
-        account_set: &mut Self::Accounts<'_, '_>,
-        _run_args: Self::RunArg<'_>,
-        _ctx: &mut Context,
-    ) -> Result<Self::ReturnType> {
-        let mut counter = account_set.counter.data_mut()?;
-        counter.count += 1;
-        Ok(())
-    }
+#[star_frame_instruction]
+fn Increment(account_set: &mut IncrementAccounts) -> Result<()> {
+    let mut counter = account_set.counter.data_mut()?;
+    counter.count += 1;
+    Ok(())
 }
