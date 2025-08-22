@@ -11,7 +11,7 @@ pub mod macro_prelude {
         context::Context,
         instruction::{
             Instruction, InstructionArgs, InstructionDiscriminant, InstructionSet, IxArgs,
-            StarFrameInstruction,
+            IxReturnType, StarFrameInstruction,
         },
         program::StarFrameProgram,
         unsize::{
