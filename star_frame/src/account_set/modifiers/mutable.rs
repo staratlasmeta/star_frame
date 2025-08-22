@@ -14,7 +14,7 @@ pub struct MaybeMut<const MUT: bool, T>(
 );
 
 /// A mutable account
-pub type Mut<T = AccountInfo> = MaybeMut<true, T>;
+pub type Mut<T> = MaybeMut<true, T>;
 
 impl<T> WritableAccount for MaybeMut<true, T> where T: SingleAccountSet {}
 

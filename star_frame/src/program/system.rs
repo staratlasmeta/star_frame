@@ -89,7 +89,7 @@ pub struct Transfer {
 #[derive(Debug, Copy, Clone, AccountSet)]
 pub struct TransferAccounts {
     pub funder: Mut<Signer>,
-    pub recipient: Mut,
+    pub recipient: Mut<AccountInfo>,
 }
 empty_star_frame_instruction!(Transfer, TransferAccounts);
 
@@ -104,7 +104,7 @@ mod advance_nonce {
     use super::*;
     #[derive(Debug, Copy, Clone, AccountSet)]
     pub struct AdvanceNonceAccountAccounts {
-        pub nonce_account: Mut,
+        pub nonce_account: Mut<AccountInfo>,
         #[idl(address = RECENT_BLOCKHASHES_ID)]
         pub recent_blockhashes: AccountInfo,
         pub nonce_authority: Signer,
@@ -124,8 +124,8 @@ mod withdraw_nonce {
     /// Accounts for the [`WithdrawNonceAccount`] instruction.
     #[derive(Debug, Copy, Clone, AccountSet)]
     pub struct WithdrawNonceAccountAccounts {
-        pub nonce_account: Mut,
-        pub recipient: Mut,
+        pub nonce_account: Mut<AccountInfo>,
+        pub recipient: Mut<AccountInfo>,
         #[idl(address = RECENT_BLOCKHASHES_ID)]
         pub recent_blockhashes: AccountInfo,
         pub rent: Sysvar<Rent>,
@@ -146,7 +146,7 @@ mod initialize_nonce {
     /// Accounts for the [`InitializeNonceAccount`] instruction.
     #[derive(Debug, Copy, Clone, AccountSet)]
     pub struct InitializeNonceAccountAccounts {
-        pub nonce_account: Mut,
+        pub nonce_account: Mut<AccountInfo>,
         #[idl(address = RECENT_BLOCKHASHES_ID)]
         pub recent_blockhashes: AccountInfo,
         pub rent: Sysvar<Rent>,
@@ -163,7 +163,7 @@ pub struct AuthorizeNonceAccount(pub Pubkey);
 /// Accounts for the [`AuthorizeNonceAccount`] instruction.
 #[derive(Debug, Copy, Clone, AccountSet)]
 pub struct AuthorizeNonceAccountAccounts {
-    pub nonce_account: Mut,
+    pub nonce_account: Mut<AccountInfo>,
     pub nonce_authority: Signer,
 }
 empty_star_frame_instruction!(AuthorizeNonceAccount, AuthorizeNonceAccountAccounts);
@@ -190,7 +190,7 @@ pub struct UpgradeNonceAccount;
 /// Accounts for the [`UpgradeNonceAccount`] instruction.
 #[derive(Debug, Copy, Clone, AccountSet)]
 pub struct UpgradeNonceAccountAccounts {
-    pub nonce_account: Mut,
+    pub nonce_account: Mut<AccountInfo>,
 }
 empty_star_frame_instruction!(UpgradeNonceAccount, UpgradeNonceAccountAccounts);
 

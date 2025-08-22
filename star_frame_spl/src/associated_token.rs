@@ -160,7 +160,7 @@ pub mod instructions {
                 mint: seed_path("mint"),
             })
         )]
-        pub token_account: Mut,
+        pub token_account: Mut<AccountInfo>,
         pub wallet: AccountInfo,
         pub mint: AccountInfo,
         pub system_program: Program<System>,
@@ -195,7 +195,7 @@ pub mod instructions {
                 mint: seed_path("nested_mint"),
             })
         )]
-        pub nested_ata: Mut,
+        pub nested_ata: Mut<AccountInfo>,
         pub nested_mint: AccountInfo,
         #[idl(arg =
             Seeds(FindAtaSeeds {
@@ -203,14 +203,14 @@ pub mod instructions {
                 mint: seed_path("nested_mint"),
             })
         )]
-        pub destination_ata: Mut,
+        pub destination_ata: Mut<AccountInfo>,
         #[idl(arg =
             Seeds(FindAtaSeeds {
                 wallet: seed_path("wallet"),
                 mint: seed_path("owner_mint"),
             })
         )]
-        pub owner_ata: Mut,
+        pub owner_ata: Mut<AccountInfo>,
         pub owner_mint: AccountInfo,
         pub wallet: Mut<Signer>,
         pub token_program: Program<Token>,
