@@ -15,12 +15,7 @@ cargo build-sbf --tools-version v1.41
 Below is a simple counter program demonstrating the basic features of Star Frame. In this example, only the designated authority can increment the counter.
 
 ```rust
-use star_frame::{
-    anyhow::ensure,
-    borsh::{BorshDeserialize, BorshSerialize},
-    prelude::*,
-    solana_pubkey::Pubkey,
-};
+use star_frame::{anyhow::ensure, prelude::*};
 
 #[derive(StarFrameProgram)]
 #[program(
@@ -43,17 +38,17 @@ pub struct CounterAccount {
     pub count: u64,
 }
 
+#[derive(Debug, GetSeeds, Clone)]
+#[get_seeds(seed_const = b"COUNTER")]
+pub struct CounterSeeds {
+    pub authority: Pubkey,
+}
+
 impl AccountValidate<&Pubkey> for CounterAccount {
     fn validate(self_ref: &Self::Ref<'_>, arg: &Pubkey) -> Result<()> {
         ensure!(arg == &self_ref.authority, "Incorrect authority");
         Ok(())
     }
-}
-
-#[derive(Debug, GetSeeds, Clone)]
-#[get_seeds(seed_const = b"COUNTER")]
-pub struct CounterSeeds {
-    pub authority: Pubkey,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Debug, InstructionArgs)]
@@ -70,7 +65,7 @@ pub struct InitializeAccounts {
         Create(()),
         Seeds(CounterSeeds { authority: *self.authority.pubkey() }),
     ))]
-    #[idl(arg = Seeds(FindCounterAccountSeeds { authority: seed_path("authority") }))]
+    #[idl(arg = Seeds(FindCounterSeeds { authority: seed_path("authority") }))]
     pub counter: Init<Seeded<Account<CounterAccount>>>,
     pub system_program: Program<System>,
 }
@@ -81,7 +76,7 @@ impl StarFrameInstruction for Initialize {
 
     fn run_instruction(
         account_set: &mut Self::Accounts<'_, '_>,
-        start_at: Self::RunArg<'_>,
+        start_at: &Option<u64>,
         _ctx: &mut Context,
     ) -> Result<Self::ReturnType> {
         **account_set.counter.data_mut()? = CounterAccount {
@@ -94,11 +89,11 @@ impl StarFrameInstruction for Initialize {
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Debug, Copy, Clone, InstructionArgs)]
-pub struct Increment {}
+pub struct Increment;
 
 #[derive(AccountSet, Debug)]
 pub struct IncrementAccounts {
-    pub authority: Signer<SystemAccount>,
+    pub authority: Signer<AccountInfo>,
     #[validate(arg = self.authority.pubkey())]
     pub counter: Mut<ValidatedAccount<CounterAccount>>,
 }
@@ -114,9 +109,7 @@ impl StarFrameInstruction for Increment {
     ) -> Result<Self::ReturnType> {
         let mut counter = account_set.counter.data_mut()?;
         counter.count += 1;
-
         Ok(())
     }
 }
-
 ```
