@@ -2826,6 +2826,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "74233d3b3b2f6d4b006dc19dee745e73e2a6bfb6f93607cd3b02bd5b00797d7c"
 
 [[package]]
+name = "simple_counter"
+version = "0.0.1"
+dependencies = [
+ "borsh 1.5.7",
+ "bytemuck",
+ "codama-nodes",
+ "mollusk-svm",
+ "solana-account",
+ "star_frame",
+]
+
+[[package]]
 name = "slab"
 version = "0.4.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"

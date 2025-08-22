@@ -1,0 +1,26 @@
+[package]
+name = "simple_counter"
+version = "0.0.1"
+edition.workspace = true
+publish = false
+
+[package.metadata]
+release.release = false
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "simple_counter"
+
+[features]
+no_entrypoint = []
+idl = ["star_frame/idl"]
+
+[dependencies]
+borsh = { workspace = true }
+bytemuck = { workspace = true }
+star_frame = { workspace = true }
+
+[dev-dependencies]
+codama-nodes = { workspace = true }
+mollusk-svm = { workspace = true }
+solana-account = { workspace = true }

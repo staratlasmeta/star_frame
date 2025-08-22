@@ -1,20 +1,3 @@
-# Star Frame
-
-A high performance, trait based framework for Solana programs.
-
-TODO: Add more info/docs
-
-### Building with "latest" rust
-
-```sh
-cargo build-sbf --tools-version v1.41
-```
-
-## Examples
-
-Below is a simple counter program demonstrating the basic features of Star Frame. In this example, only the designated authority can increment the counter.
-
-```rust
 use star_frame::{anyhow::ensure, prelude::*};
 
 #[derive(StarFrameProgram)]
@@ -112,4 +95,3 @@ impl StarFrameInstruction for Increment {
         Ok(())
     }
 }
-```
