@@ -13,9 +13,7 @@ pub struct MaybeSigner<const SIGNER: bool, T>(
 );
 
 /// A signed account
-pub type Signer<T> = MaybeSigner<true, T>;
-
-pub type SignerInfo = Signer<AccountInfo>;
+pub type Signer<T = AccountInfo> = MaybeSigner<true, T>;
 
 impl<T> SignedAccount for MaybeSigner<true, T>
 where

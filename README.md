@@ -93,7 +93,7 @@ pub struct Increment;
 
 #[derive(AccountSet, Debug)]
 pub struct IncrementAccounts {
-    pub authority: Signer<AccountInfo>,
+    pub authority: Signer,
     #[validate(arg = self.authority.pubkey())]
     pub counter: Mut<ValidatedAccount<CounterAccount>>,
 }

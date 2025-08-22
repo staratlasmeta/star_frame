@@ -81,10 +81,12 @@ impl Context {
         self.recipient.replace(recipient);
     }
 
+    /// Adds a program to the cache.
     pub fn add_program(&mut self, key: Pubkey, info: AccountInfo) {
         self.program_cache.insert(key, info);
     }
 
+    /// Gets a program from the cache if it has been added.
     pub fn program_for_key(&self, key: &Pubkey) -> Option<&AccountInfo> {
         self.program_cache.get(key)
     }

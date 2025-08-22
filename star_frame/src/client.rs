@@ -27,7 +27,7 @@ pub trait CpiAccountSet {
 
 pub trait ClientAccountSet {
     type ClientAccounts: Clone + Debug;
-    /// The minimum number of accounts this CPI might use
+    /// The minimum number of accounts the client might use
     const MIN_LEN: usize;
     fn extend_account_metas(
         program_id: &Pubkey,

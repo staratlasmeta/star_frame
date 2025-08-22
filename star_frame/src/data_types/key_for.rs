@@ -44,7 +44,7 @@ impl<T: ?Sized> KeyFor<T> {
         }
     }
 
-    /// Creates a new reference to [`KeyFor`] for any `T` from a reference to a `Pubkey`.
+    /// Returns a reference to [`KeyFor`] for any `T` from a reference to a `Pubkey`.
     #[must_use]
     pub fn new_ref(pubkey: &Pubkey) -> &Self
     where
@@ -53,7 +53,7 @@ impl<T: ?Sized> KeyFor<T> {
         bytemuck::cast_ref(pubkey)
     }
 
-    /// Gets the contained pubkey.
+    /// Returns a reference to the contained pubkey.
     #[must_use]
     pub fn pubkey(&self) -> &Pubkey {
         &self.pubkey

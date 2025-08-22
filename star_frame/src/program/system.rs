@@ -59,8 +59,8 @@ pub struct CreateAccount {
 /// Accounts for the [`CreateAccount`] instruction.
 #[derive(Debug, Copy, Clone, AccountSet)]
 pub struct CreateAccountAccounts {
-    pub funder: Mut<Signer<AccountInfo>>,
-    pub new_account: Mut<Signer<AccountInfo>>,
+    pub funder: Mut<Signer>,
+    pub new_account: Mut<Signer>,
 }
 empty_star_frame_instruction!(CreateAccount, CreateAccountAccounts);
 
@@ -74,7 +74,7 @@ pub struct Assign {
 /// Accounts for the [`Assign`] instruction.
 #[derive(Debug, Copy, Clone, AccountSet)]
 pub struct AssignAccounts {
-    pub account: Mut<Signer<AccountInfo>>,
+    pub account: Mut<Signer>,
 }
 empty_star_frame_instruction!(Assign, AssignAccounts);
 
@@ -88,7 +88,7 @@ pub struct Transfer {
 /// Accounts for the [`Transfer`] instruction.
 #[derive(Debug, Copy, Clone, AccountSet)]
 pub struct TransferAccounts {
-    pub funder: Mut<Signer<AccountInfo>>,
+    pub funder: Mut<Signer>,
     pub recipient: Mut<AccountInfo>,
 }
 empty_star_frame_instruction!(Transfer, TransferAccounts);
@@ -107,7 +107,7 @@ mod advance_nonce {
         pub nonce_account: Mut<AccountInfo>,
         #[idl(address = RECENT_BLOCKHASHES_ID)]
         pub recent_blockhashes: AccountInfo,
-        pub nonce_authority: Signer<AccountInfo>,
+        pub nonce_authority: Signer,
     }
 }
 pub use advance_nonce::*;
@@ -129,7 +129,7 @@ mod withdraw_nonce {
         #[idl(address = RECENT_BLOCKHASHES_ID)]
         pub recent_blockhashes: AccountInfo,
         pub rent: Sysvar<Rent>,
-        pub nonce_authority: Signer<AccountInfo>,
+        pub nonce_authority: Signer,
     }
 }
 pub use withdraw_nonce::*;
@@ -164,7 +164,7 @@ pub struct AuthorizeNonceAccount(pub Pubkey);
 #[derive(Debug, Copy, Clone, AccountSet)]
 pub struct AuthorizeNonceAccountAccounts {
     pub nonce_account: Mut<AccountInfo>,
-    pub nonce_authority: Signer<AccountInfo>,
+    pub nonce_authority: Signer,
 }
 empty_star_frame_instruction!(AuthorizeNonceAccount, AuthorizeNonceAccountAccounts);
 
@@ -178,7 +178,7 @@ pub struct Allocate {
 /// Accounts for the [`Allocate`] instruction.
 #[derive(Debug, Copy, Clone, AccountSet)]
 pub struct AllocateAccounts {
-    pub account: Mut<Signer<AccountInfo>>,
+    pub account: Mut<Signer>,
 }
 empty_star_frame_instruction!(Allocate, AllocateAccounts);
 

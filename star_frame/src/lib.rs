@@ -1,11 +1,8 @@
-//! Anchor replacement.
-// TODO: Expand docs
 #![warn(
     clippy::pedantic,
     missing_copy_implementations,
     missing_debug_implementations,
-    unsafe_op_in_unsafe_fn,
-    // missing_docs
+    unsafe_op_in_unsafe_fn
 )]
 #![allow(
     unexpected_cfgs,

@@ -86,7 +86,7 @@ where
 pub struct Seeds<T>(pub T);
 
 /// Allows generic [`crate::account_set`]s to be used in multiple programs by defaulting the [`SeedProgram`] to the current
-/// executing program. This is the default `SeedProgram` for [`Seeded`], and the only `SeedProgram` that can be used with
+/// executing program. This is the default [`SeedProgram`] for [`Seeded`], and the only [`SeedProgram`] that can be used with
 /// the [`Init`] account set.
 #[derive(Debug, Clone, Copy)]
 pub struct CurrentProgram;

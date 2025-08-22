@@ -153,7 +153,7 @@ pub mod instructions {
     /// Accounts for the [`Create`] instruction.
     #[derive(Debug, Clone, AccountSet)]
     pub struct CreateAccounts {
-        pub funder: Mut<Signer<AccountInfo>>,
+        pub funder: Mut<Signer>,
         #[idl(arg =
             Seeds(FindAtaSeeds {
                 wallet: seed_path("wallet"),
@@ -212,7 +212,7 @@ pub mod instructions {
         )]
         pub owner_ata: Mut<AccountInfo>,
         pub owner_mint: AccountInfo,
-        pub wallet: Mut<Signer<AccountInfo>>,
+        pub wallet: Mut<Signer>,
         pub token_program: Program<Token>,
     }
     empty_star_frame_instruction!(RecoverNested, RecoverNestedAccounts);

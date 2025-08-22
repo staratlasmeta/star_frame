@@ -38,13 +38,13 @@ pub trait SingleAccountSet {
         }
     }
 
-    /// Gets whether this account signed.
+    /// Returns true if this account is signed.
     #[inline]
     fn is_signer(&self) -> bool {
         self.account_info().is_signer()
     }
 
-    /// Checks if this account is signed.
+    /// Checks that this account is a signer. Returns an error if it is not.
     #[inline]
     fn check_signer(&self) -> Result<()> {
         if self.is_signer() {
@@ -54,13 +54,13 @@ pub trait SingleAccountSet {
         }
     }
 
-    /// Gets whether this account is writable.
+    /// Returns true if this account is writable.
     #[inline]
     fn is_writable(&self) -> bool {
         self.account_info().is_writable()
     }
 
-    /// Checks if this account is writable.
+    /// Checks that this account is writable. Returns an error if it is not.
     #[inline]
     fn check_writable(&self) -> Result<()> {
         if self.is_writable() {
@@ -70,26 +70,27 @@ pub trait SingleAccountSet {
         }
     }
 
-    /// Gets the key of the contained account.
+    /// Returns a reference to the public key of the contained account.
     #[inline]
     fn pubkey(&self) -> &Pubkey {
         self.account_info().pubkey()
     }
 
-    /// Gets the owner of the contained account.
+    /// Returns the public key of the owner of the contained account.
     #[inline]
     fn owner_pubkey(&self) -> Pubkey {
         bytemuck::cast(self.account_info().owner_key())
     }
 
-    /// Gets the data of the contained account immutably.
+    /// Returns a reference to the data of the contained account.
     #[inline]
     fn account_data(&self) -> Result<Ref<'_, [u8]>> {
         self.account_info()
             .try_borrow_data()
             .with_context(|| format!("Failed to borrow data for account {}", self.pubkey()))
     }
-    /// Gets the data of the contained account mutably.
+
+    /// Returns a mutable reference to the data of the contained account.
     #[inline]
     fn account_data_mut(&self) -> Result<RefMut<'_, [u8]>> {
         self.account_info().try_borrow_mut_data().with_context(|| {

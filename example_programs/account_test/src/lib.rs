@@ -109,7 +109,6 @@ mod tests {
         let list = std::iter::repeat_with(|| ListInner {
             id: 2,
             key: Pubkey::new_unique(),
-            // key2: Pubkey::new_unique(),
         })
         .take(10000)
         .collect::<Vec<_>>();

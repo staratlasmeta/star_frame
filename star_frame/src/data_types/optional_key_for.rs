@@ -63,7 +63,7 @@ impl<T: ?Sized> OptionalKeyFor<T> {
         bytemuck::cast_ref(pubkey)
     }
 
-    /// Gets the contained [`KeyFor`] if not [`None`].
+    /// Attempts to return a reference to a [`KeyFor`] if the contained pubkey is not [`None`].
     #[must_use]
     pub fn key_for(&self) -> Option<&KeyFor<T>>
     where
@@ -76,7 +76,7 @@ impl<T: ?Sized> OptionalKeyFor<T> {
         }
     }
 
-    /// Gets the contained [`Pubkey`] if not [`None`].
+    /// Attempts to return a reference to the contained [`Pubkey`] if not [`None`].
     #[must_use]
     pub fn pubkey(&self) -> Option<&Pubkey> {
         if self.pubkey == Pubkey::default() {
@@ -86,13 +86,13 @@ impl<T: ?Sized> OptionalKeyFor<T> {
         }
     }
 
-    /// Pulls out the contained pubkey.
+    /// Returns a reference to the contained [`Pubkey`].
     #[must_use]
     pub fn as_inner(&self) -> &Pubkey {
         &self.pubkey
     }
 
-    /// Sets the contained pubkey.
+    /// Sets the contained [`Pubkey`].
     pub fn set_pubkey_direct(&mut self, pubkey: Option<Pubkey>) {
         self.pubkey = pubkey.unwrap_or_default();
     }

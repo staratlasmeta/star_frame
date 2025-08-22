@@ -108,7 +108,7 @@ pub struct Transfer {
 pub struct TransferAccounts {
     pub source: Mut<AccountInfo>,
     pub destination: Mut<AccountInfo>,
-    pub owner: Signer<AccountInfo>,
+    pub owner: Signer,
 }
 empty_star_frame_instruction!(Transfer, TransferAccounts);
 
@@ -125,7 +125,7 @@ pub struct Approve {
 pub struct ApproveAccounts {
     pub source: Mut<AccountInfo>,
     pub delegate: AccountInfo,
-    pub owner: Signer<AccountInfo>,
+    pub owner: Signer,
 }
 empty_star_frame_instruction!(Approve, ApproveAccounts);
 
@@ -139,7 +139,7 @@ pub struct Revoke;
 #[derive(Debug, Clone, AccountSet)]
 pub struct RevokeAccounts {
     pub source: Mut<AccountInfo>,
-    pub owner: Signer<AccountInfo>,
+    pub owner: Signer,
 }
 empty_star_frame_instruction!(Revoke, RevokeAccounts);
 
@@ -156,7 +156,7 @@ pub struct SetAuthority {
 #[derive(Debug, Clone, AccountSet)]
 pub struct SetAuthorityAccounts {
     pub account: Mut<AccountInfo>,
-    pub current_authority: Signer<AccountInfo>,
+    pub current_authority: Signer,
 }
 empty_star_frame_instruction!(SetAuthority, SetAuthorityAccounts);
 
@@ -173,7 +173,7 @@ pub struct MintTo {
 pub struct MintToAccounts {
     pub mint: Mut<AccountInfo>,
     pub account: Mut<AccountInfo>,
-    pub mint_authority: Signer<AccountInfo>,
+    pub mint_authority: Signer,
 }
 empty_star_frame_instruction!(MintTo, MintToAccounts);
 
@@ -190,7 +190,7 @@ pub struct Burn {
 pub struct BurnAccounts {
     pub account: Mut<AccountInfo>,
     pub mint: Mut<AccountInfo>,
-    pub owner: Signer<AccountInfo>,
+    pub owner: Signer,
 }
 empty_star_frame_instruction!(Burn, BurnAccounts);
 
@@ -205,7 +205,7 @@ pub struct CloseAccount;
 pub struct CloseAccountAccounts {
     pub account: Mut<AccountInfo>,
     pub destination: Mut<AccountInfo>,
-    pub owner: Signer<AccountInfo>,
+    pub owner: Signer,
 }
 empty_star_frame_instruction!(CloseAccount, CloseAccountAccounts);
 
@@ -220,7 +220,7 @@ pub struct FreezeAccount;
 pub struct FreezeAccountAccounts {
     pub account: Mut<AccountInfo>,
     pub mint: AccountInfo,
-    pub authority: Signer<AccountInfo>,
+    pub authority: Signer,
 }
 empty_star_frame_instruction!(FreezeAccount, FreezeAccountAccounts);
 
@@ -235,7 +235,7 @@ pub struct ThawAccount;
 pub struct ThawAccountAccounts {
     pub account: Mut<AccountInfo>,
     pub mint: AccountInfo,
-    pub authority: Signer<AccountInfo>,
+    pub authority: Signer,
 }
 empty_star_frame_instruction!(ThawAccount, ThawAccountAccounts);
 
@@ -254,7 +254,7 @@ pub struct TransferCheckedAccounts {
     pub source: Mut<AccountInfo>,
     pub mint: AccountInfo,
     pub destination: Mut<AccountInfo>,
-    pub owner: Signer<AccountInfo>,
+    pub owner: Signer,
 }
 empty_star_frame_instruction!(TransferChecked, TransferCheckedAccounts);
 
@@ -273,7 +273,7 @@ pub struct ApproveCheckedAccounts {
     pub source: Mut<AccountInfo>,
     pub mint: AccountInfo,
     pub delegate: AccountInfo,
-    pub owner: Signer<AccountInfo>,
+    pub owner: Signer,
 }
 empty_star_frame_instruction!(ApproveChecked, ApproveCheckedAccounts);
 
@@ -291,7 +291,7 @@ pub struct MintToChecked {
 pub struct MintToCheckedAccounts {
     pub mint: Mut<AccountInfo>,
     pub account: Mut<AccountInfo>,
-    pub mint_authority: Signer<AccountInfo>,
+    pub mint_authority: Signer,
 }
 empty_star_frame_instruction!(MintToChecked, MintToCheckedAccounts);
 
@@ -309,7 +309,7 @@ pub struct BurnChecked {
 pub struct BurnCheckedAccounts {
     pub account: Mut<AccountInfo>,
     pub mint: Mut<AccountInfo>,
-    pub owner: Signer<AccountInfo>,
+    pub owner: Signer,
 }
 empty_star_frame_instruction!(BurnChecked, BurnCheckedAccounts);
 
