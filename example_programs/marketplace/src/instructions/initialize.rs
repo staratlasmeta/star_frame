@@ -18,7 +18,7 @@ pub struct Initialize;
 pub struct InitializeAccounts {
     #[validate(funder)]
     pub payer: Mut<Signer<SystemAccount>>,
-    pub authority: Signer<AccountInfo>,
+    pub authority: Signer,
     pub currency: MintAccount,
     pub market_token: MintAccount,
     #[validate(arg = (

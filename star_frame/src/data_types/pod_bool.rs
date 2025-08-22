@@ -24,19 +24,19 @@ impl PodBool {
     /// A [`true`] value for [`PodBool`]. There are other valid values (anything > `0`).
     pub const TRUE: PodBool = PodBool(1);
 
-    /// Constructor function
+    /// Creates a new [`PodBool`] from a boolean.
     #[must_use]
     pub fn new(val: bool) -> Self {
         Self(u8::from(val))
     }
 
-    /// Getter function
+    /// Returns the boolean value of the [`PodBool`].
     #[must_use]
     pub fn get(&self) -> bool {
         self.0 > 0
     }
 
-    /// Setter function
+    /// Sets the boolean value of the [`PodBool`].
     pub fn set(&mut self, val: bool) {
         self.0 = u8::from(val);
     }

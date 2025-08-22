@@ -121,7 +121,7 @@ impl<T1, Unit1> UnitVal<T1, Unit1> {
         UnitVal::new(self.val.pow(Value::U32))
     }
 
-    /// Gets the square root of this unit val. Can
+    /// Gets the square root of this unit val. Only works for units that are a power of 2.
     pub fn sqrt(self) -> UnitVal<T1, <Unit1 as Div<P2>>::Output>
     where
         T1: Real,

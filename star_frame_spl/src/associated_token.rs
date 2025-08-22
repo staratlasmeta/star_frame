@@ -153,14 +153,14 @@ pub mod instructions {
     /// Accounts for the [`Create`] instruction.
     #[derive(Debug, Clone, AccountSet)]
     pub struct CreateAccounts {
-        pub funder: Mut<Signer<AccountInfo>>,
+        pub funder: Mut<Signer>,
         #[idl(arg =
             Seeds(FindAtaSeeds {
                 wallet: seed_path("wallet"),
                 mint: seed_path("mint"),
             })
         )]
-        pub token_account: Mut<AccountInfo>,
+        pub token_account: Mut,
         pub wallet: AccountInfo,
         pub mint: AccountInfo,
         pub system_program: Program<System>,
@@ -195,7 +195,7 @@ pub mod instructions {
                 mint: seed_path("nested_mint"),
             })
         )]
-        pub nested_ata: Mut<AccountInfo>,
+        pub nested_ata: Mut,
         pub nested_mint: AccountInfo,
         #[idl(arg =
             Seeds(FindAtaSeeds {
@@ -203,16 +203,16 @@ pub mod instructions {
                 mint: seed_path("nested_mint"),
             })
         )]
-        pub destination_ata: Mut<AccountInfo>,
+        pub destination_ata: Mut,
         #[idl(arg =
             Seeds(FindAtaSeeds {
                 wallet: seed_path("wallet"),
                 mint: seed_path("owner_mint"),
             })
         )]
-        pub owner_ata: Mut<AccountInfo>,
+        pub owner_ata: Mut,
         pub owner_mint: AccountInfo,
-        pub wallet: Mut<Signer<AccountInfo>>,
+        pub wallet: Mut<Signer>,
         pub token_program: Program<Token>,
     }
     empty_star_frame_instruction!(RecoverNested, RecoverNestedAccounts);

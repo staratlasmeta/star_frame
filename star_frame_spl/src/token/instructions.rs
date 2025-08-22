@@ -59,7 +59,7 @@ pub struct InitializeMint {
 /// Accounts for the [`InitializeMint`] instruction.
 #[derive(Debug, Clone, AccountSet)]
 pub struct InitializeMintAccounts {
-    pub mint: Mut<AccountInfo>,
+    pub mint: Mut,
     pub rent: Sysvar<Rent>,
 }
 empty_star_frame_instruction!(InitializeMint, InitializeMintAccounts);
@@ -72,7 +72,7 @@ pub struct InitializeAccount;
 /// Accounts for the [`InitializeAccount`] instruction.
 #[derive(Debug, Clone, AccountSet)]
 pub struct InitializeAccountAccounts {
-    pub account: Mut<AccountInfo>,
+    pub account: Mut,
     pub mint: AccountInfo,
     pub owner: AccountInfo,
     pub rent: Sysvar<Rent>,
@@ -89,7 +89,7 @@ pub struct InitializeMultisig {
 /// Accounts for the [`InitializeMultisig`] instruction.
 #[derive(Debug, Clone, AccountSet)]
 pub struct InitializeMultisigAccounts {
-    pub multisig: Mut<AccountInfo>,
+    pub multisig: Mut,
     pub rent: Sysvar<Rent>,
     pub signers: Rest<AccountInfo>,
 }
@@ -106,9 +106,9 @@ pub struct Transfer {
 /// Accounts for the [`Transfer`] instruction.
 #[derive(Debug, Clone, AccountSet)]
 pub struct TransferAccounts {
-    pub source: Mut<AccountInfo>,
-    pub destination: Mut<AccountInfo>,
-    pub owner: Signer<AccountInfo>,
+    pub source: Mut,
+    pub destination: Mut,
+    pub owner: Signer,
 }
 empty_star_frame_instruction!(Transfer, TransferAccounts);
 
@@ -123,9 +123,9 @@ pub struct Approve {
 /// Accounts for the [`Approve`] instruction.
 #[derive(Debug, Clone, AccountSet)]
 pub struct ApproveAccounts {
-    pub source: Mut<AccountInfo>,
+    pub source: Mut,
     pub delegate: AccountInfo,
-    pub owner: Signer<AccountInfo>,
+    pub owner: Signer,
 }
 empty_star_frame_instruction!(Approve, ApproveAccounts);
 
@@ -138,8 +138,8 @@ pub struct Revoke;
 /// Accounts for the [`Revoke`] instruction.
 #[derive(Debug, Clone, AccountSet)]
 pub struct RevokeAccounts {
-    pub source: Mut<AccountInfo>,
-    pub owner: Signer<AccountInfo>,
+    pub source: Mut,
+    pub owner: Signer,
 }
 empty_star_frame_instruction!(Revoke, RevokeAccounts);
 
@@ -155,8 +155,8 @@ pub struct SetAuthority {
 /// Accounts for the [`SetAuthority`] instruction.
 #[derive(Debug, Clone, AccountSet)]
 pub struct SetAuthorityAccounts {
-    pub account: Mut<AccountInfo>,
-    pub current_authority: Signer<AccountInfo>,
+    pub account: Mut,
+    pub current_authority: Signer,
 }
 empty_star_frame_instruction!(SetAuthority, SetAuthorityAccounts);
 
@@ -171,9 +171,9 @@ pub struct MintTo {
 /// Accounts for the [`MintTo`] instruction.
 #[derive(Debug, Clone, AccountSet)]
 pub struct MintToAccounts {
-    pub mint: Mut<AccountInfo>,
-    pub account: Mut<AccountInfo>,
-    pub mint_authority: Signer<AccountInfo>,
+    pub mint: Mut,
+    pub account: Mut,
+    pub mint_authority: Signer,
 }
 empty_star_frame_instruction!(MintTo, MintToAccounts);
 
@@ -188,9 +188,9 @@ pub struct Burn {
 /// Accounts for the [`Burn`] instruction.
 #[derive(Debug, Clone, AccountSet)]
 pub struct BurnAccounts {
-    pub account: Mut<AccountInfo>,
-    pub mint: Mut<AccountInfo>,
-    pub owner: Signer<AccountInfo>,
+    pub account: Mut,
+    pub mint: Mut,
+    pub owner: Signer,
 }
 empty_star_frame_instruction!(Burn, BurnAccounts);
 
@@ -203,9 +203,9 @@ pub struct CloseAccount;
 /// Accounts for the [`CloseAccount`] instruction.
 #[derive(Debug, Clone, AccountSet)]
 pub struct CloseAccountAccounts {
-    pub account: Mut<AccountInfo>,
-    pub destination: Mut<AccountInfo>,
-    pub owner: Signer<AccountInfo>,
+    pub account: Mut,
+    pub destination: Mut,
+    pub owner: Signer,
 }
 empty_star_frame_instruction!(CloseAccount, CloseAccountAccounts);
 
@@ -218,9 +218,9 @@ pub struct FreezeAccount;
 /// Accounts for the [`FreezeAccount`] instruction.
 #[derive(Debug, Clone, AccountSet)]
 pub struct FreezeAccountAccounts {
-    pub account: Mut<AccountInfo>,
+    pub account: Mut,
     pub mint: AccountInfo,
-    pub authority: Signer<AccountInfo>,
+    pub authority: Signer,
 }
 empty_star_frame_instruction!(FreezeAccount, FreezeAccountAccounts);
 
@@ -233,9 +233,9 @@ pub struct ThawAccount;
 /// Accounts for the [`ThawAccount`] instruction.
 #[derive(Debug, Clone, AccountSet)]
 pub struct ThawAccountAccounts {
-    pub account: Mut<AccountInfo>,
+    pub account: Mut,
     pub mint: AccountInfo,
-    pub authority: Signer<AccountInfo>,
+    pub authority: Signer,
 }
 empty_star_frame_instruction!(ThawAccount, ThawAccountAccounts);
 
@@ -251,10 +251,10 @@ pub struct TransferChecked {
 /// todo: Handle multisig with AccountSet enums.
 #[derive(Debug, Clone, AccountSet)]
 pub struct TransferCheckedAccounts {
-    pub source: Mut<AccountInfo>,
+    pub source: Mut,
     pub mint: AccountInfo,
-    pub destination: Mut<AccountInfo>,
-    pub owner: Signer<AccountInfo>,
+    pub destination: Mut,
+    pub owner: Signer,
 }
 empty_star_frame_instruction!(TransferChecked, TransferCheckedAccounts);
 
@@ -270,10 +270,10 @@ pub struct ApproveChecked {
 /// todo: Handle multisig with AccountSet enums.
 #[derive(Debug, Clone, AccountSet)]
 pub struct ApproveCheckedAccounts {
-    pub source: Mut<AccountInfo>,
+    pub source: Mut,
     pub mint: AccountInfo,
     pub delegate: AccountInfo,
-    pub owner: Signer<AccountInfo>,
+    pub owner: Signer,
 }
 empty_star_frame_instruction!(ApproveChecked, ApproveCheckedAccounts);
 
@@ -289,9 +289,9 @@ pub struct MintToChecked {
 /// todo: Handle multisig with AccountSet enums.
 #[derive(Debug, Clone, AccountSet)]
 pub struct MintToCheckedAccounts {
-    pub mint: Mut<AccountInfo>,
-    pub account: Mut<AccountInfo>,
-    pub mint_authority: Signer<AccountInfo>,
+    pub mint: Mut,
+    pub account: Mut,
+    pub mint_authority: Signer,
 }
 empty_star_frame_instruction!(MintToChecked, MintToCheckedAccounts);
 
@@ -307,9 +307,9 @@ pub struct BurnChecked {
 /// todo: Handle multisig with AccountSet enums.
 #[derive(Debug, Clone, AccountSet)]
 pub struct BurnCheckedAccounts {
-    pub account: Mut<AccountInfo>,
-    pub mint: Mut<AccountInfo>,
-    pub owner: Signer<AccountInfo>,
+    pub account: Mut,
+    pub mint: Mut,
+    pub owner: Signer,
 }
 empty_star_frame_instruction!(BurnChecked, BurnCheckedAccounts);
 
@@ -324,7 +324,7 @@ pub struct InitializeAccount2 {
 /// todo: Consider multisig ownership scenarios if required.
 #[derive(Debug, Clone, AccountSet)]
 pub struct InitializeAccount2Accounts {
-    pub account: Mut<AccountInfo>,
+    pub account: Mut,
     pub mint: AccountInfo,
     pub rent: Sysvar<Rent>,
 }
@@ -338,7 +338,7 @@ pub struct SyncNative;
 /// Accounts for the [`SyncNative`] instruction.
 #[derive(Debug, Clone, AccountSet)]
 pub struct SyncNativeAccounts {
-    pub account: Mut<AccountInfo>,
+    pub account: Mut,
 }
 empty_star_frame_instruction!(SyncNative, SyncNativeAccounts);
 
@@ -352,7 +352,7 @@ pub struct InitializeAccount3 {
 /// Accounts for the [`InitializeAccount3`] instruction.
 #[derive(Debug, Clone, AccountSet)]
 pub struct InitializeAccount3Accounts {
-    pub account: Mut<AccountInfo>,
+    pub account: Mut,
     pub mint: AccountInfo,
 }
 empty_star_frame_instruction!(InitializeAccount3, InitializeAccount3Accounts);
@@ -367,7 +367,7 @@ pub struct InitializeMultisig2 {
 /// Accounts for the [`InitializeMultisig2`] instruction.
 #[derive(Debug, Clone, AccountSet)]
 pub struct InitializeMultisig2Accounts {
-    pub multisig: Mut<AccountInfo>,
+    pub multisig: Mut,
     pub signers: Rest<AccountInfo>,
 }
 empty_star_frame_instruction!(InitializeMultisig2, InitializeMultisig2Accounts);
@@ -384,7 +384,7 @@ pub struct InitializeMint2 {
 /// Accounts for the [`InitializeMint2`] instruction.
 #[derive(Debug, Clone, AccountSet)]
 pub struct InitializeMint2Accounts {
-    pub mint: Mut<AccountInfo>,
+    pub mint: Mut,
 }
 empty_star_frame_instruction!(InitializeMint2, InitializeMint2Accounts);
 
@@ -408,7 +408,7 @@ pub struct InitializeImmutableOwner;
 /// Accounts for the [`InitializeImmutableOwner`] instruction.
 #[derive(Debug, Clone, AccountSet)]
 pub struct InitializeImmutableOwnerAccounts {
-    pub account: Mut<AccountInfo>,
+    pub account: Mut,
 }
 empty_star_frame_instruction!(InitializeImmutableOwner, InitializeImmutableOwnerAccounts);
 

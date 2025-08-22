@@ -26,7 +26,6 @@ pub enum BenchInstructionSet {
     AccountSizedInit2(AccountSizedInit2),
     AccountSizedInit4(AccountSizedInit4),
     AccountSizedInit8(AccountSizedInit8),
-    // The following are temporarily disabled during migration to Star Frame pattern
     AccountSized1(AccountSized1),
     AccountSized2(AccountSized2),
     AccountSized4(AccountSized4),
@@ -39,7 +38,6 @@ pub enum BenchInstructionSet {
     AccountUnsized2(AccountUnsized2),
     AccountUnsized4(AccountUnsized4),
     AccountUnsized8(AccountUnsized8),
-    // Boxed groups temporarily disabled until converted
     BoxedAccountEmptyInit1(BoxedAccountEmptyInit1),
     BoxedAccountEmptyInit2(BoxedAccountEmptyInit2),
     BoxedAccountEmptyInit4(BoxedAccountEmptyInit4),
@@ -1111,7 +1109,7 @@ empty_star_frame_instruction!(Program8, Program8Accounts);
 pub struct Signer1;
 #[derive(AccountSet, Debug)]
 pub struct Signer1Accounts {
-    pub account1: Signer<AccountInfo>,
+    pub account1: Signer,
 }
 empty_star_frame_instruction!(Signer1, Signer1Accounts);
 
@@ -1119,8 +1117,8 @@ empty_star_frame_instruction!(Signer1, Signer1Accounts);
 pub struct Signer2;
 #[derive(AccountSet, Debug)]
 pub struct Signer2Accounts {
-    pub account1: Signer<AccountInfo>,
-    pub account2: Signer<AccountInfo>,
+    pub account1: Signer,
+    pub account2: Signer,
 }
 empty_star_frame_instruction!(Signer2, Signer2Accounts);
 
@@ -1128,10 +1126,10 @@ empty_star_frame_instruction!(Signer2, Signer2Accounts);
 pub struct Signer4;
 #[derive(AccountSet, Debug)]
 pub struct Signer4Accounts {
-    pub account1: Signer<AccountInfo>,
-    pub account2: Signer<AccountInfo>,
-    pub account3: Signer<AccountInfo>,
-    pub account4: Signer<AccountInfo>,
+    pub account1: Signer,
+    pub account2: Signer,
+    pub account3: Signer,
+    pub account4: Signer,
 }
 empty_star_frame_instruction!(Signer4, Signer4Accounts);
 
@@ -1139,14 +1137,14 @@ empty_star_frame_instruction!(Signer4, Signer4Accounts);
 pub struct Signer8;
 #[derive(AccountSet, Debug)]
 pub struct Signer8Accounts {
-    pub account1: Signer<AccountInfo>,
-    pub account2: Signer<AccountInfo>,
-    pub account3: Signer<AccountInfo>,
-    pub account4: Signer<AccountInfo>,
-    pub account5: Signer<AccountInfo>,
-    pub account6: Signer<AccountInfo>,
-    pub account7: Signer<AccountInfo>,
-    pub account8: Signer<AccountInfo>,
+    pub account1: Signer,
+    pub account2: Signer,
+    pub account3: Signer,
+    pub account4: Signer,
+    pub account5: Signer,
+    pub account6: Signer,
+    pub account7: Signer,
+    pub account8: Signer,
 }
 empty_star_frame_instruction!(Signer8, Signer8Accounts);
 

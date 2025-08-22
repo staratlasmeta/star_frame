@@ -38,7 +38,7 @@ impl StarFrameInstruction for PlaceOrder {
 
         match process_order_args.side {
             OrderSide::Bid => {
-                // // Bids lock up currency and return market tokens
+                // Bids lock up currency and return market tokens
                 deposit_totals.currency = order_result.total_cost();
                 withdraw_totals.market_tokens = order_result.executed_quantity;
             }

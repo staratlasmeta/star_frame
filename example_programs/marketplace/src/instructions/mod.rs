@@ -30,7 +30,7 @@ use crate::state::{
 pub struct ManageOrderAccounts {
     #[validate(funder)]
     pub funder: Mut<Signer<SystemAccount>>,
-    pub user: Signer<AccountInfo>,
+    pub user: Signer,
     #[idl(arg = Seeds(FindMarketSeeds {
         currency: seed_path("currency"),
         market_token: seed_path("market_token")

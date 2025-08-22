@@ -12,7 +12,6 @@ pub fn try_map_ref<'a, I: 'a + ?Sized, O: 'a + ?Sized, E>(
 ) -> Result<Ref<'a, O>, E> {
     // Safety: We don't extend the lifetime of the reference beyond what it is.
     unsafe {
-        // let value: &'a I = &*(&*r as *const I); // &*:( => &:) Since :( impl deref => :)
         let result = f(&r)? as *const O;
         Ok(Ref::map(r, |_| &*result))
     }
@@ -26,7 +25,6 @@ pub fn try_map_ref_mut<'a, I: 'a + ?Sized, O: 'a + ?Sized, E>(
 ) -> Result<RefMut<'a, O>, E> {
     // Safety: We don't extend the lifetime of the reference beyond what it is.
     unsafe {
-        // let value: &'a mut I = &mut *(&mut *r as *mut I);
         let result = f(&mut r)? as *mut O;
         Ok(RefMut::map(r, |_| &mut *result))
     }
