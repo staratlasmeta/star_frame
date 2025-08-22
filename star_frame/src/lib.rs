@@ -66,8 +66,7 @@ pub mod __private;
 
 pub use anyhow::Result;
 pub use solana_instruction::Instruction as SolanaInstruction;
-pub use star_frame_proc::pubkey;
-pub use star_frame_proc::sighash;
+pub use star_frame_proc::{pubkey, sighash};
 
 #[allow(unused_imports)]
 #[cfg(test)]

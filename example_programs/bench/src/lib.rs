@@ -1,5 +1,4 @@
-use star_frame::empty_star_frame_instruction;
-use star_frame::prelude::*;
+use star_frame::{empty_star_frame_instruction, prelude::*};
 use star_frame_spl::token::state::{MintAccount, TokenAccount};
 
 #[derive(StarFrameProgram)]

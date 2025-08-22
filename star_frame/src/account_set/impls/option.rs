@@ -1,12 +1,5 @@
-use crate::account_set::{AccountSetCleanup, AccountSetDecode, AccountSetValidate};
-use crate::client::{ClientAccountSet, CpiAccountSet};
-use crate::prelude::{CheckKey, Context, SingleAccountSet};
-use crate::Result;
+use crate::prelude::*;
 use advancer::Advance;
-use anyhow::Context as _;
-use pinocchio::account_info::AccountInfo;
-use solana_instruction::AccountMeta;
-use solana_pubkey::Pubkey;
 
 impl<T> CpiAccountSet for Option<T>
 where
@@ -132,10 +125,8 @@ where
 
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
 mod idl_impl {
-    use crate::idl::AccountSetToIdl;
-    use crate::Result;
-    use star_frame_idl::account_set::IdlAccountSetDef;
-    use star_frame_idl::IdlDefinition;
+    use crate::{idl::AccountSetToIdl, Result};
+    use star_frame_idl::{account_set::IdlAccountSetDef, IdlDefinition};
 
     // todo: figure out our optionals for IDLs. Thinking we should remove our separate decode
     //  strategies and just use the program id method. This would make using option much simpler on

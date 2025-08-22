@@ -3,9 +3,7 @@ use proc_macro2::TokenStream;
 use proc_macro_error2::abort;
 use sha2::{Digest, Sha256};
 use std::str::FromStr;
-use syn::punctuated::Punctuated;
-use syn::token::Comma;
-use syn::LitStr;
+use syn::{punctuated::Punctuated, token::Comma, LitStr};
 
 pub const SIGHASH_GLOBAL_NAMESPACE: &str = "global";
 pub const SIGHASH_ACCOUNT_NAMESPACE: &str = "account";

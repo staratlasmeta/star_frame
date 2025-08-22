@@ -1,5 +1,7 @@
-use star_frame::align1::Align1;
-use star_frame::bytemuck::{Pod, Zeroable};
+use star_frame::{
+    align1::Align1,
+    bytemuck::{Pod, Zeroable},
+};
 
 /// Duplicated from `spl_token_2022::PodCOption` to avoid a
 #[repr(C, packed)]

@@ -1,6 +1,4 @@
-use crate::serde_base58_pubkey_option;
-use crate::ty::IdlTypeDef;
-use crate::ItemDescription;
+use crate::{serde_base58_pubkey_option, ty::IdlTypeDef, ItemDescription};
 use derive_more::{Deref, DerefMut};
 use serde::{Deserialize, Serialize};
 use solana_pubkey::Pubkey;

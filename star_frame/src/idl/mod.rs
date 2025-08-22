@@ -1,10 +1,8 @@
 use crate::prelude::*;
-use star_frame_idl::account::IdlAccountId;
-use star_frame_idl::account_set::IdlAccountSetDef;
-use star_frame_idl::instruction::IdlInstructionDef;
-use star_frame_idl::seeds::IdlSeeds;
-use star_frame_idl::ty::IdlTypeDef;
-use star_frame_idl::{CrateMetadata, IdlDefinition, IdlMetadata};
+use star_frame_idl::{
+    account::IdlAccountId, account_set::IdlAccountSetDef, instruction::IdlInstructionDef,
+    seeds::IdlSeeds, ty::IdlTypeDef, CrateMetadata, IdlDefinition, IdlMetadata,
+};
 
 mod find_seeds;
 pub mod ty;

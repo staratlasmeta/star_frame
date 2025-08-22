@@ -1,31 +1,29 @@
 pub mod macro_prelude {
-    pub use crate::account_set::{
-        internal_reverse::{_account_set_cleanup_reverse, _account_set_validate_reverse},
-        AccountSet, AccountSetValidate, CanInitAccount, CanInitSeeds, CheckKey, GetSeeds,
-        HasInnerType, HasOwnerProgram, HasSeeds, ProgramAccount, Seed, SignedAccount,
-        SingleAccountSet, SingleSetMeta, WritableAccount,
-    };
-    pub use crate::align1::Align1;
-    pub use crate::client::{
-        ClientAccountSet, CpiAccountSet, CpiBuilder, MakeCpi, MakeInstruction,
-    };
-    pub use crate::instruction::{
-        Instruction, InstructionArgs, InstructionDiscriminant, InstructionSet, IxArgs,
-        StarFrameInstruction,
-    };
-    pub use crate::program::StarFrameProgram;
-
-    pub use crate::context::Context;
-    pub use crate::unsize::{
-        init::{DefaultInit, UnsizedInit},
-        wrapper::{
-            ExclusiveRecurse, ExclusiveWrapper, SharedWrapper, StartPointer, UnsizedTypeDataAccess,
+    pub use crate::{
+        account_set::{
+            internal_reverse::{_account_set_cleanup_reverse, _account_set_validate_reverse},
+            AccountSet, AccountSetValidate, CanInitAccount, CanInitSeeds, CheckKey, GetSeeds,
+            HasInnerType, HasOwnerProgram, HasSeeds, ProgramAccount, Seed, SignedAccount,
+            SingleAccountSet, SingleSetMeta, WritableAccount,
         },
-        AsShared, FromOwned, RawSliceAdvance, UnsizedType, UnsizedTypeMut,
+        align1::Align1,
+        client::{ClientAccountSet, CpiAccountSet, CpiBuilder, MakeCpi, MakeInstruction},
+        context::Context,
+        instruction::{
+            Instruction, InstructionArgs, InstructionDiscriminant, InstructionSet, IxArgs,
+            StarFrameInstruction,
+        },
+        program::StarFrameProgram,
+        unsize::{
+            init::{DefaultInit, UnsizedInit},
+            wrapper::{
+                ExclusiveRecurse, ExclusiveWrapper, SharedWrapper, StartPointer,
+                UnsizedTypeDataAccess,
+            },
+            AsShared, FromOwned, RawSliceAdvance, UnsizedType, UnsizedTypeMut,
+        },
+        Result,
     };
-
-    pub use crate::Result;
-    pub use star_frame_proc::{sighash, InstructionToIdl, TypeToIdl};
 
     #[cfg(all(feature = "idl", not(target_os = "solana")))]
     pub use crate::{
@@ -35,15 +33,6 @@ pub mod macro_prelude {
             InstructionSetToIdl, InstructionToIdl, ProgramToIdl, SeedsToIdl, TypeToIdl,
         },
     };
-
-    pub use advancer::{Advance, AdvanceArray};
-    pub use anyhow::{self, bail};
-
-    pub use core::any::type_name;
-
-    pub use pinocchio::{account_info::AccountInfo, msg, pubkey::Pubkey as PinocchioPubkey};
-    pub use solana_instruction::{AccountMeta, Instruction as SolanaInstruction};
-    pub use solana_pubkey::Pubkey;
 
     #[cfg(all(feature = "idl", not(target_os = "solana")))]
     pub use star_frame_idl::{
@@ -56,5 +45,13 @@ pub mod macro_prelude {
         CrateMetadata, IdlDefinition, IdlDefinitionReference, ItemInfo, Version,
     };
 
+    pub use star_frame_proc::{sighash, InstructionToIdl, TypeToIdl};
+
+    pub use advancer::{Advance, AdvanceArray};
+    pub use anyhow::{self, bail};
+    pub use core::any::type_name;
     pub use derive_where::DeriveWhere;
+    pub use pinocchio::{account_info::AccountInfo, msg, pubkey::Pubkey as PinocchioPubkey};
+    pub use solana_instruction::{AccountMeta, Instruction as SolanaInstruction};
+    pub use solana_pubkey::Pubkey;
 }

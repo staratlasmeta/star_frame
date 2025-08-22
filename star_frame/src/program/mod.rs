@@ -1,11 +1,7 @@
 pub mod system;
 
-use crate::context::Context;
-use crate::instruction::InstructionSet;
-use bytemuck::Pod;
-use pinocchio::account_info::AccountInfo;
-use pinocchio::ProgramResult;
-use solana_pubkey::Pubkey;
+use crate::prelude::*;
+
 pub use star_frame_proc::StarFrameProgram;
 
 /// A Solana program's definition. This should be derived using the [`StarFrameProgram`](derive@StarFrameProgram) macro,

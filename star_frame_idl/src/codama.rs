@@ -1,9 +1,11 @@
-use crate::account::IdlAccount;
-use crate::account_set::{IdlAccountSetDef, IdlAccountSetStructField, IdlSingleAccountSet};
-use crate::instruction::IdlInstruction;
-use crate::seeds::{IdlFindSeed, IdlFindSeeds, IdlSeed};
-use crate::ty::{IdlEnumVariant, IdlTypeDef};
-use crate::{IdlDefinition, IdlDiscriminant, ItemDescription, ItemInfo};
+use crate::{
+    account::IdlAccount,
+    account_set::{IdlAccountSetDef, IdlAccountSetStructField, IdlSingleAccountSet},
+    instruction::IdlInstruction,
+    seeds::{IdlFindSeed, IdlFindSeeds, IdlSeed},
+    ty::{IdlEnumVariant, IdlTypeDef},
+    IdlDefinition, IdlDiscriminant, ItemDescription, ItemInfo,
+};
 use anyhow::{bail, Context, Result};
 pub use codama_nodes::ProgramNode;
 use codama_nodes::{

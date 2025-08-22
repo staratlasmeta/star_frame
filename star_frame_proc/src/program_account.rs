@@ -1,11 +1,12 @@
-use crate::hash::SIGHASH_ACCOUNT_NAMESPACE;
-use crate::idl::TypeToIdlArgs;
-use crate::util::{ignore_cfg_module, reject_attributes, Paths};
+use crate::{
+    hash::SIGHASH_ACCOUNT_NAMESPACE,
+    idl::TypeToIdlArgs,
+    util::{ignore_cfg_module, reject_attributes, Paths},
+};
 use easy_proc::{find_attr, ArgumentList};
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::Type;
-use syn::*;
+use syn::{Type, *};
 
 #[derive(Debug, ArgumentList, Clone, Default)]
 pub struct ProgramAccountArgs {

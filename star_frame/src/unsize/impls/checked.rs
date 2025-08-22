@@ -1,13 +1,19 @@
-use crate::unsize::init::{DefaultInit, DefaultInitable, UnsizedInit};
-use crate::unsize::{AsShared, FromOwned, RawSliceAdvance, UnsizedType, UnsizedTypeMut};
-use crate::{align1::Align1, Result};
+use crate::{
+    align1::Align1,
+    unsize::{
+        init::{DefaultInit, DefaultInitable, UnsizedInit},
+        AsShared, FromOwned, RawSliceAdvance, UnsizedType, UnsizedTypeMut,
+    },
+    Result,
+};
 use advancer::Advance;
-use anyhow::Context;
-use bytemuck::checked;
-use bytemuck::{CheckedBitPattern, NoUninit, Zeroable};
-use std::marker::PhantomData;
-use std::mem::size_of;
-use std::ops::{Deref, DerefMut};
+use anyhow::Context as _;
+use bytemuck::{checked, CheckedBitPattern, NoUninit, Zeroable};
+use std::{
+    marker::PhantomData,
+    mem::size_of,
+    ops::{Deref, DerefMut},
+};
 
 /// This is a helper trait for the [`UnsizedType`] trait. The required supertraits meet the [`CheckedBitPattern`] blanket implementation for [`UnsizedType`].
 pub trait UnsizedGenerics: CheckedBitPattern + Align1 + NoUninit + Zeroable {}

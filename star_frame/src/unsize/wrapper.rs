@@ -1,17 +1,20 @@
 use super::{AsShared, UnsizedType};
-use crate::prelude::{SingleAccountSet, UnsizedInit};
-use crate::unsize::{FromOwned, UnsizedTypeMut};
-use crate::Result;
+use crate::{
+    account_set::SingleAccountSet,
+    unsize::{init::UnsizedInit, FromOwned, UnsizedTypeMut},
+    Result,
+};
 use anyhow::ensure;
 use core::ptr;
 use derive_more::{Debug, Deref, DerefMut};
-use pinocchio::account_info::AccountInfo;
-use pinocchio::memory::sol_memmove;
-use std::cmp::Ordering;
-use std::collections::Bound;
-use std::convert::Infallible;
-use std::marker::PhantomData;
-use std::ops::{Deref, DerefMut, RangeBounds};
+use pinocchio::{account_info::AccountInfo, memory::sol_memmove};
+use std::{
+    cmp::Ordering,
+    collections::Bound,
+    convert::Infallible,
+    marker::PhantomData,
+    ops::{Deref, DerefMut, RangeBounds},
+};
 
 /// # Safety
 /// [`UnsizedTypeDataAccess::unsized_data_realloc`] must properly check the new length of the underlying data pointer.

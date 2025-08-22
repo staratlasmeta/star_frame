@@ -1,8 +1,10 @@
 //! This program is used as a testing ground for on chain compute and unsized type behavior
-use star_frame::account_set::Account;
-use star_frame::borsh::{BorshDeserialize, BorshSerialize};
-use star_frame::pinocchio::syscalls::sol_remaining_compute_units;
-use star_frame::prelude::*;
+use star_frame::{
+    account_set::Account,
+    borsh::{BorshDeserialize, BorshSerialize},
+    pinocchio::syscalls::sol_remaining_compute_units,
+    prelude::*,
+};
 
 #[allow(unused)]
 fn remaining_compute() -> u64 {

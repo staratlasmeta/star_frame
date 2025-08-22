@@ -1,10 +1,11 @@
 use crate::prelude::*;
-use borsh::{BorshDeserialize, BorshSerialize};
 use bytemuck::{cast, cast_mut, cast_ref};
 use derive_where::DeriveWhere;
 use serde::{Deserialize, Serialize};
-use std::fmt::{Display, Formatter};
-use std::marker::PhantomData;
+use std::{
+    fmt::{Display, Formatter},
+    marker::PhantomData,
+};
 
 /// Allows getting an [`OptionalKeyFor`] from other types.
 pub trait GetOptionalKeyFor<T: ?Sized> {
@@ -170,8 +171,7 @@ unsafe impl<T: 'static + ?Sized> Pod for OptionalKeyFor<T> where Pubkey: Pod {}
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
 mod idl_impl {
     use super::*;
-    use star_frame_idl::ty::IdlTypeDef;
-    use star_frame_idl::IdlDefinition;
+    use star_frame_idl::{ty::IdlTypeDef, IdlDefinition};
 
     impl<T> TypeToIdl for OptionalKeyFor<T> {
         type AssociatedProgram = System;

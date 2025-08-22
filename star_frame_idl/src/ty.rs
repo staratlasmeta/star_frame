@@ -1,5 +1,6 @@
-use crate::{IdlDefinition, IdlDiscriminant, IdlNamespace, ItemDescription, ItemSource};
-use crate::{IdlGeneric, ItemInfo};
+use crate::{
+    IdlDefinition, IdlDiscriminant, IdlGeneric, IdlNamespace, ItemDescription, ItemInfo, ItemSource,
+};
 use anyhow::{bail, Context};
 use serde::{Deserialize, Serialize};
 

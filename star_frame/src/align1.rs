@@ -2,8 +2,10 @@
 
 use solana_pubkey::Pubkey;
 pub use star_frame_proc::Align1;
-use std::marker::PhantomData;
-use std::num::{NonZeroI8, NonZeroU8};
+use std::{
+    marker::PhantomData,
+    num::{NonZeroI8, NonZeroU8},
+};
 
 /// # Safety
 /// This trait should only be implemented for types that are guaranteed to be aligned to 1 byte.

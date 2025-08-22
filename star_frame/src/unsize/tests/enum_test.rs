@@ -1,6 +1,7 @@
-use crate::prelude::*;
-use crate::unsize::test_helpers::TestByteSet;
-use crate::unsize::TestUnderlyingData;
+use crate::{
+    prelude::*,
+    unsize::{test_helpers::TestByteSet, TestUnderlyingData},
+};
 use anyhow::{bail, ensure};
 
 #[unsized_type(skip_idl)]

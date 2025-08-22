@@ -1,13 +1,5 @@
-use crate::account_set::{AccountSetDecode, SingleAccountSet, SingleSetMeta};
-use crate::client::ClientAccountSet;
-use crate::prelude::{Context, CpiAccountSet};
-use crate::Result;
+use crate::prelude::*;
 use advancer::AdvanceArray;
-use anyhow::Context as _;
-use pinocchio::account_info::AccountInfo;
-use solana_instruction::AccountMeta;
-use solana_pubkey::Pubkey;
-use star_frame::account_set::{AccountSetCleanup, AccountSetValidate};
 
 impl SingleAccountSet for AccountInfo {
     #[inline]
@@ -195,11 +187,15 @@ impl AccountSetCleanup<()> for &AccountInfo {
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
 pub mod idl_impl {
     use super::*;
-    use crate::idl::{AccountSetToIdl, FindIdlSeeds};
-    use crate::prelude::Seeds;
-    use star_frame_idl::account_set::{IdlAccountSetDef, IdlSingleAccountSet};
-    use star_frame_idl::seeds::IdlFindSeeds;
-    use star_frame_idl::IdlDefinition;
+    use crate::{
+        idl::{AccountSetToIdl, FindIdlSeeds},
+        prelude::Seeds,
+    };
+    use star_frame_idl::{
+        account_set::{IdlAccountSetDef, IdlSingleAccountSet},
+        seeds::IdlFindSeeds,
+        IdlDefinition,
+    };
 
     impl AccountSetToIdl<()> for AccountInfo {
         fn account_set_to_idl(

@@ -64,16 +64,14 @@ impl StarFrameInstruction for Initialize {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::state::tests::default_market;
-    use crate::state::MarketOwned;
-    use crate::test_utils::new_mint_account;
-    use mollusk_svm::result::Check;
-    use mollusk_svm::Mollusk;
+    use crate::{
+        state::{tests::default_market, MarketOwned},
+        test_utils::new_mint_account,
+    };
+    use mollusk_svm::{result::Check, Mollusk};
     use solana_account::Account as SolanaAccount;
-    use star_frame::client::SerializeAccount;
-    use star_frame::solana_pubkey::Pubkey;
-    use std::collections::HashMap;
-    use std::env;
+    use star_frame::{client::SerializeAccount, solana_pubkey::Pubkey};
+    use std::{collections::HashMap, env};
 
     #[test]
     fn initialize_creates_market_account() -> Result<()> {

@@ -14,17 +14,17 @@ pub mod ty;
 #[cfg(feature = "verifier")]
 pub mod verifier;
 
-use crate::instruction::IdlInstructionDef;
-use crate::serde_impls::serde_base58_pubkey;
-use crate::serde_impls::serde_base58_pubkey_option;
+use crate::{
+    instruction::IdlInstructionDef,
+    serde_impls::{serde_base58_pubkey, serde_base58_pubkey_option},
+};
 use account::IdlAccount;
 use account_set::IdlAccountSet;
 use instruction::IdlInstruction;
 pub use semver::{Version, VersionReq};
 use serde::{Deserialize, Serialize};
 use solana_pubkey::Pubkey;
-use std::any::type_name;
-use std::collections::BTreeMap;
+use std::{any::type_name, collections::BTreeMap};
 use ty::IdlType;
 
 pub fn idl_spec_version() -> Version {

@@ -6,8 +6,10 @@ use proc_macro_error2::{abort, abort_call_site};
 use quote::quote;
 use syn::{parse_quote, Expr, Fields, FieldsUnnamed, ItemEnum, Type};
 
-use crate::hash::SIGHASH_GLOBAL_NAMESPACE;
-use crate::util::{enum_discriminants, get_repr, ignore_cfg_module, Paths};
+use crate::{
+    hash::SIGHASH_GLOBAL_NAMESPACE,
+    util::{enum_discriminants, get_repr, ignore_cfg_module, Paths},
+};
 
 #[derive(Debug, ArgumentList, Clone, Default)]
 pub struct InstructionSetStructArgs {

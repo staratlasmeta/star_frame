@@ -1,7 +1,4 @@
-use crate::seeds::IdlSeeds;
-use crate::ty::IdlTypeId;
-use crate::IdlDiscriminant;
-use crate::{IdlNamespace, ItemSource};
+use crate::{seeds::IdlSeeds, ty::IdlTypeId, IdlDiscriminant, IdlNamespace, ItemSource};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

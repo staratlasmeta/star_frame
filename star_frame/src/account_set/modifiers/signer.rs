@@ -1,12 +1,5 @@
-use crate::account_set::{
-    AccountSet, AccountSetValidate, CanInitSeeds, SignedAccount, SingleAccountSet,
-};
-
-use crate::prelude::{Context, SingleSetMeta};
-use crate::Result;
+use crate::prelude::*;
 use derive_more::{Deref, DerefMut};
-use pinocchio::account_info::AccountInfo;
-use std::fmt::Debug;
 
 #[derive(AccountSet, Copy, Clone, Debug, Deref, DerefMut)]
 #[repr(transparent)]
@@ -67,8 +60,7 @@ where
 mod idl_impl {
     use super::*;
     use star_frame::idl::AccountSetToIdl;
-    use star_frame_idl::account_set::IdlAccountSetDef;
-    use star_frame_idl::IdlDefinition;
+    use star_frame_idl::{account_set::IdlAccountSetDef, IdlDefinition};
 
     impl<const SIGNER: bool, T, A> AccountSetToIdl<A> for MaybeSigner<SIGNER, T>
     where

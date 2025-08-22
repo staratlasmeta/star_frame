@@ -1,5 +1,7 @@
-use crate::util;
-use crate::util::{ensure_data_struct, ignore_cfg_module, reject_generics, Paths};
+use crate::{
+    util,
+    util::{ensure_data_struct, ignore_cfg_module, reject_generics, Paths},
+};
 use easy_proc::{find_attrs, ArgumentList};
 use proc_macro2::TokenStream;
 use proc_macro_error2::{abort, abort_call_site};

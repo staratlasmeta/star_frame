@@ -1,8 +1,12 @@
-use star_frame::borsh::{BorshDeserialize, BorshSerialize};
-use star_frame::prelude::*;
+use star_frame::{
+    borsh::{BorshDeserialize, BorshSerialize},
+    prelude::*,
+};
 
-use crate::instructions::ManageOrderAccounts;
-use crate::state::{MarketExclusiveImpl, OrderSide, OrderTotals, ProcessOrderArgs};
+use crate::{
+    instructions::ManageOrderAccounts,
+    state::{MarketExclusiveImpl, OrderSide, OrderTotals, ProcessOrderArgs},
+};
 
 /// Opens a new order for a marketplace
 #[derive(BorshSerialize, BorshDeserialize, Debug, Copy, Clone, InstructionArgs)]
@@ -57,26 +61,28 @@ impl StarFrameInstruction for PlaceOrder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::instructions::ManageOrderClientAccounts;
-    use crate::state::tests::default_market;
-    use crate::state::{
-        MakerInfo, Market, MarketOwned, MarketSeeds, OrderBookSideOwned, OrderInfo, ASK_ID_MASK,
-        ZERO_PRICE,
+    use crate::{
+        instructions::ManageOrderClientAccounts,
+        state::{
+            tests::default_market, MakerInfo, Market, MarketOwned, MarketSeeds, OrderBookSideOwned,
+            OrderInfo, ASK_ID_MASK, ZERO_PRICE,
+        },
+        test_utils::{
+            new_mint_account, new_price, new_quantity, new_token_account, token_account_data,
+            LAMPORTS_PER_SOL,
+        },
+        Marketplace,
     };
-    use crate::test_utils::{
-        new_mint_account, new_price, new_quantity, new_token_account, token_account_data,
-        LAMPORTS_PER_SOL,
-    };
-    use crate::Marketplace;
     use mollusk_svm::result::Check;
     use solana_account::Account as SolanaAccount;
-    use star_frame::anyhow::ensure;
-    use star_frame::client::{DeserializeAccount as _, SerializeAccount as _};
-    use star_frame::itertools::Itertools;
-    use star_frame::solana_pubkey::Pubkey;
+    use star_frame::{
+        anyhow::ensure,
+        client::{DeserializeAccount as _, SerializeAccount as _},
+        itertools::Itertools,
+        solana_pubkey::Pubkey,
+    };
     use star_frame_spl::associated_token::AssociatedToken;
-    use std::collections::HashMap;
-    use std::env;
+    use std::{collections::HashMap, env};
     const STARTING_USER_CURRENCY_BALANCE: u64 = 1_000_000_000;
     const STARTING_USER_MARKET_TOKEN_BALANCE: u64 = 1_000_000;
 

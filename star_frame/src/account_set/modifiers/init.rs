@@ -1,5 +1,4 @@
 use crate::prelude::*;
-use anyhow::Context as _;
 use derive_more::{Deref, DerefMut};
 
 #[derive(AccountSet, Clone, Debug, Deref, DerefMut)]
@@ -60,8 +59,7 @@ mod idl_impl {
     use super::*;
     use anyhow::bail;
     use star_frame::idl::AccountSetToIdl;
-    use star_frame_idl::account_set::IdlAccountSetDef;
-    use star_frame_idl::IdlDefinition;
+    use star_frame_idl::{account_set::IdlAccountSetDef, IdlDefinition};
 
     impl<A, T> AccountSetToIdl<A> for Init<T>
     where

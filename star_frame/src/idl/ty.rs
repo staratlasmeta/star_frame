@@ -1,14 +1,11 @@
 //! [`TypeToIdl`] implementations for common types.
 //!
 //! For zero-copy types that are supported by [`bytemuck`], we use that representation. For all other types, we use the [`borsh`] representation.
-use crate::data_types::PodBool;
-use crate::idl::TypeToIdl;
-use crate::program::system::System;
-use crate::Result;
-use solana_pubkey::Pubkey;
-use star_frame_idl::ty::IdlStructField;
-use star_frame_idl::ty::IdlTypeDef;
-use star_frame_idl::IdlDefinition;
+use crate::prelude::*;
+use star_frame_idl::{
+    ty::{IdlStructField, IdlTypeDef},
+    IdlDefinition,
+};
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, LinkedList, VecDeque};
 
 macro_rules! impl_type_to_idl_for_primitive {

@@ -6,9 +6,12 @@ use proc_macro2::{Ident, Span, TokenStream};
 use proc_macro_error2::abort;
 use quote::{quote, ToTokens};
 use std::cmp;
-use syn::parse::{Parse, ParseStream};
-use syn::punctuated::Punctuated;
-use syn::{parenthesized, token, Attribute, LitInt, Token};
+use syn::{
+    parenthesized,
+    parse::{Parse, ParseStream},
+    punctuated::Punctuated,
+    token, Attribute, LitInt, Token,
+};
 
 pub fn get_repr(attributes: &[Attribute]) -> Representation {
     attributes

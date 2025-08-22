@@ -1,7 +1,4 @@
-use crate::{
-    account_set::{AccountSet, SingleAccountSet, WritableAccount},
-    prelude::SingleSetMeta,
-};
+use crate::prelude::*;
 use derive_more::{Deref, DerefMut};
 
 /// A potentially mutable account, contingent on the `MUT` const generic being true.
@@ -29,8 +26,7 @@ mod idl_impl {
     use super::*;
     use crate::Result;
     use star_frame::idl::AccountSetToIdl;
-    use star_frame_idl::account_set::IdlAccountSetDef;
-    use star_frame_idl::IdlDefinition;
+    use star_frame_idl::{account_set::IdlAccountSetDef, IdlDefinition};
 
     impl<const MUT: bool, T, A> AccountSetToIdl<A> for MaybeMut<MUT, T>
     where
