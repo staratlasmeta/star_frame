@@ -66,7 +66,6 @@ impl StarFrameInstruction for Initialize {
             authority: *account_set.authority.pubkey(),
             count: start_at.unwrap_or(0),
         };
-
         Ok(())
     }
 }

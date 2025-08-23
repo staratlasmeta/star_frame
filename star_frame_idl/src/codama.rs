@@ -7,7 +7,6 @@ use crate::{
     IdlDefinition, IdlDiscriminant, ItemDescription, ItemInfo,
 };
 use anyhow::{bail, Context, Result};
-pub use codama_nodes::ProgramNode;
 use codama_nodes::{
     AccountNode, AccountValueNode, ArgumentValueNode, ArrayTypeNode, BooleanTypeNode,
     BytesTypeNode, BytesValueNode, CamelCaseString, ConstantPdaSeedNode, DefaultValueStrategy,
@@ -20,6 +19,7 @@ use codama_nodes::{
     StringTypeNode, StructFieldTypeNode, StructTypeNode, TupleTypeNode, TypeNode, TypeNodeTrait,
     VariablePdaSeedNode,
 };
+pub use codama_nodes::{NodeTrait, ProgramNode};
 use itertools::Itertools;
 
 impl ItemInfo {

@@ -3,6 +3,8 @@ pub use crate::idl::{
     seed_const, seed_path, AccountSetToIdl, AccountToIdl, FindIdlSeeds, InstructionSetToIdl,
     InstructionToIdl, ProgramToIdl, TypeToIdl,
 };
+#[cfg(all(feature = "idl", not(target_os = "solana")))]
+pub use star_frame_idl::{NodeTrait as _, ProgramNode};
 
 #[cfg(all(feature = "test_helpers", not(target_os = "solana")))]
 pub use crate::{

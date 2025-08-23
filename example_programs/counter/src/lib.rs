@@ -208,12 +208,10 @@ mod tests {
     #[cfg(feature = "idl")]
     #[test]
     fn generate_idl() -> Result<()> {
-        use codama_nodes::{NodeTrait, ProgramNode};
         let idl = StarFrameDeclaredProgram::program_to_idl()?;
         let codama_idl: ProgramNode = idl.try_into()?;
         let idl_json = codama_idl.to_json()?;
         std::fs::write("idl.json", &idl_json)?;
-        println!("{idl_json}");
         Ok(())
     }
 
