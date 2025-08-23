@@ -78,15 +78,15 @@ impl StarFrameInstruction for CreateCounterIx {
     type Accounts<'b, 'c> = CreateCounterAccounts;
 
     fn process(
-        account_set: &mut Self::Accounts<'_, '_>,
+        accounts: &mut Self::Accounts<'_, '_>,
         start_at: Self::RunArg<'_>,
         _ctx: &mut Context,
     ) -> Result<Self::ReturnType> {
-        **account_set.counter.data_mut()? = CounterAccount {
+        **accounts.counter.data_mut()? = CounterAccount {
             version: 0,
-            signer: *account_set.owner.pubkey(),
-            owner: *account_set.owner.pubkey(),
-            bump: account_set.counter.access_seeds().bump,
+            signer: *accounts.owner.pubkey(),
+            owner: *accounts.owner.pubkey(),
+            bump: accounts.counter.access_seeds().bump,
             count: start_at.unwrap_or(0),
             data: Default::default(),
         };
@@ -121,12 +121,12 @@ impl StarFrameInstruction for UpdateCounterSignerIx {
     type Accounts<'b, 'c> = UpdateCounterSignerAccounts;
 
     fn process(
-        account_set: &mut Self::Accounts<'_, '_>,
+        accounts: &mut Self::Accounts<'_, '_>,
         _run_arg: Self::RunArg<'_>,
         _ctx: &mut Context,
     ) -> Result<Self::ReturnType> {
-        let mut counter = account_set.counter.data_mut()?;
-        counter.signer = *account_set.new_signer.pubkey();
+        let mut counter = accounts.counter.data_mut()?;
+        counter.signer = *accounts.new_signer.pubkey();
 
         Ok(())
     }

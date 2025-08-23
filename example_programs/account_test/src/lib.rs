@@ -60,11 +60,11 @@ impl StarFrameInstruction for RunIx {
     type Accounts<'b, 'c> = RunAccounts;
 
     fn process(
-        account_set: &mut Self::Accounts<'_, '_>,
+        accounts: &mut Self::Accounts<'_, '_>,
         arg: Self::RunArg<'_>,
         _ctx: &mut Context,
     ) -> Result<Self::ReturnType> {
-        let mut data = account_set.account.data_mut()?;
+        let mut data = accounts.account.data_mut()?;
         let before = remaining_compute();
         let mut list = data.list();
         let after = remaining_compute();

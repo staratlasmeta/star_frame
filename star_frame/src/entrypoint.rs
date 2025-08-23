@@ -33,10 +33,20 @@ macro_rules! star_frame_entrypoint (
                 accounts: &[$crate::prelude::AccountInfo],
                 instruction_data: &[u8],
             ) -> $crate::pinocchio::ProgramResult {
-                <$program as $crate::program::StarFrameProgram>::processor(program_id, accounts, instruction_data)
+                <$program as $crate::program::StarFrameProgram>::entrypoint(program_id, accounts, instruction_data)
             }
             #[cfg(not(any(feature = "no-entrypoint", feature = "no_entrypoint")))]
             $crate::pinocchio::entrypoint!(process_instruction);
         }
+
+        // TODO: use with pinocchio update
+        // // TODO: should this be public?
+        // #[doc(hidden)]
+        // #[allow(unexpected_cfgs)]
+        // pub mod __entrypoint {
+        //     use super::*;
+        //     #[cfg(not(any(feature = "no-entrypoint", feature = "no_entrypoint")))]
+        //     $crate::pinocchio::entrypoint!(<$program as $crate::program::StarFrameProgram>::entrypoint);
+        // }
     };
 );

@@ -15,12 +15,12 @@ pub trait InstructionSet {
     /// The discriminant type used by this program's instructions.
     type Discriminant: Pod;
 
-    /// Handles the input from the program entrypoint (along with the [`Context`]).
-    /// This is called directly in [`StarFrameProgram::processor`].
-    fn handle_ix(
+    /// Processesthe input from the program entrypoint (along with the [`Context`]).
+    /// This is called directly in [`StarFrameProgram::entrypoint`].
+    fn process_instruction(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        ix_bytes: &[u8],
+        instruction_data: &[u8],
         ctx: &mut Context,
     ) -> Result<()>;
 }
@@ -43,15 +43,28 @@ where
 
 /// A callable instruction that can be used as input to a program.
 pub trait Instruction {
-    type SelfData<'a>;
+    type ParsedData<'a>;
 
-    fn data_from_bytes<'a>(bytes: &mut &'a [u8]) -> Result<Self::SelfData<'a>>;
+    fn parse_instruction_data<'a>(instruction_data: &mut &'a [u8]) -> Result<Self::ParsedData<'a>>;
+
     /// Runs the instruction from a raw solana input.
-    fn run_ix_from_raw(
+    fn process_from_parsed(
         accounts: &[AccountInfo],
-        data: &mut Self::SelfData<'_>,
+        data: &mut Self::ParsedData<'_>,
         ctx: &mut Context,
     ) -> Result<()>;
+
+    /// Runs the instruction from a raw solana input. This is called from [`InstructionSet::process_instruction`] after the discriminant is parsed
+    /// and matched on.
+    fn process_from_raw(
+        accounts: &[AccountInfo],
+        mut instruction_data: &[u8],
+        ctx: &mut Context,
+    ) -> Result<()> {
+        let mut data = Self::parse_instruction_data(&mut instruction_data)
+            .context("Failed to parse instruction data")?;
+        Self::process_from_parsed(accounts, &mut data, ctx).context("Failed to process instruction")
+    }
 }
 
 /// Helper type for the return of [`InstructionArgs::split_to_args`].
@@ -106,7 +119,7 @@ pub trait StarFrameInstruction: BorshDeserialize + InstructionArgs {
 
     /// Processes the instruction.
     fn process(
-        account_set: &mut Self::Accounts<'_, '_>,
+        accounts: &mut Self::Accounts<'_, '_>,
         run_arg: Self::RunArg<'_>,
         ctx: &mut Context,
     ) -> Result<Self::ReturnType>;
@@ -116,15 +129,15 @@ impl<T> Instruction for T
 where
     T: StarFrameInstruction,
 {
-    type SelfData<'a> = T;
+    type ParsedData<'a> = T;
 
-    fn data_from_bytes<'a>(bytes: &mut &'a [u8]) -> Result<Self::SelfData<'a>> {
-        <T as BorshDeserialize>::deserialize(bytes).map_err(Into::into)
+    fn parse_instruction_data<'a>(instruction_data: &mut &'a [u8]) -> Result<Self::ParsedData<'a>> {
+        <T as BorshDeserialize>::deserialize(instruction_data).map_err(Into::into)
     }
 
-    fn run_ix_from_raw(
+    fn process_from_parsed(
         mut accounts: &[AccountInfo],
-        data: &mut Self,
+        data: &mut Self::ParsedData<'_>,
         ctx: &mut Context,
     ) -> Result<()> {
         let IxArgs {
@@ -177,14 +190,14 @@ macro_rules! impl_blank_ix {
     ($($ix:ident),*) => {
         $(
             impl $crate::prelude::Instruction for $ix {
-                type SelfData<'a> = ();
-                fn data_from_bytes<'a>(_bytes: &mut &'a [u8]) -> $crate::Result<Self::SelfData<'a>> {
+                type ParsedData<'a> = ();
+                fn parse_instruction_data<'a>(_instruction_data: &mut &'a [u8]) -> $crate::Result<Self::ParsedData<'a>> {
                     todo!()
                 }
 
-                fn run_ix_from_raw(
+                fn process_from_parsed(
                     _accounts: &[$crate::prelude::AccountInfo],
-                    _data: &mut Self::SelfData<'_>,
+                    _data: &mut Self::ParsedData<'_>,
                     _ctx: &mut $crate::prelude::Context,
                 ) -> $crate::Result<()> {
                     todo!()

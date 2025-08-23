@@ -16,13 +16,13 @@ pub trait StarFrameProgram {
 
     /// The entrypoint for the program. This has the same signature as the Solana program entrypoint, and
     /// is called by [`star_frame_entrypoint`](crate::star_frame_entrypoint) macro.
-    fn processor(
+    fn entrypoint(
         program_id: &pinocchio::pubkey::Pubkey,
         accounts: &[AccountInfo],
         instruction_data: &[u8],
     ) -> ProgramResult {
         let program_id = bytemuck::cast_ref(program_id);
-        Self::InstructionSet::handle_ix(
+        Self::InstructionSet::process_instruction(
             program_id,
             accounts,
             instruction_data,
