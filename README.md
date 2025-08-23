@@ -104,7 +104,7 @@ impl StarFrameInstruction for Increment {
 
     fn run_instruction(
         account_set: &mut Self::Accounts<'_, '_>,
-        _run_args: Self::RunArg<'_>,
+        _run_arg: Self::RunArg<'_>,
         _ctx: &mut Context,
     ) -> Result<Self::ReturnType> {
         let mut counter = account_set.counter.data_mut()?;

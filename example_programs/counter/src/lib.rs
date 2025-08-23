@@ -77,7 +77,7 @@ impl StarFrameInstruction for CreateCounterIx {
     type ReturnType = ();
     type Accounts<'b, 'c> = CreateCounterAccounts;
 
-    fn run_instruction(
+    fn process(
         account_set: &mut Self::Accounts<'_, '_>,
         start_at: Self::RunArg<'_>,
         _ctx: &mut Context,
@@ -120,9 +120,9 @@ impl StarFrameInstruction for UpdateCounterSignerIx {
     type ReturnType = ();
     type Accounts<'b, 'c> = UpdateCounterSignerAccounts;
 
-    fn run_instruction(
+    fn process(
         account_set: &mut Self::Accounts<'_, '_>,
-        _run_args: Self::RunArg<'_>,
+        _run_arg: Self::RunArg<'_>,
         _ctx: &mut Context,
     ) -> Result<Self::ReturnType> {
         let mut counter = account_set.counter.data_mut()?;
@@ -159,7 +159,7 @@ impl StarFrameInstruction for CountIx {
     type ReturnType = ();
     type Accounts<'b, 'c> = CountAccounts;
 
-    fn run_instruction(
+    fn process(
         account_set: &mut Self::Accounts<'_, '_>,
         CountIx { amount, subtract }: Self::RunArg<'_>,
         _ctx: &mut Context,

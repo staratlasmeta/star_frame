@@ -89,12 +89,12 @@ pub trait InstructionArgs: Sized {
 /// A `star_frame` defined instruction using [`AccountSet`] and other traits.
 ///
 /// The steps are as follows:
-/// 1. Split self into decode, validate, and run args using [`InstructionArgs::split_to_args`].
-/// 2. Decode the accounts using [`Self::Accounts::decode_accounts`](AccountSetDecode::decode_accounts).
-/// 3. Run any extra instruction validations using [`Self::extra_validations`].
+/// 1. Decode self from bytes using [`BorshDeserialize`].
+/// 2. Split self into decode, validate, run, and cleanup args using [`InstructionArgs::split_to_args`].
+/// 3. Decode the accounts using [`Self::Accounts::decode_accounts`](AccountSetDecode::decode_accounts).
 /// 4. Validate the accounts using [`Self::Accounts::validate_accounts`](AccountSetValidate::validate_accounts).
-/// 5. Run the instruction using [`Self::run_instruction`].
-/// 6. Set the solana return data using [`BorshSerialize`].
+/// 5. Process the instruction using [`Self::process`].
+/// 6. Set the solana return data using [`BorshSerialize`] if it is not empty.
 pub trait StarFrameInstruction: BorshDeserialize + InstructionArgs {
     /// The return type of this instruction.
     type ReturnType: BorshSerialize;
@@ -104,17 +104,8 @@ pub trait StarFrameInstruction: BorshDeserialize + InstructionArgs {
         + AccountSetValidate<Self::ValidateArg<'c>>
         + AccountSetCleanup<Self::CleanupArg<'c>>;
 
-    /// Runs any extra validations on the accounts.
-    #[allow(unused_variables)]
-    fn extra_validations(
-        account_set: &mut Self::Accounts<'_, '_>,
-        run_arg: &mut Self::RunArg<'_>,
-        ctx: &mut Context,
-    ) -> Result<()> {
-        Ok(())
-    }
-    /// Runs the instruction.
-    fn run_instruction(
+    /// Processes the instruction.
+    fn process(
         account_set: &mut Self::Accounts<'_, '_>,
         run_arg: Self::RunArg<'_>,
         ctx: &mut Context,
@@ -139,7 +130,7 @@ where
         let IxArgs {
             decode,
             validate,
-            mut run,
+            run,
             cleanup,
         } = Self::split_to_args(data);
         let mut account_set =
@@ -148,10 +139,7 @@ where
         account_set
             .validate_accounts(validate, ctx)
             .context("Failed to validate accounts")?;
-        Self::extra_validations(&mut account_set, &mut run, ctx)
-            .context("Failed in extra validations accounts")?;
-        let ret = Self::run_instruction(&mut account_set, run, ctx)
-            .context("Failed to run instruction")?;
+        let ret = Self::process(&mut account_set, run, ctx).context("Failed to run instruction")?;
         account_set
             .cleanup_accounts(cleanup, ctx)
             .context("Failed to cleanup accounts")?;
@@ -163,6 +151,7 @@ where
     }
 }
 
+#[doc(hidden)]
 #[macro_export]
 macro_rules! empty_star_frame_instruction {
     ($ix:ident, $accounts:ident) => {
@@ -170,9 +159,9 @@ macro_rules! empty_star_frame_instruction {
             type ReturnType = ();
             type Accounts<'b, 'c> = $accounts;
 
-            fn run_instruction(
+            fn process(
                 _account_set: &mut Self::Accounts<'_, '_>,
-                _run_args: Self::RunArg<'_>,
+                _run_arg: Self::RunArg<'_>,
                 _ctx: &mut $crate::context::Context,
             ) -> $crate::Result<Self::ReturnType> {
                 Ok(())
@@ -182,6 +171,7 @@ macro_rules! empty_star_frame_instruction {
 }
 
 /// A helper macro for implementing blank instructions for testing.
+#[doc(hidden)]
 #[macro_export]
 macro_rules! impl_blank_ix {
     ($($ix:ident),*) => {

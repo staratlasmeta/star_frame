@@ -18,7 +18,7 @@ impl StarFrameInstruction for CancelOrders {
     type ReturnType = ();
     type Accounts<'b, 'c> = ManageOrderAccounts;
 
-    fn run_instruction(
+    fn process(
         account_set: &mut Self::Accounts<'_, '_>,
         orders_to_cancel: Self::RunArg<'_>,
         ctx: &mut Context,

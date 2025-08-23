@@ -23,7 +23,7 @@ impl StarFrameInstruction for PlaceOrder {
     type ReturnType = Option<u64>;
     type Accounts<'b, 'c> = ManageOrderAccounts;
 
-    fn run_instruction(
+    fn process(
         account_set: &mut Self::Accounts<'_, '_>,
         process_order_args: Self::RunArg<'_>,
         ctx: &mut Context,

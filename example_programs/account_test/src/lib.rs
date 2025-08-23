@@ -59,7 +59,7 @@ impl StarFrameInstruction for RunIx {
 
     type Accounts<'b, 'c> = RunAccounts;
 
-    fn run_instruction(
+    fn process(
         account_set: &mut Self::Accounts<'_, '_>,
         arg: Self::RunArg<'_>,
         _ctx: &mut Context,

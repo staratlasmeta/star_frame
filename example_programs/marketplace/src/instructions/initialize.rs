@@ -43,7 +43,7 @@ impl StarFrameInstruction for Initialize {
     type Accounts<'b, 'c> = InitializeAccounts;
     type ReturnType = ();
 
-    fn run_instruction(
+    fn process(
         account_set: &mut Self::Accounts<'_, '_>,
         _: Self::RunArg<'_>,
         _ctx: &mut Context,
