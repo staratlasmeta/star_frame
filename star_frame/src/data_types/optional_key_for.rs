@@ -13,7 +13,7 @@ pub trait GetOptionalKeyFor<T: ?Sized> {
     fn optional_key_for(&self) -> &OptionalKeyFor<T>;
 }
 
-/// A key for an account type
+/// An optional key for an account type
 #[derive(BorshDeserialize, BorshSerialize, Align1, DeriveWhere, Serialize, Deserialize)]
 #[derive_where(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(transparent)]
@@ -151,7 +151,8 @@ impl<T: 'static + ?Sized> From<KeyFor<T>> for OptionalKeyFor<T> {
     }
 }
 
-// Safety: `OptionalKeyFor` is a transparent wrapper around a `Pubkey` which is `Zeroable`
+// SAFETY:
+// `OptionalKeyFor` is a transparent wrapper around a `Pubkey` which is `Zeroable`
 #[allow(trivial_bounds)]
 unsafe impl<T: ?Sized> Zeroable for OptionalKeyFor<T>
 where
@@ -164,7 +165,8 @@ where
         }
     }
 }
-// Safety: `OptionalKeyFor` is a transparent wrapper around a `Pubkey` which is `Pod`
+// SAFETY:
+// `OptionalKeyFor` is a transparent wrapper around a `Pubkey` which is `Pod`
 #[allow(trivial_bounds)]
 unsafe impl<T: 'static + ?Sized> Pod for OptionalKeyFor<T> where Pubkey: Pod {}
 
