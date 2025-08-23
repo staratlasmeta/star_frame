@@ -16,12 +16,7 @@ test_helpers = []
 rustdoc = ["solana-system-interface"]
 
 [dependencies]
-solana-pubkey = { workspace = true, features = [
-    "curve25519",
-    "borsh",
-    "serde",
-    "bytemuck",
-] }
+solana-pubkey = { workspace = true, features = ["curve25519", "borsh", "serde", "bytemuck"] }
 advancer = { workspace = true }
 anyhow = { workspace = true }
 array-init = { workspace = true }
@@ -41,6 +36,7 @@ typenum = { workspace = true }
 ref-cast = { workspace = true }
 ptr_meta = { workspace = true }
 solana-system-interface = { workspace = true, optional = true }
+solana-program-memory = { workspace = true }
 
 # feature = idl
 serde = { workspace = true, features = ["derive"] }
