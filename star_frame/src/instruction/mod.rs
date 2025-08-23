@@ -3,7 +3,9 @@ use borsh::to_vec;
 use bytemuck::{bytes_of, Pod};
 use pinocchio::cpi::set_return_data;
 
-pub use star_frame_proc::{InstructionArgs, InstructionSet, InstructionToIdl};
+pub use star_frame_proc::{
+    star_frame_instruction, InstructionArgs, InstructionSet, InstructionToIdl,
+};
 
 mod no_op;
 pub mod un_callable;
@@ -84,6 +86,18 @@ pub trait InstructionArgs: Sized {
     type CleanupArg<'a>;
     /// Splits self into decode, validate, cleanup, and run args.
     fn split_to_args(r: &mut Self) -> IxArgs<'_, Self>;
+}
+
+#[doc(hidden)]
+#[diagnostic::on_unimplemented(
+    message = "StarFrameInstruction requires the return type to be `Result<T>`"
+)]
+/// A helper trait to get the inner T of a [`Result`] from a [`StarFrameInstruction::run_instruction`] declaration. This is used internally in the [`star_frame_instruction`] macro.
+pub trait IxReturnType {
+    type ReturnType;
+}
+impl<T, E> IxReturnType for Result<T, E> {
+    type ReturnType = T;
 }
 
 /// A `star_frame` defined instruction using [`AccountSet`] and other traits.

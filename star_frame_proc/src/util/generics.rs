@@ -9,8 +9,8 @@ use syn::{
     parse::{Parse, ParseStream},
     parse_quote,
     punctuated::Punctuated,
-    token, Attribute, ConstParam, DeriveInput, GenericParam, Generics, Ident, ItemEnum, ItemStruct,
-    Lifetime, LifetimeParam, Token, Type, TypeParam, WhereClause,
+    token, Attribute, ConstParam, DeriveInput, GenericParam, Generics, Ident, ItemEnum, ItemFn,
+    ItemStruct, Lifetime, LifetimeParam, Token, Type, TypeParam, WhereClause,
 };
 
 #[derive(Debug, Deref, DerefMut, Clone, Default)]
@@ -96,6 +96,12 @@ pub trait GetGenerics {
 impl GetGenerics for Generics {
     fn get_generics(&self) -> &Generics {
         self
+    }
+}
+
+impl GetGenerics for ItemFn {
+    fn get_generics(&self) -> &Generics {
+        &self.sig.generics
     }
 }
 
