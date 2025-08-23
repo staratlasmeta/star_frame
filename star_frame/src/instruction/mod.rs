@@ -15,7 +15,7 @@ pub trait InstructionSet {
     /// The discriminant type used by this program's instructions.
     type Discriminant: Pod;
 
-    /// Processesthe input from the program entrypoint (along with the [`Context`]).
+    /// Processes the input from the program entrypoint (along with the [`Context`]).
     /// This is called directly in [`StarFrameProgram::entrypoint`].
     fn process_instruction(
         program_id: &Pubkey,
