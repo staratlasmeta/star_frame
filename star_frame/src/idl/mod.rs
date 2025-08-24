@@ -1,12 +1,14 @@
-use crate::prelude::*;
+//! IDL generation for `star_frame` programs using [`star_frame_idl`].
+use crate::{instruction::Instruction, prelude::*};
 use star_frame_idl::{
     account::IdlAccountId, account_set::IdlAccountSetDef, instruction::IdlInstructionDef,
     seeds::IdlSeeds, ty::IdlTypeDef, CrateMetadata, IdlDefinition, IdlMetadata,
 };
 
 mod find_seeds;
-pub mod ty;
+mod ty;
 pub use find_seeds::*;
+pub(crate) use ty::*;
 
 /// Derivable via [`derive@InstructionSet`].   
 pub trait InstructionSetToIdl: InstructionSet {
@@ -46,6 +48,7 @@ pub trait SeedsToIdl: GetSeeds {
     fn seeds_to_idl(idl_definition: &mut IdlDefinition) -> Result<IdlSeeds>;
 }
 
+#[doc(hidden)]
 #[must_use]
 pub fn empty_env_option(env: &str) -> Option<String> {
     if env.is_empty() {

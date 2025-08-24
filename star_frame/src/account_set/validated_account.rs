@@ -2,12 +2,12 @@ use crate::prelude::*;
 use derive_more::{Deref, DerefMut};
 
 pub trait AccountValidate<ValidateArg>: UnsizedType {
-    fn validate(self_ref: &Self::Ref<'_>, arg: ValidateArg) -> Result<()>;
+    fn validate_account(self_ref: &Self::Ref<'_>, arg: ValidateArg) -> Result<()>;
 }
 
 #[derive(AccountSet, Debug, Deref, DerefMut, derive_where::DeriveWhere)]
 #[derive_where(Clone)]
-#[validate(generics = [<ValidateArg> where T: AccountValidate<ValidateArg>], arg = ValidateArg, extra_validation = T::validate(&*self.account.data()?, arg))]
+#[validate(generics = [<ValidateArg> where T: AccountValidate<ValidateArg>], arg = ValidateArg, extra_validation = T::validate_account(&*self.account.data()?, arg))]
 #[idl(generics = [<A> where T: AccountToIdl, Account<T>: AccountSetToIdl<A>], arg = A)]
 pub struct ValidatedAccount<T>
 where
@@ -31,12 +31,12 @@ macro_rules! account_validate_tuple {
         star_frame::paste::paste!{
             impl<Acc, $($generic,)*> star_frame::prelude::AccountValidate<($($generic,)*)> for Acc
             where
-                $(Acc: star_frame::prelude::AccountValidate<$generic>),*
+            $(Acc: star_frame::prelude::AccountValidate<$generic>),*
             {
-                fn validate(self_ref: &Self::Ref<'_>, arg: ($($generic,)*)) -> star_frame::prelude::Result<()> {
+                fn validate_account(self_ref: &Self::Ref<'_>, arg: ($($generic,)*)) -> star_frame::prelude::Result<()> {
                     let ($([<$generic:snake>],)*) = arg;
                     $(
-                        <Acc as star_frame::prelude::AccountValidate<$generic>>::validate(self_ref, [<$generic:snake>])?;
+                        <Acc as star_frame::prelude::AccountValidate<$generic>>::validate_account(self_ref, [<$generic:snake>])?;
                     )*
                     Ok(())
                 }

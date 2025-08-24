@@ -1,6 +1,5 @@
 //! This program is used as a testing ground for on chain compute and unsized type behavior
 use star_frame::{
-    account_set::Account,
     borsh::{BorshDeserialize, BorshSerialize},
     pinocchio::syscalls::sol_remaining_compute_units,
     prelude::*,

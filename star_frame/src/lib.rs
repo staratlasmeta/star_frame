@@ -45,8 +45,8 @@ pub mod align1;
 pub mod client;
 pub mod cpi;
 pub mod data_types;
-pub mod entrypoint;
-pub mod errors;
+mod entrypoint;
+mod errors;
 
 pub mod context;
 #[cfg(all(feature = "idl", not(target_os = "solana")))]

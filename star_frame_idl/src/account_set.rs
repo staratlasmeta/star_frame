@@ -60,7 +60,9 @@ pub enum IdlAccountSetDef {
     Struct(Vec<IdlAccountSetStructField>),
     Many {
         account_set: Box<IdlAccountSetDef>,
+        /// Minimum number of accounts, inclusive
         min: usize,
+        /// Maximum number of accounts, inclusive. None means unbounded.
         max: Option<usize>,
     },
     /// One of the set defs in the vec

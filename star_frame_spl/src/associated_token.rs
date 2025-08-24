@@ -219,6 +219,15 @@ pub mod instructions {
 }
 
 pub mod state {
+    use star_frame::{
+        account_set::{
+            modifiers::{CanInitAccount, CanInitSeeds},
+            AccountSetValidate, CanFundRent,
+        },
+        anyhow::Context as _,
+        data_types::{GetKeyFor, GetOptionalKeyFor},
+    };
+
     use super::*;
 
     #[derive(AccountSet, Debug, Clone, Deref, DerefMut)]

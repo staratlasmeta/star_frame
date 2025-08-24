@@ -1,6 +1,6 @@
 use super::{AsShared, UnsizedType};
 use crate::{
-    account_set::SingleAccountSet,
+    account_set::single_set::SingleAccountSet,
     unsize::{init::UnsizedInit, FromOwned, UnsizedTypeMut},
     Result,
 };
@@ -48,6 +48,7 @@ unsafe impl UnsizedTypeDataAccess for AccountInfo {
         new_len: usize,
     ) -> Result<()> {
         // Set the data len on the account (This will check that the increase is within bounds)
+        //
         // SAFETY:
         // `unsized_data_realloc` requires that no other references to this data exist, which satisfies the preconditions of this function.
         unsafe { this.resize_unchecked(new_len) }?;
@@ -587,7 +588,7 @@ where
             self,
             init_arg,
             <U as UnsizedInit<I>>::INIT_BYTES,
-            |slice, arg| unsafe { <U as UnsizedInit<I>>::init(slice, arg) },
+            |slice, arg| <U as UnsizedInit<I>>::init(slice, arg),
         )
     }
 

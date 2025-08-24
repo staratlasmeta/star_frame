@@ -3,7 +3,7 @@ use crate::prelude::*;
 impl InstructionSet for () {
     type Discriminant = ();
 
-    fn process_instruction(
+    fn dispatch(
         _program_id: &Pubkey,
         _accounts: &[AccountInfo],
         _ix_bytes: &[u8],

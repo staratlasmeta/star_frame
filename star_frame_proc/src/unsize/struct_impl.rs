@@ -686,7 +686,7 @@ impl UnsizedStructContext {
 
         Some(quote! {
             #[automatically_derived]
-            unsafe impl #impl_gen #prelude::FromOwned for #struct_type #where_clause {
+            impl #impl_gen #prelude::FromOwned for #struct_type #where_clause {
                 #[inline]
                 fn byte_size(owned: &Self::Owned) -> usize {
                     #sized_byte_size
@@ -820,14 +820,14 @@ impl UnsizedStructContext {
         quote! {
             #[allow(trivial_bounds)]
             #[automatically_derived]
-            unsafe impl #default_init_impl #unsized_init for #struct_type #default_init_where {
+            impl #default_init_impl #unsized_init for #struct_type #default_init_where {
                 const INIT_BYTES: usize = 0 #(+ <#with_sized_types as #unsized_init>::INIT_BYTES)*;
-                unsafe fn init(
+                fn init(
                     bytes: &mut &mut [u8],
                     arg: #prelude::DefaultInit,
                 ) -> #result<()> {
                     #(
-                        unsafe { <#with_sized_types as #unsized_init>::init(bytes, arg) }?;
+                        <#with_sized_types as #unsized_init>::init(bytes, arg)?;
                     )*
                     Ok(())
                 }
@@ -835,9 +835,12 @@ impl UnsizedStructContext {
         }
     }
 
-    fn unsized_init_struct_impl(&self) -> TokenStream {
+    fn unsized_init_struct_impl(&self) -> Option<TokenStream> {
         Paths!(prelude, result, copy, clone, debug);
         UnsizedStructContext!(self => vis, with_sized_types, with_sized_vis, struct_type, struct_ident);
+        if self.args.skip_init_struct {
+            return None;
+        }
 
         let init_struct_ident = format_ident!("{struct_ident}Init");
 
@@ -877,7 +880,7 @@ impl UnsizedStructContext {
 
         let init_struct_type = quote!(#init_struct_ident #struct_type_generics);
 
-        quote! {
+        Some(quote! {
             #[derive(#copy, #clone, #debug)]
             #vis struct #init_struct_ident #init_generics {
                 #(#with_sized_vis #sized_with_unsized_idents: #init_generic_idents,)*
@@ -885,20 +888,20 @@ impl UnsizedStructContext {
 
             #[allow(trivial_bounds)]
             #[automatically_derived]
-            unsafe impl #init_impl_impl_generics #prelude::UnsizedInit<#init_struct_type> for #struct_type #init_impl_where_clause {
+            impl #init_impl_impl_generics #prelude::UnsizedInit<#init_struct_type> for #struct_type #init_impl_where_clause {
                 const INIT_BYTES: usize = 0 #(+ <#with_sized_types as #prelude::UnsizedInit<#init_generic_idents>>::INIT_BYTES)*;
 
-                unsafe fn init(
+                fn init(
                     bytes: &mut &mut [u8],
                     arg: #init_struct_type,
                 ) -> #result<()> {
                     #(
-                        unsafe { <#with_sized_types as #prelude::UnsizedInit<#init_generic_idents>>::init(bytes, arg.#sized_with_unsized_idents) }?;
+                        <#with_sized_types as #prelude::UnsizedInit<#init_generic_idents>>::init(bytes, arg.#sized_with_unsized_idents)?;
                     )*
                     Ok(())
                 }
             }
-        }
+        })
     }
 
     fn extension_impl(&self) -> TokenStream {

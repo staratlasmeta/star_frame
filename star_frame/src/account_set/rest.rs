@@ -1,4 +1,9 @@
-use crate::prelude::*;
+use crate::{
+    account_set::{
+        AccountSetCleanup, AccountSetDecode, AccountSetValidate, ClientAccountSet, CpiAccountSet,
+    },
+    prelude::*,
+};
 use derive_more::{Deref, DerefMut};
 
 #[derive(AccountSet, Debug, Deref, DerefMut, Clone)]
@@ -82,7 +87,7 @@ where
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
 mod idl_impl {
     use super::*;
-    use crate::{account_set::vec::idl_impl::VecSize, idl::AccountSetToIdl};
+    use crate::idl::AccountSetToIdl;
 
     impl<T, A> AccountSetToIdl<A> for Rest<T>
     where
@@ -93,10 +98,7 @@ mod idl_impl {
             idl_definition: &mut star_frame::__private::macro_prelude::IdlDefinition,
             arg: A,
         ) -> star_frame::Result<star_frame::__private::macro_prelude::IdlAccountSetDef> {
-            <Vec<T> as AccountSetToIdl<_>>::account_set_to_idl(
-                idl_definition,
-                (VecSize { min: 0, max: None }, arg),
-            )
+            <Vec<T> as AccountSetToIdl<_>>::account_set_to_idl(idl_definition, (.., arg))
         }
     }
 }

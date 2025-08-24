@@ -6,7 +6,7 @@ mod optional_key_for;
 mod packed_value;
 mod pod_bool;
 mod remaining_data;
-pub mod unit_system;
+mod unit_system;
 
 pub use key_for::*;
 pub use optional_key_for::*;

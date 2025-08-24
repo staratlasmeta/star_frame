@@ -2,6 +2,8 @@ use pinocchio::account_info::Ref;
 use star_frame::prelude::*;
 use std::marker::PhantomData;
 
+use crate::account_set::ClientAccountSet;
+
 pub trait SysvarId: Sized {
     fn id() -> Pubkey;
 }

@@ -22,7 +22,7 @@ pub trait StarFrameProgram {
         instruction_data: &[u8],
     ) -> ProgramResult {
         let program_id = bytemuck::cast_ref(program_id);
-        Self::InstructionSet::process_instruction(
+        Self::InstructionSet::dispatch(
             program_id,
             accounts,
             instruction_data,
@@ -32,7 +32,9 @@ pub trait StarFrameProgram {
     }
 }
 
-/// Macro to define useful top level items for a `star_frame` program. This is called by the [`StarFrameProgram`](star_frame_proc::StarFrameProgram) derive macro.
+/// Defines useful top level items for a `star_frame` program.
+///
+/// This is called by the [`StarFrameProgram`](star_frame_proc::StarFrameProgram) derive macro.
 #[macro_export]
 macro_rules! program_setup {
     ($program:ty) => {

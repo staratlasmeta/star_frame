@@ -1,4 +1,9 @@
-use crate::prelude::*;
+use crate::{
+    account_set::{
+        AccountSetCleanup, AccountSetDecode, AccountSetValidate, ClientAccountSet, CpiAccountSet,
+    },
+    prelude::*,
+};
 
 impl<T> CpiAccountSet for Vec<T>
 where
@@ -315,28 +320,35 @@ where
 
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
 pub mod idl_impl {
+    use std::ops::{Bound, RangeBounds};
+
     use crate::idl::AccountSetToIdl;
     use star_frame_idl::{account_set::IdlAccountSetDef, IdlDefinition};
 
-    #[derive(Debug, Copy, Clone)]
-    pub struct VecSize {
-        pub min: usize,
-        pub max: Option<usize>,
-    }
-
-    impl<T, A> AccountSetToIdl<(VecSize, A)> for Vec<T>
+    impl<B, T, A> AccountSetToIdl<(B, A)> for Vec<T>
     where
+        B: RangeBounds<usize>,
         T: AccountSetToIdl<A>,
     {
         fn account_set_to_idl(
             idl_definition: &mut IdlDefinition,
-            arg: (VecSize, A),
+            arg: (B, A),
         ) -> crate::Result<IdlAccountSetDef> {
             let account = Box::new(T::account_set_to_idl(idl_definition, arg.1)?);
+            let min = match arg.0.start_bound() {
+                Bound::Included(x) => *x,
+                Bound::Excluded(x) => *x + 1,
+                Bound::Unbounded => 0,
+            };
+            let max = match arg.0.end_bound() {
+                Bound::Included(x) => Some(*x),
+                Bound::Excluded(x) => Some(x.saturating_sub(1)),
+                Bound::Unbounded => None,
+            };
             Ok(IdlAccountSetDef::Many {
                 account_set: account,
-                min: arg.0.min,
-                max: arg.0.max,
+                min,
+                max,
             })
         }
     }

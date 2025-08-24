@@ -7,9 +7,11 @@ use std::{
     num::{NonZeroI8, NonZeroU8},
 };
 
+/// A trait for types that are guaranteed to be aligned to 1 byte. The [unsized type system](crate::unsize) relies on `Align1` types for its pointer manipulation.
+///
 /// # Safety
 /// This trait should only be implemented for types that are guaranteed to be aligned to 1 byte.
-/// The [`Align1`](star_frame_proc::Align1) macro can be used to implement this trait for non-generic types.
+/// The [`Align1`](star_frame_proc::Align1) macro can be used to safely implement this trait for non-generic types.
 pub unsafe trait Align1 {}
 
 macro_rules! impl_align1 {

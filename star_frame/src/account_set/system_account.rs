@@ -1,6 +1,8 @@
 use derive_more::{Deref, DerefMut};
 use star_frame::prelude::*;
 
+use crate::account_set::HasOwnerProgram;
+
 #[derive(AccountSet, Debug, Deref, DerefMut, Clone, Copy)]
 #[validate(extra_validation = self.check_id())]
 #[repr(transparent)]
