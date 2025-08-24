@@ -1,3 +1,5 @@
+//! Processing and handling of instructions from a [`StarFrameProgram::entrypoint`].
+
 use crate::prelude::*;
 use borsh::to_vec;
 use bytemuck::{bytes_of, Pod};
@@ -6,11 +8,14 @@ use pinocchio::cpi::set_return_data;
 pub use star_frame_proc::{InstructionArgs, InstructionSet, InstructionToIdl};
 
 mod no_op;
-pub mod un_callable;
+mod un_callable;
+pub use un_callable::UnCallable;
 
-/// A set of instructions that can be used as input to a program. This can be derived using the
-/// [`star_frame_proc::InstructionSet`] macro on an enum. If implemented manually, [`InstructionSet::handle_ix`] should
-/// probably match on each of its instructions discriminants and call the appropriate instruction on a match.
+/// A set of instructions that can be used as input to a program.
+///
+/// This can be derived using the [`star_frame_proc::InstructionSet`] macro on an enum.
+/// If implemented manually, [`Self::process_instruction`] should probably match on each of its
+/// instructions discriminants and call the appropriate instruction on a match.
 pub trait InstructionSet {
     /// The discriminant type used by this program's instructions.
     type Discriminant: Pod;
@@ -25,8 +30,10 @@ pub trait InstructionSet {
     ) -> Result<()>;
 }
 
-/// A helper trait for the value of the instruction discriminant on an instruction. Since a single
-/// instruction can be in multiple [`InstructionSet`]s, this trait is generic over it (with `IxSet`).
+/// A helper trait for the value of the instruction discriminant on an instruction.
+///
+/// Since a single instruction can be in multiple [`InstructionSet`]s, this trait is generic over it
+/// (with `IxSet`).
 pub trait InstructionDiscriminant<IxSet>
 where
     IxSet: InstructionSet,
@@ -45,17 +52,19 @@ where
 pub trait Instruction {
     type ParsedData<'a>;
 
+    /// Parses the instruction data into a [`Self::ParsedData`].
     fn parse_instruction_data<'a>(instruction_data: &mut &'a [u8]) -> Result<Self::ParsedData<'a>>;
 
-    /// Runs the instruction from a raw solana input.
+    /// Runs the instruction from a parsed input from [`Self::parse_instruction_data`].
     fn process_from_parsed(
         accounts: &[AccountInfo],
         data: &mut Self::ParsedData<'_>,
         ctx: &mut Context,
     ) -> Result<()>;
 
-    /// Runs the instruction from a raw solana input. This is called from [`InstructionSet::process_instruction`] after the discriminant is parsed
-    /// and matched on.
+    /// Runs the instruction from a raw solana input.
+    ///
+    /// This is called from [`InstructionSet::process_instruction`] after the discriminant is parsed and matched on.
     fn process_from_raw(
         accounts: &[AccountInfo],
         mut instruction_data: &[u8],
@@ -99,11 +108,11 @@ pub trait InstructionArgs: Sized {
     fn split_to_args(r: &mut Self) -> IxArgs<'_, Self>;
 }
 
-/// A `star_frame` defined instruction using [`AccountSet`] and other traits.
+/// An opinionated (and recommended) [`Instruction`] using [`AccountSet`] and other traits.
 ///
 /// The steps are as follows:
-/// 1. Decode self from bytes using [`BorshDeserialize`].
-/// 2. Split self into decode, validate, run, and cleanup args using [`InstructionArgs::split_to_args`].
+/// 1. Decode Self from bytes using [`BorshDeserialize`].
+/// 2. Split Self into decode, validate, run, and cleanup args using [`InstructionArgs::split_to_args`].
 /// 3. Decode the accounts using [`Self::Accounts::decode_accounts`](AccountSetDecode::decode_accounts).
 /// 4. Validate the accounts using [`Self::Accounts::validate_accounts`](AccountSetValidate::validate_accounts).
 /// 5. Process the instruction using [`Self::process`].

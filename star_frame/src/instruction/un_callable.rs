@@ -1,5 +1,6 @@
 use crate::prelude::*;
 
+/// An [`InstructionSet`] that errors when called.
 #[derive(Align1, Debug, Copy, Clone)]
 pub struct UnCallable;
 
@@ -12,7 +13,7 @@ impl InstructionSet for UnCallable {
         _ix_bytes: &[u8],
         _ctx: &mut Context,
     ) -> Result<()> {
-        panic!("Cannot call handle_ix on Uncallable")
+        panic!("Cannot call process_instruction on Uncallable")
     }
 }
 
