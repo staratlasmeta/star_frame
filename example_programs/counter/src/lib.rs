@@ -160,11 +160,11 @@ impl StarFrameInstruction for CountIx {
     type Accounts<'b, 'c> = CountAccounts;
 
     fn process(
-        account_set: &mut Self::Accounts<'_, '_>,
+        accounts: &mut Self::Accounts<'_, '_>,
         CountIx { amount, subtract }: Self::RunArg<'_>,
         _ctx: &mut Context,
     ) -> Result<Self::ReturnType> {
-        let mut counter = account_set.counter.data_mut()?;
+        let mut counter = accounts.counter.data_mut()?;
         let new_count: u64 = if subtract {
             counter.count - amount
         } else {

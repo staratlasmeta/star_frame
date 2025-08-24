@@ -182,7 +182,7 @@ macro_rules! empty_star_frame_instruction {
             type Accounts<'b, 'c> = $accounts;
 
             fn process(
-                _account_set: &mut Self::Accounts<'_, '_>,
+                _accounts: &mut Self::Accounts<'_, '_>,
                 _run_arg: Self::RunArg<'_>,
                 _ctx: &mut $crate::context::Context,
             ) -> $crate::Result<Self::ReturnType> {
