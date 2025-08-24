@@ -62,6 +62,7 @@ pub mod util;
 pub mod __private;
 
 pub use anyhow::Result;
+#[doc(hidden)]
 pub use solana_instruction::Instruction as SolanaInstruction;
 pub use star_frame_proc::{pubkey, sighash};
 
