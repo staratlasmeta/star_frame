@@ -1,3 +1,4 @@
+//! Useful miscellaneous functions.
 use crate::prelude::*;
 use std::{
     cell::{Ref, RefMut},
@@ -59,6 +60,7 @@ pub fn uninit_array_bytes<T: NoUninit, const N: usize>(array: &[T; N]) -> &[u8] 
     unsafe { core::slice::from_raw_parts(array.as_ptr().cast::<u8>(), size_of::<T>() * N) }
 }
 
+/// Custom [`borsh`] derive `serialize_with` and `deserialize_with` overrides for use with [`bytemuck`] types.
 pub mod borsh_bytemuck {
     use crate::align1::Align1;
     use bytemuck::{CheckedBitPattern, NoUninit};
@@ -130,6 +132,21 @@ pub mod borsh_bytemuck {
         Ok(unsafe { buffer.assume_init() })
     }
 
+    /// Derives [`BorshSerialize`](borsh::BorshSerialize) and [`BorshDeserialize`](borsh::BorshDeserialize) for [`bytemuck`] types.
+    ///
+    /// # Example
+    /// ```
+    /// use star_frame::prelude::*;
+    ///
+    /// #[derive(Align1, NoUninit, CheckedBitPattern, Copy, Clone)]
+    /// #[repr(C, packed)]
+    /// pub struct SomePackedThing {
+    ///     pub a: u32,
+    ///     pub b: u64,
+    /// }
+    ///
+    /// borsh_with_bytemuck!(SomePackedThing);
+    /// ```
     #[macro_export]
     macro_rules! borsh_with_bytemuck {
         ($($ty:ident),*) => {

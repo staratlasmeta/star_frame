@@ -8,11 +8,11 @@ use crate::{
 use daggy::Dag;
 use easy_proc::{find_attrs, ArgumentList};
 use itertools::Itertools;
-use proc_macro2::TokenStream;
+use proc_macro2::{Span, TokenStream};
 use proc_macro_error2::abort;
 use quote::quote;
 use std::collections::{hash_map::Entry, HashMap, HashSet};
-use syn::{Expr, LitStr, Type};
+use syn::{Expr, Ident, LitStr, Type};
 
 #[derive(ArgumentList)]
 struct ValidateStructArgs {
@@ -23,8 +23,11 @@ struct ValidateStructArgs {
     extra_validation: Option<Expr>,
 }
 
-#[derive(ArgumentList, Clone, Default)]
+#[derive(ArgumentList, Clone)]
 struct ValidateFieldArgs {
+    /// The ident of the whole attribute, not required and can only be one
+    #[argument(attr_ident)]
+    attr_ident: Ident,
     id: Option<LitStr>,
     #[argument(presence)]
     funder: bool,
@@ -37,6 +40,23 @@ struct ValidateFieldArgs {
     temp: Option<Expr>,
     arg_ty: Option<Type>,
     address: Option<Expr>,
+}
+
+impl Default for ValidateFieldArgs {
+    fn default() -> Self {
+        Self {
+            attr_ident: Ident::new("validate", Span::call_site()),
+            id: Default::default(),
+            funder: Default::default(),
+            recipient: Default::default(),
+            skip: Default::default(),
+            requires: Default::default(),
+            arg: Default::default(),
+            temp: Default::default(),
+            arg_ty: Default::default(),
+            address: Default::default(),
+        }
+    }
 }
 
 pub(super) fn validates(
@@ -105,15 +125,15 @@ pub(super) fn validates(
         for validate_field_arg in field_validate {
             if !validate_ids.contains_key(&validate_field_arg.id.as_ref().map(LitStr::value)) {
                 abort!(
-                    validate_field_arg.id,
+                    validate_field_arg.attr_ident,
                     "Validate id `{:?}` not found",
                     validate_field_arg.id.as_ref().map(LitStr::value)
                 );
             }
             if !field_ids.insert(validate_field_arg.id.as_ref().map(LitStr::value)) {
                 abort!(
-                    validate_field_arg.id,
-                    "Validate decode id `{:?}`",
+                    validate_field_arg.attr_ident,
+                    "Duplicate validate decode id `{:?}`",
                     validate_field_arg.id.as_ref().map(LitStr::value)
                 );
             }
@@ -207,7 +227,7 @@ pub(super) fn validates(
                 };
                 let funder = args.funder.then(|| {
                     if has_funder {
-                        abort!(field_name, "Only one field can be marked as funder");
+                        abort!(args.attr_ident, "Only one field can be marked as funder");
                     }
                     has_funder = true;
                     quote! {
@@ -218,7 +238,7 @@ pub(super) fn validates(
                 });
                 let recipient = args.recipient.then(|| {
                     if has_recipient {
-                        abort!(field_name, "Only one field can be marked as recipient");
+                        abort!(args.attr_ident, "Only one field can be marked as recipient");
                     }
                     has_recipient = true;
                     quote! {

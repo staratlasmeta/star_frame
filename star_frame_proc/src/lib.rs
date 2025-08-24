@@ -397,6 +397,8 @@ pub fn derive_instruction_to_idl(input: proc_macro::TokenStream) -> proc_macro::
     out.into()
 }
 
+/// Compile time hashing of string literals.
+///
 /// Takes in multiple string literals and returns the first 8 bytes of its sha256 hash.
 /// The strings will be concatenated with a `:` separator prior to hashing if multiple are passed in.
 ///
@@ -416,6 +418,7 @@ pub fn sighash(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         .into()
 }
 
+/// Compile time generation of a `Pubkey` from a base58 string literal.
 // ---- Copied solana-program macros to use `star_frame::solana_program` path  ----
 #[proc_macro]
 pub fn pubkey(input: proc_macro::TokenStream) -> proc_macro::TokenStream {

@@ -1,41 +1,19 @@
-use crate::{account_set::discriminant::AccountDiscriminant, prelude::*};
+use crate::{
+    account_set::{
+        account::discriminant::AccountDiscriminant,
+        modifiers::{HasOwnerProgram, HasSeeds},
+        ClientAccountSet,
+    },
+    instruction::InstructionDiscriminant,
+    prelude::*,
+    unsize::{init::UnsizedInit, FromOwned},
+};
 
 use borsh::{object_length, BorshSerialize};
 use bytemuck::bytes_of;
-use pinocchio::account_info::AccountInfo;
 use solana_instruction::Instruction as SolanaInstruction;
-use std::fmt::Debug;
 
-pub trait CpiAccountSet {
-    type CpiAccounts: Clone + Debug;
-    /// The minimum number of accounts this CPI might use
-    const MIN_LEN: usize;
-
-    fn to_cpi_accounts(&self) -> Self::CpiAccounts;
-    fn extend_account_infos(
-        program_id: &Pubkey,
-        accounts: Self::CpiAccounts,
-        infos: &mut Vec<AccountInfo>,
-        ctx: &Context,
-    ) -> Result<()>;
-    fn extend_account_metas(
-        program_id: &Pubkey,
-        accounts: &Self::CpiAccounts,
-        metas: &mut Vec<AccountMeta>,
-    );
-}
-
-pub trait ClientAccountSet {
-    type ClientAccounts: Clone + Debug;
-    /// The minimum number of accounts the client might use
-    const MIN_LEN: usize;
-    fn extend_account_metas(
-        program_id: &Pubkey,
-        accounts: &Self::ClientAccounts,
-        metas: &mut Vec<AccountMeta>,
-    );
-}
-
+#[doc(hidden)]
 pub fn star_frame_instruction_data<S, I>(data: &I) -> Result<Vec<u8>>
 where
     S: InstructionSet,
@@ -46,70 +24,6 @@ where
     ix_data.extend_from_slice(bytes_of(&I::DISCRIMINANT));
     BorshSerialize::serialize(data, &mut ix_data)?;
     Ok(ix_data)
-}
-
-#[must_use = "Did you forget to invoke the builder?"]
-#[derive(derive_more::Debug, Clone)]
-pub struct CpiBuilder {
-    pub instruction: SolanaInstruction,
-    #[debug("{} accounts", self.accounts.len())]
-    pub accounts: Vec<AccountInfo>,
-}
-
-impl CpiBuilder {
-    #[inline]
-    pub fn invoke(&self) -> Result<()> {
-        crate::cpi::invoke(&self.instruction, &self.accounts)
-    }
-
-    #[inline]
-    pub fn invoke_signed(&self, signer_seeds: &[&[&[u8]]]) -> Result<()> {
-        crate::cpi::invoke_signed(&self.instruction, &self.accounts, signer_seeds)
-    }
-}
-
-pub trait MakeCpi: StarFrameProgram {
-    fn cpi<I, A>(data: &I, accounts: A::CpiAccounts, ctx: &Context) -> Result<CpiBuilder>
-    where
-        I: StarFrameInstruction<Accounts<'static, 'static> = A>
-            + InstructionDiscriminant<Self::InstructionSet>
-            + BorshSerialize,
-        A: CpiAccountSet,
-    {
-        CpiBuilder::new::<Self::InstructionSet, I, A>(Self::ID, data, accounts, ctx)
-    }
-}
-
-impl<T> MakeCpi for T where T: StarFrameProgram + ?Sized {}
-
-impl CpiBuilder {
-    pub fn new<S, I, A>(
-        program_id: Pubkey,
-        data: &I,
-        accounts: A::CpiAccounts,
-        ctx: &Context,
-    ) -> Result<Self>
-    where
-        S: InstructionSet,
-        I: StarFrameInstruction<Accounts<'static, 'static> = A>
-            + InstructionDiscriminant<S>
-            + BorshSerialize,
-        A: CpiAccountSet,
-    {
-        let mut metas = Vec::with_capacity(A::MIN_LEN);
-        A::extend_account_metas(&program_id, &accounts, &mut metas);
-        let mut infos = Vec::with_capacity(A::MIN_LEN);
-        A::extend_account_infos(&program_id, accounts, &mut infos, ctx)?;
-        let data = star_frame_instruction_data::<S, I>(data)?;
-        Ok(Self {
-            instruction: SolanaInstruction {
-                program_id,
-                accounts: metas,
-                data,
-            },
-            accounts: infos,
-        })
-    }
 }
 
 pub trait MakeInstruction: StarFrameProgram {
@@ -176,7 +90,7 @@ pub trait SerializeType: UnsizedType {
     {
         let mut bytes = vec![0u8; <Self as UnsizedInit<I>>::INIT_BYTES];
         let data = &mut &mut bytes[..];
-        unsafe { <Self as UnsizedInit<I>>::init(data, init_arg)? };
+        <Self as UnsizedInit<I>>::init(data, init_arg)?;
         Ok(bytes)
     }
 }

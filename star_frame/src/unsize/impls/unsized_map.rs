@@ -1,4 +1,14 @@
-use crate::prelude::*;
+use crate::{
+    prelude::*,
+    unsize::{
+        impls::{
+            unsized_list_exclusive_fn, UnsizedListOffset, UnsizedListWithOffsetIter,
+            UnsizedListWithOffsetIterMut,
+        },
+        init::UnsizedInit,
+        FromOwned,
+    },
+};
 use std::{collections::BTreeMap, iter::FusedIterator};
 
 #[derive(Align1, Zeroable, Debug, Copy, Clone)]
@@ -57,7 +67,7 @@ where
     Ok(owned)
 }
 
-#[unsized_type(skip_idl, owned_type = BTreeMap<K, V::Owned>, owned_from_ref = unsized_map_owned_from_ref::<K, V>)]
+#[unsized_type(skip_idl, owned_type = BTreeMap<K, V::Owned>, owned_from_ref = unsized_map_owned_from_ref::<K, V>, skip_init_struct)]
 pub struct UnsizedMap<K, V>
 where
     K: Pod + Ord + Align1,
@@ -67,13 +77,13 @@ where
     list: UnsizedList<V, OrdOffset<K>>,
 }
 
-unsafe impl<K, V> FromOwned for UnsizedMap<K, V>
+impl<K, V> FromOwned for UnsizedMap<K, V>
 where
     K: Pod + Ord + Align1,
     V: UnsizedType + FromOwned + ?Sized,
 {
     fn byte_size(owned: &Self::Owned) -> usize {
-        UnsizedList::<V, OrdOffset<K>>::from_owned_byte_size(owned.iter().map(|(_, v)| v))
+        UnsizedList::<V, OrdOffset<K>>::from_owned_byte_size(owned.values())
     }
 
     fn from_owned(owned: Self::Owned, bytes: &mut &mut [u8]) -> Result<usize> {

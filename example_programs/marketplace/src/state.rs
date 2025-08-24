@@ -1,7 +1,9 @@
 use std::{cmp::Reverse, fmt::Display};
 
-use anyhow::{bail, ensure};
-use star_frame::{borsh_with_bytemuck, prelude::*};
+use star_frame::{
+    anyhow::{ensure, Context as _},
+    prelude::*,
+};
 
 create_unit_system!(pub struct MarketplaceUnitSystem<Currency>);
 
@@ -402,14 +404,14 @@ pub struct ValidateMarketToken<'a>(pub &'a KeyFor<MintAccount>);
 pub struct ValidateCurrency<'a>(pub &'a KeyFor<MintAccount>);
 
 impl<'a> AccountValidate<ValidateMarketToken<'a>> for Market {
-    fn validate(self_ref: &Self::Ref<'_>, arg: ValidateMarketToken<'a>) -> Result<()> {
+    fn validate_account(self_ref: &Self::Ref<'_>, arg: ValidateMarketToken<'a>) -> Result<()> {
         ensure!(&self_ref.market_token == arg.0, "Market token mismatch");
         Ok(())
     }
 }
 
 impl<'a> AccountValidate<ValidateCurrency<'a>> for Market {
-    fn validate(self_ref: &Self::Ref<'_>, arg: ValidateCurrency<'a>) -> Result<()> {
+    fn validate_account(self_ref: &Self::Ref<'_>, arg: ValidateCurrency<'a>) -> Result<()> {
         ensure!(&self_ref.currency == arg.0, "Currency mismatch");
         Ok(())
     }
@@ -619,7 +621,7 @@ pub(crate) mod tests {
 
         let mut expected_market = market.clone();
 
-        market.modify_owned::<Market>(|market| {
+        Market::modify_owned(&mut market, |market| {
             order_result = market.process_order(
                 ProcessOrderArgs {
                     side,
@@ -665,7 +667,7 @@ pub(crate) mod tests {
 
         let price = new_price(20);
         let quantity = new_quantity(15);
-        market.modify_owned::<Market>(|market| {
+        Market::modify_owned(&mut market, |market| {
             order_result = market.process_order(
                 ProcessOrderArgs {
                     side,
@@ -718,7 +720,7 @@ pub(crate) mod tests {
         let side = OrderSide::Ask;
         let fill_or_kill = false;
 
-        market.modify_owned::<Market>(|market| {
+        Market::modify_owned(&mut market, |market| {
             order_result = market.process_order(
                 ProcessOrderArgs {
                     side,
@@ -912,7 +914,7 @@ pub(crate) mod tests {
 
         let mut expected_market = market.clone();
 
-        market.modify_owned::<Market>(|market| {
+        Market::modify_owned(&mut market, |market| {
             order_result = market.process_order(
                 ProcessOrderArgs {
                     side: OrderSide::Bid,
@@ -967,7 +969,7 @@ pub(crate) mod tests {
         let mm_sell_price = new_price(7);
         let mm_sell_quantity = new_quantity(20);
 
-        market.modify_owned::<Market>(|market| {
+        Market::modify_owned(&mut market, |market| {
             order_result = market.process_order(
                 ProcessOrderArgs {
                     side: OrderSide::Ask,
@@ -1202,7 +1204,7 @@ pub(crate) mod tests {
 
         // Test cancelling a single bid
         let mut cancel_result = None;
-        local_market.modify_owned::<Market>(|market| {
+        Market::modify_owned(&mut local_market, |market| {
             cancel_result = Some(market.cancel_orders(
                 &buyer1,
                 &[CancelOrderArgs {
@@ -1230,7 +1232,7 @@ pub(crate) mod tests {
 
         // Test cancelling multiple orders from the same maker
         let mut cancel_result = None;
-        local_market.modify_owned::<Market>(|market| {
+        Market::modify_owned(&mut local_market, |market| {
             cancel_result = Some(market.cancel_orders(
                 &maker,
                 &[
@@ -1286,7 +1288,7 @@ pub(crate) mod tests {
         // 3 orders cancelled + 1 maker entry removed (from asks side)
         // Test cancelling non-existent order (should be silently ignored)
         let mut cancel_result = None;
-        local_market.modify_owned::<Market>(|market| {
+        Market::modify_owned(&mut local_market, |market| {
             cancel_result = Some(market.cancel_orders(
                 &seller,
                 &[CancelOrderArgs {
@@ -1315,7 +1317,7 @@ pub(crate) mod tests {
         );
 
         // Test cancelling order with wrong maker (should fail)
-        let result = local_market.modify_owned::<Market>(|market| {
+        let result = Market::modify_owned(&mut local_market, |market| {
             market.cancel_orders(
                 &maker,
                 &[CancelOrderArgs {

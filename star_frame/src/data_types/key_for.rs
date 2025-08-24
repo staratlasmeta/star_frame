@@ -1,4 +1,4 @@
-use crate::prelude::*;
+use crate::{account_set::modifiers::HasInnerType, prelude::*};
 use bytemuck::{cast, cast_mut, cast_ref};
 use derive_where::DeriveWhere;
 use serde::{Deserialize, Serialize};
@@ -20,7 +20,9 @@ pub trait GetKeyFor<T: ?Sized> {
 }
 
 /// A key for an account type
-#[derive(BorshDeserialize, BorshSerialize, Align1, DeriveWhere, Serialize, Deserialize)]
+#[derive(
+    borsh::BorshDeserialize, borsh::BorshSerialize, Align1, DeriveWhere, Serialize, Deserialize,
+)]
 #[derive_where(Debug, Clone, Copy, Hash, PartialEq, Eq, Default, PartialOrd, Ord)]
 #[serde(transparent)]
 #[repr(transparent)]

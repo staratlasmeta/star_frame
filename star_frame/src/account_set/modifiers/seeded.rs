@@ -1,5 +1,11 @@
-use crate::prelude::*;
-use anyhow::ensure;
+use crate::{
+    account_set::{
+        modifiers::{CanInitAccount, CanInitSeeds, HasSeeds, SignedAccount},
+        AccountSetValidate,
+    },
+    prelude::*,
+};
+use anyhow::{ensure, Context as _};
 use bytemuck::bytes_of;
 use derive_more::{Deref, DerefMut};
 use std::marker::PhantomData;
@@ -311,6 +317,8 @@ where
 
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
 mod idl_impl {
+    use crate::idl::FindIdlSeeds;
+
     use super::*;
     use star_frame_idl::{account_set::IdlAccountSetDef, seeds::IdlFindSeeds, IdlDefinition};
 

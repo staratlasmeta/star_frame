@@ -12,7 +12,7 @@ pub struct RemainingData(Vec<u8>);
 
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
 mod idl_impl {
-    use crate::idl::ty::impl_type_to_idl_for_primitive;
+    use crate::idl::impl_type_to_idl_for_primitive;
     impl_type_to_idl_for_primitive!(super::RemainingData: RemainingBytes);
 }
 impl BorshDeserialize for RemainingData {

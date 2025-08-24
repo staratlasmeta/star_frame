@@ -7,6 +7,5 @@ target
 node_modules
 test-ledger
 .vscode
-example_programs/faction_enlistment/idl.json
-example_programs/counter/idl.json
+example_programs/**/idl.json
 rustc-ice-*

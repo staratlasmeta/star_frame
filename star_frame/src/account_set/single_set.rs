@@ -1,4 +1,15 @@
-use crate::{prelude::*, program::system};
+use std::cmp::Ordering;
+
+use crate::{
+    account_set::{
+        modifiers::{HasOwnerProgram, OwnerProgramDiscriminant, SignedAccount, WritableAccount},
+        CanAddLamports, CanCloseAccount, CanFundRent, CanModifyRent, CanSystemCreateAccount,
+        CheckKey,
+    },
+    prelude::*,
+    program::system,
+};
+use anyhow::Context as _;
 use pinocchio::account_info::{Ref, RefMut};
 
 #[derive(Debug, Clone, Copy)]
@@ -17,7 +28,7 @@ impl SingleSetMeta {
     }
 }
 
-/// An Account Set that contains exactly 1 account.
+/// An [`AccountSet`] that contains exactly 1 account.
 pub trait SingleAccountSet {
     /// Associated metadata for the account set
     fn meta() -> SingleSetMeta
@@ -120,15 +131,6 @@ where
     }
 }
 
-impl<T> CanCloseAccount for T
-where
-    T: SingleAccountSet + ?Sized,
-{
-    fn account_to_close(&self) -> AccountInfo {
-        *self.account_info()
-    }
-}
-
 impl<T> CanAddLamports for T
 where
     T: WritableAccount + Debug + ?Sized,
@@ -171,12 +173,123 @@ where
     }
 }
 
+impl<T> CanCloseAccount for T
+where
+    T: SingleAccountSet + ?Sized,
+{
+    fn close_account(&self, recipient: &(impl CanAddLamports + ?Sized)) -> Result<()>
+    where
+        Self: HasOwnerProgram,
+        Self: Sized,
+    {
+        let info = self.account_info();
+        info.resize(size_of::<OwnerProgramDiscriminant<Self>>())?;
+        info.account_data_mut()?.fill(u8::MAX);
+        recipient.add_lamports(info.lamports())?;
+        *info.try_borrow_mut_lamports()? = 0;
+        Ok(())
+    }
+
+    fn close_account_full(&self, recipient: &dyn CanAddLamports) -> Result<()> {
+        let info = self.account_info();
+        recipient.add_lamports(info.lamports())?;
+        info.close()?;
+        Ok(())
+    }
+}
+
 impl<T> CanModifyRent for T
 where
     T: SingleAccountSet + ?Sized,
 {
-    fn account_to_modify(&self) -> AccountInfo {
-        *self.account_info()
+    fn normalize_rent(&self, funder: &(impl CanFundRent + ?Sized), ctx: &Context) -> Result<()> {
+        let account = self.account_info();
+        let rent = ctx.get_rent()?;
+        let lamports = *account.try_borrow_lamports()?;
+        let data_len = account.data_len();
+        let rent_lamports = rent.minimum_balance(data_len);
+        match rent_lamports.cmp(&lamports) {
+            Ordering::Equal => Ok(()),
+            Ordering::Greater => {
+                if lamports == 0 {
+                    return Ok(());
+                }
+                let transfer_amount = rent_lamports - lamports;
+                CanFundRent::fund_rent(funder, &account, transfer_amount, ctx)?;
+                Ok(())
+            }
+            Ordering::Less => {
+                let transfer_amount = lamports - rent_lamports;
+                *account.try_borrow_mut_lamports()? -= transfer_amount;
+                funder.add_lamports(transfer_amount)?;
+                Ok(())
+            }
+        }
+    }
+
+    fn refund_rent(&self, recipient: &(impl CanAddLamports + ?Sized), ctx: &Context) -> Result<()> {
+        let account = self.account_info();
+        let rent = ctx.get_rent()?;
+        let lamports = *account.try_borrow_lamports()?;
+        let data_len = account.data_len();
+        let rent_lamports = rent.minimum_balance(data_len);
+        match rent_lamports.cmp(&lamports) {
+            Ordering::Equal => Ok(()),
+            Ordering::Greater => {
+                if lamports > 0 {
+                    Err(anyhow!(
+                        "Tried to refund rent from {} but does not have enough lamports to cover rent",
+                        account.pubkey()
+                    ))
+                } else {
+                    Ok(())
+                }
+            }
+            Ordering::Less => {
+                let transfer_amount = lamports - rent_lamports;
+                *account.try_borrow_mut_lamports()? -= transfer_amount;
+                recipient.add_lamports(transfer_amount)?;
+                Ok(())
+            }
+        }
+    }
+
+    fn receive_rent(&self, funder: &(impl CanFundRent + ?Sized), ctx: &Context) -> Result<()> {
+        let account = self.account_info();
+        let rent = ctx.get_rent()?;
+        let lamports = *account.try_borrow_lamports()?;
+        let data_len = account.data_len();
+        let rent_lamports = rent.minimum_balance(data_len);
+        if rent_lamports > lamports {
+            if lamports == 0 {
+                return Ok(());
+            }
+            let transfer_amount = rent_lamports - lamports;
+            CanFundRent::fund_rent(funder, &account, transfer_amount, ctx)?;
+        }
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "cleanup_rent_warning"), allow(unused_variables))]
+    fn check_cleanup(&self, ctx: &Context) -> Result<()> {
+        #[cfg(feature = "cleanup_rent_warning")]
+        {
+            use std::cmp::Ordering;
+            let account = self.account_info();
+            if account.is_writable() {
+                let rent = ctx.get_rent()?;
+                let lamports = account.lamports();
+                let data_len = account.data_len();
+                let rent_lamports = rent.minimum_balance(data_len);
+                if rent_lamports.cmp(&lamports) == Ordering::Less {
+                    pinocchio::msg!(
+                        "{} was left with more lamports than required by rent",
+                        account.pubkey()
+                    );
+                }
+            }
+        }
+        Ok(())
     }
 }
 
@@ -184,7 +297,70 @@ impl<T> CanSystemCreateAccount for T
 where
     T: SingleAccountSet + ?Sized,
 {
-    fn account_to_create(&self) -> AccountInfo {
-        *self.account_info()
+    fn system_create_account(
+        &self,
+        funder: &(impl CanFundRent + ?Sized),
+        owner: Pubkey,
+        space: usize,
+        account_seeds: &Option<Vec<&[u8]>>,
+        ctx: &Context,
+    ) -> Result<()> {
+        let account = *self.account_info();
+        if account.owner_pubkey() != System::ID {
+            bail!(ProgramError::InvalidAccountOwner);
+        }
+        let current_lamports = account.lamports();
+        let exempt_lamports = ctx.get_rent()?.minimum_balance(space);
+
+        if current_lamports == 0 && funder.can_create_account() {
+            let funder_seeds: Option<Vec<&[u8]>> = funder.signer_seeds();
+            let seeds: &[&[&[u8]]] = match (&funder_seeds, account_seeds) {
+                (Some(signer_seeds), Some(account_seeds)) => &[signer_seeds, account_seeds],
+                (Some(signer_seeds), None) => &[signer_seeds],
+                (None, Some(account_seeds)) => &[account_seeds],
+                (None, None) => &[],
+            };
+            System::cpi(
+                &system::CreateAccount {
+                    lamports: exempt_lamports,
+                    space: space as u64,
+                    owner,
+                },
+                system::CreateAccountCpiAccounts {
+                    funder: funder.account_to_modify(),
+                    new_account: account,
+                },
+                ctx,
+            )?
+            .invoke_signed(seeds)
+            .context("System::CreateAccount CPI failed")?;
+        } else {
+            let required_lamports = exempt_lamports.saturating_sub(current_lamports).max(1);
+            if required_lamports > 0 {
+                CanFundRent::fund_rent(funder, &account, required_lamports, ctx)
+                    .context("Failed to fund rent")?;
+            }
+            let account_seeds: &[&[&[u8]]] = match &account_seeds {
+                Some(seeds) => &[seeds],
+                None => &[],
+            };
+            System::cpi(
+                &system::Allocate {
+                    space: space as u64,
+                },
+                system::AllocateCpiAccounts { account },
+                ctx,
+            )?
+            .invoke_signed(account_seeds)
+            .context("System::Allocate CPI failed")?;
+            System::cpi(
+                &system::Assign { owner },
+                system::AssignCpiAccounts { account },
+                ctx,
+            )?
+            .invoke_signed(account_seeds)
+            .context("System::Assign CPI failed")?;
+        }
+        Ok(())
     }
 }

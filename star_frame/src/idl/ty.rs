@@ -1,7 +1,7 @@
 //! [`TypeToIdl`] implementations for common types.
 //!
 //! For zero-copy types that are supported by [`bytemuck`], we use that representation. For all other types, we use the [`borsh`] representation.
-use crate::prelude::*;
+use crate::{data_types::PodBool, prelude::*};
 use star_frame_idl::{
     ty::{IdlStructField, IdlTypeDef},
     IdlDefinition,

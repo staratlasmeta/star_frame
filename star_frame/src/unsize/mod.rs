@@ -1,3 +1,5 @@
+//! Zero-copy, dynamically sized, CU-efficient types.
+
 pub mod impls;
 pub mod init;
 #[cfg(all(feature = "test_helpers", not(target_os = "solana")))]
@@ -125,12 +127,15 @@ impl RawSliceAdvance for *mut [u8] {
     }
 }
 
-/// # Safety
-/// The `from_owned` function must create a valid `Self` from the `owned` value.
-pub unsafe trait FromOwned: UnsizedType {
+/// Writing bytes of an [`UnsizedType::Owned`] to a buffer.
+///
+/// This is used in implementations for setting bytes of the underlying data of an [`UnsizedType`].
+pub trait FromOwned: UnsizedType {
+    /// The number of bytes that the [`UnsizedType::Owned`] will take up in the buffer.
     fn byte_size(owned: &Self::Owned) -> usize;
 
     /// Writes to and advances the buffer, returning the number of bytes advanced.
+    ///
     /// Errors if the buffer is too small (< `byte_size`).
     fn from_owned(owned: Self::Owned, bytes: &mut &mut [u8]) -> Result<usize>;
 }
@@ -187,3 +192,12 @@ pub unsafe trait FromOwned: UnsizedType {
 /// ```
 #[cfg(doctest)]
 struct TestUnsizedZst;
+
+/// Commonly used types and traits for the unsized type system.
+pub mod prelude {
+    use super::*;
+    pub use super::{unsized_impl, unsized_type, AsShared as _, UnsizedType};
+    pub use impls::prelude::*;
+    pub use init::DefaultInit;
+    pub use wrapper::{ExclusiveRecurse, ExclusiveWrapper, ExclusiveWrapperTop};
+}

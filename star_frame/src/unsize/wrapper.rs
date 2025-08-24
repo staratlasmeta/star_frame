@@ -1,6 +1,6 @@
 use super::{AsShared, UnsizedType};
 use crate::{
-    account_set::SingleAccountSet,
+    account_set::single_set::SingleAccountSet,
     unsize::{init::UnsizedInit, FromOwned, UnsizedTypeMut},
     Result,
 };
@@ -51,8 +51,9 @@ unsafe impl UnsizedTypeDataAccess for AccountInfo {
         new_len: usize,
     ) -> Result<()> {
         // Set the data len on the account (This will check that the increase is within bounds)
+        //
         // SAFETY:
-        // We have exclusive access to the
+        // We are controlling the RefMut, and are updating our own pointers, so we gucci
         unsafe { this.resize_unchecked(new_len) }?;
         // Then recreate the local slice with the new length
         *data = ptr_meta::from_raw_parts_mut(data.cast(), new_len);
@@ -590,7 +591,7 @@ where
             self,
             init_arg,
             <U as UnsizedInit<I>>::INIT_BYTES,
-            |slice, arg| unsafe { <U as UnsizedInit<I>>::init(slice, arg) },
+            |slice, arg| <U as UnsizedInit<I>>::init(slice, arg),
         )
     }
 
