@@ -27,6 +27,7 @@ use std::{
 pub unsafe trait UnsizedTypeDataAccess {
     /// # Safety
     /// `data` must actually point to the same data that is returned by [`UnsizedTypeDataAccess::data_ref`] and [`UnsizedTypeDataAccess::data_mut`].
+    /// There must be no other live references to the buffer that data points to.
     unsafe fn unsized_data_realloc(this: &Self, data: &mut *mut [u8], new_len: usize)
         -> Result<()>;
     fn data_ref(this: &Self) -> Result<impl Deref<Target = [u8]>>;
@@ -41,10 +42,6 @@ impl<T: ?Sized> DataMutDrop for pinocchio::account_info::RefMut<'_, T> {}
 /// # Safety
 /// We are checking the length of the underlying data pointer in [`Self::unsized_data_realloc`].
 unsafe impl UnsizedTypeDataAccess for AccountInfo {
-    /// Sets the data length in the serialized data. This is identical to how [`AccountInfo::realloc`] works, minus the `RefCell::borrow_mut` call.
-    /// # Safety
-    /// `data` must actually point to the underlying data of the account, and `Self` needs to be from the entrypoint of a program or
-    /// have its memory laid out in the same way. The fact that you can create `AccountInfo`s that aren't like this is a tragedy, but it is what it is.
     unsafe fn unsized_data_realloc(
         this: &Self,
         data: &mut *mut [u8],
@@ -52,7 +49,7 @@ unsafe impl UnsizedTypeDataAccess for AccountInfo {
     ) -> Result<()> {
         // Set the data len on the account (This will check that the increase is within bounds)
         // SAFETY:
-        // We have exclusive access to the
+        // `unsized_data_realloc` requires that no other references to this data exist, which satisfies the preconditions of this function.
         unsafe { this.resize_unchecked(new_len) }?;
         // Then recreate the local slice with the new length
         *data = ptr_meta::from_raw_parts_mut(data.cast(), new_len);
