@@ -15,8 +15,8 @@ use bytemuck::{bytes_of, cast_slice_mut, Pod, Zeroable};
 use core::slice;
 use itertools::Itertools;
 use num_traits::ToPrimitive;
-use pinocchio::memory::sol_memmove;
 use ptr_meta::Pointee;
+use solana_program_memory::sol_memmove;
 use std::{
     borrow::Borrow,
     cmp::Ordering,
@@ -161,7 +161,7 @@ where
     }
 }
 
-unsafe impl<T, C> FromOwned for UnsizedList<T, C>
+impl<T, C> FromOwned for UnsizedList<T, C>
 where
     T: UnsizedType + FromOwned + ?Sized,
     C: UnsizedListOffset<ListOffsetInit = ()>,
@@ -212,6 +212,7 @@ where
         self.offset_list.is_empty()
     }
 
+    /// Gets a pointer to the start of the unsized data, but with not great provenance.
     #[inline]
     fn unsized_data_ptr(&self) -> *const u8 {
         self.offset_list
@@ -460,6 +461,22 @@ where
     inner_exclusive: Box<MaybeUninit<T::Mut<'a>>>,
     inner_initialized: bool,
     phantom: PhantomData<&'a ()>,
+}
+
+impl<T, C> UnsizedListMut<'_, T, C>
+where
+    T: UnsizedType + ?Sized,
+    C: UnsizedListOffset,
+{
+    #[inline]
+    fn unsized_bytes_mut_ptr(&mut self) -> *mut [u8] {
+        ptr_meta::from_raw_parts_mut(
+            self.list_ptr
+                .with_addr(self.unsized_data_ptr_mut() as usize)
+                .cast(),
+            self.unsized_size.usize(),
+        )
+    }
 }
 
 impl<T, C> Drop for UnsizedListMut<'_, T, C>
@@ -767,7 +784,7 @@ where
     C: UnsizedListOffset,
 {
     let data = unsafe { &mut *list_ptr };
-    let mut bytes: *mut [u8] = data.unsized_bytes_mut();
+    let mut bytes: *mut [u8] = data.unsized_bytes_mut_ptr();
     bytes.try_advance(start)?;
     let t: T::Mut<'top> = unsafe { T::get_mut(&mut bytes)? };
     *data.inner_exclusive = MaybeUninit::new(t);
@@ -942,8 +959,8 @@ where
                 let dst_ptr = new_offset_start.wrapping_add(to_add); // shift down by size of offset counter element
                 unsafe {
                     sol_memmove(
-                        dst_ptr.cast::<u8>(),
-                        new_offset_start.cast::<u8>(),
+                        dst_ptr.cast(),
+                        new_offset_start.cast(),
                         add_bytes_start as usize - new_offset_start as usize,
                     );
                 }
@@ -970,7 +987,7 @@ where
                 for ((item_index, (item_init, offset_init)), _) in
                     items.enumerate().zip_eq(0..to_add)
                 {
-                    unsafe { T::init(&mut new_data, item_init)? };
+                    T::init(&mut new_data, item_init)?;
                     let new_offset = insertion_offset + item_index * T::INIT_BYTES;
                     list.offset_list[index + item_index] =
                         C::from_usize_offset(new_offset, offset_init)?;
@@ -1029,7 +1046,11 @@ where
             let shift_amount = offset_of_start_ptr as usize - end_offset_list as usize;
             unsafe {
                 // shift everything until the removed elements up to get rid of removed offsets
-                sol_memmove(start_offset_list, end_offset_list, shift_amount);
+                sol_memmove(
+                    start_offset_list.cast(),
+                    end_offset_list.cast(),
+                    shift_amount,
+                );
             }
         }
 
@@ -1040,12 +1061,16 @@ where
                 .wrapping_byte_sub(size_of::<C>() * to_remove)
                 .cast::<()>();
             let remove_end = self
-                .unsized_data_ptr_mut()
+                .unsized_data_ptr()
                 .wrapping_byte_add(end_offset)
                 .cast::<()>();
             let source_ptr = self.list_ptr.cast_const().cast::<()>();
             unsafe {
-                ExclusiveRecurse::remove_bytes(self, source_ptr, remove_start..remove_end)?;
+                ExclusiveRecurse::remove_bytes(
+                    self,
+                    source_ptr,
+                    remove_start.cast_const()..remove_end,
+                )?;
             }
             {
                 let list = &mut **self;
@@ -1073,17 +1098,19 @@ where
         {
             let start_ptr = self
                 .offset_list
-                .as_mut_ptr()
+                .as_ptr()
                 // Leave enough room for the unsized len copy
                 .wrapping_byte_add(U32_SIZE)
                 .cast::<()>();
             let end_ptr = self
-                .unsized_data_ptr_mut()
+                .unsized_data_ptr()
                 .wrapping_byte_add(self.unsized_size.usize())
                 .cast::<()>();
 
             let source_ptr = self.list_ptr.cast_const().cast::<()>();
-            unsafe { ExclusiveRecurse::remove_bytes(self, source_ptr, start_ptr..end_ptr)? };
+            unsafe {
+                ExclusiveRecurse::remove_bytes(self, source_ptr, start_ptr..end_ptr)?;
+            };
         }
 
         self.list_ptr = ptr_meta::from_raw_parts_mut(self.list_ptr.cast::<()>(), 0);
@@ -1094,14 +1121,14 @@ where
     }
 }
 
-unsafe impl<T, C> UnsizedInit<DefaultInit> for UnsizedList<T, C>
+impl<T, C> UnsizedInit<DefaultInit> for UnsizedList<T, C>
 where
     T: UnsizedType + UnsizedInit<DefaultInit> + ?Sized,
     C: UnsizedListOffset,
 {
     const INIT_BYTES: usize = U32_SIZE * 3;
 
-    unsafe fn init(bytes: &mut &mut [u8], _init: DefaultInit) -> Result<()> {
+    fn init(bytes: &mut &mut [u8], _init: DefaultInit) -> Result<()> {
         let unsized_size_bytes = bytes.try_advance_array::<U32_SIZE>().with_context(|| {
             format!(
                 "Failed to read unsized size bytes during initialization of {}",
@@ -1186,25 +1213,25 @@ where
     }
 }
 
-unsafe impl<const N: usize, T, C, I> UnsizedInit<[I; N]> for UnsizedList<T, C>
+impl<const N: usize, T, C, I> UnsizedInit<[I; N]> for UnsizedList<T, C>
 where
     T: UnsizedType + UnsizedInit<I> + ?Sized,
     C: UnsizedListOffset<ListOffsetInit = ()>,
 {
     const INIT_BYTES: usize = U32_SIZE * 3 + (N * size_of::<C>()) + T::INIT_BYTES * N;
 
-    unsafe fn init(bytes: &mut &mut [u8], array: [I; N]) -> Result<()> {
+    fn init(bytes: &mut &mut [u8], array: [I; N]) -> Result<()> {
         let offset_slice = Self::init_list_header::<N, _>(bytes)?;
         Self::init_offset_slice(offset_slice, [(); N])?;
 
         for item in array {
-            unsafe { T::init(bytes, item)? };
+            T::init(bytes, item)?;
         }
         Ok(())
     }
 }
 
-unsafe impl<const N: usize, T, C, I> UnsizedInit<&[I; N]> for UnsizedList<T, C>
+impl<const N: usize, T, C, I> UnsizedInit<&[I; N]> for UnsizedList<T, C>
 where
     I: Clone,
     T: UnsizedType + UnsizedInit<I> + ?Sized,
@@ -1212,36 +1239,36 @@ where
 {
     const INIT_BYTES: usize = U32_SIZE * 3 + (N * size_of::<C>()) + T::INIT_BYTES * N;
 
-    unsafe fn init(bytes: &mut &mut [u8], array: &[I; N]) -> Result<()> {
+    fn init(bytes: &mut &mut [u8], array: &[I; N]) -> Result<()> {
         let offset_slice = Self::init_list_header::<N, _>(bytes)?;
         Self::init_offset_slice(offset_slice, [(); N])?;
 
         for item in array {
-            unsafe { T::init(bytes, item.clone())? };
+            T::init(bytes, item.clone())?;
         }
         Ok(())
     }
 }
 
-unsafe impl<const N: usize, T, C, I, OI> UnsizedInit<([I; N], [OI; N])> for UnsizedList<T, C>
+impl<const N: usize, T, C, I, OI> UnsizedInit<([I; N], [OI; N])> for UnsizedList<T, C>
 where
     T: UnsizedType + UnsizedInit<I> + ?Sized,
     C: UnsizedListOffset<ListOffsetInit = OI>,
 {
     const INIT_BYTES: usize = U32_SIZE * 3 + (N * size_of::<C>()) + T::INIT_BYTES * N;
 
-    unsafe fn init(bytes: &mut &mut [u8], arrays: ([I; N], [OI; N])) -> Result<()> {
+    fn init(bytes: &mut &mut [u8], arrays: ([I; N], [OI; N])) -> Result<()> {
         let offset_slice = Self::init_list_header::<N, _>(bytes)?;
         Self::init_offset_slice(offset_slice, arrays.1)?;
 
         for item in arrays.0 {
-            unsafe { T::init(bytes, item)? };
+            T::init(bytes, item)?;
         }
         Ok(())
     }
 }
 
-unsafe impl<const N: usize, T, C, I, OI> UnsizedInit<(&[I; N], &[OI; N])> for UnsizedList<T, C>
+impl<const N: usize, T, C, I, OI> UnsizedInit<(&[I; N], &[OI; N])> for UnsizedList<T, C>
 where
     I: Clone,
     OI: Clone,
@@ -1250,12 +1277,12 @@ where
 {
     const INIT_BYTES: usize = U32_SIZE * 3 + (N * size_of::<C>()) + T::INIT_BYTES * N;
 
-    unsafe fn init(bytes: &mut &mut [u8], arrays: (&[I; N], &[OI; N])) -> Result<()> {
+    fn init(bytes: &mut &mut [u8], arrays: (&[I; N], &[OI; N])) -> Result<()> {
         let offset_slice = Self::init_list_header::<N, _>(bytes)?;
         Self::init_offset_slice(offset_slice, arrays.1.clone())?;
 
         for item in arrays.0 {
-            unsafe { T::init(bytes, item.clone())? };
+            T::init(bytes, item.clone())?;
         }
         Ok(())
     }
@@ -1461,7 +1488,7 @@ iter_impls!(UnsizedListIter: T::Ref<'a>, UnsizedListIterMut: T::Mut<'a>);
 mod tests {
     use super::*;
     use crate::{
-        prelude::{List, ListExclusiveImpl},
+        prelude::*,
         unsize::{test_helpers::TestByteSet, NewByteSet},
     };
     use pretty_assertions::assert_eq;
@@ -1483,6 +1510,8 @@ mod tests {
         let test_bytes = TestByteSet::<TestList>::new_from_init(byte_arrays)?;
         let mut owned = byte_arrays.map(|array| array.to_vec()).to_vec();
         let mut unsized_lists = test_bytes.data_mut()?;
+        unsized_lists.push([1, 2, 3])?;
+        owned.push(vec![1, 2, 3]);
         for (list, owned_list) in unsized_lists.iter_with_offsets_mut().zip(owned.iter_mut()) {
             let (mut list, _) = list?;
             assert_eq!(&**list, owned_list);
@@ -1498,6 +1527,21 @@ mod tests {
 
         for (list, owned_list) in unsized_lists.iter().zip(owned.iter()) {
             let list = list?;
+            assert_eq!(&**list, owned_list);
+        }
+
+        unsized_lists.remove(0)?;
+        let mut first = unsized_lists.index_exclusive(0)?;
+        first.push(10)?;
+        first.remove(0)?;
+
+        owned.remove(0);
+        owned[0].push(10);
+        owned[0].remove(0);
+
+        assert_eq!(unsized_lists.len(), owned.len());
+        for (list, owned_list) in unsized_lists.iter_with_offsets_mut().zip(owned.iter_mut()) {
+            let (list, _) = list?;
             assert_eq!(&**list, owned_list);
         }
         let to_owned = TestList::owned_from_ref(&TestList::mut_as_ref(&unsized_lists))?;

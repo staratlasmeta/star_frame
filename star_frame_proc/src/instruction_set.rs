@@ -121,7 +121,7 @@ pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
         .map(|v| format!("Instruction: {}", v.ident))
         .collect_vec();
 
-    let process_instruction_body = if variant_tys.is_empty() {
+    let dispatch_body = if variant_tys.is_empty() {
         quote! {
             #prelude::bail!("No instructions in this instruction set")
         }
@@ -150,13 +150,13 @@ pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
         impl #impl_generics #prelude::InstructionSet for #ident #ty_generics #where_clause {
             type Discriminant = #discriminant_type;
 
-            fn process_instruction(
+            fn dispatch(
                 program_id: &#pubkey,
                 accounts: &[#account_info],
                 mut instruction_data: &[u8],
                 ctx: &mut #prelude::Context,
             ) -> #result<()> {
-                #process_instruction_body
+                #dispatch_body
             }
         }
 

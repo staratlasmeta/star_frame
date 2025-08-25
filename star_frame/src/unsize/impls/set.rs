@@ -1,4 +1,10 @@
-use crate::prelude::*;
+use crate::{
+    prelude::*,
+    unsize::{
+        impls::{ListIter, ListLength, UnsizedGenerics},
+        FromOwned,
+    },
+};
 use std::collections::BTreeSet;
 
 /// A resizable set of unique, fixed-size elements. The [`UnsizedType`] version of [`BTreeSet`].
@@ -9,7 +15,7 @@ use std::collections::BTreeSet;
 /// ## Unsized Type System
 /// See [`SetRef`] and [`SetMut`]. These will be used often in the `UnsizedType` system.
 /// For exclusive methods that change the underlying data size, see [`SetExclusiveImpl`].
-#[unsized_type(skip_idl, owned_type = BTreeSet<T>, owned_from_ref = unsized_set_owned_from_ref::<T, L>)]
+#[unsized_type(skip_idl, owned_type = BTreeSet<T>, owned_from_ref = unsized_set_owned_from_ref::<T, L>, skip_init_struct)]
 pub struct Set<T, L = u32>
 where
     T: UnsizedGenerics + Ord,
@@ -19,7 +25,7 @@ where
     list: List<T, L>,
 }
 
-unsafe impl<T, L> FromOwned for Set<T, L>
+impl<T, L> FromOwned for Set<T, L>
 where
     T: UnsizedGenerics + Ord,
     L: ListLength,

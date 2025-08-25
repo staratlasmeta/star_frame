@@ -1,4 +1,10 @@
-use crate::prelude::*;
+//! Context for instruction execution.
+//!
+//! Caches sysvars, program id, and funder/recipients for account sets to use.
+use crate::{
+    account_set::{CanAddLamports, CanFundRent},
+    prelude::*,
+};
 use pinocchio::sysvars::{clock::Clock, rent::Rent, Sysvar};
 use std::{cell::Cell, collections::BTreeMap};
 

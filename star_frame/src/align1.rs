@@ -7,7 +7,7 @@ use std::{
     num::{NonZeroI8, NonZeroU8},
 };
 
-/// A market trait for types that are guaranteed to be aligned to 1 byte.
+/// A marker trait for types that are guaranteed to be aligned to 1 byte. The [unsized type system](crate::unsize) relies on `Align1` types for its pointer manipulation.
 ///
 /// # Safety
 /// This trait should only be implemented for types that are guaranteed to be aligned to 1 byte.

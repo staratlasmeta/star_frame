@@ -1,8 +1,5 @@
 use crate::state::{CancelOrderArgs, MarketExclusiveImpl};
-use star_frame::{
-    borsh::{BorshDeserialize, BorshSerialize},
-    prelude::*,
-};
+use star_frame::prelude::*;
 
 use crate::instructions::ManageOrderAccounts;
 
@@ -48,9 +45,6 @@ mod tests {
     };
     use mollusk_svm::result::Check;
     use solana_account::Account as SolanaAccount;
-    use star_frame::{
-        client::SerializeAccount as _, data_types::PackedValue, solana_pubkey::Pubkey,
-    };
     use star_frame_spl::associated_token::AssociatedToken;
     use std::{collections::HashMap, env};
 

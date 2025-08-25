@@ -1,4 +1,10 @@
-use crate::prelude::*;
+use crate::{
+    prelude::*,
+    unsize::{
+        impls::{ListIter, ListIterMut, ListLength, UnsizedGenerics},
+        FromOwned,
+    },
+};
 use bytemuck::AnyBitPattern;
 use std::{collections::BTreeMap, iter::FusedIterator};
 
@@ -37,7 +43,7 @@ unsafe impl<K: UnsizedGenerics, V: UnsizedGenerics> CheckedBitPattern for ListIt
     }
 }
 
-#[unsized_type(skip_idl, owned_type = BTreeMap<K, V>, owned_from_ref = map_owned_from_ref::<K, V, L>)]
+#[unsized_type(skip_idl, owned_type = BTreeMap<K, V>, owned_from_ref = map_owned_from_ref::<K, V, L>, skip_init_struct)]
 pub struct Map<K, V, L = u32>
 where
     K: UnsizedGenerics + Ord,
@@ -58,7 +64,7 @@ where
     Ok(r.list.iter().map(|item| (item.key, item.value)).collect())
 }
 
-unsafe impl<K, V, L> FromOwned for Map<K, V, L>
+impl<K, V, L> FromOwned for Map<K, V, L>
 where
     K: UnsizedGenerics + Ord,
     V: UnsizedGenerics,

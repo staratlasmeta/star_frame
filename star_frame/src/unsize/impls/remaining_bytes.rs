@@ -24,7 +24,7 @@ pub struct RemainingBytes([u8]);
 
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
 mod idl_impl {
-    use crate::idl::ty::impl_type_to_idl_for_primitive;
+    use crate::idl::impl_type_to_idl_for_primitive;
     impl_type_to_idl_for_primitive!(super::RemainingBytes: RemainingBytes);
 }
 
@@ -146,7 +146,7 @@ unsafe impl UnsizedType for RemainingBytes {
     }
 }
 
-unsafe impl FromOwned for RemainingBytes {
+impl FromOwned for RemainingBytes {
     fn byte_size(owned: &Self::Owned) -> usize {
         owned.len()
     }
@@ -166,7 +166,7 @@ impl RemainingBytes {
             Ordering::Less => {
                 let bytes_to_add = len - self_len;
                 let (source_ptr, end_ptr) = {
-                    let source_ptr = self.0.cast::<()>();
+                    let source_ptr = self.0.cast_const().cast::<()>();
                     let end_ptr = source_ptr.wrapping_byte_add(self_len);
                     (source_ptr, end_ptr)
                 };
@@ -176,7 +176,7 @@ impl RemainingBytes {
             }
             Ordering::Equal => return Ok(()),
             Ordering::Greater => {
-                let source_ptr = self.0.cast::<()>();
+                let source_ptr = self.0.cast_const().cast::<()>();
                 let start_ptr = source_ptr.wrapping_byte_add(len);
                 let end_ptr = source_ptr.wrapping_byte_add(self_len);
                 unsafe {
@@ -189,18 +189,18 @@ impl RemainingBytes {
     }
 }
 
-unsafe impl UnsizedInit<DefaultInit> for RemainingBytes {
+impl UnsizedInit<DefaultInit> for RemainingBytes {
     const INIT_BYTES: usize = 0;
 
-    unsafe fn init(_bytes: &mut &mut [u8], _arg: DefaultInit) -> Result<()> {
+    fn init(_bytes: &mut &mut [u8], _arg: DefaultInit) -> Result<()> {
         Ok(())
     }
 }
 
-unsafe impl<const N: usize> UnsizedInit<&[u8; N]> for RemainingBytes {
+impl<const N: usize> UnsizedInit<&[u8; N]> for RemainingBytes {
     const INIT_BYTES: usize = N;
 
-    unsafe fn init(bytes: &mut &mut [u8], array: &[u8; N]) -> Result<()> {
+    fn init(bytes: &mut &mut [u8], array: &[u8; N]) -> Result<()> {
         bytes
             .try_advance(N)
             .with_context(|| {
@@ -211,10 +211,10 @@ unsafe impl<const N: usize> UnsizedInit<&[u8; N]> for RemainingBytes {
     }
 }
 
-unsafe impl<const N: usize> UnsizedInit<[u8; N]> for RemainingBytes {
+impl<const N: usize> UnsizedInit<[u8; N]> for RemainingBytes {
     const INIT_BYTES: usize = <Self as UnsizedInit<&[u8; N]>>::INIT_BYTES;
 
-    unsafe fn init(bytes: &mut &mut [u8], array: [u8; N]) -> Result<()> {
+    fn init(bytes: &mut &mut [u8], array: [u8; N]) -> Result<()> {
         bytes
             .try_advance(N)
             .with_context(|| {

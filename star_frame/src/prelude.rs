@@ -1,7 +1,9 @@
+//! Commonly used types and traits: `use star_frame::prelude::*`.
+
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
 pub use crate::idl::{
-    seed_const, seed_path, AccountSetToIdl, AccountToIdl, FindIdlSeeds, InstructionSetToIdl,
-    InstructionToIdl, ProgramToIdl, TypeToIdl,
+    seed_const, seed_path, AccountSetToIdl, AccountToIdl, InstructionSetToIdl, InstructionToIdl,
+    ProgramToIdl, TypeToIdl,
 };
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
 pub use star_frame_idl::{NodeTrait as _, ProgramNode};
@@ -13,28 +15,26 @@ pub use crate::{
 };
 
 pub use crate::{
-    account_set::*,
+    account_set::prelude::*,
     align1::Align1,
-    anyhow::{self, anyhow, bail, Context as _},
+    borsh_with_bytemuck,
     client::{
-        ClientAccountSet, CpiAccountSet, CpiBuilder, FindProgramAddress, MakeCpi, MakeInstruction,
+        DeserializeAccount as _, DeserializeType as _, FindProgramAddress as _,
+        MakeInstruction as _, SerializeAccount as _, SerializeType as _,
     },
     context::Context,
+    cpi::MakeCpi as _,
     create_unit_system,
-    data_types::*,
-    instruction::*,
+    data_types::{
+        GetKeyFor as _, GetOptionalKeyFor as _, KeyFor, OptionalKeyFor, OptionalPubkey,
+        PackedValue, SetKeyFor as _, UnitVal,
+    },
+    instruction::{
+        InstructionArgs, InstructionDiscriminant as _, InstructionSet, StarFrameInstruction,
+    },
     program::{system::System, StarFrameProgram},
     pubkey,
-    unsize::{
-        impls::*,
-        init::{DefaultInit, UnsizedInit},
-        unsized_impl, unsized_type,
-        wrapper::{
-            ExclusiveRecurse, ExclusiveWrapper, ExclusiveWrapperTop, SharedWrapper,
-            UnsizedTypeDataAccess,
-        },
-        AsShared, FromOwned, UnsizedType,
-    },
+    unsize::prelude::*,
     util::borsh_bytemuck,
     Result,
 };
@@ -43,6 +43,7 @@ pub use crate::{
 pub use star_frame_proc::{InstructionToIdl, TypeToIdl};
 
 // Solana stuff
+pub use anyhow::{anyhow, bail};
 pub use pinocchio::{account_info::AccountInfo, msg, program_error::ProgramError, ProgramResult};
 pub use solana_instruction::AccountMeta;
 pub use solana_pubkey::Pubkey;

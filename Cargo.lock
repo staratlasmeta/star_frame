@@ -2180,8 +2180,7 @@ checksum = "8b870d8c151b6f2fb93e84a13146138f05d02ed11c7e7c54f8826aaaf7c9f184"
 [[package]]
 name = "pinocchio"
 version = "0.9.0"
-source = "registry+ssh://git@ssh.shipyard.rs/star-atlas/crate-index.git"
-checksum = "309ad6eaea25f0af5cbb48372508daccff24ae4ae8e7f995c7cb7376e1253de9"
+source = "git+https://github.com/stegaBOB/pinocchio?branch=stegaBOB%2Ffeat%2Ffinalized_changes#4251ad321fb420aa54a05c696c6fc7571161c353"
 
 [[package]]
 name = "pkg-config"
@@ -4546,6 +4545,7 @@ dependencies = [
  "serde",
  "serde_json",
  "solana-instruction",
+ "solana-program-memory",
  "solana-pubkey",
  "solana-system-interface",
  "star_frame_idl",

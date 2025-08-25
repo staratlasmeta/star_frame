@@ -1,6 +1,11 @@
 use crate::{
+    data_types::PackedValueChecked,
     prelude::*,
-    unsize::{test_helpers::TestByteSet, ModifyOwned},
+    unsize::{
+        impls::{ListMut, UnsizedGenerics},
+        test_helpers::TestByteSet,
+        ModifyOwned,
+    },
 };
 use pretty_assertions::assert_eq;
 use star_frame_proc::unsized_impl;
@@ -109,7 +114,7 @@ fn test_unsized_test() -> Result<()> {
 #[test]
 fn test_modify_owned() -> Result<()> {
     let mut my_vec = vec![1u8, 2, 3];
-    my_vec.modify_owned::<List<u8>>(|a| {
+    List::<_>::modify_owned(&mut my_vec, |a| {
         a.push(4)?;
         Ok(())
     })?;

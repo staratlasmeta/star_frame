@@ -1,35 +1,34 @@
-mod account;
-mod impls;
+//! Strongly typed and statically verified instruction accounts.
+pub mod account;
+mod impls; // Just impls, no need to re-export
 pub mod modifiers;
-mod program;
-mod rest;
-mod single_set;
-mod system_account;
-mod sysvar;
-mod validated_account;
+pub mod program;
+pub mod rest;
+pub mod single_set;
+pub mod system_account;
+pub mod sysvar;
+pub mod validated_account;
 
-pub use account::*;
-pub use impls::*;
-pub use modifiers::*;
-pub use program::*;
-pub use rest::*;
-pub use single_set::*;
-pub use star_frame_proc::AccountSet;
-pub use system_account::*;
-pub use sysvar::*;
-pub use validated_account::*;
+pub use star_frame_proc::{AccountSet, ProgramAccount};
 
-use crate::{prelude::*, program::system};
+use crate::prelude::*;
 use bytemuck::{bytes_of, from_bytes};
-use std::{cmp::Ordering, slice};
+use modifiers::{HasOwnerProgram, OwnerProgramDiscriminant};
+use std::slice;
 
+/// An account that has a discriminant and is owned by a [`StarFrameProgram`].
+///
+/// Derivable via [`derive@ProgramAccount`].
 pub trait ProgramAccount: HasOwnerProgram {
+    /// The discriminant of the account. This should be unique for each account type in a program.
     const DISCRIMINANT: <Self::OwnerProgram as StarFrameProgram>::AccountDiscriminant;
+    /// The discriminant of the account as bytes.
     #[must_use]
     fn discriminant_bytes() -> Vec<u8> {
         bytes_of(&Self::DISCRIMINANT).into()
     }
 
+    /// Validates the owner matches [`Self::OwnerProgram::ID`](`crate::program::StarFrameProgram::ID`) and the discriminant matches [`Self::DISCRIMINANT`].
     fn validate_account_info(info: &impl SingleAccountSet) -> Result<()> {
         if info.owner_pubkey() != Self::OwnerProgram::ID {
             bail!(
@@ -55,8 +54,9 @@ pub trait ProgramAccount: HasOwnerProgram {
     }
 }
 
-/// Convenience methods for decoding and validating a list of [`AccountInfo`]s to an [`AccountSet`]. Performs
-/// [`AccountSetDecode::decode_accounts`] and [`AccountSetValidate::validate_accounts`] on the accounts.
+/// Convenience methods for decoding and validating a list of [`AccountInfo`]s to an [`AccountSet`].
+///
+/// Performs [`AccountSetDecode::decode_accounts`] and [`AccountSetValidate::validate_accounts`] on the accounts.
 ///
 /// See [`TryFromAccounts`] for a version of this trait that uses `()` for the decode and validate args.
 pub trait TryFromAccountsWithArgs<'a, D, V>:
@@ -121,11 +121,13 @@ pub trait AccountSetDecode<'a, A>: Sized {
 }
 
 /// An [`AccountSet`] that can be validated using arg `A`.
+///
 /// Evaluate wrapping as inner before outer.
 ///
 /// Derivable via [`derive@AccountSet`].
 pub trait AccountSetValidate<A> {
     /// Validate the accounts using `validate_input`.
+    #[rust_analyzer::completions(ignore_flyimport)]
     fn validate_accounts(&mut self, validate_input: A, ctx: &mut Context) -> Result<()>;
 }
 
@@ -134,53 +136,57 @@ pub trait AccountSetValidate<A> {
 /// Derivable via [`derive@AccountSet`].
 pub trait AccountSetCleanup<A> {
     /// Clean up the accounts using `cleanup_input`.
+    #[rust_analyzer::completions(ignore_flyimport)]
     fn cleanup_accounts(&mut self, cleanup_input: A, ctx: &mut Context) -> Result<()>;
 }
 
-/// Trait for checking if the key matches the expected key.
+/// Used to convert an `AccountSet`s [`Self::CpiAccounts`] into a list of [`AccountInfo`]s and [`AccountMeta`]s for a CPI.
+pub trait CpiAccountSet {
+    /// The minimum information needed to create a list of account infos and metas for a CPI for Self.
+    type CpiAccounts: Clone + Debug;
+    /// The minimum number of accounts this CPI might use
+    const MIN_LEN: usize;
+    #[rust_analyzer::completions(ignore_flyimport)]
+    fn to_cpi_accounts(&self) -> Self::CpiAccounts;
+    fn extend_account_infos(
+        program_id: &Pubkey,
+        accounts: Self::CpiAccounts,
+        infos: &mut Vec<AccountInfo>,
+        ctx: &Context,
+    ) -> Result<()>;
+    fn extend_account_metas(
+        program_id: &Pubkey,
+        accounts: &Self::CpiAccounts,
+        metas: &mut Vec<AccountMeta>,
+    );
+}
+
+/// Used to convert an `AccountSet`s [`Self::ClientAccounts`] into a list of [`AccountMeta`]s for an instruction.
+#[rust_analyzer::completions(ignore_methods)]
+pub trait ClientAccountSet {
+    /// The minimum information needed to create a list of account metas for Self.
+    type ClientAccounts: Clone + Debug;
+    /// The minimum number of accounts the instructionmight use
+    const MIN_LEN: usize;
+    fn extend_account_metas(
+        program_id: &Pubkey,
+        accounts: &Self::ClientAccounts,
+        metas: &mut Vec<AccountMeta>,
+    );
+}
+
+/// Used to check if the key matches the expected key.
 pub trait CheckKey {
     /// Checks if the key matches the expected key.
     fn check_key(&self, key: &Pubkey) -> Result<()>;
 }
 
-static_assertions::assert_obj_safe!(CanCloseAccount, CanAddLamports, CanFundRent);
+static_assertions::assert_obj_safe!(CanAddLamports, CanFundRent);
 
-pub trait CanCloseAccount {
-    /// Gets the account info of the account to close.
-    fn account_to_close(&self) -> AccountInfo;
-    /// Closes the account by zeroing the lamports and replacing the discriminant with all `u8::MAX`,
-    /// reallocating down to size.
-    fn close(&self, recipient: &(impl CanAddLamports + ?Sized)) -> Result<()>
-    where
-        Self: HasOwnerProgram,
-        Self: Sized,
-    {
-        let info = self.account_to_close();
-        info.realloc(
-            size_of::<<Self::OwnerProgram as StarFrameProgram>::AccountDiscriminant>(),
-            false,
-        )?;
-        info.account_data_mut()?.fill(u8::MAX);
-        recipient.add_lamports(info.lamports())?;
-        *info.try_borrow_mut_lamports()? = 0;
-        Ok(())
-    }
-
-    /// Closes the account by reallocating to zero and assigning to the System program.
-    /// This is the same as calling `close` but not abusable and harder for indexer detection.
-    ///
-    /// It also happens to be unsound because [`AccountInfo::assign`] is unsound.
-    fn close_full(&self, recipient: &dyn CanAddLamports) -> Result<()> {
-        let info = self.account_to_close();
-        recipient.add_lamports(info.lamports())?;
-        *info.try_borrow_mut_lamports()? = 0;
-        info.realloc(0, false)?;
-        unsafe { info.assign(System::ID.as_array()) }; // TODO: Fix safety
-        Ok(())
-    }
-}
-
+/// Indicates that this can add lamports to another account.
+#[rust_analyzer::completions(ignore_methods)]
 pub trait CanAddLamports: Debug {
+    #[rust_analyzer::completions(ignore_flyimport)]
     fn account_to_modify(&self) -> AccountInfo;
     fn add_lamports(&self, lamports: u64) -> Result<()> {
         *self.account_to_modify().try_borrow_mut_lamports()? += lamports;
@@ -190,6 +196,7 @@ pub trait CanAddLamports: Debug {
 /// Indicates that this account can fund rent on another account, and potentially be used to create an account.
 pub trait CanFundRent: CanAddLamports {
     /// Whether [`Self::account_to_modify`](`CanAddLamports::account_to_modify`) can be used as the funder for a [`crate::program::system::CreateAccount`] CPI.
+    #[rust_analyzer::completions(ignore_flyimport)]
     fn can_create_account(&self) -> bool;
     /// Increases the rent of the recipient by `lamports`.
     fn fund_rent(
@@ -199,122 +206,56 @@ pub trait CanFundRent: CanAddLamports {
         ctx: &Context,
     ) -> Result<()>;
 
+    #[rust_analyzer::completions(ignore_flyimport)]
     fn signer_seeds(&self) -> Option<Vec<&[u8]>> {
         None
     }
 }
 
-pub trait CanModifyRent {
-    fn account_to_modify(&self) -> AccountInfo;
+pub trait CanCloseAccount {
+    /// Closes the account by zeroing the lamports and replacing the discriminant with all `u8::MAX`,
+    /// reallocating down to size.
+    fn close_account(&self, recipient: &(impl CanAddLamports + ?Sized)) -> Result<()>
+    where
+        Self: HasOwnerProgram,
+        Self: Sized;
 
+    /// Closes the account by reallocating to zero and assigning to the System program.
+    /// This is the same as calling `close` but not abusable and harder for indexer detection.
+    ///
+    /// It also happens to be unsound because [`AccountInfo::assign`] is unsound.
+    fn close_account_full(&self, recipient: &dyn CanAddLamports) -> Result<()>;
+}
+
+pub trait CanModifyRent {
     /// Normalizes the rent of an account if data size is changed.
     /// Assumes `Self` is mutable and owned by this program.
     ///
     /// If the account has 0 lamports (i.e., it is set to be closed), this will do nothing.
-    fn normalize_rent(&self, funder: &(impl CanFundRent + ?Sized), ctx: &Context) -> Result<()> {
-        let account = self.account_to_modify();
-        let rent = ctx.get_rent()?;
-        let lamports = *account.try_borrow_lamports()?;
-        let data_len = account.data_len();
-        let rent_lamports = rent.minimum_balance(data_len);
-        match rent_lamports.cmp(&lamports) {
-            Ordering::Equal => Ok(()),
-            Ordering::Greater => {
-                if lamports == 0 {
-                    return Ok(());
-                }
-                let transfer_amount = rent_lamports - lamports;
-                CanFundRent::fund_rent(funder, &account, transfer_amount, ctx)?;
-                Ok(())
-            }
-            Ordering::Less => {
-                let transfer_amount = lamports - rent_lamports;
-                *account.try_borrow_mut_lamports()? -= transfer_amount;
-                funder.add_lamports(transfer_amount)?;
-                Ok(())
-            }
-        }
-    }
+    fn normalize_rent(&self, funder: &(impl CanFundRent + ?Sized), ctx: &Context) -> Result<()>;
 
     /// Refunds rent to the funder so long as the account has more than the minimum rent.
     /// Assumes `Self` is owned by this program and is mutable.
     ///
     /// If the account has 0 lamports (i.e., it is set to be closed), this will do nothing.
-    fn refund_rent(&self, recipient: &(impl CanAddLamports + ?Sized), ctx: &Context) -> Result<()> {
-        let account = self.account_to_modify();
-        let rent = ctx.get_rent()?;
-        let lamports = *account.try_borrow_lamports()?;
-        let data_len = account.data_len();
-        let rent_lamports = rent.minimum_balance(data_len);
-        match rent_lamports.cmp(&lamports) {
-            Ordering::Equal => Ok(()),
-            Ordering::Greater => {
-                if lamports > 0 {
-                    Err(anyhow!(
-                        "Tried to refund rent from {} but does not have enough lamports to cover rent",
-                        account.pubkey()
-                    ))
-                } else {
-                    Ok(())
-                }
-            }
-            Ordering::Less => {
-                let transfer_amount = lamports - rent_lamports;
-                *account.try_borrow_mut_lamports()? -= transfer_amount;
-                recipient.add_lamports(transfer_amount)?;
-                Ok(())
-            }
-        }
-    }
+    fn refund_rent(&self, recipient: &(impl CanAddLamports + ?Sized), ctx: &Context) -> Result<()>;
 
     /// Receive rent to self to be at least the minimum rent. This will not normalize down excess lamports.
     /// Assumes `Self` is owned by this program and is mutable.
     ///
     /// If the account has 0 lamports (i.e., it is set to be closed), this will do nothing.
-    fn receive_rent(&self, funder: &(impl CanFundRent + ?Sized), ctx: &Context) -> Result<()> {
-        let account = self.account_to_modify();
-        let rent = ctx.get_rent()?;
-        let lamports = *account.try_borrow_lamports()?;
-        let data_len = account.data_len();
-        let rent_lamports = rent.minimum_balance(data_len);
-        if rent_lamports > lamports {
-            if lamports == 0 {
-                return Ok(());
-            }
-            let transfer_amount = rent_lamports - lamports;
-            CanFundRent::fund_rent(funder, &account, transfer_amount, ctx)?;
-        }
-        Ok(())
-    }
+    fn receive_rent(&self, funder: &(impl CanFundRent + ?Sized), ctx: &Context) -> Result<()>;
 
     /// Emits a warning message if the account has more lamports than required by rent.
+    #[rust_analyzer::completions(ignore_flyimport)]
     #[cfg_attr(not(feature = "cleanup_rent_warning"), allow(unused_variables))]
-    fn check_cleanup(&self, ctx: &Context) -> Result<()> {
-        #[cfg(feature = "cleanup_rent_warning")]
-        {
-            use std::cmp::Ordering;
-            let account = self.account_to_modify();
-            if account.is_writable() {
-                let rent = ctx.get_rent()?;
-                let lamports = account.lamports();
-                let data_len = account.data_len();
-                let rent_lamports = rent.minimum_balance(data_len);
-                if rent_lamports.cmp(&lamports) == Ordering::Less {
-                    pinocchio::msg!(
-                        "{} was left with more lamports than required by rent",
-                        account.pubkey()
-                    );
-                }
-            }
-        }
-        Ok(())
-    }
+    fn check_cleanup(&self, ctx: &Context) -> Result<()>;
 }
 
 pub trait CanSystemCreateAccount {
-    fn account_to_create(&self) -> AccountInfo;
     /// Creates an account using the system program
     /// Assumes `Self` is owned by the System program and funder is a System account
+    #[rust_analyzer::completions(ignore_flyimport)]
     fn system_create_account(
         &self,
         funder: &(impl CanFundRent + ?Sized),
@@ -322,65 +263,7 @@ pub trait CanSystemCreateAccount {
         space: usize,
         account_seeds: &Option<Vec<&[u8]>>,
         ctx: &Context,
-    ) -> Result<()> {
-        let account = self.account_to_create();
-        if account.owner_pubkey() != System::ID {
-            bail!(ProgramError::InvalidAccountOwner);
-        }
-        let current_lamports = account.lamports();
-        let exempt_lamports = ctx.get_rent()?.minimum_balance(space);
-
-        if current_lamports == 0 && funder.can_create_account() {
-            let funder_seeds: Option<Vec<&[u8]>> = funder.signer_seeds();
-            let seeds: &[&[&[u8]]] = match (&funder_seeds, account_seeds) {
-                (Some(signer_seeds), Some(account_seeds)) => &[signer_seeds, account_seeds],
-                (Some(signer_seeds), None) => &[signer_seeds],
-                (None, Some(account_seeds)) => &[account_seeds],
-                (None, None) => &[],
-            };
-            System::cpi(
-                &system::CreateAccount {
-                    lamports: exempt_lamports,
-                    space: space as u64,
-                    owner,
-                },
-                system::CreateAccountCpiAccounts {
-                    funder: funder.account_to_modify(),
-                    new_account: account,
-                },
-                ctx,
-            )?
-            .invoke_signed(seeds)
-            .context("System::CreateAccount CPI failed")?;
-        } else {
-            let required_lamports = exempt_lamports.saturating_sub(current_lamports).max(1);
-            if required_lamports > 0 {
-                CanFundRent::fund_rent(funder, &account, required_lamports, ctx)
-                    .context("Failed to fund rent")?;
-            }
-            let account_seeds: &[&[&[u8]]] = match &account_seeds {
-                Some(seeds) => &[seeds],
-                None => &[],
-            };
-            System::cpi(
-                &system::Allocate {
-                    space: space as u64,
-                },
-                system::AllocateCpiAccounts { account },
-                ctx,
-            )?
-            .invoke_signed(account_seeds)
-            .context("System::Allocate CPI failed")?;
-            System::cpi(
-                &system::Assign { owner },
-                system::AssignCpiAccounts { account },
-                ctx,
-            )?
-            .invoke_signed(account_seeds)
-            .context("System::Assign CPI failed")?;
-        }
-        Ok(())
-    }
+    ) -> Result<()>;
 }
 
 #[doc(hidden)]
@@ -410,6 +293,29 @@ pub(crate) mod internal_reverse {
     {
         this.cleanup_accounts(cleanup_input, ctx)
     }
+}
+
+pub(crate) mod prelude {
+    use super::*;
+    pub use super::{
+        AccountSet, CanCloseAccount as _, CanModifyRent as _, ProgramAccount, TryFromAccounts,
+        TryFromAccountsWithArgs,
+    };
+    pub use account::{
+        discriminant, Account, CloseAccount, NormalizeRent, ReceiveRent, RefundRent,
+    };
+    pub use modifiers::{
+        init::{Create, CreateIfNeeded, Init},
+        mutable::Mut,
+        seeded::{GetSeeds, Seed, Seeded, Seeds, SeedsWithBump},
+        signer::Signer,
+    };
+    pub use program::Program;
+    pub use rest::Rest;
+    pub use single_set::SingleAccountSet;
+    pub use system_account::SystemAccount;
+    pub use sysvar::Sysvar;
+    pub use validated_account::{AccountValidate, ValidatedAccount};
 }
 
 #[cfg(test)]

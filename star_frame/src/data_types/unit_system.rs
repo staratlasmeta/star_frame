@@ -1,80 +1,3 @@
-//! Strongly typed unit systems.
-//!
-//! Contains [`UnitVal`] for strongly typed values with units, and [`create_unit_system`] for creating the unit system types.
-//!
-//! # Example
-//! ```
-//! use star_frame::{create_unit_system, data_types::UnitVal};
-//! use typenum::{Diff, Sum, N2, P1, Z0};
-//!
-//! create_unit_system!(struct CreatedUnitSystem<Seconds, Meters, Kilograms>);
-//!
-//! create_unit_system!(struct OtherUnitSystem<Seconds, Meters>{
-//!     impl<Seconds, Meters>: <Seconds, Meters> == CreatedUnitSystem<Seconds, Meters, Z0>
-//! });
-//!
-//! create_unit_system!(struct ThirdUnitSystem<Seconds, Kilograms>{
-//!     impl<Seconds, Kilograms>: <Seconds, Kilograms> == CreatedUnitSystem<Seconds, Z0, Kilograms>,
-//!     impl<S>: <S, Z0> to OtherUnitSystem<S, Z0>
-//! });
-//!
-//! use created_unit_system_units::{Kilograms, Meters, Seconds, Unitless};
-//!
-//! type MetersPerSecond = Diff<Meters, Seconds>;
-//! type MetersPerSecondSquared = Diff<MetersPerSecond, Seconds>;
-//! type Newtons = Sum<MetersPerSecondSquared, Kilograms>;
-//!
-//! # fn main() {
-//! let value: UnitVal<_, Unitless> = UnitVal::new(10.0);
-//! let seconds: UnitVal<_, Seconds> = UnitVal::new(2.0);
-//! let meters: UnitVal<_, Meters> = UnitVal::new(4.0);
-//! let kilograms: UnitVal<_, Kilograms> = UnitVal::new(8.0);
-//!
-//! let speed = meters / seconds;
-//! assert_eq!(speed, UnitVal::<_, MetersPerSecond>::new(2.0));
-//!
-//! let acceleration = speed / seconds;
-//! assert_eq!(acceleration, UnitVal::<_, MetersPerSecondSquared>::new(1.0));
-//!
-//! let force: UnitVal<_, Newtons> = acceleration * kilograms;
-//! assert_eq!(force, UnitVal::<_, Newtons>::new(8.0));
-//!
-//! let multiplied = force * value;
-//! assert_eq!(multiplied, UnitVal::<_, Newtons>::new(80.0));
-//!
-//! let added = force + force;
-//! assert_eq!(added, UnitVal::<_, Newtons>::new(16.0));
-//!
-//! // let other = force + speed; // This does not compile
-//!
-//! let acceleration2 = added / kilograms;
-//! assert_eq!(
-//!     acceleration2,
-//!     UnitVal::<_, MetersPerSecondSquared>::new(2.0)
-//! );
-//!
-//! let converted = acceleration2.convert::<OtherUnitSystem<_, _>>();
-//! assert_eq!(converted, UnitVal::<_, OtherUnitSystem<N2, P1>>::new(2.0));
-//! # }
-//! ```
-//!
-//! # An invalid operation will not compile
-//!
-//! ```compile_fail
-//! # use star_frame::{create_unit_system, data_types::UnitVal};
-//! # use typenum::{Diff, Sum, N2, P1, Z0};
-//! create_unit_system!(struct CreatedUnitSystem<Florps, Glorps>);
-//! use created_unit_system_units::{Florps, Glorps, Unitless};
-//! type FlorpsPerGloop = Diff<Florps, Glorps>;
-//! # fn main() {
-//! let florps: UnitVal<_, Florps> = UnitVal::new(10.0);
-//! let glorps: UnitVal<_, Glorps> = UnitVal::new(2.0);
-//!
-//! let florps_per_glorp = florps / glorps;
-//! assert_eq!(florps_per_glorp, UnitVal::<_, FlorpsPerGloop>::new(5.0));
-//! // Compile error
-//! let invalid = florps_per_glorp + glorps;
-//! # }
 #![allow(clippy::extra_unused_type_parameters)]
 use crate::prelude::*;
 use derive_where::derive_where;
@@ -86,7 +9,82 @@ use std::{
 };
 use typenum::{IsEqual, Mod, True, Unsigned, P2, Z0};
 
-/// A value within a unit system.
+/// Strongly typed values with units from [`create_unit_system`].
+///
+/// # Example
+/// ```
+/// use star_frame::{create_unit_system, data_types::UnitVal};
+/// use typenum::{Diff, Sum, N2, P1, Z0};
+///
+/// // First create a unit system
+/// create_unit_system!(struct CreatedUnitSystem<Seconds, Meters, Kilograms>);
+/// // (and a couple more)
+/// create_unit_system!(struct OtherUnitSystem<Seconds, Meters>{
+///     impl<Seconds, Meters>: <Seconds, Meters> == CreatedUnitSystem<Seconds, Meters, Z0>
+/// });
+/// create_unit_system!(struct ThirdUnitSystem<Seconds, Kilograms>{
+///     impl<Seconds, Kilograms>: <Seconds, Kilograms> == CreatedUnitSystem<Seconds, Z0, Kilograms>,
+///     impl<S>: <S, Z0> to OtherUnitSystem<S, Z0>
+/// });
+///
+/// use created_unit_system_units::{Kilograms, Meters, Seconds, Unitless};
+/// type MetersPerSecond = Diff<Meters, Seconds>;
+/// type MetersPerSecondSquared = Diff<MetersPerSecond, Seconds>;
+/// type Newtons = Sum<MetersPerSecondSquared, Kilograms>;
+///
+/// # fn main() {
+/// // Use `UnitVal` to create values with units
+/// let value: UnitVal<_, Unitless> = UnitVal::new(10.0);
+/// let seconds: UnitVal<_, Seconds> = UnitVal::new(2.0);
+/// let meters: UnitVal<_, Meters> = UnitVal::new(4.0);
+/// let kilograms: UnitVal<_, Kilograms> = UnitVal::new(8.0);
+///
+/// let speed = meters / seconds;
+/// assert_eq!(speed, UnitVal::<_, MetersPerSecond>::new(2.0));
+///
+/// let acceleration = speed / seconds;
+/// assert_eq!(acceleration, UnitVal::<_, MetersPerSecondSquared>::new(1.0));
+///
+/// let force: UnitVal<_, Newtons> = acceleration * kilograms;
+/// assert_eq!(force, UnitVal::<_, Newtons>::new(8.0));
+///
+/// let multiplied = force * value;
+/// assert_eq!(multiplied, UnitVal::<_, Newtons>::new(80.0));
+///
+/// let added = force + force;
+/// assert_eq!(added, UnitVal::<_, Newtons>::new(16.0));
+///
+/// // let other = force + speed; // This does not compile
+///
+/// let acceleration2 = added / kilograms;
+/// assert_eq!(
+///     acceleration2,
+///     UnitVal::<_, MetersPerSecondSquared>::new(2.0)
+/// );
+///
+/// // You can convert between unit systems, too.
+/// let converted = acceleration2.convert::<OtherUnitSystem<_, _>>();
+/// assert_eq!(converted, UnitVal::<_, OtherUnitSystem<N2, P1>>::new(2.0));
+/// # }
+/// ```
+///
+/// # An invalid operation will not compile
+///
+/// ```compile_fail
+/// # use star_frame::{create_unit_system, data_types::UnitVal};
+/// # use typenum::{Diff, Sum, N2, P1, Z0};
+/// create_unit_system!(struct CreatedUnitSystem<Florps, Glorps>);
+/// use created_unit_system_units::{Florps, Glorps, Unitless};
+/// type FlorpsPerGloop = Diff<Florps, Glorps>;
+/// # fn main() {
+/// let florps: UnitVal<_, Florps> = UnitVal::new(10.0);
+/// let glorps: UnitVal<_, Glorps> = UnitVal::new(2.0);
+///
+/// let florps_per_glorp = florps / glorps;
+/// assert_eq!(florps_per_glorp, UnitVal::<_, FlorpsPerGloop>::new(5.0));
+/// // Compile error
+/// let invalid = florps_per_glorp + glorps;
+/// # }
 #[derive(Serialize, Deserialize, Align1)]
 #[derive_where(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default; T)]
 #[serde(bound(serialize = "T: Serialize", deserialize = "T: Deserialize<'de>"))]
@@ -218,6 +216,7 @@ impl<T1, Unit1> UnitVal<T1, Unit1> {
 }
 
 /// Marks that a given unit can be converted to a different unit system's unit.
+#[doc(hidden)]
 pub trait Convert<Rhs> {}
 
 #[cfg(all(feature = "idl", not(target_os = "solana")))]

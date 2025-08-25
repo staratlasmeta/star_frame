@@ -441,7 +441,7 @@ impl UnsizedEnumContext {
 
         Some(quote! {
             #[automatically_derived]
-            unsafe impl #impl_gen #prelude::FromOwned for #enum_type #where_clause {
+            impl #impl_gen #prelude::FromOwned for #enum_type #where_clause {
                 #[inline]
                 fn byte_size(owned: &Self::Owned) -> usize {
                     let variant_size = match owned {
@@ -683,10 +683,10 @@ impl UnsizedEnumContext {
         quote! {
             #[allow(trivial_bounds)]
             #[automatically_derived]
-            unsafe impl #default_init_impl #unsized_init for #enum_type #default_init_where {
+            impl #default_init_impl #unsized_init for #enum_type #default_init_where {
                 const INIT_BYTES: usize = #variant_size + #size_of::<#discriminant_ident>();
 
-                unsafe fn init(
+                fn init(
                     bytes: &mut &mut [u8],
                     arg: #prelude::DefaultInit,
                 ) -> #result<()> {
@@ -775,10 +775,10 @@ impl UnsizedEnumContext {
 
                 #[allow(trivial_bounds)]
                 #[automatically_derived]
-                unsafe impl #impl_gens #prelude::UnsizedInit<#init_arg> for #enum_type #where_clauses {
+                impl #impl_gens #prelude::UnsizedInit<#init_arg> for #enum_type #where_clauses {
                     const INIT_BYTES: usize = #variant_sizes + #size_of::<#discriminant_ident>();
 
-                    unsafe fn init(
+                    fn init(
                         bytes: &mut &mut [u8],
                         arg: #init_arg,
                     ) -> #result<()> {

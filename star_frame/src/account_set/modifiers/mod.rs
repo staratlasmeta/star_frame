@@ -1,4 +1,4 @@
-use crate::prelude::*;
+use crate::{account_set::AccountSetValidate, prelude::*};
 
 pub mod init;
 pub mod mutable;
@@ -29,6 +29,7 @@ pub trait HasOwnerProgram {
     type OwnerProgram: StarFrameProgram;
 }
 
+/// Shorthand for getting the [`StarFrameProgram::AccountDiscriminant`] type from a [`HasOwnerProgram`] type.
 pub type OwnerProgramDiscriminant<T> =
     <<T as HasOwnerProgram>::OwnerProgram as StarFrameProgram>::AccountDiscriminant;
 
@@ -39,11 +40,13 @@ pub trait HasSeeds {
 
 /// A trait that allows setting seeds on the underlying account. This helps enable the [`Init`] and [`Seeded`] modifiers.
 pub trait CanInitSeeds<A>: SingleAccountSet + AccountSetValidate<A> {
+    #[rust_analyzer::completions(ignore_flyimport)]
     fn init_seeds(&mut self, arg: &A, ctx: &Context) -> Result<()>;
 }
 
 /// A trait that provides logic for the initializing the underlying account. This helps enable the [`Init`] and [`Seeded`] modifiers.
 pub trait CanInitAccount<A>: SingleAccountSet {
+    #[rust_analyzer::completions(ignore_flyimport)]
     fn init_account<const IF_NEEDED: bool>(
         &mut self,
         arg: A,

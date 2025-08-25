@@ -487,7 +487,7 @@ where
     }
 }
 
-unsafe impl<T, L> FromOwned for List<T, L>
+impl<T, L> FromOwned for List<T, L>
 where
     L: ListLength,
     T: Align1 + CheckedBitPattern + NoUninit,
@@ -599,9 +599,9 @@ where
         let old_len = self.len();
         let new_len = old_len - to_remove;
         let source_ptr: *const () = self.0.cast_const().cast();
-        let bytes_ptr = self.bytes.as_mut_ptr();
-        let start_ptr = bytes_ptr.wrapping_add(start * size_of::<T>()).cast();
-        let end_ptr = bytes_ptr.wrapping_add(end * size_of::<T>()).cast();
+        let bytes_ptr = self.bytes.as_ptr();
+        let start_ptr = bytes_ptr.wrapping_add(start * size_of::<T>()).cast::<()>();
+        let end_ptr = bytes_ptr.wrapping_add(end * size_of::<T>()).cast::<()>();
         unsafe {
             ExclusiveRecurse::remove_bytes(self, source_ptr, start_ptr..end_ptr)?;
         };
@@ -619,14 +619,14 @@ where
         self.remove_range(..)
     }
 }
-unsafe impl<T, L> UnsizedInit<DefaultInit> for List<T, L>
+impl<T, L> UnsizedInit<DefaultInit> for List<T, L>
 where
     L: ListLength,
     T: CheckedBitPattern + NoUninit + Align1,
 {
     const INIT_BYTES: usize = size_of::<L>();
 
-    unsafe fn init(bytes: &mut &mut [u8], _arg: DefaultInit) -> Result<()> {
+    fn init(bytes: &mut &mut [u8], _arg: DefaultInit) -> Result<()> {
         bytes
             .try_advance(<Self as UnsizedInit<DefaultInit>>::INIT_BYTES)
             .with_context(|| {
@@ -641,14 +641,14 @@ where
     }
 }
 
-unsafe impl<const N: usize, T, L> UnsizedInit<&[T; N]> for List<T, L>
+impl<const N: usize, T, L> UnsizedInit<&[T; N]> for List<T, L>
 where
     L: ListLength + Zero,
     T: CheckedBitPattern + NoUninit + Align1,
 {
     const INIT_BYTES: usize = size_of::<L>() + size_of::<T>() * N;
 
-    unsafe fn init(bytes: &mut &mut [u8], array: &[T; N]) -> Result<()> {
+    fn init(bytes: &mut &mut [u8], array: &[T; N]) -> Result<()> {
         let len_bytes = L::from_usize(N).with_context(|| {
             format!(
                 "Init array length larger than max size of List length {}",
@@ -670,7 +670,7 @@ where
     }
 }
 
-unsafe impl<const N: usize, T, L> UnsizedInit<[T; N]> for List<T, L>
+impl<const N: usize, T, L> UnsizedInit<[T; N]> for List<T, L>
 where
     L: ListLength + Zero,
     T: CheckedBitPattern + NoUninit + Align1,
@@ -678,8 +678,8 @@ where
     const INIT_BYTES: usize = <Self as UnsizedInit<&[T; N]>>::INIT_BYTES;
 
     #[inline]
-    unsafe fn init(bytes: &mut &mut [u8], array: [T; N]) -> Result<()> {
-        unsafe { <Self as UnsizedInit<&[T; N]>>::init(bytes, &array) }
+    fn init(bytes: &mut &mut [u8], array: [T; N]) -> Result<()> {
+        <Self as UnsizedInit<&[T; N]>>::init(bytes, &array)
     }
 }
 
@@ -833,6 +833,15 @@ mod tests {
 
         list.insert_all(1, [PackedValue(12), 14.into()])?;
         list.insert(1, 13.into())?;
+
+        list.as_mut_slice().copy_from_slice(&[
+            10.into(),
+            13.into(),
+            12.into(),
+            14.into(),
+            20.into(),
+            30.into(),
+        ]);
 
         assert_eq!(&*vec, &***list);
 
