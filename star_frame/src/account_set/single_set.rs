@@ -79,7 +79,7 @@ pub trait SingleAccountSet {
     /// Returns the public key of the owner of the contained account.
     #[inline]
     fn owner_pubkey(&self) -> Pubkey {
-        bytemuck::cast(self.account_info().owner_key())
+        bytemuck::cast(*self.account_info().owner())
     }
 
     /// Returns a reference to the data of the contained account.

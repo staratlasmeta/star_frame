@@ -7,7 +7,8 @@ use crate::{
 use anyhow::ensure;
 use core::ptr;
 use derive_more::{Debug, Deref, DerefMut};
-use pinocchio::{account_info::AccountInfo, memory::sol_memmove};
+use pinocchio::account_info::AccountInfo;
+use solana_program_memory::sol_memmove;
 use std::{
     cmp::Ordering,
     collections::Bound,
@@ -16,31 +17,40 @@ use std::{
     ops::{Deref, DerefMut, RangeBounds},
 };
 
+/// A trait for types that can be used to access the underlying data of an [`UnsizedType`].
+///
+/// This is used to implement [`ExclusiveWrapper`] and [`SharedWrapper`].
+///
 /// # Safety
+///
 /// [`UnsizedTypeDataAccess::unsized_data_realloc`] must properly check the new length of the underlying data pointer.
 pub unsafe trait UnsizedTypeDataAccess {
     /// # Safety
     /// `data` must actually point to the same data that is returned by [`UnsizedTypeDataAccess::data_ref`] and [`UnsizedTypeDataAccess::data_mut`].
+    /// There must be no other live references to the buffer that data points to.
     unsafe fn unsized_data_realloc(this: &Self, data: &mut *mut [u8], new_len: usize)
         -> Result<()>;
     fn data_ref(this: &Self) -> Result<impl Deref<Target = [u8]>>;
-    fn data_mut(this: &Self) -> Result<impl DerefMut<Target = [u8]>>;
+    fn data_mut<'a>(this: &'a Self) -> Result<(*mut [u8], Box<dyn DataMutDrop + 'a>)>;
 }
+
+/// A marker trait implemented for types that [`UnsizedTypeDataAccess::data_mut`] returns so it can prevent the Ref from being dropped.
+pub trait DataMutDrop {}
+
+impl<T: ?Sized> DataMutDrop for pinocchio::account_info::RefMut<'_, T> {}
 
 /// # Safety
 /// We are checking the length of the underlying data pointer in [`Self::unsized_data_realloc`].
 unsafe impl UnsizedTypeDataAccess for AccountInfo {
-    /// Sets the data length in the serialized data. This is identical to how [`AccountInfo::realloc`] works, minus the `RefCell::borrow_mut` call.
-    /// # Safety
-    /// `data` must actually point to the underlying data of the account, and `Self` needs to be from the entrypoint of a program or
-    /// have its memory laid out in the same way. The fact that you can create `AccountInfo`s that aren't like this is a tragedy, but it is what it is.
     unsafe fn unsized_data_realloc(
         this: &Self,
         data: &mut *mut [u8],
         new_len: usize,
     ) -> Result<()> {
         // Set the data len on the account (This will check that the increase is within bounds)
-        this.set_data_len_checked(new_len)?;
+        // SAFETY:
+        // `unsized_data_realloc` requires that no other references to this data exist, which satisfies the preconditions of this function.
+        unsafe { this.resize_unchecked(new_len) }?;
         // Then recreate the local slice with the new length
         *data = ptr_meta::from_raw_parts_mut(data.cast(), new_len);
         Ok(())
@@ -50,8 +60,12 @@ unsafe impl UnsizedTypeDataAccess for AccountInfo {
         this.account_data()
     }
 
-    fn data_mut(this: &Self) -> Result<impl DerefMut<Target = [u8]>> {
-        this.account_data_mut()
+    fn data_mut<'a>(this: &'a Self) -> Result<(*mut [u8], Box<dyn DataMutDrop + 'a>)> {
+        let ref_mut = this.account_data_mut()?;
+        let current_len = this.data_len();
+        let data_ptr = this.data_ptr();
+        let ptr = ptr_meta::from_raw_parts_mut(data_ptr.cast(), current_len);
+        Ok((ptr, Box::new(ref_mut)))
     }
 }
 
@@ -109,7 +123,7 @@ enum ExclusiveWrapperEnum<'parent, 'top, Mut, P> {
         // We Box the Mut so its derived from a separate allocation, so dereferencing parent in inners wont invalidate the top Mut.
         top_mut: Box<Mut>,
         #[debug(skip)]
-        _to_drop: Box<dyn DerefMut<Target = [u8]> + 'top>,
+        _to_drop: Box<dyn DataMutDrop + 'top>,
     },
     Inner {
         parent_lt: PhantomData<&'parent ()>,
@@ -147,17 +161,16 @@ where
     pub fn new(info: &'top A) -> Result<Self> {
         // ensure no ZSTs in middle of struct
         let _ = Top::ZST_STATUS;
-        let mut data = UnsizedTypeDataAccess::data_mut(info)?;
+        let (mut data_ptr, to_drop) = UnsizedTypeDataAccess::data_mut(info)?;
         // We are technically extending the lifetime here of the returned data, but it's okay because we keep data alive in the to_drop,
         // and the reference is never exposed.
-        let mut data_ptr = ptr::from_mut(&mut *data);
-        let top_data_ptr = data_ptr;
+        let data = data_ptr;
         Ok(Self(ExclusiveWrapperEnum::Top {
-            _to_drop: Box::new(data),
+            _to_drop: to_drop,
             top_mut: Box::new(unsafe { Top::get_mut(&mut data_ptr)? }),
             exclusive_top: ExclusiveWrapperTopMeta {
                 info,
-                data: top_data_ptr,
+                data,
                 top_phantom: PhantomData,
             },
         }))
@@ -208,7 +221,7 @@ pub trait ExclusiveRecurse: sealed::Sealed + Sized {
     unsafe fn add_bytes(
         wrapper: &mut Self,
         source_ptr: *const (),
-        start: *mut (),
+        start: *const (),
         amount: usize,
     ) -> Result<()>;
     /// # Safety
@@ -216,7 +229,7 @@ pub trait ExclusiveRecurse: sealed::Sealed + Sized {
     unsafe fn remove_bytes(
         wrapper: &mut Self,
         source_ptr: *const (),
-        range: impl RangeBounds<*mut ()>,
+        range: impl RangeBounds<*const ()>,
     ) -> Result<()>;
 }
 
@@ -227,7 +240,7 @@ where
     unsafe fn add_bytes(
         wrapper: &mut Self,
         source_ptr: *const (),
-        start: *mut (),
+        start: *const (),
         amount: usize,
     ) -> Result<()> {
         match &mut wrapper.0 {
@@ -244,7 +257,7 @@ where
     unsafe fn remove_bytes(
         wrapper: &mut Self,
         source_ptr: *const (),
-        range: impl RangeBounds<*mut ()>,
+        range: impl RangeBounds<*const ()>,
     ) -> Result<()> {
         match &mut wrapper.0 {
             ExclusiveWrapperEnum::Top { .. } => unreachable!(),
@@ -266,7 +279,7 @@ where
     unsafe fn add_bytes(
         wrapper: &mut Self,
         source_ptr: *const (),
-        start: *mut (),
+        start: *const (),
         amount: usize,
     ) -> Result<()> {
         let (top_meta, top_mut) = match &mut wrapper.0 {
@@ -302,12 +315,15 @@ where
             }?;
 
             if start_addr != data_addr + old_len {
+                let dst = start as usize + amount;
+                let src = start as usize;
                 // SAFETY:
                 // todo
                 unsafe {
                     sol_memmove(
-                        start.cast::<u8>().wrapping_add(amount),
-                        start.cast::<u8>(),
+                        // Use provenance of main data ptr
+                        data_ptr.with_addr(dst).cast::<u8>(),
+                        data_ptr.with_addr(src).cast::<u8>(),
                         old_len - (start_addr - data_addr),
                     );
                 }
@@ -325,7 +341,7 @@ where
     unsafe fn remove_bytes(
         wrapper: &mut Self,
         source_ptr: *const (),
-        range: impl RangeBounds<*mut ()>,
+        range: impl RangeBounds<*const ()>,
         // after_remove: impl FnOnce(&mut Self::T) -> Result<()>,
     ) -> Result<()> {
         let (top_meta, top_mut) = match &mut wrapper.0 {
@@ -380,7 +396,11 @@ where
 
             if end as usize != data_addr + old_len {
                 unsafe {
-                    sol_memmove(start, end, old_len - (end as usize - data_addr));
+                    sol_memmove(
+                        data_ptr.with_addr(start as usize).cast(),
+                        data_ptr.with_addr(end as usize).cast(),
+                        old_len - (end as usize - data_addr),
+                    );
                 }
             }
 
@@ -532,7 +552,7 @@ where
                     Self::remove_bytes(
                         self,
                         start_ptr,
-                        start_ptr..start_ptr.wrapping_byte_add(current_len - new_len),
+                        start_ptr.cast_const()..start_ptr.wrapping_byte_add(current_len - new_len),
                     )
                 }?;
             }

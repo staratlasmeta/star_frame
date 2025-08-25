@@ -156,10 +156,9 @@ pub trait CanCloseAccount {
         Self: Sized,
     {
         let info = self.account_to_close();
-        info.realloc(
-            size_of::<<Self::OwnerProgram as StarFrameProgram>::AccountDiscriminant>(),
-            false,
-        )?;
+        info.resize(size_of::<
+            <Self::OwnerProgram as StarFrameProgram>::AccountDiscriminant,
+        >())?;
         info.account_data_mut()?.fill(u8::MAX);
         recipient.add_lamports(info.lamports())?;
         *info.try_borrow_mut_lamports()? = 0;
@@ -173,9 +172,7 @@ pub trait CanCloseAccount {
     fn close_full(&self, recipient: &dyn CanAddLamports) -> Result<()> {
         let info = self.account_to_close();
         recipient.add_lamports(info.lamports())?;
-        *info.try_borrow_mut_lamports()? = 0;
-        info.realloc(0, false)?;
-        unsafe { info.assign(System::ID.as_array()) }; // TODO: Fix safety
+        info.close()?;
         Ok(())
     }
 }
