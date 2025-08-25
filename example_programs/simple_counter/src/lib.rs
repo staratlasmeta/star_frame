@@ -57,16 +57,15 @@ impl StarFrameInstruction for Initialize {
     type ReturnType = ();
     type Accounts<'b, 'c> = InitializeAccounts;
 
-    fn run_instruction(
-        account_set: &mut Self::Accounts<'_, '_>,
+    fn process(
+        accounts: &mut Self::Accounts<'_, '_>,
         start_at: &Option<u64>,
         _ctx: &mut Context,
     ) -> Result<Self::ReturnType> {
-        **account_set.counter.data_mut()? = CounterAccount {
-            authority: *account_set.authority.pubkey(),
+        **accounts.counter.data_mut()? = CounterAccount {
+            authority: *accounts.authority.pubkey(),
             count: start_at.unwrap_or(0),
         };
-
         Ok(())
     }
 }
@@ -85,12 +84,12 @@ impl StarFrameInstruction for Increment {
     type ReturnType = ();
     type Accounts<'b, 'c> = IncrementAccounts;
 
-    fn run_instruction(
-        account_set: &mut Self::Accounts<'_, '_>,
-        _run_args: Self::RunArg<'_>,
+    fn process(
+        accounts: &mut Self::Accounts<'_, '_>,
+        _run_arg: Self::RunArg<'_>,
         _ctx: &mut Context,
     ) -> Result<Self::ReturnType> {
-        let mut counter = account_set.counter.data_mut()?;
+        let mut counter = accounts.counter.data_mut()?;
         counter.count += 1;
         Ok(())
     }

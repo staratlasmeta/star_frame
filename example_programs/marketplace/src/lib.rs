@@ -103,11 +103,11 @@ mod idl_test {
 
     #[cfg(feature = "idl")]
     #[test]
-    fn idl() {
-        let idl: star_frame::star_frame_idl::ProgramNode =
-            Marketplace::program_to_idl().unwrap().try_into().unwrap();
-        let idl_json = star_frame::serde_json::to_string_pretty(&idl).unwrap();
-        println!("{idl_json}",);
-        std::fs::write("idl.json", &idl_json).unwrap();
+    fn generate_idl() -> Result<()> {
+        let idl = StarFrameDeclaredProgram::program_to_idl()?;
+        let codama_idl: ProgramNode = idl.try_into()?;
+        let idl_json = codama_idl.to_json()?;
+        std::fs::write("idl.json", &idl_json)?;
+        Ok(())
     }
 }

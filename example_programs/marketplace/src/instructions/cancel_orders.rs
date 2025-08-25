@@ -18,17 +18,17 @@ impl StarFrameInstruction for CancelOrders {
     type ReturnType = ();
     type Accounts<'b, 'c> = ManageOrderAccounts;
 
-    fn run_instruction(
-        account_set: &mut Self::Accounts<'_, '_>,
+    fn process(
+        accounts: &mut Self::Accounts<'_, '_>,
         orders_to_cancel: Self::RunArg<'_>,
         ctx: &mut Context,
     ) -> Result<Self::ReturnType> {
-        let cancelled_totals = account_set
+        let cancelled_totals = accounts
             .market
             .data_mut()?
-            .cancel_orders(account_set.user.pubkey(), orders_to_cancel)?;
+            .cancel_orders(accounts.user.pubkey(), orders_to_cancel)?;
 
-        account_set.withdraw(cancelled_totals, ctx)?;
+        accounts.withdraw(cancelled_totals, ctx)?;
 
         Ok(())
     }

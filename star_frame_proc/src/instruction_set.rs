@@ -121,14 +121,14 @@ pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
         .map(|v| format!("Instruction: {}", v.ident))
         .collect_vec();
 
-    let handle_ix_body = if variant_tys.is_empty() {
+    let process_instruction_body = if variant_tys.is_empty() {
         quote! {
             #prelude::bail!("No instructions in this instruction set")
         }
     } else {
         quote! {
             let maybe_discriminant_bytes =
-                #prelude::Advance::try_advance(&mut ix_bytes, ::core::mem::size_of::<#discriminant_type>());
+                #prelude::Advance::try_advance(&mut instruction_data, ::core::mem::size_of::<#discriminant_type>());
             let discriminant_bytes = #prelude::anyhow::Context::context(maybe_discriminant_bytes, "Failed to read instruction discriminant bytes")?;
             let discriminant = *#bytemuck::try_from_bytes(discriminant_bytes)?;
             #[deny(unreachable_patterns)]
@@ -136,8 +136,7 @@ pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
                 #(
                     <#variant_tys as #prelude::InstructionDiscriminant<#ident #ty_generics>>::DISCRIMINANT => {
                         #prelude::msg!(#ix_message);
-                        let mut data = #prelude::anyhow::Context::context(<#variant_tys as #instruction>::data_from_bytes(&mut ix_bytes), "Failed to read instruction data")?;
-                        #prelude::anyhow::Context::context(<#variant_tys as #instruction>::run_ix_from_raw(accounts, &mut data, ctx), "Failed to run instruction")
+                        <#variant_tys as #instruction>::process_from_raw(accounts, instruction_data, ctx)
                     }
                 )*
                 x => #prelude::bail!("Invalid ix discriminant: {:?}", x),
@@ -151,13 +150,13 @@ pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
         impl #impl_generics #prelude::InstructionSet for #ident #ty_generics #where_clause {
             type Discriminant = #discriminant_type;
 
-            fn handle_ix(
+            fn process_instruction(
                 program_id: &#pubkey,
                 accounts: &[#account_info],
-                mut ix_bytes: &[u8],
+                mut instruction_data: &[u8],
                 ctx: &mut #prelude::Context,
             ) -> #result<()> {
-                #handle_ix_body
+                #process_instruction_body
             }
         }
 

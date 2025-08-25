@@ -77,16 +77,16 @@ impl StarFrameInstruction for CreateCounterIx {
     type ReturnType = ();
     type Accounts<'b, 'c> = CreateCounterAccounts;
 
-    fn run_instruction(
-        account_set: &mut Self::Accounts<'_, '_>,
+    fn process(
+        accounts: &mut Self::Accounts<'_, '_>,
         start_at: Self::RunArg<'_>,
         _ctx: &mut Context,
     ) -> Result<Self::ReturnType> {
-        **account_set.counter.data_mut()? = CounterAccount {
+        **accounts.counter.data_mut()? = CounterAccount {
             version: 0,
-            signer: *account_set.owner.pubkey(),
-            owner: *account_set.owner.pubkey(),
-            bump: account_set.counter.access_seeds().bump,
+            signer: *accounts.owner.pubkey(),
+            owner: *accounts.owner.pubkey(),
+            bump: accounts.counter.access_seeds().bump,
             count: start_at.unwrap_or(0),
             data: Default::default(),
         };
@@ -120,13 +120,13 @@ impl StarFrameInstruction for UpdateCounterSignerIx {
     type ReturnType = ();
     type Accounts<'b, 'c> = UpdateCounterSignerAccounts;
 
-    fn run_instruction(
-        account_set: &mut Self::Accounts<'_, '_>,
-        _run_args: Self::RunArg<'_>,
+    fn process(
+        accounts: &mut Self::Accounts<'_, '_>,
+        _run_arg: Self::RunArg<'_>,
         _ctx: &mut Context,
     ) -> Result<Self::ReturnType> {
-        let mut counter = account_set.counter.data_mut()?;
-        counter.signer = *account_set.new_signer.pubkey();
+        let mut counter = accounts.counter.data_mut()?;
+        counter.signer = *accounts.new_signer.pubkey();
 
         Ok(())
     }
@@ -159,12 +159,12 @@ impl StarFrameInstruction for CountIx {
     type ReturnType = ();
     type Accounts<'b, 'c> = CountAccounts;
 
-    fn run_instruction(
-        account_set: &mut Self::Accounts<'_, '_>,
+    fn process(
+        accounts: &mut Self::Accounts<'_, '_>,
         CountIx { amount, subtract }: Self::RunArg<'_>,
         _ctx: &mut Context,
     ) -> Result<Self::ReturnType> {
-        let mut counter = account_set.counter.data_mut()?;
+        let mut counter = accounts.counter.data_mut()?;
         let new_count: u64 = if subtract {
             counter.count - amount
         } else {
@@ -208,12 +208,10 @@ mod tests {
     #[cfg(feature = "idl")]
     #[test]
     fn generate_idl() -> Result<()> {
-        use codama_nodes::{NodeTrait, ProgramNode};
         let idl = StarFrameDeclaredProgram::program_to_idl()?;
         let codama_idl: ProgramNode = idl.try_into()?;
         let idl_json = codama_idl.to_json()?;
         std::fs::write("idl.json", &idl_json)?;
-        println!("{idl_json}");
         Ok(())
     }
 

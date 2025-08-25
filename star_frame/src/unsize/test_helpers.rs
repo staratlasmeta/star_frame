@@ -141,6 +141,7 @@ where
     }
 }
 
+#[doc(hidden)]
 #[macro_export]
 macro_rules! assert_with_shared {
     ($the_mut:ident => $expr:expr $(, $($arg:tt)*)?) => {
@@ -152,6 +153,7 @@ macro_rules! assert_with_shared {
     };
 }
 
+#[doc(hidden)]
 #[macro_export]
 macro_rules! assert_eq_with_shared {
     ($the_mut:ident => $left:expr, $right:expr $(, $($arg:tt)*)?) => {

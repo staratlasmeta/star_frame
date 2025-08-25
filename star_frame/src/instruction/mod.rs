@@ -1,3 +1,5 @@
+//! Processing and handling of instructions from a [`StarFrameProgram::entrypoint`].
+
 use crate::prelude::*;
 use borsh::to_vec;
 use bytemuck::{bytes_of, Pod};
@@ -6,27 +8,32 @@ use pinocchio::cpi::set_return_data;
 pub use star_frame_proc::{InstructionArgs, InstructionSet, InstructionToIdl};
 
 mod no_op;
-pub mod un_callable;
+mod un_callable;
+pub use un_callable::UnCallable;
 
-/// A set of instructions that can be used as input to a program. This can be derived using the
-/// [`star_frame_proc::InstructionSet`] macro on an enum. If implemented manually, [`InstructionSet::handle_ix`] should
-/// probably match on each of its instructions discriminants and call the appropriate instruction on a match.
+/// A set of instructions that can be used as input to a program.
+///
+/// This can be derived using the [`star_frame_proc::InstructionSet`] macro on an enum.
+/// If implemented manually, [`Self::process_instruction`] should probably match on each of its
+/// instructions discriminants and call the appropriate instruction on a match.
 pub trait InstructionSet {
     /// The discriminant type used by this program's instructions.
     type Discriminant: Pod;
 
-    /// Handles the input from the program entrypoint (along with the [`Context`]).
-    /// This is called directly in [`StarFrameProgram::processor`].
-    fn handle_ix(
+    /// Processes the input from the program entrypoint (along with the [`Context`]).
+    /// This is called directly in [`StarFrameProgram::entrypoint`].
+    fn process_instruction(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        ix_bytes: &[u8],
+        instruction_data: &[u8],
         ctx: &mut Context,
     ) -> Result<()>;
 }
 
-/// A helper trait for the value of the instruction discriminant on an instruction. Since a single
-/// instruction can be in multiple [`InstructionSet`]s, this trait is generic over it (with `IxSet`).
+/// A helper trait for the value of the instruction discriminant on an instruction.
+///
+/// Since a single instruction can be in multiple [`InstructionSet`]s, this trait is generic over it
+/// (with `IxSet`).
 pub trait InstructionDiscriminant<IxSet>
 where
     IxSet: InstructionSet,
@@ -43,15 +50,30 @@ where
 
 /// A callable instruction that can be used as input to a program.
 pub trait Instruction {
-    type SelfData<'a>;
+    type ParsedData<'a>;
 
-    fn data_from_bytes<'a>(bytes: &mut &'a [u8]) -> Result<Self::SelfData<'a>>;
-    /// Runs the instruction from a raw solana input.
-    fn run_ix_from_raw(
+    /// Parses the instruction data into a [`Self::ParsedData`].
+    fn parse_instruction_data<'a>(instruction_data: &mut &'a [u8]) -> Result<Self::ParsedData<'a>>;
+
+    /// Runs the instruction from a parsed input from [`Self::parse_instruction_data`].
+    fn process_from_parsed(
         accounts: &[AccountInfo],
-        data: &mut Self::SelfData<'_>,
+        data: &mut Self::ParsedData<'_>,
         ctx: &mut Context,
     ) -> Result<()>;
+
+    /// Runs the instruction from a raw solana input.
+    ///
+    /// This is called from [`InstructionSet::process_instruction`] after the discriminant is parsed and matched on.
+    fn process_from_raw(
+        accounts: &[AccountInfo],
+        mut instruction_data: &[u8],
+        ctx: &mut Context,
+    ) -> Result<()> {
+        let mut data = Self::parse_instruction_data(&mut instruction_data)
+            .context("Failed to parse instruction data")?;
+        Self::process_from_parsed(accounts, &mut data, ctx).context("Failed to process instruction")
+    }
 }
 
 /// Helper type for the return of [`InstructionArgs::split_to_args`].
@@ -86,15 +108,15 @@ pub trait InstructionArgs: Sized {
     fn split_to_args(r: &mut Self) -> IxArgs<'_, Self>;
 }
 
-/// A `star_frame` defined instruction using [`AccountSet`] and other traits.
+/// An opinionated (and recommended) [`Instruction`] using [`AccountSet`] and other traits.
 ///
 /// The steps are as follows:
-/// 1. Split self into decode, validate, and run args using [`InstructionArgs::split_to_args`].
-/// 2. Decode the accounts using [`Self::Accounts::decode_accounts`](AccountSetDecode::decode_accounts).
-/// 3. Run any extra instruction validations using [`Self::extra_validations`].
+/// 1. Decode Self from bytes using [`BorshDeserialize`].
+/// 2. Split Self into decode, validate, run, and cleanup args using [`InstructionArgs::split_to_args`].
+/// 3. Decode the accounts using [`Self::Accounts::decode_accounts`](AccountSetDecode::decode_accounts).
 /// 4. Validate the accounts using [`Self::Accounts::validate_accounts`](AccountSetValidate::validate_accounts).
-/// 5. Run the instruction using [`Self::run_instruction`].
-/// 6. Set the solana return data using [`BorshSerialize`].
+/// 5. Process the instruction using [`Self::process`].
+/// 6. Set the solana return data using [`BorshSerialize`] if it is not empty.
 pub trait StarFrameInstruction: BorshDeserialize + InstructionArgs {
     /// The return type of this instruction.
     type ReturnType: BorshSerialize;
@@ -104,18 +126,9 @@ pub trait StarFrameInstruction: BorshDeserialize + InstructionArgs {
         + AccountSetValidate<Self::ValidateArg<'c>>
         + AccountSetCleanup<Self::CleanupArg<'c>>;
 
-    /// Runs any extra validations on the accounts.
-    #[allow(unused_variables)]
-    fn extra_validations(
-        account_set: &mut Self::Accounts<'_, '_>,
-        run_arg: &mut Self::RunArg<'_>,
-        ctx: &mut Context,
-    ) -> Result<()> {
-        Ok(())
-    }
-    /// Runs the instruction.
-    fn run_instruction(
-        account_set: &mut Self::Accounts<'_, '_>,
+    /// Processes the instruction.
+    fn process(
+        accounts: &mut Self::Accounts<'_, '_>,
         run_arg: Self::RunArg<'_>,
         ctx: &mut Context,
     ) -> Result<Self::ReturnType>;
@@ -125,21 +138,21 @@ impl<T> Instruction for T
 where
     T: StarFrameInstruction,
 {
-    type SelfData<'a> = T;
+    type ParsedData<'a> = T;
 
-    fn data_from_bytes<'a>(bytes: &mut &'a [u8]) -> Result<Self::SelfData<'a>> {
-        <T as BorshDeserialize>::deserialize(bytes).map_err(Into::into)
+    fn parse_instruction_data<'a>(instruction_data: &mut &'a [u8]) -> Result<Self::ParsedData<'a>> {
+        <T as BorshDeserialize>::deserialize(instruction_data).map_err(Into::into)
     }
 
-    fn run_ix_from_raw(
+    fn process_from_parsed(
         mut accounts: &[AccountInfo],
-        data: &mut Self,
+        data: &mut Self::ParsedData<'_>,
         ctx: &mut Context,
     ) -> Result<()> {
         let IxArgs {
             decode,
             validate,
-            mut run,
+            run,
             cleanup,
         } = Self::split_to_args(data);
         let mut account_set =
@@ -148,10 +161,7 @@ where
         account_set
             .validate_accounts(validate, ctx)
             .context("Failed to validate accounts")?;
-        Self::extra_validations(&mut account_set, &mut run, ctx)
-            .context("Failed in extra validations accounts")?;
-        let ret = Self::run_instruction(&mut account_set, run, ctx)
-            .context("Failed to run instruction")?;
+        let ret = Self::process(&mut account_set, run, ctx).context("Failed to run instruction")?;
         account_set
             .cleanup_accounts(cleanup, ctx)
             .context("Failed to cleanup accounts")?;
@@ -163,6 +173,7 @@ where
     }
 }
 
+#[doc(hidden)]
 #[macro_export]
 macro_rules! empty_star_frame_instruction {
     ($ix:ident, $accounts:ident) => {
@@ -170,9 +181,9 @@ macro_rules! empty_star_frame_instruction {
             type ReturnType = ();
             type Accounts<'b, 'c> = $accounts;
 
-            fn run_instruction(
-                _account_set: &mut Self::Accounts<'_, '_>,
-                _run_args: Self::RunArg<'_>,
+            fn process(
+                _accounts: &mut Self::Accounts<'_, '_>,
+                _run_arg: Self::RunArg<'_>,
                 _ctx: &mut $crate::context::Context,
             ) -> $crate::Result<Self::ReturnType> {
                 Ok(())
@@ -182,19 +193,20 @@ macro_rules! empty_star_frame_instruction {
 }
 
 /// A helper macro for implementing blank instructions for testing.
+#[doc(hidden)]
 #[macro_export]
 macro_rules! impl_blank_ix {
     ($($ix:ident),*) => {
         $(
             impl $crate::prelude::Instruction for $ix {
-                type SelfData<'a> = ();
-                fn data_from_bytes<'a>(_bytes: &mut &'a [u8]) -> $crate::Result<Self::SelfData<'a>> {
+                type ParsedData<'a> = ();
+                fn parse_instruction_data<'a>(_instruction_data: &mut &'a [u8]) -> $crate::Result<Self::ParsedData<'a>> {
                     todo!()
                 }
 
-                fn run_ix_from_raw(
+                fn process_from_parsed(
                     _accounts: &[$crate::prelude::AccountInfo],
-                    _data: &mut Self::SelfData<'_>,
+                    _data: &mut Self::ParsedData<'_>,
                     _ctx: &mut $crate::prelude::Context,
                 ) -> $crate::Result<()> {
                     todo!()

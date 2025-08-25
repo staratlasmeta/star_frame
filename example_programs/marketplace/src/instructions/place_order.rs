@@ -23,15 +23,15 @@ impl StarFrameInstruction for PlaceOrder {
     type ReturnType = Option<u64>;
     type Accounts<'b, 'c> = ManageOrderAccounts;
 
-    fn run_instruction(
-        account_set: &mut Self::Accounts<'_, '_>,
+    fn process(
+        accounts: &mut Self::Accounts<'_, '_>,
         process_order_args: Self::RunArg<'_>,
         ctx: &mut Context,
     ) -> Result<Self::ReturnType> {
-        let order_result = account_set
+        let order_result = accounts
             .market
             .data_mut()?
-            .process_order(process_order_args, *account_set.user.pubkey())?;
+            .process_order(process_order_args, *accounts.user.pubkey())?;
 
         let mut withdraw_totals = OrderTotals::default();
         let mut deposit_totals = OrderTotals::default();
@@ -51,8 +51,8 @@ impl StarFrameInstruction for PlaceOrder {
 
         msg!("{}", order_result);
 
-        account_set.withdraw(withdraw_totals, ctx)?;
-        account_set.deposit(deposit_totals, ctx)?;
+        accounts.withdraw(withdraw_totals, ctx)?;
+        accounts.deposit(deposit_totals, ctx)?;
 
         Ok(order_result.order_id)
     }

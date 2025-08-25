@@ -55,6 +55,7 @@ pub fn empty_env_option(env: &str) -> Option<String> {
     }
 }
 
+#[doc(hidden)]
 #[macro_export]
 macro_rules! crate_metadata {
     () => {
@@ -71,6 +72,9 @@ macro_rules! crate_metadata {
     };
 }
 
+/// The root IDL generation trait to generate an [`IdlDefinition`] for a program.
+///
+/// This should be derived via [`derive@StarFrameProgram`].
 pub trait ProgramToIdl: StarFrameProgram {
     #[must_use]
     fn crate_metadata() -> CrateMetadata {

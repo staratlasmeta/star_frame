@@ -1,18 +1,19 @@
 use crate::prelude::*;
 
+/// An [`InstructionSet`] that errors when called.
 #[derive(Align1, Debug, Copy, Clone)]
 pub struct UnCallable;
 
 impl InstructionSet for UnCallable {
     type Discriminant = ();
 
-    fn handle_ix(
+    fn process_instruction(
         _program_id: &Pubkey,
         _accounts: &[AccountInfo],
         _ix_bytes: &[u8],
         _ctx: &mut Context,
     ) -> Result<()> {
-        panic!("Cannot call handle_ix on Uncallable")
+        panic!("Cannot call process_instruction on Uncallable")
     }
 }
 

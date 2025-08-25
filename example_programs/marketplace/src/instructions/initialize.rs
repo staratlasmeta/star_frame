@@ -43,19 +43,19 @@ impl StarFrameInstruction for Initialize {
     type Accounts<'b, 'c> = InitializeAccounts;
     type ReturnType = ();
 
-    fn run_instruction(
-        account_set: &mut Self::Accounts<'_, '_>,
+    fn process(
+        accounts: &mut Self::Accounts<'_, '_>,
         _: Self::RunArg<'_>,
         _ctx: &mut Context,
     ) -> Result<Self::ReturnType> {
-        account_set
+        accounts
             .market_account
             .data_mut()?
             .initialize(CreateMarketArgs {
-                authority: *account_set.authority.pubkey(),
-                currency: *account_set.currency.key_for(),
-                market_token: *account_set.market_token.key_for(),
-                bump: account_set.market_account.access_seeds().bump,
+                authority: *accounts.authority.pubkey(),
+                currency: *accounts.currency.key_for(),
+                market_token: *accounts.market_token.key_for(),
+                bump: accounts.market_account.access_seeds().bump,
             });
         Ok(())
     }
