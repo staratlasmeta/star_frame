@@ -1100,10 +1100,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2551bf44bc5f776c15044b9b94153a00198be06743e262afaaa61f11ac7523a5"
 
 [[package]]
-name = "fixed"
-version = "1.29.0"
-source = "registry+ssh://git@ssh.shipyard.rs/star-atlas/crate-index.git"
-checksum = "c5d0f618b1e3d7c64bdadd2dcc2b52ec0aae3767e43bd205e764054a05ef502c"
+name = "fixed_star_frame"
+version = "1.29.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1b01defae718466fcb690fd8d3ead2274309d47a41f694cff181698fcdfbd6b0"
 dependencies = [
  "az",
  "bytemuck",
@@ -4535,7 +4535,7 @@ dependencies = [
  "bytemuck",
  "derive-where",
  "derive_more 2.0.1",
- "fixed",
+ "fixed_star_frame",
  "itertools 0.14.0",
  "num-traits",
  "paste",
