@@ -1,3 +1,4 @@
+//! Useful miscellaneous functions.
 use crate::prelude::*;
 use std::{
     cell::{Ref, RefMut},
@@ -10,7 +11,8 @@ pub fn try_map_ref<'a, I: 'a + ?Sized, O: 'a + ?Sized, E>(
     r: Ref<'a, I>,
     f: impl FnOnce(&I) -> Result<&O, E>,
 ) -> Result<Ref<'a, O>, E> {
-    // Safety: We don't extend the lifetime of the reference beyond what it is.
+    // SAFETY:
+    // We don't extend the lifetime of the reference beyond what it is.
     unsafe {
         let result = f(&r)? as *const O;
         Ok(Ref::map(r, |_| &*result))
@@ -23,7 +25,8 @@ pub fn try_map_ref_mut<'a, I: 'a + ?Sized, O: 'a + ?Sized, E>(
     mut r: RefMut<'a, I>,
     f: impl FnOnce(&mut I) -> Result<&mut O, E>,
 ) -> Result<RefMut<'a, O>, E> {
-    // Safety: We don't extend the lifetime of the reference beyond what it is.
+    // SAFETY:
+    // We don't extend the lifetime of the reference beyond what it is.
     unsafe {
         let result = f(&mut r)? as *mut O;
         Ok(RefMut::map(r, |_| &mut *result))
@@ -53,12 +56,14 @@ pub const fn compare_strings(a: &str, b: &str) -> bool {
 /// Returns a slice of bytes from an array of [`NoUninit`] types.
 #[inline]
 pub fn uninit_array_bytes<T: NoUninit, const N: usize>(array: &[T; N]) -> &[u8] {
-    // Safety: `T` is `NoUninit`, so all underlying reads are valid since there's no padding
+    // SAFETY:
+    // `T` is `NoUninit`, so all underlying reads are valid since there's no padding
     // between array elements. The pointer is valid. The entire memory is valid.
     // The size is correct. Everything is fine.
     unsafe { core::slice::from_raw_parts(array.as_ptr().cast::<u8>(), size_of::<T>() * N) }
 }
 
+/// Custom [`borsh`] derive `serialize_with` and `deserialize_with` overrides for use with [`bytemuck`] types.
 pub mod borsh_bytemuck {
     use crate::align1::Align1;
     use bytemuck::{CheckedBitPattern, NoUninit};
@@ -130,6 +135,21 @@ pub mod borsh_bytemuck {
         Ok(unsafe { buffer.assume_init() })
     }
 
+    /// Derives [`BorshSerialize`](borsh::BorshSerialize) and [`BorshDeserialize`](borsh::BorshDeserialize) for [`bytemuck`] types.
+    ///
+    /// # Example
+    /// ```
+    /// use star_frame::prelude::*;
+    ///
+    /// #[derive(Align1, NoUninit, CheckedBitPattern, Copy, Clone)]
+    /// #[repr(C, packed)]
+    /// pub struct SomePackedThing {
+    ///     pub a: u32,
+    ///     pub b: u64,
+    /// }
+    ///
+    /// borsh_with_bytemuck!(SomePackedThing);
+    /// ```
     #[macro_export]
     macro_rules! borsh_with_bytemuck {
         ($($ty:ident),*) => {

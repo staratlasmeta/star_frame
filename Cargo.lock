@@ -1100,10 +1100,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2551bf44bc5f776c15044b9b94153a00198be06743e262afaaa61f11ac7523a5"
 
 [[package]]
-name = "fixed"
-version = "1.29.0"
-source = "registry+ssh://git@ssh.shipyard.rs/star-atlas/crate-index.git"
-checksum = "c5d0f618b1e3d7c64bdadd2dcc2b52ec0aae3767e43bd205e764054a05ef502c"
+name = "fixed_star_frame"
+version = "1.29.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1b01defae718466fcb690fd8d3ead2274309d47a41f694cff181698fcdfbd6b0"
 dependencies = [
  "az",
  "bytemuck",
@@ -2179,8 +2179,9 @@ checksum = "8b870d8c151b6f2fb93e84a13146138f05d02ed11c7e7c54f8826aaaf7c9f184"
 
 [[package]]
 name = "pinocchio"
-version = "0.9.0"
-source = "git+https://github.com/stegaBOB/pinocchio?branch=stegaBOB%2Ffeat%2Ffinalized_changes#4251ad321fb420aa54a05c696c6fc7571161c353"
+version = "0.10.0"
+source = "registry+ssh://git@ssh.shipyard.rs/star-atlas/crate-index.git"
+checksum = "748aaeab83832a51cb975f9a23dbc7a9e1297fd5ff5b3e03f3b472754c824a3b"
 
 [[package]]
 name = "pkg-config"
@@ -4534,7 +4535,7 @@ dependencies = [
  "bytemuck",
  "derive-where",
  "derive_more 2.0.1",
- "fixed",
+ "fixed_star_frame",
  "itertools 0.14.0",
  "num-traits",
  "paste",

@@ -1,7 +1,4 @@
-use star_frame::{
-    borsh::{BorshDeserialize, BorshSerialize},
-    prelude::*,
-};
+use star_frame::prelude::*;
 use star_frame_spl::token::{state::MintAccount, Token};
 
 use crate::state::{CreateMarketArgs, Market, MarketSeeds};
@@ -57,6 +54,7 @@ impl StarFrameInstruction for Initialize {
                 market_token: *accounts.market_token.key_for(),
                 bump: accounts.market_account.access_seeds().bump,
             });
+
         Ok(())
     }
 }

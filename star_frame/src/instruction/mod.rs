@@ -1,6 +1,10 @@
 //! Processing and handling of instructions from a [`StarFrameProgram::entrypoint`].
 
-use crate::prelude::*;
+use crate::{
+    account_set::{AccountSetCleanup, AccountSetDecode, AccountSetValidate},
+    prelude::*,
+};
+use anyhow::Context as _;
 use borsh::to_vec;
 use bytemuck::{bytes_of, Pod};
 use pinocchio::cpi::set_return_data;
@@ -14,15 +18,15 @@ pub use un_callable::UnCallable;
 /// A set of instructions that can be used as input to a program.
 ///
 /// This can be derived using the [`star_frame_proc::InstructionSet`] macro on an enum.
-/// If implemented manually, [`Self::process_instruction`] should probably match on each of its
-/// instructions discriminants and call the appropriate instruction on a match.
 pub trait InstructionSet {
     /// The discriminant type used by this program's instructions.
     type Discriminant: Pod;
 
-    /// Processes the input from the program entrypoint (along with the [`Context`]).
-    /// This is called directly in [`StarFrameProgram::entrypoint`].
-    fn process_instruction(
+    /// Dispatches the instruction data from the program entrypoint and then
+    /// calls the appropriate [`Instruction::process_from_raw`] method.
+    ///
+    /// This is called directly by [`StarFrameProgram::entrypoint`].
+    fn dispatch(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         instruction_data: &[u8],
@@ -64,7 +68,7 @@ pub trait Instruction {
 
     /// Runs the instruction from a raw solana input.
     ///
-    /// This is called from [`InstructionSet::process_instruction`] after the discriminant is parsed and matched on.
+    /// This is called from [`InstructionSet::dispatch`] after the discriminant is parsed and matched on.
     fn process_from_raw(
         accounts: &[AccountInfo],
         mut instruction_data: &[u8],
@@ -116,7 +120,8 @@ pub trait InstructionArgs: Sized {
 /// 3. Decode the accounts using [`Self::Accounts::decode_accounts`](AccountSetDecode::decode_accounts).
 /// 4. Validate the accounts using [`Self::Accounts::validate_accounts`](AccountSetValidate::validate_accounts).
 /// 5. Process the instruction using [`Self::process`].
-/// 6. Set the solana return data using [`BorshSerialize`] if it is not empty.
+/// 6. Cleanup the accounts using [`Self::Accounts::cleanup_accounts`](AccountSetCleanup::cleanup_accounts).
+/// 7. Set the solana return data using [`BorshSerialize`] if it is not empty.
 pub trait StarFrameInstruction: BorshDeserialize + InstructionArgs {
     /// The return type of this instruction.
     type ReturnType: BorshSerialize;
@@ -161,7 +166,8 @@ where
         account_set
             .validate_accounts(validate, ctx)
             .context("Failed to validate accounts")?;
-        let ret = Self::process(&mut account_set, run, ctx).context("Failed to run instruction")?;
+        let ret: <T as StarFrameInstruction>::ReturnType =
+            Self::process(&mut account_set, run, ctx).context("Failed to run instruction")?;
         account_set
             .cleanup_accounts(cleanup, ctx)
             .context("Failed to cleanup accounts")?;
@@ -198,7 +204,7 @@ macro_rules! empty_star_frame_instruction {
 macro_rules! impl_blank_ix {
     ($($ix:ident),*) => {
         $(
-            impl $crate::prelude::Instruction for $ix {
+            impl $crate::instruction::Instruction for $ix {
                 type ParsedData<'a> = ();
                 fn parse_instruction_data<'a>(_instruction_data: &mut &'a [u8]) -> $crate::Result<Self::ParsedData<'a>> {
                     todo!()

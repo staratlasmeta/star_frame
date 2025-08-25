@@ -161,7 +161,7 @@ where
     }
 }
 
-unsafe impl<T, C> FromOwned for UnsizedList<T, C>
+impl<T, C> FromOwned for UnsizedList<T, C>
 where
     T: UnsizedType + FromOwned + ?Sized,
     C: UnsizedListOffset<ListOffsetInit = ()>,
@@ -987,7 +987,7 @@ where
                 for ((item_index, (item_init, offset_init)), _) in
                     items.enumerate().zip_eq(0..to_add)
                 {
-                    unsafe { T::init(&mut new_data, item_init)? };
+                    T::init(&mut new_data, item_init)?;
                     let new_offset = insertion_offset + item_index * T::INIT_BYTES;
                     list.offset_list[index + item_index] =
                         C::from_usize_offset(new_offset, offset_init)?;
@@ -1121,14 +1121,14 @@ where
     }
 }
 
-unsafe impl<T, C> UnsizedInit<DefaultInit> for UnsizedList<T, C>
+impl<T, C> UnsizedInit<DefaultInit> for UnsizedList<T, C>
 where
     T: UnsizedType + UnsizedInit<DefaultInit> + ?Sized,
     C: UnsizedListOffset,
 {
     const INIT_BYTES: usize = U32_SIZE * 3;
 
-    unsafe fn init(bytes: &mut &mut [u8], _init: DefaultInit) -> Result<()> {
+    fn init(bytes: &mut &mut [u8], _init: DefaultInit) -> Result<()> {
         let unsized_size_bytes = bytes.try_advance_array::<U32_SIZE>().with_context(|| {
             format!(
                 "Failed to read unsized size bytes during initialization of {}",
@@ -1213,25 +1213,25 @@ where
     }
 }
 
-unsafe impl<const N: usize, T, C, I> UnsizedInit<[I; N]> for UnsizedList<T, C>
+impl<const N: usize, T, C, I> UnsizedInit<[I; N]> for UnsizedList<T, C>
 where
     T: UnsizedType + UnsizedInit<I> + ?Sized,
     C: UnsizedListOffset<ListOffsetInit = ()>,
 {
     const INIT_BYTES: usize = U32_SIZE * 3 + (N * size_of::<C>()) + T::INIT_BYTES * N;
 
-    unsafe fn init(bytes: &mut &mut [u8], array: [I; N]) -> Result<()> {
+    fn init(bytes: &mut &mut [u8], array: [I; N]) -> Result<()> {
         let offset_slice = Self::init_list_header::<N, _>(bytes)?;
         Self::init_offset_slice(offset_slice, [(); N])?;
 
         for item in array {
-            unsafe { T::init(bytes, item)? };
+            T::init(bytes, item)?;
         }
         Ok(())
     }
 }
 
-unsafe impl<const N: usize, T, C, I> UnsizedInit<&[I; N]> for UnsizedList<T, C>
+impl<const N: usize, T, C, I> UnsizedInit<&[I; N]> for UnsizedList<T, C>
 where
     I: Clone,
     T: UnsizedType + UnsizedInit<I> + ?Sized,
@@ -1239,36 +1239,36 @@ where
 {
     const INIT_BYTES: usize = U32_SIZE * 3 + (N * size_of::<C>()) + T::INIT_BYTES * N;
 
-    unsafe fn init(bytes: &mut &mut [u8], array: &[I; N]) -> Result<()> {
+    fn init(bytes: &mut &mut [u8], array: &[I; N]) -> Result<()> {
         let offset_slice = Self::init_list_header::<N, _>(bytes)?;
         Self::init_offset_slice(offset_slice, [(); N])?;
 
         for item in array {
-            unsafe { T::init(bytes, item.clone())? };
+            T::init(bytes, item.clone())?;
         }
         Ok(())
     }
 }
 
-unsafe impl<const N: usize, T, C, I, OI> UnsizedInit<([I; N], [OI; N])> for UnsizedList<T, C>
+impl<const N: usize, T, C, I, OI> UnsizedInit<([I; N], [OI; N])> for UnsizedList<T, C>
 where
     T: UnsizedType + UnsizedInit<I> + ?Sized,
     C: UnsizedListOffset<ListOffsetInit = OI>,
 {
     const INIT_BYTES: usize = U32_SIZE * 3 + (N * size_of::<C>()) + T::INIT_BYTES * N;
 
-    unsafe fn init(bytes: &mut &mut [u8], arrays: ([I; N], [OI; N])) -> Result<()> {
+    fn init(bytes: &mut &mut [u8], arrays: ([I; N], [OI; N])) -> Result<()> {
         let offset_slice = Self::init_list_header::<N, _>(bytes)?;
         Self::init_offset_slice(offset_slice, arrays.1)?;
 
         for item in arrays.0 {
-            unsafe { T::init(bytes, item)? };
+            T::init(bytes, item)?;
         }
         Ok(())
     }
 }
 
-unsafe impl<const N: usize, T, C, I, OI> UnsizedInit<(&[I; N], &[OI; N])> for UnsizedList<T, C>
+impl<const N: usize, T, C, I, OI> UnsizedInit<(&[I; N], &[OI; N])> for UnsizedList<T, C>
 where
     I: Clone,
     OI: Clone,
@@ -1277,12 +1277,12 @@ where
 {
     const INIT_BYTES: usize = U32_SIZE * 3 + (N * size_of::<C>()) + T::INIT_BYTES * N;
 
-    unsafe fn init(bytes: &mut &mut [u8], arrays: (&[I; N], &[OI; N])) -> Result<()> {
+    fn init(bytes: &mut &mut [u8], arrays: (&[I; N], &[OI; N])) -> Result<()> {
         let offset_slice = Self::init_list_header::<N, _>(bytes)?;
         Self::init_offset_slice(offset_slice, arrays.1.clone())?;
 
         for item in arrays.0 {
-            unsafe { T::init(bytes, item.clone())? };
+            T::init(bytes, item.clone())?;
         }
         Ok(())
     }

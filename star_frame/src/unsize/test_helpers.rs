@@ -203,23 +203,20 @@ pub trait NewByteSet: UnsizedType {
 
 impl<T> NewByteSet for T where T: UnsizedType + ?Sized {}
 
-pub trait ModifyOwned: Clone {
-    fn modify_owned<U>(
-        &mut self,
+pub trait ModifyOwned: UnsizedType + FromOwned<Owned: Clone> {
+    fn modify_owned(
+        owned: &mut Self::Owned,
         modify: impl for<'a, 'top> FnOnce(
-            &'a mut ExclusiveWrapperTop<'top, U, TestUnderlyingData>,
+            &'a mut ExclusiveWrapperTop<'top, Self, TestUnderlyingData>,
         ) -> Result<()>,
-    ) -> Result<()>
-    where
-        U: UnsizedType<Owned = Self> + FromOwned + ?Sized,
-    {
-        let self_byte_set = TestByteSet::<U>::new(self.clone())?;
+    ) -> Result<()> {
+        let self_byte_set = TestByteSet::<Self>::new(owned.clone())?;
         let mut bytes_mut = self_byte_set.data_mut()?;
         modify(&mut bytes_mut)?;
         drop(bytes_mut);
-        *self = self_byte_set.owned()?;
+        *owned = self_byte_set.owned()?;
         Ok(())
     }
 }
 
-impl<T> ModifyOwned for T where T: Clone {}
+impl<T> ModifyOwned for T where T: UnsizedType + FromOwned<Owned: Clone> + ?Sized {}

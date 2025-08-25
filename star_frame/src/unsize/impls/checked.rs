@@ -157,7 +157,7 @@ where
     }
 }
 
-unsafe impl<T> FromOwned for T
+impl<T> FromOwned for T
 where
     T: CheckedBitPattern + NoUninit + Align1,
 {
@@ -179,13 +179,13 @@ where
     }
 }
 
-unsafe impl<T> UnsizedInit<T> for T
+impl<T> UnsizedInit<T> for T
 where
     T: CheckedBitPattern + NoUninit + Align1,
 {
     const INIT_BYTES: usize = size_of::<T>();
 
-    unsafe fn init(bytes: &mut &mut [u8], arg: T) -> Result<()> {
+    fn init(bytes: &mut &mut [u8], arg: T) -> Result<()> {
         bytes
             .try_advance(size_of::<T>())
             .with_context(|| {
@@ -199,13 +199,13 @@ where
     }
 }
 
-unsafe impl<T> UnsizedInit<DefaultInit> for T
+impl<T> UnsizedInit<DefaultInit> for T
 where
     T: CheckedBitPattern + NoUninit + Align1 + DefaultInitable,
 {
     const INIT_BYTES: usize = size_of::<T>();
 
-    unsafe fn init(bytes: &mut &mut [u8], _arg: DefaultInit) -> Result<()> {
+    fn init(bytes: &mut &mut [u8], _arg: DefaultInit) -> Result<()> {
         bytes
             .try_advance(size_of::<T>())
             .with_context(|| {

@@ -7,13 +7,13 @@ pub struct UnCallable;
 impl InstructionSet for UnCallable {
     type Discriminant = ();
 
-    fn process_instruction(
+    fn dispatch(
         _program_id: &Pubkey,
         _accounts: &[AccountInfo],
         _ix_bytes: &[u8],
         _ctx: &mut Context,
     ) -> Result<()> {
-        panic!("Cannot call process_instruction on Uncallable")
+        panic!("Cannot call dispatch on Uncallable")
     }
 }
 

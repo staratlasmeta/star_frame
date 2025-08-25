@@ -1,29 +1,42 @@
-use crate::prelude::*;
+use crate::{
+    account_set::{
+        modifiers::{
+            CanInitAccount, HasInnerType, HasOwnerProgram, HasSeeds, OwnerProgramDiscriminant,
+        },
+        CanAddLamports, CanCloseAccount as _, CanFundRent, CanModifyRent as _,
+        CanSystemCreateAccount as _,
+    },
+    prelude::*,
+    unsize::{init::UnsizedInit, wrapper::SharedWrapper},
+};
 use advancer::Advance;
+use anyhow::Context as _;
 use bytemuck::bytes_of;
 use std::marker::PhantomData;
 
-pub use star_frame_proc::ProgramAccount;
-/// Increases or decreases the rent of self to be the minimum required using [`CanModifyRent::normalize_rent`].
+/// Increases or decreases the rent of self to be the minimum required using [`CanModifyRent::normalize_rent`](crate::account_set::CanModifyRent::normalize_rent).
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
 pub struct NormalizeRent<T>(pub T);
 
-/// Decreases the rent of self to be the minimum required using [`CanModifyRent::refund_rent`].
+/// Decreases the rent of self to be the minimum required using [`CanModifyRent::refund_rent`](crate::account_set::CanModifyRent::refund_rent).
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
 pub struct RefundRent<T>(pub T);
 
-/// Increases the rent of self to be at least the minimum rent using [`CanModifyRent::receive_rent`].
+/// Increases the rent of self to be at least the minimum rent using [`CanModifyRent::receive_rent`](crate::account_set::CanModifyRent::receive_rent).
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
 pub struct ReceiveRent<T>(pub T);
 
-/// Closes the account using [`CanCloseAccount::close`].
+/// Closes the account using [`CanCloseAccount::close_account`](crate::account_set::CanCloseAccount::close_account).
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
 pub struct CloseAccount<T>(pub T);
 
+/// A single program account that contains an [`UnsizedType`].
+///
+/// Calls [`ProgramAccount::validate_account_info`] during validation to ensure the owner and discriminant match.
 #[derive(AccountSet, derive_where::DeriveWhere)]
 #[derive_where(Clone, Debug, Copy)]
 #[account_set(skip_default_idl, skip_default_cleanup)]
-#[validate(extra_validation = self.validate())]
+#[validate(extra_validation =  T::validate_account_info(self))]
 #[cleanup(
     generics = [],
     extra_cleanup = self.check_cleanup(ctx),
@@ -77,7 +90,7 @@ pub struct CloseAccount<T>(pub T);
     id = "close_account",
     generics = [<'a, Recipient> where Recipient: CanAddLamports],
     arg = CloseAccount<&'a Recipient>,
-    extra_cleanup = self.close(arg.0)
+    extra_cleanup = self.close_account(arg.0)
 )]
 #[cleanup(
     id = "close_account_cached",
@@ -85,7 +98,7 @@ pub struct CloseAccount<T>(pub T);
     generics = [],
     extra_cleanup = {
         let recipient = ctx.get_recipient().context("Missing `recipient` in cache for `CloseAccount`")?;
-        self.close(recipient)
+        self.close_account(recipient)
     }
 )]
 pub struct Account<T: ProgramAccount + UnsizedType + ?Sized> {
@@ -102,6 +115,7 @@ pub struct Account<T: ProgramAccount + UnsizedType + ?Sized> {
 
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
 mod idl_impl {
+
     use super::*;
     use star_frame::idl::AccountSetToIdl;
     use star_frame_idl::{account_set::IdlAccountSetDef, IdlDefinition};
@@ -128,16 +142,10 @@ impl<T> Account<T>
 where
     T: ProgramAccount + UnsizedType + ?Sized,
 {
-    /// Validates the owner and the discriminant of the account.
-    #[inline]
-    pub fn validate(&self) -> Result<()> {
-        T::validate_account_info(self)
-    }
-
     pub fn data(&self) -> Result<SharedWrapper<'_, T::Ref<'_>>> {
         // If the account is writable, changes could have been made after AccountSetValidate has been run
         if self.is_writable() {
-            self.validate()?;
+            T::validate_account_info(self)?;
         }
         SharedWrapper::new::<AccountDiscriminant<T>>(&self.info)
     }
@@ -145,14 +153,17 @@ where
     pub fn data_mut(&self) -> Result<ExclusiveWrapperTop<'_, AccountDiscriminant<T>, AccountInfo>> {
         // If the account is writable, changes could have been made after AccountSetValidate has been run
         if self.is_writable() {
-            self.validate()?;
+            T::validate_account_info(self)?;
         }
         ExclusiveWrapper::new(&self.info)
     }
 }
 
 pub mod discriminant {
-    use crate::unsize::{FromOwned, RawSliceAdvance};
+    use crate::{
+        account_set::modifiers::OwnerProgramDiscriminant,
+        unsize::{init::UnsizedInit, FromOwned, RawSliceAdvance},
+    };
 
     use super::*;
     #[derive(Debug)]
@@ -231,7 +242,7 @@ pub mod discriminant {
         }
     }
 
-    unsafe impl<T> FromOwned for AccountDiscriminant<T>
+    impl<T> FromOwned for AccountDiscriminant<T>
     where
         T: ProgramAccount + UnsizedType + FromOwned + ?Sized,
     {
@@ -252,13 +263,13 @@ pub mod discriminant {
             T::from_owned(owned, bytes).map(|size| size + size_of::<OwnerProgramDiscriminant<T>>())
         }
     }
-    unsafe impl<T, I> UnsizedInit<I> for AccountDiscriminant<T>
+    impl<T, I> UnsizedInit<I> for AccountDiscriminant<T>
     where
         T: UnsizedType + ?Sized + ProgramAccount + UnsizedInit<I>,
     {
         const INIT_BYTES: usize = T::INIT_BYTES + size_of::<OwnerProgramDiscriminant<T>>();
 
-        unsafe fn init(bytes: &mut &mut [u8], arg: I) -> Result<()> {
+        fn init(bytes: &mut &mut [u8], arg: I) -> Result<()> {
             bytes
                 .try_advance(size_of::<OwnerProgramDiscriminant<T>>())
                 .with_context(|| {
@@ -268,7 +279,7 @@ pub mod discriminant {
                     )
                 })?
                 .copy_from_slice(bytes_of(&T::DISCRIMINANT));
-            unsafe { T::init(bytes, arg) }
+            T::init(bytes, arg)
         }
     }
 }
@@ -353,9 +364,7 @@ where
         .context("system_create_account failed")?;
         let mut data_bytes = self.account_data_mut()?;
         let mut data_bytes = &mut *data_bytes;
-        unsafe {
-            <AccountDiscriminant<T>>::init(&mut data_bytes, arg)?;
-        }
+        <AccountDiscriminant<T>>::init(&mut data_bytes, arg)?;
         Ok(())
     }
 }

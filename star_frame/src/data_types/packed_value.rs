@@ -38,18 +38,18 @@ unsafe impl<T> Zeroable for PackedValueChecked<T> where T: Zeroable {}
 
 macro_rules! packed_ser_deser {
     ($ident:ident) => {
-        impl<T> BorshSerialize for $ident<T>
+        impl<T> borsh::BorshSerialize for $ident<T>
         where
-            T: BorshSerialize + Copy,
+            T: borsh::BorshSerialize + Copy,
         {
             fn serialize<W: Write>(&self, writer: &mut W) -> borsh::io::Result<()> {
                 { self.0 }.serialize(writer)
             }
         }
 
-        impl<T> BorshDeserialize for $ident<T>
+        impl<T> borsh::BorshDeserialize for $ident<T>
         where
-            T: BorshDeserialize + Copy,
+            T: borsh::BorshDeserialize + Copy,
         {
             fn deserialize_reader<R: Read>(reader: &mut R) -> borsh::io::Result<Self> {
                 T::deserialize_reader(reader).map(Self)

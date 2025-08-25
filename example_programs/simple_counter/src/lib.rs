@@ -28,7 +28,7 @@ pub struct CounterSeeds {
 }
 
 impl AccountValidate<&Pubkey> for CounterAccount {
-    fn validate(self_ref: &Self::Ref<'_>, arg: &Pubkey) -> Result<()> {
+    fn validate_account(self_ref: &Self::Ref<'_>, arg: &Pubkey) -> Result<()> {
         ensure!(arg == &self_ref.authority, "Incorrect authority");
         Ok(())
     }

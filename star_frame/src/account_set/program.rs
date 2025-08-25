@@ -1,5 +1,9 @@
-use crate::prelude::*;
+use crate::{
+    account_set::{AccountSetDecode, ClientAccountSet},
+    prelude::*,
+};
 use advancer::AdvanceArray;
+use anyhow::Context as _;
 use ref_cast::{ref_cast_custom, RefCastCustom};
 use std::marker::PhantomData;
 
@@ -48,17 +52,6 @@ impl<T: StarFrameProgram> ClientAccountSet for Program<T> {
     ) {
         metas.push(AccountMeta::new_readonly(accounts.unwrap_or(T::ID), false));
     }
-}
-
-pub trait InnerProgram {
-    type Program: StarFrameProgram;
-}
-
-impl<T> InnerProgram for Program<T>
-where
-    T: StarFrameProgram,
-{
-    type Program = T;
 }
 
 impl<T: StarFrameProgram> Program<T> {

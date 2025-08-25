@@ -105,7 +105,7 @@ mod advance_nonce {
     #[derive(Debug, Copy, Clone, AccountSet)]
     pub struct AdvanceNonceAccountAccounts {
         pub nonce_account: Mut<AccountInfo>,
-        #[idl(address = RECENT_BLOCKHASHES_ID)]
+        #[idl(address = crate::account_set::sysvar::RECENT_BLOCKHASHES_ID)]
         pub recent_blockhashes: AccountInfo,
         pub nonce_authority: Signer,
     }
@@ -126,7 +126,7 @@ mod withdraw_nonce {
     pub struct WithdrawNonceAccountAccounts {
         pub nonce_account: Mut<AccountInfo>,
         pub recipient: Mut<AccountInfo>,
-        #[idl(address = RECENT_BLOCKHASHES_ID)]
+        #[idl(address = crate::account_set::sysvar::RECENT_BLOCKHASHES_ID)]
         pub recent_blockhashes: AccountInfo,
         pub rent: Sysvar<Rent>,
         pub nonce_authority: Signer,
@@ -147,7 +147,7 @@ mod initialize_nonce {
     #[derive(Debug, Copy, Clone, AccountSet)]
     pub struct InitializeNonceAccountAccounts {
         pub nonce_account: Mut<AccountInfo>,
-        #[idl(address = RECENT_BLOCKHASHES_ID)]
+        #[idl(address = crate::account_set::sysvar::RECENT_BLOCKHASHES_ID)]
         pub recent_blockhashes: AccountInfo,
         pub rent: Sysvar<Rent>,
     }
