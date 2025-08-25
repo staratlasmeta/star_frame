@@ -987,7 +987,7 @@ where
                 for ((item_index, (item_init, offset_init)), _) in
                     items.enumerate().zip_eq(0..to_add)
                 {
-                    unsafe { T::init(&mut new_data, item_init)? };
+                    T::init(&mut new_data, item_init)?;
                     let new_offset = insertion_offset + item_index * T::INIT_BYTES;
                     list.offset_list[index + item_index] =
                         C::from_usize_offset(new_offset, offset_init)?;
