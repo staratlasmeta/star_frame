@@ -1,3 +1,5 @@
+//! Implementation of `AccountSet` traits for [`AccountInfo`].
+
 use crate::{
     account_set::{
         single_set::SingleSetMeta, AccountSetCleanup, AccountSetDecode, AccountSetValidate,

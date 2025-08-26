@@ -1,3 +1,5 @@
+//! `AccountSet` implementations for optional types. Enables conditional account presence using `Option<T>` syntax with automatic handling of None cases.
+
 use crate::{
     account_set::{
         AccountSetCleanup, AccountSetDecode, AccountSetValidate, CheckKey, ClientAccountSet,

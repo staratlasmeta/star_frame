@@ -1,3 +1,5 @@
+//! `AccountSet` implementations for boxed types. Enables heap allocation of account sets with transparent delegation to the underlying type.
+
 use crate::{
     account_set::{
         modifiers::{

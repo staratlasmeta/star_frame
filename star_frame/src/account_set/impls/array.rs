@@ -1,3 +1,5 @@
+//! `AccountSet` implementations for fixed-size arrays. Enables working with multiple accounts of the same type using `[T; N]` syntax with automatic iteration and validation.
+
 use crate::{
     account_set::{
         AccountSetCleanup, AccountSetDecode, AccountSetValidate, ClientAccountSet, CpiAccountSet,

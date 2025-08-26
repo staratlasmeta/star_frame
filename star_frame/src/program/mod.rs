@@ -1,3 +1,5 @@
+//! Core program definitions and utilities for Star Frame programs. Provides the foundational traits and macros needed to define and execute Solana programs with type safety.
+
 pub mod system;
 
 use crate::prelude::*;

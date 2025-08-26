@@ -1,3 +1,5 @@
+//! `AccountSet` implementations for dynamic vectors. Enables variable-length collections of accounts using `Vec<T>` syntax with runtime-determined sizes.
+
 use crate::{
     account_set::{
         AccountSetCleanup, AccountSetDecode, AccountSetValidate, ClientAccountSet, CpiAccountSet,

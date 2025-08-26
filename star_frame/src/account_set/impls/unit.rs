@@ -1,3 +1,5 @@
+//! `AccountSet` implementation for the unit type. Enables instructions that require no accounts using `()` syntax as a zero-cost abstraction.
+
 use crate::{
     account_set::{
         AccountSetCleanup, AccountSetDecode, AccountSetValidate, ClientAccountSet, CpiAccountSet,
