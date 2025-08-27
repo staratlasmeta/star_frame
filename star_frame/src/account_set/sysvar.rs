@@ -1,4 +1,11 @@
-use pinocchio::account_info::Ref;
+//! Typed wrappers for Solana system variables (sysvars).
+//!
+//! Solana provides several system variables that contain runtime information about the blockchain
+//! state. The `Sysvar<T>` type provides type-safe access to these system variables within
+//! instruction contexts, automatically validating that the correct sysvar account is provided and
+//! providing type-safe access to the sysvar's functionality.
+
+use pinocchio::{account_info::Ref, sysvars::slot_hashes::SlotHashes};
 use star_frame::prelude::*;
 use std::marker::PhantomData;
 
@@ -25,6 +32,20 @@ impl SysvarId for InstructionsSysvar {
     }
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub struct SlotHashesSysvar;
+
+impl SysvarId for SlotHashesSysvar {
+    fn id() -> Pubkey {
+        bytemuck::cast(pinocchio::sysvars::slot_hashes::SLOTHASHES_ID)
+    }
+}
+
+/// A typed wrapper for Solana system variable accounts that validates the sysvar address.
+///
+/// This type ensures that the provided account matches the expected system variable address
+/// for type `T`. Provides type-safe access to sysvar-specific functionality for the instruction
+/// and slot hashes sysvars.
 #[derive(AccountSet, derive_where::DeriveWhere)]
 #[derive_where(Clone, Copy, Debug)]
 #[account_set(skip_client_account_set)]
@@ -63,6 +84,16 @@ impl Sysvar<InstructionsSysvar> {
     pub fn instructions(
         &self,
     ) -> Result<pinocchio::sysvars::instructions::Instructions<Ref<'_, [u8]>>> {
-        (&self.info).try_into().map_err(Into::into)
+        Ok(unsafe {
+            pinocchio::sysvars::instructions::Instructions::new_unchecked(self.account_data()?)
+        })
+    }
+}
+
+impl Sysvar<SlotHashesSysvar> {
+    pub fn slot_hashes(
+        &self,
+    ) -> Result<pinocchio::sysvars::slot_hashes::SlotHashes<Ref<'_, [u8]>>> {
+        Ok(unsafe { SlotHashes::new_unchecked(self.account_data()?) })
     }
 }

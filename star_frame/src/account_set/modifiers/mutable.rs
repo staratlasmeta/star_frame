@@ -1,3 +1,9 @@
+//! Account modifier for potentially mutable accounts.
+//!
+//! The `MaybeMut<MUT, T>` modifier wraps account types that may or may not be mutable
+//! based on the `MUT` const generic. It provides type-safe access to the account's
+//! mutable state only when `MUT` is true, and automatically disables mutable operations
+//! when `MUT` is false.
 use crate::{
     account_set::{modifiers::WritableAccount, single_set::SingleSetMeta},
     prelude::*,
