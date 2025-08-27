@@ -3,7 +3,7 @@ resolver = "3"
 members = ["star_*", "example_programs/*"]
 
 [workspace.package]
-version = "0.21.1"
+version = "0.22.0"
 edition = "2021"
 publish = true
 rust-version = "1.84.1"
@@ -12,10 +12,10 @@ repository = "https://github.com/staratlasmeta/star_frame"
 
 [workspace.dependencies]
 # Keep the version in sync with the workspace.package.version
-star_frame = { path = "star_frame", version = "0.21.1" }
-star_frame_idl = { path = "star_frame_idl", version = "0.21.1" }
-star_frame_spl = { path = "star_frame_spl", version = "0.21.1" }
-star_frame_proc = { path = "star_frame_proc", version = "0.21.1" }
+star_frame = { path = "star_frame", version = "0.22.0" }
+star_frame_idl = { path = "star_frame_idl", version = "0.22.0" }
+star_frame_spl = { path = "star_frame_spl", version = "0.22.0" }
+star_frame_proc = { path = "star_frame_proc", version = "0.22.0" }
 
 # Non workspace crates
 advancer = "^0.1.0"
