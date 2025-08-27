@@ -594,7 +594,7 @@ pub fn unsized_type(
 /// ```ignore
 /// #[unsized_impl(tag = <str>, ref_ident = <ident>, mut_ident = <ident>)]
 /// ```
-/// - `tag` - The tag for the impl block. This is used to avoid trait name collisions when using #[exclusive]
+/// - `tag` - The tag for the impl block. This is used to avoid trait name collisions when using `#[exclusive]`
 /// - `ref_ident` - Overrides the identifier for the `UnsizedType::Ref` type. Defaults to `<SelfTypeName>Ref`
 /// - `mut_ident` - Overrides the identifier for the `UnsizedType::Mut` type. Defaults to `<SelfTypeName>Mut`
 ///
@@ -602,14 +602,14 @@ pub fn unsized_type(
 ///
 /// All methods must be inherent impls on `&self` or `&mut self`.
 ///
-/// For methods that need to resize the data, take in `&mut self` and add `#[exclusive]` to the method name. This turns &mut self into an ExclusiveWrapper
+/// For methods that need to resize the data, take in `&mut self` and add `#[exclusive]` to the method name. This turns &mut self into an `ExclusiveWrapper`
 /// around the impl type. This generates a trait that is implemented on the ExclusiveWrapper. For multiple separate impl blocks, add `#[unsized_impl(tag = <str>)]`
 /// to avoid trait name collisions. The trait name for public methods is `<SelfTypeName>ExclusiveImpl<optional_tag>` and for private methods is `<SelfTypeName>ExclusiveImplPrivate<optional_tag>`.
 ///
-/// Non-exclusive methods will be called on the `UnsizedType::Ref` or `UnsizedType::Mut` types, with `&self`` methods being generated for both.
+/// Non-exclusive methods will be called on the `UnsizedType::Ref` or `UnsizedType::Mut` types, with `&self` methods being generated for both.
 /// To skip generating a shared impl on Mut, add `#[skip_mut]` to the method.
 ///
-/// # Usage
+/// # Example
 /// ```
 /// # fn main() {}
 /// use star_frame::prelude::*;
@@ -638,18 +638,21 @@ pub fn unsized_type(
 ///         self.items.len()
 ///     }
 ///
+///     // Implemented on Mut only
+///     pub fn set_sized(&mut self, item: u64) {
+///         self.sized_field = item;
+///     }
+///
 ///     #[exclusive]
-///     fn push(&mut self, item: u8) {
+///     fn push(&mut self, item: u8) -> Result<()> {
 ///         self.sized_field += item as u64;
 ///         // This is a method that needs to resize the data, so to access the field we use the method() version of the field name.
 ///         // This requires being called on an ExclusiveWrapper, which is created by adding #[exclusive] to the method.
-///         self.items().push(item);
+///         self.items().push(item)?;
+///         Ok(())
 ///     }
 /// }
 /// ```
-///
-/// This will generate implementations for both the sized and unsized variants
-/// of `DynamicList<T>`.
 #[proc_macro_error]
 #[proc_macro_attribute]
 pub fn unsized_impl(
