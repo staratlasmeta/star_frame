@@ -1,3 +1,7 @@
+//! Star Frame Program implementation for Solana's system program. Provides type-safe wrappers for most system program instructions.
+//!
+//! Currently missing the `with_seed` variants of instructions as they are not directly compatible with borsh.
+
 use crate::{empty_star_frame_instruction, prelude::*};
 #[allow(deprecated)]
 use pinocchio::sysvars::rent::Rent;

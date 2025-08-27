@@ -1,3 +1,4 @@
+//! `AccountSet` implementations for various types.
 mod account_info;
 mod array;
 mod boxed;

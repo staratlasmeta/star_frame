@@ -1,3 +1,10 @@
+//! Client-side utilities for working with Star Frame programs.
+//!
+//! This module provides convenient traits and functions for client applications to interact
+//! with Star Frame programs. It includes utilities for creating Solana instructions,
+//! working with program-derived addresses (PDAs), and serializing/deserializing data types
+//! and program accounts.
+
 use crate::{
     account_set::{
         account::discriminant::AccountDiscriminant,
