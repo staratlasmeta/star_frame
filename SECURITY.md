@@ -6,4 +6,4 @@ We are highly responsive to security reports and provide bug bounties for verifi
 
 ## Reporting a Vulnerability
 
-Please contact us at security@staratlas.com or on our discord at [discord.gg/staratlas](discord.gg/staratlas)
+Please contact us at security@staratlas.com or on our discord at [discord.gg/staratlas](https://discord.gg/staratlas)
