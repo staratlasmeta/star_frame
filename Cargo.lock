@@ -2179,9 +2179,9 @@ checksum = "8b870d8c151b6f2fb93e84a13146138f05d02ed11c7e7c54f8826aaaf7c9f184"
 
 [[package]]
 name = "pinocchio"
-version = "0.10.0"
-source = "registry+ssh://git@ssh.shipyard.rs/star-atlas/crate-index.git"
-checksum = "748aaeab83832a51cb975f9a23dbc7a9e1297fd5ff5b3e03f3b472754c824a3b"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0c3410a5d525f024b0aed7f8747e94e918c91ba64274a190e2365903e2c0b2e9"
 
 [[package]]
 name = "pkg-config"
