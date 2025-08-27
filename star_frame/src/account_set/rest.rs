@@ -1,3 +1,9 @@
+//! Variable-length account collections that consume remaining accounts.
+//!
+//! The `Rest<T>` type consumes all remaining accounts in an instruction's account list,
+//! parsing each one as type `T`. This is useful for instructions that need to process
+//! an unknown number of accounts determined at runtime.
+
 use crate::{
     account_set::{
         AccountSetCleanup, AccountSetDecode, AccountSetValidate, ClientAccountSet, CpiAccountSet,
@@ -6,6 +12,11 @@ use crate::{
 };
 use derive_more::{Deref, DerefMut};
 
+/// A wrapper that consumes all remaining accounts in an instruction, parsing each as type `T`.
+///
+/// This type is useful for instructions that need to process a variable number of accounts
+/// where the count is determined at runtime. During decoding, it continues reading accounts
+/// until none remain, parsing each one as the specified account type `T`.
 #[derive(AccountSet, Debug, Deref, DerefMut, Clone)]
 #[account_set(
     skip_cpi_account_set,

@@ -1,8 +1,10 @@
+//! A single account that is owned by the system program.
 use derive_more::{Deref, DerefMut};
 use star_frame::prelude::*;
 
 use crate::account_set::HasOwnerProgram;
 
+/// A single account that is owned by the system program.
 #[derive(AccountSet, Debug, Deref, DerefMut, Clone, Copy)]
 #[validate(extra_validation = self.check_id())]
 #[repr(transparent)]
