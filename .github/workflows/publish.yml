@@ -31,7 +31,7 @@ jobs:
       - name: Add cargo-release
         uses: taiki-e/install-action@v2
         with:
-          tool: cargo-release
+          tool: cargo-release@0.25.17
 
       - name: Configure Actions Bot
         uses: ./.github/actions/configure-actions-bot
