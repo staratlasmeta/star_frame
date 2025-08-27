@@ -1,3 +1,9 @@
+//! Ordered key-value map type for the unsized type system.
+//!
+//! This module provides [`Map<K, V, L>`], a sorted key-value map that stores pairs of keys and values
+//! with efficient lookup, insertion, and removal operations. The map maintains keys in sorted order
+//! and is implemented as a sorted list with binary search for O(log n) lookups.
+
 use crate::{
     prelude::*,
     unsize::{

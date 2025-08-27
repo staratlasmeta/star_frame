@@ -1,3 +1,10 @@
+//! Ordered key-value map type for variable-sized [`UnsizedType`] values.
+//!
+//! This module provides [`UnsizedMap<K, V>`], a sorted key-value map where values are variable-sized
+//! [`UnsizedType`]s. Unlike [`Map`] which stores fixed-size values,
+//! [`UnsizedMap`] uses an [`UnsizedList`] with ordered offsets to efficiently store and access
+//! variable-sized values while maintaining key sort order.
+
 use crate::{
     prelude::*,
     unsize::{

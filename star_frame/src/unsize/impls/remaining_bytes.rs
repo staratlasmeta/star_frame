@@ -1,3 +1,8 @@
+//! Raw byte buffer type that consumes all remaining data.
+//!
+//! This module provides [`RemainingBytes`], an unsized type that represents all remaining bytes
+//! in a data buffer. It's useful for handling unstructured data, variable-length content, or
+//! implementing custom parsing logic while working within the unsized type system.
 use crate::{
     align1::Align1,
     unsize::{

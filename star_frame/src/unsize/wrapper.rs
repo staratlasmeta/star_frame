@@ -1,3 +1,10 @@
+//! Safe wrappers for accessing and modifying unsized type data.
+//!
+//! This module provides [`SharedWrapper`] and [`ExclusiveWrapper`] types that enable safe access
+//! to unsized data structures stored in account buffers. The wrappers handle lifetime management,
+//! memory reallocation, and provide safe interfaces for reading and modifying dynamically-sized
+//! data while maintaining Rust's safety guarantees. Almost all interactions with the
+//! Unsized Type system will be through these wrappers.
 use super::{AsShared, UnsizedType};
 use crate::{
     account_set::single_set::SingleAccountSet,

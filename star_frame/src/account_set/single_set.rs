@@ -1,6 +1,6 @@
 //! Base trait for account sets containing exactly one account.
 //!
-//! The `SingleAccountSet` trait is the foundational building block for Star Frame's account system.
+//! The `SingleAccountSet` trait is a foundational building block for Star Frame's account system.
 //! It represents account sets that contain exactly one account and provides the base functionality
 //! that modifier types like `Signer<T>`, `Mut<T>`, and `Account<T>` build upon.
 
