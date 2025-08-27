@@ -5,17 +5,17 @@ members = ["star_*", "example_programs/*"]
 [workspace.package]
 version = "0.21.1"
 edition = "2021"
-publish = ["star-atlas"]
+publish = true
 rust-version = "1.84.1"
 license = "Apache-2.0"
 repository = "https://github.com/staratlasmeta/star_frame"
 
 [workspace.dependencies]
 # Keep the version in sync with the workspace.package.version
-star_frame = { path = "star_frame", registry = "star-atlas", version = "0.21.1" }
-star_frame_idl = { path = "star_frame_idl", registry = "star-atlas", version = "0.21.1" }
-star_frame_spl = { path = "star_frame_spl", registry = "star-atlas", version = "0.21.1" }
-star_frame_proc = { path = "star_frame_proc", registry = "star-atlas", version = "0.21.1" }
+star_frame = { path = "star_frame", version = "0.21.1" }
+star_frame_idl = { path = "star_frame_idl", version = "0.21.1" }
+star_frame_spl = { path = "star_frame_spl", version = "0.21.1" }
+star_frame_proc = { path = "star_frame_proc", version = "0.21.1" }
 
 # Non workspace crates
 advancer = "^0.1.0"

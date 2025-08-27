@@ -31,11 +31,6 @@ jobs:
         with:
           cache: 'false'
 
-      - uses: ./.github/actions/setup-shipyard
-        with:
-          ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
-          private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
-
       - name: Install cargo-release
         uses: taiki-e/install-action@v2
         with:

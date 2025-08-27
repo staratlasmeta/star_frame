@@ -28,12 +28,6 @@ jobs:
         with:
           cache-provider: 'warpbuild'
 
-      - name: Setup Shipyard
-        uses: ./.github/actions/setup-shipyard
-        with:
-          ssh-private-key: ${{ secrets.PRIVATE_REPO_SSH }}
-          private-repo-token: ${{ secrets.PRIVATE_REPO_TOKEN }}
-
       - name: Add cargo-release
         uses: taiki-e/install-action@v2
         with:
@@ -42,8 +36,11 @@ jobs:
       - name: Configure Actions Bot
         uses: ./.github/actions/configure-actions-bot
 
+      - name: Log in to Cargo
+        run: cargo login ${{ secrets.CRATES_IO_TOKEN }}
+
       - name: Run cargo release
-        run: cargo release --allow-branch 'main' --registry star-atlas --no-confirm -x
+        run: cargo release --allow-branch 'main' --no-confirm -x
 
       - id: version
         uses: ./.github/actions/detect-version
