@@ -1,14 +1,15 @@
-# Star Frame
+<h1 align="center">
+  <code>star_frame</code>
+</h1>
+<p align="center">
+  A high performance, trait based Solana Program framework
+</p>
 
-A high performance, trait based framework for Solana programs.
-
-TODO: Add more info/docs
-
-### Building with "latest" rust
-
-```sh
-cargo build-sbf --tools-version v1.41
-```
+<p align="center">
+  <a href="https://crates.io/crates/star_frame"><img src="https://img.shields.io/crates/v/star_frame?logo=rust" /></a>
+  <a href="https://docs.rs/star_frame"><img src="https://img.shields.io/docsrs/star_frame?logo=docsdotrs" /></a>
+  <a href="https://github.com/staratlasmeta/star_frame/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/staratlasmeta/star_frame/ci.yml?logo=GitHub" /></a>
+</p>
 
 ## Examples
 
@@ -112,3 +113,9 @@ impl StarFrameInstruction for Increment {
     }
 }
 ```
+
+---
+
+### License
+
+This project is licensed under the [Apache-2.0](LICENSE) license.
