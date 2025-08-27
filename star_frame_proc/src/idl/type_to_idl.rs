@@ -26,7 +26,7 @@ pub struct TypeToIdlFieldArgs {
     pub skip: bool,
 }
 
-pub fn derive_type_to_idl(input: DeriveInput) -> TokenStream {
+pub fn derive_type_to_idl(input: &DeriveInput) -> TokenStream {
     let Paths {
         type_to_idl_args_ident,
         ..
@@ -35,7 +35,7 @@ pub fn derive_type_to_idl(input: DeriveInput) -> TokenStream {
     let args = find_attr(&input.attrs, type_to_idl_args_ident)
         .map(TypeToIdlArgs::parse_arguments)
         .unwrap_or_default();
-    derive_type_to_idl_inner(&input, args)
+    derive_type_to_idl_inner(input, args)
 }
 
 pub fn derive_type_to_idl_inner(input: &DeriveInput, args: TypeToIdlArgs) -> TokenStream {

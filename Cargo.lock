@@ -4574,6 +4574,7 @@ name = "star_frame_proc"
 version = "0.22.1"
 dependencies = [
  "bs58",
+ "bytemuck",
  "daggy",
  "derive_more 2.0.1",
  "easy_proc",

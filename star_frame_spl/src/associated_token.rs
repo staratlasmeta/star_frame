@@ -148,7 +148,7 @@ pub mod instructions {
     #[derive(
         Copy, Clone, Debug, Eq, PartialEq, InstructionArgs, BorshDeserialize, BorshSerialize,
     )]
-    #[instruction_to_idl(program = AssociatedToken)]
+    #[type_to_idl(program = AssociatedToken)]
     pub struct Create;
     /// Accounts for the [`Create`] instruction.
     #[derive(Debug, Clone, AccountSet)]
@@ -175,7 +175,7 @@ pub mod instructions {
     #[derive(
         Copy, Clone, Debug, Eq, PartialEq, InstructionArgs, BorshDeserialize, BorshSerialize,
     )]
-    #[instruction_to_idl(program = AssociatedToken)]
+    #[type_to_idl(program = AssociatedToken)]
     pub struct CreateIdempotent;
     empty_star_frame_instruction!(CreateIdempotent, CreateAccounts);
 
@@ -184,7 +184,7 @@ pub mod instructions {
     #[derive(
         Copy, Clone, Debug, Eq, PartialEq, InstructionArgs, BorshDeserialize, BorshSerialize,
     )]
-    #[instruction_to_idl(program = AssociatedToken)]
+    #[type_to_idl(program = AssociatedToken)]
     pub struct RecoverNested;
     /// Accounts for the [`RecoverNested`] instruction.
     #[derive(Debug, Clone, AccountSet)]

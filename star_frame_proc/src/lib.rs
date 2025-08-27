@@ -18,6 +18,193 @@ use syn::{
     LitStr,
 };
 
+/// Derives `AccountSet` lifecycle traits and `AccountSetToIdl` for a struct.
+///
+/// The `AccountSet` proc macro generates implementations for the three core traits:
+/// - `AccountSetDecode` - Decodes accounts from `&[AccountInfo]` arrays
+/// - `AccountSetValidate` - Validates decoded accounts  
+/// - `AccountSetCleanup` - Performs cleanup operations after instruction execution
+///
+/// It also generates client-side implementations:
+/// - `CpiAccountSet` - Cross-program invocation account handling
+/// - `ClientAccountSet` - Client-side account metadata generation
+/// - `AccountSetToIdl
+///
+/// This macro creates a comprehensive account management system that handles account validation,
+/// decoding from account info arrays, cleanup operations, and IDL generation for Solana programs.
+///
+/// # Integration with StarFrameInstruction
+///
+/// When using AccountSet with `StarFrameInstruction`, the argument types specified in field-level
+/// attributes must correspond to the argument types from `InstructionArgs`. The `arg` parameter
+/// in field attributes should match the types available from the instruction's decode, validate,
+/// run, and cleanup argument types.
+///
+/// # Struct-level Attributes
+///
+/// ## `#[account_set(skip_client_account_set, skip_cpi_account_set, skip_default_decode, skip_default_validate, skip_default_cleanup, skip_default_idl)]`
+///
+/// Controls which implementations are generated:
+/// - `skip_client_account_set` - Skips generating `ClientAccountSet` implementation
+/// - `skip_cpi_account_set` - Skips generating `CpiAccountSet` implementation  
+/// - `skip_default_decode` - Skips generating default `AccountSetDecode` implementation
+/// - `skip_default_validate` - Skips generating default `AccountSetValidate` implementation
+/// - `skip_default_cleanup` - Skips generating default `AccountSetCleanup` implementation
+/// - `skip_default_idl` - Skips generating default IDL implementations
+///
+/// ## `#[decode(id = <str>, arg = <type>, generics = <generics>)]`
+///
+/// Define custom decode implementations with specific arguments:
+/// - `id = <str>` - Unique identifier for this decode variant (optional, defaults to no id)
+/// - `arg = <type>` - Type of argument passed to decode functions
+/// - `generics = <generics>` - Additional generic parameters for this decode implementation
+///
+/// ## `#[validate(id = <str>, arg = <type>, generics = <generics>, before_validation = <expr>, extra_validation = <expr>)]`
+///
+/// Define custom validation implementations:
+/// - `id = <str>` - Unique identifier for this validate variant (optional, defaults to no id)
+/// - `arg = <type>` - Type of argument passed to validate functions
+/// - `generics = <generics>` - Additional generic parameters for this validate implementation
+/// - `before_validation = <expr>` - Expression to execute before field validation
+/// - `extra_validation = <expr>` - Expression to execute after field validation
+///
+/// ## `#[cleanup(id = <str>, generics = <generics>, arg = <type>, extra_cleanup = <expr>)]`
+///
+/// Define custom cleanup implementations:
+/// - `id = <str>` - Unique identifier for this cleanup variant
+/// - `generics = <generics>` - Generic parameters for this cleanup implementation
+/// - `arg = <type>` - Type of argument passed to cleanup functions
+/// - `extra_cleanup = <expr>` - Cleanup expression to execute after field cleanup
+///
+/// ## `#[idl(id = <str>, arg = <type>, generics = <generics>)]`
+///
+/// Define custom IDL generation implementations:
+/// - `id = <str>` - Unique identifier for this IDL variant (optional, defaults to no id)
+/// - `arg = <type>` - Type of argument passed to IDL functions
+/// - `generics = <generics>` - Additional generic parameters for this IDL implementation
+///
+/// # Field-level Attributes
+///
+/// ## `#[account_set(skip = <TokenStream>)]`
+///
+/// Skip this field during account set processing. The field will be initialized with the provided default value.
+///
+/// ## `#[single_account_set(signer, writable, meta = <expr>, skip_*)]`
+///
+/// Mark a field as a single account set. This indicates that the AccountSet contains only one account
+/// and all account set traits should be passed through to this flagged field. Only one field can have this attribute.
+///
+/// Options:
+/// - `signer` - Mark this account as a signer
+/// - `writable` - Mark this account as writable  
+/// - `meta = <expr>` - Custom metadata expression
+/// - `skip_signed_account` - Skip `SignedAccount` trait implementation
+/// - `skip_writable_account` - Skip `WritableAccount` trait implementation
+/// - `skip_has_inner_type` - Skip `HasInnerType` trait implementation
+/// - `skip_has_owner_program` - Skip `HasOwnerProgram` trait implementation
+/// - `skip_has_seeds` - Skip `HasSeeds` trait implementation
+/// - `skip_can_init_seeds` - Skip `CanInitSeeds` trait implementation
+/// - `skip_can_init_account` - Skip `CanInitAccount` trait implementation
+///
+/// When a field is marked with `#[single_account_set]`, the generated AccountSet implementation will:
+/// - Implement `SingleAccountSet` and delegate to the marked field
+/// - Pass through `CpiAccountSet` and `ClientAccountSet` implementations
+/// - Forward trait implementations like `SignedAccount`, `WritableAccount`, `HasSeeds`, etc.
+///
+/// ## `#[validate(id = <str>, funder, recipient, skip, requires = [<field>, ...], arg = <expr>, temp = <expr>, arg_ty = <type>, address = <expr>)]`
+///
+/// Pass arguments to field validation:
+/// - `id = <str>` - Which validate variant this field participates in, to enable multiple `AccountSetValidate` implementations
+/// - `funder` - Mark this field as the funder for the Context cache (only one field can be marked as funder)
+/// - `recipient` - Mark this field as the recipient for the Context cache (only one field can be marked as recipient)
+/// - `skip` - Skip validation for this field
+/// - `requires = [<field>, ...]` - List of fields that must be validated before this field
+/// - `arg = <expr>` - Argument to pass to the field's `AccountSetValidate`` function
+/// - `temp = <expr>` - Temporary variable expression to use with `arg` (requires `arg` to be specified)
+/// - `arg_ty = <type>` - Type of the validation argument. Usually inferred, but can be specified to get better error messages
+/// - `address = <expr>` - Check that the field's key matches this address, expr must return a `&Pubkey`
+///
+/// ## `#[decode(id = <str>, arg = <expr>)]`
+///
+/// Pass arguments to field decoding:
+/// - `id = <str>` - Which decode variant this field participates in, to enable multiple `AccountSetDecode` implementations
+/// - `arg = <expr>` - Argument to pass to the field's `AccountSetDecode` function
+///
+/// ## `#[cleanup(id = <str>, arg = <expr>)]`
+///
+/// Pass arguments to field cleanup:
+/// - `id = <str>` - Which cleanup variant this field participates in, to enable multiple `AccountSetCleanup` implementations
+/// - `arg = <expr>` - Argument to pass to the field's `AccountSetCleanup` function
+///
+/// ## `#[idl(id = <str>, arg = <expr>, address = <expr>)]`
+///
+/// Pass arguments to IDL generation:
+/// - `id = <str>` - Which IDL variant this field participates in, to enable multiple `AccountSetToIdl` implementations
+/// - `arg = <expr>` - Argument to pass to the field's `AccountSetToIdl` function for IDL generation
+/// - `address = <expr>` - Address expression for single account IDL generation, expr must return a `Pubkey`
+///
+/// # Examples
+///
+/// ## Basic Account Set
+///
+/// ```
+/// # fn main() {}
+/// use star_frame::prelude::*;
+///
+/// #[derive(AccountSet)]
+/// pub struct BasicAccounts {
+///     pub authority: Signer,
+///     pub account: Mut<SystemAccount>,
+///     pub system_program: Program<System>,
+/// }
+/// ```
+///
+/// ## Account Set with Custom Arguments
+///
+/// ```
+/// # fn main() {}
+/// use star_frame::prelude::*;
+///
+/// #[derive(AccountSet)]
+/// #[decode(arg = usize)]
+/// #[validate(arg = String, extra_validation = self.check_authority(arg))]
+/// pub struct CustomAccounts {
+///     pub authority: Signer,
+///     // One of Vec's AccountSetDecode implementations takes in a usize to specify the number of accounts to decode, so it will try to decode `arg * 2` (for some reason?) accounts
+///     // which will be passed to the `AccountSetDecode` function from StarFrameInstruction as the decode arg
+///     #[decode(arg = arg * 2)]
+///     pub accounts: Vec<SystemAccount>,
+/// }
+///
+/// impl CustomAccounts {
+///     fn check_authority(&self, arg: String) -> Result<()> {
+///         todo!("check stuff")
+///     }
+/// }
+/// ```
+///
+/// By setting the decode arg to usize, and validate to String, any `StarFrameInstruction` using this set must have an `InstructionArgs` implementation that returns those types.
+///
+/// ## Single Account Set Newtype
+///
+/// ```
+/// # fn main() {}
+/// use star_frame::{prelude::*, derive_more};
+/// # #[derive(StarFrameProgram)]
+/// # #[program(instruction_set = (), id = System::ID, no_entrypoint)]
+/// # pub struct MyProgram;
+/// # #[derive(Align1, Pod, Zeroable, Default, Copy, Clone, Debug, ProgramAccount)]
+/// # #[repr(C, packed)]
+/// # pub struct CounterAccount { pub count: u64 }
+///
+/// #[derive(AccountSet, derive_more::Deref, derive_more::DerefMut, Debug)]
+/// pub struct WrappedCounter(#[single_account_set] Account<CounterAccount>);
+/// ```
+///
+/// This creates a newtype wrapper that implements `AccountSet` and passes through all account
+/// traits to the inner `Account<CounterAccount>`. The `signer` and `writable` flags modify
+/// the account's metadata for CPI and client usage. This will propagate all of the `account_set::modifier`
+/// marker traits from the inner account to the newtype.
 #[proc_macro_error]
 #[proc_macro_derive(
     AccountSet,
@@ -170,7 +357,42 @@ pub fn star_frame_instruction_set(item: proc_macro::TokenStream) -> proc_macro::
     out.into()
 }
 
-// todo: docs
+/// Derives `ProgramAccount` for a struct.
+///
+/// This macro generates implementations for account-related traits and optionally `AccountToIdl` and `TypeToIdl`.
+///
+/// # Attributes
+///
+/// ## `#[program_account(skip_idl, program = <ty>, seeds = <ty>, discriminant = <expr>)]` (item level attribute)
+///
+/// ### Arguments
+/// - `skip_idl` (presence) - If present, skips generating IDL implementations for this account
+/// - `program` (optional `Type`) - Specifies the program that owns this account type. Defaults to StarFrameDeclaredProgram at root of your crate
+///    (Defined by the `#[derive(StarFrameProgram)]` macro)
+/// - `seeds` (optional `Type`) - Specifies the seed type used to generate PDAs for this account
+/// - `discriminant` (optional `Expr`) - Custom discriminant value for the account type, overriding the Anchor style sighash
+///
+/// ### Usage
+/// ```
+/// # fn main() {}
+/// use star_frame::prelude::*;
+///
+/// # #[derive(StarFrameProgram)]
+/// # #[program(instruction_set = (), id = System::ID, no_entrypoint)]
+/// # pub struct MyProgram;
+///
+/// #[derive(ProgramAccount, Copy, Clone, CheckedBitPattern, NoUninit, Align1, Zeroable, Debug)]
+/// #[program_account(seeds = MyAccountSeeds)]
+/// #[repr(C, packed)]
+/// pub struct MyAccount {
+///     pub data: u64,
+/// }
+///
+/// #[derive(GetSeeds, Debug, Clone)]
+/// pub struct MyAccountSeeds {
+///     pub key: Pubkey,
+/// }
+/// ```
 #[proc_macro_error]
 #[proc_macro_derive(ProgramAccount, attributes(program_account, type_to_idl))]
 pub fn program_account(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
@@ -247,6 +469,113 @@ pub fn program(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     out.into()
 }
 
+/// Generates unsized type wrappers for dynamic-length structs and enums in a way that emulates normal rust syntax.
+///
+/// This attribute macro creates wrapper structs and their `UnsizedType` implementations for handling variable-length data
+/// on-chain, such as dynamic lists or maps.
+///
+/// # Arguments
+/// ```ignore
+/// #[unsized_type(
+///     owned_attributes = [derive(...)],
+///     owned_type = <ty>,
+///     owned_from_ref = <path>,
+///     sized_attributes = [derive(...)],
+///     program_account,
+///     skip_idl,
+///     skip_phantom_generics,
+///     skip_init_struct,
+///     program = <ty>,
+///     seeds = <ty>,
+///     discriminant = <expr>
+/// )]
+/// ```
+/// - `owned_attributes` - Additional attributes to apply to the `UnsizedType::Owned` variant
+/// - `sized_attributes` - Additional attributes to apply to the generated Sized portion of the struct
+/// - `owned_type` - Override the type for the `UnsizedType::Owned` variant
+/// - `owned_from_ref` - Override the function to convert from reference to `UnsizedType::Owned`
+/// - `program_account` - Mark as a program account, deriving the `ProgramAccount` and `AccountToIdl` traits
+/// - `skip_idl` - Skips `TypeToIdl`/`AccountToIdl` generation
+/// - `skip_phantom_generics` - Skip phantom generic parameters in the generated Sized struct
+/// - `skip_init_struct` - Skip generating initialization struct for `UnsizedInit<MyStructInit>`
+/// - `program` - Override the program that owns this account type
+/// - `seeds` - Seed type for HasSeeds. Requires `program_account` to be present.
+/// - `discriminant` - Custom discriminant value, overrides the Anchor style sighash
+///
+/// # Example Struct
+///
+/// ```
+/// use star_frame::prelude::*;
+///
+/// # #[derive(StarFrameProgram)]
+/// # #[program(instruction_set = (), id = System::ID, no_entrypoint)]
+/// # pub struct MyProgram;
+///
+/// #[unsized_type(program_account)]
+/// pub struct MyAccount {
+///     pub sized_field: u64,
+///     pub another_sized_field: bool,
+///     #[unsized_start]
+///     pub bytes: List<u8>,
+///     pub map: Map<Pubkey, [u8; 10]>,
+/// }
+///
+/// # fn main() -> Result<()> {
+/// let account = TestByteSet::<MyAccount>::new_default()?; // Get from program entrypoint or use `TestByteSet`
+/// let mut data = account.data_mut()?;
+/// data.map().insert(Pubkey::new_unique(), [0; 10]); // To resize a field, access it with the method() version of the field name
+/// data.bytes().push(10);
+/// data.bytes[0] = 10;
+/// let len = data.bytes().len(); // To just read or write to the field without resizing, you can access the field like a normal struct.
+/// # Ok(())
+/// # }
+/// ```
+///
+/// # Example Enum
+///
+/// ```
+/// use star_frame::prelude::*;
+///
+/// # #[derive(StarFrameProgram)]
+/// # #[program(instruction_set = (), id = System::ID, no_entrypoint)]
+/// # pub struct MyProgram;
+///
+/// #[unsized_type]
+/// pub struct MyUnsizedType {
+///     pub sized: u64,
+///     #[unsized_start]
+///     pub map: Map<Pubkey, u8>,
+/// }
+///
+/// #[unsized_type]
+/// #[repr(u8)]
+/// pub enum MyEnum {
+///     #[default_init]
+///     UnitVariant,
+///     SizedPubkey(Pubkey),
+///     Unsized(MyUnsizedType),
+/// }
+///
+/// # fn main() -> Result<()> {
+/// let account = TestByteSet::<MyEnum>::new_default()?;
+/// let mut data = account.data_mut()?;
+/// assert!(matches!(**data, MyEnumMut::UnitVariant));
+/// let new_key = Pubkey::new_unique();
+/// let mut the_key = data.set_sized_pubkey(new_key)?;
+/// assert!(matches!(**the_key, new_key));
+///
+/// let _unsized_inner = data.set_unsized(DefaultInit)?;
+///
+/// // You can also call `.get()` to get an exclusive wrapper version of the inner.
+/// let MyEnumExclusive::Unsized(mut unsized_inner) = data.get() else {
+///     panic!("Expected Unsized variant");
+/// };
+/// unsized_inner.map().insert(new_key, 10);
+///
+/// # Ok(())
+/// # }
+///
+/// ```
 #[proc_macro_error]
 #[proc_macro_attribute]
 pub fn unsized_type(
@@ -257,6 +586,73 @@ pub fn unsized_type(
     out.into()
 }
 
+/// Generates an impl block for an unsized type using standard rust syntax.
+///
+/// This generates the neccesary boilerplate to work with `UnsizedType`s.
+///
+/// # Arguments
+/// ```ignore
+/// #[unsized_impl(tag = <str>, ref_ident = <ident>, mut_ident = <ident>)]
+/// ```
+/// - `tag` - The tag for the impl block. This is used to avoid trait name collisions when using `#[exclusive]`
+/// - `ref_ident` - Overrides the identifier for the `UnsizedType::Ref` type. Defaults to `<SelfTypeName>Ref`
+/// - `mut_ident` - Overrides the identifier for the `UnsizedType::Mut` type. Defaults to `<SelfTypeName>Mut`
+///
+/// # Usage
+///
+/// All methods must be inherent impls on `&self` or `&mut self`.
+///
+/// For methods that need to resize the data, take in `&mut self` and add `#[exclusive]` to the method name. This turns &mut self into an `ExclusiveWrapper`
+/// around the impl type. This generates a trait that is implemented on the ExclusiveWrapper. For multiple separate impl blocks, add `#[unsized_impl(tag = <str>)]`
+/// to avoid trait name collisions. The trait name for public methods is `<SelfTypeName>ExclusiveImpl<optional_tag>` and for private methods is `<SelfTypeName>ExclusiveImplPrivate<optional_tag>`.
+///
+/// Non-exclusive methods will be called on the `UnsizedType::Ref` or `UnsizedType::Mut` types, with `&self` methods being generated for both.
+/// To skip generating a shared impl on Mut, add `#[skip_mut]` to the method.
+///
+/// # Example
+/// ```
+/// # fn main() {}
+/// use star_frame::prelude::*;
+///
+/// # #[derive(StarFrameProgram)]
+/// # #[program(instruction_set = (), id = System::ID, no_entrypoint)]
+/// # pub struct MyProgram;
+///
+/// #[unsized_type]
+/// pub struct MyStruct {
+///     pub sized_field: u64,
+///     #[unsized_start]
+///     pub items: List<u8>,
+/// }
+///
+/// #[unsized_impl]
+/// impl MyStruct {
+///     // Implemented on both Ref and Mut
+///     pub fn len(&self) -> usize {
+///         self.items.len()
+///     }
+///
+///     // Implemented on Ref only
+///     #[skip_mut]
+///     fn len_shared_only(&self) -> usize {
+///         self.items.len()
+///     }
+///
+///     // Implemented on Mut only
+///     pub fn set_sized(&mut self, item: u64) {
+///         self.sized_field = item;
+///     }
+///
+///     #[exclusive]
+///     fn push(&mut self, item: u8) -> Result<()> {
+///         self.sized_field += item as u64;
+///         // This is a method that needs to resize the data, so to access the field we use the method() version of the field name.
+///         // This requires being called on an ExclusiveWrapper, which is created by adding #[exclusive] to the method.
+///         self.items().push(item)?;
+///         Ok(())
+///     }
+/// }
+/// ```
 #[proc_macro_error]
 #[proc_macro_attribute]
 pub fn unsized_impl(
@@ -346,6 +742,7 @@ pub fn unsized_impl(
 /// ```
 /// use star_frame::prelude::*;
 /// use star_frame::static_assertions::assert_type_eq_all;
+///
 /// #[derive(Copy, Clone, Default, InstructionArgs)]
 /// #[ix_args(decode)]
 /// pub struct Ix3 {
@@ -370,10 +767,7 @@ pub fn unsized_impl(
 /// );
 /// ```
 #[proc_macro_error]
-#[proc_macro_derive(
-    InstructionArgs,
-    attributes(ix_args, instruction_to_idl, type_to_idl, instruction_args)
-)]
+#[proc_macro_derive(InstructionArgs, attributes(ix_args, type_to_idl, instruction_args))]
 pub fn derive_instruction_args(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let out =
         instruction_args::derive_instruction_args_impl(parse_macro_input!(input as DeriveInput));
@@ -381,17 +775,58 @@ pub fn derive_instruction_args(input: proc_macro::TokenStream) -> proc_macro::To
 }
 
 /// Derives `TypeToIdl` for a valid type.
-// todo: docs
+///
+/// This macro generates `TypeToIdl` for a type.
+///
+/// # Attributes
+///
+/// ## `#[type_to_idl(skip)]` (item level attribute)
+///
+/// If present, this field and all remaining fields will be skipped in the IDL definition.
+///
+/// # Example
+/// ```
+/// # fn main() {}
+/// use star_frame::prelude::*;
+///
+/// # #[derive(StarFrameProgram)]
+/// # #[program(instruction_set = (), id = System::ID, no_entrypoint)]
+/// # pub struct MyProgram;
+///
+/// #[derive(TypeToIdl)]
+/// pub struct MyData {
+///     pub value: u64,
+///     pub name: String,
+/// }
+/// ```
 #[proc_macro_error]
 #[proc_macro_derive(TypeToIdl, attributes(type_to_idl))]
 pub fn derive_type_to_idl(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let out = idl::derive_type_to_idl(parse_macro_input!(item as DeriveInput));
+    let out = idl::derive_type_to_idl(&parse_macro_input!(item as DeriveInput));
     out.into()
 }
 
-// todo: docs
+/// Derives `InstructionToIdl` for instruction types.
+///
+/// This macro generates `InstructionToIdl` for a type. The trait requires `TypeToIdl` to be implemented as well.
+///
+/// # Example
+/// ```
+/// use star_frame::prelude::*;
+///
+/// # #[derive(StarFrameProgram)]
+/// # #[program(instruction_set = (), id = System::ID, no_entrypoint)]
+/// # pub struct MyProgram;
+///
+/// #[derive(InstructionToIdl)]
+/// #[derive(TypeToIdl)]
+/// pub struct MyInstruction {
+///     pub amount: u64,
+///     pub recipient: Pubkey,
+/// }
+/// ```
 #[proc_macro_error]
-#[proc_macro_derive(InstructionToIdl, attributes(instruction_to_idl, type_to_idl))]
+#[proc_macro_derive(InstructionToIdl)]
 pub fn derive_instruction_to_idl(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let out = idl::derive_instruction_to_idl(&parse_macro_input!(input as DeriveInput));
     out.into()

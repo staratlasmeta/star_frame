@@ -32,6 +32,7 @@ sha2 = { workspace = true }
 [dev-dependencies]
 pretty_assertions = { workspace = true }
 star_frame = { path = "../star_frame", features = ["test_helpers", "idl"] }
+bytemuck = { workspace = true }
 
 [package.metadata.cargo-udeps.ignore]
 development = ["star_frame"]

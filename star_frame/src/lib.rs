@@ -14,10 +14,10 @@
 //!
 //! # Getting Started
 //!
-//! Add `star_frame` to your `Cargo.toml`:
+//! Add `star_frame` and `bytemuck` to your `Cargo.toml`:
 //!
 //! ```shell
-//! cargo add star_frame
+//! cargo add star_frame bytemuck
 //! ```
 //!
 //! # Lifecycle of a Star Frame Transaction
@@ -25,7 +25,7 @@
 //! Understanding how Star Frame processes transactions is crucial for effectively using the library.
 //! Here's the complete lifecycle of a Star Frame transaction:
 //!
-//! ### 1. Program Entrypoint
+//! ## 1. Program Entrypoint
 //!
 //! The [`StarFrameProgram`](crate::program::StarFrameProgram) derive macro generates the program entrypoint:
 //!
@@ -41,7 +41,7 @@
 //! The [`StarFrameProgram::entrypoint`](crate::program::StarFrameProgram::entrypoint)'s default implementation calls in to the
 //! [`InstructionSet::dispatch`](crate::instruction::InstructionSet::dispatch) method.
 //!
-//! ### 2. Instruction Set Dispatch
+//! ## 2. Instruction Set Dispatch
 //!
 //! The [`InstructionSet`](crate::instruction::InstructionSet) derive macro defines instruction discriminants and generates dispatch logic:
 //!
@@ -58,7 +58,7 @@
 //! - Matches on the instruction discriminant from the instruction data
 //! - Calls [`Instruction::process_from_raw`](crate::instruction::Instruction::process_from_raw) for the matched instruction
 //!
-//! ### 3. Instruction Processing
+//! ## 3. Instruction Processing
 //!
 //! The [`Instruction`](crate::instruction::Instruction) trait provides the low-level interface for instruction processing,
 //! but it's rough and requires manual handling of raw account data and instruction bytes. In most cases, you should
@@ -69,7 +69,7 @@
 //! - Better error handling and validation
 //! - Return data handling
 //!
-//! ### 4. Instruction Data Parsing
+//! ## 4. Instruction Data Parsing
 //!
 //! Instructions implement [`BorshDeserialize`](borsh::BorshDeserialize) (to parse the instruction data), and [`InstructionArgs`](crate::instruction::InstructionArgs)
 //! (to split the data into `AccountSet` lifecycle arguments). See the [`InstructionArgs`](crate::instruction::InstructionArgs) trait for more information.
@@ -82,7 +82,7 @@
 //! }
 //! ```
 //!
-//! ### 4. Account Set Validation
+//! ## 5. Account Set Validation
 //!
 //! Accounts are validated through [`AccountSet`](crate::account_set::AccountSet) traits with compile-time and runtime checks:
 //!
@@ -100,7 +100,7 @@
 //! }
 //! ```
 //!
-//! ### 5. Instruction Processing
+//! ## 6. Instruction Processing
 //!
 //! Finally, [`StarFrameInstruction::process`](crate::instruction::StarFrameInstruction::process) executes the instruction logic:
 //!
@@ -121,11 +121,11 @@
 //!     }
 //! }
 //! ```
-//!//! ### 6. Defining Program Accounts
+//! ## 7. Defining Program Accounts
 //!
 //! Star Frame provides multiple ways to define program accounts for different use cases:
 //!
-//! #### Basic Account with Standard Derive
+//! ### Basic Account with Standard Derive
 //!
 //! For statically sized accounts, use the standard `ProgramAccount` derive with Bytemuck:
 //!
@@ -146,7 +146,7 @@
 //! }
 //! ```
 //!
-//! #### Unsized Accounts with the Unsized Type system
+//! ### Unsized Accounts with the Unsized Type system
 //!
 //! For accounts with variable-size data like vectors or dynamic strings, use `#[unsized_type]`:
 //!
@@ -160,7 +160,7 @@
 //! ```
 //! Check out the [`unsize`] module for more details.
 //!
-//! ### 7. Putting it all together
+//! ## 8. Putting it all together
 //!
 //! You can check out our [example programs](https://github.com/staratlasmeta/star_frame/tree/main/example_programs) for more information,
 //! and the [simple counter example](https://github.com/staratlasmeta/star_frame/blob/main/example_programs/simple_counter/src/lib.rs) for how these steps are
@@ -173,16 +173,16 @@
 //! IDLs are JSON files that describe your program's interface, making it easier for clients to interact with your program.
 //! Check out the [Codama](https://github.com/codama-idl/codama) for more information on generating clients and using the IDL.
 //!
-//! ### Enabling IDL Generation
+//! ## Enabling IDL Generation
 //!
 //! Add the `idl` feature to your `Cargo.toml`:
 //!
 //! ```toml
 //! [dependencies]
-//! star_frame = { version = "0.1", features = ["idl"] }
+//! star_frame = { version = "*", features = ["idl"] }
 //! ```
 //!
-//! ### Generating an IDL
+//! ## Generating an IDL
 //!
 //! Programs that derive [`StarFrameProgram`](crate::program::StarFrameProgram) automatically implement
 //! [`ProgramToIdl`](crate::idl::ProgramToIdl). You can create a test to generate the IDL:

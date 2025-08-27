@@ -32,10 +32,10 @@ Star Frame is in active development (and improving our docs is a main priority n
 
 ## Getting Started
 
-Add `star_frame` to your `Cargo.toml`:
+Add `star_frame` and `bytemuck` to your `Cargo.toml`:
 
 ```shell
-cargo add star_frame
+cargo add star_frame bytemuck
 ```
 
 Use the `prelude` to import the most commonly used traits and macros:

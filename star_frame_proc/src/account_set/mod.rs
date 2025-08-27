@@ -57,7 +57,8 @@ struct SingleAccountSetFieldArgs {
 pub fn derive_account_set_impl(input: DeriveInput) -> TokenStream {
     let paths = Paths::default();
 
-    let account_set_generics = generics::account_set_generics(input.generics);
+    let account_set_generics: generics::AccountSetGenerics =
+        generics::account_set_generics(input.generics);
     let account_set_struct_args = find_attr(&input.attrs, &paths.account_set_ident)
         .map(AccountSetStructArgs::parse_arguments)
         .unwrap_or_default();
