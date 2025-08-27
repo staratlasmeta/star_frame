@@ -34,9 +34,8 @@ Star Frame is in active development (and improving our docs is a main priority n
 
 Add `star_frame` to your `Cargo.toml`:
 
-```toml
-[dependencies]
-star_frame = "0.21"
+```shell
+cargo add star_frame
 ```
 
 Use the `prelude` to import the most commonly used traits and macros:
