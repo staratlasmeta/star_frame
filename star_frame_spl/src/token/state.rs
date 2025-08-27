@@ -97,7 +97,7 @@ impl MintAccount {
         Ref::try_map(self.account_data()?, |data| {
             bytemuck::checked::try_from_bytes::<MintAccountData>(data)
         })
-        .map_err(Into::into)
+        .map_err(|e| e.1.into())
     }
 
     #[inline]
@@ -348,7 +348,7 @@ impl TokenAccount {
         Ref::try_map(self.account_data()?, |data| {
             bytemuck::checked::try_from_bytes::<TokenAccountData>(data)
         })
-        .map_err(Into::into)
+        .map_err(|e| e.1.into())
     }
 
     #[inline]
