@@ -1,3 +1,9 @@
+//! Account modifier for Program Derived Address (PDA) validation and management.
+//!
+//! The `Seeded<T>` modifier wraps accounts that are derived from seeds using Solana's PDA system.
+//! It automatically validates that the provided account matches the expected PDA derived from the
+//! given seeds and program, and can generate the correct PDA addresses for account creation.
+
 use crate::{
     account_set::{
         modifiers::{CanInitAccount, CanInitSeeds, HasSeeds, SignedAccount},
@@ -63,6 +69,7 @@ where
     }
 }
 
+/// A combination of seeds and bump value for deterministic PDA generation.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Default, Hash, PartialOrd, Ord)]
 pub struct SeedsWithBump<T: GetSeeds> {
     pub seeds: T,
@@ -87,6 +94,7 @@ where
     }
 }
 
+/// Wrapper type for seed validation arguments.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Hash, PartialOrd, Ord)]
 #[repr(transparent)]
 pub struct Seeds<T>(pub T);
@@ -96,6 +104,7 @@ pub struct Seeds<T>(pub T);
 /// the [`Init`] account set.
 #[derive(Debug, Clone, Copy)]
 pub struct CurrentProgram;
+/// Trait for types that can provide a program ID for PDA derivation.
 pub trait SeedProgram {
     fn id(ctx: &Context) -> Result<Pubkey>;
     #[cfg(all(feature = "idl", not(target_os = "solana")))]
@@ -126,6 +135,11 @@ where
     }
 }
 
+/// A modifier that validates accounts are derived from the expected seeds using Solana's PDA system.
+///
+/// This wrapper ensures that the provided account matches the Program Derived Address (PDA) that
+/// would be generated from the given seeds and program. It supports validation with both automatic
+/// bump discovery and explicit bump values, making it suitable for both account lookup and creation scenarios.
 #[derive(AccountSet, Deref, DerefMut, derive_where::DeriveWhere)]
 #[derive_where(Debug, Clone; T, SeedsWithBump<S>)]
 #[account_set(skip_default_idl, skip_default_validate)]

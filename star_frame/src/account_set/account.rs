@@ -1,3 +1,7 @@
+//! A single program account that contains an [`UnsizedType`].
+//!
+//! Calls [`ProgramAccount::validate_account_info`] during validation to ensure the owner and discriminant match.
+
 use crate::{
     account_set::{
         modifiers::{

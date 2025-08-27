@@ -1,3 +1,9 @@
+//! Initialization traits for unsized types with compile-time size guarantees.
+//!
+//! This module provides traits for initializing unsized types from statically-sized arguments,
+//! enabling safe initialization of dynamically-sized data structures with known initialization
+//! requirements. The `UnsizedInit` trait ensures memory allocation is predictable at compile-time.
+
 use super::UnsizedType;
 use crate::Result;
 use bytemuck::Zeroable;

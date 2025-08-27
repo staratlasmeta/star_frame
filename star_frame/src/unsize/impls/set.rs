@@ -1,3 +1,8 @@
+//! Ordered set type for storing unique elements.
+//!
+//! This module provides [`Set<T, L>`], a sorted collection of unique elements that maintains
+//! insertion order and provides efficient membership testing. The set is implemented as a
+//! sorted list with binary search for O(log n) operations and uses [`BTreeSet`] as its owned type.
 use crate::{
     prelude::*,
     unsize::{

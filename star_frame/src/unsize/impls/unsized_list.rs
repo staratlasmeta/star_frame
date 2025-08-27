@@ -1,3 +1,9 @@
+//! Dynamic array type for variable-sized [`UnsizedType`] elements.
+//!
+//! This module provides [`UnsizedList<T, C>`], a list that can store variable-sized elements where
+//! each element is itself an [`UnsizedType`]. Unlike [`List`](crate::unsize::impls::List) which stores fixed-size elements,
+//! [`UnsizedList`] uses an offset table to track the location of each variable-sized element.
+
 use crate::{
     align1::Align1,
     data_types::PackedValue,

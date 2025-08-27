@@ -1,3 +1,8 @@
+//! Account modifier for signature validation and signer requirements.
+//!
+//! The `Signer<T>` modifier wraps accounts that must be signed by their corresponding private key.
+//! It validates that the account was included as a signer in the transaction.
+
 use crate::{
     account_set::{
         modifiers::{CanInitSeeds, SignedAccount},
@@ -8,6 +13,11 @@ use crate::{
 };
 use derive_more::{Deref, DerefMut};
 
+/// A conditionally signed account modifier that validates signature requirements.
+///
+/// This type wraps another account type and adds signature validation when `SIGNER` is true.
+/// It's primarily used through the `Signer<T>` type alias which sets `SIGNER` to true, ensuring
+/// the wrapped account must be signed in the transaction.
 #[derive(AccountSet, Copy, Clone, Debug, Deref, DerefMut)]
 #[repr(transparent)]
 #[account_set(skip_default_idl)]

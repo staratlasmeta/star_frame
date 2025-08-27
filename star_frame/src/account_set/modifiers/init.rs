@@ -1,3 +1,9 @@
+//! Account modifier for initializing new program accounts.
+//!
+//! The `Init<T>` modifier wraps account types that need to be created or initialized during
+//! instruction execution. It handles the account creation process including seed initialization
+//! and account initialization, with support for both required creation and conditional creation.
+
 use crate::{
     account_set::modifiers::{CanInitAccount, CanInitSeeds},
     prelude::*,
@@ -5,6 +11,11 @@ use crate::{
 use anyhow::Context as _;
 use derive_more::{Deref, DerefMut};
 
+/// A modifier that handles account initialization and creation during instruction execution.
+///
+/// This wrapper enables accounts to be created or initialized as part of instruction processing.
+/// It supports different creation modes through validation arguments like `Create<T>` and
+/// `CreateIfNeeded<T>`, automatically handling seed initialization and account creation.
 #[derive(AccountSet, Clone, Debug, Deref, DerefMut)]
 #[repr(transparent)]
 #[account_set(skip_default_idl, skip_default_validate)]
@@ -51,9 +62,18 @@ pub struct Init<T>(
     T,
 );
 
+/// Validation argument for `Init<T>` that requires account creation.
+///
+/// When used with `Init<T>`, this argument ensures the account will be created during
+/// instruction execution. The instruction will fail if the account already exists.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
 #[repr(transparent)]
 pub struct Create<T>(pub T);
+
+/// Validation argument for `Init<T>` that conditionally creates accounts.
+///
+/// When used with `Init<T>`, this argument creates the account only if it doesn't already exist.
+/// If the account exists, the instruction continues without error.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
 #[repr(transparent)]
 pub struct CreateIfNeeded<T>(pub T);

@@ -1,3 +1,9 @@
+//! Typed wrapper for program accounts in instruction contexts.
+//!
+//! The `Program<T>` type represents a reference to a specific Star Frame program within an instruction's
+//! account set. It automatically validates that the provided account matches the expected program ID
+//! and provides type-safe access to program-specific functionality.
+
 use crate::{
     account_set::{AccountSetDecode, ClientAccountSet},
     prelude::*,
@@ -7,6 +13,11 @@ use anyhow::Context as _;
 use ref_cast::{ref_cast_custom, RefCastCustom};
 use std::marker::PhantomData;
 
+/// A typed wrapper for a program account that validates the program ID matches the expected ID.
+///
+/// This type is used in instruction account sets to represent a specific Star Frame program account.
+/// During validation, it ensures the provided account's public key matches `T::ID`, preventing
+/// incorrect program references in cross-program invocations or instruction contexts.
 #[derive(AccountSet, Debug, RefCastCustom, derive_where::DeriveWhere)]
 #[derive_where(Clone, Copy)]
 #[account_set(skip_default_decode, skip_client_account_set)]

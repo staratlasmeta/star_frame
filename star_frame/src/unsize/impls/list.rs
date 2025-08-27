@@ -1,3 +1,9 @@
+//! Dynamic array type for the unsized type system.
+//!
+//! This module provides [`List<T, L>`], a dynamically-sized array that stores elements of type `T`
+//! with a length field of type `L`. The list supports efficient insertion, removal, and access
+//! operations while maintaining type safety and memory efficiency within account storage constraints.
+
 use crate::{
     align1::Align1,
     data_types::PackedValue,

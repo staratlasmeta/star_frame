@@ -1,3 +1,8 @@
+//! Blanket [`UnsizedType`] implementation for types with validated bit patterns.
+//!
+//! This module provides a blanket [`UnsizedType`] implementation for any type `T` that implements
+//! [`CheckedBitPattern`] + [`NoUninit`] + [`Align1`]. This enables any such type to automatically work
+//! within the unsized type system with runtime validation for data integrity.
 use crate::{
     align1::Align1,
     unsize::{

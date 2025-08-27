@@ -1,3 +1,9 @@
+//! Base trait for account sets containing exactly one account.
+//!
+//! The `SingleAccountSet` trait is a foundational building block for Star Frame's account system.
+//! It represents account sets that contain exactly one account and provides the base functionality
+//! that modifier types like `Signer<T>`, `Mut<T>`, and `Account<T>` build upon.
+
 use std::cmp::Ordering;
 
 use crate::{
@@ -12,6 +18,7 @@ use crate::{
 use anyhow::Context as _;
 use pinocchio::account_info::{Ref, RefMut};
 
+/// Metadata associated with a single account, describing its mutability and signing requirements.
 #[derive(Debug, Clone, Copy)]
 pub struct SingleSetMeta {
     pub signer: bool,
@@ -28,7 +35,12 @@ impl SingleSetMeta {
     }
 }
 
-/// An [`AccountSet`] that contains exactly 1 account.
+/// Base trait for account sets that contain exactly one account.
+///
+/// This trait serves as the foundation for all single-account types in Star Frame's account system.
+/// Modifier types like `Signer<T>`, `Mut<T>`, `Account<T>`, and others require their inner type `T`
+/// to implement `SingleAccountSet`, allowing them to add additional validation and behavior while
+/// preserving access to the underlying account.
 pub trait SingleAccountSet {
     /// Associated metadata for the account set
     fn meta() -> SingleSetMeta
