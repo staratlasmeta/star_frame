@@ -3,9 +3,7 @@ name: Publish
 on:
   workflow_call:
     secrets:
-      PRIVATE_REPO_SSH:
-        required: true
-      PRIVATE_REPO_TOKEN:
+      CRATES_IO_TOKEN:
         required: true
   workflow_dispatch:
 
