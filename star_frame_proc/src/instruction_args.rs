@@ -11,7 +11,7 @@ use syn::{
 };
 
 use crate::{
-    idl::derive_instruction_to_idl,
+    idl::{derive_instruction_to_idl, derive_type_to_idl},
     util::{ensure_data_struct, new_lifetime, reject_generics, Paths},
 };
 
@@ -112,7 +112,14 @@ fn idl_impl(input: &DeriveInput) -> Option<TokenStream> {
         .map(InstructionArgsArgs::parse_arguments)
         .unwrap_or_default();
 
-    (!args.skip_idl).then(|| derive_instruction_to_idl(input))
+    (!args.skip_idl).then(|| {
+        let instruction_to_idl = derive_instruction_to_idl(input);
+        let type_to_idl = derive_type_to_idl(input);
+        quote! {
+            #instruction_to_idl
+            #type_to_idl
+        }
+    })
 }
 
 pub fn derive_instruction_args_impl(input: DeriveInput) -> TokenStream {

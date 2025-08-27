@@ -1,19 +1,10 @@
-use crate::{
-    idl::{derive_type_to_idl_inner, TypeToIdlArgs},
-    util::{ignore_cfg_module, new_generic, reject_attributes, reject_generics, Paths},
-};
-use easy_proc::{find_attr, ArgumentList};
+use crate::util::{ignore_cfg_module, new_generic, reject_generics, Paths};
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{parse_quote, DeriveInput};
 
 pub fn derive_instruction_to_idl(input: &DeriveInput) -> TokenStream {
-    let Paths {
-        instruction_to_idl_args_ident,
-        type_to_idl_args_ident,
-        prelude,
-        ..
-    } = &Paths::default();
+    Paths!(prelude);
     reject_generics(
         input,
         Some("Generics are not supported yet for InstructionToIdl"),
@@ -21,12 +12,6 @@ pub fn derive_instruction_to_idl(input: &DeriveInput) -> TokenStream {
 
     let ident = &input.ident;
 
-    let args = find_attr(&input.attrs, instruction_to_idl_args_ident)
-        .map(TypeToIdlArgs::parse_arguments)
-        .unwrap_or_default();
-
-    reject_attributes(&input.attrs, type_to_idl_args_ident, None);
-    let type_to_idl_derivation = derive_type_to_idl_inner(input, args);
     let mut generics = input.generics.clone();
     let where_clause = generics.make_where_clause();
 
@@ -36,7 +21,7 @@ pub fn derive_instruction_to_idl(input: &DeriveInput) -> TokenStream {
         parse_quote!(<Self as #prelude::StarFrameInstruction>::Accounts<'b, 'c>: #prelude::AccountSetToIdl<#generic_arg>),
     );
 
-    let ix_to_idl_impl = ignore_cfg_module(
+    ignore_cfg_module(
         ident,
         "_instruction_to_idl",
         quote! {
@@ -54,10 +39,5 @@ pub fn derive_instruction_to_idl(input: &DeriveInput) -> TokenStream {
                 }
             }
         },
-    );
-
-    quote! {
-        #type_to_idl_derivation
-        #ix_to_idl_impl
-    }
+    )
 }
