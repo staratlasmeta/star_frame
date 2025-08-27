@@ -6,7 +6,7 @@ use crate::prelude::*;
 
 pub use star_frame_proc::StarFrameProgram;
 
-/// A Solana program's definition. This should be derived using the [`StarFrameProgram`](derive@StarFrameProgram) macro,
+/// A Solana program's definition and the main entrypoint in to a Star Frame program. This should be derived using the [`StarFrameProgram`](derive@StarFrameProgram) macro,
 /// since it does more than just implement this trait.
 pub trait StarFrameProgram {
     /// The instruction set used by this program.
@@ -16,7 +16,7 @@ pub trait StarFrameProgram {
 
     const ID: Pubkey;
 
-    /// The entrypoint for the program. This has the same signature as the Solana program entrypoint, and
+    /// The entrypoint for the program which calls in to [`InstructionSet::dispatch`] on [`Self::InstructionSet`]. This has the same signature as the Solana program entrypoint, and
     /// is called by [`star_frame_entrypoint`](crate::star_frame_entrypoint) macro.
     fn entrypoint(
         program_id: &pinocchio::pubkey::Pubkey,

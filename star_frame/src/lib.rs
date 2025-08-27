@@ -1,3 +1,215 @@
+//! A high-performance, trait-based Solana program framework for building **fast**,
+//! **reliable**, and **type-safe** programs.
+//!
+//! Star Frame provides a modern approach to Solana program development with zero-cost
+//! abstractions, comprehensive compile-time validation, and an intuitive API design
+//! optimized for Solana's compute unit constraints.
+//!
+//! ## Key Features
+//!
+//! - **Type Safety**: Catch errors at compile time with zero-cost abstractions
+//! - **Performance**: Optimized for Solana's compute unit constraints
+//! - **Developer Experience**: Intuitive APIs with comprehensive validation
+//! - **Modularity**: Composable components for accounts, instructions, and program logic
+//!
+//! # Getting Started
+//!
+//! Add `star_frame` to your `Cargo.toml`:
+//!
+//! ```shell
+//! cargo add star_frame
+//! ```
+//!
+//! # Lifecycle of a Star Frame Transaction
+//!
+//! Understanding how Star Frame processes transactions is crucial for effectively using the library.
+//! Here's the complete lifecycle of a Star Frame transaction:
+//!
+//! ### 1. Program Entrypoint
+//!
+//! The [`StarFrameProgram`](crate::program::StarFrameProgram) derive macro generates the program entrypoint:
+//!
+//! ```ignore
+//! #[derive(StarFrameProgram)]
+//! #[program(
+//!     instruction_set = CounterInstructionSet,
+//!     id = "Coux9zxTFKZpRdFpE4F7Fs5RZ6FdaURdckwS61BUTMG"
+//! )]
+//! pub struct CounterProgram;
+//! ```
+//!
+//! The [`StarFrameProgram::entrypoint`](crate::program::StarFrameProgram::entrypoint)'s default implementation calls in to the
+//! [`InstructionSet::dispatch`](crate::instruction::InstructionSet::dispatch) method.
+//!
+//! ### 2. Instruction Set Dispatch
+//!
+//! The [`InstructionSet`](crate::instruction::InstructionSet) derive macro defines instruction discriminants and generates dispatch logic:
+//!
+//! ```ignore
+//! #[derive(InstructionSet)]
+//! pub enum CounterInstructionSet {
+//!     Initialize(Initialize),
+//!     Increment(Increment),
+//! }
+//! ```
+//!
+//! The derive macro generates the [`InstructionSet::dispatch`](crate::instruction::InstructionSet::dispatch) method, which:
+//! - Defines unique discriminants for each instruction variant (by default it is compatible with Anchor's sighashes, but you can override it)
+//! - Matches on the instruction discriminant from the instruction data
+//! - Calls [`Instruction::process_from_raw`](crate::instruction::Instruction::process_from_raw) for the matched instruction
+//!
+//! ### 3. Instruction Processing
+//!
+//! The [`Instruction`](crate::instruction::Instruction) trait provides the low-level interface for instruction processing,
+//! but it's rough and requires manual handling of raw account data and instruction bytes. In most cases, you should
+//! implement the [`StarFrameInstruction`](crate::instruction::StarFrameInstruction) and [`InstructionArgs`](crate::instruction::InstructionArgs)
+//! traits instead, which provides:
+//! - Type-safe, compile time validated account handling through [account sets](crate::account_set)
+//! - Automatic deserialization of instruction arguments using Borsh
+//! - Better error handling and validation
+//! - Return data handling
+//!
+//! ### 4. Instruction Data Parsing
+//!
+//! Instructions implement [`BorshDeserialize`](borsh::BorshDeserialize) (to parse the instruction data), and [`InstructionArgs`](crate::instruction::InstructionArgs)
+//! (to split the data into `AccountSet` lifecycle arguments). See the [`InstructionArgs`](crate::instruction::InstructionArgs) trait for more information.
+//!
+//! ```ignore
+//! #[derive(BorshSerialize, BorshDeserialize, Debug, InstructionArgs)]
+//! pub struct Initialize {
+//!     #[ix_args(&run)]
+//!     pub start_at: Option<u64>,
+//! }
+//! ```
+//!
+//! ### 4. Account Set Validation
+//!
+//! Accounts are validated through [`AccountSet`](crate::account_set::AccountSet) traits with compile-time and runtime checks:
+//!
+//! ```ignore
+//! #[derive(AccountSet)]
+//! pub struct InitializeAccounts {
+//!     #[validate(funder)]
+//!     pub authority: Signer<Mut<SystemAccount>>,
+//!     #[validate(arg = (
+//!         Create(()),
+//!         Seeds(CounterSeeds { authority: *self.authority.pubkey() }),
+//!     ))]
+//!     pub counter: Init<Seeded<Account<CounterAccount>>>,
+//!     pub system_program: Program<System>,
+//! }
+//! ```
+//!
+//! ### 5. Instruction Processing
+//!
+//! Finally, [`StarFrameInstruction::process`](crate::instruction::StarFrameInstruction::process) executes the instruction logic:
+//!
+//! ```ignore
+//! impl StarFrameInstruction for Initialize {
+//!     type Accounts<'b, 'c> = InitializeAccounts;
+//!
+//!     fn process(
+//!         accounts: &mut Self::Accounts<'_, '_>,
+//!         start_at: &Option<u64>,
+//!         _ctx: &mut Context,
+//!     ) -> Result<()> {
+//!         **accounts.counter.data_mut()? = CounterAccount {
+//!             authority: *accounts.authority.pubkey(),
+//!             count: start_at.unwrap_or(0),
+//!         };
+//!         Ok(())
+//!     }
+//! }
+//! ```
+//!//! ### 6. Defining Program Accounts
+//!
+//! Star Frame provides multiple ways to define program accounts for different use cases:
+//!
+//! #### Basic Account with Standard Derive
+//!
+//! For statically sized accounts, use the standard `ProgramAccount` derive with Bytemuck:
+//!
+//! ```ignore
+//! #[derive(Align1, Pod, Zeroable, Default, Copy, Clone, Debug, Eq, PartialEq, ProgramAccount)]
+//! #[program_account(seeds = CounterSeeds)]
+//! #[repr(C, packed)]
+//! pub struct CounterAccount {
+//!     pub authority: Pubkey,
+//!     pub count: u64,
+//! }
+//!
+//! // Strongly typed seeds can be defined too!
+//! #[derive(Debug, GetSeeds, Clone)]
+//! #[get_seeds(seed_const = b"COUNTER")]
+//! pub struct CounterSeeds {
+//!     pub authority: Pubkey,
+//! }
+//! ```
+//!
+//! #### Unsized Accounts with the Unsized Type system
+//!
+//! For accounts with variable-size data like vectors or dynamic strings, use `#[unsized_type]`:
+//!
+//! ```ignore
+//! #[unsized_type(program_acount, seeds = CounterSeeds)]
+//! pub struct CounterAccount {
+//!     pub authority: Pubkey,
+//!     #[unsized_start]
+//!     pub count_tracker: UnsizedMap<Pubkey, PackedValue<u64>>,
+//! }
+//! ```
+//! Check out the [`unsize`] module for more details.
+//!
+//! ### 7. Putting it all together
+//!
+//! You can check out our [example programs](https://github.com/staratlasmeta/star_frame/tree/main/example_programs) for more information,
+//! and the [simple counter example](https://github.com/staratlasmeta/star_frame/blob/main/example_programs/simple_counter/src/lib.rs) for how these steps are
+//! put together.
+//!
+//!
+//! # Generating IDLs
+//!
+//! Star Frame can automatically generate Codama IDL files for your programs when the `idl` feature flag is enabled.
+//! IDLs are JSON files that describe your program's interface, making it easier for clients to interact with your program.
+//! Check out the [Codama](https://github.com/codama-idl/codama) for more information on generating clients and using the IDL.
+//!
+//! ### Enabling IDL Generation
+//!
+//! Add the `idl` feature to your `Cargo.toml`:
+//!
+//! ```toml
+//! [dependencies]
+//! star_frame = { version = "0.1", features = ["idl"] }
+//! ```
+//!
+//! ### Generating an IDL
+//!
+//! Programs that derive [`StarFrameProgram`](crate::program::StarFrameProgram) automatically implement
+//! [`ProgramToIdl`](crate::idl::ProgramToIdl). You can create a test to generate the IDL:
+//!
+//! ```ignore
+//! #[cfg(feature = "idl")]
+//! #[test]
+//! fn generate_idl() -> Result<()> {
+//!     use star_frame::prelude::*;
+//!     let idl = CounterProgram::program_to_idl()?;
+//!     let codama_idl: ProgramNode = idl.try_into()?;
+//!     let idl_json = codama_idl.to_json()?;
+//!     std::fs::write("idl.json", &idl_json)?;
+//!     Ok(())
+//! }
+//! ```
+//! And run it with:
+//! ```shell
+//! cargo test -- generate_idl
+//! ```
+//!
+//! # Feature Flags
+//!
+//! Star Frame provides several feature flags to customize functionality:
+//! - `idl` - Enables IDL generation for client libraries
+//! - `test_helpers` - Provides utilities for testing programs and the unsized type system
+//! - `cleanup_rent_warning` - Emits a warning message if the account has more lamports than required by rent on cleanup
 #![warn(
     clippy::pedantic,
     missing_copy_implementations,
