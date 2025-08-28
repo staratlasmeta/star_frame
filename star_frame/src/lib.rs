@@ -22,18 +22,20 @@
 //!
 //! # Lifecycle of a Star Frame Transaction
 //!
-//! Understanding how Star Frame processes transactions is crucial for effectively using the library.
-//! Here's the complete lifecycle of a Star Frame transaction:
+//! Here's what happens when you call a into a Star Frame program:
 //!
-//! ## 1. Program Entrypoint
+//! ## Program Entrypoint
 //!
 //! The [`StarFrameProgram`](crate::program::StarFrameProgram) derive macro generates the program entrypoint:
 //!
-//! ```ignore
+//! ```
+//! # fn main() {}
+//! use star_frame::prelude::*;
+//! # type CounterInstructionSet = ();
 //! #[derive(StarFrameProgram)]
 //! #[program(
 //!     instruction_set = CounterInstructionSet,
-//!     id = "Coux9zxTFKZpRdFpE4F7Fs5RZ6FdaURdckwS61BUTMG"
+//!     id = "Coux9zxTFKZpRdFpE4F7Fs5RZ6FdaURdckwS61BUTMG",
 //! )]
 //! pub struct CounterProgram;
 //! ```
@@ -41,87 +43,58 @@
 //! The [`StarFrameProgram::entrypoint`](crate::program::StarFrameProgram::entrypoint)'s default implementation calls in to the
 //! [`InstructionSet::dispatch`](crate::instruction::InstructionSet::dispatch) method.
 //!
-//! ## 2. Instruction Set Dispatch
+//! ## Instruction Set Dispatch
 //!
-//! The [`InstructionSet`](crate::instruction::InstructionSet) derive macro defines instruction discriminants and generates dispatch logic:
+//! The [`InstructionSet`](crate::instruction::InstructionSet) derive macro defines instruction discriminants for each instruction variant
+//! (by default it is compatible with Anchor's sighashes, but you can override it), and generates dispatch logic:
 //!
-//! ```ignore
+//! ```
+//! # fn main() {}
+//! use star_frame::prelude::*;
+//!
 //! #[derive(InstructionSet)]
+//! # #[ix_set(skip_idl)]
 //! pub enum CounterInstructionSet {
 //!     Initialize(Initialize),
 //!     Increment(Increment),
 //! }
+//!
+//! # #[derive(Debug)]
+//! # pub struct Initialize;
+//! # #[derive(Debug)]
+//! # pub struct Increment;
+//! # star_frame::impl_blank_ix!(Initialize, Increment);
 //! ```
 //!
-//! The derive macro generates the [`InstructionSet::dispatch`](crate::instruction::InstructionSet::dispatch) method, which:
-//! - Defines unique discriminants for each instruction variant (by default it is compatible with Anchor's sighashes, but you can override it)
-//! - Matches on the instruction discriminant from the instruction data
-//! - Calls [`Instruction::process_from_raw`](crate::instruction::Instruction::process_from_raw) for the matched instruction
+//! The derived [`InstructionSet::dispatch`](crate::instruction::InstructionSet::dispatch) method matches on the instruction discriminant
+//!  from the instruction data, and calls [`Instruction::process_from_raw`](crate::instruction::Instruction::process_from_raw) for the matched instruction.
 //!
-//! ## 3. Instruction Processing
+//! ## Instruction Processing
 //!
 //! The [`Instruction`](crate::instruction::Instruction) trait provides the low-level interface for instruction processing,
 //! but it's rough and requires manual handling of raw account data and instruction bytes. In most cases, you should
 //! implement the [`StarFrameInstruction`](crate::instruction::StarFrameInstruction) and [`InstructionArgs`](crate::instruction::InstructionArgs)
-//! traits instead, which provides:
-//! - Type-safe, compile time validated account handling through [account sets](crate::account_set)
-//! - Automatic deserialization of instruction arguments using Borsh
-//! - Better error handling and validation
-//! - Return data handling
+//! traits instead. The `Instruction` trait is implemented generically for all instructions that implement `StarFrameInstruction`.
 //!
-//! ## 4. Instruction Data Parsing
+//! Check the docs on [`StarFrameInstruction`](crate::instruction::StarFrameInstruction) for how that implementation works.
+//!
+//! ## Instruction Data Parsing
 //!
 //! Instructions implement [`BorshDeserialize`](borsh::BorshDeserialize) (to parse the instruction data), and [`InstructionArgs`](crate::instruction::InstructionArgs)
 //! (to split the data into `AccountSet` lifecycle arguments). See the [`InstructionArgs`](crate::instruction::InstructionArgs) trait for more information.
 //!
-//! ```ignore
+//! ```
+//! use star_frame::prelude::*;
+//! # fn main() {}
 //! #[derive(BorshSerialize, BorshDeserialize, Debug, InstructionArgs)]
+//! # #[instruction_args(skip_idl)]
 //! pub struct Initialize {
 //!     #[ix_args(&run)]
 //!     pub start_at: Option<u64>,
 //! }
 //! ```
 //!
-//! ## 5. Account Set Validation
-//!
-//! Accounts are validated through [`AccountSet`](crate::account_set::AccountSet) traits with compile-time and runtime checks:
-//!
-//! ```ignore
-//! #[derive(AccountSet)]
-//! pub struct InitializeAccounts {
-//!     #[validate(funder)]
-//!     pub authority: Signer<Mut<SystemAccount>>,
-//!     #[validate(arg = (
-//!         Create(()),
-//!         Seeds(CounterSeeds { authority: *self.authority.pubkey() }),
-//!     ))]
-//!     pub counter: Init<Seeded<Account<CounterAccount>>>,
-//!     pub system_program: Program<System>,
-//! }
-//! ```
-//!
-//! ## 6. Instruction Processing
-//!
-//! Finally, [`StarFrameInstruction::process`](crate::instruction::StarFrameInstruction::process) executes the instruction logic:
-//!
-//! ```ignore
-//! impl StarFrameInstruction for Initialize {
-//!     type Accounts<'b, 'c> = InitializeAccounts;
-//!
-//!     fn process(
-//!         accounts: &mut Self::Accounts<'_, '_>,
-//!         start_at: &Option<u64>,
-//!         _ctx: &mut Context,
-//!     ) -> Result<()> {
-//!         **accounts.counter.data_mut()? = CounterAccount {
-//!             authority: *accounts.authority.pubkey(),
-//!             count: start_at.unwrap_or(0),
-//!         };
-//!         Ok(())
-//!     }
-//! }
-//! ```
-//! ## 7. Defining Program Accounts
+//! ## Defining Program Accounts
 //!
 //! Star Frame provides multiple ways to define program accounts for different use cases:
 //!
@@ -129,7 +102,14 @@
 //!
 //! For statically sized accounts, use the standard `ProgramAccount` derive with Bytemuck:
 //!
-//! ```ignore
+//! ```
+//! # fn main() {}
+//! # #[derive(StarFrameProgram)]
+//! # #[program(instruction_set = (), id = System::ID, no_entrypoint)]
+//! # pub struct MyProgram;
+//! #
+//! use star_frame::prelude::*;
+//!
 //! #[derive(Align1, Pod, Zeroable, Default, Copy, Clone, Debug, Eq, PartialEq, ProgramAccount)]
 //! #[program_account(seeds = CounterSeeds)]
 //! #[repr(C, packed)]
@@ -148,10 +128,20 @@
 //!
 //! ### Unsized Accounts with the Unsized Type system
 //!
-//! For accounts with variable-size data like vectors or dynamic strings, use `#[unsized_type]`:
+//! For accounts with variable-size data like vectors or dynamic strings, use [`unsized_type`](crate::unsize::unsized_type).
 //!
-//! ```ignore
-//! #[unsized_type(program_acount, seeds = CounterSeeds)]
+//! ```
+//! # fn main() {}
+//! use star_frame::prelude::*;
+//! #
+//! # #[derive(StarFrameProgram)]
+//! # #[program(instruction_set = (), id = System::ID, no_entrypoint)]
+//! # pub struct MyProgram;
+//! #
+//! #[derive(Debug, GetSeeds, Clone)]
+//! # pub struct CounterSeeds;
+//!
+//! #[unsized_type(program_account, seeds = CounterSeeds)]
 //! pub struct CounterAccount {
 //!     pub authority: Pubkey,
 //!     #[unsized_start]
@@ -160,12 +150,100 @@
 //! ```
 //! Check out the [`unsize`] module for more details.
 //!
-//! ## 8. Putting it all together
+//! ## Account Set Validation
+//!
+//! Accounts are validated through [`AccountSet`](crate::account_set::AccountSet) traits with compile-time and runtime checks:
+//!
+//! ```
+//! # fn main() {}
+//! use star_frame::prelude::*;
+//! #[derive(AccountSet)]
+//! # #[account_set(skip_default_idl)]
+//! pub struct InitializeAccounts {
+//!     #[validate(funder)]
+//!     pub authority: Signer<Mut<SystemAccount>>,
+//!     #[validate(arg = (
+//!         Create(()),
+//!         Seeds(CounterSeeds { authority: *self.authority.pubkey() }),
+//!     ))]
+//!     pub counter: Init<Seeded<Account<CounterAccount>>>,
+//!     pub system_program: Program<System>,
+//! }
+//! #
+//! # #[derive(StarFrameProgram)]
+//! # #[program(instruction_set = (), id = System::ID, no_entrypoint)]
+//! # pub struct MyProgram;
+//! #
+//! #[derive(Align1, Pod, Zeroable, Default, Copy, Clone, Debug, Eq, PartialEq, ProgramAccount)]
+//! # #[program_account(seeds = CounterSeeds)]
+//! # #[repr(C, packed)]
+//! # pub struct CounterAccount {
+//! #   authority: Pubkey,
+//! # }
+//! #
+//! # #[derive(Debug, GetSeeds, Clone)]
+//! # #[get_seeds(seed_const = b"COUNTER")]
+//! # pub struct CounterSeeds {
+//! #     pub authority: Pubkey,
+//! # }
+//!
+//! ```
+//!
+//! ## Instruction Processing
+//!
+//! Finally, [`StarFrameInstruction::process`](crate::instruction::StarFrameInstruction::process) executes the instruction logic:
+//!
+//! ```
+//! use star_frame::prelude::*;
+//! # fn main() {}
+//! # #[derive(StarFrameProgram)]
+//! # #[program(instruction_set = (), id = System::ID, no_entrypoint)]
+//! # pub struct MyProgram;
+//! #
+//! # #[derive(BorshSerialize, BorshDeserialize, Debug, InstructionArgs)]
+//! # #[instruction_args(skip_idl)]
+//! # pub struct Initialize {
+//! #    #[ix_args(&run)]
+//! #    pub start_at: Option<u64>,
+//! # }
+//! #
+//! # #[derive(Align1, Pod, Zeroable, Default, Copy, Clone, Debug, Eq, PartialEq, ProgramAccount)]
+//! # #[repr(C, packed)]
+//! # pub struct CounterAccount {
+//! #     pub authority: Pubkey,
+//! #     pub count: u64,
+//! # }
+//! # #[derive(AccountSet, Debug)]
+//! # #[account_set(skip_default_idl)]
+//! # pub struct InitializeAccounts {
+//! #     pub counter: Mut<Account<CounterAccount>>,
+//! #     pub authority: AccountInfo,
+//! # }
+//! use star_frame::prelude::*;
+//!
+//! impl StarFrameInstruction for Initialize {
+//!     type Accounts<'b, 'c> = InitializeAccounts;
+//!     type ReturnType = ();
+//!
+//!     fn process(
+//!         accounts: &mut Self::Accounts<'_, '_>,
+//!         start_at: &Option<u64>,
+//!         _ctx: &mut Context,
+//!     ) -> Result<()> {
+//!         **accounts.counter.data_mut()? = CounterAccount {
+//!             authority: *accounts.authority.pubkey(),
+//!             count: start_at.unwrap_or(0),
+//!         };
+//!         Ok(())
+//!     }
+//! }
+//! ```
+//!
+//! ## Putting it all together
 //!
 //! You can check out our [example programs](https://github.com/staratlasmeta/star_frame/tree/main/example_programs) for more information,
 //! and the [simple counter example](https://github.com/staratlasmeta/star_frame/blob/main/example_programs/simple_counter/src/lib.rs) for how these steps are
 //! put together.
-//!
 //!
 //! # Generating IDLs
 //!

@@ -114,7 +114,7 @@ pub trait InstructionArgs: Sized {
 
 /// An opinionated (and recommended) [`Instruction`] using [`AccountSet`] and other traits.
 ///
-/// The steps are as follows:
+/// The steps for how this implements [`Instruction::process_from_raw`] are as follows:
 /// 1. Decode Self from bytes using [`BorshDeserialize`].
 /// 2. Split Self into decode, validate, run, and cleanup args using [`InstructionArgs::split_to_args`].
 /// 3. Decode the accounts using [`Self::Accounts::decode_accounts`](AccountSetDecode::decode_accounts).
