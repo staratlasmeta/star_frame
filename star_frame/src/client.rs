@@ -8,7 +8,7 @@
 use crate::{
     account_set::{
         account::discriminant::AccountDiscriminant,
-        modifiers::{HasOwnerProgram, HasSeeds},
+        modifiers::{HasOwnerProgram, HasSeeds, OwnerProgramDiscriminant},
         ClientAccountSet,
     },
     instruction::InstructionDiscriminant,
@@ -16,6 +16,7 @@ use crate::{
     unsize::{init::UnsizedInit, FromOwned},
 };
 
+use anyhow::ensure;
 use borsh::{object_length, BorshSerialize};
 use bytemuck::bytes_of;
 use solana_instruction::Instruction as SolanaInstruction;
@@ -110,6 +111,17 @@ pub trait DeserializeAccount: UnsizedType + ProgramAccount {
     }
 }
 
+pub trait DeserializeBorshAccount: BorshDeserialize + ProgramAccount {
+    fn deserialize_account(data: &[u8]) -> Result<Self> {
+        ensure!(
+            data.len() > size_of::<OwnerProgramDiscriminant<Self>>(),
+            "data is too short"
+        );
+        let data = &data[size_of::<OwnerProgramDiscriminant<Self>>()..];
+        BorshDeserialize::try_from_slice(data).map_err(Into::into)
+    }
+}
+
 impl<T: UnsizedType + ProgramAccount + ?Sized> DeserializeAccount for T {}
 
 pub trait SerializeAccount: UnsizedType + ProgramAccount {
@@ -131,3 +143,15 @@ pub trait SerializeAccount: UnsizedType + ProgramAccount {
 }
 
 impl<T> SerializeAccount for T where T: UnsizedType + ProgramAccount + ?Sized {}
+
+pub trait SerializeBorshAccount: BorshSerialize + ProgramAccount {
+    fn serialize_account(data: &Self) -> Result<Vec<u8>> {
+        let mut bytes =
+            vec![0u8; size_of::<OwnerProgramDiscriminant<Self>>() + object_length(data)?];
+        bytes.extend_from_slice(bytes_of(&Self::DISCRIMINANT));
+        BorshSerialize::serialize(data, &mut bytes)?;
+        Ok(bytes)
+    }
+}
+
+impl<T> SerializeBorshAccount for T where T: BorshSerialize + ProgramAccount + ?Sized {}

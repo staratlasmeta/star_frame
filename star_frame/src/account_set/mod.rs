@@ -1,5 +1,6 @@
 //! Strongly typed and statically verified instruction accounts.
 pub mod account;
+pub mod borsh_account;
 mod impls; // Just impls, no need to re-export
 pub mod modifiers;
 pub mod program;
@@ -304,6 +305,7 @@ pub(crate) mod prelude {
     pub use account::{
         discriminant, Account, CloseAccount, NormalizeRent, ReceiveRent, RefundRent,
     };
+    pub use borsh_account::BorshAccount;
     pub use modifiers::{
         init::{Create, CreateIfNeeded, Init},
         mutable::Mut,

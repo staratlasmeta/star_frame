@@ -117,31 +117,6 @@ pub struct Account<T: ProgramAccount + UnsizedType + ?Sized> {
     phantom_t: PhantomData<T>,
 }
 
-#[cfg(all(feature = "idl", not(target_os = "solana")))]
-mod idl_impl {
-
-    use super::*;
-    use star_frame::idl::AccountSetToIdl;
-    use star_frame_idl::{account_set::IdlAccountSetDef, IdlDefinition};
-
-    impl<T: ProgramAccount + UnsizedType + ?Sized, A> AccountSetToIdl<A> for Account<T>
-    where
-        AccountInfo: AccountSetToIdl<A>,
-        T: AccountToIdl,
-    {
-        fn account_set_to_idl(
-            idl_definition: &mut IdlDefinition,
-            arg: A,
-        ) -> Result<IdlAccountSetDef> {
-            let mut set = <AccountInfo>::account_set_to_idl(idl_definition, arg)?;
-            set.single()?
-                .program_accounts
-                .push(T::account_to_idl(idl_definition)?);
-            Ok(set)
-        }
-    }
-}
-
 impl<T> Account<T>
 where
     T: ProgramAccount + UnsizedType + ?Sized,
@@ -370,5 +345,30 @@ where
         let mut data_bytes = &mut *data_bytes;
         <AccountDiscriminant<T>>::init(&mut data_bytes, arg)?;
         Ok(())
+    }
+}
+
+#[cfg(all(feature = "idl", not(target_os = "solana")))]
+mod idl_impl {
+
+    use super::*;
+    use star_frame::idl::AccountSetToIdl;
+    use star_frame_idl::{account_set::IdlAccountSetDef, IdlDefinition};
+
+    impl<T: ProgramAccount + UnsizedType + ?Sized, A> AccountSetToIdl<A> for Account<T>
+    where
+        AccountInfo: AccountSetToIdl<A>,
+        T: AccountToIdl,
+    {
+        fn account_set_to_idl(
+            idl_definition: &mut IdlDefinition,
+            arg: A,
+        ) -> Result<IdlAccountSetDef> {
+            let mut set = <AccountInfo>::account_set_to_idl(idl_definition, arg)?;
+            set.single()?
+                .program_accounts
+                .push(T::account_to_idl(idl_definition)?);
+            Ok(set)
+        }
     }
 }
