@@ -1,0 +1,86 @@
+use std::collections::HashMap;
+use std::env;
+
+use mollusk_svm::result::Check;
+use mollusk_svm::{program::keyed_account_for_system_program, Mollusk};
+use solana_account::Account as SolanaAccount;
+use star_frame::{client::MakeInstruction, prelude::*, program::StarFrameProgram};
+use crate::states::*;
+use crate::*;
+use star_frame::anyhow;
+
+#[test]
+#[allow(unused)]
+fn program_test() -> Result<()> {
+    if env::var("SBF_OUT_DIR").is_err() {
+        anyhow::bail!("SBF_OUT_DIR is not set");
+    };
+    
+    let mollusk = Mollusk::new(&{name_pascalcase}Program::ID, "{name_lowercase}");
+    let authority = Pubkey::new_unique();
+
+    let start_at = Some(2u64);
+    let seeds = CounterAccountSeeds { authority };
+    let (counter_account, bump) =
+        Pubkey::find_program_address(&seeds.seeds(), &StarFrameDeclaredProgram::ID);
+
+    let mollusk = mollusk.with_context(HashMap::from_iter([
+        (authority, SolanaAccount::new(1_000_000_000, 0, &System::ID)),
+        (counter_account, SolanaAccount::new(0, 0, &System::ID)),
+        keyed_account_for_system_program(),
+    ]));
+
+    let mut expected_counter_state = CounterAccount {
+        authority,
+        count: 2,
+    };
+
+    //Initialize Counter
+    mollusk.process_and_validate_instruction(
+        &{name_pascalcase}Program::instruction(
+            &InitializeCounter { start_at },
+            InitializeClientAccounts {
+                authority,
+                counter: counter_account,
+                system_program: None,
+            },
+        )?,
+        &[
+            Check::success(),
+            Check::account(&counter_account)
+                .data(&CounterAccount::serialize_account(expected_counter_state)?)
+                .owner(&{name_pascalcase}Program::ID)
+                .build(),
+        ],
+    );
+
+    //Increment Counter
+    expected_counter_state.count = 3;
+    mollusk.process_and_validate_instruction(
+        &{name_pascalcase}Program::instruction(
+            &Increment,
+            IncrementClientAccounts {
+                authority,
+                counter: counter_account,
+            },
+        )?,
+        &[Check::account(&counter_account)
+            .data(&CounterAccount::serialize_account(expected_counter_state)?)
+            .build()],
+    );
+
+    Ok(())
+}
+
+//Idl Generation Test
+#[cfg(feature = "idl")]
+#[test]
+fn generate_idl() -> Result<()> {
+    use star_frame::prelude::*;
+    let idl = {name_pascalcase}Program::program_to_idl()?;
+    let codama_idl: ProgramNode = idl.try_into()?;
+    let idl_json = codama_idl.to_json()?;
+    std::fs::write("idl.json", &idl_json)?;
+    Ok(())
+}
+

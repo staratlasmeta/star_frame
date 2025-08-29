@@ -1,0 +1,2 @@
+[env]
+SBF_OUT_DIR = "target/deploy"

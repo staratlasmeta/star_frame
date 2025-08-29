@@ -1,0 +1,27 @@
+[package]
+name = "{name_lowercase}"
+description = "Built with Star_Frame"
+version = "0.0.1"
+edition = "2021"
+publish = false
+
+[package.metadata]
+release.release = false
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "{name_lowercase}"
+
+[features]
+no_entrypoint = []
+idl = ["star_frame/idl"]
+
+[dependencies]
+borsh = { version = "1.5.7", features = ["derive"] }
+bytemuck = { version = "^1.22.0", features = ["extern_crate_std", "min_const_generics", "derive"] }
+star_frame = { version = "0.23.1", features = ["idl"] }
+
+[dev-dependencies]
+codama-nodes = { version = "^0.4.0" }
+mollusk-svm = "0.3.0"
+solana-account = "2.2"

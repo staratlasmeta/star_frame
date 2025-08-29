@@ -1,0 +1,22 @@
+use star_frame::prelude::*;
+
+use instructions::*;
+mod instructions;
+pub mod states;
+
+#[cfg(test)]
+mod tests;
+
+#[derive(StarFrameProgram)]
+#[program(
+    instruction_set = {name_pascalcase}InstructionSet,
+    id = "{pubkey}"
+)]
+pub struct {name_pascalcase}Program;
+
+#[derive(InstructionSet)]
+pub enum {name_pascalcase}InstructionSet {
+    Initialize(InitializeCounter),
+    Increment(Increment),
+}
+
