@@ -19,8 +19,9 @@ pub use crate::{
     align1::Align1,
     borsh_with_bytemuck,
     client::{
-        DeserializeAccount as _, DeserializeType as _, FindProgramAddress as _,
-        MakeInstruction as _, SerializeAccount as _, SerializeType as _,
+        DeserializeAccount as _, DeserializeBorshAccount as _, DeserializeType as _,
+        FindProgramAddress as _, MakeInstruction as _, SerializeAccount as _,
+        SerializeBorshAccount as _, SerializeType as _,
     },
     context::Context,
     cpi::MakeCpi as _,
