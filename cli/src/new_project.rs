@@ -1,6 +1,8 @@
-use std::{fs, io, path::{Path, PathBuf}};
+use std::{
+    fs, io,
+    path::{Path, PathBuf},
+};
 
-use anyhow::anyhow;
 use clap::{arg, Parser};
 use colored::*;
 use convert_case::{Case, Casing};
@@ -10,16 +12,10 @@ use solana_pubkey::Pubkey;
 pub struct NewArgs {
     ///The name of the program
     #[arg(value_name = "NAME")]
-    pub name: Option<String>,
+    pub name: String,
 }
 pub fn new_project(args: NewArgs) -> anyhow::Result<()> {
-    let project_name = args
-        .name
-        .as_deref()
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .ok_or_else(|| anyhow!("{}: Project name cannot be empty.", "ERROR".bold().red()))?
-        .to_ascii_lowercase();
+    let project_name = args.name.trim().to_ascii_lowercase();
 
     let base = Path::new(&project_name); //Base path
     let cargo = base.join(".cargo");
@@ -63,7 +59,12 @@ pub fn new_project(args: NewArgs) -> anyhow::Result<()> {
         stub_file(template, &relative_path, &project_name)?;
     }
 
-    println!("{}", format!("{} program initialized", project_name).green().bold());
+    println!(
+        "{}",
+        format!("{} program initialized", project_name)
+            .green()
+            .bold()
+    );
     Ok(())
 }
 

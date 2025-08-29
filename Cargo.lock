@@ -4652,17 +4652,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a8f112729512f8e442d81f95a8a7ddf2b7c6b8a1a6f509a95864142b30cab2d3"
 
 [[package]]
-name = "star-frame"
-version = "0.23.1"
-dependencies = [
- "anyhow",
- "clap",
- "colored",
- "convert_case 0.8.0",
- "solana-pubkey",
-]
-
-[[package]]
 name = "star_frame"
 version = "0.23.1"
 dependencies = [
@@ -4691,6 +4680,17 @@ dependencies = [
  "star_frame_proc",
  "static_assertions",
  "typenum",
+]
+
+[[package]]
+name = "star_frame_cli"
+version = "0.23.1"
+dependencies = [
+ "anyhow",
+ "clap",
+ "colored",
+ "convert_case 0.8.0",
+ "solana-pubkey",
 ]
 
 [[package]]
