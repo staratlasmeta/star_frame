@@ -7,6 +7,10 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 
+[[bin]]
+name = "sf"
+path = "src/main.rs"
+
 [dependencies]
 clap = { workspace = true, features = ["derive", "env"]}
 colored = { workspace = true }
