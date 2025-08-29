@@ -1,0 +1,22 @@
+use star_frame::{anyhow::ensure, prelude::*};
+
+#[derive(Debug, GetSeeds, Clone)]
+#[get_seeds(seed_const = b"COUNTER")]
+pub struct CounterAccountSeeds {
+    pub authority: Pubkey,
+}
+
+#[derive(Align1, Pod, Zeroable, Default, Copy, Clone, Debug, Eq, PartialEq, ProgramAccount)]
+#[program_account(seeds = CounterAccountSeeds)]
+#[repr(C, packed)]
+pub struct CounterAccount {
+    pub authority: Pubkey,
+    pub count: u64,
+}
+
+impl AccountValidate<&Pubkey> for CounterAccount {
+    fn validate_account(self_ref: &Self::Ref<'_>, arg: &Pubkey) -> Result<()> {
+        ensure!(arg == &self_ref.authority, "Incorrect authority");
+        Ok(())
+    }
+}

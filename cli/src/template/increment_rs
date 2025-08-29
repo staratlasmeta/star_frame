@@ -1,0 +1,27 @@
+use crate::states::*;
+use star_frame::prelude::*;
+
+#[derive(BorshSerialize, BorshDeserialize, Debug, Copy, Clone, InstructionArgs)]
+pub struct Increment;
+
+#[derive(AccountSet, Debug)]
+pub struct IncrementAccounts {
+    pub authority: Signer,
+    #[validate(arg = self.authority.pubkey())]
+    pub counter: Mut<ValidatedAccount<CounterAccount>>,
+}
+
+impl StarFrameInstruction for Increment {
+    type ReturnType = ();
+    type Accounts<'b, 'c> = IncrementAccounts;
+
+    fn process(
+        accounts: &mut Self::Accounts<'_, '_>,
+        _run_arg: Self::RunArg<'_>,
+        _ctx: &mut Context,
+    ) -> Result<Self::ReturnType> {
+        let mut counter = accounts.counter.data_mut()?;
+        counter.count += 1;
+        Ok(())
+    }
+}

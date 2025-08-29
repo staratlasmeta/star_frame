@@ -1,0 +1,19 @@
+[package]
+name = "star_frame_cli"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "sf"
+path = "src/main.rs"
+
+[dependencies]
+clap = { workspace = true, features = ["derive", "env"]}
+colored = { workspace = true }
+anyhow = { workspace = true }
+convert_case = { workspace = true }
+solana-pubkey = { workspace = true }
