@@ -1,4 +1,4 @@
-use std::{fs, io, path::Path};
+use std::{fs, io, path::{Path, PathBuf}};
 
 use anyhow::anyhow;
 use clap::{arg, Parser};
@@ -27,13 +27,14 @@ pub fn new_project(args: NewArgs) -> anyhow::Result<()> {
     let ixs = src.join("instructions");
     let tests = src.join("tests");
 
-    for dir in [&base.canonicalize().unwrap(), &cargo, &src, &ixs, &tests] {
+    for dir in [&base.to_path_buf(), &cargo, &src, &ixs, &tests] {
         fs::create_dir_all(dir)?;
     }
 
     // Embed templates
     const CARGO_TOML: &str = include_str!("template/cargo_toml");
     const GITIGNORE: &str = include_str!("template/gitignore");
+    const README_MD: &str = include_str!("template/readme_md");
     const CONFIG_TOML: &str = include_str!("template/config_toml");
     const LIB_RS: &str = include_str!("template/lib_rs");
     const STATES_RS: &str = include_str!("template/states_rs");
@@ -47,6 +48,7 @@ pub fn new_project(args: NewArgs) -> anyhow::Result<()> {
     let files = [
         (CARGO_TOML, base.join("Cargo.toml")),
         (GITIGNORE, base.join(".gitignore")),
+        (README_MD, base.join("README.md")),
         (CONFIG_TOML, cargo.join("config.toml")),
         (LIB_RS, src.join("lib.rs")),
         (STATES_RS, src.join("states.rs")),
@@ -58,13 +60,14 @@ pub fn new_project(args: NewArgs) -> anyhow::Result<()> {
     ];
 
     for (template, relative_path) in files {
-        stub_file(template, &base.join(relative_path), &project_name)?;
+        stub_file(template, &relative_path, &project_name)?;
     }
 
+    println!("{}", format!("{} program initialized", project_name).green().bold());
     Ok(())
 }
 
-fn stub_file(template: &str, path: &Path, project_name: &String) -> io::Result<()> {
+fn stub_file(template: &str, path: &PathBuf, project_name: &String) -> io::Result<()> {
     let content = template
         .replace("{name_lowercase}", &project_name.to_ascii_lowercase())
         .replace("{name_uppercase}", &project_name.to_ascii_uppercase())
