@@ -1,0 +1,253 @@
+# Star Frame Tutorials Justfile
+# Run various checks and builds on all tutorial projects
+
+# Default recipe - show available commands
+default:
+    @just --list
+
+# Check that all tutorials compile
+check:
+    @bash scripts/check_tutorials.sh
+
+# Check with detailed output
+check-verbose:
+    @bash scripts/check_tutorials_detailed.sh --verbose
+
+# Run all checks (compile, tests, clippy, idl)
+check-all:
+    @bash scripts/check_tutorials_detailed.sh --verbose --tests --clippy --idl
+
+# Run tests for all tutorials
+test:
+    @bash scripts/check_tutorials_detailed.sh --tests --verbose
+
+# Run clippy lints on all tutorials
+clippy:
+    @bash scripts/check_tutorials_detailed.sh --clippy --verbose
+
+# Check with IDL feature enabled
+check-idl:
+    @bash scripts/check_tutorials_detailed.sh --idl --verbose
+
+# Run checks in parallel for faster execution
+check-parallel:
+    @bash scripts/check_tutorials_detailed.sh --parallel
+
+# Build all tutorials in release mode
+build:
+    #!/usr/bin/env bash
+    set -e
+    echo "Building all tutorials..."
+    
+    # Build basic tutorials
+    for i in {0..5}; do
+        if [ -d "basic-$i" ]; then
+            echo "Building basic-$i..."
+            (cd "basic-$i" && cargo build --release)
+        fi
+    done
+    
+    # Special handling for basic-3 sub-projects
+    if [ -d "basic-3/puppet" ]; then
+        echo "Building basic-3/puppet..."
+        (cd "basic-3/puppet" && cargo build --release)
+    fi
+    
+    if [ -d "basic-3/puppet-master" ]; then
+        echo "Building basic-3/puppet-master..."
+        (cd "basic-3/puppet-master" && cargo build --release)
+    fi
+    
+    echo "✨ All tutorials built successfully!"
+
+# Build all tutorials as SBF programs (.so files)
+build-sbf:
+    @bash scripts/build_sbf.sh
+
+# Build SBF programs with clean first
+build-sbf-clean:
+    @bash scripts/build_sbf.sh --clean
+
+# Test with SBF binaries using mollusk
+test-sbf:
+    @bash scripts/build_sbf.sh --test
+
+# Generate IDL files for all tutorials
+idl:
+    #!/usr/bin/env bash
+    set -e
+    echo "Generating IDL files for all tutorials..."
+    
+    # Generate IDL for basic tutorials
+    for i in {0..5}; do
+        if [ -f "basic-$i/Cargo.toml" ]; then
+            echo "Generating IDL for basic-$i..."
+            (cd "basic-$i" && cargo test --features idl generate_idl 2>/dev/null || true)
+        fi
+    done
+    
+    # Special handling for basic-3
+    if [ -d "basic-3/puppet" ]; then
+        echo "Generating IDL for basic-3/puppet..."
+        (cd "basic-3/puppet" && cargo test --features idl generate_idl 2>/dev/null || true)
+    fi
+    
+    if [ -d "basic-3/puppet-master" ]; then
+        echo "Generating IDL for basic-3/puppet-master..."
+        (cd "basic-3/puppet-master" && cargo test --features idl generate_idl 2>/dev/null || true)
+    fi
+    
+    echo "✨ IDL generation complete!"
+
+# Clean all build artifacts
+clean:
+    #!/usr/bin/env bash
+    set -e
+    echo "Cleaning all tutorial build artifacts..."
+    
+    # Clean basic tutorials
+    for i in {0..5}; do
+        if [ -f "basic-$i/Cargo.toml" ]; then
+            echo "Cleaning basic-$i..."
+            (cd "basic-$i" && cargo clean)
+        fi
+    done
+    
+    # Special handling for basic-3
+    if [ -d "basic-3/puppet" ]; then
+        echo "Cleaning basic-3/puppet..."
+        (cd "basic-3/puppet" && cargo clean)
+    fi
+    
+    if [ -d "basic-3/puppet-master" ]; then
+        echo "Cleaning basic-3/puppet-master..."
+        (cd "basic-3/puppet-master" && cargo clean)
+    fi
+    
+    # Remove any generated IDL files
+    find . -name "idl.json" -type f -delete
+    
+    echo "✨ All clean!"
+
+# Format all tutorial code
+fmt:
+    #!/usr/bin/env bash
+    set -e
+    echo "Formatting all tutorial code..."
+    
+    for i in {0..5}; do
+        if [ -f "basic-$i/Cargo.toml" ]; then
+            echo "Formatting basic-$i..."
+            (cd "basic-$i" && cargo fmt)
+        fi
+    done
+    
+    # Special handling for basic-3
+    if [ -d "basic-3/puppet" ]; then
+        echo "Formatting basic-3/puppet..."
+        (cd "basic-3/puppet" && cargo fmt)
+    fi
+    
+    if [ -d "basic-3/puppet-master" ]; then
+        echo "Formatting basic-3/puppet-master..."
+        (cd "basic-3/puppet-master" && cargo fmt)
+    fi
+    
+    echo "✨ All tutorials formatted!"
+
+# Check formatting for all tutorials
+fmt-check:
+    #!/usr/bin/env bash
+    set -e
+    echo "Checking formatting for all tutorials..."
+    
+    for i in {0..5}; do
+        if [ -f "basic-$i/Cargo.toml" ]; then
+            echo "Checking basic-$i..."
+            (cd "basic-$i" && cargo fmt -- --check)
+        fi
+    done
+    
+    # Special handling for basic-3
+    if [ -d "basic-3/puppet" ]; then
+        echo "Checking basic-3/puppet..."
+        (cd "basic-3/puppet" && cargo fmt -- --check)
+    fi
+    
+    if [ -d "basic-3/puppet-master" ]; then
+        echo "Checking basic-3/puppet-master..."
+        (cd "basic-3/puppet-master" && cargo fmt -- --check)
+    fi
+    
+    echo "✨ All tutorials properly formatted!"
+
+# Update dependencies for all tutorials
+update:
+    #!/usr/bin/env bash
+    set -e
+    echo "Updating dependencies for all tutorials..."
+    
+    for i in {0..5}; do
+        if [ -f "basic-$i/Cargo.toml" ]; then
+            echo "Updating basic-$i..."
+            (cd "basic-$i" && cargo update)
+        fi
+    done
+    
+    # Special handling for basic-3
+    if [ -d "basic-3/puppet" ]; then
+        echo "Updating basic-3/puppet..."
+        (cd "basic-3/puppet" && cargo update)
+    fi
+    
+    if [ -d "basic-3/puppet-master" ]; then
+        echo "Updating basic-3/puppet-master..."
+        (cd "basic-3/puppet-master" && cargo update)
+    fi
+    
+    echo "✨ All dependencies updated!"
+
+# Run a specific cargo command on all tutorials
+cargo-all cmd:
+    #!/usr/bin/env bash
+    set -e
+    echo "Running 'cargo {{cmd}}' on all tutorials..."
+    
+    for i in {0..5}; do
+        if [ -f "basic-$i/Cargo.toml" ]; then
+            echo "Running on basic-$i..."
+            (cd "basic-$i" && cargo {{cmd}})
+        fi
+    done
+    
+    # Special handling for basic-3
+    if [ -d "basic-3/puppet" ]; then
+        echo "Running on basic-3/puppet..."
+        (cd "basic-3/puppet" && cargo {{cmd}})
+    fi
+    
+    if [ -d "basic-3/puppet-master" ]; then
+        echo "Running on basic-3/puppet-master..."
+        (cd "basic-3/puppet-master" && cargo {{cmd}})
+    fi
+    
+    echo "✨ Completed running 'cargo {{cmd}}' on all tutorials!"
+
+# List all tutorial directories
+list:
+    @echo "Star Frame Tutorials:"
+    @echo "  - basic-0: Minimal on-chain program"
+    @echo "  - basic-1: Basic account management"
+    @echo "  - basic-2: PDAs and derived addresses"
+    @echo "  - basic-3/puppet: CPI target program"
+    @echo "  - basic-3/puppet-master: CPI caller program"
+    @echo "  - basic-4: Advanced PDAs and validation"
+    @echo "  - basic-5: State machines and game logic"
+
+# Run comprehensive CI checks (format, clippy, test, build)
+ci:
+    @echo "Running comprehensive CI checks..."
+    @just fmt-check
+    @just check-all
+    @just build
+    @echo "✨ All CI checks passed!"
