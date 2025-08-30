@@ -1,3 +1,5 @@
+//! Account Sets that wrap and modify other Account Sets.
+
 use crate::{account_set::AccountSetValidate, prelude::*};
 
 pub mod init;

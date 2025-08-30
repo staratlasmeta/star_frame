@@ -1,6 +1,4 @@
-//! A single program account that contains an [`UnsizedType`].
-//!
-//! Calls [`ProgramAccount::validate_account_info`] during validation to ensure the owner and discriminant match.
+//! A [`ProgramAccount`] that contains an [`UnsizedType`].
 
 use crate::{
     account_set::{
@@ -34,7 +32,7 @@ pub struct ReceiveRent<T>(pub T);
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
 pub struct CloseAccount<T>(pub T);
 
-/// A single program account that contains an [`UnsizedType`].
+/// A [`ProgramAccount`] that contains an [`UnsizedType`].
 ///
 /// Calls [`ProgramAccount::validate_account_info`] during validation to ensure the owner and discriminant match.
 #[derive(AccountSet, derive_where::DeriveWhere)]
@@ -133,6 +131,12 @@ where
         // If the account is writable, changes could have been made after AccountSetValidate has been run
         if self.is_writable() {
             T::validate_account_info(self)?;
+        } else {
+            // TODO: Perhaps put this behind a debug flag?
+            bail!(
+                "Tried to borrow mutably from Account `{}` which is not writable",
+                self.pubkey()
+            );
         }
         ExclusiveWrapper::new(&self.info)
     }

@@ -33,11 +33,15 @@ pub struct RunIx {
 
 #[derive(AccountSet)]
 pub struct RunAccounts {
+    #[validate(funder)]
     pub funder: Mut<Signer>,
-    pub account: Account<AccountData>,
-    // #[decode(arg = || MyBorshAccount { vec: vec![] })]
+    #[cleanup(arg = NormalizeRent(()))]
+    pub account: Mut<Account<AccountData>>,
+    #[decode(arg = || MyBorshAccount { vec: vec![] })]
     #[validate(arg = Create(()))]
+    #[cleanup(arg = NormalizeRent(()))]
     pub borsh_account: Init<Signer<BorshAccount<MyBorshAccount>>>,
+    pub system_program: Program<System>,
 }
 
 #[unsized_type(program_account)]
@@ -75,7 +79,11 @@ impl StarFrameInstruction for RunIx {
         let after = remaining_compute();
         msg!("compute units: {}", before - after - 100);
 
-        ***accounts.borsh_account = MyBorshAccount { vec: vec![1, 2, 3] };
+        accounts
+            .borsh_account
+            .set_inner(MyBorshAccount { vec: vec![1, 2, 3] })?;
+
+        accounts.borsh_account.vec.push(4);
 
         list.insert(
             0,
@@ -122,8 +130,6 @@ mod tests {
         .collect::<Vec<_>>();
 
         let account_data = AccountData::serialize_account(AccountDataOwned { list })?;
-        let borsh_account_data =
-            MyBorshAccount::serialize_account(&MyBorshAccount { vec: vec![] })?;
 
         let funder = Pubkey::new_unique();
 
@@ -131,23 +137,14 @@ mod tests {
             (
                 account,
                 SolanaAccount {
-                    lamports: LAMPORTS_PER_SOL * 10,
+                    lamports: 0,
                     data: account_data,
                     owner: AccountTest::ID,
                     executable: false,
                     rent_epoch: 0,
                 },
             ),
-            (
-                borsh_account,
-                SolanaAccount {
-                    lamports: LAMPORTS_PER_SOL * 10,
-                    data: borsh_account_data,
-                    owner: AccountTest::ID,
-                    executable: false,
-                    rent_epoch: 0,
-                },
-            ),
+            (borsh_account, SolanaAccount::default()),
             (
                 funder,
                 SolanaAccount {
@@ -171,10 +168,21 @@ mod tests {
                     account,
                     borsh_account,
                     funder,
+                    system_program: None,
                 },
             )?,
             &[Check::success()],
         );
+
+        let borsh_account_data = MyBorshAccount::deserialize_account(
+            &mollusk
+                .account_store
+                .borrow()
+                .get(&borsh_account)
+                .unwrap()
+                .data,
+        )?;
+        assert_eq!(borsh_account_data.vec, vec![1, 2, 3, 4]);
 
         Ok(())
     }

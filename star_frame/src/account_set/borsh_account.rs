@@ -1,4 +1,6 @@
-use anyhow::Context as _;
+//! A [`ProgramAccount`] that is serialized and deserialized using [`borsh`].
+
+use anyhow::{ensure, Context as _};
 use borsh::object_length;
 use derive_more::Debug;
 use std::ops::{Deref, DerefMut};
@@ -13,7 +15,7 @@ use crate::{
     prelude::*,
 };
 
-/// A single program account that contains a [`ProgramAccount`] that can be serialized and deserialized using Borsh.
+/// A [`ProgramAccount`] that is serialized and deserialized using [`BorshSerialize`] and [`BorshDeserialize`].
 ///
 /// This is much less effecient than using [`Account`] because this is not zero-copy.
 ///
@@ -21,7 +23,7 @@ use crate::{
 /// updated `T` to the account info when the account is writable during `AccountSetCleanup`
 #[derive(AccountSet, Debug, Clone)]
 #[account_set(skip_default_decode, skip_default_idl)]
-#[validate(before_validation = T::validate_account_info(&self.info))]
+#[validate(extra_validation = T::validate_account_info(&self.info))]
 #[cleanup(generics = [], extra_cleanup = {
     self.write_back()?;
     self.check_cleanup(ctx)
@@ -183,9 +185,9 @@ impl<T: ProgramAccount + BorshSerialize + BorshDeserialize> BorshAccount<T> {
             && self.info.data_len() > size_of::<OwnerProgramDiscriminant<T>>()
             && self.owner_pubkey() == T::OwnerProgram::ID
         {
-            let mut account_data = self.info.account_data_mut()?;
             let new_size = size_of::<OwnerProgramDiscriminant<T>>() + object_length(&self.data)?;
             self.info.resize(new_size)?;
+            let mut account_data = self.info.account_data_mut()?;
             self.data
                 .serialize(&mut &mut account_data[size_of::<OwnerProgramDiscriminant<T>>()..])?;
         }
@@ -200,6 +202,18 @@ impl<T: ProgramAccount + BorshSerialize + BorshDeserialize> BorshAccount<T> {
         self.data = T::try_from_slice(
             &self.info.account_data()?[size_of::<OwnerProgramDiscriminant<T>>()..],
         )?;
+        Ok(())
+    }
+
+    /// Sets the inner data `T`.
+    ///
+    /// While you can do this through the `DerefMut` implementation, this will auto deref
+    /// through wrapper types, so you don't need to add explicit `*`s.
+    ///
+    /// Returns an error if the account is not writable.
+    pub fn set_inner(&mut self, data: T) -> Result<()> {
+        ensure!(self.is_writable(), "BorshAccount is not writable");
+        self.data = data;
         Ok(())
     }
 }
@@ -266,6 +280,8 @@ where
         let space = size_of::<OwnerProgramDiscriminant<T>>() + object_length(&self.data)?;
         self.system_create_account(arg.0, T::OwnerProgram::ID, space, &account_seeds, ctx)
             .context("system_create_account failed")?;
+        self.account_data_mut()?[..size_of::<OwnerProgramDiscriminant<T>>()]
+            .copy_from_slice(bytemuck::bytes_of(&T::DISCRIMINANT));
         Ok(())
     }
 }
