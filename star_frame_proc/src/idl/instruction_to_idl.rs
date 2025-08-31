@@ -27,7 +27,7 @@ pub fn derive_instruction_to_idl(input: &DeriveInput) -> TokenStream {
         quote! {
             #[cfg(all(feature = "idl", not(target_os = "solana")))]
             #[automatically_derived]
-            impl<'a, 'b, #generic_arg> #prelude::InstructionToIdl<#generic_arg> for #ident #where_clause {
+            impl<'decode, 'arg, #generic_arg> #prelude::InstructionToIdl<#generic_arg> for #ident #where_clause {
                 fn instruction_to_idl(idl_definition: &mut #prelude::IdlDefinition, arg: #generic_arg) -> Result<#prelude::IdlInstructionDef> {
                     let account_set = <<#ident as #prelude::StarFrameInstruction>::Accounts<'decode, 'arg> as #prelude::AccountSetToIdl<#generic_arg>>::account_set_to_idl(idl_definition, arg)?;
                     let type_def = <#ident as #prelude::TypeToIdl>::type_to_idl(idl_definition)?;
