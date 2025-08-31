@@ -32,6 +32,19 @@ Star Frame is in active development (and improving our docs is a main priority n
 
 ## Getting Started
 
+### Create a new project using the CLI
+
+```bash
+cargo install star_frame_cli
+sf --version
+```
+
+```bash
+sf new <PROJECT-NAME>
+```
+
+### Update an existing project to use Star Frame
+
 Add `star_frame` and `bytemuck` to your `Cargo.toml`:
 
 ```shell
