@@ -6,11 +6,6 @@ use crate::state::{CreateMarketArgs, Market, MarketSeeds};
 #[cfg(feature = "idl")]
 use crate::state::FindMarketSeeds;
 
-/// Initializes a marketplace for a given currency and market token
-#[derive(InstructionArgs, BorshSerialize, BorshDeserialize, Copy, Clone, Debug)]
-#[borsh(crate = "star_frame::borsh")]
-pub struct Initialize;
-
 #[derive(AccountSet, Debug)]
 pub struct InitializeAccounts {
     #[validate(funder)]
@@ -36,27 +31,23 @@ pub struct InitializeAccounts {
     pub token_program: Program<Token>,
 }
 
-impl StarFrameInstruction for Initialize {
-    type Accounts<'b, 'c> = InitializeAccounts;
-    type ReturnType = ();
+/// Initializes a marketplace for a given currency and market token
+#[derive(InstructionArgs, BorshSerialize, BorshDeserialize, Copy, Clone, Debug)]
+#[borsh(crate = "star_frame::borsh")]
+pub struct Initialize;
 
-    fn process(
-        accounts: &mut Self::Accounts<'_, '_>,
-        _: Self::RunArg<'_>,
-        _ctx: &mut Context,
-    ) -> Result<Self::ReturnType> {
-        accounts
-            .market_account
-            .data_mut()?
-            .initialize(CreateMarketArgs {
-                authority: *accounts.authority.pubkey(),
-                currency: *accounts.currency.key_for(),
-                market_token: *accounts.market_token.key_for(),
-                bump: accounts.market_account.access_seeds().bump,
-            });
-
-        Ok(())
-    }
+#[star_frame_instruction]
+fn Initialize(accounts: &mut InitializeAccounts) -> Result<()> {
+    accounts
+        .market_account
+        .data_mut()?
+        .initialize(CreateMarketArgs {
+            authority: *accounts.authority.pubkey(),
+            currency: *accounts.currency.key_for(),
+            market_token: *accounts.market_token.key_for(),
+            bump: accounts.market_account.access_seeds().bump,
+        });
+    Ok(())
 }
 
 #[cfg(test)]

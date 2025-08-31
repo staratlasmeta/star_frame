@@ -20,13 +20,13 @@ pub struct AccountTest;
 
 #[derive(InstructionSet)]
 pub enum AccountTestInstructionSet {
-    Run(RunIx),
+    Run(Run),
 }
 
 #[derive(BorshSerialize, BorshDeserialize, InstructionArgs, Copy, Clone)]
 #[ix_args(run)]
 #[borsh(crate = "star_frame::borsh")]
-pub struct RunIx {
+pub struct Run {
     key_to_find: Pubkey,
     id_to_find: u64,
 }
@@ -63,38 +63,29 @@ struct ListInner {
     key: Pubkey,
 }
 
-impl StarFrameInstruction for RunIx {
-    type ReturnType = ();
+#[star_frame_instruction]
+fn Run(accounts: &mut RunAccounts) -> Result<()> {
+    let mut data = accounts.account.data_mut()?;
+    let before = remaining_compute();
+    let mut list = data.list();
+    let after = remaining_compute();
+    msg!("compute units: {}", before - after - 100);
 
-    type Accounts<'b, 'c> = RunAccounts;
+    accounts
+        .borsh_account
+        .set_inner(MyBorshAccount { vec: vec![1, 2, 3] })?;
 
-    fn process(
-        accounts: &mut Self::Accounts<'_, '_>,
-        arg: Self::RunArg<'_>,
-        _ctx: &mut Context,
-    ) -> Result<Self::ReturnType> {
-        let mut data = accounts.account.data_mut()?;
-        let before = remaining_compute();
-        let mut list = data.list();
-        let after = remaining_compute();
-        msg!("compute units: {}", before - after - 100);
+    accounts.borsh_account.vec.push(4);
 
-        accounts
-            .borsh_account
-            .set_inner(MyBorshAccount { vec: vec![1, 2, 3] })?;
+    list.insert(
+        0,
+        ListInner {
+            id: 1,
+            key: arg.key_to_find,
+        },
+    )?;
 
-        accounts.borsh_account.vec.push(4);
-
-        list.insert(
-            0,
-            ListInner {
-                id: 1,
-                key: arg.key_to_find,
-            },
-        )?;
-
-        Ok(())
-    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -160,7 +151,7 @@ mod tests {
 
         let res = mollusk.process_and_validate_instruction(
             &AccountTest::instruction(
-                &RunIx {
+                &Run {
                     key_to_find: Pubkey::new_unique(),
                     id_to_find: 1,
                 },

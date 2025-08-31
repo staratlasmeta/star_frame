@@ -222,7 +222,7 @@
 //! use star_frame::prelude::*;
 //!
 //! impl StarFrameInstruction for Initialize {
-//!     type Accounts<'b, 'c> = InitializeAccounts;
+//!     type Accounts<'decode, 'arg> = InitializeAccounts;
 //!     type ReturnType = ();
 //!
 //!     fn process(
@@ -236,6 +236,45 @@
 //!         };
 //!         Ok(())
 //!     }
+//! }
+//! ```
+//!
+//! You can directly implement [`StarFrameInstruction`](crate::instruction::StarFrameInstruction) with the process function using the
+//! [`star_frame_instruction`](crate::instruction::star_frame_instruction) macro.
+//! ```
+//! # fn main() {}
+//! # #[derive(StarFrameProgram)]
+//! # #[program(instruction_set = (), id = System::ID, no_entrypoint)]
+//! # pub struct MyProgram;
+//! #
+//! # #[derive(BorshSerialize, BorshDeserialize, Debug, InstructionArgs)]
+//! # #[instruction_args(skip_idl)]
+//! # pub struct Initialize {
+//! #    #[ix_args(&run)]
+//! #    pub start_at: Option<u64>,
+//! # }
+//! #
+//! # #[derive(Align1, Pod, Zeroable, Default, Copy, Clone, Debug, Eq, PartialEq, ProgramAccount)]
+//! # #[repr(C, packed)]
+//! # pub struct CounterAccount {
+//! #     pub authority: Pubkey,
+//! #     pub count: u64,
+//! # }
+//! # #[derive(AccountSet, Debug)]
+//! # #[account_set(skip_default_idl)]
+//! # pub struct InitializeAccounts {
+//! #     pub counter: Mut<Account<CounterAccount>>,
+//! #     pub authority: AccountInfo,
+//! # }
+//! use star_frame::prelude::*;
+//!
+//! #[star_frame_instruction]
+//! fn Initialize(accounts: &mut InitializeAccounts, start_at: &Option<u64>) -> Result<()> {
+//!     **accounts.counter.data_mut()? = CounterAccount {
+//!         authority: *accounts.authority.pubkey(),
+//!         count: start_at.unwrap_or(0),
+//!     };
+//!     Ok(())
 //! }
 //! ```
 //!

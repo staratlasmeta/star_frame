@@ -27,13 +27,17 @@ pub struct CounterSeeds {
     pub authority: Pubkey,
 }
 
-impl AccountValidate<&Pubkey> for CounterAccount {
-    fn validate_account(self_ref: &Self::Ref<'_>, arg: &Pubkey) -> Result<()> {
-        ensure!(arg == &self_ref.authority, "Incorrect authority");
+#[derive(Debug)]
+pub struct Authority(Pubkey);
+
+impl AccountValidate<Authority> for CounterAccount {
+    fn validate_account(self_ref: &Self::Ref<'_>, arg: Authority) -> Result<()> {
+        ensure!(arg.0 == self_ref.authority, "Incorrect authority");
         Ok(())
     }
 }
 
+/// Initialize the counter
 #[derive(BorshSerialize, BorshDeserialize, Debug, InstructionArgs)]
 pub struct Initialize {
     #[ix_args(&run)]
@@ -62,13 +66,14 @@ fn Initialize(account_set: &mut InitializeAccounts, start_at: &Option<u64>) -> R
     Ok(())
 }
 
+/// Increment the counter by 1
 #[derive(BorshSerialize, BorshDeserialize, Debug, Copy, Clone, InstructionArgs)]
 pub struct Increment;
 
 #[derive(AccountSet, Debug)]
 pub struct IncrementAccounts {
     pub authority: Signer,
-    #[validate(arg = self.authority.pubkey())]
+    #[validate(arg = Authority(*self.authority.pubkey()))]
     pub counter: Mut<ValidatedAccount<CounterAccount>>,
 }
 

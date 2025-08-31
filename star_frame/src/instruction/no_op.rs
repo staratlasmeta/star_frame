@@ -1,4 +1,4 @@
-use crate::prelude::*;
+use crate::{instruction::IxArgs, prelude::*};
 
 impl InstructionSet for () {
     type Discriminant = ();
@@ -30,12 +30,11 @@ impl InstructionArgs for () {
 }
 
 impl StarFrameInstruction for () {
-    type ReturnType = <Result<(), ()> as IxReturnType>::ReturnType;
+    type ReturnType = ();
+    type Accounts<'decode, 'arg> = ();
 
-    type Accounts<'b, 'c> = ();
-
-    fn run_instruction(
-        _account_set: &mut Self::Accounts<'_, '_>,
+    fn process(
+        _accounts: &mut Self::Accounts<'_, '_>,
         _run_arg: Self::RunArg<'_>,
         _ctx: &mut Context,
     ) -> Result<Self::ReturnType> {

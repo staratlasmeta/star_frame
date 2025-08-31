@@ -12,15 +12,9 @@ pub fn star_frame_instruction_impl(mut input: ItemFn) -> TokenStream {
         Some("Generics are not supported for star_frame_instruction"),
     );
 
-    let ident = input.sig.ident.clone();
+    let mut ident = input.sig.ident.clone();
 
-    // TODO: Do we make the ident allowed to be snake case like normal functions?
-    // let ident = format_ident!(
-    // "{}",
-    // input.sig.ident.to_string().to_pascal_case(),
-    // span = input.sig.ident.span()
-    // );
-    input.sig.ident = format_ident!("run_instruction");
+    input.sig.ident = format_ident!("process");
 
     let ReturnType::Type(_arrow, return_type) = &input.sig.output else {
         abort!(input.sig, "Expected a return type of `Result<T, E>`");
@@ -60,10 +54,17 @@ pub fn star_frame_instruction_impl(mut input: ItemFn) -> TokenStream {
 
     input.sig.inputs = parse_quote!(#account_set, #run_arg, #ctx);
 
+    let star_frame_instruction_ident = format_ident!("StarFrameInstruction", span = ident.span());
+
+    // Set the span to include the StarFrameInstruction trait name so it includes the ix docs
+    if let Some(joined_span) = ident.span().join(star_frame_instruction_ident.span()) {
+        ident.set_span(joined_span);
+    }
+
     quote! {
-        impl #prelude::StarFrameInstruction for #ident {
+        impl #prelude::#star_frame_instruction_ident for #ident {
             type ReturnType = <#return_type as #prelude::IxReturnType>::ReturnType;
-            type Accounts<'b, 'c> = #account_set_type;
+            type Accounts<'decode, 'arg> = #account_set_type;
 
             #input
         }
