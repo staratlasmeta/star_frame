@@ -64,7 +64,7 @@ struct ListInner {
 }
 
 #[star_frame_instruction]
-fn Run(accounts: &mut RunAccounts) -> Result<()> {
+fn Run(accounts: &mut RunAccounts, arg: Run) -> Result<()> {
     let mut data = accounts.account.data_mut()?;
     let before = remaining_compute();
     let mut list = data.list();
