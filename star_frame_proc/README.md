@@ -9,8 +9,6 @@
   <a href="https://docs.rs/star_frame_proc"><img src="https://img.shields.io/docsrs/star_frame_proc?logo=docsdotrs" /></a>
 </p>
 
----
-
-### License
+## License
 
 This project is licensed under the [Apache-2.0](LICENSE) license.

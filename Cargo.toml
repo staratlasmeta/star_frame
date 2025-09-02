@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["star_*", "example_programs/*", "cli"]
+members = ["star_*", "example_programs/*"]
 
 [workspace.package]
 version = "0.23.1"
