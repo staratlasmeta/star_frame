@@ -45,7 +45,7 @@ pub use crate::{
 pub use star_frame_proc::{InstructionToIdl, TypeToIdl};
 
 // Solana stuff
-pub use anyhow::{anyhow, bail};
+pub use anyhow::{anyhow, bail, Context as _};
 pub use pinocchio::{account_info::AccountInfo, msg, program_error::ProgramError, ProgramResult};
 pub use solana_instruction::AccountMeta;
 pub use solana_pubkey::Pubkey;
