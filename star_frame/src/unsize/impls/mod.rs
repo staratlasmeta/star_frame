@@ -14,6 +14,7 @@ pub use remaining_bytes::*;
 pub use set::*;
 pub use unsized_list::*;
 pub use unsized_map::*;
+pub use unsized_string::*;
 
 pub(crate) mod prelude {
     use super::*;
