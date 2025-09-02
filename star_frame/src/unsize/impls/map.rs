@@ -148,6 +148,19 @@ where
         }
     }
 
+    /// Inserts all key-value pairs from the provided iterator into the map. Returns the number of new items inserted.
+    #[exclusive]
+    pub fn insert_all(&mut self, values: impl IntoIterator<Item = (K, V)>) -> Result<usize> {
+        let mut count = 0;
+        values.into_iter().try_for_each(|(key, value)| {
+            if self.insert(key, value)?.is_none() {
+                count += 1;
+            }
+            anyhow::Ok(())
+        })?;
+        Ok(count)
+    }
+
     #[exclusive]
     pub fn insert(&mut self, key: K, value: V) -> Result<Option<V>> {
         match self.get_index(&key) {
