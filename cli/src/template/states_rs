@@ -14,9 +14,11 @@ pub struct CounterAccount {
     pub count: u64,
 }
 
-impl AccountValidate<&Pubkey> for CounterAccount {
-    fn validate_account(self_ref: &Self::Ref<'_>, arg: &Pubkey) -> Result<()> {
-        ensure!(arg == &self_ref.authority, "Incorrect authority");
+pub struct Authority(pub Pubkey);
+
+impl AccountValidate<Authority> for CounterAccount {
+    fn validate_account(self_ref: &Self::Ref<'_>, arg: Authority) -> Result<()> {
+        ensure!(arg.0 == self_ref.authority, "Incorrect authority");
         Ok(())
     }
 }

@@ -16,7 +16,7 @@ pub mod macro_prelude {
         cpi::{CpiBuilder, MakeCpi},
         instruction::{
             Instruction, InstructionArgs, InstructionDiscriminant, InstructionSet, IxArgs,
-            StarFrameInstruction,
+            IxReturnType, StarFrameInstruction,
         },
         program::StarFrameProgram,
         unsize::{

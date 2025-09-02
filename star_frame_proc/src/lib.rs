@@ -9,13 +9,14 @@ mod instruction_set;
 mod program;
 mod program_account;
 mod solana_pubkey;
+mod star_frame_instruction;
 mod unsize;
 mod util;
 
 use proc_macro_error2::proc_macro_error;
 use syn::{
-    parse_macro_input, punctuated::Punctuated, token::Comma, DeriveInput, Item, ItemEnum, ItemImpl,
-    LitStr,
+    parse::Nothing, parse_macro_input, punctuated::Punctuated, token::Comma, DeriveInput, Item,
+    ItemEnum, ItemFn, ItemImpl, LitStr,
 };
 
 /// Derives `AccountSet` lifecycle traits and `AccountSetToIdl` for a struct.
@@ -829,6 +830,75 @@ pub fn derive_type_to_idl(item: proc_macro::TokenStream) -> proc_macro::TokenStr
 #[proc_macro_derive(InstructionToIdl)]
 pub fn derive_instruction_to_idl(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let out = idl::derive_instruction_to_idl(&parse_macro_input!(input as DeriveInput));
+    out.into()
+}
+
+/// Shorthand to implement the `StarFrameInstruction` trait through a `StarFrameInstruction::process` function declaration.
+///
+/// # Function Signature
+/// The function ident should be the same as the instruction ident being implemented on (PascalCase and all).
+///
+/// ## Arguments
+/// - `accounts: &mut <the account set>` (required) - The mutable reference to the account set to be set as `StarFrameInstruction::Accounts<'decode, 'arg>`
+/// - `run_arg: <the run argument type>` (optional) - The run argument for the instruction. Defaults to `_run_arg: Self::RunArg<'_>`
+/// - `ctx: &mut Context` (optional) - The context for the instruction. Defaults to `_ctx: &mut Context`
+///
+/// ## Return Type
+/// - `Result<T>` (required) - The return type of the instruction. `T` will be set as `StarFrameInstruction::ReturnType`
+///
+/// # Example
+/// ```
+/// use star_frame::prelude::*;
+/// # fn main() {}
+/// #
+/// # #[derive(StarFrameProgram)]
+/// # #[program(instruction_set = (), id = System::ID, no_entrypoint)]
+/// # pub struct MyProgram;
+/// #
+/// # #[derive(Align1, Pod, Zeroable, Copy, Clone, Debug, ProgramAccount)]
+/// # #[repr(C, packed)]
+/// # pub struct CounterAccount {
+/// #     pub authority: Pubkey,
+/// #     pub count: u64,
+/// # }
+/// #
+/// # #[derive(AccountSet)]
+/// # pub struct InitializeAccounts {
+/// #     pub counter: Mut<Account<CounterAccount>>,
+/// #     pub authority: AccountInfo,
+/// # }
+///
+/// #[derive(InstructionArgs, BorshDeserialize)]
+/// # #[borsh(crate = "star_frame::borsh")]
+/// pub struct Initialize {
+///     #[ix_args(&mut run)]
+///     pub start_at: Option<u64>,
+/// }
+///
+/// // The second and third arguments are optional, so you don't need to include
+/// // it if you aren't using them.
+/// //
+/// // If you hover over the function name ident, you can view the `StarFrameInstruction`
+/// // trait documentation (after your instruction struct documentation).
+/// #[star_frame_instruction]
+/// fn Initialize(initialize_accounts: &mut InitializeAccounts, start_at: &mut Option<u64>) -> Result<()> {
+///     **initialize_accounts.counter.data_mut()? = CounterAccount {
+///         authority: *initialize_accounts.authority.pubkey(),
+///         count: start_at.unwrap_or(0),
+///     };
+///     Ok(())
+/// }
+/// ```
+#[proc_macro_error]
+#[proc_macro_attribute]
+pub fn star_frame_instruction(
+    args: proc_macro::TokenStream,
+    item: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
+    parse_macro_input!(args as Nothing);
+
+    let out =
+        star_frame_instruction::star_frame_instruction_impl(parse_macro_input!(item as ItemFn));
     out.into()
 }
 

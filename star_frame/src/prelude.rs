@@ -31,7 +31,8 @@ pub use crate::{
         PackedValue, SetKeyFor as _, UnitVal,
     },
     instruction::{
-        InstructionArgs, InstructionDiscriminant as _, InstructionSet, StarFrameInstruction,
+        star_frame_instruction, InstructionArgs, InstructionDiscriminant as _, InstructionSet,
+        StarFrameInstruction,
     },
     program::{system::System, StarFrameProgram},
     pubkey,

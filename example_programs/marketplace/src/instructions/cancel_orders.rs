@@ -11,24 +11,20 @@ pub struct CancelOrders {
     pub args: Vec<CancelOrderArgs>,
 }
 
-impl StarFrameInstruction for CancelOrders {
-    type ReturnType = ();
-    type Accounts<'b, 'c> = ManageOrderAccounts;
+#[star_frame_instruction]
+fn CancelOrders(
+    accounts: &mut ManageOrderAccounts,
+    orders_to_cancel: &Vec<CancelOrderArgs>,
+    ctx: &mut Context,
+) -> Result<()> {
+    let cancelled_totals = accounts
+        .market
+        .data_mut()?
+        .cancel_orders(accounts.user.pubkey(), orders_to_cancel)?;
 
-    fn process(
-        accounts: &mut Self::Accounts<'_, '_>,
-        orders_to_cancel: Self::RunArg<'_>,
-        ctx: &mut Context,
-    ) -> Result<Self::ReturnType> {
-        let cancelled_totals = accounts
-            .market
-            .data_mut()?
-            .cancel_orders(accounts.user.pubkey(), orders_to_cancel)?;
+    accounts.withdraw(cancelled_totals, ctx)?;
 
-        accounts.withdraw(cancelled_totals, ctx)?;
-
-        Ok(())
-    }
+    Ok(())
 }
 
 #[cfg(test)]

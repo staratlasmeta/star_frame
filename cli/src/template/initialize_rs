@@ -3,7 +3,7 @@ use star_frame::prelude::*;
 
 #[derive(BorshSerialize, BorshDeserialize, Debug, InstructionArgs)]
 pub struct InitializeCounter {
-    #[ix_args(&run)]
+    #[ix_args(run)]
     pub start_at: Option<u64>,
 }
 
@@ -20,19 +20,11 @@ pub struct InitializeAccounts {
     pub system_program: Program<System>,
 }
 
-impl StarFrameInstruction for InitializeCounter {
-    type ReturnType = ();
-    type Accounts<'b, 'c> = InitializeAccounts;
-
-    fn process(
-        accounts: &mut Self::Accounts<'_, '_>,
-        start_at: Self::RunArg<'_>,
-        _ctx: &mut Context,
-    ) -> Result<Self::ReturnType> {
-        **accounts.counter.data_mut()? = CounterAccount {
-            authority: *accounts.authority.pubkey(),
-            count: start_at.unwrap_or(0),
-        };
-        Ok(())
-    }
+#[star_frame_instruction]
+fn InitializeCounter(accounts: &mut InitializeAccounts, start_at: Option<u64>) -> Result<()> {
+    **accounts.counter.data_mut()? = CounterAccount {
+        authority: *accounts.authority.pubkey(),
+        count: start_at.unwrap_or(0),
+    };
+    Ok(())
 }

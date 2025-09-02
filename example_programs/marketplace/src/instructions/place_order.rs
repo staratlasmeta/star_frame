@@ -5,7 +5,9 @@ use crate::{
     state::{MarketExclusiveImpl, OrderSide, OrderTotals, ProcessOrderArgs},
 };
 
-/// Opens a new order for a marketplace
+/// Places (and/or fills) an order for a marketplace
+///
+/// For simplicity, we don't track rent, so the user that placed an order won't neccesarily get back that rent when it's filled
 #[derive(BorshSerialize, BorshDeserialize, Debug, Copy, Clone, InstructionArgs)]
 #[borsh(crate = "star_frame::borsh")]
 pub struct PlaceOrder {
@@ -13,46 +15,39 @@ pub struct PlaceOrder {
     pub args: ProcessOrderArgs,
 }
 
-/// Places (and/or fills) an order for a marketplace
-///
-/// For simplicity, we don't track rent, so the user that placed an order won't neccesarily get back that rent when it's filled
-impl StarFrameInstruction for PlaceOrder {
-    type ReturnType = Option<u64>;
-    type Accounts<'b, 'c> = ManageOrderAccounts;
+#[star_frame_instruction]
+fn PlaceOrder(
+    accounts: &mut ManageOrderAccounts,
+    process_order_args: ProcessOrderArgs,
+    ctx: &mut Context,
+) -> Result<Option<u64>> {
+    let order_result = accounts
+        .market
+        .data_mut()?
+        .process_order(process_order_args, *accounts.user.pubkey())?;
 
-    fn process(
-        accounts: &mut Self::Accounts<'_, '_>,
-        process_order_args: Self::RunArg<'_>,
-        ctx: &mut Context,
-    ) -> Result<Self::ReturnType> {
-        let order_result = accounts
-            .market
-            .data_mut()?
-            .process_order(process_order_args, *accounts.user.pubkey())?;
+    let mut withdraw_totals = OrderTotals::default();
+    let mut deposit_totals = OrderTotals::default();
 
-        let mut withdraw_totals = OrderTotals::default();
-        let mut deposit_totals = OrderTotals::default();
-
-        match process_order_args.side {
-            OrderSide::Bid => {
-                // Bids lock up currency and return market tokens
-                deposit_totals.currency = order_result.total_cost();
-                withdraw_totals.market_tokens = order_result.executed_quantity;
-            }
-            OrderSide::Ask => {
-                // Asks lock up market tokens and return currency
-                deposit_totals.market_tokens = order_result.total_quantity();
-                withdraw_totals.currency = order_result.executed_cost;
-            }
+    match process_order_args.side {
+        OrderSide::Bid => {
+            // Bids lock up currency and return market tokens
+            deposit_totals.currency = order_result.total_cost();
+            withdraw_totals.market_tokens = order_result.executed_quantity;
         }
-
-        msg!("{}", order_result);
-
-        accounts.withdraw(withdraw_totals, ctx)?;
-        accounts.deposit(deposit_totals, ctx)?;
-
-        Ok(order_result.order_id)
+        OrderSide::Ask => {
+            // Asks lock up market tokens and return currency
+            deposit_totals.market_tokens = order_result.total_quantity();
+            withdraw_totals.currency = order_result.executed_cost;
+        }
     }
+
+    msg!("{}", order_result);
+
+    accounts.withdraw(withdraw_totals, ctx)?;
+    accounts.deposit(deposit_totals, ctx)?;
+
+    Ok(order_result.order_id)
 }
 
 #[cfg(test)]

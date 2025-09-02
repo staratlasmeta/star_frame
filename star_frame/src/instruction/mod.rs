@@ -9,7 +9,9 @@ use borsh::to_vec;
 use bytemuck::{bytes_of, Pod};
 use pinocchio::cpi::set_return_data;
 
-pub use star_frame_proc::{InstructionArgs, InstructionSet, InstructionToIdl};
+pub use star_frame_proc::{
+    star_frame_instruction, InstructionArgs, InstructionSet, InstructionToIdl,
+};
 
 mod no_op;
 mod un_callable;
@@ -17,7 +19,7 @@ pub use un_callable::UnCallable;
 
 /// A set of instructions that can be used as input to a program.
 ///
-/// This can be derived using the [`star_frame_proc::InstructionSet`] macro on an enum.
+/// This can be derived using the [`derive@InstructionSet`] macro on an enum.
 pub trait InstructionSet {
     /// The discriminant type used by this program's instructions.
     type Discriminant: Pod;
@@ -54,30 +56,14 @@ where
 
 /// A callable instruction that can be used as input to a program.
 pub trait Instruction {
-    type ParsedData<'a>;
-
-    /// Parses the instruction data into a [`Self::ParsedData`].
-    fn parse_instruction_data<'a>(instruction_data: &mut &'a [u8]) -> Result<Self::ParsedData<'a>>;
-
-    /// Runs the instruction from a parsed input from [`Self::parse_instruction_data`].
-    fn process_from_parsed(
-        accounts: &[AccountInfo],
-        data: &mut Self::ParsedData<'_>,
-        ctx: &mut Context,
-    ) -> Result<()>;
-
     /// Runs the instruction from a raw solana input.
     ///
     /// This is called from [`InstructionSet::dispatch`] after the discriminant is parsed and matched on.
     fn process_from_raw(
         accounts: &[AccountInfo],
-        mut instruction_data: &[u8],
+        instruction_data: &[u8],
         ctx: &mut Context,
-    ) -> Result<()> {
-        let mut data = Self::parse_instruction_data(&mut instruction_data)
-            .context("Failed to parse instruction data")?;
-        Self::process_from_parsed(accounts, &mut data, ctx).context("Failed to process instruction")
-    }
+    ) -> Result<()>;
 }
 
 /// Helper type for the return of [`InstructionArgs::split_to_args`].
@@ -112,7 +98,19 @@ pub trait InstructionArgs: Sized {
     fn split_to_args(r: &mut Self) -> IxArgs<'_, Self>;
 }
 
-/// An opinionated (and recommended) [`Instruction`] using [`AccountSet`] and other traits.
+#[doc(hidden)]
+#[diagnostic::on_unimplemented(
+    message = "StarFrameInstruction requires the return type to be `Result<T>`"
+)]
+/// A helper trait to get the inner T of a [`Result`] from a [`StarFrameInstruction::process`] declaration. This is used internally in the [`star_frame_instruction`] macro.
+pub trait IxReturnType {
+    type ReturnType;
+}
+impl<T, E> IxReturnType for Result<T, E> {
+    type ReturnType = T;
+}
+
+/// An opinionated (and recommended) [`Instruction`] using [`AccountSet`] and other traits. Can be derived using the [`star_frame_instruction`] macro.
 ///
 /// The steps for how this implements [`Instruction::process_from_raw`] are as follows:
 /// 1. Decode Self from bytes using [`BorshDeserialize`].
@@ -127,9 +125,9 @@ pub trait StarFrameInstruction: BorshDeserialize + InstructionArgs {
     type ReturnType: BorshSerialize;
 
     /// The [`AccountSet`] used by this instruction.
-    type Accounts<'b, 'c>: AccountSetDecode<'b, Self::DecodeArg<'c>>
-        + AccountSetValidate<Self::ValidateArg<'c>>
-        + AccountSetCleanup<Self::CleanupArg<'c>>;
+    type Accounts<'decode, 'arg>: AccountSetDecode<'decode, Self::DecodeArg<'arg>>
+        + AccountSetValidate<Self::ValidateArg<'arg>>
+        + AccountSetCleanup<Self::CleanupArg<'arg>>;
 
     /// Processes the instruction.
     fn process(
@@ -143,23 +141,19 @@ impl<T> Instruction for T
 where
     T: StarFrameInstruction,
 {
-    type ParsedData<'a> = T;
-
-    fn parse_instruction_data<'a>(instruction_data: &mut &'a [u8]) -> Result<Self::ParsedData<'a>> {
-        <T as BorshDeserialize>::deserialize(instruction_data).map_err(Into::into)
-    }
-
-    fn process_from_parsed(
+    fn process_from_raw(
         mut accounts: &[AccountInfo],
-        data: &mut Self::ParsedData<'_>,
+        mut data: &[u8],
         ctx: &mut Context,
     ) -> Result<()> {
+        let mut data = <T as BorshDeserialize>::deserialize(&mut data)
+            .context("Failed to deserialize instruction data")?;
         let IxArgs {
             decode,
             validate,
             run,
             cleanup,
-        } = Self::split_to_args(data);
+        } = Self::split_to_args(&mut data);
         let mut account_set =
             <Self as StarFrameInstruction>::Accounts::decode_accounts(&mut accounts, decode, ctx)
                 .context("Failed to decode accounts")?;
@@ -185,7 +179,7 @@ macro_rules! empty_star_frame_instruction {
     ($ix:ident, $accounts:ident) => {
         impl $crate::instruction::StarFrameInstruction for $ix {
             type ReturnType = ();
-            type Accounts<'b, 'c> = $accounts;
+            type Accounts<'decode, 'arg> = $accounts;
 
             fn process(
                 _accounts: &mut Self::Accounts<'_, '_>,
@@ -205,14 +199,9 @@ macro_rules! impl_blank_ix {
     ($($ix:ident),*) => {
         $(
             impl $crate::instruction::Instruction for $ix {
-                type ParsedData<'a> = ();
-                fn parse_instruction_data<'a>(_instruction_data: &mut &'a [u8]) -> $crate::Result<Self::ParsedData<'a>> {
-                    todo!()
-                }
-
-                fn process_from_parsed(
+                fn process_from_raw(
                     _accounts: &[$crate::prelude::AccountInfo],
-                    _data: &mut Self::ParsedData<'_>,
+                    _data: &[u8],
                     _ctx: &mut $crate::prelude::Context,
                 ) -> $crate::Result<()> {
                     todo!()

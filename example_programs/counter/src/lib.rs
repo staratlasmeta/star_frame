@@ -1,7 +1,5 @@
 use star_frame::{
-    anyhow::bail,
     derive_more::{self, Deref, DerefMut},
-    empty_star_frame_instruction,
     prelude::*,
 };
 
@@ -14,10 +12,10 @@ pub struct CounterProgram;
 
 #[derive(InstructionSet)]
 pub enum CounterInstructionSet {
-    CreateCounter(CreateCounterIx),
-    UpdateSigner(UpdateCounterSignerIx),
-    Count(CountIx),
-    CloseCounter(CloseCounterIx),
+    CreateCounter(CreateCounter),
+    UpdateSigner(UpdateCounterSigner),
+    Count(Count),
+    CloseCounter(CloseCounter),
 }
 
 #[derive(Align1, Pod, Zeroable, Default, Copy, Clone, Debug, Eq, PartialEq, ProgramAccount)]
@@ -52,8 +50,8 @@ pub struct CounterAccountSeeds {
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Debug, InstructionArgs)]
-pub struct CreateCounterIx {
-    #[ix_args(&run)]
+pub struct CreateCounter {
+    #[ix_args(run)]
     pub start_at: Option<u64>,
 }
 
@@ -71,31 +69,18 @@ pub struct CreateCounterAccounts {
     pub system_program: Program<System>,
 }
 
-impl StarFrameInstruction for CreateCounterIx {
-    type ReturnType = ();
-    type Accounts<'b, 'c> = CreateCounterAccounts;
-
-    fn process(
-        accounts: &mut Self::Accounts<'_, '_>,
-        start_at: Self::RunArg<'_>,
-        _ctx: &mut Context,
-    ) -> Result<Self::ReturnType> {
-        **accounts.counter.data_mut()? = CounterAccount {
-            version: 0,
-            signer: *accounts.owner.pubkey(),
-            owner: *accounts.owner.pubkey(),
-            bump: accounts.counter.access_seeds().bump,
-            count: start_at.unwrap_or(0),
-            data: Default::default(),
-        };
-
-        Ok(())
-    }
+#[star_frame_instruction]
+fn CreateCounter(accounts: &mut CreateCounterAccounts, start_at: Option<u64>) -> Result<()> {
+    **accounts.counter.data_mut()? = CounterAccount {
+        version: 0,
+        signer: *accounts.owner.pubkey(),
+        owner: *accounts.owner.pubkey(),
+        bump: accounts.counter.access_seeds().bump,
+        count: start_at.unwrap_or(0),
+        data: Default::default(),
+    };
+    Ok(())
 }
-
-#[derive(BorshSerialize, BorshDeserialize, Debug, InstructionArgs)]
-#[ix_args(&run)]
-pub struct UpdateCounterSignerIx;
 
 #[derive(AccountSet, Debug)]
 #[validate(extra_validation = self.validate())]
@@ -114,25 +99,19 @@ impl UpdateCounterSignerAccounts {
     }
 }
 
-impl StarFrameInstruction for UpdateCounterSignerIx {
-    type ReturnType = ();
-    type Accounts<'b, 'c> = UpdateCounterSignerAccounts;
+#[derive(BorshSerialize, BorshDeserialize, Debug, InstructionArgs)]
+pub struct UpdateCounterSigner;
 
-    fn process(
-        accounts: &mut Self::Accounts<'_, '_>,
-        _run_arg: Self::RunArg<'_>,
-        _ctx: &mut Context,
-    ) -> Result<Self::ReturnType> {
-        let mut counter = accounts.counter.data_mut()?;
-        counter.signer = *accounts.new_signer.pubkey();
-
-        Ok(())
-    }
+#[star_frame_instruction]
+fn UpdateCounterSigner(accounts: &mut UpdateCounterSignerAccounts) -> Result<()> {
+    let mut counter = accounts.counter.data_mut()?;
+    counter.signer = *accounts.new_signer.pubkey();
+    Ok(())
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Debug, Copy, Clone, InstructionArgs)]
 #[ix_args(run)]
-pub struct CountIx {
+pub struct Count {
     pub amount: u64,
     pub subtract: bool,
 }
@@ -153,29 +132,26 @@ impl CountAccounts {
     }
 }
 
-impl StarFrameInstruction for CountIx {
-    type ReturnType = ();
-    type Accounts<'b, 'c> = CountAccounts;
+#[star_frame_instruction]
+fn Count(accounts: &mut CountAccounts, Count { amount, subtract }: Count) -> Result<u64> {
+    let mut counter = accounts.counter.data_mut()?;
+    let new_count: u64 = if subtract {
+        counter.count - amount
+    } else {
+        counter.count + amount
+    };
+    counter.count = new_count;
 
-    fn process(
-        accounts: &mut Self::Accounts<'_, '_>,
-        CountIx { amount, subtract }: Self::RunArg<'_>,
-        _ctx: &mut Context,
-    ) -> Result<Self::ReturnType> {
-        let mut counter = accounts.counter.data_mut()?;
-        let new_count: u64 = if subtract {
-            counter.count - amount
-        } else {
-            counter.count + amount
-        };
-        counter.count = new_count;
-
-        Ok(())
-    }
+    Ok(new_count)
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Debug, InstructionArgs)]
-pub struct CloseCounterIx;
+pub struct CloseCounter;
+
+#[star_frame_instruction]
+fn CloseCounter(_accounts: &mut CloseCounterAccounts) -> Result<()> {
+    Ok(())
+}
 
 #[derive(AccountSet, Debug)]
 pub struct CloseCounterAccounts {
@@ -186,7 +162,6 @@ pub struct CloseCounterAccounts {
     #[cleanup(arg = CloseAccount(()))]
     pub counter: Mut<WrappedCounter>,
 }
-empty_star_frame_instruction!(CloseCounterIx, CloseCounterAccounts);
 
 #[cfg(test)]
 #[allow(unused)]
@@ -251,7 +226,7 @@ mod tests {
         // Init a new counter
         mollusk.process_and_validate_instruction(
             &CounterProgram::instruction(
-                &CreateCounterIx { start_at },
+                &CreateCounter { start_at },
                 CreateCounterClientAccounts {
                     funder,
                     owner,
@@ -272,7 +247,7 @@ mod tests {
         expected_counter.signer = signer2;
         mollusk.process_and_validate_instruction(
             &CounterProgram::instruction(
-                &UpdateCounterSignerIx,
+                &UpdateCounterSigner,
                 UpdateCounterSignerClientAccounts {
                     signer: owner,
                     new_signer: signer2,
@@ -293,7 +268,7 @@ mod tests {
         // Update count
         mollusk.process_and_validate_instruction(
             &CounterProgram::instruction(
-                &CountIx {
+                &Count {
                     amount: COUNT_ADD,
                     subtract: false,
                 },
@@ -313,7 +288,7 @@ mod tests {
         expected_counter.count -= COUNT_SUB;
         mollusk.process_and_validate_instruction(
             &CounterProgram::instruction(
-                &CountIx {
+                &Count {
                     amount: COUNT_SUB,
                     subtract: true,
                 },
@@ -340,7 +315,7 @@ mod tests {
         // Close counter
         mollusk.process_and_validate_instruction(
             &CounterProgram::instruction(
-                &CloseCounterIx,
+                &CloseCounter,
                 CloseCounterClientAccounts {
                     signer: signer2,
                     funds_to,
