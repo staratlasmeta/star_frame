@@ -15,18 +15,15 @@ const TEST_ID: Pubkey = Pubkey::new_from_array([1; 32]);
 #[program(
     instruction_set = AccountTestInstructionSet,
     id = TEST_ID,
-    skip_idl
 )]
 pub struct AccountTest;
 
 #[derive(InstructionSet)]
-#[ix_set(skip_idl)]
 pub enum AccountTestInstructionSet {
     Run(RunIx),
 }
 
 #[derive(BorshSerialize, BorshDeserialize, InstructionArgs, Copy, Clone)]
-#[instruction_args(skip_idl)]
 #[ix_args(run)]
 #[borsh(crate = "star_frame::borsh")]
 pub struct RunIx {
@@ -35,18 +32,31 @@ pub struct RunIx {
 }
 
 #[derive(AccountSet)]
-#[account_set(skip_default_idl)]
 pub struct RunAccounts {
-    pub account: Account<AccountData>,
+    #[validate(funder)]
+    pub funder: Mut<Signer>,
+    #[cleanup(arg = NormalizeRent(()))]
+    pub account: Mut<Account<AccountData>>,
+    #[decode(arg = || MyBorshAccount { vec: vec![] })]
+    #[validate(arg = Create(()))]
+    #[cleanup(arg = NormalizeRent(()))]
+    pub borsh_account: Init<Signer<BorshAccount<MyBorshAccount>>>,
+    pub system_program: Program<System>,
 }
 
-#[unsized_type(program_account, skip_idl)]
+#[unsized_type(program_account)]
 pub struct AccountData {
     #[unsized_start]
     list: List<ListInner>,
 }
 
-#[derive(Pod, Zeroable, Debug, PartialEq, Eq, PartialOrd, Ord, Align1, Copy, Clone)]
+#[derive(ProgramAccount, BorshSerialize, BorshDeserialize, Debug, Default)]
+#[borsh(crate = "star_frame::borsh")]
+pub struct MyBorshAccount {
+    vec: Vec<u8>,
+}
+
+#[derive(Pod, Zeroable, Debug, PartialEq, Eq, PartialOrd, Ord, Align1, Copy, Clone, TypeToIdl)]
 #[repr(C, packed)]
 struct ListInner {
     id: u64,
@@ -68,6 +78,12 @@ impl StarFrameInstruction for RunIx {
         let mut list = data.list();
         let after = remaining_compute();
         msg!("compute units: {}", before - after - 100);
+
+        accounts
+            .borsh_account
+            .set_inner(MyBorshAccount { vec: vec![1, 2, 3] })?;
+
+        accounts.borsh_account.vec.push(4);
 
         list.insert(
             0,
@@ -104,6 +120,7 @@ mod tests {
         const LAMPORTS_PER_SOL: u64 = 1_000_000_000;
 
         let account = Pubkey::new_unique();
+        let borsh_account = Pubkey::new_unique();
 
         let list = std::iter::repeat_with(|| ListInner {
             id: 2,
@@ -114,16 +131,31 @@ mod tests {
 
         let account_data = AccountData::serialize_account(AccountDataOwned { list })?;
 
-        let mut account_store: HashMap<Pubkey, SolanaAccount> = HashMap::from_iter([(
-            account,
-            SolanaAccount {
-                lamports: LAMPORTS_PER_SOL * 10,
-                data: account_data,
-                owner: AccountTest::ID,
-                executable: false,
-                rent_epoch: 0,
-            },
-        )]);
+        let funder = Pubkey::new_unique();
+
+        let mut account_store: HashMap<Pubkey, SolanaAccount> = HashMap::from_iter([
+            (
+                account,
+                SolanaAccount {
+                    lamports: 0,
+                    data: account_data,
+                    owner: AccountTest::ID,
+                    executable: false,
+                    rent_epoch: 0,
+                },
+            ),
+            (borsh_account, SolanaAccount::default()),
+            (
+                funder,
+                SolanaAccount {
+                    lamports: LAMPORTS_PER_SOL * 10,
+                    data: vec![],
+                    owner: System::ID,
+                    executable: false,
+                    rent_epoch: 0,
+                },
+            ),
+        ]);
         let mollusk = mollusk.with_context(account_store);
 
         let res = mollusk.process_and_validate_instruction(
@@ -132,10 +164,25 @@ mod tests {
                     key_to_find: Pubkey::new_unique(),
                     id_to_find: 1,
                 },
-                RunClientAccounts { account },
+                RunClientAccounts {
+                    account,
+                    borsh_account,
+                    funder,
+                    system_program: None,
+                },
             )?,
             &[Check::success()],
         );
+
+        let borsh_account_data = MyBorshAccount::deserialize_account(
+            &mollusk
+                .account_store
+                .borrow()
+                .get(&borsh_account)
+                .unwrap()
+                .data,
+        )?;
+        assert_eq!(borsh_account_data.vec, vec![1, 2, 3, 4]);
 
         Ok(())
     }

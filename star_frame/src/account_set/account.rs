@@ -1,6 +1,4 @@
-//! A single program account that contains an [`UnsizedType`].
-//!
-//! Calls [`ProgramAccount::validate_account_info`] during validation to ensure the owner and discriminant match.
+//! A [`ProgramAccount`] that contains an [`UnsizedType`].
 
 use crate::{
     account_set::{
@@ -34,7 +32,7 @@ pub struct ReceiveRent<T>(pub T);
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
 pub struct CloseAccount<T>(pub T);
 
-/// A single program account that contains an [`UnsizedType`].
+/// A [`ProgramAccount`] that contains an [`UnsizedType`].
 ///
 /// Calls [`ProgramAccount::validate_account_info`] during validation to ensure the owner and discriminant match.
 #[derive(AccountSet, derive_where::DeriveWhere)]
@@ -117,31 +115,6 @@ pub struct Account<T: ProgramAccount + UnsizedType + ?Sized> {
     phantom_t: PhantomData<T>,
 }
 
-#[cfg(all(feature = "idl", not(target_os = "solana")))]
-mod idl_impl {
-
-    use super::*;
-    use star_frame::idl::AccountSetToIdl;
-    use star_frame_idl::{account_set::IdlAccountSetDef, IdlDefinition};
-
-    impl<T: ProgramAccount + UnsizedType + ?Sized, A> AccountSetToIdl<A> for Account<T>
-    where
-        AccountInfo: AccountSetToIdl<A>,
-        T: AccountToIdl,
-    {
-        fn account_set_to_idl(
-            idl_definition: &mut IdlDefinition,
-            arg: A,
-        ) -> Result<IdlAccountSetDef> {
-            let mut set = <AccountInfo>::account_set_to_idl(idl_definition, arg)?;
-            set.single()?
-                .program_accounts
-                .push(T::account_to_idl(idl_definition)?);
-            Ok(set)
-        }
-    }
-}
-
 impl<T> Account<T>
 where
     T: ProgramAccount + UnsizedType + ?Sized,
@@ -158,6 +131,12 @@ where
         // If the account is writable, changes could have been made after AccountSetValidate has been run
         if self.is_writable() {
             T::validate_account_info(self)?;
+        } else {
+            // TODO: Perhaps put this behind a debug flag?
+            bail!(
+                "Tried to borrow mutably from Account `{}` which is not writable",
+                self.pubkey()
+            );
         }
         ExclusiveWrapper::new(&self.info)
     }
@@ -370,5 +349,30 @@ where
         let mut data_bytes = &mut *data_bytes;
         <AccountDiscriminant<T>>::init(&mut data_bytes, arg)?;
         Ok(())
+    }
+}
+
+#[cfg(all(feature = "idl", not(target_os = "solana")))]
+mod idl_impl {
+
+    use super::*;
+    use star_frame::idl::AccountSetToIdl;
+    use star_frame_idl::{account_set::IdlAccountSetDef, IdlDefinition};
+
+    impl<T: ProgramAccount + UnsizedType + ?Sized, A> AccountSetToIdl<A> for Account<T>
+    where
+        AccountInfo: AccountSetToIdl<A>,
+        T: AccountToIdl,
+    {
+        fn account_set_to_idl(
+            idl_definition: &mut IdlDefinition,
+            arg: A,
+        ) -> Result<IdlAccountSetDef> {
+            let mut set = <AccountInfo>::account_set_to_idl(idl_definition, arg)?;
+            set.single()?
+                .program_accounts
+                .push(T::account_to_idl(idl_definition)?);
+            Ok(set)
+        }
     }
 }

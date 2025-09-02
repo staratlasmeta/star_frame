@@ -8,7 +8,7 @@
 use crate::{
     account_set::{
         account::discriminant::AccountDiscriminant,
-        modifiers::{HasOwnerProgram, HasSeeds},
+        modifiers::{HasOwnerProgram, HasSeeds, OwnerProgramDiscriminant},
         ClientAccountSet,
     },
     instruction::InstructionDiscriminant,
@@ -16,6 +16,7 @@ use crate::{
     unsize::{init::UnsizedInit, FromOwned},
 };
 
+use anyhow::ensure;
 use borsh::{object_length, BorshSerialize};
 use bytemuck::bytes_of;
 use solana_instruction::Instruction as SolanaInstruction;
@@ -102,7 +103,7 @@ pub trait SerializeType: UnsizedType {
     }
 }
 
-impl<T: UnsizedType + ?Sized> SerializeType for T {}
+impl<T> SerializeType for T where T: UnsizedType + ?Sized {}
 
 pub trait DeserializeAccount: UnsizedType + ProgramAccount {
     fn deserialize_account(data: &[u8]) -> Result<Self::Owned> {
@@ -110,9 +111,28 @@ pub trait DeserializeAccount: UnsizedType + ProgramAccount {
     }
 }
 
-impl<T: UnsizedType + ProgramAccount + ?Sized> DeserializeAccount for T {}
+impl<T> DeserializeAccount for T where T: UnsizedType + ProgramAccount + ?Sized {}
 
+pub trait DeserializeBorshAccount: BorshDeserialize + ProgramAccount {
+    fn deserialize_account(data: &[u8]) -> Result<Self> {
+        ensure!(
+            data.len() > size_of::<OwnerProgramDiscriminant<Self>>(),
+            "data is too short"
+        );
+        let data = &data[size_of::<OwnerProgramDiscriminant<Self>>()..];
+        BorshDeserialize::try_from_slice(data).map_err(Into::into)
+    }
+}
+
+impl<T> DeserializeBorshAccount for T where T: BorshDeserialize + ProgramAccount {}
+
+/// A trait that provides logic for serializing [`ProgramAccount`]s that are [`UnsizedType`]s.
+///
+/// This matches the deserialization logic for the [`Account`] account set.
 pub trait SerializeAccount: UnsizedType + ProgramAccount {
+    /// Serializes the [`Account`] data from an owned value using the [`FromOwned`] trait.
+    ///
+    /// Writes the discriminant to the beginning of the serialized data.
     #[inline]
     fn serialize_account(owned: Self::Owned) -> Result<Vec<u8>>
     where
@@ -121,6 +141,9 @@ pub trait SerializeAccount: UnsizedType + ProgramAccount {
         <AccountDiscriminant<Self> as SerializeType>::serialize_type(owned)
     }
 
+    /// Serializes the [`Account`] data from an initialization argument using the [`UnsizedInit`] trait.
+    ///
+    /// Writes the discriminant to the beginning of the serialized data.
     #[inline]
     fn serialize_account_from_init<I>(init_arg: I) -> Result<Vec<u8>>
     where
@@ -131,3 +154,23 @@ pub trait SerializeAccount: UnsizedType + ProgramAccount {
 }
 
 impl<T> SerializeAccount for T where T: UnsizedType + ProgramAccount + ?Sized {}
+
+/// A trait that provides logic for serializing [`ProgramAccount`]s that are [`BorshDeserialize`]s.
+///
+/// This matches the deserialization logic for the [`BorshAccount`] account set.
+pub trait SerializeBorshAccount: BorshSerialize + ProgramAccount {
+    /// Serializes the [`BorshAccount`] data from a reference using the [`BorshSerialize`] trait.
+    ///
+    /// Writes the discriminant to the beginning of the serialized data.
+    fn serialize_account(data: &Self) -> Result<Vec<u8>> {
+        let mut bytes =
+            vec![0u8; size_of::<OwnerProgramDiscriminant<Self>>() + object_length(data)?];
+        let (discriminant_bytes, mut data_bytes) =
+            bytes.split_at_mut(size_of::<OwnerProgramDiscriminant<Self>>());
+        discriminant_bytes.copy_from_slice(bytes_of(&Self::DISCRIMINANT));
+        BorshSerialize::serialize(data, &mut data_bytes)?;
+        Ok(bytes)
+    }
+}
+
+impl<T> SerializeBorshAccount for T where T: BorshSerialize + ProgramAccount + ?Sized {}
