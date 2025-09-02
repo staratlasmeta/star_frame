@@ -51,3 +51,18 @@ where
         List::<u8, L>::from_owned_from_iter(owned.bytes(), bytes)
     }
 }
+
+#[cfg(all(feature = "idl", not(target_os = "solana")))]
+mod idl_impl {
+    use super::*;
+    use star_frame_idl::ty::IdlTypeDef;
+    use star_frame_idl::IdlDefinition;
+
+    impl TypeToIdl for UnsizedString<u32> {
+        type AssociatedProgram = System;
+
+        fn type_to_idl(_idl_definition: &mut IdlDefinition) -> Result<IdlTypeDef> {
+            Ok(IdlTypeDef::String)
+        }
+    }
+}

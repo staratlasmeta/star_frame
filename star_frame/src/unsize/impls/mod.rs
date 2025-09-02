@@ -23,4 +23,5 @@ pub(crate) mod prelude {
     pub use set::{Set, SetExclusiveImpl as _};
     pub use unsized_list::{UnsizedList, UnsizedListExclusiveImpl as _};
     pub use unsized_map::{UnsizedMap, UnsizedMapExclusiveImpl as _};
+    pub use unsized_string::{UnsizedString, UnsizedStringExclusiveImpl as _};
 }
