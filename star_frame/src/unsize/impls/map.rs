@@ -148,6 +148,14 @@ where
         }
     }
 
+    /// Inserts all key-value pairs from the provided iterator into the map.
+    #[exclusive]
+    pub fn insert_all(&mut self, values: impl IntoIterator<Item = (K, V)>) -> Result<()> {
+        values
+            .into_iter()
+            .try_for_each(|(key, value)| self.insert(key, value).map(|_| ()))
+    }
+
     #[exclusive]
     pub fn insert(&mut self, key: K, value: V) -> Result<Option<V>> {
         match self.get_index(&key) {

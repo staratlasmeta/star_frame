@@ -137,6 +137,14 @@ where
         self.list.get(index)
     }
 
+    /// Inserts all values into the set.
+    #[exclusive]
+    pub fn insert_all(&mut self, values: impl IntoIterator<Item = T>) -> Result<()> {
+        values
+            .into_iter()
+            .try_for_each(|value| self.insert(value).map(|_| ()))
+    }
+
     /// Adds a value to the set.
     ///
     /// Returns whether the value was newly inserted. If the value is already present, the set is unchanged and `false` is returned.
