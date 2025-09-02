@@ -5,6 +5,7 @@ pub mod remaining_bytes;
 pub mod set;
 pub mod unsized_list;
 pub mod unsized_map;
+pub mod unsized_string;
 
 pub use checked::*;
 pub use list::*;
