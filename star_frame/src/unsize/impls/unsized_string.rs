@@ -1,6 +1,6 @@
 use crate::prelude::*;
+use crate::unsize::impls::ListLength;
 use crate::unsize::FromOwned;
-use star_frame::unsize::impls::ListLength;
 
 #[unsized_type(skip_idl, owned_type = String, owned_from_ref = unsized_string_owned_from_ref)]
 pub struct UnsizedString<L = u32>
