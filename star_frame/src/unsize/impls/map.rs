@@ -90,6 +90,17 @@ where
     }
 }
 
+impl<K, V, L> Map<K, V, L>
+where
+    K: UnsizedGenerics + Ord,
+    V: UnsizedGenerics,
+    L: ListLength,
+{
+    pub fn byte_size_from_len(len: usize) -> usize {
+        List::<ListItemSized<K, V>, L>::byte_size_from_len(len)
+    }
+}
+
 #[unsized_impl]
 impl<K, V, L> Map<K, V, L>
 where
