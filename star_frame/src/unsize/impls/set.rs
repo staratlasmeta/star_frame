@@ -137,12 +137,17 @@ where
         self.list.get(index)
     }
 
-    /// Inserts all values into the set.
+    /// Inserts all values into the set. Returns the number of new items inserted.
     #[exclusive]
-    pub fn insert_all(&mut self, values: impl IntoIterator<Item = T>) -> Result<()> {
-        values
-            .into_iter()
-            .try_for_each(|value| self.insert(value).map(|_| ()))
+    pub fn insert_all(&mut self, values: impl IntoIterator<Item = T>) -> Result<usize> {
+        let mut count = 0;
+        values.into_iter().try_for_each(|value| {
+            if self.insert(value)? {
+                count += 1;
+            }
+            anyhow::Ok(())
+        })?;
+        Ok(count)
     }
 
     /// Adds a value to the set.
