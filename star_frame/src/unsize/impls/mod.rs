@@ -5,6 +5,7 @@ pub mod remaining_bytes;
 pub mod set;
 pub mod unsized_list;
 pub mod unsized_map;
+pub mod unsized_string;
 
 pub use checked::*;
 pub use list::*;
@@ -13,6 +14,7 @@ pub use remaining_bytes::*;
 pub use set::*;
 pub use unsized_list::*;
 pub use unsized_map::*;
+pub use unsized_string::*;
 
 pub(crate) mod prelude {
     use super::*;
@@ -22,4 +24,5 @@ pub(crate) mod prelude {
     pub use set::{Set, SetExclusiveImpl as _};
     pub use unsized_list::{UnsizedList, UnsizedListExclusiveImpl as _};
     pub use unsized_map::{UnsizedMap, UnsizedMapExclusiveImpl as _};
+    pub use unsized_string::{UnsizedString, UnsizedStringExclusiveImpl as _};
 }
