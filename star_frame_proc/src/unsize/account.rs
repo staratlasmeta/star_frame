@@ -4,7 +4,6 @@ use crate::{
     unsize::UnsizedTypeArgs,
 };
 use proc_macro2::TokenStream;
-use proc_macro_error2::abort;
 use syn::DeriveInput;
 
 pub fn account_impl(input: &DeriveInput, args: &UnsizedTypeArgs) -> TokenStream {
@@ -18,21 +17,14 @@ pub fn account_impl(input: &DeriveInput, args: &UnsizedTypeArgs) -> TokenStream 
                 seeds: args.seeds.clone(),
             },
         )
+    } else if !args.skip_idl {
+        derive_type_to_idl_inner(
+            input,
+            TypeToIdlArgs {
+                program: args.program.clone(),
+            },
+        )
     } else {
-        if args.seeds.is_some() {
-            abort!(args.seeds, "Seeds are only allowed with #[program_account]");
-        }
-        if !args.skip_idl {
-            {
-                derive_type_to_idl_inner(
-                    input,
-                    TypeToIdlArgs {
-                        program: args.program.clone(),
-                    },
-                )
-            }
-        } else {
-            Default::default()
-        }
+        Default::default()
     }
 }

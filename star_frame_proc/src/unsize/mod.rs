@@ -81,6 +81,17 @@ impl UnsizedTypeArgs {
                 )
             }
         }
+        if !self.program_account {
+            if self.seeds.is_some() {
+                abort!(self.seeds, "Seeds are only allowed with #[program_account]");
+            }
+            if self.discriminant.is_some() {
+                abort!(
+                    self.discriminant,
+                    "Discriminant is only allowed with #[program_account]"
+                );
+            }
+        }
     }
 }
 

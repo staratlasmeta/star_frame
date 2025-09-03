@@ -50,7 +50,7 @@ pub mod macro_prelude {
         CrateMetadata, IdlDefinition, IdlDefinitionReference, ItemInfo, Version,
     };
 
-    pub use star_frame_proc::{sighash, InstructionToIdl, TypeToIdl};
+    pub use star_frame_proc::{sighash, zero_copy, InstructionToIdl, TypeToIdl};
 
     pub use advancer::{Advance, AdvanceArray};
     pub use anyhow::{self, bail};

@@ -146,12 +146,12 @@ pub struct AccountInfo8Accounts {
 }
 empty_star_frame_instruction!(AccountInfo8, AccountInfo8Accounts);
 
-#[derive(Copy, Clone, ProgramAccount, CheckedBitPattern, NoUninit, Align1, Zeroable, Debug)]
-#[repr(C)]
+#[zero_copy(skip_packed)]
+#[derive(ProgramAccount, Debug)]
 pub struct Empty;
 
-#[derive(Copy, Clone, ProgramAccount, CheckedBitPattern, NoUninit, Align1, Zeroable, Debug)]
-#[repr(C)]
+#[zero_copy(skip_packed)]
+#[derive(ProgramAccount, Debug)]
 pub struct Sized {
     pub field: [u8; 8],
 }

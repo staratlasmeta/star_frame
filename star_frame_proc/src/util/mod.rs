@@ -149,11 +149,11 @@ where
 }
 
 pub fn reject_attributes(attributes: &[Attribute], ident: &Ident, message: Option<&str>) {
-    if find_attr(attributes, ident).is_some() {
+    if let Some(find) = find_attr(attributes, ident) {
         let message = message
             .map(ToString::to_string)
             .unwrap_or_else(|| format!("Cannot use `{ident}` attribute here"));
-        abort!(ident, message);
+        abort!(find, message);
     }
 }
 

@@ -12,6 +12,7 @@ mod solana_pubkey;
 mod star_frame_instruction;
 mod unsize;
 mod util;
+mod zero_copy;
 
 use proc_macro_error2::proc_macro_error;
 use syn::{
@@ -194,8 +195,8 @@ use syn::{
 /// # #[derive(StarFrameProgram)]
 /// # #[program(instruction_set = (), id = System::ID, no_entrypoint)]
 /// # pub struct MyProgram;
-/// # #[derive(Align1, Pod, Zeroable, Default, Copy, Clone, Debug, ProgramAccount)]
-/// # #[repr(C, packed)]
+/// # #[zero_copy(pod)]
+/// # #[derive(ProgramAccount, Debug, Default)]
 /// # pub struct CounterAccount { pub count: u64 }
 ///
 /// #[derive(AccountSet, derive_more::Deref, derive_more::DerefMut, Debug)]
@@ -382,9 +383,9 @@ pub fn star_frame_instruction_set(item: proc_macro::TokenStream) -> proc_macro::
 /// # #[program(instruction_set = (), id = System::ID, no_entrypoint)]
 /// # pub struct MyProgram;
 ///
-/// #[derive(ProgramAccount, Copy, Clone, CheckedBitPattern, NoUninit, Align1, Zeroable, Debug)]
+/// #[zero_copy(pod)]
+/// #[derive(ProgramAccount, Debug)]
 /// #[program_account(seeds = MyAccountSeeds)]
-/// #[repr(C, packed)]
 /// pub struct MyAccount {
 ///     pub data: u64,
 /// }
@@ -855,8 +856,8 @@ pub fn derive_instruction_to_idl(input: proc_macro::TokenStream) -> proc_macro::
 /// # #[program(instruction_set = (), id = System::ID, no_entrypoint)]
 /// # pub struct MyProgram;
 /// #
-/// # #[derive(Align1, Pod, Zeroable, Copy, Clone, Debug, ProgramAccount)]
-/// # #[repr(C, packed)]
+/// # #[zero_copy(pod)]
+/// # #[derive(ProgramAccount)]
 /// # pub struct CounterAccount {
 /// #     pub authority: Pubkey,
 /// #     pub count: u64,
@@ -921,6 +922,48 @@ pub fn star_frame_instruction(
 pub fn sighash(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     hash::sighash_impl(parse_macro_input!(input with Punctuated::<LitStr, Comma>::parse_terminated))
         .into()
+}
+
+/// Convenience wrapper around the common `bytemuck` derives and `repr` attribute.
+///
+/// Works with structs and enums, but omits the `repr` attribute on enums. This should be the first attribute on the item.
+///
+/// # Attributes
+///
+/// ## `#[zero_copy(pod, skip_packed)]` (item level attribute)
+///
+/// ### Syntax
+///
+/// - `pod` - (struct only) derives `Pod` instead of `CheckedBitPattern` and `NoUninit`
+/// - `skip_packed` - (struct only) skips the `packed` attribute. We still add the `Align1` derive,
+/// so all fields must be `Align1` if used.
+///
+/// # Example
+/// ```
+/// # use star_frame::prelude::*;
+/// #[zero_copy]
+/// struct MyStruct {
+///     pub field: u64,
+/// }
+/// ```
+///
+/// is equivalent to:
+///
+/// ```
+/// # use star_frame::prelude::*;
+/// #[derive(Copy, Clone, Align1, Zeroable, NoUninit, CheckedBitPattern)]
+/// #[repr(C, packed)]
+/// struct MyStruct {
+///     pub field: u64,
+/// }
+/// ```
+#[proc_macro_error]
+#[proc_macro_attribute]
+pub fn zero_copy(
+    args: proc_macro::TokenStream,
+    input: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
+    zero_copy::zero_copy_impl(parse_macro_input!(input as DeriveInput), args.into()).into()
 }
 
 /// Compile time generation of a `Pubkey` from a base58 string literal.
