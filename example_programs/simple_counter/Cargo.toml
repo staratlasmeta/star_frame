@@ -22,5 +22,5 @@ star_frame = { workspace = true }
 
 [dev-dependencies]
 codama-nodes = { workspace = true }
-mollusk-svm = { workspace = true }
+mollusk-svm = { version = "0.3.0" }
 solana-account = { workspace = true }

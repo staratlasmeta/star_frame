@@ -22,7 +22,7 @@ star_frame = { workspace = true }
 bytemuck = { workspace = true }
 
 [dev-dependencies]
-mollusk-svm = { workspace = true }
+mollusk-svm = { version = "0.3.0" }
 solana-account = { workspace = true }
-mollusk-svm-programs-token = { workspace = true }
+mollusk-svm-programs-token = { version = "0.3.0" }
 pretty_assertions = { workspace = true }
