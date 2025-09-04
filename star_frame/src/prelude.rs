@@ -30,6 +30,7 @@ pub use crate::{
         GetKeyFor as _, GetOptionalKeyFor as _, KeyFor, OptionalKeyFor, OptionalPubkey,
         PackedValue, SetKeyFor as _, UnitVal,
     },
+    empty_star_frame_instruction, impl_blank_ix,
     instruction::{
         star_frame_instruction, InstructionArgs, InstructionDiscriminant as _, InstructionSet,
         StarFrameInstruction,
