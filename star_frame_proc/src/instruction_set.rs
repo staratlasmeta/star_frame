@@ -17,6 +17,8 @@ pub struct InstructionSetStructArgs {
     pub skip_idl: bool,
     #[argument(presence)]
     pub use_repr: bool,
+    #[argument(presence)]
+    pub disable_log: bool,
 }
 
 #[derive(Debug, ArgumentList, Clone, Default)]
@@ -119,6 +121,13 @@ pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
         .variants
         .iter()
         .map(|v| format!("Instruction: {}", v.ident))
+        .map(|v| {
+            if args.disable_log {
+                quote! {}
+            } else {
+                quote!(#prelude::msg!(#v);)
+            }
+        })
         .collect_vec();
 
     let dispatch_body = if variant_tys.is_empty() {
@@ -135,7 +144,7 @@ pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
             match discriminant {
                 #(
                     <#variant_tys as #prelude::InstructionDiscriminant<#ident #ty_generics>>::DISCRIMINANT => {
-                        #prelude::msg!(#ix_message);
+                        #ix_message
                         <#variant_tys as #instruction>::process_from_raw(accounts, instruction_data, ctx)
                     }
                 )*
