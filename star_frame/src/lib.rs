@@ -100,7 +100,8 @@
 //!
 //! ### Basic Account with Standard Derive
 //!
-//! For statically sized accounts, use the standard `ProgramAccount` derive with Bytemuck:
+//! For statically sized accounts, you can use the [`ProgramAccount`](derive@crate::account_set::ProgramAccount) derive.
+//! For the best performance, you can use [`bytemuck`] (with the [`zero_copy`] macro for convenience) with [`Account`](crate::account_set::account::Account):
 //!
 //! ```
 //! # fn main() {}
@@ -110,9 +111,9 @@
 //! #
 //! use star_frame::prelude::*;
 //!
-//! #[derive(Align1, Pod, Zeroable, Default, Copy, Clone, Debug, Eq, PartialEq, ProgramAccount)]
+//! #[zero_copy(pod)]
+//! #[derive(Default, Debug, Eq, PartialEq, ProgramAccount)]
 //! #[program_account(seeds = CounterSeeds)]
-//! #[repr(C, packed)]
 //! pub struct CounterAccount {
 //!     pub authority: Pubkey,
 //!     pub count: u64,
@@ -125,6 +126,8 @@
 //!     pub authority: Pubkey,
 //! }
 //! ```
+//!
+//! You can also use [`borsh`] with [`BorshAccount`](crate::account_set::borsh_account::BorshAccount) if you don't ~~like~~ need performance.
 //!
 //! ### Unsized Accounts with the Unsized Type system
 //!
@@ -393,7 +396,7 @@ pub mod __private;
 pub use anyhow::Result;
 #[doc(hidden)]
 pub use solana_instruction::Instruction as SolanaInstruction;
-pub use star_frame_proc::{pubkey, sighash};
+pub use star_frame_proc::{pubkey, sighash, zero_copy};
 
 #[allow(unused_imports)]
 #[cfg(test)]

@@ -42,7 +42,7 @@ pub use crate::{
 };
 
 // ensure derive macros are in scope
-pub use star_frame_proc::{InstructionToIdl, TypeToIdl};
+pub use star_frame_proc::{zero_copy, InstructionToIdl, TypeToIdl};
 
 // Solana stuff
 pub use anyhow::{anyhow, bail, Context as _};

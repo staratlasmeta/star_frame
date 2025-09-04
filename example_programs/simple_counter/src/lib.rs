@@ -13,9 +13,9 @@ pub enum CounterInstructionSet {
     Increment(Increment),
 }
 
-#[derive(Align1, Pod, Zeroable, Default, Copy, Clone, Debug, Eq, PartialEq, ProgramAccount)]
+#[zero_copy(pod)]
+#[derive(ProgramAccount, Default, Debug, Eq, PartialEq)]
 #[program_account(seeds = CounterSeeds)]
-#[repr(C, packed)]
 pub struct CounterAccount {
     pub authority: Pubkey,
     pub count: u64,

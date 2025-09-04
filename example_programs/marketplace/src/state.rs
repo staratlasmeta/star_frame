@@ -18,8 +18,8 @@ pub const ZERO_QUANTITY: Quantity = Quantity::new(PackedValue(0));
 
 pub const ASK_ID_MASK: u64 = 1 << 63;
 
-#[derive(Eq, Debug, Pod, PartialEq, Zeroable, Copy, Clone, Ord, PartialOrd, TypeToIdl, Align1)]
-#[repr(C, packed)]
+#[zero_copy(pod)]
+#[derive(Eq, Debug, PartialEq, Ord, PartialOrd, TypeToIdl)]
 pub struct OrderInfo {
     /// The price in currency (set on the market)
     pub price: Price,
@@ -31,8 +31,8 @@ pub struct OrderInfo {
     pub maker: Pubkey,
 }
 
-#[derive(Eq, Debug, PartialEq, Pod, Zeroable, Copy, Clone, TypeToIdl, Default)]
-#[repr(C, packed)]
+#[zero_copy(pod)]
+#[derive(Eq, Debug, PartialEq, TypeToIdl, Default)]
 pub struct OrderTotals {
     /// currency either escrowed from buy orders or released from completed sell orders
     pub currency: Price,
@@ -65,9 +65,8 @@ impl OrderTotals {
     }
 }
 
-#[derive(
-    Debug, Copy, Clone, PartialEq, Eq, NoUninit, Zeroable, CheckedBitPattern, Align1, TypeToIdl,
-)]
+#[zero_copy]
+#[derive(Debug, PartialEq, Eq, TypeToIdl)]
 #[repr(u8)]
 pub enum OrderSide {
     Bid,
@@ -101,8 +100,8 @@ impl OrderSide {
 
 borsh_with_bytemuck!(OrderSide);
 
-#[derive(Eq, Debug, PartialEq, Pod, Zeroable, Default, Copy, Clone, TypeToIdl, Align1)]
-#[repr(C, packed)]
+#[zero_copy(pod)]
+#[derive(Eq, Debug, PartialEq, Default, TypeToIdl)]
 pub struct MakerInfo {
     pub totals: OrderTotals,
     /// Total open orders for this maker
@@ -354,10 +353,8 @@ pub struct CreateMarketArgs {
     pub bump: u8,
 }
 
-#[derive(
-    Debug, Copy, Clone, PartialEq, Eq, NoUninit, Zeroable, CheckedBitPattern, Align1, TypeToIdl,
-)]
-#[repr(C, packed)]
+#[zero_copy]
+#[derive(Debug, PartialEq, Eq, TypeToIdl)]
 pub struct ProcessOrderArgs {
     pub side: OrderSide,
     pub price: Price,
@@ -367,10 +364,8 @@ pub struct ProcessOrderArgs {
 
 borsh_with_bytemuck!(ProcessOrderArgs);
 
-#[derive(
-    Debug, Copy, Clone, PartialEq, Eq, NoUninit, Zeroable, CheckedBitPattern, Align1, TypeToIdl,
-)]
-#[repr(C, packed)]
+#[zero_copy]
+#[derive(Debug, PartialEq, Eq, TypeToIdl)]
 pub struct CancelOrderArgs {
     pub order_id: u64,
     pub price: Price,

@@ -56,8 +56,8 @@ pub struct MyBorshAccount {
     vec: Vec<u8>,
 }
 
-#[derive(Pod, Zeroable, Debug, PartialEq, Eq, PartialOrd, Ord, Align1, Copy, Clone, TypeToIdl)]
-#[repr(C, packed)]
+#[zero_copy(pod)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, TypeToIdl)]
 struct ListInner {
     id: u64,
     key: Pubkey,

@@ -18,9 +18,9 @@ pub enum CounterInstructionSet {
     CloseCounter(CloseCounter),
 }
 
-#[derive(Align1, Pod, Zeroable, Default, Copy, Clone, Debug, Eq, PartialEq, ProgramAccount)]
+#[zero_copy(pod)]
+#[derive(Default, Debug, Eq, PartialEq, ProgramAccount)]
 #[program_account(seeds = CounterAccountSeeds)]
-#[repr(C, packed)]
 pub struct CounterAccount {
     pub version: u8,
     pub owner: Pubkey,
@@ -30,8 +30,8 @@ pub struct CounterAccount {
     pub data: CounterAccountData,
 }
 
-#[derive(Align1, Pod, Zeroable, Default, Copy, Clone, Debug, Eq, PartialEq, TypeToIdl)]
-#[repr(C, packed)]
+#[zero_copy(pod)]
+#[derive(Default, Debug, Eq, PartialEq, TypeToIdl)]
 pub struct CounterAccountData {
     pub version: u8,
     pub owner: Pubkey,
