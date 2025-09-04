@@ -25,7 +25,7 @@ use crate::{
 #[account_set(skip_default_decode, skip_default_idl)]
 #[validate(extra_validation = T::validate_account_info(&self.info))]
 #[cleanup(generics = [], extra_cleanup = {
-    self.write_back()?;
+    self.serialize()?;
     self.check_cleanup(ctx)
 })]
 #[cleanup(
@@ -33,7 +33,7 @@ use crate::{
     generics = [<'a, Funder> where Funder: CanFundRent],
     arg = NormalizeRent<&'a Funder>,
     extra_cleanup = {
-        self.write_back()?;
+        self.serialize()?;
         self.normalize_rent(arg.0, ctx)
     }
 )]
@@ -42,7 +42,7 @@ use crate::{
     arg = NormalizeRent<()>,
     generics = [],
     extra_cleanup = {
-        self.write_back()?;
+        self.serialize()?;
         let funder = ctx.get_funder().context("Missing `funder` in cache for `NormalizeRent`")?;
         self.normalize_rent(funder, ctx)
     },
@@ -52,7 +52,7 @@ use crate::{
     generics = [<'a, Funder> where Funder: CanFundRent],
     arg = ReceiveRent<&'a Funder>,
     extra_cleanup = {
-        self.write_back()?;
+        self.serialize()?;
         self.receive_rent(arg.0, ctx)
     }
 )]
@@ -62,7 +62,7 @@ use crate::{
     generics = [],
     extra_cleanup = {
         let funder = ctx.get_funder().context("Missing `funder` in cache for `ReceiveRent`")?;
-        self.write_back()?;
+        self.serialize()?;
         self.receive_rent(funder, ctx)
     }
 )]
@@ -71,7 +71,7 @@ use crate::{
     generics = [<'a, Recipient> where Recipient: CanAddLamports],
     arg = RefundRent<&'a Recipient>,
     extra_cleanup = {
-        self.write_back()?;
+        self.serialize()?;
         self.refund_rent(arg.0, ctx)
     }
 )]
@@ -81,7 +81,7 @@ use crate::{
     generics = [],
     extra_cleanup = {
         let recipient = ctx.get_recipient().context("Missing `recipient` in cache for `RefundRent`")?;
-        self.write_back()?;
+        self.serialize()?;
         self.refund_rent(recipient, ctx)
     }
 )]
@@ -90,7 +90,7 @@ use crate::{
     generics = [<'a, Recipient> where Recipient: CanAddLamports],
     arg = CloseAccount<&'a Recipient>,
     extra_cleanup = {
-        self.write_back()?;
+        // We don't serialize here because we are about to close the account!
         self.close_account(arg.0)
     }
 )]
@@ -99,8 +99,8 @@ use crate::{
     arg = CloseAccount<()>,
     generics = [],
     extra_cleanup = {
+        // We don't serialize here because we are about to close the account!
         let recipient = ctx.get_recipient().context("Missing `recipient` in cache for `CloseAccount`")?;
-        self.write_back()?;
         self.close_account(recipient)
     }
 )]
@@ -113,7 +113,7 @@ pub struct BorshAccount<T: ProgramAccount + BorshSerialize + BorshDeserialize> {
     )]
     info: AccountInfo,
     #[account_set(skip = )]
-    data: T,
+    data: Option<T>,
 }
 
 impl<T> Deref for BorshAccount<T>
@@ -122,7 +122,12 @@ where
 {
     type Target = T;
     fn deref(&self) -> &Self::Target {
-        &self.data
+        self.data.as_ref().unwrap_or_else(|| {
+            panic!(
+                "Accessing BorshAccount `{}` data before it is initialized",
+                self.info.pubkey()
+            );
+        })
     }
 }
 
@@ -142,7 +147,12 @@ where
                 self.pubkey()
             );
         }
-        &mut self.data
+        self.data.as_mut().unwrap_or_else(|| {
+            panic!(
+                "Accessing BorshAccount `{}` data before it is initialized",
+                self.info.pubkey()
+            );
+        })
     }
 }
 
@@ -155,32 +165,23 @@ where
         _decode_input: (),
         ctx: &mut Context,
     ) -> Result<Self> {
-        Self::decode_accounts(accounts, || T::default(), ctx)
-    }
-}
-
-impl<'a, T, F> AccountSetDecode<'a, F> for BorshAccount<T>
-where
-    T: BorshDeserialize + BorshSerialize + ProgramAccount,
-    F: FnOnce() -> T + 'static,
-{
-    fn decode_accounts(
-        accounts: &mut &'a [AccountInfo],
-        decode_input: F,
-        ctx: &mut Context,
-    ) -> Result<Self> {
         let info = <AccountInfo as AccountSetDecode<'a, ()>>::decode_accounts(accounts, (), ctx)?;
         let data = if info.data_len() > size_of::<OwnerProgramDiscriminant<T>>() {
-            T::try_from_slice(&info.account_data()?[size_of::<OwnerProgramDiscriminant<T>>()..])?
+            Some(T::try_from_slice(
+                &info.account_data()?[size_of::<OwnerProgramDiscriminant<T>>()..],
+            )?)
         } else {
-            decode_input()
+            None
         };
         Ok(Self { info, data })
     }
 }
 
 impl<T: ProgramAccount + BorshSerialize + BorshDeserialize> BorshAccount<T> {
-    fn write_back(&mut self) -> Result<()> {
+    /// Serializes the inner data `T` back to the account info if the account is writable, still owned by this program, and not closed.
+    ///
+    /// This is called during `AccountSetCleanup` and can be useful to call manually if you need the data to be serialized prior to a CPI.
+    pub fn serialize(&mut self) -> Result<()> {
         if self.is_writable()
             && self.info.data_len() > size_of::<OwnerProgramDiscriminant<T>>()
             && self.owner_pubkey() == T::OwnerProgram::ID
@@ -197,11 +198,11 @@ impl<T: ProgramAccount + BorshSerialize + BorshDeserialize> BorshAccount<T> {
     /// Reloads the account data from the account info.
     ///
     /// This is useful if the account data has been modified by another program through a CPI, which won't update
-    /// `Self`'s deserialized data.               
+    /// `Self`'s deserialized data.
     pub fn reload(&mut self) -> Result<()> {
-        self.data = T::try_from_slice(
+        self.data = Some(T::try_from_slice(
             &self.info.account_data()?[size_of::<OwnerProgramDiscriminant<T>>()..],
-        )?;
+        )?);
         Ok(())
     }
 
@@ -213,7 +214,7 @@ impl<T: ProgramAccount + BorshSerialize + BorshDeserialize> BorshAccount<T> {
     /// Returns an error if the account is not writable.
     pub fn set_inner(&mut self, data: T) -> Result<()> {
         ensure!(self.is_writable(), "BorshAccount is not writable");
-        self.data = data;
+        self.data = Some(data);
         Ok(())
     }
 }
@@ -241,29 +242,62 @@ where
 
 impl<T> CanInitAccount<()> for BorshAccount<T>
 where
-    T: BorshDeserialize + BorshSerialize + ProgramAccount,
+    T: BorshDeserialize + BorshSerialize + ProgramAccount + Default,
 {
+    #[inline]
     fn init_account<const IF_NEEDED: bool>(
         &mut self,
         _arg: (),
         account_seeds: Option<Vec<&[u8]>>,
         ctx: &Context,
     ) -> Result<()> {
+        self.init_account::<IF_NEEDED>(|| Default::default(), account_seeds, ctx)
+    }
+}
+
+impl<T, InitFn> CanInitAccount<InitFn> for BorshAccount<T>
+where
+    InitFn: FnOnce() -> T + 'static,
+    T: BorshDeserialize + BorshSerialize + ProgramAccount,
+{
+    #[inline]
+    fn init_account<const IF_NEEDED: bool>(
+        &mut self,
+        arg: InitFn,
+        account_seeds: Option<Vec<&[u8]>>,
+        ctx: &Context,
+    ) -> Result<()> {
         let funder = ctx
             .get_funder()
             .context("Missing tagged `funder` for Account `init_account`")?;
-        self.init_account::<IF_NEEDED>((funder,), account_seeds, ctx)
+        self.init_account::<IF_NEEDED>((arg, funder), account_seeds, ctx)
     }
 }
 
 impl<T, Funder> CanInitAccount<(&Funder,)> for BorshAccount<T>
 where
-    T: BorshDeserialize + BorshSerialize + ProgramAccount,
+    T: BorshDeserialize + BorshSerialize + ProgramAccount + Default,
     Funder: CanFundRent + ?Sized,
 {
     fn init_account<const IF_NEEDED: bool>(
         &mut self,
         arg: (&Funder,),
+        account_seeds: Option<Vec<&[u8]>>,
+        ctx: &Context,
+    ) -> Result<()> {
+        self.init_account::<IF_NEEDED>((|| Default::default(), arg.0), account_seeds, ctx)
+    }
+}
+
+impl<T, Funder, InitValue> CanInitAccount<(InitValue, &Funder)> for BorshAccount<T>
+where
+    InitValue: FnOnce() -> T + 'static,
+    T: BorshDeserialize + BorshSerialize + ProgramAccount,
+    Funder: CanFundRent + ?Sized,
+{
+    fn init_account<const IF_NEEDED: bool>(
+        &mut self,
+        arg: (InitValue, &Funder),
         account_seeds: Option<Vec<&[u8]>>,
         ctx: &Context,
     ) -> Result<()> {
@@ -277,11 +311,15 @@ where
             }
         }
         self.check_writable()?;
-        let space = size_of::<OwnerProgramDiscriminant<T>>() + object_length(&self.data)?;
-        self.system_create_account(arg.0, T::OwnerProgram::ID, space, &account_seeds, ctx)
+        let (init_value, funder) = arg;
+        let data = init_value();
+        let space = size_of::<OwnerProgramDiscriminant<T>>() + object_length(&data)?;
+        self.system_create_account(funder, T::OwnerProgram::ID, space, &account_seeds, ctx)
             .context("system_create_account failed")?;
         self.account_data_mut()?[..size_of::<OwnerProgramDiscriminant<T>>()]
             .copy_from_slice(bytemuck::bytes_of(&T::DISCRIMINANT));
+        // TODO: Should we serialize this now, or wait until cleanup?
+        self.data = Some(data);
         Ok(())
     }
 }
