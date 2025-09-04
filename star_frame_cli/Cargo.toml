@@ -1,5 +1,6 @@
 [package]
 name = "star_frame_cli"
+description = "CLI for interacting with Star Frame projects"
 version.workspace = true
 edition.workspace = true
 publish.workspace = true
