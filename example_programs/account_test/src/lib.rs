@@ -37,8 +37,7 @@ pub struct RunAccounts {
     pub funder: Mut<Signer>,
     #[cleanup(arg = NormalizeRent(()))]
     pub account: Mut<Account<AccountData>>,
-    #[decode(arg = || MyBorshAccount { vec: vec![] })]
-    #[validate(arg = Create(()))]
+    #[validate(arg = Create((|| MyBorshAccount::default(), &self.funder,)))]
     #[cleanup(arg = NormalizeRent(()))]
     pub borsh_account: Init<Signer<BorshAccount<MyBorshAccount>>>,
     pub system_program: Program<System>,

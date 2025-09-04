@@ -293,36 +293,54 @@ where
         account_seeds: Option<Vec<&[u8]>>,
         ctx: &Context,
     ) -> Result<()> {
-        self.init_account::<IF_NEEDED>((DefaultInit,), account_seeds, ctx)
+        self.init_account::<IF_NEEDED>(|| DefaultInit, account_seeds, ctx)
     }
 }
 
-impl<T: ProgramAccount + UnsizedType + ?Sized, InitArg> CanInitAccount<(InitArg,)> for Account<T>
+impl<T: ProgramAccount + UnsizedType + ?Sized, Funder> CanInitAccount<(&Funder,)> for Account<T>
 where
+    T: UnsizedInit<DefaultInit>,
+    Funder: CanFundRent + ?Sized,
+{
+    fn init_account<const IF_NEEDED: bool>(
+        &mut self,
+        arg: (&Funder,),
+        account_seeds: Option<Vec<&[u8]>>,
+        ctx: &Context,
+    ) -> Result<()> {
+        self.init_account::<IF_NEEDED>((|| DefaultInit, arg.0), account_seeds, ctx)
+    }
+}
+
+impl<T: ProgramAccount + UnsizedType + ?Sized, InitArg, InitFn> CanInitAccount<InitFn>
+    for Account<T>
+where
+    InitFn: FnOnce() -> InitArg + 'static,
     T: UnsizedInit<InitArg>,
 {
     fn init_account<const IF_NEEDED: bool>(
         &mut self,
-        arg: (InitArg,),
+        arg: InitFn,
         account_seeds: Option<Vec<&[u8]>>,
         ctx: &Context,
     ) -> Result<()> {
         let funder = ctx
             .get_funder()
             .context("Missing tagged `funder` for Account `init_account`")?;
-        self.init_account::<IF_NEEDED>((arg.0, funder), account_seeds, ctx)
+        self.init_account::<IF_NEEDED>((arg, funder), account_seeds, ctx)
     }
 }
 
-impl<T: ProgramAccount + UnsizedType + ?Sized, InitArg, Funder> CanInitAccount<(InitArg, &Funder)>
-    for Account<T>
+impl<T: ProgramAccount + UnsizedType + ?Sized, InitArg, Funder, InitFn>
+    CanInitAccount<(InitFn, &Funder)> for Account<T>
 where
     T: UnsizedInit<InitArg>,
+    InitFn: FnOnce() -> InitArg + 'static,
     Funder: CanFundRent + ?Sized,
 {
     fn init_account<const IF_NEEDED: bool>(
         &mut self,
-        arg: (InitArg, &Funder),
+        arg: (InitFn, &Funder),
         account_seeds: Option<Vec<&[u8]>>,
         ctx: &Context,
     ) -> Result<()> {
@@ -347,7 +365,7 @@ where
         .context("system_create_account failed")?;
         let mut data_bytes = self.account_data_mut()?;
         let mut data_bytes = &mut *data_bytes;
-        <AccountDiscriminant<T>>::init(&mut data_bytes, arg)?;
+        <AccountDiscriminant<T>>::init(&mut data_bytes, arg())?;
         Ok(())
     }
 }
