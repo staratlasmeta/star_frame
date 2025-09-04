@@ -257,7 +257,7 @@ where
 
 impl<T, InitFn> CanInitAccount<InitFn> for BorshAccount<T>
 where
-    InitFn: FnOnce() -> T + 'static,
+    InitFn: FnOnce() -> T,
     T: BorshDeserialize + BorshSerialize + ProgramAccount,
 {
     #[inline]
@@ -291,7 +291,7 @@ where
 
 impl<T, Funder, InitValue> CanInitAccount<(InitValue, &Funder)> for BorshAccount<T>
 where
-    InitValue: FnOnce() -> T + 'static,
+    InitValue: FnOnce() -> T,
     T: BorshDeserialize + BorshSerialize + ProgramAccount,
     Funder: CanFundRent + ?Sized,
 {

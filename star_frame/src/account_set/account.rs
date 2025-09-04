@@ -315,7 +315,7 @@ where
 impl<T: ProgramAccount + UnsizedType + ?Sized, InitArg, InitFn> CanInitAccount<InitFn>
     for Account<T>
 where
-    InitFn: FnOnce() -> InitArg + 'static,
+    InitFn: FnOnce() -> InitArg,
     T: UnsizedInit<InitArg>,
 {
     fn init_account<const IF_NEEDED: bool>(
@@ -335,7 +335,7 @@ impl<T: ProgramAccount + UnsizedType + ?Sized, InitArg, Funder, InitFn>
     CanInitAccount<(InitFn, &Funder)> for Account<T>
 where
     T: UnsizedInit<InitArg>,
-    InitFn: FnOnce() -> InitArg + 'static,
+    InitFn: FnOnce() -> InitArg,
     Funder: CanFundRent + ?Sized,
 {
     fn init_account<const IF_NEEDED: bool>(
