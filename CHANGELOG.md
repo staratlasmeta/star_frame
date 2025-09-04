@@ -9,11 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `BorshAccout` AccountSet (#225)
+- `BorshAccount` AccountSet (#225)
 - `UnsizedString` UnsizedType (#235)
 - `star_frame_instruction` macro (#199)
 - `zero_copy` attribute macro (#237)
-- CLI with project scaffholding (#227)
+- CLI with project scaffolding (#227)
 - insert_all to map and set (#231)
 - Changelog tracking (#241)
 
