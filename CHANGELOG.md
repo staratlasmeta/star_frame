@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Remove unnecessary `'static` bound on `InitFn` (#244)
 
 ## [0.24.0] - 2025-09-04
 
