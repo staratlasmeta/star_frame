@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `zero_copy` attribute macro (#237)
 - CLI with project scaffholding (#227)
 - insert_all to map and set (#231)
+- Changelog tracking (#241)
 
 ### Changed
 
