@@ -12,8 +12,8 @@ pub mod validated_account;
 
 pub use star_frame_proc::{AccountSet, ProgramAccount};
 
-use crate::prelude::*;
-use bytemuck::{bytes_of, from_bytes};
+use crate::{prelude::*, util::fast_32_byte_eq};
+use bytemuck::bytes_of;
 use modifiers::{HasOwnerProgram, OwnerProgramDiscriminant};
 use std::{mem::MaybeUninit, slice};
 
@@ -25,13 +25,39 @@ pub trait ProgramAccount: HasOwnerProgram {
     const DISCRIMINANT: <Self::OwnerProgram as StarFrameProgram>::AccountDiscriminant;
     /// The discriminant of the account as bytes.
     #[must_use]
+    #[inline]
     fn discriminant_bytes() -> Vec<u8> {
         bytes_of(&Self::DISCRIMINANT).into()
     }
 
     /// Validates the owner matches [`Self::OwnerProgram::ID`](`crate::program::StarFrameProgram::ID`) and the discriminant matches [`Self::DISCRIMINANT`].
+    #[allow(clippy::inline_always)]
+    #[inline(always)]
     fn validate_account_info(info: &impl SingleAccountSet) -> Result<()> {
-        if info.owner_pubkey() != Self::OwnerProgram::ID {
+        let data = info.account_data()?;
+
+        if data.len() < size_of::<OwnerProgramDiscriminant<Self>>() {
+            bail!(
+                "Account {} data length {} is less than expected discriminant size {}",
+                info.pubkey(),
+                data.len(),
+                size_of::<OwnerProgramDiscriminant<Self>>()
+            );
+        }
+
+        // Choose optimal comparison strategy based on discriminator length
+        if !compare_discriminator(&data, bytes_of(&Self::DISCRIMINANT)) {
+            bail!(
+                "Account {} data does not match expected discriminant for program {}",
+                info.pubkey(),
+                Self::OwnerProgram::ID
+            )
+        }
+
+        if !fast_32_byte_eq(
+            info.account_info().owner(),
+            Self::OwnerProgram::ID.as_array(),
+        ) {
             bail!(
                 "Account {} owner {} does not match expected program ID {}",
                 info.pubkey(),
@@ -39,19 +65,58 @@ pub trait ProgramAccount: HasOwnerProgram {
                 Self::OwnerProgram::ID
             );
         }
-        let data = info.account_data()?;
-        if data.len() < size_of::<OwnerProgramDiscriminant<Self>>()
-            || from_bytes::<PackedValue<OwnerProgramDiscriminant<Self>>>(
-                &data[..size_of::<OwnerProgramDiscriminant<Self>>()],
-            ) != &Self::DISCRIMINANT
-        {
-            bail!(
-                "Account {} data does not match expected discriminant for program {}",
-                info.pubkey(),
-                Self::OwnerProgram::ID
-            )
-        }
         Ok(())
+    }
+}
+
+/// Fast discriminator comparison, with fast path unaligned reads for small discriminators.
+///
+/// Adapted from [Typhoon](https://github.com/exotic-markets-labs/typhoon/blob/60c5197cc632f1bce07ba27876669e4ca8580421/crates/accounts/src/discriminator.rs#L8)
+#[allow(clippy::inline_always)]
+#[inline(always)]
+#[must_use]
+pub fn compare_discriminator(data: &[u8], discriminator: &[u8]) -> bool {
+    let len = discriminator.len();
+    // Choose optimal comparison strategy based on discriminator length
+    match len {
+        0 => true, // No discriminator to check
+        1..=8 => {
+            // Use unaligned integer reads for small discriminators (most common case)
+            // SAFETY: We've already verified that data.len() >= discriminator.len()
+            // in the caller before calling this function, so we know we have at least
+            // `len` bytes available for reading. Unaligned reads are safe for primitive
+            // types on all supported architectures. The pointer casts to smaller integer
+            // types (u16, u32, u64) are valid because we're only reading the exact number
+            // of bytes specified by `len`.
+            unsafe {
+                // We are reading unaligned, so the casts are fine
+                #[allow(clippy::cast_ptr_alignment)]
+                let data_ptr = data.as_ptr().cast::<u64>();
+                #[allow(clippy::cast_ptr_alignment)]
+                let disc_ptr = discriminator.as_ptr().cast::<u64>();
+
+                match len {
+                    1 => *data.get_unchecked(0) == *discriminator.get_unchecked(0),
+                    2 => {
+                        let data_val = data_ptr.cast::<u16>().read_unaligned();
+                        let disc_val = disc_ptr.cast::<u16>().read_unaligned();
+                        data_val == disc_val
+                    }
+                    4 => {
+                        let data_val = data_ptr.cast::<u32>().read_unaligned();
+                        let disc_val = disc_ptr.cast::<u32>().read_unaligned();
+                        data_val == disc_val
+                    }
+                    8 => {
+                        let data_val = data_ptr.read_unaligned();
+                        let disc_val = disc_ptr.read_unaligned();
+                        data_val == disc_val
+                    }
+                    _ => data[..len] == discriminator[..],
+                }
+            }
+        }
+        _ => data[..len] == discriminator[..],
     }
 }
 
@@ -201,6 +266,7 @@ static_assertions::assert_obj_safe!(CanAddLamports, CanFundRent);
 pub trait CanAddLamports: Debug {
     #[rust_analyzer::completions(ignore_flyimport)]
     fn account_to_modify(&self) -> AccountInfo;
+    #[inline]
     fn add_lamports(&self, lamports: u64) -> Result<()> {
         *self.account_to_modify().try_borrow_mut_lamports()? += lamports;
         Ok(())
@@ -220,6 +286,7 @@ pub trait CanFundRent: CanAddLamports {
     ) -> Result<()>;
 
     #[rust_analyzer::completions(ignore_flyimport)]
+    #[inline]
     fn signer_seeds(&self) -> Option<Vec<&[u8]>> {
         None
     }
@@ -283,7 +350,8 @@ pub trait CanSystemCreateAccount {
 pub(crate) mod internal_reverse {
     use super::*;
 
-    #[inline]
+    #[allow(clippy::inline_always)]
+    #[inline(always)]
     pub fn _account_set_validate_reverse<T, A>(
         validate_input: A,
         this: &mut T,
@@ -295,7 +363,8 @@ pub(crate) mod internal_reverse {
         this.validate_accounts(validate_input, ctx)
     }
 
-    #[inline]
+    #[allow(clippy::inline_always)]
+    #[inline(always)]
     pub fn _account_set_cleanup_reverse<T, A>(
         cleanup_input: A,
         this: &mut T,

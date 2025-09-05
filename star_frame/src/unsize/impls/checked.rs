@@ -49,6 +49,7 @@ where
 {
     type Target = T;
 
+    #[inline]
     fn deref(&self) -> &Self::Target {
         unsafe { &*self.0 }
     }
@@ -57,6 +58,7 @@ impl<T> DerefMut for CheckedMut<'_, T>
 where
     T: CheckedBitPattern + NoUninit + Align1,
 {
+    #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
         unsafe { &mut *self.0 }
     }
@@ -100,14 +102,17 @@ where
     type Owned = Self;
     const ZST_STATUS: bool = { size_of::<T>() != 0 };
 
+    #[inline]
     fn ref_as_ref<'a>(r: &'a Self::Ref<'_>) -> Self::Ref<'a> {
         CheckedRef(r.0, r.1)
     }
 
+    #[inline]
     fn mut_as_ref<'a>(m: &'a Self::Mut<'_>) -> Self::Ref<'a> {
         CheckedRef(m.0, m.1)
     }
 
+    #[inline]
     fn get_ref<'a>(data: &mut &'a [u8]) -> Result<Self::Ref<'a>> {
         checked::try_from_bytes(data.try_advance(size_of::<T>()).with_context(|| {
             format!(
@@ -121,6 +126,7 @@ where
         .context("Invalid data for type")
     }
 
+    #[inline]
     unsafe fn get_mut<'a>(data: &mut *mut [u8]) -> Result<Self::Mut<'a>> {
         let sized = data.try_advance(size_of::<T>()).with_context(|| {
             format!(
@@ -190,6 +196,7 @@ where
 {
     const INIT_BYTES: usize = size_of::<T>();
 
+    #[inline]
     fn init(bytes: &mut &mut [u8], arg: T) -> Result<()> {
         bytes
             .try_advance(size_of::<T>())
@@ -210,6 +217,7 @@ where
 {
     const INIT_BYTES: usize = size_of::<T>();
 
+    #[inline]
     fn init(bytes: &mut &mut [u8], _arg: DefaultInit) -> Result<()> {
         bytes
             .try_advance(size_of::<T>())

@@ -10,6 +10,7 @@ use crate::{
     },
     prelude::*,
     unsize::{init::UnsizedInit, wrapper::SharedWrapper},
+    util::fast_32_byte_eq,
 };
 use advancer::Advance;
 use anyhow::Context as _;
@@ -119,6 +120,7 @@ impl<T> Account<T>
 where
     T: ProgramAccount + UnsizedType + ?Sized,
 {
+    #[inline]
     pub fn data(&self) -> Result<SharedWrapper<'_, T::Ref<'_>>> {
         // If the account is writable, changes could have been made after AccountSetValidate has been run
         if self.is_writable() {
@@ -127,6 +129,7 @@ where
         SharedWrapper::new::<AccountDiscriminant<T>>(&self.info)
     }
 
+    #[inline]
     pub fn data_mut(&self) -> Result<ExclusiveWrapperTop<'_, AccountDiscriminant<T>, AccountInfo>> {
         // If the account is writable, changes could have been made after AccountSetValidate has been run
         if self.is_writable() {
@@ -161,14 +164,17 @@ pub mod discriminant {
         type Owned = T::Owned;
         const ZST_STATUS: bool = T::ZST_STATUS;
 
+        #[inline]
         fn ref_as_ref<'a>(r: &'a Self::Ref<'_>) -> Self::Ref<'a> {
             T::ref_as_ref(r)
         }
 
+        #[inline]
         fn mut_as_ref<'a>(m: &'a Self::Mut<'_>) -> Self::Ref<'a> {
             T::mut_as_ref(m)
         }
 
+        #[inline]
         fn get_ref<'a>(data: &mut &'a [u8]) -> Result<Self::Ref<'a>> {
             data.try_advance(size_of::<OwnerProgramDiscriminant<T>>())
                 .with_context(|| {
@@ -180,6 +186,7 @@ pub mod discriminant {
             T::get_ref(data)
         }
 
+        #[inline]
         unsafe fn get_mut<'a>(data: &mut *mut [u8]) -> Result<Self::Mut<'a>> {
             data.try_advance(size_of::<OwnerProgramDiscriminant<T>>())
                 .with_context(|| {
@@ -216,6 +223,7 @@ pub mod discriminant {
             T::owned_from_ref(r)
         }
 
+        #[inline]
         unsafe fn resize_notification(
             self_mut: &mut Self::Mut<'_>,
             source_ptr: *const (),
@@ -252,6 +260,7 @@ pub mod discriminant {
     {
         const INIT_BYTES: usize = T::INIT_BYTES + size_of::<OwnerProgramDiscriminant<T>>();
 
+        #[inline]
         fn init(bytes: &mut &mut [u8], arg: I) -> Result<()> {
             bytes
                 .try_advance(size_of::<OwnerProgramDiscriminant<T>>())
@@ -287,6 +296,7 @@ impl<T: ProgramAccount + UnsizedType + ?Sized> CanInitAccount<()> for Account<T>
 where
     T: UnsizedInit<DefaultInit>,
 {
+    #[inline]
     fn init_account<const IF_NEEDED: bool>(
         &mut self,
         _arg: (),
@@ -302,6 +312,7 @@ where
     T: UnsizedInit<DefaultInit>,
     Funder: CanFundRent + ?Sized,
 {
+    #[inline]
     fn init_account<const IF_NEEDED: bool>(
         &mut self,
         arg: (&Funder,),
@@ -318,6 +329,7 @@ where
     InitFn: FnOnce() -> InitArg,
     T: UnsizedInit<InitArg>,
 {
+    #[inline]
     fn init_account<const IF_NEEDED: bool>(
         &mut self,
         arg: InitFn,
@@ -338,6 +350,7 @@ where
     InitFn: FnOnce() -> InitArg,
     Funder: CanFundRent + ?Sized,
 {
+    #[inline]
     fn init_account<const IF_NEEDED: bool>(
         &mut self,
         arg: (InitFn, &Funder),
@@ -345,7 +358,7 @@ where
         ctx: &Context,
     ) -> Result<()> {
         if IF_NEEDED {
-            let needs_init = self.owner_pubkey() == System::ID
+            let needs_init = fast_32_byte_eq(self.account_info().owner(), System::ID.as_array())
                 || self.account_data()?[..size_of::<OwnerProgramDiscriminant<T>>()]
                     .iter()
                     .all(|x| *x == 0);
