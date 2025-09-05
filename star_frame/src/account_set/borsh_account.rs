@@ -13,6 +13,7 @@ use crate::{
         AccountSetDecode, CanAddLamports, CanFundRent, CanSystemCreateAccount as _,
     },
     prelude::*,
+    util::fast_32_byte_eq,
 };
 
 /// A [`ProgramAccount`] that is serialized and deserialized using [`BorshSerialize`] and [`BorshDeserialize`].
@@ -302,7 +303,7 @@ where
         ctx: &Context,
     ) -> Result<()> {
         if IF_NEEDED {
-            let needs_init = self.owner_pubkey() == System::ID
+            let needs_init = fast_32_byte_eq(self.account_info().owner(), System::ID.as_array())
                 || self.account_data()?[..size_of::<OwnerProgramDiscriminant<T>>()]
                     .iter()
                     .all(|x| *x == 0);

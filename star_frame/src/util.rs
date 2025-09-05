@@ -63,6 +63,26 @@ pub fn uninit_array_bytes<T: NoUninit, const N: usize>(array: &[T; N]) -> &[u8] 
     unsafe { core::slice::from_raw_parts(array.as_ptr().cast::<u8>(), size_of::<T>() * N) }
 }
 
+/// Quicker way to compare 32 bytes.
+///
+/// From [Typhoon](https://github.com/exotic-markets-labs/typhoon/blob/60c5197cc632f1bce07ba27876669e4ca8580421/crates/accounts/src/utils.rs#L2)
+#[inline]
+#[must_use]
+pub fn fast_32_byte_eq(a: &[u8], b: &[u8]) -> bool {
+    unsafe {
+        // We are reading unaligned, so the casts are fine
+        #[allow(clippy::cast_ptr_alignment)]
+        let a_ptr = a.as_ptr().cast::<u64>();
+        #[allow(clippy::cast_ptr_alignment)]
+        let b_ptr = b.as_ptr().cast::<u64>();
+
+        core::ptr::read_unaligned(a_ptr) == core::ptr::read_unaligned(b_ptr)
+            && core::ptr::read_unaligned(a_ptr.add(1)) == core::ptr::read_unaligned(b_ptr.add(1))
+            && core::ptr::read_unaligned(a_ptr.add(2)) == core::ptr::read_unaligned(b_ptr.add(2))
+            && core::ptr::read_unaligned(a_ptr.add(3)) == core::ptr::read_unaligned(b_ptr.add(3))
+    }
+}
+
 /// Custom [`borsh`] derive `serialize_with` and `deserialize_with` overrides for use with [`bytemuck`] types.
 pub mod borsh_bytemuck {
     use crate::align1::Align1;

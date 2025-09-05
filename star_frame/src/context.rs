@@ -6,7 +6,7 @@ use crate::{
     prelude::*,
 };
 use pinocchio::sysvars::{clock::Clock, rent::Rent, Sysvar};
-use std::{cell::Cell, collections::BTreeMap};
+use std::cell::Cell;
 
 /// Additional context given to [`crate::instruction::Instruction`]s, enabling programs to cache and retrieve helpful information during instruction execution.
 #[derive(Debug, Default)]
@@ -21,7 +21,6 @@ pub struct Context {
     recipient: Option<Box<dyn CanAddLamports>>,
     // Cached funder for rent. Usually set during `AccountSetValidate`
     funder: Option<Box<dyn CanFundRent>>,
-    program_cache: BTreeMap<Pubkey, AccountInfo>,
 }
 
 impl Context {
@@ -34,7 +33,6 @@ impl Context {
             clock_cache: Cell::new(None),
             recipient: None,
             funder: None,
-            program_cache: BTreeMap::new(),
         }
     }
 
@@ -85,15 +83,5 @@ impl Context {
     /// Sets the recipient for rent.
     pub fn set_recipient(&mut self, recipient: Box<dyn CanAddLamports>) {
         self.recipient.replace(recipient);
-    }
-
-    /// Adds a program to the cache.
-    pub fn add_program(&mut self, key: Pubkey, info: AccountInfo) {
-        self.program_cache.insert(key, info);
-    }
-
-    /// Gets a program from the cache if it has been added.
-    pub fn program_for_key(&self, key: &Pubkey) -> Option<&AccountInfo> {
-        self.program_cache.get(key)
     }
 }

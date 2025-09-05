@@ -266,7 +266,7 @@ pub(super) fn derive_account_set_impl_struct(
                     #meta
                 }
 
-                #[inline]
+                #[inline(always)]
                 fn account_info(&self) -> &#account_info {
                     <#field_ty as #prelude::SingleAccountSet>::account_info(&self.#field_name)
                 }

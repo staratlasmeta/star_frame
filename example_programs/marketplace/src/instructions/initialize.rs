@@ -29,6 +29,7 @@ pub struct InitializeAccounts {
     pub market_account: Init<Seeded<Account<Market>>>,
     pub system_program: Program<System>,
     pub token_program: Program<Token>,
+    pub optional: Option<Program<Token>>,
 }
 
 /// Initializes a marketplace for a given currency and market token
@@ -47,6 +48,7 @@ fn Initialize(accounts: &mut InitializeAccounts) -> Result<()> {
             market_token: *accounts.market_token.key_for(),
             bump: accounts.market_account.access_seeds().bump,
         });
+
     Ok(())
 }
 
@@ -103,6 +105,7 @@ mod tests {
                 market_account: market_pda,
                 token_program: None,
                 system_program: None,
+                optional: None,
             },
         )?;
 

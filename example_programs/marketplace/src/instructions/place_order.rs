@@ -19,8 +19,7 @@ pub struct PlaceOrder {
 fn PlaceOrder(
     accounts: &mut ManageOrderAccounts,
     process_order_args: ProcessOrderArgs,
-    ctx: &mut Context,
-) -> Result<Option<u64>> {
+) -> Result<ReturnData<Option<u64>>> {
     let order_result = accounts
         .market
         .data_mut()?
@@ -44,10 +43,10 @@ fn PlaceOrder(
 
     msg!("{}", order_result);
 
-    accounts.withdraw(withdraw_totals, ctx)?;
-    accounts.deposit(deposit_totals, ctx)?;
+    accounts.withdraw(withdraw_totals)?;
+    accounts.deposit(deposit_totals)?;
 
-    Ok(order_result.order_id)
+    Ok(order_result.order_id.into())
 }
 
 #[cfg(test)]

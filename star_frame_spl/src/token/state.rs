@@ -235,7 +235,7 @@ where
             None => &[],
         };
         Token::cpi(
-            &InitializeMint2 {
+            InitializeMint2 {
                 decimals: init_mint.decimals,
                 mint_authority: *init_mint.mint_authority,
                 freeze_authority: init_mint.freeze_authority.cloned(),
@@ -243,8 +243,8 @@ where
             InitializeMint2CpiAccounts {
                 mint: *self.account_info(),
             },
-            ctx,
-        )?
+            None,
+        )
         .invoke_signed(account_seeds)?;
         Ok(())
     }
@@ -455,15 +455,15 @@ where
             None => &[],
         };
         Token::cpi(
-            &InitializeAccount3 {
+            InitializeAccount3 {
                 owner: init_token.owner,
             },
             InitializeAccount3CpiAccounts {
                 account: *self.account_info(),
                 mint: *init_token.mint.account_info(),
             },
-            ctx,
-        )?
+            None,
+        )
         .invoke_signed(account_seeds)?;
         Ok(())
     }
