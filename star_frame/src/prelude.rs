@@ -32,7 +32,7 @@ pub use crate::{
     },
     instruction::{
         star_frame_instruction, InstructionArgs, InstructionDiscriminant as _, InstructionSet,
-        StarFrameInstruction,
+        ReturnData, StarFrameInstruction,
     },
     program::{system::System, StarFrameProgram},
     pubkey,
@@ -46,7 +46,10 @@ pub use star_frame_proc::{zero_copy, InstructionToIdl, TypeToIdl};
 
 // Solana stuff
 pub use anyhow::{anyhow, bail};
-pub use pinocchio::{account_info::AccountInfo, msg, program_error::ProgramError, ProgramResult};
+pub use pinocchio::{
+    account_info::AccountInfo, instruction::AccountMeta as PinocchioAccountMeta, msg,
+    program_error::ProgramError, ProgramResult,
+};
 pub use solana_instruction::AccountMeta;
 pub use solana_pubkey::Pubkey;
 
