@@ -1,5 +1,7 @@
 //! `AccountSet` implementations for fixed-size arrays. Enables working with multiple accounts of the same type using `[T; N]` syntax with automatic iteration and validation.
 
+use std::{mem::MaybeUninit, ops::Mul};
+
 use crate::{
     account_set::{
         AccountSetCleanup, AccountSetDecode, AccountSetValidate, ClientAccountSet, CpiAccountSet,
@@ -7,37 +9,45 @@ use crate::{
     prelude::*,
 };
 use array_init::try_array_init;
+use typenum::{Const, ToUInt};
 
-impl<A, const N: usize> CpiAccountSet for [A; N]
+unsafe impl<A, const N: usize> CpiAccountSet for [A; N]
 where
     A: CpiAccountSet,
+    Const<N>: ToUInt,
+    A::AccountLen: Mul<typenum::U<N>, Output: typenum::Unsigned>,
 {
+    type ContainsOption = typenum::False;
     type CpiAccounts = [A::CpiAccounts; N];
-    const MIN_LEN: usize = N * A::MIN_LEN;
+    type AccountLen = typenum::Prod<A::AccountLen, typenum::U<N>>;
+
     #[inline]
     fn to_cpi_accounts(&self) -> Self::CpiAccounts {
         self.each_ref().map(A::to_cpi_accounts)
     }
+
     #[inline]
-    fn extend_account_infos(
-        program_id: &Pubkey,
-        accounts: Self::CpiAccounts,
-        infos: &mut Vec<AccountInfo>,
-        ctx: &Context,
+    fn write_account_infos<'a>(
+        program: Option<&'a AccountInfo>,
+        accounts: &'a Self::CpiAccounts,
+        index: &mut usize,
+        infos: &mut [MaybeUninit<&'a AccountInfo>],
     ) -> Result<()> {
-        for a in accounts {
-            A::extend_account_infos(program_id, a, infos, ctx)?;
+        for acc in accounts {
+            A::write_account_infos(program, acc, index, infos)?;
         }
         Ok(())
     }
+
     #[inline]
-    fn extend_account_metas(
-        program_id: &Pubkey,
-        accounts: &Self::CpiAccounts,
-        metas: &mut Vec<AccountMeta>,
+    fn write_account_metas<'a>(
+        program_id: &'a Pubkey,
+        accounts: &'a Self::CpiAccounts,
+        index: &mut usize,
+        metas: &mut [MaybeUninit<PinocchioAccountMeta<'a>>],
     ) {
-        for a in accounts {
-            A::extend_account_metas(program_id, a, metas);
+        for acc in accounts {
+            A::write_account_metas(program_id, acc, index, metas);
         }
     }
 }

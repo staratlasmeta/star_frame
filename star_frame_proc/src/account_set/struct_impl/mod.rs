@@ -3,7 +3,10 @@ use crate::{
         generics::AccountSetGenerics, struct_impl::decode::DecodeFieldTy, AccountSetStructArgs,
         SingleAccountSetFieldArgs, StrippedDeriveInput,
     },
-    util::{combine_gen, ignore_cfg_module, make_struct, new_generic, Paths},
+    util::{
+        combine_gen, ignore_cfg_module, make_struct, new_generic, new_lifetime,
+        recurse_type_operator, Paths,
+    },
 };
 use easy_proc::{find_attr, ArgumentList};
 use proc_macro2::TokenStream;
@@ -65,7 +68,7 @@ pub(super) fn derive_account_set_impl_struct(
 ) -> TokenStream {
     let AccountSetGenerics { main_generics, .. } = &account_set_generics;
 
-    Paths!(account_info, prelude, result, clone, debug);
+    Paths!(account_info, prelude, result, clone, debug, maybe_uninit);
 
     let ident = &input.ident;
 
@@ -194,36 +197,40 @@ pub(super) fn derive_account_set_impl_struct(
         let (_, _, cpi_set_wc) = cpi_set_gen.split_for_impl();
 
         let cpi_set_impl = account_set_struct_args.skip_cpi_account_set.not().then(|| {
+            let lt = new_lifetime(&cpi_set_gen, None);
             quote! {
                 #[automatically_derived]
-                impl #sg_impl #prelude::CpiAccountSet for #ident #ty_generics #cpi_set_wc {
+                unsafe impl #sg_impl #prelude::CpiAccountSet for #ident #ty_generics #cpi_set_wc {
                     type CpiAccounts = #prelude::AccountInfo;
-                    const MIN_LEN: usize = 1;
+                    type ContainsOption = <#field_ty as #prelude::CpiAccountSet>::ContainsOption;
+                    type AccountLen = #prelude::typenum::U1;
+
                     #[inline]
                     fn to_cpi_accounts(&self) -> Self::CpiAccounts {
                         *self.account_info()
                     }
-                    #[inline]
-                    fn extend_account_infos(
-                        _program_id: &#prelude::Pubkey,
-                        account_info: Self::CpiAccounts,
-                        infos: &mut Vec<#prelude::AccountInfo>,
-                        _ctx: &#prelude::Context,
+                    #[inline(always)]
+                    fn write_account_infos<#lt>(
+                        program: Option<&#lt #prelude::AccountInfo>,
+                        accounts: &#lt #prelude::AccountInfo,
+                        index: &mut usize,
+                        infos: &mut [#maybe_uninit<&#lt #prelude::AccountInfo>],
                     ) -> #prelude::Result<()> {
-                        infos.push(account_info);
-                        Ok(())
+                        <#prelude::AccountInfo as #prelude::CpiAccountSet>::write_account_infos(program,  accounts, index, infos)
                     }
-                    #[inline]
-                    fn extend_account_metas(
-                        _program_id: &#prelude::Pubkey,
-                        account_info: &Self::CpiAccounts,
-                        metas: &mut Vec<#prelude::AccountMeta>,
+                    #[inline(always)]
+                    fn write_account_metas<'a>(
+                        _program_id: &#lt #prelude::Pubkey,
+                        accounts: &#lt #prelude::AccountInfo,
+                        index: &mut usize,
+                        metas: &mut [#maybe_uninit<#prelude::PinocchioAccountMeta<#lt>>],
                     ) {
-                        metas.push(#prelude::AccountMeta {
-                            pubkey: *#prelude::SingleAccountSet::pubkey(account_info),
+                        metas[*index] = #maybe_uninit::new(#prelude::PinocchioAccountMeta {
+                            pubkey: accounts.key(),
                             is_signer: <Self as #prelude::SingleAccountSet>::meta().signer,
                             is_writable: <Self as #prelude::SingleAccountSet>::meta().writable,
                         });
+                        *index += 1;
                     }
                 }
             }
@@ -390,7 +397,6 @@ pub(super) fn derive_account_set_impl_struct(
         let mut cpi_gen = main_generics.clone();
         let where_clause = cpi_gen.make_where_clause();
         let cpi_set = quote!(#prelude::CpiAccountSet);
-        let cpi_accounts = quote!(Self::CpiAccounts);
 
         let new_fields: Vec<Field> = fields
             .iter()
@@ -417,40 +423,46 @@ pub(super) fn derive_account_set_impl_struct(
 
         let struct_members = cpi_accounts_struct.fields.members();
 
+        let lt = new_lifetime(&cpi_gen, None);
+        let accounts_len = recurse_type_operator(
+            quote!(#prelude::typenum::Sum), 
+            field_type.iter().map(|ty| quote!(<#ty as #cpi_set>::AccountLen)).collect::<Vec<_>>().as_slice(), 
+            quote!(#prelude::typenum::U0));
         quote! {
             #[derive(#clone, #debug)]
             #cpi_accounts_struct
 
             #[automatically_derived]
-            impl #impl_gen #cpi_set for #ident #self_ty_gen #where_clause {
+            unsafe impl #impl_gen #cpi_set for #ident #self_ty_gen #where_clause {
                 type CpiAccounts = #cpi_accounts_ident #new_struct_ty_gen;
-                const MIN_LEN: usize =  0#(+ <#field_type as #cpi_set>::MIN_LEN)*;
+                type ContainsOption = #prelude::typenum::False;
+                type AccountLen = #prelude::typenum::Minimum<#accounts_len, #prelude::DynamicCpiAccountSetLen>;
 
                 #[inline]
                 fn to_cpi_accounts(&self) -> Self::CpiAccounts {
                     Self::CpiAccounts {
-                        #(#struct_members: #prelude::CpiAccountSet::to_cpi_accounts(&self.#struct_members),)*
+                        #(#struct_members: <#field_type as #cpi_set>::to_cpi_accounts(&self.#struct_members),)*
                     }
                 }
 
-                #[inline]
-                fn extend_account_infos(
-                    program_id: &#prelude::Pubkey,
-                    accounts: #cpi_accounts,
-                    infos: &mut Vec<#account_info>,
-                    ctx: &#prelude::Context,
+                #[inline(always)]
+                fn write_account_infos<#lt>(
+                    program: Option<&#lt #prelude::AccountInfo>,
+                    accounts: &#lt Self::CpiAccounts,
+                    index: &mut usize,
+                    infos: &mut [#maybe_uninit<&#lt #prelude::AccountInfo>],
                 ) -> #prelude::Result<()> {
-                    #(<#field_type as #cpi_set>::extend_account_infos(program_id, accounts.#field_name, infos, ctx)?;)*
+                    #(<#field_type as #cpi_set>::write_account_infos(program, &accounts.#field_name, index, infos)?;)*
                     Ok(())
                 }
-
-                #[inline]
-                fn extend_account_metas(
-                    program_id: &#prelude::Pubkey,
-                    accounts: &#cpi_accounts,
-                    metas: &mut Vec<#prelude::AccountMeta>,
+                #[inline(always)]
+                fn write_account_metas<#lt>(
+                    program_id: &#lt #prelude::Pubkey,
+                    accounts: &#lt Self::CpiAccounts,
+                    index: &mut usize,
+                    metas: &mut [#maybe_uninit<#prelude::PinocchioAccountMeta<#lt>>],
                 ) {
-                    #(<#field_type as #cpi_set>::extend_account_metas(program_id, &accounts.#field_name, metas);)*
+                    #(<#field_type as #cpi_set>::write_account_metas(program_id, &accounts.#field_name, index, metas);)*
                 }
             }
         }

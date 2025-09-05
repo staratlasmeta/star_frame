@@ -1,5 +1,7 @@
 //! `AccountSet` implementations for boxed types. Enables heap allocation of account sets with transparent delegation to the underlying type.
 
+use std::mem::MaybeUninit;
+
 use crate::{
     account_set::{
         modifiers::{
@@ -27,35 +29,39 @@ where
     }
 }
 
-impl<T> CpiAccountSet for Box<T>
+unsafe impl<T> CpiAccountSet for Box<T>
 where
     T: CpiAccountSet,
 {
+    type ContainsOption = T::ContainsOption;
     type CpiAccounts = T::CpiAccounts;
-    const MIN_LEN: usize = T::MIN_LEN;
+    type AccountLen = T::AccountLen;
+
     #[inline]
     fn to_cpi_accounts(&self) -> Self::CpiAccounts {
         T::to_cpi_accounts(self)
     }
+
     #[inline]
-    fn extend_account_infos(
-        program_id: &Pubkey,
-        accounts: Self::CpiAccounts,
-        infos: &mut Vec<AccountInfo>,
-        ctx: &Context,
+    fn write_account_infos<'a>(
+        program: Option<&'a AccountInfo>,
+        accounts: &'a Self::CpiAccounts,
+        index: &mut usize,
+        infos: &mut [MaybeUninit<&'a AccountInfo>],
     ) -> Result<()> {
-        T::extend_account_infos(program_id, accounts, infos, ctx)
+        T::write_account_infos(program, accounts, index, infos)
     }
+
     #[inline]
-    fn extend_account_metas(
-        program_id: &Pubkey,
-        accounts: &Self::CpiAccounts,
-        metas: &mut Vec<AccountMeta>,
+    fn write_account_metas<'a>(
+        program_id: &'a Pubkey,
+        accounts: &'a Self::CpiAccounts,
+        index: &mut usize,
+        metas: &mut [MaybeUninit<PinocchioAccountMeta<'a>>],
     ) {
-        T::extend_account_metas(program_id, accounts, metas);
+        T::write_account_metas(program_id, accounts, index, metas);
     }
 }
-
 impl<T> ClientAccountSet for Box<T>
 where
     T: ClientAccountSet,
