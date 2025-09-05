@@ -135,7 +135,11 @@ pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
             match discriminant {
                 #(
                     <#variant_tys as #prelude::InstructionDiscriminant<#ident #ty_generics>>::DISCRIMINANT => {
-                        #prelude::msg!(#ix_message);
+                        #[allow(unexpected_cfgs)]
+                        {
+                            #[cfg(not(any(feature = "no_log_ix_name", feature = "no-log-ix-name")))]
+                            #prelude::msg!(#ix_message);
+                        }
                         <#variant_tys as #instruction>::process_from_raw(accounts, instruction_data, ctx)
                     }
                 )*
