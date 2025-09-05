@@ -1,5 +1,7 @@
 //! Implementation of `AccountSet` traits for [`AccountInfo`].
 
+use std::mem::MaybeUninit;
+
 use crate::{
     account_set::{
         single_set::SingleSetMeta, AccountSetCleanup, AccountSetDecode, AccountSetValidate,
@@ -45,6 +47,7 @@ impl ClientAccountSet for &AccountInfo {
     type ClientAccounts = Pubkey;
     const MIN_LEN: usize = 1;
 
+    #[inline]
     fn extend_account_metas(
         _program_id: &Pubkey,
         accounts: &Self::ClientAccounts,
@@ -62,6 +65,7 @@ impl ClientAccountSet for AccountInfo {
     type ClientAccounts = Pubkey;
     const MIN_LEN: usize = 1;
 
+    #[inline]
     fn extend_account_metas(
         _program_id: &Pubkey,
         accounts: &Self::ClientAccounts,
@@ -75,65 +79,79 @@ impl ClientAccountSet for AccountInfo {
     }
 }
 
-impl CpiAccountSet for &AccountInfo {
+unsafe impl CpiAccountSet for AccountInfo {
+    type ContainsOption = typenum::False;
     type CpiAccounts = AccountInfo;
-    const MIN_LEN: usize = 1;
+    type AccountLen = typenum::U1;
 
+    #[inline]
     fn to_cpi_accounts(&self) -> Self::CpiAccounts {
         *self.account_info()
     }
 
-    fn extend_account_infos(
-        _program_id: &Pubkey,
-        accounts: Self::CpiAccounts,
-        infos: &mut Vec<AccountInfo>,
-        _ctx: &Context,
+    #[inline]
+    fn write_account_infos<'a>(
+        _program: Option<&'a AccountInfo>,
+        accounts: &'a Self::CpiAccounts,
+        index: &mut usize,
+        infos: &mut [MaybeUninit<&'a AccountInfo>],
     ) -> Result<()> {
-        infos.push(accounts);
+        infos[*index] = MaybeUninit::new(accounts);
+        *index += 1;
         Ok(())
     }
 
-    fn extend_account_metas(
+    #[inline]
+    fn write_account_metas<'a>(
         _program_id: &Pubkey,
-        accounts: &Self::CpiAccounts,
-        metas: &mut Vec<AccountMeta>,
+        accounts: &'a Self::CpiAccounts,
+        index: &mut usize,
+        metas: &mut [MaybeUninit<PinocchioAccountMeta<'a>>],
     ) {
-        metas.push(AccountMeta {
-            pubkey: *SingleAccountSet::pubkey(&accounts),
+        metas[*index] = MaybeUninit::new(PinocchioAccountMeta {
+            pubkey: accounts.key(),
             is_signer: false,
             is_writable: false,
         });
+        *index += 1;
     }
 }
 
-impl CpiAccountSet for AccountInfo {
+unsafe impl CpiAccountSet for &AccountInfo {
+    type ContainsOption = typenum::False;
     type CpiAccounts = AccountInfo;
-    const MIN_LEN: usize = 1;
+    type AccountLen = typenum::U1;
 
+    #[inline]
     fn to_cpi_accounts(&self) -> Self::CpiAccounts {
         *self.account_info()
     }
 
-    fn extend_account_infos(
-        _program_id: &Pubkey,
-        accounts: Self::CpiAccounts,
-        infos: &mut Vec<AccountInfo>,
-        _ctx: &Context,
+    #[inline]
+    fn write_account_infos<'a>(
+        _program: Option<&'a AccountInfo>,
+        accounts: &'a Self::CpiAccounts,
+        index: &mut usize,
+        infos: &mut [MaybeUninit<&'a AccountInfo>],
     ) -> Result<()> {
-        infos.push(accounts);
+        infos[*index] = MaybeUninit::new(accounts);
+        *index += 1;
         Ok(())
     }
 
-    fn extend_account_metas(
+    #[inline]
+    fn write_account_metas<'a>(
         _program_id: &Pubkey,
-        accounts: &Self::CpiAccounts,
-        metas: &mut Vec<AccountMeta>,
+        accounts: &'a Self::CpiAccounts,
+        index: &mut usize,
+        metas: &mut [MaybeUninit<PinocchioAccountMeta<'a>>],
     ) {
-        metas.push(AccountMeta {
-            pubkey: *accounts.pubkey(),
+        metas[*index] = MaybeUninit::new(PinocchioAccountMeta {
+            pubkey: accounts.key(),
             is_signer: false,
             is_writable: false,
         });
+        *index += 1;
     }
 }
 
@@ -172,23 +190,27 @@ impl<'a> AccountSetDecode<'a, ()> for &'a AccountInfo {
     }
 }
 impl AccountSetValidate<()> for AccountInfo {
+    #[inline]
     fn validate_accounts(&mut self, _validate_input: (), _ctx: &mut Context) -> Result<()> {
         Ok(())
     }
 }
 
 impl AccountSetValidate<()> for &AccountInfo {
+    #[inline]
     fn validate_accounts(&mut self, validate_input: (), _ctx: &mut Context) -> Result<()> {
         Ok(validate_input)
     }
 }
 
 impl AccountSetCleanup<()> for AccountInfo {
+    #[inline]
     fn cleanup_accounts(&mut self, cleanup_input: (), _ctx: &mut Context) -> Result<()> {
         Ok(cleanup_input)
     }
 }
 impl AccountSetCleanup<()> for &AccountInfo {
+    #[inline]
     fn cleanup_accounts(&mut self, cleanup_input: (), _ctx: &mut Context) -> Result<()> {
         Ok(cleanup_input)
     }

@@ -15,7 +15,7 @@ pub use star_frame_proc::{AccountSet, ProgramAccount};
 use crate::prelude::*;
 use bytemuck::{bytes_of, from_bytes};
 use modifiers::{HasOwnerProgram, OwnerProgramDiscriminant};
-use std::slice;
+use std::{mem::MaybeUninit, slice};
 
 /// An account that has a discriminant and is owned by a [`StarFrameProgram`].
 ///
@@ -141,24 +141,36 @@ pub trait AccountSetCleanup<A> {
     fn cleanup_accounts(&mut self, cleanup_input: A, ctx: &mut Context) -> Result<()>;
 }
 
-/// Used to convert an `AccountSet`s [`Self::CpiAccounts`] into a list of [`AccountInfo`]s and [`AccountMeta`]s for a CPI.
-pub trait CpiAccountSet {
+/// Sentinel value for [`CpiAccountSet::AccountLen`] for a dynamic CPI account set.
+pub type DynamicCpiAccountSetLen = typenum::U1000;
+
+/// An [`AccountSet`] that can be converted into a list of [`AccountInfo`]s and [`AccountMeta`]s for a CPI.
+///
+/// # Safety
+/// With N >= 0, [`Self::write_account_infos`] and [`Self::write_account_metas`] must write to N elements of the array and increment the index by N.
+/// Failure to do so will result in undefined behavior.
+pub unsafe trait CpiAccountSet {
+    /// Whether or not the CPI accounts contains an option (which requires passing in the program info)
+    type ContainsOption: typenum::Bit;
+    // type DynamicSize: typenum::Bit;
     /// The minimum information needed to create a list of account infos and metas for a CPI for Self.
-    type CpiAccounts: Clone + Debug;
-    /// The minimum number of accounts this CPI might use
-    const MIN_LEN: usize;
+    type CpiAccounts: Debug;
+    /// The number of accounts this CPI might use. Set to [`DynamicCpiAccountSetLen`] for dynamic
+    type AccountLen: typenum::Unsigned;
+
     #[rust_analyzer::completions(ignore_flyimport)]
     fn to_cpi_accounts(&self) -> Self::CpiAccounts;
-    fn extend_account_infos(
-        program_id: &Pubkey,
-        accounts: Self::CpiAccounts,
-        infos: &mut Vec<AccountInfo>,
-        ctx: &Context,
+    fn write_account_infos<'a>(
+        program: Option<&'a AccountInfo>,
+        accounts: &'a Self::CpiAccounts,
+        index: &mut usize,
+        infos: &mut [MaybeUninit<&'a AccountInfo>],
     ) -> Result<()>;
-    fn extend_account_metas(
-        program_id: &Pubkey,
-        accounts: &Self::CpiAccounts,
-        metas: &mut Vec<AccountMeta>,
+    fn write_account_metas<'a>(
+        program_id: &'a Pubkey,
+        accounts: &'a Self::CpiAccounts,
+        index: &mut usize,
+        metas: &mut [MaybeUninit<pinocchio::instruction::AccountMeta<'a>>],
     );
 }
 
