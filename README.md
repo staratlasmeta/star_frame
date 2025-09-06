@@ -36,7 +36,7 @@ Star Frame is in active development (and improving our docs is a main priority n
 
 ```bash
 cargo install star_frame_cli
-sf --version
+sf --help
 ```
 
 ```bash
