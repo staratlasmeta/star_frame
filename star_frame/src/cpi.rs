@@ -137,10 +137,11 @@ where
             infos_arr.as_mut(),
         )?;
 
+        let program_id = <A::ContainsOption as CpiProgramInput<P>>::pubkey(self.program);
         let mut metas_index = 0;
         let mut metas_arr = <<A as CpiAccountSet>::AccountLen as HandleCpiArray>::uninit_metas();
         A::write_account_metas(
-            <A::ContainsOption as CpiProgramInput<P>>::pubkey(self.program),
+            program_id,
             &self.accounts,
             &mut metas_index,
             metas_arr.as_mut(),
@@ -168,7 +169,7 @@ where
         self.data.serialize(&mut data)?;
 
         <A as CpiAccountSet>::AccountLen::invoke_signed(
-            <A::ContainsOption as CpiProgramInput<P>>::pubkey(self.program),
+            program_id,
             data.as_slice(),
             infos_arr,
             infos_index,
