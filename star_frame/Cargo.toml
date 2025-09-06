@@ -32,7 +32,7 @@ solana-instruction = { workspace = true }
 pinocchio = { workspace = true }
 star_frame_proc = { workspace = true }
 static_assertions = { workspace = true }
-typenum = { workspace = true }
+typenum = { workspace = true, features = ["const-generics"] }
 ref-cast = { workspace = true }
 ptr_meta = { workspace = true }
 solana-system-interface = { workspace = true, optional = true }

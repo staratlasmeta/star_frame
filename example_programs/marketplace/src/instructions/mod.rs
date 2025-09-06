@@ -59,7 +59,7 @@ pub struct ManageOrderAccounts {
 }
 
 impl ManageOrderAccounts {
-    fn withdraw(&self, totals: OrderTotals, ctx: &Context) -> Result<()> {
+    fn withdraw(&self, totals: OrderTotals) -> Result<()> {
         let OrderTotals {
             market_tokens,
             currency,
@@ -80,7 +80,7 @@ impl ManageOrderAccounts {
         let signer_seeds = signer_seeds.as_ref().map(|seeds| seeds.seeds_with_bump());
         if market_tokens > ZERO_QUANTITY {
             Token::cpi(
-                &Transfer {
+                Transfer {
                     amount: market_tokens.val().0,
                 },
                 TransferCpiAccounts {
@@ -88,13 +88,13 @@ impl ManageOrderAccounts {
                     destination: *self.user_market_token_vault.account_info(),
                     owner: *self.market.account_info(),
                 },
-                ctx,
-            )?
+                None,
+            )
             .invoke_signed(&[signer_seeds.as_ref().unwrap().as_slice()])?;
         }
         if currency > ZERO_PRICE {
             Token::cpi(
-                &Transfer {
+                Transfer {
                     amount: currency.val().0,
                 },
                 TransferCpiAccounts {
@@ -102,21 +102,21 @@ impl ManageOrderAccounts {
                     destination: *self.user_currency_vault.account_info(),
                     owner: *self.market.account_info(),
                 },
-                ctx,
-            )?
+                None,
+            )
             .invoke_signed(&[signer_seeds.as_ref().unwrap().as_slice()])?;
         }
         Ok(())
     }
 
-    fn deposit(&self, totals: OrderTotals, ctx: &Context) -> Result<()> {
+    fn deposit(&self, totals: OrderTotals) -> Result<()> {
         let OrderTotals {
             market_tokens,
             currency,
         } = totals;
         if market_tokens > ZERO_QUANTITY {
             Token::cpi(
-                &Transfer {
+                Transfer {
                     amount: market_tokens.val().0,
                 },
                 TransferCpiAccounts {
@@ -124,13 +124,13 @@ impl ManageOrderAccounts {
                     destination: *self.market_token_vault.account_info(),
                     owner: *self.user.account_info(),
                 },
-                ctx,
-            )?
+                None,
+            )
             .invoke()?;
         }
         if currency > ZERO_PRICE {
             Token::cpi(
-                &Transfer {
+                Transfer {
                     amount: currency.val().0,
                 },
                 TransferCpiAccounts {
@@ -138,8 +138,8 @@ impl ManageOrderAccounts {
                     destination: *self.currency_vault.account_info(),
                     owner: *self.user.account_info(),
                 },
-                ctx,
-            )?
+                None,
+            )
             .invoke()?;
         }
         Ok(())

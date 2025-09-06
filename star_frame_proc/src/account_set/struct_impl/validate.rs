@@ -299,6 +299,7 @@ pub(super) fn validates(
         quote! {
             #[automatically_derived]
             impl #impl_generics #account_set_validate<#validate_type> for #ident #ty_generics #where_clause {
+                #[inline]
                 fn validate_accounts(
                     &mut self,
                     arg: #validate_type,

@@ -133,6 +133,7 @@ pub(super) fn cleanups(
         quote! {
             #[automatically_derived]
             impl #impl_generics #account_set_cleanup<#cleanup_type> for #ident #ty_generics #where_clause {
+                #[inline]
                 fn cleanup_accounts(
                     &mut self,
                     arg: #cleanup_type,

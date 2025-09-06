@@ -36,6 +36,7 @@ impl<T> SignedAccount for MaybeSigner<true, T>
 where
     T: SingleAccountSet,
 {
+    #[inline]
     fn signer_seeds(&self) -> Option<Vec<&[u8]>> {
         None
     }
@@ -46,6 +47,7 @@ impl<T> SignedAccount for MaybeSigner<false, T>
 where
     T: SignedAccount,
 {
+    #[inline]
     fn signer_seeds(&self) -> Option<Vec<&[u8]>> {
         self.0.signer_seeds()
     }
@@ -56,6 +58,7 @@ impl<T, A> CanInitSeeds<A> for MaybeSigner<true, T>
 where
     Self: SingleAccountSet + AccountSetValidate<A>,
 {
+    #[inline]
     fn init_seeds(&mut self, _arg: &A, _ctx: &Context) -> Result<()> {
         Ok(())
     }
@@ -66,6 +69,7 @@ impl<T, A> CanInitSeeds<A> for MaybeSigner<false, T>
 where
     T: CanInitSeeds<A>,
 {
+    #[inline]
     fn init_seeds(&mut self, arg: &A, ctx: &Context) -> Result<()> {
         self.0.init_seeds(arg, ctx)
     }

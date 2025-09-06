@@ -7,6 +7,7 @@ use crate::{
 use anyhow::Context as _;
 use borsh::to_vec;
 use bytemuck::{bytes_of, Pod};
+use derive_more::From;
 use pinocchio::cpi::set_return_data;
 
 pub use star_frame_proc::{
@@ -100,7 +101,7 @@ pub trait InstructionArgs: Sized {
 
 #[doc(hidden)]
 #[diagnostic::on_unimplemented(
-    message = "StarFrameInstruction requires the return type to be `Result<T>`"
+    message = "`StarFrameInstruction` requires the return type to be `Result<()> or Result<ReturnData<T>>`"
 )]
 /// A helper trait to get the inner T of a [`Result`] from a [`StarFrameInstruction::process`] declaration. This is used internally in the [`star_frame_instruction`] macro.
 pub trait IxReturnType {
@@ -108,6 +109,39 @@ pub trait IxReturnType {
 }
 impl<T, E> IxReturnType for Result<T, E> {
     type ReturnType = T;
+}
+
+mod sealed {
+    use super::*;
+
+    #[doc(hidden)]
+    pub trait Sealed {}
+    impl Sealed for () {}
+    impl<T: BorshSerialize> Sealed for ReturnData<T> {}
+}
+/// A marker trait for valid return types for a [`StarFrameInstruction`].
+#[diagnostic::on_unimplemented(
+    message = "`StarFrameInstruction` requires the return type to be `Result<()> or Result<ReturnData<T>>`"
+)]
+pub trait InstructionReturn: sealed::Sealed {
+    fn handle_return(&self) -> Result<()>;
+}
+
+impl<T: BorshSerialize> InstructionReturn for ReturnData<T> {
+    #[inline]
+    fn handle_return(&self) -> Result<()> {
+        let return_data = to_vec(&self.0).context("Failed to serialize return data")?;
+        if !return_data.is_empty() {
+            set_return_data(&return_data);
+        }
+        Ok(())
+    }
+}
+impl InstructionReturn for () {
+    #[inline]
+    fn handle_return(&self) -> Result<()> {
+        Ok(())
+    }
 }
 
 /// An opinionated (and recommended) [`Instruction`] using [`AccountSet`] and other traits. Can be derived using the [`star_frame_instruction`] macro.
@@ -122,7 +156,7 @@ impl<T, E> IxReturnType for Result<T, E> {
 /// 7. Set the solana return data using [`BorshSerialize`] if it is not empty.
 pub trait StarFrameInstruction: BorshDeserialize + InstructionArgs {
     /// The return type of this instruction.
-    type ReturnType: BorshSerialize;
+    type ReturnType: InstructionReturn;
 
     /// The [`AccountSet`] used by this instruction.
     type Accounts<'decode, 'arg>: AccountSetDecode<'decode, Self::DecodeArg<'arg>>
@@ -136,6 +170,10 @@ pub trait StarFrameInstruction: BorshDeserialize + InstructionArgs {
         ctx: &mut Context,
     ) -> Result<Self::ReturnType>;
 }
+
+#[derive(Debug, From)]
+#[repr(transparent)]
+pub struct ReturnData<T>(pub T);
 
 impl<T> Instruction for T
 where
@@ -165,10 +203,7 @@ where
         account_set
             .cleanup_accounts(cleanup, ctx)
             .context("Failed to cleanup accounts")?;
-        let return_data = to_vec(&ret).context("Failed to serialize return data")?;
-        if !return_data.is_empty() {
-            set_return_data(&return_data);
-        }
+        ret.handle_return()?;
         Ok(())
     }
 }

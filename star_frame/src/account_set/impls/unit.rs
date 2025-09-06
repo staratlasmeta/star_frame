@@ -1,34 +1,13 @@
 //! `AccountSet` implementation for the unit type. Enables instructions that require no accounts using `()` syntax as a zero-cost abstraction.
 
+use std::mem::MaybeUninit;
+
 use crate::{
     account_set::{
         AccountSetCleanup, AccountSetDecode, AccountSetValidate, ClientAccountSet, CpiAccountSet,
     },
     prelude::*,
 };
-
-impl CpiAccountSet for () {
-    type CpiAccounts = ();
-    const MIN_LEN: usize = 0;
-    #[inline]
-    fn to_cpi_accounts(&self) -> Self::CpiAccounts {}
-    #[inline]
-    fn extend_account_infos(
-        _program_id: &Pubkey,
-        _accounts: Self::CpiAccounts,
-        _infos: &mut Vec<AccountInfo>,
-        _ctx: &Context,
-    ) -> Result<()> {
-        Ok(())
-    }
-    #[inline]
-    fn extend_account_metas(
-        _program_id: &Pubkey,
-        _accounts: &Self::CpiAccounts,
-        _metas: &mut Vec<AccountMeta>,
-    ) {
-    }
-}
 
 impl ClientAccountSet for () {
     type ClientAccounts = ();
@@ -38,6 +17,34 @@ impl ClientAccountSet for () {
         _program_id: &Pubkey,
         _accounts: &Self::ClientAccounts,
         _metas: &mut Vec<AccountMeta>,
+    ) {
+    }
+}
+
+unsafe impl CpiAccountSet for () {
+    type ContainsOption = typenum::False;
+    type CpiAccounts = ();
+    type AccountLen = typenum::U0;
+
+    #[inline]
+    fn to_cpi_accounts(&self) -> Self::CpiAccounts {}
+
+    #[inline]
+    fn write_account_infos<'a>(
+        _program: Option<&'a AccountInfo>,
+        _accounts: &'a Self::CpiAccounts,
+        _index: &mut usize,
+        _infos: &mut [MaybeUninit<&'a AccountInfo>],
+    ) -> Result<()> {
+        Ok(())
+    }
+
+    #[inline]
+    fn write_account_metas<'a>(
+        _program_id: &'a Pubkey,
+        _accounts: &'a Self::CpiAccounts,
+        _index: &mut usize,
+        _metas: &mut [MaybeUninit<PinocchioAccountMeta<'a>>],
     ) {
     }
 }

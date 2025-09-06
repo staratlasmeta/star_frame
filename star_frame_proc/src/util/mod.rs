@@ -13,7 +13,7 @@ use itertools::Itertools;
 use proc_macro2::{Ident, TokenStream};
 use proc_macro_crate::{crate_name, FoundCrate};
 use proc_macro_error2::abort;
-use quote::{format_ident, quote};
+use quote::{format_ident, quote, ToTokens};
 use std::fmt::Debug;
 use syn::{
     parse_quote,
@@ -352,6 +352,21 @@ pub fn ignore_cfg_module(ident: &Ident, suffix: &str, body: TokenStream) -> Toke
     }
 }
 
+pub fn recurse_type_operator(
+    op: TokenStream,
+    types: &[TokenStream],
+    default: TokenStream,
+) -> TokenStream {
+    let Some((first, rem)) = types.split_first() else {
+        return default;
+    };
+    if rem.is_empty() {
+        return first.to_token_stream();
+    }
+    let last = recurse_type_operator(op.clone(), rem, default);
+    quote! { #op<#first, #last> }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -437,5 +452,20 @@ mod tests {
                 }
             }
         );
+    }
+
+    #[test]
+    fn test_recurse_type_operator() {
+        let pair_tokens = recurse_type_operator(quote!(op), &[quote!(A), quote!(B)], quote!());
+        let ty: Type = parse_quote!(#pair_tokens);
+        assert_eq!(ty, parse_quote!(op<A, B>));
+
+        let five_tokens = recurse_type_operator(
+            quote!(op),
+            &[quote!(A), quote!(B), quote!(C), quote!(D), quote!(E)],
+            quote!(),
+        );
+        let ty: Type = parse_quote!(#five_tokens);
+        assert_eq!(ty, parse_quote!(op<A, op<B, op<C, op<D, E>>>>));
     }
 }
