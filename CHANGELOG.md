@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Significantly improved performance across the board (#247)
+
+### Changed
+
+- Updated `CpiAccountSet` to use native pinocchio instruction types (#247)
+- Updated `CpiBuilder` to take in InstructionData by value and a program argument instead of ctx,
+  and `MakeCpi::cpi` is now infallible (#247)
+- Non-unit return data must be wrapped in `ReturnData` (#247)
+
+### Removed
+
+- Program cache from the `Context` struct (#247)
+
 ## [0.24.2] - 2025-09-06
 
 ### Fixed
