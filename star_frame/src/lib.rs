@@ -321,7 +321,7 @@
 //! ```
 //! And run it with:
 //! ```shell
-//! cargo test -- generate_idl
+//! cargo test --features idl -- generate_idl
 //! ```
 //!
 //! # Feature Flags
