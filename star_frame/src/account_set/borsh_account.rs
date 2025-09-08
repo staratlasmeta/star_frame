@@ -13,7 +13,6 @@ use crate::{
         AccountSetDecode, CanAddLamports, CanFundRent, CanSystemCreateAccount as _,
     },
     prelude::*,
-    util::fast_32_byte_eq,
 };
 
 /// A [`ProgramAccount`] that is serialized and deserialized using [`BorshSerialize`] and [`BorshDeserialize`].
@@ -24,7 +23,7 @@ use crate::{
 /// updated `T` to the account info when the account is writable during `AccountSetCleanup`
 #[derive(AccountSet, Debug, Clone)]
 #[account_set(skip_default_decode, skip_default_idl)]
-#[validate(extra_validation = T::validate_account_info(&self.info))]
+#[validate(extra_validation = T::validate_account_info(self.info))]
 #[cleanup(generics = [], extra_cleanup = {
     self.serialize()?;
     self.check_cleanup(ctx)
@@ -303,7 +302,7 @@ where
         ctx: &Context,
     ) -> Result<()> {
         if IF_NEEDED {
-            let needs_init = fast_32_byte_eq(self.account_info().owner(), System::ID.as_array())
+            let needs_init = self.account_info().owner().fast_eq(&System::ID)
                 || self.account_data()?[..size_of::<OwnerProgramDiscriminant<T>>()]
                     .iter()
                     .all(|x| *x == 0);

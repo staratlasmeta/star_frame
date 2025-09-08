@@ -10,7 +10,6 @@ use crate::{
     },
     prelude::*,
     unsize::{init::UnsizedInit, wrapper::SharedWrapper},
-    util::fast_32_byte_eq,
 };
 use advancer::Advance;
 use anyhow::Context as _;
@@ -39,7 +38,7 @@ pub struct CloseAccount<T>(pub T);
 #[derive(AccountSet, derive_where::DeriveWhere)]
 #[derive_where(Clone, Debug, Copy)]
 #[account_set(skip_default_idl, skip_default_cleanup)]
-#[validate(extra_validation =  T::validate_account_info(self))]
+#[validate(extra_validation =  T::validate_account_info(self.info))]
 #[cleanup(
     generics = [],
     extra_cleanup = self.check_cleanup(ctx),
@@ -124,7 +123,7 @@ where
     pub fn data(&self) -> Result<SharedWrapper<'_, T::Ref<'_>>> {
         // If the account is writable, changes could have been made after AccountSetValidate has been run
         if self.is_writable() {
-            T::validate_account_info(self)?;
+            T::validate_account_info(self.info)?;
         }
         SharedWrapper::new::<AccountDiscriminant<T>>(&self.info)
     }
@@ -133,7 +132,7 @@ where
     pub fn data_mut(&self) -> Result<ExclusiveWrapperTop<'_, AccountDiscriminant<T>, AccountInfo>> {
         // If the account is writable, changes could have been made after AccountSetValidate has been run
         if self.is_writable() {
-            T::validate_account_info(self)?;
+            T::validate_account_info(self.info)?;
         } else {
             // TODO: Perhaps put this behind a debug flag?
             bail!(
@@ -358,7 +357,7 @@ where
         ctx: &Context,
     ) -> Result<()> {
         if IF_NEEDED {
-            let needs_init = fast_32_byte_eq(self.account_info().owner(), System::ID.as_array())
+            let needs_init = self.info.owner().fast_eq(&System::ID)
                 || self.account_data()?[..size_of::<OwnerProgramDiscriminant<T>>()]
                     .iter()
                     .all(|x| *x == 0);

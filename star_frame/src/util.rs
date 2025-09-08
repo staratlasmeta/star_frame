@@ -69,7 +69,6 @@ pub fn uninit_array_bytes<T: NoUninit, const N: usize>(array: &[T; N]) -> &[u8] 
 #[inline]
 #[must_use]
 pub fn fast_32_byte_eq(a: &[u8; 32], b: &[u8; 32]) -> bool {
-    // a == b
     unsafe {
         // We are reading unaligned, so the casts are fine
         #[allow(clippy::cast_ptr_alignment)]
@@ -81,6 +80,38 @@ pub fn fast_32_byte_eq(a: &[u8; 32], b: &[u8; 32]) -> bool {
             && core::ptr::read_unaligned(a_ptr.add(1)) == core::ptr::read_unaligned(b_ptr.add(1))
             && core::ptr::read_unaligned(a_ptr.add(2)) == core::ptr::read_unaligned(b_ptr.add(2))
             && core::ptr::read_unaligned(a_ptr.add(3)) == core::ptr::read_unaligned(b_ptr.add(3))
+    }
+}
+
+pub trait FastPubkeyEq<T> {
+    fn fast_eq(&self, other: &T) -> bool;
+}
+
+impl FastPubkeyEq<Pubkey> for Pubkey {
+    #[inline]
+    fn fast_eq(&self, other: &Pubkey) -> bool {
+        fast_32_byte_eq(self.as_array(), other.as_array())
+    }
+}
+
+impl FastPubkeyEq<[u8; 32]> for Pubkey {
+    #[inline]
+    fn fast_eq(&self, other: &[u8; 32]) -> bool {
+        fast_32_byte_eq(self.as_array(), other)
+    }
+}
+
+impl FastPubkeyEq<[u8; 32]> for [u8; 32] {
+    #[inline]
+    fn fast_eq(&self, other: &[u8; 32]) -> bool {
+        fast_32_byte_eq(self, other)
+    }
+}
+
+impl FastPubkeyEq<Pubkey> for [u8; 32] {
+    #[inline]
+    fn fast_eq(&self, other: &Pubkey) -> bool {
+        fast_32_byte_eq(self, other.as_array())
     }
 }
 

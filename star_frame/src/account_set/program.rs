@@ -43,7 +43,7 @@ impl<T: StarFrameProgram> ClientAccountSet for Program<T> {
 
 impl<T: StarFrameProgram> Program<T> {
     pub fn check_id(&self) -> Result<()> {
-        if self.0.pubkey() == &T::ID {
+        if self.0.pubkey().fast_eq(&T::ID) {
             Ok(())
         } else {
             Err(ProgramError::IncorrectProgramId.into())

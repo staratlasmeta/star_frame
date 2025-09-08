@@ -12,7 +12,7 @@ pub mod validated_account;
 
 pub use star_frame_proc::{AccountSet, ProgramAccount};
 
-use crate::{prelude::*, util::fast_32_byte_eq};
+use crate::prelude::*;
 use bytemuck::bytes_of;
 use modifiers::{HasOwnerProgram, OwnerProgramDiscriminant};
 use std::{mem::MaybeUninit, slice};
@@ -33,7 +33,7 @@ pub trait ProgramAccount: HasOwnerProgram {
     /// Validates the owner matches [`Self::OwnerProgram::ID`](`crate::program::StarFrameProgram::ID`) and the discriminant matches [`Self::DISCRIMINANT`].
     #[allow(clippy::inline_always)]
     #[inline(always)]
-    fn validate_account_info(info: &impl SingleAccountSet) -> Result<()> {
+    fn validate_account_info(info: AccountInfo) -> Result<()> {
         let data = info.account_data()?;
 
         if data.len() < size_of::<OwnerProgramDiscriminant<Self>>() {
@@ -51,13 +51,10 @@ pub trait ProgramAccount: HasOwnerProgram {
                 "Account {} data does not match expected discriminant for program {}",
                 info.pubkey(),
                 Self::OwnerProgram::ID
-            )
+            );
         }
 
-        if !fast_32_byte_eq(
-            info.account_info().owner(),
-            Self::OwnerProgram::ID.as_array(),
-        ) {
+        if !info.owner().fast_eq(&Self::OwnerProgram::ID) {
             bail!(
                 "Account {} owner {} does not match expected program ID {}",
                 info.pubkey(),
@@ -65,6 +62,7 @@ pub trait ProgramAccount: HasOwnerProgram {
                 Self::OwnerProgram::ID
             );
         }
+
         Ok(())
     }
 }
@@ -207,7 +205,7 @@ pub trait AccountSetCleanup<A> {
 }
 
 /// Sentinel value for [`CpiAccountSet::AccountLen`] for a dynamic CPI account set.
-pub type DynamicCpiAccountSetLen = typenum::U1000;
+pub type DynamicCpiAccountSetLen = typenum::U100;
 
 /// An [`AccountSet`] that can be converted into a list of [`AccountInfo`]s and [`AccountMeta`]s for a CPI.
 ///
@@ -221,7 +219,7 @@ pub unsafe trait CpiAccountSet {
     /// The minimum information needed to create a list of account infos and metas for a CPI for Self.
     type CpiAccounts: Debug;
     /// The number of accounts this CPI might use. Set to [`DynamicCpiAccountSetLen`] for dynamic
-    type AccountLen: typenum::Unsigned;
+    type AccountLen;
 
     #[rust_analyzer::completions(ignore_flyimport)]
     fn to_cpi_accounts(&self) -> Self::CpiAccounts;

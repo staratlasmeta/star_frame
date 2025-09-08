@@ -81,7 +81,7 @@ impl<T: HasInnerType + SingleAccountSet> GetKeyFor<T::Inner> for T {
 
 impl<T: ?Sized> PartialEq<OptionalKeyFor<T>> for KeyFor<T> {
     fn eq(&self, other: &OptionalKeyFor<T>) -> bool {
-        self.pubkey() == other.as_inner()
+        self.pubkey().fast_eq(other.as_inner())
     }
 }
 impl<'a, T: ?Sized + 'static> From<&'a mut OptionalKeyFor<T>> for &'a mut KeyFor<T> {

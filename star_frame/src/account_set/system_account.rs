@@ -12,7 +12,7 @@ pub struct SystemAccount(#[single_account_set(skip_has_owner_program)] AccountIn
 
 impl SystemAccount {
     pub fn check_id(&self) -> Result<()> {
-        if self.owner_pubkey() == System::ID {
+        if self.owner().fast_eq(&System::ID) {
             Ok(())
         } else {
             Err(ProgramError::IllegalOwner.into())

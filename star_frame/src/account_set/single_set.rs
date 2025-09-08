@@ -14,7 +14,6 @@ use crate::{
     },
     prelude::*,
     program::system,
-    util::fast_32_byte_eq,
 };
 use anyhow::Context as _;
 use pinocchio::account_info::{Ref, RefMut};
@@ -132,7 +131,7 @@ where
 {
     #[inline]
     fn check_key(&self, expected: &Pubkey) -> Result<()> {
-        if fast_32_byte_eq(self.account_info().key(), expected.as_array()) {
+        if self.account_info().key().fast_eq(expected) {
             Ok(())
         } else {
             bail!(
@@ -330,7 +329,7 @@ where
         ctx: &Context,
     ) -> Result<()> {
         let account = *self.account_info();
-        if !fast_32_byte_eq(account.owner(), System::ID.as_array()) {
+        if !account.owner().fast_eq(&System::ID) {
             bail!(ProgramError::InvalidAccountOwner);
         }
         let current_lamports = account.lamports();

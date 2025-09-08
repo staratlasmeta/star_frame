@@ -166,6 +166,7 @@ impl SingleAccountSet for &AccountInfo {
     }
 }
 impl<'a> AccountSetDecode<'a, ()> for AccountInfo {
+    #[inline]
     fn decode_accounts(
         accounts: &mut &'a [AccountInfo],
         _decode_input: (),
@@ -178,6 +179,7 @@ impl<'a> AccountSetDecode<'a, ()> for AccountInfo {
     }
 }
 impl<'a> AccountSetDecode<'a, ()> for &'a AccountInfo {
+    #[inline]
     fn decode_accounts(
         accounts: &mut &'a [AccountInfo],
         _decode_input: (),
@@ -190,29 +192,33 @@ impl<'a> AccountSetDecode<'a, ()> for &'a AccountInfo {
     }
 }
 impl AccountSetValidate<()> for AccountInfo {
-    #[inline]
+    #[allow(clippy::inline_always)]
+    #[inline(always)]
     fn validate_accounts(&mut self, _validate_input: (), _ctx: &mut Context) -> Result<()> {
         Ok(())
     }
 }
 
 impl AccountSetValidate<()> for &AccountInfo {
-    #[inline]
-    fn validate_accounts(&mut self, validate_input: (), _ctx: &mut Context) -> Result<()> {
-        Ok(validate_input)
+    #[allow(clippy::inline_always)]
+    #[inline(always)]
+    fn validate_accounts(&mut self, _validate_input: (), _ctx: &mut Context) -> Result<()> {
+        Ok(())
     }
 }
 
 impl AccountSetCleanup<()> for AccountInfo {
-    #[inline]
-    fn cleanup_accounts(&mut self, cleanup_input: (), _ctx: &mut Context) -> Result<()> {
-        Ok(cleanup_input)
+    #[allow(clippy::inline_always)]
+    #[inline(always)]
+    fn cleanup_accounts(&mut self, _cleanup_input: (), _ctx: &mut Context) -> Result<()> {
+        Ok(())
     }
 }
 impl AccountSetCleanup<()> for &AccountInfo {
-    #[inline]
-    fn cleanup_accounts(&mut self, cleanup_input: (), _ctx: &mut Context) -> Result<()> {
-        Ok(cleanup_input)
+    #[allow(clippy::inline_always)]
+    #[inline(always)]
+    fn cleanup_accounts(&mut self, _cleanup_input: (), _ctx: &mut Context) -> Result<()> {
+        Ok(())
     }
 }
 #[cfg(all(feature = "idl", not(target_os = "solana")))]

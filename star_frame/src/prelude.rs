@@ -37,7 +37,7 @@ pub use crate::{
     program::{system::System, StarFrameProgram},
     pubkey,
     unsize::prelude::*,
-    util::borsh_bytemuck,
+    util::{borsh_bytemuck, FastPubkeyEq as _},
     Result,
 };
 
