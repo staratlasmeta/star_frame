@@ -38,7 +38,12 @@ pub struct CloseAccount<T>(pub T);
 #[derive(AccountSet, derive_where::DeriveWhere)]
 #[derive_where(Clone, Debug, Copy)]
 #[account_set(skip_default_idl, skip_default_cleanup)]
-#[validate(extra_validation =  T::validate_account_info(self.info))]
+#[cfg_attr(feature = "aggressive_inline", 
+    validate(inline_always, extra_validation = T::validate_account_info(self.info))
+)]
+#[cfg_attr(not(feature = "aggressive_inline"), 
+    validate(extra_validation = T::validate_account_info(self.info))
+)]
 #[cleanup(
     generics = [],
     extra_cleanup = self.check_cleanup(ctx),

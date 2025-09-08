@@ -18,7 +18,8 @@ pub trait StarFrameProgram {
 
     /// The entrypoint for the program which calls in to [`InstructionSet::dispatch`] on [`Self::InstructionSet`]. This has the same signature as the Solana program entrypoint, and
     /// is called by [`star_frame_entrypoint`](crate::star_frame_entrypoint) macro.
-    #[inline]
+    #[allow(clippy::inline_always)]
+    #[inline(always)]
     fn entrypoint(
         program_id: &'static pinocchio::pubkey::Pubkey,
         accounts: &[AccountInfo],

@@ -344,6 +344,7 @@ pub fn ignore_cfg_module(ident: &Ident, suffix: &str, body: TokenStream) -> Toke
     let module_name = format_ident!("_{}{suffix}", ident.to_string().to_snake_case());
     quote! {
         #[allow(unexpected_cfgs)]
+        #[doc(hidden)]
         mod #module_name {
             use super::*;
             #body

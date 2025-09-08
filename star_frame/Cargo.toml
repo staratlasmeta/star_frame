@@ -14,6 +14,9 @@ cleanup_rent_warning = []
 idl = ["star_frame_idl", "serde_json"]
 test_helpers = []
 rustdoc = ["solana-system-interface"]
+# Adds `#[inline(always)]` to more functions. Can be beneficial in some cases, but will likely increase binary size and may even reduce performance.
+# Should only be used when you have thorough benchmarks and are confident in the performance impact.
+aggressive_inline = []
 
 [dependencies]
 solana-pubkey = { workspace = true, features = ["curve25519", "borsh", "serde", "bytemuck"] }

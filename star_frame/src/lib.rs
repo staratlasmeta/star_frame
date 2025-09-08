@@ -330,6 +330,8 @@
 //! - `idl` - Enables IDL generation for client libraries
 //! - `test_helpers` - Provides utilities for testing programs and the unsized type system
 //! - `cleanup_rent_warning` - Emits a warning message if the account has more lamports than required by rent on cleanup
+//! - `aggressive_inline` - Adds `#[inline(always)]` to more functions. Can be beneficial in some cases, but will likely increase binary size and may even reduce performance.
+//!   This should only be used when you have thorough benchmarks and are confident in the performance impact.
 #![warn(
     clippy::pedantic,
     missing_copy_implementations,

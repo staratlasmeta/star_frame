@@ -15,6 +15,8 @@ struct CleanupStructArgs {
     arg: Option<Type>,
     generics: Option<BetterGenerics>,
     extra_cleanup: Option<Expr>,
+    #[argument(presence)]
+    inline_always: bool,
 }
 
 #[derive(ArgumentList)]
@@ -130,10 +132,16 @@ pub(super) fn cleanups(
         let (impl_generics, _, where_clause) = generics.split_for_impl();
         let extra_cleanup = cleanup_struct_args.extra_cleanup.map(|extra_validation| quote! {{ #extra_validation }?;});
 
+        let inline_attr = if cleanup_struct_args.inline_always {
+            quote!(#[inline(always)])
+        } else {
+            quote!(#[inline])
+        };
+
         quote! {
             #[automatically_derived]
             impl #impl_generics #account_set_cleanup<#cleanup_type> for #ident #ty_generics #where_clause {
-                #[inline]
+                #inline_attr
                 fn cleanup_accounts(
                     &mut self,
                     arg: #cleanup_type,

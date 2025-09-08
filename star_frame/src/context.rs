@@ -25,7 +25,8 @@ pub struct Context {
 
 impl Default for Context {
     fn default() -> Self {
-        Self::new(bytemuck::cast_ref(&[0; 32]))
+        static ZERO_PUBKEY: Pubkey = Pubkey::new_from_array([0; 32]);
+        Self::new(&ZERO_PUBKEY)
     }
 }
 

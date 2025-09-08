@@ -14,13 +14,15 @@ use quote::quote;
 use std::collections::{hash_map::Entry, HashMap, HashSet};
 use syn::{Expr, Ident, LitStr, Type};
 
-#[derive(ArgumentList)]
+#[derive(ArgumentList, Default)]
 struct ValidateStructArgs {
     id: Option<LitStr>,
     arg: Option<Type>,
     generics: Option<BetterGenerics>,
     before_validation: Option<Expr>,
     extra_validation: Option<Expr>,
+    #[argument(presence)]
+    inline_always: bool,
 }
 
 #[derive(ArgumentList, Clone)]
@@ -101,15 +103,7 @@ pub(super) fn validates(
         }
     }
     if !account_set_struct_args.skip_default_validate {
-        validate_ids
-            .entry(None)
-            .or_insert_with(|| ValidateStructArgs {
-                id: None,
-                arg: None,
-                generics: None,
-                extra_validation: None,
-                before_validation: None,
-            });
+        validate_ids.entry(None).or_insert_with(Default::default);
     }
 
     let field_validates = fields
@@ -296,10 +290,16 @@ pub(super) fn validates(
             #prelude::anyhow::Context::context(res, ::std::stringify!(#ident::{Extra Validation Failed} (#id)))?;
         });
 
+        let inline_attr = if validate_struct_args.inline_always {
+            quote!(#[inline(always)])
+        } else {
+            quote!(#[inline])
+        };
+
         quote! {
             #[automatically_derived]
             impl #impl_generics #account_set_validate<#validate_type> for #ident #ty_generics #where_clause {
-                #[inline]
+                #inline_attr
                 fn validate_accounts(
                     &mut self,
                     arg: #validate_type,

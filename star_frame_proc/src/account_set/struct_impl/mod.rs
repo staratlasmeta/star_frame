@@ -428,7 +428,14 @@ pub(super) fn derive_account_set_impl_struct(
         let accounts_len = recurse_type_operator(
             quote!(#prelude::typenum::Sum), 
             field_type.iter().map(|ty| quote!(<#ty as #cpi_set>::AccountLen)).collect::<Vec<_>>().as_slice(), 
-            quote!(#prelude::typenum::U0));
+            quote!(#prelude::typenum::U0)
+        );
+
+        let contains_option = recurse_type_operator(
+            quote!(#prelude::typenum::And), 
+            field_type.iter().map(|ty| quote!(<#ty as #cpi_set>::ContainsOption)).collect::<Vec<_>>().as_slice(), 
+            quote!(#prelude::typenum::False)
+        );
         quote! {
             #[derive(#clone, #debug)]
             #cpi_accounts_struct
@@ -436,7 +443,7 @@ pub(super) fn derive_account_set_impl_struct(
             #[automatically_derived]
             unsafe impl #impl_gen #cpi_set for #ident #self_ty_gen #where_clause {
                 type CpiAccounts = #cpi_accounts_ident #new_struct_ty_gen;
-                type ContainsOption = #prelude::typenum::False;
+                type ContainsOption = #contains_option;
                 type AccountLen = #prelude::typenum::Minimum<#accounts_len, #prelude::DynamicCpiAccountSetLen>;
 
                 #[inline]

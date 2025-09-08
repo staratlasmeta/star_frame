@@ -11,6 +11,7 @@ use crate::account_set::HasOwnerProgram;
 pub struct SystemAccount(#[single_account_set(skip_has_owner_program)] AccountInfo);
 
 impl SystemAccount {
+    #[inline]
     pub fn check_id(&self) -> Result<()> {
         if self.owner().fast_eq(&System::ID) {
             Ok(())

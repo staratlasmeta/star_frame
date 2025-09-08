@@ -210,6 +210,7 @@ pub fn derive_instruction_args_impl(input: DeriveInput) -> TokenStream {
             type RunArg<#lt> = (#(#run_tys),*);
             type CleanupArg<#lt> = (#(#cleanup_tys),*);
 
+            #[inline(always)]
             fn split_to_args(r: &mut Self) -> #prelude::IxArgs<Self> {
                 #prelude::IxArgs {
                     decode: (#(#decode_exprs),*),

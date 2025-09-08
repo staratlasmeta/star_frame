@@ -88,8 +88,7 @@ pub trait MakeCpi: StarFrameProgram + Sized {
     /// ```ignore
     /// MyProgram::cpi(&MyInstruction { .. }, MyInstructionCpiAccounts { .. }, Some(&PROGRAM_ID_OVERRIDE))?.invoke()?;
     /// ```
-    #[allow(clippy::inline_always)]
-    #[inline(always)]
+    #[inline]
     fn cpi<I, A>(
         data: I,
         accounts: A::CpiAccounts,
@@ -168,27 +167,32 @@ where
         data.extend_from_slice(bytes_of(&Ix::DISCRIMINANT));
         self.data.serialize(&mut data)?;
 
-        <A as CpiAccountSet>::AccountLen::invoke_signed(
-            program_id,
-            data.as_slice(),
-            infos_arr,
-            infos_index,
-            metas_arr,
-            metas_index,
-            &signers,
-        )?;
+        // SAFETY:
+        // Our CpiAccountSet implementation ensures that the array has been initialized up to the index
+        unsafe {
+            <A as CpiAccountSet>::AccountLen::invoke_signed(
+                program_id,
+                data.as_slice(),
+                infos_arr,
+                infos_index,
+                metas_arr,
+                metas_index,
+                &signers,
+            )?;
+        }
 
         Ok(())
     }
 }
-
 /// Private trait to handle CPI w/ fixed size arrays
 #[doc(hidden)]
 pub trait HandleCpiArray {
     type Arr<T>: AsMut<[MaybeUninit<T>]>;
     fn uninit_infos<'a>() -> Self::Arr<&'a AccountInfo>;
     fn uninit_metas<'a>() -> Self::Arr<PinocchioAccountMeta<'a>>;
-    fn invoke_signed<'a>(
+    /// # Safety
+    /// The metas and infos must be initialized up to their respective indices
+    unsafe fn invoke_signed<'a>(
         program_id: &Pubkey,
         data: &[u8],
         infos: Self::Arr<&'a AccountInfo>,
@@ -207,14 +211,18 @@ macro_rules! impl_handle_cpi_array {
                     type Arr<T> = [MaybeUninit<T>; $n];
                     #[inline(always)]
                     fn uninit_infos<'a>() -> Self::Arr<&'a AccountInfo> {
-                        unsafe { MaybeUninit::uninit().assume_init() }
+                        [const { MaybeUninit::uninit() }; $n]
+
                     }
                     #[inline(always)]
                     fn uninit_metas<'a>() -> Self::Arr<PinocchioAccountMeta<'a>> {
+                        // SAFETY:
+                        // This is fine because it's initializing an array of uninits.
+                        // For some reason this is more effecient than a const init?
                         unsafe { MaybeUninit::uninit().assume_init() }
                     }
                     #[inline(always)]
-                    fn invoke_signed<'a>(
+                    unsafe fn invoke_signed<'a>(
                         program_id: &Pubkey,
                         data: &[u8],
                         infos: Self::Arr<&'a AccountInfo>,
@@ -225,33 +233,27 @@ macro_rules! impl_handle_cpi_array {
                     ) -> Result<()> {
                         assert_eq!(infos_index, infos.len());
                         assert_eq!(metas_index, metas.len());
-                        // SAFETY:
-                        // Tranmuting an array of uninits to an init array is safe
-                        let metas = unsafe {
-                            core::mem::transmute::<
-                                [MaybeUninit<PinocchioAccountMeta>; $n],
-                                MaybeUninit<[PinocchioAccountMeta; $n]>,
-                            >(metas)
-                        };
 
-                        // SAFETY:
-                        // Tranmuting an array of uninits to an uninit array is safe
-                        let infos = unsafe {
-                            core::mem::transmute::<
-                                [MaybeUninit<&AccountInfo>; $n],
-                                MaybeUninit<[&AccountInfo; $n]>,
-                            >(infos)
-                        };
+                        let metas: [PinocchioAccountMeta<'a>; $n] = metas.map(|meta|
+                            // SAFETY:
+                            // We can assume the array has been initialized based on the index safety requirements
+                            unsafe { meta.assume_init() }
+                        );
+                        let infos: [&AccountInfo; $n] = infos.map(|info|
+                            // SAFETY:
+                            // We can assume the array has been initialized based on the index safety requirements
+                            unsafe { info.assume_init() }
+                        );
+
+
                         pinocchio::cpi::invoke_signed(
                             &PinocchioInstruction {
                                 program_id: program_id.as_array(),
                                 data,
                                 accounts:
-                                // SAFETY:
-                                // CpiAccountSet's safety requirements ensure this has been initialized
-                                &unsafe { metas.assume_init() }
+                                &metas,
                             },
-                            &unsafe { infos.assume_init() },
+                            &infos,
                             signers,
                         )?;
                         Ok(())
@@ -282,7 +284,7 @@ impl HandleCpiArray for DynamicCpiAccountSetLen {
     }
 
     #[inline(always)]
-    fn invoke_signed<'a>(
+    unsafe fn invoke_signed<'a>(
         program_id: &Pubkey,
         data: &[u8],
         infos: Self::Arr<&'a AccountInfo>,

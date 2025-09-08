@@ -179,6 +179,7 @@ impl<T> Instruction for T
 where
     T: StarFrameInstruction,
 {
+    #[inline]
     fn process_from_raw(
         program_id: &'static Pubkey,
         mut accounts: &[AccountInfo],
