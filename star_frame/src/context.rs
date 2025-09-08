@@ -8,11 +8,11 @@ use crate::{
 use pinocchio::sysvars::{clock::Clock, rent::Rent, Sysvar};
 use std::cell::Cell;
 
-/// Additional context given to [`crate::instruction::Instruction`]s, enabling programs to cache and retrieve helpful information during instruction execution.
-#[derive(Debug, Default)]
+/// Additional context given to [`crate::instruction::StarFrameInstruction`]s, enabling programs to cache and retrieve helpful information during instruction execution.
+#[derive(Debug)]
 pub struct Context {
     /// The program id of the currently executing program.
-    program_id: Pubkey,
+    program_id: &'static Pubkey,
     // Rent cache to avoid repeated `Rent::get()` calls
     rent_cache: Cell<Option<Rent>>,
     // Clock cache to avoid repeated `Clock::get()` calls
@@ -23,10 +23,16 @@ pub struct Context {
     funder: Option<Box<dyn CanFundRent>>,
 }
 
+impl Default for Context {
+    fn default() -> Self {
+        Self::new(bytemuck::cast_ref(&[0; 32]))
+    }
+}
+
 impl Context {
     /// Create a new context from a program id.
     #[must_use]
-    pub fn new(program_id: Pubkey) -> Self {
+    pub fn new(program_id: &'static Pubkey) -> Self {
         Self {
             program_id,
             rent_cache: Cell::new(None),
@@ -38,7 +44,7 @@ impl Context {
 
     /// Get the program id of the currently executing program.
     pub fn current_program_id(&self) -> &Pubkey {
-        &self.program_id
+        self.program_id
     }
 
     /// Gets the rent sysvar from the cache, populating the cache with a call to `Rent::get()` if empty.

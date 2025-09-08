@@ -12,7 +12,9 @@ crate-type = ["cdylib", "lib"]
 name = "bench"
 
 [features]
+default = ["log_ix_name"]
 prod = []
+log_ix_name = []
 no_entrypoint = []
 cpi = ["no_entrypoint"]
 idl = ["star_frame/idl"]

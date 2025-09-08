@@ -30,10 +30,9 @@ pub trait InstructionSet {
     ///
     /// This is called directly by [`StarFrameProgram::entrypoint`].
     fn dispatch(
-        program_id: &Pubkey,
+        program_id: &'static Pubkey,
         accounts: &[AccountInfo],
         instruction_data: &[u8],
-        ctx: &mut Context,
     ) -> Result<()>;
 }
 
@@ -61,9 +60,9 @@ pub trait Instruction {
     ///
     /// This is called from [`InstructionSet::dispatch`] after the discriminant is parsed and matched on.
     fn process_from_raw(
+        program_id: &'static Pubkey,
         accounts: &[AccountInfo],
         instruction_data: &[u8],
-        ctx: &mut Context,
     ) -> Result<()>;
 }
 
@@ -138,7 +137,8 @@ impl<T: BorshSerialize> InstructionReturn for ReturnData<T> {
     }
 }
 impl InstructionReturn for () {
-    #[inline]
+    #[allow(clippy::inline_always)]
+    #[inline(always)]
     fn handle_return(&self) -> Result<()> {
         Ok(())
     }
@@ -180,10 +180,11 @@ where
     T: StarFrameInstruction,
 {
     fn process_from_raw(
+        program_id: &'static Pubkey,
         mut accounts: &[AccountInfo],
         mut data: &[u8],
-        ctx: &mut Context,
     ) -> Result<()> {
+        let mut ctx = Context::new(program_id);
         let mut data = <T as BorshDeserialize>::deserialize(&mut data)
             .context("Failed to deserialize instruction data")?;
         let IxArgs {
@@ -192,16 +193,20 @@ where
             run,
             cleanup,
         } = Self::split_to_args(&mut data);
-        let mut account_set =
-            <Self as StarFrameInstruction>::Accounts::decode_accounts(&mut accounts, decode, ctx)
-                .context("Failed to decode accounts")?;
+        let mut account_set: <T as StarFrameInstruction>::Accounts<'_, '_> =
+            <Self as StarFrameInstruction>::Accounts::decode_accounts(
+                &mut accounts,
+                decode,
+                &mut ctx,
+            )
+            .context("Failed to decode accounts")?;
         account_set
-            .validate_accounts(validate, ctx)
+            .validate_accounts(validate, &mut ctx)
             .context("Failed to validate accounts")?;
         let ret: <T as StarFrameInstruction>::ReturnType =
-            Self::process(&mut account_set, run, ctx).context("Failed to run instruction")?;
+            Self::process(&mut account_set, run, &mut ctx).context("Failed to run instruction")?;
         account_set
-            .cleanup_accounts(cleanup, ctx)
+            .cleanup_accounts(cleanup, &mut ctx)
             .context("Failed to cleanup accounts")?;
         ret.handle_return()?;
         Ok(())
@@ -235,9 +240,9 @@ macro_rules! impl_blank_ix {
         $(
             impl $crate::instruction::Instruction for $ix {
                 fn process_from_raw(
+                    _program_id: &'static $crate::prelude::Pubkey,
                     _accounts: &[$crate::prelude::AccountInfo],
                     _data: &[u8],
-                    _ctx: &mut $crate::prelude::Context,
                 ) -> $crate::Result<()> {
                     todo!()
                 }

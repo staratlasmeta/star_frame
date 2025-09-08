@@ -7,12 +7,7 @@ pub struct UnCallable;
 impl InstructionSet for UnCallable {
     type Discriminant = ();
 
-    fn dispatch(
-        _program_id: &Pubkey,
-        _accounts: &[AccountInfo],
-        _ix_bytes: &[u8],
-        _ctx: &mut Context,
-    ) -> Result<()> {
+    fn dispatch(_program_id: &Pubkey, _accounts: &[AccountInfo], _ix_bytes: &[u8]) -> Result<()> {
         panic!("Cannot call dispatch on Uncallable")
     }
 }

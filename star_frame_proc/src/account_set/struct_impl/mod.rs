@@ -395,6 +395,7 @@ pub(super) fn derive_account_set_impl_struct(
         let cpi_accounts_ident = format_ident!("{trimmed_ident_str}CpiAccounts");
         let (_, self_ty_gen, _) = main_generics.split_for_impl();
         let mut cpi_gen = main_generics.clone();
+        let cpi_lt = new_lifetime(&cpi_gen, None);
         let where_clause = cpi_gen.make_where_clause();
         let cpi_set = quote!(#prelude::CpiAccountSet);
 
@@ -409,7 +410,7 @@ pub(super) fn derive_account_set_impl_struct(
                     ..
                 } = field;
                 where_clause.predicates.push(parse_quote! {
-                    #ty: #cpi_set
+                    for <#cpi_lt> #ty: #cpi_set
                 });
                 parse_quote!(#vis #ident #colon_token <#ty as #cpi_set>::CpiAccounts)
             })
