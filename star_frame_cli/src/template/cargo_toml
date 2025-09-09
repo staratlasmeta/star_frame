@@ -9,7 +9,9 @@ publish = false
 release.release = false
 
 [lib]
-crate-type = ["cdylib", "lib"]
+# Using only `cdylib` enables the compiler to optimize with LTO. If you need to use the library, make a separate lib crate
+# or add `rlib` here if the performance impact is acceptable.
+crate-type = ["cdylib"]
 name = "{name_lowercase}"
 
 [features]
@@ -18,13 +20,13 @@ idl = ["star_frame/idl"]
 
 [profile.release]
 overflow-checks = true
-lto = "fat"
+lto = "thin"
 codegen-units = 1
 
 [dependencies]
 borsh = { version = "1.5.7", features = ["derive"] }
 bytemuck = { version = "^1.22.0", features = ["extern_crate_std", "min_const_generics", "derive"] }
-star_frame = { version = "0.24.2" }
+star_frame = { version = "0.25.0" }
 
 [dev-dependencies]
 codama-nodes = { version = "^0.4.0" }

@@ -6,9 +6,9 @@ pub struct CounterAccountSeeds {
     pub authority: Pubkey,
 }
 
-#[derive(Align1, Pod, Zeroable, Default, Copy, Clone, Debug, Eq, PartialEq, ProgramAccount)]
+#[zero_copy(pod)]
+#[derive(Default, Debug, Eq, PartialEq, ProgramAccount)]
 #[program_account(seeds = CounterAccountSeeds)]
-#[repr(C, packed)]
 pub struct CounterAccount {
     pub authority: Pubkey,
     pub count: u64,
