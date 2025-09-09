@@ -52,14 +52,25 @@ fn derive_align1_for_enum(
     if repr.repr.as_integer() != Some(IntegerRepr::U8) {
         abort!(derive_input, "Align1 requires repr(u8) for enums");
     }
-    for variant in &variants {
-        if variant.fields != Fields::Unit {
-            abort!(variant.fields, "Align1 only supports unit enums");
-        }
-    }
+
     let ident = derive_input.ident;
     let (impl_gen, type_gen, where_clause) = derive_input.generics.split_for_impl();
 
+    for variant in &variants {
+        if variant.fields != Fields::Unit {
+            if !derive_input.generics.params.is_empty() {
+                abort!(
+                    variant.fields,
+                    "Align1 does not support generic enums with data"
+                );
+            }
+
+            return quote! {
+                unsafe impl #impl_gen #crate_name::align1::Align1 for #ident #where_clause {}
+                #crate_name::static_assertions::assert_eq_align!(#ident, u8);
+            };
+        }
+    }
     quote! {
         unsafe impl #impl_gen #crate_name::align1::Align1 for #ident #type_gen #where_clause {}
     }
