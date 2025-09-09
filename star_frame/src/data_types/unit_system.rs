@@ -99,6 +99,11 @@ pub struct UnitVal<T, Unit> {
     val: T,
     _unit: PhantomData<Unit>,
 }
+impl<T, Unit> From<T> for UnitVal<T, Unit> {
+    fn from(val: T) -> Self {
+        Self::new(val)
+    }
+}
 unsafe impl<T, Unit> Zeroable for UnitVal<T, Unit> where T: Zeroable {}
 unsafe impl<T, Unit> Pod for UnitVal<T, Unit>
 where
