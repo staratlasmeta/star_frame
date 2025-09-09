@@ -131,7 +131,7 @@ where
 {
     #[inline]
     fn check_key(&self, expected: &Pubkey) -> Result<()> {
-        if self.pubkey() == expected {
+        if self.account_info().key().fast_eq(expected) {
             Ok(())
         } else {
             bail!(
@@ -147,6 +147,7 @@ impl<T> CanAddLamports for T
 where
     T: WritableAccount + Debug + ?Sized,
 {
+    #[inline]
     fn account_to_modify(&self) -> AccountInfo {
         *self.account_info()
     }
@@ -156,23 +157,25 @@ impl<T> CanFundRent for T
 where
     T: CanAddLamports + SignedAccount + ?Sized,
 {
+    #[inline]
     fn can_create_account(&self) -> bool {
         true
     }
+    #[inline]
     fn fund_rent(
         &self,
         recipient: &dyn SingleAccountSet,
         lamports: u64,
-        ctx: &Context,
+        _ctx: &Context,
     ) -> Result<()> {
         let cpi = System::cpi(
-            &system::Transfer { lamports },
+            system::Transfer { lamports },
             system::TransferCpiAccounts {
                 funder: *self.account_info(),
                 recipient: *recipient.account_info(),
             },
-            ctx,
-        )?;
+            None,
+        );
         match self.signer_seeds() {
             None => cpi.invoke()?,
             Some(seeds) => cpi.invoke_signed(&[&seeds])?,
@@ -180,6 +183,7 @@ where
         Ok(())
     }
 
+    #[inline]
     fn signer_seeds(&self) -> Option<Vec<&[u8]>> {
         SignedAccount::signer_seeds(self)
     }
@@ -189,6 +193,7 @@ impl<T> CanCloseAccount for T
 where
     T: SingleAccountSet + ?Sized,
 {
+    #[inline]
     fn close_account(&self, recipient: &(impl CanAddLamports + ?Sized)) -> Result<()>
     where
         Self: HasOwnerProgram,
@@ -202,6 +207,7 @@ where
         Ok(())
     }
 
+    #[inline]
     fn close_account_full(&self, recipient: &dyn CanAddLamports) -> Result<()> {
         let info = self.account_info();
         recipient.add_lamports(info.lamports())?;
@@ -214,6 +220,7 @@ impl<T> CanModifyRent for T
 where
     T: SingleAccountSet + ?Sized,
 {
+    #[inline]
     fn normalize_rent(&self, funder: &(impl CanFundRent + ?Sized), ctx: &Context) -> Result<()> {
         let account = self.account_info();
         let rent = ctx.get_rent()?;
@@ -239,6 +246,7 @@ where
         }
     }
 
+    #[inline]
     fn refund_rent(&self, recipient: &(impl CanAddLamports + ?Sized), ctx: &Context) -> Result<()> {
         let account = self.account_info();
         let rent = ctx.get_rent()?;
@@ -266,6 +274,7 @@ where
         }
     }
 
+    #[inline]
     fn receive_rent(&self, funder: &(impl CanFundRent + ?Sized), ctx: &Context) -> Result<()> {
         let account = self.account_info();
         let rent = ctx.get_rent()?;
@@ -283,6 +292,7 @@ where
     }
 
     #[cfg_attr(not(feature = "cleanup_rent_warning"), allow(unused_variables))]
+    #[inline]
     fn check_cleanup(&self, ctx: &Context) -> Result<()> {
         #[cfg(feature = "cleanup_rent_warning")]
         {
@@ -309,6 +319,7 @@ impl<T> CanSystemCreateAccount for T
 where
     T: SingleAccountSet + ?Sized,
 {
+    #[inline]
     fn system_create_account(
         &self,
         funder: &(impl CanFundRent + ?Sized),
@@ -318,7 +329,7 @@ where
         ctx: &Context,
     ) -> Result<()> {
         let account = *self.account_info();
-        if account.owner_pubkey() != System::ID {
+        if !account.owner().fast_eq(&System::ID) {
             bail!(ProgramError::InvalidAccountOwner);
         }
         let current_lamports = account.lamports();
@@ -333,7 +344,7 @@ where
                 (None, None) => &[],
             };
             System::cpi(
-                &system::CreateAccount {
+                system::CreateAccount {
                     lamports: exempt_lamports,
                     space: space as u64,
                     owner,
@@ -342,8 +353,8 @@ where
                     funder: funder.account_to_modify(),
                     new_account: account,
                 },
-                ctx,
-            )?
+                None,
+            )
             .invoke_signed(seeds)
             .context("System::CreateAccount CPI failed")?;
         } else {
@@ -357,19 +368,19 @@ where
                 None => &[],
             };
             System::cpi(
-                &system::Allocate {
+                system::Allocate {
                     space: space as u64,
                 },
                 system::AllocateCpiAccounts { account },
-                ctx,
-            )?
+                None,
+            )
             .invoke_signed(account_seeds)
             .context("System::Allocate CPI failed")?;
             System::cpi(
-                &system::Assign { owner },
+                system::Assign { owner },
                 system::AssignCpiAccounts { account },
-                ctx,
-            )?
+                None,
+            )
             .invoke_signed(account_seeds)
             .context("System::Assign CPI failed")?;
         }

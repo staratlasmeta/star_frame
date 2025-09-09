@@ -15,14 +15,13 @@ pub struct CancelOrders {
 fn CancelOrders(
     accounts: &mut ManageOrderAccounts,
     orders_to_cancel: &Vec<CancelOrderArgs>,
-    ctx: &mut Context,
 ) -> Result<()> {
     let cancelled_totals = accounts
         .market
         .data_mut()?
         .cancel_orders(accounts.user.pubkey(), orders_to_cancel)?;
 
-    accounts.withdraw(cancelled_totals, ctx)?;
+    accounts.withdraw(cancelled_totals)?;
 
     Ok(())
 }

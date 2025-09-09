@@ -16,10 +16,9 @@
 
 Star Frame is a modern Solana program framework designed to make developing on-chain programs more ergonomic, safe, and performant. Built with a trait-based architecture, it provides:
 
-- **Type Safety**: Zero-cost abstractions that catch errors at compile time
-- **Performance**: Optimized for Solana's compute unit constraints by utilizing Pinocchio and our unsized_type system
-- **Developer Experience**: Intuitive APIs with comprehensive compile-time validation
-- **Modularity**: Composable components for account validation, CPI calls, and program logic
+- **Performance**: Optimized for Solana's compute unit constraints by utilizing Pinocchio and our `unsized_type` system (check out the [Compute Units](example_programs/bench/COMPUTE_UNITS.md) benchmark vs Anchor).
+- **Developer Experience**: Intuitive APIs with comprehensive compile-time validation (traits and types all the way down!).
+- **Modularity**: Everything is a trait or a type, so you can use what you need when you need it. For example, the entrypoint is a method on the `StarFrameProgram` trait, and client/cpi account sets are associated types of the `ClientAccountSet` and `CpiAccountSet` traits.
 
 ## Getting Help
 

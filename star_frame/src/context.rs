@@ -6,13 +6,13 @@ use crate::{
     prelude::*,
 };
 use pinocchio::sysvars::{clock::Clock, rent::Rent, Sysvar};
-use std::{cell::Cell, collections::BTreeMap};
+use std::cell::Cell;
 
-/// Additional context given to [`crate::instruction::Instruction`]s, enabling programs to cache and retrieve helpful information during instruction execution.
-#[derive(Debug, Default)]
+/// Additional context given to [`crate::instruction::StarFrameInstruction`]s, enabling programs to cache and retrieve helpful information during instruction execution.
+#[derive(Debug)]
 pub struct Context {
     /// The program id of the currently executing program.
-    program_id: Pubkey,
+    program_id: &'static Pubkey,
     // Rent cache to avoid repeated `Rent::get()` calls
     rent_cache: Cell<Option<Rent>>,
     // Clock cache to avoid repeated `Clock::get()` calls
@@ -21,26 +21,31 @@ pub struct Context {
     recipient: Option<Box<dyn CanAddLamports>>,
     // Cached funder for rent. Usually set during `AccountSetValidate`
     funder: Option<Box<dyn CanFundRent>>,
-    program_cache: BTreeMap<Pubkey, AccountInfo>,
+}
+
+impl Default for Context {
+    fn default() -> Self {
+        static ZERO_PUBKEY: Pubkey = Pubkey::new_from_array([0; 32]);
+        Self::new(&ZERO_PUBKEY)
+    }
 }
 
 impl Context {
     /// Create a new context from a program id.
     #[must_use]
-    pub fn new(program_id: Pubkey) -> Self {
+    pub fn new(program_id: &'static Pubkey) -> Self {
         Self {
             program_id,
             rent_cache: Cell::new(None),
             clock_cache: Cell::new(None),
             recipient: None,
             funder: None,
-            program_cache: BTreeMap::new(),
         }
     }
 
     /// Get the program id of the currently executing program.
     pub fn current_program_id(&self) -> &Pubkey {
-        &self.program_id
+        self.program_id
     }
 
     /// Gets the rent sysvar from the cache, populating the cache with a call to `Rent::get()` if empty.
@@ -85,15 +90,5 @@ impl Context {
     /// Sets the recipient for rent.
     pub fn set_recipient(&mut self, recipient: Box<dyn CanAddLamports>) {
         self.recipient.replace(recipient);
-    }
-
-    /// Adds a program to the cache.
-    pub fn add_program(&mut self, key: Pubkey, info: AccountInfo) {
-        self.program_cache.insert(key, info);
-    }
-
-    /// Gets a program from the cache if it has been added.
-    pub fn program_for_key(&self, key: &Pubkey) -> Option<&AccountInfo> {
-        self.program_cache.get(key)
     }
 }

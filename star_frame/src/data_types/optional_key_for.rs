@@ -71,7 +71,7 @@ impl<T: ?Sized> OptionalKeyFor<T> {
     where
         T: 'static,
     {
-        if self.pubkey == Pubkey::default() {
+        if self.pubkey.fast_eq(&Pubkey::new_from_array([0; 32])) {
             None
         } else {
             Some(KeyFor::new_ref(&self.pubkey))
@@ -81,7 +81,7 @@ impl<T: ?Sized> OptionalKeyFor<T> {
     /// Attempts to return a reference to the contained [`Pubkey`] if not [`None`].
     #[must_use]
     pub fn pubkey(&self) -> Option<&Pubkey> {
-        if self.pubkey == Pubkey::default() {
+        if self.pubkey.fast_eq(&Pubkey::new_from_array([0; 32])) {
             None
         } else {
             Some(&self.pubkey)

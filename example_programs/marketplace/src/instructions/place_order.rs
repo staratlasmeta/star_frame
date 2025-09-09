@@ -15,12 +15,37 @@ pub struct PlaceOrder {
     pub args: ProcessOrderArgs,
 }
 
+#[zero_copy]
+#[derive(Debug, PartialEq, Eq, TypeToIdl)]
+pub struct PlaceOrderReturn {
+    pub placed: bool,
+    pub order_id: u64,
+}
+
+impl PlaceOrderReturn {
+    pub fn new_order_id(&self) -> Option<u64> {
+        if self.placed {
+            Some(self.order_id)
+        } else {
+            None
+        }
+    }
+}
+
+impl From<Option<u64>> for PlaceOrderReturn {
+    fn from(order_id: Option<u64>) -> Self {
+        Self {
+            placed: order_id.is_some(),
+            order_id: order_id.unwrap_or(0),
+        }
+    }
+}
+
 #[star_frame_instruction]
 fn PlaceOrder(
     accounts: &mut ManageOrderAccounts,
     process_order_args: ProcessOrderArgs,
-    ctx: &mut Context,
-) -> Result<Option<u64>> {
+) -> Result<PlaceOrderReturn> {
     let order_result = accounts
         .market
         .data_mut()?
@@ -44,10 +69,10 @@ fn PlaceOrder(
 
     msg!("{}", order_result);
 
-    accounts.withdraw(withdraw_totals, ctx)?;
-    accounts.deposit(deposit_totals, ctx)?;
+    accounts.withdraw(withdraw_totals)?;
+    accounts.deposit(deposit_totals)?;
 
-    Ok(order_result.order_id)
+    Ok(order_result.order_id.into())
 }
 
 #[cfg(test)]

@@ -49,6 +49,7 @@ impl<T: ?Sized> DataMutDrop for pinocchio::account_info::RefMut<'_, T> {}
 /// # Safety
 /// We are checking the length of the underlying data pointer in [`Self::unsized_data_realloc`].
 unsafe impl UnsizedTypeDataAccess for AccountInfo {
+    #[inline]
     unsafe fn unsized_data_realloc(
         this: &Self,
         data: &mut *mut [u8],
@@ -64,10 +65,12 @@ unsafe impl UnsizedTypeDataAccess for AccountInfo {
         Ok(())
     }
 
+    #[inline]
     fn data_ref(this: &Self) -> Result<impl Deref<Target = [u8]>> {
         this.account_data()
     }
 
+    #[inline]
     fn data_mut<'a>(this: &'a Self) -> Result<(*mut [u8], Box<dyn DataMutDrop + 'a>)> {
         let ref_mut = this.account_data_mut()?;
         let current_len = this.data_len();
@@ -87,7 +90,7 @@ pub struct SharedWrapper<'top, T> {
 
 impl<'a, T> SharedWrapper<'a, T> {
     /// # Safety
-    /// todo
+    #[inline]
     pub fn new<U>(underlying_data: &'a impl UnsizedTypeDataAccess) -> Result<Self>
     where
         T: 'a,
@@ -166,6 +169,7 @@ where
     Top: UnsizedType + ?Sized,
     A: UnsizedTypeDataAccess,
 {
+    #[inline]
     pub fn new(info: &'top A) -> Result<Self> {
         // ensure no ZSTs in middle of struct
         let _ = Top::ZST_STATUS;
@@ -186,6 +190,7 @@ where
 }
 
 impl<Mut, P> ExclusiveWrapper<'_, '_, Mut, P> {
+    #[inline]
     fn mut_ref(this: &Self) -> &Mut {
         match &this.0 {
             ExclusiveWrapperEnum::Top { top_mut, .. } => top_mut,
@@ -201,6 +206,7 @@ impl<Mut, P> ExclusiveWrapper<'_, '_, Mut, P> {
         }
     }
 
+    #[inline]
     fn mut_mut(this: &mut Self) -> *mut Mut {
         match &mut this.0 {
             ExclusiveWrapperEnum::Top { top_mut, .. } => &raw mut **top_mut,
@@ -245,6 +251,7 @@ impl<Mut, P> ExclusiveRecurse for ExclusiveWrapper<'_, '_, Mut, P>
 where
     P: ExclusiveRecurse,
 {
+    #[inline]
     unsafe fn add_bytes(
         wrapper: &mut Self,
         source_ptr: *const (),
@@ -262,6 +269,7 @@ where
         }
     }
 
+    #[inline]
     unsafe fn remove_bytes(
         wrapper: &mut Self,
         source_ptr: *const (),
@@ -435,6 +443,7 @@ where
 {
     /// # Safety
     /// O may not contain a mutable reference to T, but can contain a mutable pointer.
+    #[inline]
     pub unsafe fn map_mut<'child, O>(
         parent: &'child mut Self,
         mapper: impl FnOnce(*mut Mut) -> *mut O::Mut<'top>,
@@ -447,6 +456,7 @@ where
 
     /// # Safety
     /// O may not contain a mutable reference to T, but can contain a mutable pointer.
+    #[inline]
     pub unsafe fn try_map_mut<'child, O, E>(
         parent: &'child mut Self,
         mapper: impl FnOnce(*mut Mut) -> Result<*mut O::Mut<'top>, E>,
@@ -469,6 +479,7 @@ where
 {
     type Target = Mut;
 
+    #[inline]
     fn deref(&self) -> &Self::Target {
         Self::mut_ref(self)
     }
@@ -478,6 +489,7 @@ impl<Mut, P> DerefMut for ExclusiveWrapper<'_, '_, Mut, P>
 where
     Self: ExclusiveRecurse,
 {
+    #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
         unsafe { &mut *Self::mut_mut(self) }
     }
@@ -500,6 +512,8 @@ where
         = T::Ref<'b>
     where
         Self: 'b;
+
+    #[inline]
     fn as_shared(&self) -> Self::Ref<'_> {
         self.data.as_shared()
     }
@@ -513,18 +527,21 @@ where
 }
 
 impl<T> StartPointer<T> {
+    #[inline]
     pub fn start_ptr(this: &Self) -> *mut () {
         this.start
     }
 
     /// # Safety
     /// todo
+    #[inline]
     pub unsafe fn new(data: T, start: *mut ()) -> Self {
         Self { data, start }
     }
 
     /// # Safety
     /// todo
+    #[inline]
     pub unsafe fn handle_resize_notification(s: &mut Self, source_ptr: *const (), change: isize) {
         if source_ptr < s.start {
             s.start = s.start.wrapping_byte_offset(change);

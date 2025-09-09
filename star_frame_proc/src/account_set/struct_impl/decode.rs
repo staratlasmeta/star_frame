@@ -10,11 +10,13 @@ use quote::quote;
 use std::collections::{hash_map::Entry, HashMap, HashSet};
 use syn::{DataStruct, Expr, Fields, LitStr, Type};
 
-#[derive(ArgumentList)]
+#[derive(ArgumentList, Default)]
 struct DecodeStructArgs {
     id: Option<LitStr>,
     arg: Option<Type>,
     generics: Option<BetterGenerics>,
+    #[argument(presence)]
+    inline_always: bool,
 }
 
 #[derive(ArgumentList)]
@@ -91,11 +93,7 @@ pub(super) fn decodes(
         }
     }
     if !account_set_struct_args.skip_default_decode {
-        decode_ids.entry(None).or_insert_with(|| DecodeStructArgs {
-            id: None,
-            arg: None,
-            generics: None,
-        });
+        decode_ids.entry(None).or_insert_with(Default::default);
     }
 
     let field_decodes = data_struct
@@ -172,9 +170,16 @@ pub(super) fn decodes(
             }
         }));
 
+        let inline_attr = if decode_struct_args.inline_always {
+            quote!(#[inline(always)])
+        } else {
+            quote!(#[inline])
+        };
+
         quote! {
             #[automatically_derived]
             impl #impl_generics #account_set_decode<#decode_lifetime, #decode_type> for #ident #ty_generics #where_clause {
+                #inline_attr
                 fn decode_accounts(
                     accounts: &mut &#decode_lifetime [#account_info],
                     arg: #decode_type,

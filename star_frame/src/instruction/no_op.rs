@@ -7,7 +7,6 @@ impl InstructionSet for () {
         _program_id: &Pubkey,
         _accounts: &[AccountInfo],
         _ix_bytes: &[u8],
-        _ctx: &mut Context,
     ) -> anyhow::Result<()> {
         Ok(())
     }

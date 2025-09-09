@@ -54,14 +54,15 @@ use syn::{
 /// - `skip_default_cleanup` - Skips generating default `AccountSetCleanup` implementation
 /// - `skip_default_idl` - Skips generating default IDL implementations
 ///
-/// ## `#[decode(id = <str>, arg = <type>, generics = <generics>)]`
+/// ## `#[decode(id = <str>, arg = <type>, generics = <generics>, inline_always)]`
 ///
 /// Define custom decode implementations with specific arguments:
 /// - `id = <str>` - Unique identifier for this decode variant (optional, defaults to no id)
 /// - `arg = <type>` - Type of argument passed to decode functions
 /// - `generics = <generics>` - Additional generic parameters for this decode implementation
+/// - `inline_always` - Whether to add `#[inline(always)]` to the decode implementation (by default `#[inline]` is added)
 ///
-/// ## `#[validate(id = <str>, arg = <type>, generics = <generics>, before_validation = <expr>, extra_validation = <expr>)]`
+/// ## `#[validate(id = <str>, arg = <type>, generics = <generics>, before_validation = <expr>, extra_validation = <expr>, inline_always)]`
 ///
 /// Define custom validation implementations:
 /// - `id = <str>` - Unique identifier for this validate variant (optional, defaults to no id)
@@ -69,14 +70,16 @@ use syn::{
 /// - `generics = <generics>` - Additional generic parameters for this validate implementation
 /// - `before_validation = <expr>` - Expression to execute before field validation
 /// - `extra_validation = <expr>` - Expression to execute after field validation
+/// - `inline_always` - Whether to add `#[inline(always)]` to the validate implementation (by default `#[inline]` is added)
 ///
-/// ## `#[cleanup(id = <str>, generics = <generics>, arg = <type>, extra_cleanup = <expr>)]`
+/// ## `#[cleanup(id = <str>, generics = <generics>, arg = <type>, extra_cleanup = <expr>, inline_always)]`
 ///
 /// Define custom cleanup implementations:
 /// - `id = <str>` - Unique identifier for this cleanup variant
 /// - `generics = <generics>` - Generic parameters for this cleanup implementation
 /// - `arg = <type>` - Type of argument passed to cleanup functions
 /// - `extra_cleanup = <expr>` - Cleanup expression to execute after field cleanup
+/// - `inline_always` - Whether to add `#[inline(always)]` to the cleanup implementation (by default `#[inline]` is added)
 ///
 /// ## `#[idl(id = <str>, arg = <type>, generics = <generics>)]`
 ///

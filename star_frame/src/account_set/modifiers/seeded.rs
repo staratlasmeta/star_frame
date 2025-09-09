@@ -246,7 +246,7 @@ where
         let (address, bump) = Pubkey::find_program_address(&seeds.seeds(), &P::id(ctx)?);
         let expected = self.account.account_info().pubkey();
         ensure!(
-            &address == expected,
+            address.fast_eq(expected),
             "Seeds: {seeds:?} result in address `{address}` and bump `{bump}`, expected `{expected}`"
         );
         self.seeds = Some(SeedsWithBump { seeds, bump });
@@ -265,7 +265,7 @@ where
         let address = Pubkey::create_program_address(&arg_seeds, &P::id(ctx)?)?;
         let expected = self.account.account_info().pubkey();
         ensure!(
-            &address == expected,
+            address.fast_eq(expected),
             "Seeds `{seeds:?}` result in address `{address}`, expected `{expected}`"
         );
         self.seeds = Some(seeds.clone());

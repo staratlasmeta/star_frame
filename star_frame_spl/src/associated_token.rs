@@ -392,7 +392,7 @@ pub mod state {
             };
 
             AssociatedToken::cpi(
-                &instructions::Create,
+                instructions::Create,
                 instructions::CreateCpiAccounts {
                     funder: funder.account_to_modify(),
                     token_account: *self.account_info(),
@@ -401,8 +401,8 @@ pub mod state {
                     system_program: *init_ata.system_program.account_info(),
                     token_program: *init_ata.token_program.account_info(),
                 },
-                ctx,
-            )?
+                None,
+            )
             .invoke_signed(seeds)?;
             Ok(())
         }

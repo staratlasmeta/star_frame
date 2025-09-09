@@ -1,52 +1,75 @@
 //! `AccountSet` implementations for optional types. Enables conditional account presence using `Option<T>` syntax with automatic handling of None cases.
 
+use std::mem::MaybeUninit;
+
 use crate::{
     account_set::{
         AccountSetCleanup, AccountSetDecode, AccountSetValidate, CheckKey, ClientAccountSet,
-        CpiAccountSet,
+        CpiAccountSet, DynamicCpiAccountSetLen,
     },
     prelude::*,
 };
 use advancer::Advance;
 use anyhow::Context as _;
+use typenum::{Eq, IsEqual};
 
-impl<T> CpiAccountSet for Option<T>
+#[doc(hidden)]
+pub trait OptionAccountLenHelper {
+    type Result: typenum::Unsigned;
+}
+
+impl OptionAccountLenHelper for typenum::True {
+    type Result = typenum::U1;
+}
+
+impl OptionAccountLenHelper for typenum::False {
+    type Result = DynamicCpiAccountSetLen;
+}
+
+unsafe impl<T> CpiAccountSet for Option<T>
 where
     T: CpiAccountSet,
+    <T as CpiAccountSet>::AccountLen: IsEqual<typenum::U1>,
+    <<T as CpiAccountSet>::AccountLen as IsEqual<typenum::U1>>::Output: OptionAccountLenHelper,
 {
+    type ContainsOption = typenum::True;
     type CpiAccounts = Option<T::CpiAccounts>;
-    const MIN_LEN: usize = 1;
-    #[inline]
+    type AccountLen =
+        <Eq<<T as CpiAccountSet>::AccountLen, typenum::U1> as OptionAccountLenHelper>::Result;
+
     fn to_cpi_accounts(&self) -> Self::CpiAccounts {
         self.as_ref().map(T::to_cpi_accounts)
     }
-    #[inline]
-    fn extend_account_infos(
-        program_id: &Pubkey,
-        accounts: Self::CpiAccounts,
-        infos: &mut Vec<AccountInfo>,
-        ctx: &Context,
+
+    fn write_account_infos<'a>(
+        program: Option<&'a AccountInfo>,
+        accounts: &'a Self::CpiAccounts,
+        index: &mut usize,
+        infos: &mut [MaybeUninit<&'a AccountInfo>],
     ) -> Result<()> {
         if let Some(accounts) = accounts {
-            T::extend_account_infos(program_id, accounts, infos, ctx)
+            T::write_account_infos(program, accounts, index, infos)
         } else {
-            infos.push(
-                *ctx.program_for_key(program_id)
-                    .context(format!("Program {program_id} not found"))?,
-            );
+            infos[*index] =
+                MaybeUninit::new(program.context("Program not passed in to write_account_infos")?);
+            *index += 1;
             Ok(())
         }
     }
-    #[inline]
-    fn extend_account_metas(
-        program_id: &Pubkey,
-        accounts: &Self::CpiAccounts,
-        metas: &mut Vec<AccountMeta>,
+
+    fn write_account_metas<'a>(
+        program_id: &'a Pubkey,
+        accounts: &'a Self::CpiAccounts,
+        index: &mut usize,
+        metas: &mut [MaybeUninit<pinocchio::instruction::AccountMeta<'a>>],
     ) {
         if let Some(accounts) = accounts {
-            T::extend_account_metas(program_id, accounts, metas);
+            T::write_account_metas(program_id, accounts, index, metas);
         } else {
-            metas.push(AccountMeta::new_readonly(*program_id, false));
+            metas[*index] = MaybeUninit::new(pinocchio::instruction::AccountMeta::readonly(
+                program_id.as_array(),
+            ));
+            *index += 1;
         }
     }
 }
@@ -75,6 +98,7 @@ impl<'a, A, DArg> AccountSetDecode<'a, DArg> for Option<A>
 where
     A: AccountSetDecode<'a, DArg>,
 {
+    #[inline]
     fn decode_accounts(
         accounts: &mut &'a [AccountInfo],
         decode_input: DArg,
@@ -82,7 +106,7 @@ where
     ) -> Result<Self> {
         if accounts.is_empty() {
             Ok(None)
-        } else if accounts[0].pubkey() == ctx.current_program_id() {
+        } else if accounts[0].pubkey().fast_eq(ctx.current_program_id()) {
             let _program = accounts
                 .try_advance(1)
                 .expect("There is at least one account skip Option<None>");
@@ -97,6 +121,7 @@ impl<A, VArg> AccountSetValidate<VArg> for Option<A>
 where
     A: AccountSetValidate<VArg>,
 {
+    #[inline]
     fn validate_accounts(&mut self, validate_input: VArg, ctx: &mut Context) -> Result<()> {
         if let Some(inner) = self {
             inner.validate_accounts(validate_input, ctx)
@@ -110,6 +135,7 @@ impl<A, CArg> AccountSetCleanup<CArg> for Option<A>
 where
     A: AccountSetCleanup<CArg>,
 {
+    #[inline]
     fn cleanup_accounts(&mut self, cleanup_input: CArg, ctx: &mut Context) -> Result<()> {
         if let Some(inner) = self {
             inner.cleanup_accounts(cleanup_input, ctx)
@@ -123,6 +149,7 @@ impl<T> CheckKey for Option<T>
 where
     T: CheckKey,
 {
+    #[inline]
     fn check_key(&self, key: &Pubkey) -> Result<()> {
         if let Some(inner) = self {
             inner.check_key(key)

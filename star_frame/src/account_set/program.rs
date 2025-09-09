@@ -4,12 +4,7 @@
 //! account set. It automatically validates that the provided account matches the expected program ID
 //! and provides type-safe access to program-specific functionality.
 
-use crate::{
-    account_set::{AccountSetDecode, ClientAccountSet},
-    prelude::*,
-};
-use advancer::AdvanceArray;
-use anyhow::Context as _;
+use crate::{account_set::ClientAccountSet, prelude::*};
 use ref_cast::{ref_cast_custom, RefCastCustom};
 use std::marker::PhantomData;
 
@@ -20,7 +15,7 @@ use std::marker::PhantomData;
 /// incorrect program references in cross-program invocations or instruction contexts.
 #[derive(AccountSet, Debug, RefCastCustom, derive_where::DeriveWhere)]
 #[derive_where(Clone, Copy)]
-#[account_set(skip_default_decode, skip_client_account_set)]
+#[account_set(skip_client_account_set)]
 #[validate(
     extra_validation = self.check_id(),
 )]
@@ -31,25 +26,6 @@ pub struct Program<T: StarFrameProgram>(
     pub(crate) AccountInfo,
     #[account_set(skip = PhantomData)] pub(crate) PhantomData<T>,
 );
-
-impl<'a, T> AccountSetDecode<'a, ()> for Program<T>
-where
-    T: StarFrameProgram,
-{
-    fn decode_accounts(
-        accounts: &mut &'a [AccountInfo],
-        _decode_input: (),
-        ctx: &mut Context,
-    ) -> Result<Self> {
-        let account: &[_; 1] = accounts
-            .try_advance_array()
-            .context("Not enough accounts")?;
-        let account = account[0];
-
-        ctx.add_program(*account.pubkey(), account);
-        Ok(Self(account, PhantomData))
-    }
-}
 
 impl<T: StarFrameProgram> ClientAccountSet for Program<T> {
     type ClientAccounts = Option<Pubkey>;
@@ -67,7 +43,7 @@ impl<T: StarFrameProgram> ClientAccountSet for Program<T> {
 
 impl<T: StarFrameProgram> Program<T> {
     pub fn check_id(&self) -> Result<()> {
-        if self.0.pubkey() == &T::ID {
+        if self.0.pubkey().fast_eq(&T::ID) {
             Ok(())
         } else {
             Err(ProgramError::IncorrectProgramId.into())

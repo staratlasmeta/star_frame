@@ -8,7 +8,7 @@ pub mod macro_prelude {
             },
             single_set::{SingleAccountSet, SingleSetMeta},
             AccountSet, AccountSetValidate, CheckKey, ClientAccountSet, CpiAccountSet,
-            ProgramAccount,
+            CpiConstWrapper, DynamicCpiAccountSetLen, ProgramAccount,
         },
         align1::Align1,
         client::MakeInstruction,
@@ -56,7 +56,11 @@ pub mod macro_prelude {
     pub use anyhow::{self, bail};
     pub use core::any::type_name;
     pub use derive_where::DeriveWhere;
-    pub use pinocchio::{account_info::AccountInfo, msg, pubkey::Pubkey as PinocchioPubkey};
+    pub use pinocchio::{
+        account_info::AccountInfo, instruction::AccountMeta as PinocchioAccountMeta, msg,
+        pubkey::Pubkey as PinocchioPubkey,
+    };
     pub use solana_instruction::{AccountMeta, Instruction as SolanaInstruction};
     pub use solana_pubkey::Pubkey;
+    pub use typenum;
 }

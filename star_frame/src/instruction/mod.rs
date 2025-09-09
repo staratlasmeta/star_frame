@@ -5,7 +5,6 @@ use crate::{
     prelude::*,
 };
 use anyhow::Context as _;
-use borsh::to_vec;
 use bytemuck::{bytes_of, Pod};
 use pinocchio::cpi::set_return_data;
 
@@ -29,10 +28,9 @@ pub trait InstructionSet {
     ///
     /// This is called directly by [`StarFrameProgram::entrypoint`].
     fn dispatch(
-        program_id: &Pubkey,
+        program_id: &'static Pubkey,
         accounts: &[AccountInfo],
         instruction_data: &[u8],
-        ctx: &mut Context,
     ) -> Result<()>;
 }
 
@@ -60,9 +58,9 @@ pub trait Instruction {
     ///
     /// This is called from [`InstructionSet::dispatch`] after the discriminant is parsed and matched on.
     fn process_from_raw(
+        program_id: &'static Pubkey,
         accounts: &[AccountInfo],
         instruction_data: &[u8],
-        ctx: &mut Context,
     ) -> Result<()>;
 }
 
@@ -100,7 +98,7 @@ pub trait InstructionArgs: Sized {
 
 #[doc(hidden)]
 #[diagnostic::on_unimplemented(
-    message = "StarFrameInstruction requires the return type to be `Result<T>`"
+    message = "`StarFrameInstruction` requires the return type to be `Result<T>`"
 )]
 /// A helper trait to get the inner T of a [`Result`] from a [`StarFrameInstruction::process`] declaration. This is used internally in the [`star_frame_instruction`] macro.
 pub trait IxReturnType {
@@ -119,10 +117,10 @@ impl<T, E> IxReturnType for Result<T, E> {
 /// 4. Validate the accounts using [`Self::Accounts::validate_accounts`](AccountSetValidate::validate_accounts).
 /// 5. Process the instruction using [`Self::process`].
 /// 6. Cleanup the accounts using [`Self::Accounts::cleanup_accounts`](AccountSetCleanup::cleanup_accounts).
-/// 7. Set the solana return data using [`BorshSerialize`] if it is not empty.
+/// 7. Set the solana return data using [`bytemuck::bytes_of`] if it is not empty.
 pub trait StarFrameInstruction: BorshDeserialize + InstructionArgs {
     /// The return type of this instruction.
-    type ReturnType: BorshSerialize;
+    type ReturnType: NoUninit;
 
     /// The [`AccountSet`] used by this instruction.
     type Accounts<'decode, 'arg>: AccountSetDecode<'decode, Self::DecodeArg<'arg>>
@@ -141,11 +139,13 @@ impl<T> Instruction for T
 where
     T: StarFrameInstruction,
 {
+    #[inline]
     fn process_from_raw(
+        program_id: &'static Pubkey,
         mut accounts: &[AccountInfo],
         mut data: &[u8],
-        ctx: &mut Context,
     ) -> Result<()> {
+        let mut ctx = Context::new(program_id);
         let mut data = <T as BorshDeserialize>::deserialize(&mut data)
             .context("Failed to deserialize instruction data")?;
         let IxArgs {
@@ -154,20 +154,23 @@ where
             run,
             cleanup,
         } = Self::split_to_args(&mut data);
-        let mut account_set =
-            <Self as StarFrameInstruction>::Accounts::decode_accounts(&mut accounts, decode, ctx)
-                .context("Failed to decode accounts")?;
+        let mut account_set: <T as StarFrameInstruction>::Accounts<'_, '_> =
+            <Self as StarFrameInstruction>::Accounts::decode_accounts(
+                &mut accounts,
+                decode,
+                &mut ctx,
+            )
+            .context("Failed to decode accounts")?;
         account_set
-            .validate_accounts(validate, ctx)
+            .validate_accounts(validate, &mut ctx)
             .context("Failed to validate accounts")?;
         let ret: <T as StarFrameInstruction>::ReturnType =
-            Self::process(&mut account_set, run, ctx).context("Failed to run instruction")?;
+            Self::process(&mut account_set, run, &mut ctx).context("Failed to run instruction")?;
         account_set
-            .cleanup_accounts(cleanup, ctx)
+            .cleanup_accounts(cleanup, &mut ctx)
             .context("Failed to cleanup accounts")?;
-        let return_data = to_vec(&ret).context("Failed to serialize return data")?;
-        if !return_data.is_empty() {
-            set_return_data(&return_data);
+        if size_of::<T::ReturnType>() > 0 {
+            set_return_data(bytemuck::bytes_of(&ret));
         }
         Ok(())
     }
@@ -200,9 +203,9 @@ macro_rules! impl_blank_ix {
         $(
             impl $crate::instruction::Instruction for $ix {
                 fn process_from_raw(
+                    _program_id: &'static $crate::prelude::Pubkey,
                     _accounts: &[$crate::prelude::AccountInfo],
                     _data: &[u8],
-                    _ctx: &mut $crate::prelude::Context,
                 ) -> $crate::Result<()> {
                     todo!()
                 }

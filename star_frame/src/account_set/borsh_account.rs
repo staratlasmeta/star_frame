@@ -23,7 +23,12 @@ use crate::{
 /// updated `T` to the account info when the account is writable during `AccountSetCleanup`
 #[derive(AccountSet, Debug, Clone)]
 #[account_set(skip_default_decode, skip_default_idl)]
-#[validate(extra_validation = T::validate_account_info(&self.info))]
+#[cfg_attr(feature = "aggressive_inline", 
+    validate(inline_always, extra_validation = T::validate_account_info(self.info))
+)]
+#[cfg_attr(not(feature = "aggressive_inline"), 
+    validate(extra_validation = T::validate_account_info(self.info))
+)]
 #[cleanup(generics = [], extra_cleanup = {
     self.serialize()?;
     self.check_cleanup(ctx)
@@ -302,7 +307,7 @@ where
         ctx: &Context,
     ) -> Result<()> {
         if IF_NEEDED {
-            let needs_init = self.owner_pubkey() == System::ID
+            let needs_init = self.account_info().owner().fast_eq(&System::ID)
                 || self.account_data()?[..size_of::<OwnerProgramDiscriminant<T>>()]
                     .iter()
                     .all(|x| *x == 0);

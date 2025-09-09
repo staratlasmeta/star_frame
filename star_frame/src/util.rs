@@ -63,6 +63,47 @@ pub fn uninit_array_bytes<T: NoUninit, const N: usize>(array: &[T; N]) -> &[u8] 
     unsafe { core::slice::from_raw_parts(array.as_ptr().cast::<u8>(), size_of::<T>() * N) }
 }
 
+/// Quicker way to compare 32 bytes.
+///
+/// From [Typhoon](https://github.com/exotic-markets-labs/typhoon/blob/60c5197cc632f1bce07ba27876669e4ca8580421/crates/accounts/src/utils.rs#L2)
+#[inline]
+#[must_use]
+pub fn fast_32_byte_eq(a: &[u8; 32], b: &[u8; 32]) -> bool {
+    bytemuck::cast_slice::<_, PackedValue<u64>>(a) == bytemuck::cast_slice::<_, PackedValue<u64>>(b)
+}
+
+pub trait FastPubkeyEq<T> {
+    fn fast_eq(&self, other: &T) -> bool;
+}
+
+impl FastPubkeyEq<Pubkey> for Pubkey {
+    #[inline]
+    fn fast_eq(&self, other: &Pubkey) -> bool {
+        fast_32_byte_eq(self.as_array(), other.as_array())
+    }
+}
+
+impl FastPubkeyEq<[u8; 32]> for Pubkey {
+    #[inline]
+    fn fast_eq(&self, other: &[u8; 32]) -> bool {
+        fast_32_byte_eq(self.as_array(), other)
+    }
+}
+
+impl FastPubkeyEq<[u8; 32]> for [u8; 32] {
+    #[inline]
+    fn fast_eq(&self, other: &[u8; 32]) -> bool {
+        fast_32_byte_eq(self, other)
+    }
+}
+
+impl FastPubkeyEq<Pubkey> for [u8; 32] {
+    #[inline]
+    fn fast_eq(&self, other: &Pubkey) -> bool {
+        fast_32_byte_eq(self, other.as_array())
+    }
+}
+
 /// Custom [`borsh`] derive `serialize_with` and `deserialize_with` overrides for use with [`bytemuck`] types.
 pub mod borsh_bytemuck {
     use crate::align1::Align1;

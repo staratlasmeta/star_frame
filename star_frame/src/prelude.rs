@@ -37,7 +37,7 @@ pub use crate::{
     program::{system::System, StarFrameProgram},
     pubkey,
     unsize::prelude::*,
-    util::borsh_bytemuck,
+    util::{borsh_bytemuck, FastPubkeyEq as _},
     Result,
 };
 
@@ -46,7 +46,10 @@ pub use star_frame_proc::{zero_copy, InstructionToIdl, TypeToIdl};
 
 // Solana stuff
 pub use anyhow::{anyhow, bail};
-pub use pinocchio::{account_info::AccountInfo, msg, program_error::ProgramError, ProgramResult};
+pub use pinocchio::{
+    account_info::AccountInfo, instruction::AccountMeta as PinocchioAccountMeta, msg,
+    program_error::ProgramError, ProgramResult,
+};
 pub use solana_instruction::AccountMeta;
 pub use solana_pubkey::Pubkey;
 

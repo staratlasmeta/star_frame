@@ -8,17 +8,19 @@ publish = false
 release.release = false
 
 [lib]
-crate-type = ["cdylib", "lib"]
+crate-type = ["cdylib"]
 name = "bench"
 
 [features]
+default = ["log_ix_name"]
 prod = []
+log_ix_name = []
 no_entrypoint = []
 cpi = ["no_entrypoint"]
 idl = ["star_frame/idl"]
 
 [dependencies]
-star_frame = { workspace = true }
+star_frame = { workspace = true, features = ["aggressive_inline"] }
 bytemuck = { workspace = true }
 star_frame_spl = { workspace = true }
 borsh = { workspace = true }

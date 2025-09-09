@@ -3,40 +3,44 @@
 use crate::{
     account_set::{
         AccountSetCleanup, AccountSetDecode, AccountSetValidate, ClientAccountSet, CpiAccountSet,
+        DynamicCpiAccountSetLen,
     },
     prelude::*,
 };
 
-impl<T> CpiAccountSet for Vec<T>
+unsafe impl<T> CpiAccountSet for Vec<T>
 where
     T: CpiAccountSet,
 {
+    type ContainsOption = T::ContainsOption;
     type CpiAccounts = Vec<T::CpiAccounts>;
-    const MIN_LEN: usize = 0;
+    type AccountLen = DynamicCpiAccountSetLen;
     #[inline]
     fn to_cpi_accounts(&self) -> Self::CpiAccounts {
         self.iter().map(T::to_cpi_accounts).collect()
     }
+
     #[inline]
-    fn extend_account_infos(
-        program_id: &Pubkey,
-        accounts: Self::CpiAccounts,
-        infos: &mut Vec<AccountInfo>,
-        ctx: &Context,
+    fn write_account_infos<'a>(
+        program: Option<&'a AccountInfo>,
+        accounts: &'a Self::CpiAccounts,
+        index: &mut usize,
+        infos: &mut [std::mem::MaybeUninit<&'a AccountInfo>],
     ) -> Result<()> {
         for a in accounts {
-            T::extend_account_infos(program_id, a, infos, ctx)?;
+            T::write_account_infos(program, a, index, infos)?;
         }
         Ok(())
     }
-    #[inline]
-    fn extend_account_metas(
-        program_id: &Pubkey,
-        accounts: &Self::CpiAccounts,
-        metas: &mut Vec<AccountMeta>,
+
+    fn write_account_metas<'a>(
+        program_id: &'a Pubkey,
+        accounts: &'a Self::CpiAccounts,
+        index: &mut usize,
+        metas: &mut [std::mem::MaybeUninit<pinocchio::instruction::AccountMeta<'a>>],
     ) {
         for a in accounts {
-            T::extend_account_metas(program_id, a, metas);
+            T::write_account_metas(program_id, a, index, metas);
         }
     }
 }

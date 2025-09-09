@@ -135,8 +135,12 @@ pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
             match discriminant {
                 #(
                     <#variant_tys as #prelude::InstructionDiscriminant<#ident #ty_generics>>::DISCRIMINANT => {
-                        #prelude::msg!(#ix_message);
-                        <#variant_tys as #instruction>::process_from_raw(accounts, instruction_data, ctx)
+                        #[allow(unexpected_cfgs)]
+                        {
+                            #[cfg(any(feature = "log_ix_name", feature = "log-ix-name"))]
+                            #prelude::msg!(#ix_message);
+                        }
+                        <#variant_tys as #instruction>::process_from_raw(program_id, accounts, instruction_data)
                     }
                 )*
                 x => #prelude::bail!("Invalid ix discriminant: {:?}", x),
@@ -150,11 +154,11 @@ pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
         impl #impl_generics #prelude::InstructionSet for #ident #ty_generics #where_clause {
             type Discriminant = #discriminant_type;
 
+            #[inline(always)]
             fn dispatch(
-                program_id: &#pubkey,
+                program_id: &'static #pubkey,
                 accounts: &[#account_info],
                 mut instruction_data: &[u8],
-                ctx: &mut #prelude::Context,
             ) -> #result<()> {
                 #dispatch_body
             }

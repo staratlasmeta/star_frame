@@ -32,6 +32,7 @@ pub struct Paths {
     pub ptr: TokenStream,
 
     pub size_of: TokenStream,
+    pub maybe_uninit: TokenStream,
 
     // account set
     pub account_set_decode: TokenStream,
@@ -97,6 +98,7 @@ impl Default for Paths {
             phantom_data: quote! { ::core::marker::PhantomData },
             ptr: quote! { ::core::ptr },
             size_of: quote! { ::core::mem::size_of },
+            maybe_uninit: quote! { ::core::mem::MaybeUninit },
             // account set
             account_set_decode: quote! { #crate_name::account_set::AccountSetDecode },
             account_set_validate: quote! { #crate_name::account_set::AccountSetValidate },

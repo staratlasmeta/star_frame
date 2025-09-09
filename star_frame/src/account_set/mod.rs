@@ -13,9 +13,9 @@ pub mod validated_account;
 pub use star_frame_proc::{AccountSet, ProgramAccount};
 
 use crate::prelude::*;
-use bytemuck::{bytes_of, from_bytes};
+use bytemuck::bytes_of;
 use modifiers::{HasOwnerProgram, OwnerProgramDiscriminant};
-use std::slice;
+use std::{mem::MaybeUninit, slice};
 
 /// An account that has a discriminant and is owned by a [`StarFrameProgram`].
 ///
@@ -25,13 +25,36 @@ pub trait ProgramAccount: HasOwnerProgram {
     const DISCRIMINANT: <Self::OwnerProgram as StarFrameProgram>::AccountDiscriminant;
     /// The discriminant of the account as bytes.
     #[must_use]
+    #[inline]
     fn discriminant_bytes() -> Vec<u8> {
         bytes_of(&Self::DISCRIMINANT).into()
     }
 
     /// Validates the owner matches [`Self::OwnerProgram::ID`](`crate::program::StarFrameProgram::ID`) and the discriminant matches [`Self::DISCRIMINANT`].
-    fn validate_account_info(info: &impl SingleAccountSet) -> Result<()> {
-        if info.owner_pubkey() != Self::OwnerProgram::ID {
+    #[allow(clippy::inline_always)]
+    #[inline(always)]
+    fn validate_account_info(info: AccountInfo) -> Result<()> {
+        let data = info.account_data()?;
+
+        if data.len() < size_of::<OwnerProgramDiscriminant<Self>>() {
+            bail!(
+                "Account {} data length {} is less than expected discriminant size {}",
+                info.pubkey(),
+                data.len(),
+                size_of::<OwnerProgramDiscriminant<Self>>()
+            );
+        }
+
+        // Choose optimal comparison strategy based on discriminator length
+        if !compare_discriminator(&data, bytes_of(&Self::DISCRIMINANT)) {
+            bail!(
+                "Account {} data does not match expected discriminant for program {}",
+                info.pubkey(),
+                Self::OwnerProgram::ID
+            );
+        }
+
+        if !info.owner().fast_eq(&Self::OwnerProgram::ID) {
             bail!(
                 "Account {} owner {} does not match expected program ID {}",
                 info.pubkey(),
@@ -39,19 +62,59 @@ pub trait ProgramAccount: HasOwnerProgram {
                 Self::OwnerProgram::ID
             );
         }
-        let data = info.account_data()?;
-        if data.len() < size_of::<OwnerProgramDiscriminant<Self>>()
-            || from_bytes::<PackedValue<OwnerProgramDiscriminant<Self>>>(
-                &data[..size_of::<OwnerProgramDiscriminant<Self>>()],
-            ) != &Self::DISCRIMINANT
-        {
-            bail!(
-                "Account {} data does not match expected discriminant for program {}",
-                info.pubkey(),
-                Self::OwnerProgram::ID
-            )
-        }
+
         Ok(())
+    }
+}
+
+/// Fast discriminator comparison, with fast path unaligned reads for small discriminators.
+///
+/// Adapted from [Typhoon](https://github.com/exotic-markets-labs/typhoon/blob/60c5197cc632f1bce07ba27876669e4ca8580421/crates/accounts/src/discriminator.rs#L8)
+#[allow(clippy::inline_always)]
+#[inline(always)]
+#[must_use]
+pub fn compare_discriminator(data: &[u8], discriminator: &[u8]) -> bool {
+    let len = discriminator.len();
+    // Choose optimal comparison strategy based on discriminator length
+    match len {
+        0 => true, // No discriminator to check
+        1..=8 => {
+            // Use unaligned integer reads for small discriminators (most common case)
+            // SAFETY: We've already verified that data.len() >= discriminator.len()
+            // in the caller before calling this function, so we know we have at least
+            // `len` bytes available for reading. Unaligned reads are safe for primitive
+            // types on all supported architectures. The pointer casts to smaller integer
+            // types (u16, u32, u64) are valid because we're only reading the exact number
+            // of bytes specified by `len`.
+            unsafe {
+                // We are reading unaligned, so the casts are fine
+                #[allow(clippy::cast_ptr_alignment)]
+                let data_ptr = data.as_ptr().cast::<u64>();
+                #[allow(clippy::cast_ptr_alignment)]
+                let disc_ptr = discriminator.as_ptr().cast::<u64>();
+
+                match len {
+                    1 => *data.get_unchecked(0) == *discriminator.get_unchecked(0),
+                    2 => {
+                        let data_val = data_ptr.cast::<u16>().read_unaligned();
+                        let disc_val = disc_ptr.cast::<u16>().read_unaligned();
+                        data_val == disc_val
+                    }
+                    4 => {
+                        let data_val = data_ptr.cast::<u32>().read_unaligned();
+                        let disc_val = disc_ptr.cast::<u32>().read_unaligned();
+                        data_val == disc_val
+                    }
+                    8 => {
+                        let data_val = data_ptr.read_unaligned();
+                        let disc_val = disc_ptr.read_unaligned();
+                        data_val == disc_val
+                    }
+                    _ => data[..len] == discriminator[..],
+                }
+            }
+        }
+        _ => data[..len] == discriminator[..],
     }
 }
 
@@ -141,25 +204,72 @@ pub trait AccountSetCleanup<A> {
     fn cleanup_accounts(&mut self, cleanup_input: A, ctx: &mut Context) -> Result<()>;
 }
 
-/// Used to convert an `AccountSet`s [`Self::CpiAccounts`] into a list of [`AccountInfo`]s and [`AccountMeta`]s for a CPI.
-pub trait CpiAccountSet {
+/// Sentinel value for [`CpiAccountSet::AccountLen`] for a dynamic CPI account set.
+pub type DynamicCpiAccountSetLen = typenum::U100;
+
+/// An [`AccountSet`] that can be converted into a list of [`AccountInfo`]s and [`AccountMeta`]s for a CPI.
+///
+/// # Safety
+/// With N >= 0, [`Self::write_account_infos`] and [`Self::write_account_metas`] must write to N elements of the array and increment the index by N.
+/// Failure to do so will result in undefined behavior.
+pub unsafe trait CpiAccountSet {
+    /// Whether or not the CPI accounts contains an option (which requires passing in the program info)
+    type ContainsOption: typenum::Bit;
     /// The minimum information needed to create a list of account infos and metas for a CPI for Self.
-    type CpiAccounts: Clone + Debug;
-    /// The minimum number of accounts this CPI might use
-    const MIN_LEN: usize;
+    type CpiAccounts: Debug;
+    /// The number of accounts this CPI might use. Set to [`DynamicCpiAccountSetLen`] for dynamic
+    type AccountLen: typenum::Unsigned;
+
     #[rust_analyzer::completions(ignore_flyimport)]
     fn to_cpi_accounts(&self) -> Self::CpiAccounts;
-    fn extend_account_infos(
-        program_id: &Pubkey,
-        accounts: Self::CpiAccounts,
-        infos: &mut Vec<AccountInfo>,
-        ctx: &Context,
+    fn write_account_infos<'a>(
+        program: Option<&'a AccountInfo>,
+        accounts: &'a Self::CpiAccounts,
+        index: &mut usize,
+        infos: &mut [MaybeUninit<&'a AccountInfo>],
     ) -> Result<()>;
-    fn extend_account_metas(
-        program_id: &Pubkey,
-        accounts: &Self::CpiAccounts,
-        metas: &mut Vec<AccountMeta>,
+    fn write_account_metas<'a>(
+        program_id: &'a Pubkey,
+        accounts: &'a Self::CpiAccounts,
+        index: &mut usize,
+        metas: &mut [MaybeUninit<pinocchio::instruction::AccountMeta<'a>>],
     );
+}
+
+/// A helper struct to create distict types to bind CpiAccountSet's associated types to when
+/// a client struct has multiple identical fields
+#[doc(hidden)]
+#[derive(Debug)]
+pub struct CpiConstWrapper<T, const N: usize>(T);
+unsafe impl<T, const N: usize> CpiAccountSet for CpiConstWrapper<T, N>
+where
+    T: CpiAccountSet,
+{
+    type CpiAccounts = T::CpiAccounts;
+    type ContainsOption = T::ContainsOption;
+    type AccountLen = T::AccountLen;
+
+    fn to_cpi_accounts(&self) -> Self::CpiAccounts {
+        unimplemented!()
+    }
+
+    fn write_account_infos<'a>(
+        _program: Option<&'a AccountInfo>,
+        _accounts: &'a Self::CpiAccounts,
+        _index: &mut usize,
+        _infos: &mut [MaybeUninit<&'a AccountInfo>],
+    ) -> Result<()> {
+        unimplemented!()
+    }
+
+    fn write_account_metas<'a>(
+        _program_id: &'a Pubkey,
+        _accounts: &'a Self::CpiAccounts,
+        _index: &mut usize,
+        _metas: &mut [MaybeUninit<PinocchioAccountMeta<'a>>],
+    ) {
+        unimplemented!()
+    }
 }
 
 /// Used to convert an `AccountSet`s [`Self::ClientAccounts`] into a list of [`AccountMeta`]s for an instruction.
@@ -189,6 +299,7 @@ static_assertions::assert_obj_safe!(CanAddLamports, CanFundRent);
 pub trait CanAddLamports: Debug {
     #[rust_analyzer::completions(ignore_flyimport)]
     fn account_to_modify(&self) -> AccountInfo;
+    #[inline]
     fn add_lamports(&self, lamports: u64) -> Result<()> {
         *self.account_to_modify().try_borrow_mut_lamports()? += lamports;
         Ok(())
@@ -208,6 +319,7 @@ pub trait CanFundRent: CanAddLamports {
     ) -> Result<()>;
 
     #[rust_analyzer::completions(ignore_flyimport)]
+    #[inline]
     fn signer_seeds(&self) -> Option<Vec<&[u8]>> {
         None
     }
@@ -271,7 +383,8 @@ pub trait CanSystemCreateAccount {
 pub(crate) mod internal_reverse {
     use super::*;
 
-    #[inline]
+    #[allow(clippy::inline_always)]
+    #[inline(always)]
     pub fn _account_set_validate_reverse<T, A>(
         validate_input: A,
         this: &mut T,
@@ -283,7 +396,8 @@ pub(crate) mod internal_reverse {
         this.validate_accounts(validate_input, ctx)
     }
 
-    #[inline]
+    #[allow(clippy::inline_always)]
+    #[inline(always)]
     pub fn _account_set_cleanup_reverse<T, A>(
         cleanup_input: A,
         this: &mut T,
