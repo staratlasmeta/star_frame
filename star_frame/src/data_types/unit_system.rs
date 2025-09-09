@@ -3,8 +3,8 @@ use crate::prelude::*;
 use derive_where::derive_where;
 use fixed::traits::{Fixed, FromFixed, ToFixed};
 use num_traits::{
-    real::Real, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, Pow, SaturatingAdd, SaturatingMul,
-    SaturatingSub,
+    real::Real, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, ConstOne, ConstZero, One, Pow,
+    SaturatingAdd, SaturatingMul, SaturatingSub, Zero,
 };
 use pinocchio::sysvars::clock::Clock;
 use serde::{Deserialize, Serialize};
@@ -200,8 +200,32 @@ where
         UnitVal::new(self.val / rhs.val)
     }
 }
+impl<T, Unit> Zero for UnitVal<T, Unit>
+where
+    T: Zero,
+    Self: Add<Self, Output = Self>,
+{
+    fn zero() -> Self {
+        Self::new(T::zero())
+    }
+
+    fn set_zero(&mut self) {
+        self.val.set_zero();
+    }
+
+    fn is_zero(&self) -> bool {
+        self.val.is_zero()
+    }
+}
+impl<T, Unit> ConstZero for UnitVal<T, Unit>
+where
+    T: ConstZero,
+    Self: Add<Self, Output = Self>,
+{
+    const ZERO: Self = Self::new(T::ZERO);
+}
 impl<T1, Unit1> UnitVal<T1, Unit1> {
-    /// Puts this unit to the power of provided generic.
+    /// Puts this unit to the power of the provided generic.
     pub fn pow<Value>(self) -> UnitVal<T1::Output, Unit1::Output>
     where
         Value: Unsigned,
