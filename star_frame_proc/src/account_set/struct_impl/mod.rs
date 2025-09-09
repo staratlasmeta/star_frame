@@ -432,7 +432,7 @@ pub(super) fn derive_account_set_impl_struct(
             contains_option,
             account_len,
             generics: cpi_gen,
-        } = create_cpi_clauses(field_type.as_slice(), main_generics);
+        } = create_cpi_clauses(field_type.as_slice(), &cpi_gen);
 
         let (impl_gen, _, where_clause) = cpi_gen.split_for_impl();
 
@@ -602,8 +602,8 @@ fn create_cpi_clauses(tys: &[&Type], generics: &impl GetGenerics) -> CpiClauseRe
     let (mut option_clauses, contains_option) = create_nested_clauses(
         &hrtb,
         &option_gens,
-        &quote!(::core::ops::BitAnd),
-        &quote!(#prelude::typenum::And),
+        &quote!(::core::ops::BitOr),
+        &quote!(#prelude::typenum::Or),
         &quote!(#prelude::typenum::False),
     );
     option_clauses.push(quote!(for<#hrtb> #contains_option: #prelude::typenum::Bit));
