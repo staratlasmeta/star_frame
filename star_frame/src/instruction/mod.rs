@@ -5,9 +5,7 @@ use crate::{
     prelude::*,
 };
 use anyhow::Context as _;
-use borsh::to_vec;
 use bytemuck::{bytes_of, Pod};
-use derive_more::From;
 use pinocchio::cpi::set_return_data;
 
 pub use star_frame_proc::{
@@ -100,7 +98,7 @@ pub trait InstructionArgs: Sized {
 
 #[doc(hidden)]
 #[diagnostic::on_unimplemented(
-    message = "`StarFrameInstruction` requires the return type to be `Result<()> or Result<ReturnData<T>>`"
+    message = "`StarFrameInstruction` requires the return type to be `Result<T>`"
 )]
 /// A helper trait to get the inner T of a [`Result`] from a [`StarFrameInstruction::process`] declaration. This is used internally in the [`star_frame_instruction`] macro.
 pub trait IxReturnType {
@@ -108,40 +106,6 @@ pub trait IxReturnType {
 }
 impl<T, E> IxReturnType for Result<T, E> {
     type ReturnType = T;
-}
-
-mod sealed {
-    use super::*;
-
-    #[doc(hidden)]
-    pub trait Sealed {}
-    impl Sealed for () {}
-    impl<T: BorshSerialize> Sealed for ReturnData<T> {}
-}
-/// A marker trait for valid return types for a [`StarFrameInstruction`].
-#[diagnostic::on_unimplemented(
-    message = "`StarFrameInstruction` requires the return type to be `Result<()> or Result<ReturnData<T>>`"
-)]
-pub trait InstructionReturn: sealed::Sealed {
-    fn handle_return(&self) -> Result<()>;
-}
-
-impl<T: BorshSerialize> InstructionReturn for ReturnData<T> {
-    #[inline]
-    fn handle_return(&self) -> Result<()> {
-        let return_data = to_vec(&self.0).context("Failed to serialize return data")?;
-        if !return_data.is_empty() {
-            set_return_data(&return_data);
-        }
-        Ok(())
-    }
-}
-impl InstructionReturn for () {
-    #[allow(clippy::inline_always)]
-    #[inline(always)]
-    fn handle_return(&self) -> Result<()> {
-        Ok(())
-    }
 }
 
 /// An opinionated (and recommended) [`Instruction`] using [`AccountSet`] and other traits. Can be derived using the [`star_frame_instruction`] macro.
@@ -153,10 +117,10 @@ impl InstructionReturn for () {
 /// 4. Validate the accounts using [`Self::Accounts::validate_accounts`](AccountSetValidate::validate_accounts).
 /// 5. Process the instruction using [`Self::process`].
 /// 6. Cleanup the accounts using [`Self::Accounts::cleanup_accounts`](AccountSetCleanup::cleanup_accounts).
-/// 7. Set the solana return data using [`BorshSerialize`] if it is not empty.
+/// 7. Set the solana return data using [`bytemuck::bytes_of`] if it is not empty.
 pub trait StarFrameInstruction: BorshDeserialize + InstructionArgs {
     /// The return type of this instruction.
-    type ReturnType: InstructionReturn;
+    type ReturnType: NoUninit;
 
     /// The [`AccountSet`] used by this instruction.
     type Accounts<'decode, 'arg>: AccountSetDecode<'decode, Self::DecodeArg<'arg>>
@@ -170,10 +134,6 @@ pub trait StarFrameInstruction: BorshDeserialize + InstructionArgs {
         ctx: &mut Context,
     ) -> Result<Self::ReturnType>;
 }
-
-#[derive(Debug, From)]
-#[repr(transparent)]
-pub struct ReturnData<T>(pub T);
 
 impl<T> Instruction for T
 where
@@ -209,7 +169,9 @@ where
         account_set
             .cleanup_accounts(cleanup, &mut ctx)
             .context("Failed to cleanup accounts")?;
-        ret.handle_return()?;
+        if size_of::<T::ReturnType>() > 0 {
+            set_return_data(bytemuck::bytes_of(&ret));
+        }
         Ok(())
     }
 }

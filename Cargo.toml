@@ -67,5 +67,5 @@ typenum = "^1.17.0"
 
 [profile.release]
 overflow-checks = true
-lto = "fat"
+lto = "thin"
 codegen-units = 1

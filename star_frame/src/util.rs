@@ -69,18 +69,7 @@ pub fn uninit_array_bytes<T: NoUninit, const N: usize>(array: &[T; N]) -> &[u8] 
 #[inline]
 #[must_use]
 pub fn fast_32_byte_eq(a: &[u8; 32], b: &[u8; 32]) -> bool {
-    unsafe {
-        // We are reading unaligned, so the casts are fine
-        #[allow(clippy::cast_ptr_alignment)]
-        let a_ptr = a.as_ptr().cast::<u64>();
-        #[allow(clippy::cast_ptr_alignment)]
-        let b_ptr = b.as_ptr().cast::<u64>();
-
-        core::ptr::read_unaligned(a_ptr) == core::ptr::read_unaligned(b_ptr)
-            && core::ptr::read_unaligned(a_ptr.add(1)) == core::ptr::read_unaligned(b_ptr.add(1))
-            && core::ptr::read_unaligned(a_ptr.add(2)) == core::ptr::read_unaligned(b_ptr.add(2))
-            && core::ptr::read_unaligned(a_ptr.add(3)) == core::ptr::read_unaligned(b_ptr.add(3))
-    }
+    bytemuck::cast_slice::<_, PackedValue<u64>>(a) == bytemuck::cast_slice::<_, PackedValue<u64>>(b)
 }
 
 pub trait FastPubkeyEq<T> {

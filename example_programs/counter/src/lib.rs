@@ -133,10 +133,7 @@ impl CountAccounts {
 }
 
 #[star_frame_instruction]
-fn Count(
-    accounts: &mut CountAccounts,
-    Count { amount, subtract }: Count,
-) -> Result<ReturnData<u64>> {
+fn Count(accounts: &mut CountAccounts, Count { amount, subtract }: Count) -> Result<u64> {
     let mut counter = accounts.counter.data_mut()?;
     let new_count: u64 = if subtract {
         counter.count - amount
@@ -145,7 +142,7 @@ fn Count(
     };
     counter.count = new_count;
 
-    Ok(new_count.into())
+    Ok(new_count)
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Debug, InstructionArgs)]

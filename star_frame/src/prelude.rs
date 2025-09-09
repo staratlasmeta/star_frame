@@ -32,7 +32,7 @@ pub use crate::{
     },
     instruction::{
         star_frame_instruction, InstructionArgs, InstructionDiscriminant as _, InstructionSet,
-        ReturnData, StarFrameInstruction,
+        StarFrameInstruction,
     },
     program::{system::System, StarFrameProgram},
     pubkey,

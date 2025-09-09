@@ -8,7 +8,7 @@ publish = false
 release.release = false
 
 [lib]
-crate-type = ["cdylib", "lib"]
+crate-type = ["cdylib"]
 name = "bench"
 
 [features]
