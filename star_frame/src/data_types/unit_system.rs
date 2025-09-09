@@ -3,8 +3,8 @@ use crate::prelude::*;
 use derive_where::derive_where;
 use fixed::traits::{Fixed, FromFixed, ToFixed};
 use num_traits::{
-    real::Real, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, ConstOne, ConstZero, One, Pow,
-    SaturatingAdd, SaturatingMul, SaturatingSub, Zero,
+    real::Real, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, ConstZero, Pow, SaturatingAdd,
+    SaturatingMul, SaturatingSub, Zero,
 };
 use pinocchio::sysvars::clock::Clock;
 use serde::{Deserialize, Serialize};
@@ -198,6 +198,16 @@ where
 
     fn div(self, rhs: UnitVal<T2, Unit2>) -> Self::Output {
         UnitVal::new(self.val / rhs.val)
+    }
+}
+impl<T1, T2, Unit1, Unit2> Rem<UnitVal<T2, Unit2>> for UnitVal<T1, Unit1>
+where
+    T1: Rem<T2>,
+{
+    type Output = UnitVal<T1::Output, Unit1>;
+
+    fn rem(self, rhs: UnitVal<T2, Unit2>) -> Self::Output {
+        UnitVal::new(self.val % rhs.val)
     }
 }
 impl<T, Unit> Zero for UnitVal<T, Unit>
@@ -605,11 +615,11 @@ macro_rules! __unit_type_aliases {
 
 }
 
-pub trait ClockExt<Seconds: IsSeconds> {
-    fn unix_timestamp_unit(&self) -> UnitVal<i64, Seconds>;
+pub trait ClockExt {
+    fn unix_timestamp_unit<Seconds: IsSeconds>(&self) -> UnitVal<i64, Seconds>;
 }
-impl<Seconds: IsSeconds> ClockExt<Seconds> for Clock {
-    fn unix_timestamp_unit(&self) -> UnitVal<i64, Seconds> {
+impl ClockExt for Clock {
+    fn unix_timestamp_unit<Seconds: IsSeconds>(&self) -> UnitVal<i64, Seconds> {
         UnitVal::new(self.unix_timestamp)
     }
 }
