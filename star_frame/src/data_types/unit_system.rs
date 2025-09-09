@@ -6,6 +6,7 @@ use num_traits::{
     real::Real, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, Pow, SaturatingAdd, SaturatingMul,
     SaturatingSub,
 };
+use pinocchio::sysvars::clock::Clock;
 use serde::{Deserialize, Serialize};
 use std::{
     marker::PhantomData,
@@ -580,6 +581,17 @@ macro_rules! __unit_type_aliases {
 
 }
 
+pub trait ClockExt<Seconds: IsSeconds> {
+    fn unix_timestamp_units(&self) -> UnitVal<i64, Seconds>;
+}
+impl<Seconds: IsSeconds> ClockExt<Seconds> for Clock {
+    fn unix_timestamp_units(&self) -> UnitVal<i64, Seconds> {
+        UnitVal::new(self.unix_timestamp)
+    }
+}
+
+pub trait IsSeconds {}
+
 /// Creates a new unit system type.
 ///
 /// # Example
@@ -588,16 +600,16 @@ macro_rules! __unit_type_aliases {
 /// use star_frame::create_unit_system;
 /// use typenum::Z0;
 /// // Creates a unit system with 3 axis.
-/// create_unit_system!(struct CreatedUnitSystem<Seconds, Meters, Kilograms>);
+/// create_unit_system!(struct CreatedUnitSystem<@seconds Seconds, Meters, Kilograms>);
 ///
 /// // Creates a unit system with 2 axis and makes it convertable to `CreatedUnitSystem`.
 /// // `==` can be replaced with `to` or `from` if unidirectional conversion is desired.
-/// create_unit_system!(struct OtherUnitSystem<Seconds, Meters>{
+/// create_unit_system!(struct OtherUnitSystem<@seconds Seconds, Meters>{
 ///     impl<Seconds, Meters>: <Seconds, Meters> == CreatedUnitSystem<Seconds, Meters, Z0>,
 /// });
 ///
 /// // Creates a unit system with 2 axis and makes it convertable to `CreatedUnitSystem` and `OtherUnitSystem`.
-/// create_unit_system!(struct ThirdUnitSystem<Seconds, Kilograms>{
+/// create_unit_system!(struct ThirdUnitSystem<@seconds Seconds, Kilograms>{
 ///     impl<Seconds, Kilograms>: <Seconds, Kilograms> == CreatedUnitSystem<Seconds, Z0, Kilograms>,
 ///     impl<S>: <S, Z0> == OtherUnitSystem<S, Z0>,
 /// });
@@ -606,13 +618,13 @@ macro_rules! __unit_type_aliases {
 #[macro_export]
 macro_rules! create_unit_system {
     (
-        $vis:vis struct $ident:ident<$($unit:ident),+ $(,)?>{
+        $vis:vis struct $ident:ident<$($(@$seconds:ident)? $unit:ident),+ $(,)?>{
             $(
                 impl<$($gen:ident),* $(,)?>: <$($from:ty),* $(,)?> $op:tt $conv_ident:ident<$($to:ty),* $(,)?>
             ),* $(,)?
         }
     ) => {
-        $crate::create_unit_system!($vis struct $ident<$($unit),+>);
+        $crate::create_unit_system!($vis struct $ident<$($(@$seconds)? $unit),+>);
         $(
             $crate::create_unit_system!(@convert $ident <$($gen,)*>: <$($from,)*> $op $conv_ident<$($to,)*>);
         )*
@@ -629,148 +641,153 @@ macro_rules! create_unit_system {
         impl<$($gen,)*> $crate::data_types::Convert<$ident<$($from,)*>> for $conv_ident<$($to,)*>{}
     };
 
-    ($vis:vis struct $ident:ident<$($unit:ident),* $(,)?>) => {
-        $crate::paste::paste!{
-            #[allow(unused_imports)]
-            mod [<_serde_ $ident:snake>] {
-                pub(super) use $crate::serde as _serde_unit_system;
-            }
-            #[allow(unused_imports)]
-            use [<_serde_ $ident:snake>]::*;
-            #[derive(
-                $crate::serde::Serialize,
-                $crate::serde::Deserialize,
-                $crate::align1::Align1,
-                $crate::derive_where::DeriveWhere,
-            )]
-            #[serde(bound = "", crate = "_serde_unit_system")]
-            #[derive_where(Copy, Clone, Default, Debug, PartialEq, Eq)]
-            #[repr(transparent)]
-            $vis struct $ident<$($unit,)*>(::std::marker::PhantomData<($($unit,)*)>);
+    (@impl @seconds $unit:ident) => {
+        impl $crate::data_types::IsSeconds for $unit {}
+    };
 
-            $vis mod [<$ident:snake _units>] {
-                use super::*;
-                $crate::__unit_type_aliases!($vis $ident | $($unit)*);
-            }
+    ($vis:vis struct $ident:ident<$($(@$seconds:ident)? $unit:ident),+ $(,)?>) => {$crate::paste::paste!{
+        #[allow(unused_imports)]
+        mod [<_serde_ $ident:snake>] {
+            pub(super) use $crate::serde as _serde_unit_system;
+        }
+        #[allow(unused_imports)]
+        use [<_serde_ $ident:snake>]::*;
+        #[derive(
+            $crate::serde::Serialize,
+            $crate::serde::Deserialize,
+            $crate::align1::Align1,
+            $crate::derive_where::DeriveWhere,
+        )]
+        #[serde(bound = "", crate = "_serde_unit_system")]
+        #[derive_where(Copy, Clone, Default, Debug, PartialEq, Eq)]
+        #[repr(transparent)]
+        $vis struct $ident<$($unit,)+>(::std::marker::PhantomData<($($unit,)+)>);
 
-            unsafe impl<$($unit,)*> $crate::bytemuck::Zeroable for $ident<$($unit,)*>
-            where
-                $($unit: $crate::typenum::Integer,)*
-            {}
-            unsafe impl<$($unit,)*> $crate::bytemuck::Pod for $ident<$($unit,)*>
-            where
-                $($unit: $crate::typenum::Integer,)*
-            {}
-            #[automatically_derived]
-            impl<$([<$unit 1>], [<$unit 2>],)*> ::std::ops::Add<$ident<$([<$unit 2>],)*>>
-                for $ident<$([<$unit 1>],)*>
-            where
-                $(
-                    [<$unit 1>]: $crate::typenum::Integer + ::std::ops::Add<[<$unit 2>]>,
-                    [<$unit 2>]: $crate::typenum::Integer,
-                    [<$unit 1>]::Output: $crate::typenum::Integer,
-                )*
-            {
-                type Output = $ident<$([<$unit 1>]::Output,)*>;
-                /// This trait implementation is solely used as trait bounds in `UnitVal` and the method isn't actually called
-                fn add(
-                    self,
-                    _rhs: $ident<$([<$unit 2>],)*>,
-                ) -> Self::Output {
-                    ::std::panic!("Not implemented")
-                }
-            }
-            #[automatically_derived]
-            impl<$([<$unit 1>], [<$unit 2>],)*> ::std::ops::Sub<$ident<$([<$unit 2>],)*>>
-                for $ident<$([<$unit 1>],)*>
-            where
-                $(
-                    [<$unit 1>]: $crate::typenum::Integer + ::std::ops::Sub<[<$unit 2>]>,
-                    [<$unit 2>]: $crate::typenum::Integer,
-                    [<$unit 1>]::Output: $crate::typenum::Integer,
-                )*
-            {
-                type Output = $ident<$([<$unit 1>]::Output,)*>;
-                /// This trait implementation is solely used as trait bounds in `UnitVal` and the method isn't actually called
-                fn sub(
-                    self,
-                    _rhs: $ident<$([<$unit 2>],)*>,
-                ) -> Self::Output {
-                    ::std::panic!("Not implemented")
-                }
-            }
-            #[automatically_derived]
-            impl<$($unit,)* Value> ::std::ops::Mul<Value> for $ident<$($unit,)*>
-            where
-                $(
-                    $unit: $crate::typenum::Integer + ::std::ops::Mul<Value>,
-                    $unit::Output: $crate::typenum::Integer,
-                )*
-            {
-                type Output = $ident<$($unit::Output,)*>;
-                /// This trait implementation is solely used as trait bounds in `UnitVal` and the method isn't actually called
-                fn mul(self, _rhs: Value) -> Self::Output {
-                    ::std::panic!("Not implemented")
-                }
-            }
-            #[automatically_derived]
-            impl<$($unit,)* Value> ::std::ops::Div<Value> for $ident<$($unit,)*>
-            where
-                $(
-                    $unit: $crate::typenum::Integer + ::std::ops::Div<Value>,
-                    $unit::Output: $crate::typenum::Integer,
-                )*
-            {
-                type Output = $ident<$($unit::Output,)*>;
-                /// This trait implementation is solely used as trait bounds in `UnitVal` and the method isn't actually called
-                fn div(self, _rhs: Value) -> Self::Output {
-                    ::std::panic!("Not implemented")
-                }
-            }
-            #[automatically_derived]
-            impl<$($unit,)* Value> ::std::ops::Rem<Value> for $ident<$($unit,)*>
-            where
-                $(
-                    $unit: $crate::typenum::Integer + ::std::ops::Rem<Value>,
-                    $unit::Output: $crate::typenum::Integer,
-                )*
-            {
-                type Output = $ident<$($unit::Output,)*>;
-                /// This trait implementation is solely used as trait bounds in `UnitVal` and the method isn't actually called
-                fn rem(self, _rhs: Value) -> Self::Output {
-                    ::std::panic!("Not implemented")
-                }
-            }
-            #[automatically_derived]
-            impl<$([<$unit 1>], [<$unit 2>],)*> $crate::typenum::IsEqual<$ident<$([<$unit 2>],)*>>
-                for $ident<$([<$unit 1>],)*>
-            where
-                $(
-                    [<$unit 1>]: $crate::typenum::Integer + $crate::typenum::IsEqual<[<$unit 2>], Output=$crate::typenum::True>,
-                    [<$unit 2>]: $crate::typenum::Integer,
-                )*
+        $vis mod [<$ident:snake _units>] {
+            use super::*;
+            $crate::__unit_type_aliases!($vis $ident | $($unit)+);
 
-            {
-                type Output = $crate::typenum::True;
+            $($($crate::create_unit_system!(@impl @$seconds $unit);)?)+
+        }
 
-                /// This trait implementation is solely used as trait bounds in `UnitVal` and the method isn't actually called
-                fn is_equal(self, _rhs: $ident<$([<$unit 2>],)*>) -> Self::Output {
-                    panic!("Not implemented")
-                }
+        unsafe impl<$($unit,)+> $crate::bytemuck::Zeroable for $ident<$($unit,)+>
+        where
+            $($unit: $crate::typenum::Integer,)+
+        {}
+        unsafe impl<$($unit,)+> $crate::bytemuck::Pod for $ident<$($unit,)+>
+        where
+            $($unit: $crate::typenum::Integer,)+
+        {}
+        #[automatically_derived]
+        impl<$([<$unit 1>], [<$unit 2>],)+> ::std::ops::Add<$ident<$([<$unit 2>],)+>>
+            for $ident<$([<$unit 1>],)+>
+        where
+            $(
+                [<$unit 1>]: $crate::typenum::Integer + ::std::ops::Add<[<$unit 2>]>,
+                [<$unit 2>]: $crate::typenum::Integer,
+                [<$unit 1>]::Output: $crate::typenum::Integer,
+            )+
+        {
+            type Output = $ident<$([<$unit 1>]::Output,)+>;
+            /// This trait implementation is solely used as trait bounds in `UnitVal` and the method isn't actually called
+            fn add(
+                self,
+                _rhs: $ident<$([<$unit 2>],)+>,
+            ) -> Self::Output {
+                ::std::panic!("Not implemented")
             }
         }
-    };
+        #[automatically_derived]
+        impl<$([<$unit 1>], [<$unit 2>],)+> ::std::ops::Sub<$ident<$([<$unit 2>],)+>>
+            for $ident<$([<$unit 1>],)+>
+        where
+            $(
+                [<$unit 1>]: $crate::typenum::Integer + ::std::ops::Sub<[<$unit 2>]>,
+                [<$unit 2>]: $crate::typenum::Integer,
+                [<$unit 1>]::Output: $crate::typenum::Integer,
+            )+
+        {
+            type Output = $ident<$([<$unit 1>]::Output,)+>;
+            /// This trait implementation is solely used as trait bounds in `UnitVal` and the method isn't actually called
+            fn sub(
+                self,
+                _rhs: $ident<$([<$unit 2>],)+>,
+            ) -> Self::Output {
+                ::std::panic!("Not implemented")
+            }
+        }
+        #[automatically_derived]
+        impl<$($unit,)+ Value> ::std::ops::Mul<Value> for $ident<$($unit,)+>
+        where
+            $(
+                $unit: $crate::typenum::Integer + ::std::ops::Mul<Value>,
+                $unit::Output: $crate::typenum::Integer,
+            )+
+        {
+            type Output = $ident<$($unit::Output,)+>;
+            /// This trait implementation is solely used as trait bounds in `UnitVal` and the method isn't actually called
+            fn mul(self, _rhs: Value) -> Self::Output {
+                ::std::panic!("Not implemented")
+            }
+        }
+        #[automatically_derived]
+        impl<$($unit,)+ Value> ::std::ops::Div<Value> for $ident<$($unit,)+>
+        where
+            $(
+                $unit: $crate::typenum::Integer + ::std::ops::Div<Value>,
+                $unit::Output: $crate::typenum::Integer,
+            )+
+        {
+            type Output = $ident<$($unit::Output,)+>;
+            /// This trait implementation is solely used as trait bounds in `UnitVal` and the method isn't actually called
+            fn div(self, _rhs: Value) -> Self::Output {
+                ::std::panic!("Not implemented")
+            }
+        }
+        #[automatically_derived]
+        impl<$($unit,)+ Value> ::std::ops::Rem<Value> for $ident<$($unit,)+>
+        where
+            $(
+                $unit: $crate::typenum::Integer + ::std::ops::Rem<Value>,
+                $unit::Output: $crate::typenum::Integer,
+            )+
+        {
+            type Output = $ident<$($unit::Output,)+>;
+            /// This trait implementation is solely used as trait bounds in `UnitVal` and the method isn't actually called
+            fn rem(self, _rhs: Value) -> Self::Output {
+                ::std::panic!("Not implemented")
+            }
+        }
+        #[automatically_derived]
+        impl<$([<$unit 1>], [<$unit 2>],)+> $crate::typenum::IsEqual<$ident<$([<$unit 2>],)+>>
+            for $ident<$([<$unit 1>],)+>
+        where
+            $(
+                [<$unit 1>]: $crate::typenum::Integer + $crate::typenum::IsEqual<[<$unit 2>], Output=$crate::typenum::True>,
+                [<$unit 2>]: $crate::typenum::Integer,
+            )+
+
+        {
+            type Output = $crate::typenum::True;
+
+            /// This trait implementation is solely used as trait bounds in `UnitVal` and the method isn't actually called
+            fn is_equal(self, _rhs: $ident<$([<$unit 2>],)+>) -> Self::Output {
+                panic!("Not implemented")
+            }
+        }
+    }};
 }
 
 #[cfg(test)]
 mod test {
-    use crate::data_types::UnitVal;
+    use crate::data_types::{ClockExt, UnitVal};
     use fixed::types::I53F11;
+    use pinocchio::sysvars::clock::Clock;
     use typenum::{Diff, Sum, Z0};
 
-    create_unit_system!(struct CreatedUnitSystem<Seconds, Meters, Kilograms>);
+    create_unit_system!(struct CreatedUnitSystem<@seconds Seconds, Meters, Kilograms>);
 
-    create_unit_system!(struct OtherUnitSystem<Seconds, Meters>{
+    create_unit_system!(struct OtherUnitSystem<@seconds Seconds, Meters>{
         impl<Seconds, Meters>: <Seconds, Meters> == CreatedUnitSystem<Seconds, Meters, Z0>
     });
 
@@ -809,5 +826,15 @@ mod test {
         let added = force + force;
         assert_eq!(added, UnitVal::<_, Newtons>::new(Fixed::from(16)));
         // let other = force + speed; // This does not compile
+
+        let clock = Clock {
+            slot: 0,
+            epoch_start_timestamp: 0,
+            epoch: 0,
+            leader_schedule_epoch: 0,
+            unix_timestamp: 145,
+        };
+        let timestamp = clock.unix_timestamp_units();
+        assert_eq!(timestamp, UnitVal::<_, Seconds>::new(145));
     }
 }
