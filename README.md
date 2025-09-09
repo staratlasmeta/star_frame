@@ -90,6 +90,11 @@ pub struct CounterSeeds {
     pub authority: Pubkey,
 }
 
+pub struct CounterThingy {
+    pub thingy: u64,
+
+}
+
 #[derive(Debug)]
 pub struct Authority(Pubkey);
 
