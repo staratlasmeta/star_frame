@@ -582,10 +582,10 @@ macro_rules! __unit_type_aliases {
 }
 
 pub trait ClockExt<Seconds: IsSeconds> {
-    fn unix_timestamp_units(&self) -> UnitVal<i64, Seconds>;
+    fn unix_timestamp_unit(&self) -> UnitVal<i64, Seconds>;
 }
 impl<Seconds: IsSeconds> ClockExt<Seconds> for Clock {
-    fn unix_timestamp_units(&self) -> UnitVal<i64, Seconds> {
+    fn unix_timestamp_unit(&self) -> UnitVal<i64, Seconds> {
         UnitVal::new(self.unix_timestamp)
     }
 }
@@ -834,7 +834,7 @@ mod test {
             leader_schedule_epoch: 0,
             unix_timestamp: 145,
         };
-        let timestamp = clock.unix_timestamp_units();
+        let timestamp = clock.unix_timestamp_unit();
         assert_eq!(timestamp, UnitVal::<_, Seconds>::new(145));
     }
 }
