@@ -354,17 +354,17 @@ pub fn ignore_cfg_module(ident: &Ident, suffix: &str, body: TokenStream) -> Toke
 }
 
 pub fn recurse_type_operator(
-    op: TokenStream,
-    types: &[TokenStream],
-    default: TokenStream,
+    op: &TokenStream,
+    types: &[impl ToTokens],
+    default: &TokenStream,
 ) -> TokenStream {
     let Some((first, rem)) = types.split_first() else {
-        return default;
+        return default.clone();
     };
     if rem.is_empty() {
         return first.to_token_stream();
     }
-    let last = recurse_type_operator(op.clone(), rem, default);
+    let last = recurse_type_operator(op, rem, default);
     quote! { #op<#first, #last> }
 }
 
@@ -457,14 +457,14 @@ mod tests {
 
     #[test]
     fn test_recurse_type_operator() {
-        let pair_tokens = recurse_type_operator(quote!(op), &[quote!(A), quote!(B)], quote!());
+        let pair_tokens = recurse_type_operator(&quote!(op), &[quote!(A), quote!(B)], &quote!());
         let ty: Type = parse_quote!(#pair_tokens);
         assert_eq!(ty, parse_quote!(op<A, B>));
 
         let five_tokens = recurse_type_operator(
-            quote!(op),
+            &quote!(op),
             &[quote!(A), quote!(B), quote!(C), quote!(D), quote!(E)],
-            quote!(),
+            &quote!(),
         );
         let ty: Type = parse_quote!(#five_tokens);
         assert_eq!(ty, parse_quote!(op<A, op<B, op<C, op<D, E>>>>));

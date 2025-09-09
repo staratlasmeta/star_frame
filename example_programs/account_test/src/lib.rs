@@ -1,5 +1,7 @@
 //! This program is used as a testing ground for on chain compute and unsized type behavior
+
 use star_frame::{
+    account_set::modifiers::MaybeMut,
     borsh::{BorshDeserialize, BorshSerialize},
     pinocchio::syscalls::sol_remaining_compute_units,
     prelude::*,
@@ -32,11 +34,11 @@ pub struct Run {
 }
 
 #[derive(AccountSet)]
-pub struct RunAccounts {
+pub struct RunAccounts<const MUT: bool> {
     #[validate(funder)]
     pub funder: Mut<Signer>,
     #[cleanup(arg = NormalizeRent(()))]
-    pub account: Mut<Account<AccountData>>,
+    pub account: MaybeMut<MUT, Account<AccountData>>,
     #[validate(arg = Create((|| MyBorshAccount::default(), &self.funder,)))]
     #[cleanup(arg = NormalizeRent(()))]
     pub borsh_account: Init<Signer<BorshAccount<MyBorshAccount>>>,
@@ -63,7 +65,7 @@ struct ListInner {
 }
 
 #[star_frame_instruction]
-fn Run(accounts: &mut RunAccounts, arg: Run) -> Result<()> {
+fn Run(accounts: &mut RunAccounts<true>, arg: Run) -> Result<()> {
     let mut data = accounts.account.data_mut()?;
     let before = remaining_compute();
     let mut list = data.list();

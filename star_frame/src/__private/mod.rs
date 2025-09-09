@@ -8,7 +8,7 @@ pub mod macro_prelude {
             },
             single_set::{SingleAccountSet, SingleSetMeta},
             AccountSet, AccountSetValidate, CheckKey, ClientAccountSet, CpiAccountSet,
-            DynamicCpiAccountSetLen, ProgramAccount,
+            CpiConstWrapper, DynamicCpiAccountSetLen, ProgramAccount,
         },
         align1::Align1,
         client::MakeInstruction,

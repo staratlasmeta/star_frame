@@ -215,11 +215,10 @@ pub type DynamicCpiAccountSetLen = typenum::U100;
 pub unsafe trait CpiAccountSet {
     /// Whether or not the CPI accounts contains an option (which requires passing in the program info)
     type ContainsOption: typenum::Bit;
-    // type DynamicSize: typenum::Bit;
     /// The minimum information needed to create a list of account infos and metas for a CPI for Self.
     type CpiAccounts: Debug;
     /// The number of accounts this CPI might use. Set to [`DynamicCpiAccountSetLen`] for dynamic
-    type AccountLen;
+    type AccountLen: typenum::Unsigned;
 
     #[rust_analyzer::completions(ignore_flyimport)]
     fn to_cpi_accounts(&self) -> Self::CpiAccounts;
@@ -235,6 +234,42 @@ pub unsafe trait CpiAccountSet {
         index: &mut usize,
         metas: &mut [MaybeUninit<pinocchio::instruction::AccountMeta<'a>>],
     );
+}
+
+/// A helper struct to create distict types to bind CpiAccountSet's associated types to when
+/// a client struct has multiple identical fields
+#[doc(hidden)]
+#[derive(Debug)]
+pub struct CpiConstWrapper<T, const N: usize>(T);
+unsafe impl<T, const N: usize> CpiAccountSet for CpiConstWrapper<T, N>
+where
+    T: CpiAccountSet,
+{
+    type CpiAccounts = T::CpiAccounts;
+    type ContainsOption = T::ContainsOption;
+    type AccountLen = T::AccountLen;
+
+    fn to_cpi_accounts(&self) -> Self::CpiAccounts {
+        unimplemented!()
+    }
+
+    fn write_account_infos<'a>(
+        _program: Option<&'a AccountInfo>,
+        _accounts: &'a Self::CpiAccounts,
+        _index: &mut usize,
+        _infos: &mut [MaybeUninit<&'a AccountInfo>],
+    ) -> Result<()> {
+        unimplemented!()
+    }
+
+    fn write_account_metas<'a>(
+        _program_id: &'a Pubkey,
+        _accounts: &'a Self::CpiAccounts,
+        _index: &mut usize,
+        _metas: &mut [MaybeUninit<PinocchioAccountMeta<'a>>],
+    ) {
+        unimplemented!()
+    }
 }
 
 /// Used to convert an `AccountSet`s [`Self::ClientAccounts`] into a list of [`AccountMeta`]s for an instruction.
