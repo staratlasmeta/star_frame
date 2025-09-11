@@ -47,6 +47,12 @@ jobs:
         id: version
         uses: ./.github/actions/detect-version
 
+      - name: Update CHANGELOG.md
+        run: scripts/update_changelog.sh ${{ steps.version.outputs.version }}
+
+      - name: Update CLI template version
+        run: scripts/update_template_version.sh ${{ steps.version.outputs.version }}
+
       - name: Configure Actions Bot
         uses: ./.github/actions/configure-actions-bot
 
