@@ -34,7 +34,7 @@ pub trait ProgramAccount: HasOwnerProgram {
     #[allow(clippy::inline_always)]
     #[inline(always)]
     fn validate_account_info(info: AccountInfo) -> Result<()> {
-        validate_discriminator::<Self>(info)?;
+        validate_discriminant::<Self>(info)?;
 
         if !info.owner().fast_eq(&Self::OwnerProgram::ID) {
             bail!(
@@ -49,18 +49,18 @@ pub trait ProgramAccount: HasOwnerProgram {
     }
 }
 
-/// Fast discriminator comparison, with fast path unaligned reads for small discriminators.
+/// Fast discriminant comparison, with fast path unaligned reads for small discriminants.
 ///
 /// Adapted from [Typhoon](https://github.com/exotic-markets-labs/typhoon/blob/60c5197cc632f1bce07ba27876669e4ca8580421/crates/accounts/src/discriminator.rs#L8)
 #[allow(clippy::inline_always)]
 #[inline(always)]
-fn validate_discriminator<T: ProgramAccount + ?Sized>(info: AccountInfo) -> Result<()> {
+fn validate_discriminant<T: ProgramAccount + ?Sized>(info: AccountInfo) -> Result<()> {
     // This check should be optimized out
     if size_of::<OwnerProgramDiscriminant<T>>() == 0 {
         return Ok(());
     }
 
-    // Ensure account data is at least the size of the discriminator
+    // Ensure account data is at least the size of the discriminant
     if info.data_len() < size_of::<OwnerProgramDiscriminant<T>>() {
         bail!(
             "Account {} data length {} is less than expected discriminant size {}",
@@ -71,43 +71,40 @@ fn validate_discriminator<T: ProgramAccount + ?Sized>(info: AccountInfo) -> Resu
     }
 
     info.can_borrow_data()?;
-    let discriminator = T::DISCRIMINANT;
-    let discriminator = bytes_of(&discriminator);
-    let disc_ptr = discriminator.as_ptr();
     let data_ptr = info.data_ptr();
 
     // SAFETY:
-    // We've already verified that data.len() >= discriminator.len(),
+    // We've already verified that data.len() >= discriminant.len(),
     // so we know we have at least `len` bytes available for reading (so can cast to slice).
     // Unaligned reads are safe for primitive types on all supported architectures.
     // The pointer casts to smaller integer types (u16, u32, u64) are valid because we're
     // only reading the exact number of bytes specified by `len`.
     let matches = unsafe {
         // We are reading unaligned, so the casts are fine
-        // Choose optimal comparison strategy based on discriminator length
+        // Choose optimal comparison strategy based on discriminant length
         #[allow(clippy::cast_ptr_alignment)]
         #[allow(clippy::cast_ptr_alignment)]
         match size_of::<OwnerProgramDiscriminant<T>>() {
-            1 => *data_ptr == *disc_ptr,
+            1 => *data_ptr == bytemuck::cast::<_, u8>(T::DISCRIMINANT),
             2 => {
                 let data_val = data_ptr.cast::<u16>().read_unaligned();
-                let disc_val = disc_ptr.cast::<u16>().read_unaligned();
+                let disc_val = bytemuck::cast::<_, u16>(T::DISCRIMINANT);
                 data_val == disc_val
             }
             4 => {
                 let data_val = data_ptr.cast::<u32>().read_unaligned();
-                let disc_val = disc_ptr.cast::<u32>().read_unaligned();
+                let disc_val = bytemuck::cast::<_, u32>(T::DISCRIMINANT);
                 data_val == disc_val
             }
             8 => {
                 let data_val = data_ptr.cast::<u64>().read_unaligned();
-                let disc_val = disc_ptr.cast::<u64>().read_unaligned();
+                let disc_val = bytemuck::cast::<_, u64>(T::DISCRIMINANT);
                 data_val == disc_val
             }
             _ => {
                 let data =
                     slice::from_raw_parts(data_ptr, size_of::<OwnerProgramDiscriminant<T>>());
-                data == discriminator
+                data == bytemuck::bytes_of(&T::DISCRIMINANT)
             }
         }
     };
