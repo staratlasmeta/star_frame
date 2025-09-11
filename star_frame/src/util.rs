@@ -65,7 +65,7 @@ pub fn uninit_array_bytes<T: NoUninit, const N: usize>(array: &[T; N]) -> &[u8] 
 
 /// Quicker way to compare 32 bytes.
 ///
-/// From [Typhoon](https://github.com/exotic-markets-labs/typhoon/blob/60c5197cc632f1bce07ba27876669e4ca8580421/crates/accounts/src/utils.rs#L2)
+/// Adapted from [Typhoon](https://github.com/exotic-markets-labs/typhoon/blob/60c5197cc632f1bce07ba27876669e4ca8580421/crates/accounts/src/utils.rs#L2)
 #[inline]
 #[must_use]
 pub fn fast_32_byte_eq(a: &[u8; 32], b: &[u8; 32]) -> bool {
