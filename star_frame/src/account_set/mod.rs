@@ -34,25 +34,7 @@ pub trait ProgramAccount: HasOwnerProgram {
     #[allow(clippy::inline_always)]
     #[inline(always)]
     fn validate_account_info(info: AccountInfo) -> Result<()> {
-        let data = info.account_data()?;
-
-        if data.len() < size_of::<OwnerProgramDiscriminant<Self>>() {
-            bail!(
-                "Account {} data length {} is less than expected discriminant size {}",
-                info.pubkey(),
-                data.len(),
-                size_of::<OwnerProgramDiscriminant<Self>>()
-            );
-        }
-
-        // Choose optimal comparison strategy based on discriminator length
-        if !compare_discriminator(&data, bytes_of(&Self::DISCRIMINANT)) {
-            bail!(
-                "Account {} data does not match expected discriminant for program {}",
-                info.pubkey(),
-                Self::OwnerProgram::ID
-            );
-        }
+        validate_discriminator::<Self>(info)?;
 
         if !info.owner().fast_eq(&Self::OwnerProgram::ID) {
             bail!(
@@ -72,50 +54,72 @@ pub trait ProgramAccount: HasOwnerProgram {
 /// Adapted from [Typhoon](https://github.com/exotic-markets-labs/typhoon/blob/60c5197cc632f1bce07ba27876669e4ca8580421/crates/accounts/src/discriminator.rs#L8)
 #[allow(clippy::inline_always)]
 #[inline(always)]
-#[must_use]
-pub fn compare_discriminator(data: &[u8], discriminator: &[u8]) -> bool {
-    let len = discriminator.len();
-    // Choose optimal comparison strategy based on discriminator length
-    match len {
-        0 => true, // No discriminator to check
-        1..=8 => {
-            // Use unaligned integer reads for small discriminators (most common case)
-            // SAFETY: We've already verified that data.len() >= discriminator.len()
-            // in the caller before calling this function, so we know we have at least
-            // `len` bytes available for reading. Unaligned reads are safe for primitive
-            // types on all supported architectures. The pointer casts to smaller integer
-            // types (u16, u32, u64) are valid because we're only reading the exact number
-            // of bytes specified by `len`.
-            unsafe {
-                // We are reading unaligned, so the casts are fine
-                #[allow(clippy::cast_ptr_alignment)]
-                let data_ptr = data.as_ptr().cast::<u64>();
-                #[allow(clippy::cast_ptr_alignment)]
-                let disc_ptr = discriminator.as_ptr().cast::<u64>();
+pub fn validate_discriminator<T: ProgramAccount + ?Sized>(info: AccountInfo) -> Result<()> {
+    // This check should be optimized out
+    if size_of::<OwnerProgramDiscriminant<T>>() == 0 {
+        return Ok(());
+    }
 
-                match len {
-                    1 => *data.get_unchecked(0) == *discriminator.get_unchecked(0),
-                    2 => {
-                        let data_val = data_ptr.cast::<u16>().read_unaligned();
-                        let disc_val = disc_ptr.cast::<u16>().read_unaligned();
-                        data_val == disc_val
-                    }
-                    4 => {
-                        let data_val = data_ptr.cast::<u32>().read_unaligned();
-                        let disc_val = disc_ptr.cast::<u32>().read_unaligned();
-                        data_val == disc_val
-                    }
-                    8 => {
-                        let data_val = data_ptr.read_unaligned();
-                        let disc_val = disc_ptr.read_unaligned();
-                        data_val == disc_val
-                    }
-                    _ => data[..len] == discriminator[..],
-                }
+    // Ensure account data is at least the size of the discriminator
+    if info.data_len() < size_of::<OwnerProgramDiscriminant<T>>() {
+        bail!(
+            "Account {} data length {} is less than expected discriminant size {}",
+            info.pubkey(),
+            info.data_len(),
+            size_of::<OwnerProgramDiscriminant<T>>()
+        );
+    }
+
+    info.can_borrow_data()?;
+    let discriminator = T::DISCRIMINANT;
+    let discriminator = bytes_of(&discriminator);
+    let disc_ptr = discriminator.as_ptr();
+    let data_ptr = info.data_ptr();
+
+    // SAFETY:
+    // We've already verified that data.len() >= discriminator.len(),
+    // so we know we have at least `len` bytes available for reading (so can cast to slice).
+    // Unaligned reads are safe for primitive types on all supported architectures.
+    // The pointer casts to smaller integer types (u16, u32, u64) are valid because we're
+    // only reading the exact number of bytes specified by `len`.
+    let matches = unsafe {
+        // We are reading unaligned, so the casts are fine
+        #[allow(clippy::cast_ptr_alignment)]
+        #[allow(clippy::cast_ptr_alignment)]
+        // Choose optimal comparison strategy based on discriminator length
+        match size_of::<OwnerProgramDiscriminant<T>>() {
+            1 => *data_ptr == *disc_ptr,
+            2 => {
+                let data_val = data_ptr.cast::<u16>().read_unaligned();
+                let disc_val = disc_ptr.cast::<u16>().read_unaligned();
+                data_val == disc_val
+            }
+            4 => {
+                let data_val = data_ptr.cast::<u32>().read_unaligned();
+                let disc_val = disc_ptr.cast::<u32>().read_unaligned();
+                data_val == disc_val
+            }
+            8 => {
+                let data_val = data_ptr.cast::<u64>().read_unaligned();
+                let disc_val = disc_ptr.cast::<u64>().read_unaligned();
+                data_val == disc_val
+            }
+            _ => {
+                let data =
+                    slice::from_raw_parts(data_ptr, size_of::<OwnerProgramDiscriminant<T>>());
+                data == discriminator
             }
         }
-        _ => data[..len] == discriminator[..],
+    };
+    if !matches {
+        bail!(
+            "Account {} data does not match expected discriminant for program {}",
+            info.pubkey(),
+            T::OwnerProgram::ID
+        );
     }
+
+    Ok(())
 }
 
 /// Convenience methods for decoding and validating a list of [`AccountInfo`]s to an [`AccountSet`].
