@@ -84,9 +84,9 @@ fn validate_discriminator<T: ProgramAccount + ?Sized>(info: AccountInfo) -> Resu
     // only reading the exact number of bytes specified by `len`.
     let matches = unsafe {
         // We are reading unaligned, so the casts are fine
-        #[allow(clippy::cast_ptr_alignment)]
-        #[allow(clippy::cast_ptr_alignment)]
         // Choose optimal comparison strategy based on discriminator length
+        #[allow(clippy::cast_ptr_alignment)]
+        #[allow(clippy::cast_ptr_alignment)]
         match size_of::<OwnerProgramDiscriminant<T>>() {
             1 => *data_ptr == *disc_ptr,
             2 => {
