@@ -54,7 +54,7 @@ pub trait ProgramAccount: HasOwnerProgram {
 /// Adapted from [Typhoon](https://github.com/exotic-markets-labs/typhoon/blob/60c5197cc632f1bce07ba27876669e4ca8580421/crates/accounts/src/discriminator.rs#L8)
 #[allow(clippy::inline_always)]
 #[inline(always)]
-pub fn validate_discriminator<T: ProgramAccount + ?Sized>(info: AccountInfo) -> Result<()> {
+fn validate_discriminator<T: ProgramAccount + ?Sized>(info: AccountInfo) -> Result<()> {
     // This check should be optimized out
     if size_of::<OwnerProgramDiscriminant<T>>() == 0 {
         return Ok(());
