@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- New unit system functions including checked math, overflow, and fixed support.
-- `ClockExt` for unit system timestamps.
+- New unit system functions including checked math, overflow, and fixed support (#255).
+- `ClockExt` for unit system timestamps (#255).
 
 ## [0.25.1] - 2025-09-11
 
