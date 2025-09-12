@@ -90,7 +90,7 @@ use typenum::{IsEqual, Mod, True, Unsigned, P2, Z0};
 /// // Compile error
 /// let invalid = florps_per_glorp + glorps;
 /// # }
-#[derive(Serialize, Deserialize, Align1)]
+#[derive(Serialize, Deserialize, Align1, BorshSerialize, BorshDeserialize)]
 #[derive_where(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default; T)]
 #[serde(bound(serialize = "T: Serialize", deserialize = "T: Deserialize<'de>"))]
 #[serde(transparent)]

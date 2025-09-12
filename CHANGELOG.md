@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - New unit system functions including checked math, overflow, and fixed support (#255).
 - `ClockExt` for unit system timestamps (#255).
 - `normalize_rent` alias for `AccountSet` `cleanup`
+- Added `anyhow::Context` to prelude
 
 ## [0.25.1] - 2025-09-11
 
