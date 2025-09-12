@@ -13,7 +13,7 @@ use crate::{
     Result,
 };
 use advancer::Advance;
-use anyhow::{bail, Context};
+use eyre::{bail, Context};
 use derive_more::{Deref, DerefMut};
 use ptr_meta::Pointee;
 use star_frame_proc::unsized_impl;

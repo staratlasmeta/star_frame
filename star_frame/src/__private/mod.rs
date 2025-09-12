@@ -53,7 +53,7 @@ pub mod macro_prelude {
     pub use star_frame_proc::{sighash, zero_copy, InstructionToIdl, TypeToIdl};
 
     pub use advancer::{Advance, AdvanceArray};
-    pub use anyhow::{self, bail};
+    pub use eyre::{self, bail};
     pub use core::any::type_name;
     pub use derive_where::DeriveWhere;
     pub use pinocchio::{

@@ -30,6 +30,7 @@ pub use crate::{
         ClockExt, GetKeyFor as _, GetOptionalKeyFor as _, KeyFor, OptionalKeyFor, OptionalPubkey,
         PackedValue, SetKeyFor as _, UnitVal,
     },
+    ensure_eq, ensure_ne,
     instruction::{
         star_frame_instruction, InstructionArgs, InstructionDiscriminant as _, InstructionSet,
         StarFrameInstruction,
@@ -45,7 +46,7 @@ pub use crate::{
 pub use star_frame_proc::{zero_copy, InstructionToIdl, TypeToIdl};
 
 // Solana stuff
-pub use anyhow::{anyhow, bail};
+pub use eyre::{bail, ensure, eyre};
 pub use pinocchio::{
     account_info::AccountInfo, instruction::AccountMeta as PinocchioAccountMeta, msg,
     program_error::ProgramError, ProgramResult,

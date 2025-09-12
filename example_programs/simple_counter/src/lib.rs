@@ -1,4 +1,4 @@
-use star_frame::{anyhow::ensure, prelude::*};
+use star_frame::{eyre::ensure, prelude::*};
 
 #[derive(StarFrameProgram)]
 #[program(
