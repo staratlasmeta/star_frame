@@ -4,8 +4,6 @@
 //! It represents account sets that contain exactly one account and provides the base functionality
 //! that modifier types like `Signer<T>`, `Mut<T>`, and `Account<T>` build upon.
 
-use std::cmp::Ordering;
-
 use crate::{
     account_set::{
         modifiers::{HasOwnerProgram, OwnerProgramDiscriminant, SignedAccount, WritableAccount},
@@ -15,8 +13,9 @@ use crate::{
     prelude::*,
     program::system,
 };
-use anyhow::Context as _;
+use eyre::WrapErr;
 use pinocchio::account_info::{Ref, RefMut};
+use std::cmp::Ordering;
 
 /// Metadata associated with a single account, describing its mutability and signing requirements.
 #[derive(Debug, Clone, Copy)]
@@ -257,7 +256,7 @@ where
             Ordering::Equal => Ok(()),
             Ordering::Greater => {
                 if lamports > 0 {
-                    Err(anyhow!(
+                    Err(eyre!(
                         "Tried to refund rent from {} but does not have enough lamports to cover rent",
                         account.pubkey()
                     ))

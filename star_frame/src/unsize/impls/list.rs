@@ -16,11 +16,11 @@ use crate::{
     Result,
 };
 use advancer::Advance;
-use anyhow::{bail, ensure, Context};
 use bytemuck::{
     bytes_of, cast_slice, cast_slice_mut, checked, from_bytes, CheckedBitPattern, NoUninit, Pod,
     Zeroable,
 };
+use eyre::{bail, ensure, eyre, Context, ContextCompat};
 use itertools::Itertools;
 use num_traits::{FromPrimitive, ToPrimitive, Zero};
 use ptr_meta::Pointee;
@@ -391,18 +391,18 @@ where
             format!(
                 "Failed to read length bytes of size {} for {}",
                 size_of::<L>(),
-                std::any::type_name::<Self>()
+                type_name::<Self>()
             )
         })?;
         let len_l = from_bytes::<PackedValue<L>>(length_bytes);
         let length = len_l
             .to_usize()
-            .ok_or_else(|| anyhow::anyhow!("Could not convert list size to usize"))?;
+            .context("Could not convert list size to usize")?;
         data.try_advance(size_of::<T>() * length).with_context(|| {
             format!(
                 "Failed to read list elements of total size {} for {}",
                 size_of::<T>() * length,
-                std::any::type_name::<Self>()
+                type_name::<Self>()
             )
         })?;
         Ok(ListRef(
@@ -416,7 +416,7 @@ where
             format!(
                 "Failed to read length bytes of size {} for {}",
                 size_of::<L>(),
-                std::any::type_name::<Self>()
+                type_name::<Self>()
             )
         })?;
         // SAFETY:
@@ -424,12 +424,12 @@ where
         let len_l: L = bytemuck::try_pod_read_unaligned(unsafe { &*len_ptr })?;
         let length = len_l
             .to_usize()
-            .ok_or_else(|| anyhow::anyhow!("Could not convert list size to usize"))?;
+            .ok_or_else(|| eyre!("Could not convert list size to usize"))?;
         data.try_advance(size_of::<T>() * length).with_context(|| {
             format!(
                 "Failed to read mutable list elements of total size {} for {}",
                 size_of::<T>() * length,
-                std::any::type_name::<Self>()
+                type_name::<Self>()
             )
         })?;
         Ok(ListMut(

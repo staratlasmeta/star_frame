@@ -11,7 +11,7 @@ use crate::{
     unsize::{init::UnsizedInit, FromOwned, UnsizedTypeMut},
     Result,
 };
-use anyhow::ensure;
+use eyre::ensure;
 use core::ptr;
 use derive_more::{Debug, Deref, DerefMut};
 use pinocchio::account_info::AccountInfo;

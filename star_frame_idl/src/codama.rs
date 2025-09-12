@@ -6,7 +6,6 @@ use crate::{
     ty::{IdlEnumVariant, IdlTypeDef},
     IdlDefinition, IdlDiscriminant, ItemDescription, ItemInfo,
 };
-use anyhow::{bail, Context, Result};
 use codama_nodes::{
     AccountNode, AccountValueNode, ArgumentValueNode, ArrayTypeNode, BooleanTypeNode,
     BytesTypeNode, BytesValueNode, CamelCaseString, ConstantPdaSeedNode, DefaultValueStrategy,
@@ -20,6 +19,7 @@ use codama_nodes::{
     VariablePdaSeedNode,
 };
 pub use codama_nodes::{NodeTrait, ProgramNode};
+use eyre::{bail, OptionExt, Result, WrapErr};
 use itertools::Itertools;
 
 impl ItemInfo {
@@ -64,7 +64,7 @@ fn discriminator_info(discriminant: &IdlDiscriminant) -> (StructFieldTypeNode, D
 }
 
 impl TryFrom<IdlDefinition> for ProgramNode {
-    type Error = anyhow::Error;
+    type Error = eyre::Error;
 
     fn try_from(def: IdlDefinition) -> Result<Self, Self::Error> {
         let ctx = &mut TryToCodamaContext;
@@ -84,7 +84,7 @@ impl TryFrom<IdlDefinition> for ProgramNode {
                 !def.accounts.contains_key(*source) && !def.instructions.contains_key(*source)
             })
             .map(|(_source, idl_type)| {
-                anyhow::Ok(DefinedTypeNode {
+                eyre::Ok(DefinedTypeNode {
                     name: idl_type.info.codama_name(),
                     docs: idl_type.info.codama_docs(),
                     r#type: idl_type.type_def.try_to_codama(&def, ctx)?,
@@ -406,7 +406,7 @@ impl TryToCodama<(AccountNode, Option<PdaNode>)> for IdlAccount {
             .seeds
             .as_ref()
             .map(|seeds| {
-                anyhow::Ok(PdaNode {
+                eyre::Ok(PdaNode {
                     name: info.codama_name(),
                     docs: info.codama_docs(),
                     program_id: None,
@@ -501,8 +501,8 @@ impl TryToCodama<TypeNode> for IdlTypeDef {
                         fields
                             .iter()
                             .map(|f|{
-                                anyhow::Ok(StructFieldTypeNode {
-                                    name: f.path.clone().with_context(||format!("Missing name on named field for struct {self:?}"))?.into(),
+                                eyre::Ok(StructFieldTypeNode {
+                                    name: f.path.clone().ok_or_eyre(format!("Missing name on named field for struct {self:?}"))?.into(),
                                     default_value_strategy: None,
                                     docs: f.description.clone().into(),
                                     r#type: f.type_def.try_to_codama(idl_def, _context)?,

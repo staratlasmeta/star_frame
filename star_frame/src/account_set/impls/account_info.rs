@@ -10,7 +10,7 @@ use crate::{
     prelude::*,
 };
 use advancer::AdvanceArray;
-use anyhow::Context as _;
+use eyre::WrapErr;
 
 impl SingleAccountSet for AccountInfo {
     #[inline]

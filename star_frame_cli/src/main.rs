@@ -14,7 +14,7 @@ struct Cli {
     command: CliCommand,
 }
 
-fn main() -> anyhow::Result<()> {
+fn main() -> eyre::Result<()> {
     let cli = Cli::parse();
     match cli.command {
         CliCommand::New(args) => new_project(args),

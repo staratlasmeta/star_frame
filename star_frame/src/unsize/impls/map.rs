@@ -156,7 +156,7 @@ where
             if self.insert(key, value)?.is_none() {
                 count += 1;
             }
-            anyhow::Ok(())
+            eyre::Ok(())
         })?;
         Ok(count)
     }

@@ -12,8 +12,8 @@ use crate::{
     unsize::{init::UnsizedInit, wrapper::SharedWrapper},
 };
 use advancer::Advance;
-use anyhow::Context as _;
 use bytemuck::bytes_of;
+use eyre::{ContextCompat as _, WrapErr};
 use std::marker::PhantomData;
 
 /// Increases or decreases the rent of self to be the minimum required using [`CanModifyRent::normalize_rent`](crate::account_set::CanModifyRent::normalize_rent).
@@ -154,6 +154,7 @@ pub mod discriminant {
         account_set::modifiers::OwnerProgramDiscriminant,
         unsize::{init::UnsizedInit, FromOwned, RawSliceAdvance},
     };
+    use eyre::WrapErr;
 
     use super::*;
     #[derive(Debug)]

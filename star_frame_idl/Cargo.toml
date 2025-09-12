@@ -18,7 +18,7 @@ codama = ["codama-nodes", "hex"]
 # verifier
 codama-nodes = { workspace = true, optional = true }
 hex = { workspace = true, optional = true }
-anyhow = { workspace = true }
+eyre = { workspace = true }
 derive_more = { workspace = true }
 serde = { workspace = true }
 solana-pubkey = { workspace = true }

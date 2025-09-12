@@ -1,13 +1,11 @@
 use std::{cmp::Reverse, fmt::Display};
 
-use star_frame::{
-    anyhow::{ensure, Context as _},
-    prelude::*,
-};
+use star_frame::{eyre::ensure, prelude::*};
 
 create_unit_system!(pub struct MarketplaceUnitSystem<Currency>);
 
 use marketplace_unit_system_units::{Currency, Unitless};
+use star_frame::eyre::ContextCompat;
 use star_frame_spl::token::state::MintAccount;
 
 pub type Price = UnitVal<PackedValue<u64>, Currency>;

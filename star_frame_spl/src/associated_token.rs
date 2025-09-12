@@ -127,8 +127,8 @@ mod idl_impl {
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
 pub use idl_impl::*;
 use star_frame::{
-    anyhow::bail,
     derive_more::{Deref, DerefMut},
+    eyre::bail,
 };
 
 pub mod instructions {
@@ -224,8 +224,8 @@ pub mod state {
             modifiers::{CanInitAccount, CanInitSeeds},
             AccountSetValidate, CanFundRent,
         },
-        anyhow::Context as _,
         data_types::{GetKeyFor, GetOptionalKeyFor},
+        eyre::ContextCompat as _,
     };
 
     use super::*;

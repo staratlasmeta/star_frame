@@ -586,7 +586,7 @@ impl UnsizedEnumContext {
                 fn get_ref<#top_lt>(data: &mut &#top_lt [u8]) -> #result<Self::Ref<#top_lt>> {
                     #(const #discriminant_consts: #integer_repr = #discriminant_ident::#variant_idents as #integer_repr;)*
                     let maybe_repr_bytes_ptr = #prelude::AdvanceArray::try_advance_array(data);
-                    let repr_bytes_ptr = #prelude::anyhow::Context::with_context(maybe_repr_bytes_ptr, || format!("Not enough bytes to get enum discriminant of {}", #prelude::type_name::<#enum_type>()))?;
+                    let repr_bytes_ptr = #prelude::eyre::Context::with_context(maybe_repr_bytes_ptr, || format!("Not enough bytes to get enum discriminant of {}", #prelude::type_name::<#enum_type>()))?;
                     let repr: #integer_repr = <#integer_repr>::from_le_bytes(*repr_bytes_ptr);
                     match repr {
                         #(
@@ -601,7 +601,7 @@ impl UnsizedEnumContext {
                     #(const #discriminant_consts: #integer_repr = #discriminant_ident::#variant_idents as #integer_repr;)*
                     let start_ptr = data.cast::<()>();
                     let maybe_repr_bytes = #prelude::RawSliceAdvance::try_advance(data, #size_of::<#integer_repr>());
-                    let repr_ptr = #prelude::anyhow::Context::with_context(maybe_repr_bytes, || format!("Not enough bytes to get enum discriminant of {}", #prelude::type_name::<#enum_type>()))?;
+                    let repr_ptr = #prelude::eyre::Context::with_context(maybe_repr_bytes, || format!("Not enough bytes to get enum discriminant of {}", #prelude::type_name::<#enum_type>()))?;
                     let repr_bytes = unsafe { repr_ptr.cast::<[u8; #size_of::<#integer_repr>()]>().read() };
                     let repr: #integer_repr = <#integer_repr>::from_le_bytes(repr_bytes);
                     let res = match repr {

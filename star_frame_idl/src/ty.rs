@@ -1,7 +1,7 @@
 use crate::{
     IdlDefinition, IdlDiscriminant, IdlGeneric, IdlNamespace, ItemDescription, ItemInfo, ItemSource,
 };
-use anyhow::{bail, Context};
+use eyre::{bail, OptionExt};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -92,18 +92,15 @@ pub enum IdlTypeDef {
 }
 
 impl IdlTypeId {
-    pub fn get_defined<'a>(
-        &self,
-        idl_definition: &'a IdlDefinition,
-    ) -> anyhow::Result<&'a IdlType> {
+    pub fn get_defined<'a>(&self, idl_definition: &'a IdlDefinition) -> eyre::Result<&'a IdlType> {
         idl_definition
             .get_type(&self.source)
-            .context("Type not found in idl definition")
+            .ok_or_eyre("Type not found in idl definition")
     }
 }
 
 impl IdlTypeDef {
-    pub fn assert_defined(&self) -> anyhow::Result<&IdlTypeId> {
+    pub fn assert_defined(&self) -> eyre::Result<&IdlTypeId> {
         match self {
             IdlTypeDef::Defined(ref type_id) => Ok(type_id),
             _ => bail!("Expected defined type, found {:?}", self),

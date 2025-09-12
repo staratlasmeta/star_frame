@@ -4,8 +4,8 @@ use crate::{
     account_set::{AccountSetCleanup, AccountSetDecode, AccountSetValidate},
     prelude::*,
 };
-use anyhow::Context as _;
 use bytemuck::{bytes_of, Pod};
+use eyre::WrapErr;
 use pinocchio::cpi::set_return_data;
 
 pub use star_frame_proc::{

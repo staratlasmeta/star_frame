@@ -145,7 +145,7 @@ where
             if self.insert(value)? {
                 count += 1;
             }
-            anyhow::Ok(())
+            eyre::Ok(())
         })?;
         Ok(count)
     }

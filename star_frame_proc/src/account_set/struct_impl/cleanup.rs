@@ -158,7 +158,7 @@ pub(super) fn cleanups(
                 ) -> #result<()> {
                     #(
                         let __arg = #cleanup_args;
-                        #prelude::anyhow::Context::context(#prelude::_account_set_cleanup_reverse::<#field_type, _>(
+                        #prelude::eyre::Context::context(#prelude::_account_set_cleanup_reverse::<#field_type, _>(
                             __arg,
                             &mut self.#field_name,
                             ctx,

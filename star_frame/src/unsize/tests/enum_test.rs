@@ -2,7 +2,7 @@ use crate::{
     prelude::*,
     unsize::{test_helpers::TestByteSet, TestUnderlyingData},
 };
-use anyhow::{bail, ensure};
+use eyre::{bail, ensure};
 
 #[unsized_type(skip_idl)]
 pub struct Unsized1 {
