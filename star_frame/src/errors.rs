@@ -38,7 +38,7 @@ macro_rules! ensure_ne {
 
         let left = $left;
         let right = $right;
-        if left != right {
+        if left == right {
             return Err(eyre!($message))
                 .with_context(|| format!("expected to not be {:?}, found {:?}", right, left))
                 .into();
