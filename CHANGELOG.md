@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ClockExt` for unit system timestamps (#255).
 - `normalize_rent` alias for `AccountSet` `cleanup`
 - Changed from `anyhow` to `eyre`
+- Added `borsh` to `UnitVal`
 
 ## [0.25.1] - 2025-09-11
 
