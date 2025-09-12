@@ -27,7 +27,7 @@ pub use crate::{
     cpi::MakeCpi as _,
     create_unit_system,
     data_types::{
-        GetKeyFor as _, GetOptionalKeyFor as _, KeyFor, OptionalKeyFor, OptionalPubkey,
+        ClockExt, GetKeyFor as _, GetOptionalKeyFor as _, KeyFor, OptionalKeyFor, OptionalPubkey,
         PackedValue, SetKeyFor as _, UnitVal,
     },
     instruction::{
