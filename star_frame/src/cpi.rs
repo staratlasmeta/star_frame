@@ -212,7 +212,6 @@ macro_rules! impl_handle_cpi_array {
                     #[inline(always)]
                     fn uninit_infos<'a>() -> Self::Arr<&'a AccountInfo> {
                         [const { MaybeUninit::uninit() }; $n]
-
                     }
                     #[inline(always)]
                     fn uninit_metas<'a>() -> Self::Arr<PinocchioAccountMeta<'a>> {
