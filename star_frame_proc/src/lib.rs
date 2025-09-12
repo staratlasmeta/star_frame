@@ -140,6 +140,7 @@ use syn::{
 /// Pass arguments to field cleanup:
 /// - `id = <str>` - Which cleanup variant this field participates in, to enable multiple `AccountSetCleanup` implementations
 /// - `arg = <expr>` - Argument to pass to the field's `AccountSetCleanup` function
+/// - `normalize_rent` - Mutually exclusive with `arg`, alias for `arg = NormalizeRent(())`
 ///
 /// ## `#[idl(id = <str>, arg = <expr>, address = <expr>)]`
 ///

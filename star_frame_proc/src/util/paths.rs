@@ -41,6 +41,7 @@ pub struct Paths {
     pub result: TokenStream,
     pub instruction: TokenStream,
     pub declared_program_type: Type,
+    pub normalize_rent: TokenStream,
     // idents
     pub account_set_ident: Ident,
     pub decode_ident: Ident,
@@ -109,6 +110,7 @@ impl Default for Paths {
             instruction: quote! { #crate_name::instruction::Instruction },
             // program
             declared_program_type: parse_quote! { crate::StarFrameDeclaredProgram },
+            normalize_rent: parse_quote! { #crate_name::account_set::account::NormalizeRent },
             // idents
             account_set_ident: format_ident!("account_set"),
             decode_ident: format_ident!("decode"),

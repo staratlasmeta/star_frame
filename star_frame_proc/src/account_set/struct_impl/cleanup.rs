@@ -22,7 +22,9 @@ struct CleanupStructArgs {
 #[derive(ArgumentList)]
 struct CleanupFieldArgs {
     id: Option<LitStr>,
-    arg: Expr,
+    arg: Option<Expr>,
+    #[argument(presence)]
+    normalize_rent: bool,
 }
 
 pub(super) fn cleanups(
@@ -45,6 +47,7 @@ pub(super) fn cleanups(
         cleanup_ident,
         prelude,
         account_set_cleanup,
+        normalize_rent,
         ..
     } = paths;
 
@@ -73,13 +76,13 @@ pub(super) fn cleanups(
         .iter()
         .map(|f| {
             find_attrs(&f.attrs, cleanup_ident)
-                .map(CleanupFieldArgs::parse_arguments)
+                .map(|a| (a, CleanupFieldArgs::parse_arguments(a)))
                 .collect::<Vec<_>>()
         })
         .collect::<Vec<_>>();
     for field_cleanup in &field_cleanups {
         let mut field_ids = HashSet::new();
-        for cleanup_field_arg in field_cleanup {
+        for (_, cleanup_field_arg) in field_cleanup {
             if !cleanup_ids.contains_key(&cleanup_field_arg.id.as_ref().map(LitStr::value)) {
                 abort!(
                     cleanup_field_arg.id,
@@ -123,10 +126,16 @@ pub(super) fn cleanups(
         let cleanup_args: Vec<Expr> = field_cleanups
             .iter()
             .map(|f| {
-                f.iter()
-                    .find(|f| f.id.as_ref().map(LitStr::value) == id)
-                    .map(|f| f.arg.clone())
-                    .unwrap_or_else(|| default_cleanup_arg.clone())
+                let found = f.iter()
+                    .find(|(_, f)| f.id.as_ref().map(LitStr::value) == id);
+
+                match found {
+                    Some((_, CleanupFieldArgs{ arg: Some(arg), normalize_rent: false, .. })) => arg.clone(),
+                    Some((_, CleanupFieldArgs{ arg: None, normalize_rent: true, .. })) => syn::parse_quote!{ #normalize_rent::<()>(()) },
+                    Some((a , CleanupFieldArgs{ arg: Some(_), normalize_rent: true, .. })) => abort!(a, "Cannot provide both `arg` and `normalize_rent`"),
+                    Some((a, CleanupFieldArgs{ arg: None, normalize_rent: false, .. })) => abort!(a, "Must provide either `arg` or `normalize_rent`"),
+                    None => default_cleanup_arg.clone()
+                }
             }).collect();
 
         let (impl_generics, _, where_clause) = generics.split_for_impl();
