@@ -16,9 +16,9 @@ use crate::{
     Result,
 };
 use advancer::{Advance, AdvanceArray};
-use anyhow::{bail, ensure, Context};
 use bytemuck::{bytes_of, cast_slice_mut, Pod, Zeroable};
 use core::slice;
+use eyre::{bail, ensure, Context, ContextCompat};
 use itertools::Itertools;
 use num_traits::ToPrimitive;
 use ptr_meta::Pointee;
@@ -158,7 +158,7 @@ where
             .try_for_each(|((item, init), offset_item)| {
                 *offset_item = C::from_usize_offset(unsized_bytes_written, init)?;
                 unsized_bytes_written += T::from_owned(item, bytes)?;
-                anyhow::Ok(())
+                eyre::Ok(())
             })?;
 
         *unsized_size_bytes = u32::try_from(unsized_bytes_written)?.to_le_bytes();

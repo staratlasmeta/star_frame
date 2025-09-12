@@ -161,7 +161,7 @@ pub(super) fn decodes(
         let decode_inner = init(&mut decode_field_ty.iter().zip_eq(all_field_name).zip_eq(&decode_args).map(|((field_ty, field_name), decode_args)| {
             match &field_ty {
                 DecodeFieldTy::Type(field_type) => quote! {
-                    #prelude::anyhow::Context::context(
+                    #prelude::eyre::Context::context(
                         <#field_type as #account_set_decode<#decode_lifetime, _>>::decode_accounts(accounts, #decode_args, ctx),
                         ::std::stringify!(#ident::#field_name(#id)),
                     )?

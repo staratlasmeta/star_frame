@@ -616,7 +616,7 @@ mod idl {
     impl<T: TypeToIdl, Unit> TypeToIdl for UnitVal<T, Unit> {
         type AssociatedProgram = T::AssociatedProgram;
 
-        fn type_to_idl(idl_definition: &mut IdlDefinition) -> anyhow::Result<IdlTypeDef> {
+        fn type_to_idl(idl_definition: &mut IdlDefinition) -> eyre::Result<IdlTypeDef> {
             T::type_to_idl(idl_definition)
         }
     }

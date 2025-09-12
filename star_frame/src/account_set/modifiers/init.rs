@@ -8,8 +8,8 @@ use crate::{
     account_set::modifiers::{CanInitAccount, CanInitSeeds},
     prelude::*,
 };
-use anyhow::Context as _;
 use derive_more::{Deref, DerefMut};
+use eyre::WrapErr;
 
 /// A modifier that handles account initialization and creation during instruction execution.
 ///
@@ -81,7 +81,7 @@ pub struct CreateIfNeeded<T>(pub T);
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
 mod idl_impl {
     use super::*;
-    use anyhow::bail;
+    use eyre::bail;
     use star_frame::idl::AccountSetToIdl;
     use star_frame_idl::{account_set::IdlAccountSetDef, IdlDefinition};
 

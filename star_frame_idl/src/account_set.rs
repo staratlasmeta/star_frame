@@ -2,7 +2,7 @@ use crate::{
     account::IdlAccountId, seeds::IdlFindSeeds, serde_base58_pubkey_option, ty::IdlTypeDef,
     IdlDefinition, IdlGeneric, ItemDescription, ItemInfo, ItemSource,
 };
-use anyhow::bail;
+use eyre::{bail, ContextCompat};
 use serde::{Deserialize, Serialize};
 use solana_pubkey::Pubkey;
 
@@ -70,7 +70,7 @@ pub enum IdlAccountSetDef {
 }
 
 impl IdlAccountSetDef {
-    pub fn assert_defined(&self) -> anyhow::Result<&IdlAccountSetId> {
+    pub fn assert_defined(&self) -> eyre::Result<&IdlAccountSetId> {
         match self {
             IdlAccountSetDef::Defined(id) => Ok(id),
             _ => bail!("Expected defined account set, found {:?}", self),
@@ -80,31 +80,31 @@ impl IdlAccountSetDef {
     pub fn get_defined<'a>(
         &self,
         idl_definition: &'a IdlDefinition,
-    ) -> anyhow::Result<&'a IdlAccountSet> {
+    ) -> eyre::Result<&'a IdlAccountSet> {
         let source = &self.assert_defined()?.source;
         idl_definition
             .account_sets
             .get(source)
-            .ok_or_else(|| anyhow::anyhow!("Account set `{source}` not found in definition"))
+            .with_context(|| format!("Account set `{source}` not found in definition"))
     }
 
     pub fn empty_struct() -> Self {
         IdlAccountSetDef::Struct(vec![])
     }
 
-    pub fn single(&mut self) -> anyhow::Result<&mut IdlSingleAccountSet> {
+    pub fn single(&mut self) -> eyre::Result<&mut IdlSingleAccountSet> {
         match self {
             IdlAccountSetDef::Single(s) => Ok(s),
             set => bail!("Expected single account, found {:?}", set),
         }
     }
 
-    pub fn assert_single(mut self) -> anyhow::Result<Self> {
+    pub fn assert_single(mut self) -> eyre::Result<Self> {
         self.single()?;
         Ok(self)
     }
 
-    pub fn with_single_address(mut self, address: Pubkey) -> anyhow::Result<Self> {
+    pub fn with_single_address(mut self, address: Pubkey) -> eyre::Result<Self> {
         let single = self.single()?;
         if let Some(old_address) = single.address {
             eprintln!("Warning: Overwriting address `{old_address}` in single account set with address `{address}`");

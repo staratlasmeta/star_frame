@@ -12,8 +12,8 @@ use crate::{
     Result,
 };
 use advancer::Advance;
-use anyhow::Context as _;
 use bytemuck::{checked, CheckedBitPattern, NoUninit, Zeroable};
+use eyre::Context;
 use std::{
     marker::PhantomData,
     mem::size_of,
