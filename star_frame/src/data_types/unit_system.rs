@@ -268,6 +268,8 @@ impl<T1, Unit1> UnitVal<T1, Unit1> {
         UnitVal::new(self.val)
     }
 
+    /// Checked addition. Returns `None` if overflow occurred.
+    /// Only works with values of the same unit.
     #[must_use]
     pub fn checked_add<Unit2>(self, rhs: &UnitVal<T1, Unit2>) -> Option<Self>
     where
@@ -277,6 +279,8 @@ impl<T1, Unit1> UnitVal<T1, Unit1> {
         self.val.checked_add(&rhs.val).map(UnitVal::new)
     }
 
+    /// Saturating addition. Clamps the result to the type's bounds instead of overflowing.
+    /// Only works with values of the same unit.
     #[must_use]
     pub fn saturating_add<Unit2>(self, rhs: &UnitVal<T1, Unit2>) -> Self
     where
@@ -286,6 +290,8 @@ impl<T1, Unit1> UnitVal<T1, Unit1> {
         UnitVal::new(self.val.saturating_add(&rhs.val))
     }
 
+    /// Checked subtraction. Returns `None` if overflow occurred.
+    /// Only works with values of the same unit.
     #[must_use]
     pub fn checked_sub<Unit2>(self, rhs: &UnitVal<T1, Unit2>) -> Option<Self>
     where
@@ -295,6 +301,8 @@ impl<T1, Unit1> UnitVal<T1, Unit1> {
         self.val.checked_sub(&rhs.val).map(UnitVal::new)
     }
 
+    /// Saturating subtraction. Clamps the result to the type's bounds instead of overflowing.
+    /// Only works with values of the same unit.
     #[must_use]
     pub fn saturating_sub<Unit2>(self, rhs: &UnitVal<T1, Unit2>) -> Self
     where
@@ -304,6 +312,8 @@ impl<T1, Unit1> UnitVal<T1, Unit1> {
         UnitVal::new(self.val.saturating_sub(&rhs.val))
     }
 
+    /// Checked multiplication. Returns `None` if overflow occurred.
+    /// The resulting unit is the sum of the input units.
     #[must_use]
     pub fn checked_mul<Unit2>(
         self,
@@ -316,6 +326,8 @@ impl<T1, Unit1> UnitVal<T1, Unit1> {
         self.val.checked_mul(&rhs.val).map(UnitVal::new)
     }
 
+    /// Saturating multiplication. Clamps the result to the type's bounds instead of overflowing.
+    /// The resulting unit is the sum of the input units.
     #[must_use]
     pub fn saturating_mul<Unit2>(
         self,
@@ -328,6 +340,8 @@ impl<T1, Unit1> UnitVal<T1, Unit1> {
         UnitVal::new(self.val.saturating_mul(&rhs.val))
     }
 
+    /// Checked division. Returns `None` if the divisor is zero or if overflow occurred.
+    /// The resulting unit is the difference of the input units.
     #[must_use]
     pub fn checked_div<Unit2>(
         self,
@@ -340,11 +354,14 @@ impl<T1, Unit1> UnitVal<T1, Unit1> {
         self.val.checked_div(&rhs.val).map(UnitVal::new)
     }
 
+    /// Applies a function to the inner value, preserving the unit.
     #[must_use]
     pub fn map<O>(self, f: impl FnOnce(T1) -> O) -> UnitVal<O, Unit1> {
         UnitVal::new(f(self.val))
     }
 
+    /// Applies a function that returns a tuple to the inner value,
+    /// returning a tuple of `UnitVal`s with the same unit.
     #[must_use]
     pub fn map_tuple<O1, O2>(
         self,
@@ -354,19 +371,24 @@ impl<T1, Unit1> UnitVal<T1, Unit1> {
         (UnitVal::new(o1), UnitVal::new(o2))
     }
 
+    /// Applies a function that returns an `Option` to the inner value,
+    /// preserving the unit if the result is `Some`.
     #[must_use]
     pub fn map_optional<O>(self, f: impl FnOnce(T1) -> Option<O>) -> Option<UnitVal<O, Unit1>> {
         f(self.val).map(UnitVal::new)
     }
 
+    /// Applies a fallible function to the inner value, preserving the unit on success.
     pub fn try_map<E, O>(self, f: impl FnOnce(T1) -> Result<O, E>) -> Result<UnitVal<O, Unit1>, E> {
         f(self.val).map(UnitVal::new)
     }
 
+    /// Creates a `UnitVal` containing a reference to the inner value.
     pub fn as_ref(&self) -> UnitVal<&T1, Unit1> {
         UnitVal::new(&self.val)
     }
 
+    /// Creates a `UnitVal` containing a mutable reference to the inner value.
     pub fn as_mut(&mut self) -> UnitVal<&mut T1, Unit1> {
         UnitVal::new(&mut self.val)
     }
@@ -425,13 +447,13 @@ where
         self.map(F::unwrapped_to_num)
     }
 
-    /// See [`Fixed::overflowing_from_num`]
+    /// See [`Fixed::overflowing_from_num`]. Returns a tuple of the converted value and a boolean indicating overflow.
     pub fn overflowing_from_num<Src: ToFixed>(src: UnitVal<Src, Unit1>) -> (Self, bool) {
         let (val, overflow) = src.map_tuple(F::overflowing_from_num);
         (val, overflow.val)
     }
 
-    /// See [`Fixed::overflowing_to_num`]
+    /// See [`Fixed::overflowing_to_num`]. Returns a tuple of the converted value and a boolean indicating overflow.
     pub fn overflowing_to_num<Dst: FromFixed>(self) -> (UnitVal<Dst, Unit1>, bool) {
         let (val, overflow) = self.map_tuple(F::overflowing_to_num);
         (val, overflow.val)
@@ -557,25 +579,25 @@ where
         self.map(F::unwrapped_round_ties_even)
     }
 
-    /// See [`Fixed::overflowing_ceil`]
+    /// See [`Fixed::overflowing_ceil`]. Returns a tuple of the ceiling value and a boolean indicating overflow.
     pub fn overflowing_ceil(self) -> (Self, bool) {
         let (val, overflow) = self.map_tuple(F::overflowing_ceil);
         (val, overflow.val)
     }
 
-    /// See [`Fixed::overflowing_floor`]
+    /// See [`Fixed::overflowing_floor`]. Returns a tuple of the floor value and a boolean indicating overflow.
     pub fn overflowing_floor(self) -> (Self, bool) {
         let (val, overflow) = self.map_tuple(F::overflowing_floor);
         (val, overflow.val)
     }
 
-    /// See [`Fixed::overflowing_round`]
+    /// See [`Fixed::overflowing_round`]. Returns a tuple of the rounded value and a boolean indicating overflow.
     pub fn overflowing_round(self) -> (Self, bool) {
         let (val, overflow) = self.map_tuple(F::overflowing_round);
         (val, overflow.val)
     }
 
-    /// See [`Fixed::overflowing_round_ties_even`]
+    /// See [`Fixed::overflowing_round_ties_even`]. Returns a tuple of the rounded value and a boolean indicating overflow.
     pub fn overflowing_round_ties_even(self) -> (Self, bool) {
         let (val, overflow) = self.map_tuple(F::overflowing_round_ties_even);
         (val, overflow.val)
