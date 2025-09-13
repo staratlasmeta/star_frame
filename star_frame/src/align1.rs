@@ -36,3 +36,30 @@ unsafe impl<T> Align1 for [T] where T: Align1 {}
 // SAFETY:
 // Allowed because an array of `T` is aligned to `T`.
 unsafe impl<T, const N: usize> Align1 for [T; N] where T: Align1 {}
+
+macro_rules! impl_align1_tuple {
+    ($($name:ident),+) => {
+        // SAFETY:
+        // Allowed because a tuple will have an alignment equal to the max of its members.
+        unsafe impl<$($name),+> Align1 for ($($name,)+)
+        where
+            $($name: Align1,)+
+        {}
+    };
+}
+// impl up to 16 elements
+impl_align1_tuple!(T1, T2);
+impl_align1_tuple!(T1, T2, T3);
+impl_align1_tuple!(T1, T2, T3, T4);
+impl_align1_tuple!(T1, T2, T3, T4, T5);
+impl_align1_tuple!(T1, T2, T3, T4, T5, T6);
+impl_align1_tuple!(T1, T2, T3, T4, T5, T6, T7);
+impl_align1_tuple!(T1, T2, T3, T4, T5, T6, T7, T8);
+impl_align1_tuple!(T1, T2, T3, T4, T5, T6, T7, T8, T9);
+impl_align1_tuple!(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10);
+impl_align1_tuple!(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11);
+impl_align1_tuple!(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12);
+impl_align1_tuple!(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13);
+impl_align1_tuple!(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14);
+impl_align1_tuple!(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15);
+impl_align1_tuple!(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16);
