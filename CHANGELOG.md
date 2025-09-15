@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `normalize_rent` alias for `AccountSet` `cleanup`
 - Changed from `anyhow` to `eyre`
 - Added `borsh` to `UnitVal`
+- Removed default init requirement on unsized list default init.
 
 ## [0.25.1] - 2025-09-11
 

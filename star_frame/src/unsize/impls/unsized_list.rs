@@ -1129,7 +1129,7 @@ where
 
 impl<T, C> UnsizedInit<DefaultInit> for UnsizedList<T, C>
 where
-    T: UnsizedType + UnsizedInit<DefaultInit> + ?Sized,
+    T: UnsizedType + ?Sized,
     C: UnsizedListOffset,
 {
     const INIT_BYTES: usize = U32_SIZE * 3;
