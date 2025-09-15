@@ -11,9 +11,9 @@ use crate::{
     unsize::{init::UnsizedInit, FromOwned, UnsizedTypeMut},
     Result,
 };
-use eyre::ensure;
 use core::ptr;
 use derive_more::{Debug, Deref, DerefMut};
+use eyre::ensure;
 use pinocchio::account_info::AccountInfo;
 use solana_program_memory::sol_memmove;
 use std::{

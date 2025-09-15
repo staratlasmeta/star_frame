@@ -13,8 +13,8 @@ use star_frame::{
         modifiers::{CanInitAccount, HasInnerType, HasOwnerProgram},
         CanFundRent, CanSystemCreateAccount as _,
     },
-    eyre::ContextCompat as _,
     bytemuck,
+    eyre::ContextCompat as _,
     pinocchio::account_info::Ref,
     prelude::*,
 };
