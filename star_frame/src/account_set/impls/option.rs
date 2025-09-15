@@ -10,7 +10,7 @@ use crate::{
     prelude::*,
 };
 use advancer::Advance;
-use anyhow::Context as _;
+use eyre::ContextCompat as _;
 use typenum::{Eq, IsEqual};
 
 #[doc(hidden)]

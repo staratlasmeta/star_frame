@@ -92,7 +92,7 @@ mod tests {
     };
     use mollusk_svm::result::Check;
     use solana_account::Account as SolanaAccount;
-    use star_frame::{anyhow::ensure, itertools::Itertools, solana_pubkey::Pubkey};
+    use star_frame::{eyre::ensure, itertools::Itertools, solana_pubkey::Pubkey};
     use star_frame_spl::associated_token::AssociatedToken;
     use std::{collections::HashMap, env};
     const STARTING_USER_CURRENCY_BALANCE: u64 = 1_000_000_000;

@@ -129,7 +129,7 @@ pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
         quote! {
             let maybe_discriminant_bytes =
                 #prelude::Advance::try_advance(&mut instruction_data, ::core::mem::size_of::<#discriminant_type>());
-            let discriminant_bytes = #prelude::anyhow::Context::context(maybe_discriminant_bytes, "Failed to read instruction discriminant bytes")?;
+            let discriminant_bytes = #prelude::eyre::Context::context(maybe_discriminant_bytes, "Failed to read instruction discriminant bytes")?;
             let discriminant = *#bytemuck::try_from_bytes(discriminant_bytes)?;
             #[deny(unreachable_patterns)]
             match discriminant {

@@ -195,7 +195,7 @@ pub(super) fn validates(
                     let validate_ty = args.arg_ty.as_ref().unwrap_or(&default_expr);
                     let temp = args.temp.as_ref();
                     let address_check = args.address.as_ref().map(|address| quote! {
-                        #prelude::anyhow::Context::context(
+                        #prelude::eyre::Context::context(
                             <#field_type as #prelude::CheckKey>::check_key(&self.#field_name, #address),
                             ::std::stringify!(#ident::#field_name(#id)),
                         )?;
@@ -208,7 +208,7 @@ pub(super) fn validates(
                             #address_check
                             #temp
                             let __arg = #validate_arg;
-                            #prelude::anyhow::Context::context(
+                            #prelude::eyre::Context::context(
                                 #prelude::_account_set_validate_reverse::<#field_type, #validate_ty>(
                                     __arg,
                                     &mut self.#field_name,
@@ -283,11 +283,11 @@ pub(super) fn validates(
         let (impl_generics, _, where_clause) = generics.split_for_impl();
         let before_validation = validate_struct_args.before_validation.map(|before_validation| quote! {
             let res: #result<()> = { #before_validation };
-            #prelude::anyhow::Context::context(res, ::std::stringify!(#ident::{Before Validation Failed} (#id)))?;
+            #prelude::eyre::Context::context(res, ::std::stringify!(#ident::{Before Validation Failed} (#id)))?;
         });
         let extra_validation = validate_struct_args.extra_validation.map(|extra_validation| quote! {
             let res: #result<()> = { #extra_validation };
-            #prelude::anyhow::Context::context(res, ::std::stringify!(#ident::{Extra Validation Failed} (#id)))?;
+            #prelude::eyre::Context::context(res, ::std::stringify!(#ident::{Extra Validation Failed} (#id)))?;
         });
 
         let inline_attr = if validate_struct_args.inline_always {

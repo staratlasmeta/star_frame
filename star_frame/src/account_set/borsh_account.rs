@@ -1,8 +1,8 @@
 //! A [`ProgramAccount`] that is serialized and deserialized using [`borsh`].
 
-use anyhow::{ensure, Context as _};
 use borsh::object_length;
 use derive_more::Debug;
+use eyre::{ensure, Context as _, ContextCompat};
 use std::ops::{Deref, DerefMut};
 
 use crate::{

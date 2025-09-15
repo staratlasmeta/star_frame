@@ -353,11 +353,11 @@
 )]
 
 pub extern crate advancer;
-pub extern crate anyhow;
 pub extern crate borsh;
 pub extern crate bytemuck;
 pub extern crate derive_more;
 pub extern crate derive_where;
+pub extern crate eyre;
 pub extern crate fixed;
 pub extern crate itertools;
 pub extern crate num_traits;
@@ -395,7 +395,7 @@ pub mod util;
 #[doc(hidden)]
 pub mod __private;
 
-pub use anyhow::Result;
+pub use eyre::Result;
 #[doc(hidden)]
 pub use solana_instruction::Instruction as SolanaInstruction;
 pub use star_frame_proc::{pubkey, sighash, zero_copy};

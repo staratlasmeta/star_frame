@@ -14,7 +14,7 @@ pub struct NewArgs {
     #[arg(value_name = "NAME")]
     pub name: String,
 }
-pub fn new_project(args: NewArgs) -> anyhow::Result<()> {
+pub fn new_project(args: NewArgs) -> eyre::Result<()> {
     let project_name = args.name.trim().to_ascii_lowercase();
 
     let base = Path::new(&project_name); //Base path

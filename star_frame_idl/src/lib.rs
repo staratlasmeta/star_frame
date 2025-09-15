@@ -130,7 +130,7 @@ impl IdlDefinition {
         &mut self,
         definition: IdlInstructionDef,
         discriminant: IdlDiscriminant,
-    ) -> anyhow::Result<()> {
+    ) -> eyre::Result<()> {
         let source = definition.type_id.source.clone();
         let idl_instruction = IdlInstruction {
             definition,
@@ -144,7 +144,7 @@ impl IdlDefinition {
         &mut self,
         account: IdlAccount,
         namespace: IdlNamespace,
-    ) -> anyhow::Result<Option<IdlNamespace>> {
+    ) -> eyre::Result<Option<IdlNamespace>> {
         let source = account.type_id.source.clone();
         if namespace == self.namespace() {
             self.accounts.entry(source).or_insert(account);

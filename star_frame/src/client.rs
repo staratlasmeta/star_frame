@@ -16,9 +16,9 @@ use crate::{
     unsize::{init::UnsizedInit, FromOwned},
 };
 
-use anyhow::ensure;
 use borsh::{object_length, BorshSerialize};
 use bytemuck::bytes_of;
+use eyre::ensure;
 use solana_instruction::Instruction as SolanaInstruction;
 
 #[doc(hidden)]

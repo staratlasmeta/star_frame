@@ -11,9 +11,9 @@ use crate::{
     },
     prelude::*,
 };
-use anyhow::{ensure, Context as _};
 use bytemuck::bytes_of;
 use derive_more::{Deref, DerefMut};
+use eyre::{ensure, ContextCompat};
 use std::marker::PhantomData;
 
 pub use star_frame_proc::GetSeeds;

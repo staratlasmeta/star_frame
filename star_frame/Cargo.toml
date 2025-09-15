@@ -21,7 +21,7 @@ aggressive_inline = []
 [dependencies]
 solana-pubkey = { workspace = true, features = ["curve25519", "borsh", "serde", "bytemuck"] }
 advancer = { workspace = true }
-anyhow = { workspace = true }
+eyre = { workspace = true }
 array-init = { workspace = true }
 borsh = { workspace = true }
 bytemuck = { workspace = true }

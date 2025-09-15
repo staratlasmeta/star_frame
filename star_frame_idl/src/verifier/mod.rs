@@ -1,5 +1,5 @@
 use crate::IdlDefinition;
-use anyhow::Result;
+use eyre::Result;
 
 pub fn verify_idl_definitions<'a, I>(_def_set: I) -> Result<()>
 where
