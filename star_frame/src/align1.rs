@@ -48,6 +48,7 @@ macro_rules! impl_align1_tuple {
     };
 }
 // impl up to 16 elements
+impl_align1_tuple!(T1);
 impl_align1_tuple!(T1, T2);
 impl_align1_tuple!(T1, T2, T3);
 impl_align1_tuple!(T1, T2, T3, T4);

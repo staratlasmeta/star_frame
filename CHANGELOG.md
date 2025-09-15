@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Changed from `anyhow` to `eyre` (#265)
 - Added `borsh` to `UnitVal` (#266)
 - Removed default init requirement on unsized list default init. (#267)
+- Added more `Align1` impls for tuples. (#268)
 
 ## [0.25.1] - 2025-09-11
 
