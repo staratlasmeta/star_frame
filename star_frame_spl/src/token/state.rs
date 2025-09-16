@@ -2,8 +2,8 @@ use crate::{
     pod::PodOption,
     token::{
         instructions::{
-            InitializeAccount3, InitializeAccount3CpiAccounts, InitializeMint2,
-            InitializeMint2CpiAccounts,
+            InitializeMint2, InitializeMint2CpiAccounts, InitializeTokenAccount3,
+            InitializeTokenAccount3CpiAccounts,
         },
         Token,
     },
@@ -455,10 +455,10 @@ where
             None => &[],
         };
         Token::cpi(
-            InitializeAccount3 {
+            InitializeTokenAccount3 {
                 owner: init_token.owner,
             },
-            InitializeAccount3CpiAccounts {
+            InitializeTokenAccount3CpiAccounts {
                 account: *self.account_info(),
                 mint: *init_token.mint.account_info(),
             },

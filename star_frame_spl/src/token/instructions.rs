@@ -6,24 +6,24 @@ use star_frame::{empty_star_frame_instruction, pinocchio::sysvars::rent::Rent, p
 #[repr(u8)]
 pub enum TokenInstructionSet {
     InitializeMint(InitializeMint),
-    InitializeAccount(InitializeAccount),
+    InitializeTokenAccount(InitializeTokenAccount),
     InitializeMultisig(InitializeMultisig),
-    Transfer(Transfer),
-    Approve(Approve),
-    Revoke(Revoke),
+    TokenTransfer(TokenTransfer),
+    ApproveTokenDelegate(ApproveTokenDelegate),
+    RevokeTokenDelegate(RevokeTokenDelegate),
     SetAuthority(SetAuthority),
     MintTo(MintTo),
     Burn(Burn),
-    CloseAccount(CloseAccount),
+    CloseTokenAccount(CloseTokenAccount),
     FreezeAccount(FreezeAccount),
     ThawAccount(ThawAccount),
-    TransferChecked(TransferChecked),
+    TokenTransferChecked(TokenTransferChecked),
     ApproveChecked(ApproveChecked),
     MintToChecked(MintToChecked),
     BurnChecked(BurnChecked),
-    InitializeAccount2(InitializeAccount2),
+    InitializeTokenAccount2(InitializeTokenAccount2),
     SyncNative(SyncNative),
-    InitializeAccount3(InitializeAccount3),
+    InitializeTokenAccount3(InitializeTokenAccount3),
     InitializeMultisig2(InitializeMultisig2),
     InitializeMint2(InitializeMint2),
     GetAccountDataSize(GetAccountDataSize),
@@ -68,16 +68,16 @@ empty_star_frame_instruction!(InitializeMint, InitializeMintAccounts);
 /// See [`spl_token::instruction::TokenInstruction::InitializeAccount`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionArgs, BorshDeserialize, BorshSerialize)]
 #[type_to_idl(program = crate::token::Token)]
-pub struct InitializeAccount;
-/// Accounts for the [`InitializeAccount`] instruction.
+pub struct InitializeTokenAccount;
+/// Accounts for the [`InitializeTokenAccount`] instruction.
 #[derive(Debug, Clone, AccountSet)]
-pub struct InitializeAccountAccounts {
+pub struct InitializeTokenAccountAccounts {
     pub account: Mut<AccountInfo>,
     pub mint: AccountInfo,
     pub owner: AccountInfo,
     pub rent: Sysvar<Rent>,
 }
-empty_star_frame_instruction!(InitializeAccount, InitializeAccountAccounts);
+empty_star_frame_instruction!(InitializeTokenAccount, InitializeTokenAccountAccounts);
 
 // initialize multisig
 /// See [`spl_token::instruction::TokenInstruction::InitializeMultisig`].
@@ -99,49 +99,49 @@ empty_star_frame_instruction!(InitializeMultisig, InitializeMultisigAccounts);
 /// See [`spl_token::instruction::TokenInstruction::Transfer`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionArgs, BorshDeserialize, BorshSerialize)]
 #[type_to_idl(program = crate::token::Token)]
-pub struct Transfer {
+pub struct TokenTransfer {
     pub amount: u64,
 }
 // todo: handle multisig with AccountSet enums
-/// Accounts for the [`Transfer`] instruction.
+/// Accounts for the [`TokenTransfer`] instruction.
 #[derive(Debug, Clone, AccountSet)]
-pub struct TransferAccounts {
+pub struct TokenTransferAccounts {
     pub source: Mut<AccountInfo>,
     pub destination: Mut<AccountInfo>,
     pub owner: Signer,
 }
-empty_star_frame_instruction!(Transfer, TransferAccounts);
+empty_star_frame_instruction!(TokenTransfer, TokenTransferAccounts);
 
 // approve
 /// See [`spl_token::instruction::TokenInstruction::Approve`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionArgs, BorshDeserialize, BorshSerialize)]
 #[type_to_idl(program = crate::token::Token)]
-pub struct Approve {
+pub struct ApproveTokenDelegate {
     pub amount: u64,
 }
 // todo: handle multisig with AccountSet enums
-/// Accounts for the [`Approve`] instruction.
+/// Accounts for the [`ApproveTokenDelegate`] instruction.
 #[derive(Debug, Clone, AccountSet)]
-pub struct ApproveAccounts {
+pub struct ApproveTokenDelegateAccounts {
     pub source: Mut<AccountInfo>,
     pub delegate: AccountInfo,
     pub owner: Signer,
 }
-empty_star_frame_instruction!(Approve, ApproveAccounts);
+empty_star_frame_instruction!(ApproveTokenDelegate, ApproveTokenDelegateAccounts);
 
 // revoke
 /// See [`spl_token::instruction::TokenInstruction::Revoke`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionArgs, BorshDeserialize, BorshSerialize)]
 #[type_to_idl(program = crate::token::Token)]
-pub struct Revoke;
+pub struct RevokeTokenDelegate;
 // todo: handle multisig with AccountSet enums
-/// Accounts for the [`Revoke`] instruction.
+/// Accounts for the [`RevokeTokenDelegate`] instruction.
 #[derive(Debug, Clone, AccountSet)]
-pub struct RevokeAccounts {
+pub struct RevokeTokenDelegateAccounts {
     pub source: Mut<AccountInfo>,
     pub owner: Signer,
 }
-empty_star_frame_instruction!(Revoke, RevokeAccounts);
+empty_star_frame_instruction!(RevokeTokenDelegate, RevokeTokenDelegateAccounts);
 
 // set authority
 /// See [`spl_token::instruction::TokenInstruction::SetAuthority`].
@@ -198,16 +198,16 @@ empty_star_frame_instruction!(Burn, BurnAccounts);
 /// See [`spl_token::instruction::TokenInstruction::CloseAccount`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionArgs, BorshDeserialize, BorshSerialize)]
 #[type_to_idl(program = crate::token::Token)]
-pub struct CloseAccount;
+pub struct CloseTokenAccount;
 // todo: handle multisig with AccountSet enums
-/// Accounts for the [`CloseAccount`] instruction.
+/// Accounts for the [`CloseTokenAccount`] instruction.
 #[derive(Debug, Clone, AccountSet)]
 pub struct CloseAccountAccounts {
     pub account: Mut<AccountInfo>,
     pub destination: Mut<AccountInfo>,
     pub owner: Signer,
 }
-empty_star_frame_instruction!(CloseAccount, CloseAccountAccounts);
+empty_star_frame_instruction!(CloseTokenAccount, CloseAccountAccounts);
 
 // freeze account
 /// See [`spl_token::instruction::TokenInstruction::FreezeAccount`].
@@ -243,11 +243,11 @@ empty_star_frame_instruction!(ThawAccount, ThawAccountAccounts);
 /// See [`spl_token::instruction::TokenInstruction::TransferChecked`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionArgs, BorshDeserialize, BorshSerialize)]
 #[type_to_idl(program = crate::token::Token)]
-pub struct TransferChecked {
+pub struct TokenTransferChecked {
     pub amount: u64,
     pub decimals: u8,
 }
-/// Accounts for the [`TransferChecked`] instruction.
+/// Accounts for the [`TokenTransferChecked`] instruction.
 /// todo: Handle multisig with AccountSet enums.
 #[derive(Debug, Clone, AccountSet)]
 pub struct TransferCheckedAccounts {
@@ -256,7 +256,7 @@ pub struct TransferCheckedAccounts {
     pub destination: Mut<AccountInfo>,
     pub owner: Signer,
 }
-empty_star_frame_instruction!(TransferChecked, TransferCheckedAccounts);
+empty_star_frame_instruction!(TokenTransferChecked, TransferCheckedAccounts);
 
 // approve checked
 /// See [`spl_token::instruction::TokenInstruction::ApproveChecked`].
@@ -317,18 +317,18 @@ empty_star_frame_instruction!(BurnChecked, BurnCheckedAccounts);
 /// See [`spl_token::instruction::TokenInstruction::InitializeAccount2`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionArgs, BorshDeserialize, BorshSerialize)]
 #[type_to_idl(program = crate::token::Token)]
-pub struct InitializeAccount2 {
+pub struct InitializeTokenAccount2 {
     pub owner: Pubkey,
 }
-/// Accounts for the [`InitializeAccount2`] instruction.
+/// Accounts for the [`InitializeTokenAccount2`] instruction.
 /// todo: Consider multisig ownership scenarios if required.
 #[derive(Debug, Clone, AccountSet)]
-pub struct InitializeAccount2Accounts {
+pub struct InitializeTokenAccount2Accounts {
     pub account: Mut<AccountInfo>,
     pub mint: AccountInfo,
     pub rent: Sysvar<Rent>,
 }
-empty_star_frame_instruction!(InitializeAccount2, InitializeAccount2Accounts);
+empty_star_frame_instruction!(InitializeTokenAccount2, InitializeTokenAccount2Accounts);
 
 // sync native
 /// See [`spl_token::instruction::TokenInstruction::SyncNative`].
@@ -346,16 +346,16 @@ empty_star_frame_instruction!(SyncNative, SyncNativeAccounts);
 /// See [`spl_token::instruction::TokenInstruction::InitializeAccount3`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionArgs, BorshDeserialize, BorshSerialize)]
 #[type_to_idl(program = crate::token::Token)]
-pub struct InitializeAccount3 {
+pub struct InitializeTokenAccount3 {
     pub owner: Pubkey,
 }
-/// Accounts for the [`InitializeAccount3`] instruction.
+/// Accounts for the [`InitializeTokenAccount3`] instruction.
 #[derive(Debug, Clone, AccountSet)]
-pub struct InitializeAccount3Accounts {
+pub struct InitializeTokenAccount3Accounts {
     pub account: Mut<AccountInfo>,
     pub mint: AccountInfo,
 }
-empty_star_frame_instruction!(InitializeAccount3, InitializeAccount3Accounts);
+empty_star_frame_instruction!(InitializeTokenAccount3, InitializeTokenAccount3Accounts);
 
 // initialize multisig 2
 /// See [`spl_token::instruction::TokenInstruction::InitializeMultisig2`].
@@ -475,8 +475,8 @@ mod tests {
         let owner = Pubkey::new_unique();
 
         let initialize_account_sf = Token::instruction(
-            &InitializeAccount,
-            InitializeAccountClientAccounts {
+            &InitializeTokenAccount,
+            InitializeTokenAccountClientAccounts {
                 account,
                 mint,
                 owner,
@@ -520,8 +520,8 @@ mod tests {
         let amount = 500u64;
 
         let transfer_sf = Token::instruction(
-            &Transfer { amount },
-            TransferClientAccounts {
+            &TokenTransfer { amount },
+            TokenTransferClientAccounts {
                 source,
                 destination,
                 owner,
@@ -548,8 +548,8 @@ mod tests {
         let amount = 250u64;
 
         let approve_sf = Token::instruction(
-            &Approve { amount },
-            ApproveClientAccounts {
+            &ApproveTokenDelegate { amount },
+            ApproveTokenDelegateClientAccounts {
                 source,
                 delegate,
                 owner,
@@ -573,7 +573,10 @@ mod tests {
         let source = Pubkey::new_unique();
         let owner = Pubkey::new_unique();
 
-        let revoke_sf = Token::instruction(&Revoke, RevokeClientAccounts { source, owner })?;
+        let revoke_sf = Token::instruction(
+            &RevokeTokenDelegate,
+            RevokeTokenDelegateClientAccounts { source, owner },
+        )?;
 
         let revoke_ix = spl_token::instruction::revoke(&spl_token::id(), &source, &owner, &[])?;
         assert_eq!(revoke_sf, revoke_ix);
@@ -668,7 +671,7 @@ mod tests {
         let owner = Pubkey::new_unique();
 
         let close_account_sf = Token::instruction(
-            &CloseAccount,
+            &CloseTokenAccount,
             CloseAccountClientAccounts {
                 account,
                 destination,
@@ -749,7 +752,7 @@ mod tests {
         let decimals = 2u8;
 
         let transfer_checked_sf = Token::instruction(
-            &TransferChecked { amount, decimals },
+            &TokenTransferChecked { amount, decimals },
             TransferCheckedClientAccounts {
                 source,
                 mint,
@@ -883,8 +886,8 @@ mod tests {
         let owner = Pubkey::new_unique();
 
         let initialize_account2_sf = Token::instruction(
-            &InitializeAccount2 { owner },
-            InitializeAccount2ClientAccounts {
+            &InitializeTokenAccount2 { owner },
+            InitializeTokenAccount2ClientAccounts {
                 account,
                 mint,
                 rent: None,
@@ -904,8 +907,8 @@ mod tests {
         let owner = Pubkey::new_unique();
 
         let initialize_account3_sf = Token::instruction(
-            &InitializeAccount3 { owner },
-            InitializeAccount3ClientAccounts { account, mint },
+            &InitializeTokenAccount3 { owner },
+            InitializeTokenAccount3ClientAccounts { account, mint },
         )?;
 
         let initialize_account3_ix =

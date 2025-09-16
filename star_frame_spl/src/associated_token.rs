@@ -138,7 +138,7 @@ pub mod instructions {
     #[ix_set(use_repr)]
     #[repr(u8)]
     pub enum AssociatedTokenInstructionSet {
-        Create(Create),
+        CreateAssociatedToken(CreateAssociatedToken),
         CreateIdempotent(CreateIdempotent),
         RecoverNested(RecoverNested),
     }
@@ -149,10 +149,10 @@ pub mod instructions {
         Copy, Clone, Debug, Eq, PartialEq, InstructionArgs, BorshDeserialize, BorshSerialize,
     )]
     #[type_to_idl(program = AssociatedToken)]
-    pub struct Create;
-    /// Accounts for the [`Create`] instruction.
+    pub struct CreateAssociatedToken;
+    /// Accounts for the [`CreateAssociatedToken`] instruction.
     #[derive(Debug, Clone, AccountSet)]
-    pub struct CreateAccounts {
+    pub struct CreateAssociatedTokenAccounts {
         pub funder: Mut<Signer>,
         #[idl(arg =
             Seeds(FindAtaSeeds {
@@ -166,18 +166,18 @@ pub mod instructions {
         pub system_program: Program<System>,
         pub token_program: Program<Token>,
     }
-    empty_star_frame_instruction!(Create, CreateAccounts);
+    empty_star_frame_instruction!(CreateAssociatedToken, CreateAssociatedTokenAccounts);
 
     // create idempotent
     /// See [`spl_associated_token_account::instruction::AssociatedTokenAccountInstruction::CreateIdempotent`].
     ///
-    /// This instruction has an identical AccountSet to [`Create`].
+    /// This instruction has an identical AccountSet to [`CreateAssociatedToken`].
     #[derive(
         Copy, Clone, Debug, Eq, PartialEq, InstructionArgs, BorshDeserialize, BorshSerialize,
     )]
     #[type_to_idl(program = AssociatedToken)]
     pub struct CreateIdempotent;
-    empty_star_frame_instruction!(CreateIdempotent, CreateAccounts);
+    empty_star_frame_instruction!(CreateIdempotent, CreateAssociatedTokenAccounts);
 
     // recover nested
     /// See [`spl_associated_token_account::instruction::AssociatedTokenAccountInstruction::RecoverNested`].
@@ -392,8 +392,8 @@ pub mod state {
             };
 
             AssociatedToken::cpi(
-                instructions::Create,
-                instructions::CreateCpiAccounts {
+                instructions::CreateAssociatedToken,
+                instructions::CreateAssociatedTokenCpiAccounts {
                     funder: funder.account_to_modify(),
                     token_account: *self.account_info(),
                     wallet: *init_ata.wallet.account_info(),
