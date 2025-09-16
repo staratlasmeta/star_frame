@@ -32,7 +32,7 @@ pub enum TokenInstructionSet {
 }
 
 /// Specifies the authority type for SetAuthority instructions
-/// Copied from [`spl_token::instruction::AuthorityType`] to allow for `TypeToIdl` implementation
+/// Copied from [`spl_token_interface::instruction::AuthorityType`] to allow for `TypeToIdl` implementation
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BorshSerialize, BorshDeserialize, TypeToIdl)]
 #[type_to_idl(program = crate::token::Token)]
 #[repr(u8)]
@@ -48,7 +48,7 @@ pub enum AuthorityType {
 }
 
 // initialize mint
-/// See [`spl_token::instruction::TokenInstruction::InitializeMint`].
+/// See [`spl_token_interface::instruction::TokenInstruction::InitializeMint`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionArgs, BorshDeserialize, BorshSerialize)]
 #[type_to_idl(program = crate::token::Token)]
 pub struct InitializeMint {
@@ -65,7 +65,7 @@ pub struct InitializeMintAccounts {
 empty_star_frame_instruction!(InitializeMint, InitializeMintAccounts);
 
 // initialize account
-/// See [`spl_token::instruction::TokenInstruction::InitializeAccount`].
+/// See [`spl_token_interface::instruction::TokenInstruction::InitializeAccount`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionArgs, BorshDeserialize, BorshSerialize)]
 #[type_to_idl(program = crate::token::Token)]
 pub struct InitializeAccount;
@@ -80,7 +80,7 @@ pub struct InitializeAccountAccounts {
 empty_star_frame_instruction!(InitializeAccount, InitializeAccountAccounts);
 
 // initialize multisig
-/// See [`spl_token::instruction::TokenInstruction::InitializeMultisig`].
+/// See [`spl_token_interface::instruction::TokenInstruction::InitializeMultisig`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionArgs, BorshDeserialize, BorshSerialize)]
 #[type_to_idl(program = crate::token::Token)]
 pub struct InitializeMultisig {
@@ -96,7 +96,7 @@ pub struct InitializeMultisigAccounts {
 empty_star_frame_instruction!(InitializeMultisig, InitializeMultisigAccounts);
 
 // transfer
-/// See [`spl_token::instruction::TokenInstruction::Transfer`].
+/// See [`spl_token_interface::instruction::TokenInstruction::Transfer`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionArgs, BorshDeserialize, BorshSerialize)]
 #[type_to_idl(program = crate::token::Token)]
 pub struct Transfer {
@@ -113,7 +113,7 @@ pub struct TransferAccounts {
 empty_star_frame_instruction!(Transfer, TransferAccounts);
 
 // approve
-/// See [`spl_token::instruction::TokenInstruction::Approve`].
+/// See [`spl_token_interface::instruction::TokenInstruction::Approve`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionArgs, BorshDeserialize, BorshSerialize)]
 #[type_to_idl(program = crate::token::Token)]
 pub struct Approve {
@@ -130,7 +130,7 @@ pub struct ApproveAccounts {
 empty_star_frame_instruction!(Approve, ApproveAccounts);
 
 // revoke
-/// See [`spl_token::instruction::TokenInstruction::Revoke`].
+/// See [`spl_token_interface::instruction::TokenInstruction::Revoke`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionArgs, BorshDeserialize, BorshSerialize)]
 #[type_to_idl(program = crate::token::Token)]
 pub struct Revoke;
@@ -144,7 +144,7 @@ pub struct RevokeAccounts {
 empty_star_frame_instruction!(Revoke, RevokeAccounts);
 
 // set authority
-/// See [`spl_token::instruction::TokenInstruction::SetAuthority`].
+/// See [`spl_token_interface::instruction::TokenInstruction::SetAuthority`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionArgs, BorshDeserialize, BorshSerialize)]
 #[type_to_idl(program = crate::token::Token)]
 pub struct SetAuthority {
@@ -161,7 +161,7 @@ pub struct SetAuthorityAccounts {
 empty_star_frame_instruction!(SetAuthority, SetAuthorityAccounts);
 
 // mint to
-/// See [`spl_token::instruction::TokenInstruction::MintTo`].
+/// See [`spl_token_interface::instruction::TokenInstruction::MintTo`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionArgs, BorshDeserialize, BorshSerialize)]
 #[type_to_idl(program = crate::token::Token)]
 pub struct MintTo {
@@ -178,7 +178,7 @@ pub struct MintToAccounts {
 empty_star_frame_instruction!(MintTo, MintToAccounts);
 
 // burn
-/// See [`spl_token::instruction::TokenInstruction::Burn`].
+/// See [`spl_token_interface::instruction::TokenInstruction::Burn`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionArgs, BorshDeserialize, BorshSerialize)]
 #[type_to_idl(program = crate::token::Token)]
 pub struct Burn {
@@ -195,7 +195,7 @@ pub struct BurnAccounts {
 empty_star_frame_instruction!(Burn, BurnAccounts);
 
 // close account
-/// See [`spl_token::instruction::TokenInstruction::CloseAccount`].
+/// See [`spl_token_interface::instruction::TokenInstruction::CloseAccount`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionArgs, BorshDeserialize, BorshSerialize)]
 #[type_to_idl(program = crate::token::Token)]
 pub struct CloseAccount;
@@ -210,7 +210,7 @@ pub struct CloseAccountAccounts {
 empty_star_frame_instruction!(CloseAccount, CloseAccountAccounts);
 
 // freeze account
-/// See [`spl_token::instruction::TokenInstruction::FreezeAccount`].
+/// See [`spl_token_interface::instruction::TokenInstruction::FreezeAccount`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionArgs, BorshDeserialize, BorshSerialize)]
 #[type_to_idl(program = crate::token::Token)]
 pub struct FreezeAccount;
@@ -225,7 +225,7 @@ pub struct FreezeAccountAccounts {
 empty_star_frame_instruction!(FreezeAccount, FreezeAccountAccounts);
 
 // thaw account
-/// See [`spl_token::instruction::TokenInstruction::ThawAccount`].
+/// See [`spl_token_interface::instruction::TokenInstruction::ThawAccount`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionArgs, BorshDeserialize, BorshSerialize)]
 #[type_to_idl(program = crate::token::Token)]
 pub struct ThawAccount;
@@ -240,7 +240,7 @@ pub struct ThawAccountAccounts {
 empty_star_frame_instruction!(ThawAccount, ThawAccountAccounts);
 
 // transfer checked
-/// See [`spl_token::instruction::TokenInstruction::TransferChecked`].
+/// See [`spl_token_interface::instruction::TokenInstruction::TransferChecked`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionArgs, BorshDeserialize, BorshSerialize)]
 #[type_to_idl(program = crate::token::Token)]
 pub struct TransferChecked {
@@ -259,7 +259,7 @@ pub struct TransferCheckedAccounts {
 empty_star_frame_instruction!(TransferChecked, TransferCheckedAccounts);
 
 // approve checked
-/// See [`spl_token::instruction::TokenInstruction::ApproveChecked`].
+/// See [`spl_token_interface::instruction::TokenInstruction::ApproveChecked`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionArgs, BorshDeserialize, BorshSerialize)]
 #[type_to_idl(program = crate::token::Token)]
 pub struct ApproveChecked {
@@ -278,7 +278,7 @@ pub struct ApproveCheckedAccounts {
 empty_star_frame_instruction!(ApproveChecked, ApproveCheckedAccounts);
 
 // mint to checked
-/// See [`spl_token::instruction::TokenInstruction::MintToChecked`].
+/// See [`spl_token_interface::instruction::TokenInstruction::MintToChecked`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionArgs, BorshDeserialize, BorshSerialize)]
 #[type_to_idl(program = crate::token::Token)]
 pub struct MintToChecked {
@@ -296,7 +296,7 @@ pub struct MintToCheckedAccounts {
 empty_star_frame_instruction!(MintToChecked, MintToCheckedAccounts);
 
 // burn checked
-/// See [`spl_token::instruction::TokenInstruction::BurnChecked`].
+/// See [`spl_token_interface::instruction::TokenInstruction::BurnChecked`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionArgs, BorshDeserialize, BorshSerialize)]
 #[type_to_idl(program = crate::token::Token)]
 pub struct BurnChecked {
@@ -314,7 +314,7 @@ pub struct BurnCheckedAccounts {
 empty_star_frame_instruction!(BurnChecked, BurnCheckedAccounts);
 
 // initialize account 2
-/// See [`spl_token::instruction::TokenInstruction::InitializeAccount2`].
+/// See [`spl_token_interface::instruction::TokenInstruction::InitializeAccount2`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionArgs, BorshDeserialize, BorshSerialize)]
 #[type_to_idl(program = crate::token::Token)]
 pub struct InitializeAccount2 {
@@ -331,7 +331,7 @@ pub struct InitializeAccount2Accounts {
 empty_star_frame_instruction!(InitializeAccount2, InitializeAccount2Accounts);
 
 // sync native
-/// See [`spl_token::instruction::TokenInstruction::SyncNative`].
+/// See [`spl_token_interface::instruction::TokenInstruction::SyncNative`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionArgs, BorshDeserialize, BorshSerialize)]
 #[type_to_idl(program = crate::token::Token)]
 pub struct SyncNative;
@@ -343,7 +343,7 @@ pub struct SyncNativeAccounts {
 empty_star_frame_instruction!(SyncNative, SyncNativeAccounts);
 
 // initialize account 3
-/// See [`spl_token::instruction::TokenInstruction::InitializeAccount3`].
+/// See [`spl_token_interface::instruction::TokenInstruction::InitializeAccount3`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionArgs, BorshDeserialize, BorshSerialize)]
 #[type_to_idl(program = crate::token::Token)]
 pub struct InitializeAccount3 {
@@ -358,7 +358,7 @@ pub struct InitializeAccount3Accounts {
 empty_star_frame_instruction!(InitializeAccount3, InitializeAccount3Accounts);
 
 // initialize multisig 2
-/// See [`spl_token::instruction::TokenInstruction::InitializeMultisig2`].
+/// See [`spl_token_interface::instruction::TokenInstruction::InitializeMultisig2`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionArgs, BorshDeserialize, BorshSerialize)]
 #[type_to_idl(program = crate::token::Token)]
 pub struct InitializeMultisig2 {
@@ -373,7 +373,7 @@ pub struct InitializeMultisig2Accounts {
 empty_star_frame_instruction!(InitializeMultisig2, InitializeMultisig2Accounts);
 
 // initialize mint 2
-/// See [`spl_token::instruction::TokenInstruction::InitializeMint2`].
+/// See [`spl_token_interface::instruction::TokenInstruction::InitializeMint2`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionArgs, BorshDeserialize, BorshSerialize)]
 #[type_to_idl(program = crate::token::Token)]
 pub struct InitializeMint2 {
@@ -389,7 +389,7 @@ pub struct InitializeMint2Accounts {
 empty_star_frame_instruction!(InitializeMint2, InitializeMint2Accounts);
 
 // get account data size
-/// See [`spl_token::instruction::TokenInstruction::GetAccountDataSize`].
+/// See [`spl_token_interface::instruction::TokenInstruction::GetAccountDataSize`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionArgs, BorshDeserialize, BorshSerialize)]
 #[type_to_idl(program = crate::token::Token)]
 pub struct GetAccountDataSize;
@@ -401,7 +401,7 @@ pub struct GetAccountDataSizeAccounts {
 empty_star_frame_instruction!(GetAccountDataSize, GetAccountDataSizeAccounts);
 
 // initialize immutable owner
-/// See [`spl_token::instruction::TokenInstruction::InitializeImmutableOwner`].
+/// See [`spl_token_interface::instruction::TokenInstruction::InitializeImmutableOwner`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionArgs, BorshDeserialize, BorshSerialize)]
 #[type_to_idl(program = crate::token::Token)]
 pub struct InitializeImmutableOwner;
@@ -413,7 +413,7 @@ pub struct InitializeImmutableOwnerAccounts {
 empty_star_frame_instruction!(InitializeImmutableOwner, InitializeImmutableOwnerAccounts);
 
 // amount to ui amount
-/// See [`spl_token::instruction::TokenInstruction::AmountToUiAmount`].
+/// See [`spl_token_interface::instruction::TokenInstruction::AmountToUiAmount`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionArgs, BorshDeserialize, BorshSerialize)]
 #[type_to_idl(program = crate::token::Token)]
 pub struct AmountToUiAmount {
@@ -457,8 +457,8 @@ mod tests {
             InitializeMintClientAccounts { mint, rent: None },
         )?;
 
-        let initialize_mint_ix = spl_token::instruction::initialize_mint(
-            &spl_token::id(),
+        let initialize_mint_ix = spl_token_interface::instruction::initialize_mint(
+            &spl_token_interface::id(),
             &mint,
             &mint_authority,
             freeze_authority.as_ref(),
@@ -484,8 +484,12 @@ mod tests {
             },
         )?;
 
-        let initialize_account_ix =
-            spl_token::instruction::initialize_account(&spl_token::id(), &account, &mint, &owner)?;
+        let initialize_account_ix = spl_token_interface::instruction::initialize_account(
+            &spl_token_interface::id(),
+            &account,
+            &mint,
+            &owner,
+        )?;
         assert_eq!(initialize_account_sf, initialize_account_ix);
         Ok(())
     }
@@ -506,8 +510,12 @@ mod tests {
         )?;
         let signers = signers.iter().collect_vec();
 
-        let initialize_multisig_ix =
-            spl_token::instruction::initialize_multisig(&spl_token::id(), &multisig, &signers, m)?;
+        let initialize_multisig_ix = spl_token_interface::instruction::initialize_multisig(
+            &spl_token_interface::id(),
+            &multisig,
+            &signers,
+            m,
+        )?;
         assert_eq!(initialize_multisig_sf, initialize_multisig_ix);
         Ok(())
     }
@@ -528,8 +536,8 @@ mod tests {
             },
         )?;
 
-        let transfer_ix = spl_token::instruction::transfer(
-            &spl_token::id(),
+        let transfer_ix = spl_token_interface::instruction::transfer(
+            &spl_token_interface::id(),
             &source,
             &destination,
             &owner,
@@ -556,8 +564,8 @@ mod tests {
             },
         )?;
 
-        let approve_ix = spl_token::instruction::approve(
-            &spl_token::id(),
+        let approve_ix = spl_token_interface::instruction::approve(
+            &spl_token_interface::id(),
             &source,
             &delegate,
             &owner,
@@ -575,7 +583,12 @@ mod tests {
 
         let revoke_sf = Token::instruction(&Revoke, RevokeClientAccounts { source, owner })?;
 
-        let revoke_ix = spl_token::instruction::revoke(&spl_token::id(), &source, &owner, &[])?;
+        let revoke_ix = spl_token_interface::instruction::revoke(
+            &spl_token_interface::id(),
+            &source,
+            &owner,
+            &[],
+        )?;
         assert_eq!(revoke_sf, revoke_ix);
         Ok(())
     }
@@ -586,7 +599,7 @@ mod tests {
         let current_authority = Pubkey::new_unique();
         let new_authority = Some(Pubkey::new_unique());
         let authority_type = AuthorityType::AccountOwner;
-        let authority_type_spl = spl_token::instruction::AuthorityType::AccountOwner;
+        let authority_type_spl = spl_token_interface::instruction::AuthorityType::AccountOwner;
 
         let set_authority_sf = Token::instruction(
             &SetAuthority {
@@ -599,8 +612,8 @@ mod tests {
             },
         )?;
 
-        let set_authority_ix = spl_token::instruction::set_authority(
-            &spl_token::id(),
+        let set_authority_ix = spl_token_interface::instruction::set_authority(
+            &spl_token_interface::id(),
             &account,
             new_authority.as_ref(),
             authority_type_spl,
@@ -627,8 +640,8 @@ mod tests {
             },
         )?;
 
-        let mint_to_ix = spl_token::instruction::mint_to(
-            &spl_token::id(),
+        let mint_to_ix = spl_token_interface::instruction::mint_to(
+            &spl_token_interface::id(),
             &mint,
             &account,
             &mint_authority,
@@ -655,8 +668,14 @@ mod tests {
             },
         )?;
 
-        let burn_ix =
-            spl_token::instruction::burn(&spl_token::id(), &account, &mint, &owner, &[], amount)?;
+        let burn_ix = spl_token_interface::instruction::burn(
+            &spl_token_interface::id(),
+            &account,
+            &mint,
+            &owner,
+            &[],
+            amount,
+        )?;
         assert_eq!(burn_sf, burn_ix);
         Ok(())
     }
@@ -676,8 +695,8 @@ mod tests {
             },
         )?;
 
-        let close_account_ix = spl_token::instruction::close_account(
-            &spl_token::id(),
+        let close_account_ix = spl_token_interface::instruction::close_account(
+            &spl_token_interface::id(),
             &account,
             &destination,
             &owner,
@@ -702,8 +721,8 @@ mod tests {
             },
         )?;
 
-        let freeze_account_ix = spl_token::instruction::freeze_account(
-            &spl_token::id(),
+        let freeze_account_ix = spl_token_interface::instruction::freeze_account(
+            &spl_token_interface::id(),
             &account,
             &mint,
             &authority,
@@ -728,8 +747,8 @@ mod tests {
             },
         )?;
 
-        let thaw_account_ix = spl_token::instruction::thaw_account(
-            &spl_token::id(),
+        let thaw_account_ix = spl_token_interface::instruction::thaw_account(
+            &spl_token_interface::id(),
             &account,
             &mint,
             &authority,
@@ -758,8 +777,8 @@ mod tests {
             },
         )?;
 
-        let transfer_checked_ix = spl_token::instruction::transfer_checked(
-            &spl_token::id(),
+        let transfer_checked_ix = spl_token_interface::instruction::transfer_checked(
+            &spl_token_interface::id(),
             &source,
             &mint,
             &destination,
@@ -791,8 +810,8 @@ mod tests {
             },
         )?;
 
-        let approve_checked_ix = spl_token::instruction::approve_checked(
-            &spl_token::id(),
+        let approve_checked_ix = spl_token_interface::instruction::approve_checked(
+            &spl_token_interface::id(),
             &source,
             &mint,
             &delegate,
@@ -822,8 +841,8 @@ mod tests {
             },
         )?;
 
-        let mint_to_checked_ix = spl_token::instruction::mint_to_checked(
-            &spl_token::id(),
+        let mint_to_checked_ix = spl_token_interface::instruction::mint_to_checked(
+            &spl_token_interface::id(),
             &mint,
             &account,
             &mint_authority,
@@ -852,8 +871,8 @@ mod tests {
             },
         )?;
 
-        let burn_checked_ix = spl_token::instruction::burn_checked(
-            &spl_token::id(),
+        let burn_checked_ix = spl_token_interface::instruction::burn_checked(
+            &spl_token_interface::id(),
             &account,
             &mint,
             &owner,
@@ -871,7 +890,8 @@ mod tests {
 
         let sync_native_sf = Token::instruction(&SyncNative, SyncNativeClientAccounts { account })?;
 
-        let sync_native_ix = spl_token::instruction::sync_native(&spl_token::id(), &account)?;
+        let sync_native_ix =
+            spl_token_interface::instruction::sync_native(&spl_token_interface::id(), &account)?;
         assert_eq!(sync_native_sf, sync_native_ix);
         Ok(())
     }
@@ -891,8 +911,12 @@ mod tests {
             },
         )?;
 
-        let initialize_account2_ix =
-            spl_token::instruction::initialize_account2(&spl_token::id(), &account, &mint, &owner)?;
+        let initialize_account2_ix = spl_token_interface::instruction::initialize_account2(
+            &spl_token_interface::id(),
+            &account,
+            &mint,
+            &owner,
+        )?;
         assert_eq!(initialize_account2_sf, initialize_account2_ix);
         Ok(())
     }
@@ -908,8 +932,12 @@ mod tests {
             InitializeAccount3ClientAccounts { account, mint },
         )?;
 
-        let initialize_account3_ix =
-            spl_token::instruction::initialize_account3(&spl_token::id(), &account, &mint, &owner)?;
+        let initialize_account3_ix = spl_token_interface::instruction::initialize_account3(
+            &spl_token_interface::id(),
+            &account,
+            &mint,
+            &owner,
+        )?;
         assert_eq!(initialize_account3_sf, initialize_account3_ix);
         Ok(())
     }
@@ -930,8 +958,12 @@ mod tests {
 
         let signers = signers.iter().collect_vec();
 
-        let initialize_multisig2_ix =
-            spl_token::instruction::initialize_multisig2(&spl_token::id(), &multisig, &signers, m)?;
+        let initialize_multisig2_ix = spl_token_interface::instruction::initialize_multisig2(
+            &spl_token_interface::id(),
+            &multisig,
+            &signers,
+            m,
+        )?;
         assert_eq!(initialize_multisig2_sf, initialize_multisig2_ix);
         Ok(())
     }
@@ -952,8 +984,8 @@ mod tests {
             InitializeMint2ClientAccounts { mint },
         )?;
 
-        let initialize_mint2_ix = spl_token::instruction::initialize_mint2(
-            &spl_token::id(),
+        let initialize_mint2_ix = spl_token_interface::instruction::initialize_mint2(
+            &spl_token_interface::id(),
             &mint,
             &mint_authority,
             freeze_authority.as_ref(),
@@ -972,8 +1004,10 @@ mod tests {
             GetAccountDataSizeClientAccounts { mint },
         )?;
 
-        let get_account_data_size_ix =
-            spl_token::instruction::get_account_data_size(&spl_token::id(), &mint)?;
+        let get_account_data_size_ix = spl_token_interface::instruction::get_account_data_size(
+            &spl_token_interface::id(),
+            &mint,
+        )?;
         assert_eq!(get_account_data_size_sf, get_account_data_size_ix);
         Ok(())
     }
@@ -988,7 +1022,10 @@ mod tests {
         )?;
 
         let initialize_immutable_owner_ix =
-            spl_token::instruction::initialize_immutable_owner(&spl_token::id(), &account)?;
+            spl_token_interface::instruction::initialize_immutable_owner(
+                &spl_token_interface::id(),
+                &account,
+            )?;
         assert_eq!(initialize_immutable_owner_sf, initialize_immutable_owner_ix);
         Ok(())
     }
@@ -1003,8 +1040,11 @@ mod tests {
             AmountToUiAmountClientAccounts { mint },
         )?;
 
-        let amount_to_ui_amount_ix =
-            spl_token::instruction::amount_to_ui_amount(&spl_token::id(), &mint, amount)?;
+        let amount_to_ui_amount_ix = spl_token_interface::instruction::amount_to_ui_amount(
+            &spl_token_interface::id(),
+            &mint,
+            amount,
+        )?;
         assert_eq!(amount_to_ui_amount_sf, amount_to_ui_amount_ix);
         Ok(())
     }

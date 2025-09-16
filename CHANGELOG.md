@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed default init requirement on unsized list default init. (#267)
 - Added more `Align1` impls for tuples. (#268)
 
+### Updated
+
+- Updated solana dependencies (#270)
+
 ## [0.25.1] - 2025-09-11
 
 ### Fixed

@@ -10,11 +10,11 @@ pub struct Token;
 impl StarFrameProgram for Token {
     type InstructionSet = instructions::TokenInstructionSet;
     type AccountDiscriminant = ();
-    /// See [`spl_token::ID`].
+    /// See [`spl_token_interface::ID`].
     /// ```
     /// # use star_frame::program::StarFrameProgram;
     /// # use star_frame_spl::token::Token;
-    /// assert_eq!(Token::ID, spl_token::ID);
+    /// assert_eq!(Token::ID, spl_token_interface::ID);
     /// ```
     const ID: Pubkey = pubkey!("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
 }

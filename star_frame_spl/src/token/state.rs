@@ -19,7 +19,7 @@ use star_frame::{
     prelude::*,
 };
 
-/// A wrapper around `AccountInfo` for the [`spl_token::state::Mint`] account.
+/// A wrapper around `AccountInfo` for the [`spl_token_interface::state::Mint`] account.
 /// It validates the account data on validate and provides cheap accessor methods for accessing fields
 /// without deserializing the entire account data.
 #[derive(AccountSet, Debug, Clone)]
@@ -44,7 +44,7 @@ impl HasInnerType for MintAccount {
     type Inner = MintAccount;
 }
 
-/// See [`spl_token::state::Mint`].
+/// See [`spl_token_interface::state::Mint`].
 #[derive(
     Debug, Clone, PartialEq, Eq, Copy, Default, Zeroable, CheckedBitPattern, Align1, NoUninit,
 )]
@@ -58,11 +58,11 @@ pub struct MintAccountData {
 }
 
 impl MintAccount {
-    /// See [`spl_token::state::Mint`]'s `LEN` const from `solana-program-pack`.
+    /// See [`spl_token_interface::state::Mint`]'s `LEN` const from `solana-program-pack`.
     /// ```
     /// # use solana_program_pack::Pack;
     /// # use star_frame_spl::token::state::{MintAccount, MintAccountData};
-    /// assert_eq!(MintAccount::LEN, spl_token::state::Mint::LEN);
+    /// assert_eq!(MintAccount::LEN, spl_token_interface::state::Mint::LEN);
     /// assert_eq!(MintAccount::LEN, core::mem::size_of::<MintAccountData>());
     /// ```
     pub const LEN: usize = 82;
@@ -250,7 +250,7 @@ where
     }
 }
 
-/// A wrapper around `AccountInfo` for the [`spl_token::state::Account`] account.
+/// A wrapper around `AccountInfo` for the [`spl_token_interface::state::Account`] account.
 /// It validates the account data on validate and provides cheap accessor methods for accessing fields
 /// without deserializing the entire account data, although it does provide full deserialization methods.
 #[derive(AccountSet, Debug, Clone)]
@@ -277,7 +277,7 @@ impl HasInnerType for TokenAccount {
     type Inner = TokenAccount;
 }
 
-/// See [`spl_token::state::AccountState`].
+/// See [`spl_token_interface::state::AccountState`].
 #[derive(
     Debug, Clone, PartialEq, Eq, Copy, Default, Zeroable, CheckedBitPattern, Align1, NoUninit,
 )]
@@ -294,7 +294,7 @@ pub enum AccountState {
     Frozen,
 }
 
-/// See [`spl_token::state::Account`].
+/// See [`spl_token_interface::state::Account`].
 #[derive(Clone, Copy, Debug, Default, PartialEq, CheckedBitPattern, Zeroable, NoUninit)]
 #[repr(C, packed)]
 pub struct TokenAccountData {
@@ -309,11 +309,11 @@ pub struct TokenAccountData {
 }
 
 impl TokenAccount {
-    /// See [`spl_token::state::Account`] LEN.
+    /// See [`spl_token_interface::state::Account`] LEN.
     /// ```
     /// # use solana_program_pack::Pack;
     /// # use star_frame_spl::token::state::{TokenAccount, TokenAccountData};
-    /// assert_eq!(TokenAccount::LEN, spl_token::state::Account::LEN);
+    /// assert_eq!(TokenAccount::LEN, spl_token_interface::state::Account::LEN);
     /// assert_eq!(TokenAccount::LEN, core::mem::size_of::<TokenAccountData>());
     /// ```
     pub const LEN: usize = 165;
@@ -478,14 +478,14 @@ mod tests {
         // let mut lamports = 0;
         // let key = Pubkey::new_unique();
         // let mint_authority = Pubkey::new_unique();
-        // let data = spl_token::state::Mint {
+        // let data = spl_token_interface::state::Mint {
         //     mint_authority: COption::Some(mint_authority),
         //     supply: 42069,
         //     decimals: 5,
         //     is_initialized: true,
         //     freeze_authority: COption::None,
         // };
-        // let mut mint_data = vec![0u8; spl_token::state::Mint::LEN];
+        // let mut mint_data = vec![0u8; spl_token_interface::state::Mint::LEN];
         // data.pack_into_slice(&mut mint_data);
         // let info = AccountInfo::new(
         //     &key,
@@ -526,17 +526,17 @@ mod tests {
     fn test_account_accessors() -> Result<()> {
         // let mut lamports = 0;
         // let key = Pubkey::new_unique();
-        // let data = spl_token::state::Account {
+        // let data = spl_token_interface::state::Account {
         //     mint: Pubkey::new_unique(),
         //     owner: Pubkey::new_unique(),
         //     amount: 69,
         //     delegate: COption::None,
-        //     state: spl_token::state::AccountState::Initialized,
+        //     state: spl_token_interface::state::AccountState::Initialized,
         //     is_native: COption::Some(100),
         //     delegated_amount: 42,
         //     close_authority: COption::Some(Pubkey::new_unique()),
         // };
-        // let mut account_data = vec![0u8; spl_token::state::Account::LEN];
+        // let mut account_data = vec![0u8; spl_token_interface::state::Account::LEN];
         // data.pack_into_slice(&mut account_data);
         // let info = AccountInfo::new(
         //     &key,
