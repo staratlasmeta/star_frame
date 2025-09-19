@@ -3282,6 +3282,7 @@ dependencies = [
  "num-traits",
  "paste",
  "pinocchio",
+ "pinocchio-log",
  "pretty_assertions",
  "ptr_meta",
  "ref-cast",
