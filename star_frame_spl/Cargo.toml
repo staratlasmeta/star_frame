@@ -9,7 +9,7 @@ license.workspace = true
 
 repository.workspace = true
 [features]
-rustdoc = ["spl-token", "spl-associated-token-account", "solana-program-pack"]
+rustdoc = ["spl-token-interface", "spl-associated-token-account-interface", "solana-program-pack"]
 # todo: are these default features okay?
 default = ["token"]
 token = []
@@ -19,15 +19,15 @@ idl = ["star_frame/idl"]
 star_frame.workspace = true
 borsh.workspace = true
 bytemuck.workspace = true
-spl-token = { workspace = true, optional = true }
-spl-associated-token-account = { workspace = true, optional = true }
+spl-token-interface = { workspace = true, optional = true }
+spl-associated-token-account-interface = { workspace = true, optional = true }
 solana-program-pack = { workspace = true, optional = true }
 
 [dev-dependencies]
 pretty_assertions.workspace = true
-spl-token.workspace = true
-spl-associated-token-account.workspace = true
+spl-token-interface.workspace = true
+spl-associated-token-account-interface.workspace = true
 solana-program-pack.workspace = true
 
 [package.metadata.cargo-udeps.ignore]
-development = ["spl-associated-token-account"]
+development = ["spl-associated-token-account-interface"]

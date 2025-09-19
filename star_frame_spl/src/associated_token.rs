@@ -11,10 +11,10 @@ pub struct AssociatedToken;
 impl AssociatedToken {
     /// Find the associated token address for the given wallet and mint.
     ///
-    /// See [`spl_associated_token_account::get_associated_token_address`].
+    /// See [`spl_associated_token_account_interface::address::get_associated_token_address`].
     /// ```
     /// # use star_frame_spl::{token::state::MintAccount,associated_token::AssociatedToken};
-    /// # use spl_associated_token_account::get_associated_token_address;
+    /// # use spl_associated_token_account_interface::address::get_associated_token_address;
     /// # use pretty_assertions::assert_eq;
     /// # use star_frame::prelude::{KeyFor, Pubkey};
     /// let wallet = Pubkey::new_unique();
@@ -40,11 +40,11 @@ impl AssociatedToken {
 impl StarFrameProgram for AssociatedToken {
     type InstructionSet = instructions::AssociatedTokenInstructionSet;
     type AccountDiscriminant = ();
-    /// See [`spl_associated_token_account::ID`].
+    /// See [`spl_associated_token_account_interface::program::ID`].
     /// ```
     /// # use star_frame::program::StarFrameProgram;
     /// # use star_frame_spl::associated_token::AssociatedToken;
-    /// assert_eq!(AssociatedToken::ID, spl_associated_token_account::ID);
+    /// assert_eq!(AssociatedToken::ID, spl_associated_token_account_interface::program::ID);
     /// ```
     const ID: Pubkey = pubkey!("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");
 }
@@ -144,7 +144,7 @@ pub mod instructions {
     }
 
     // create
-    /// See [`spl_associated_token_account::instruction::AssociatedTokenAccountInstruction::Create`].
+    /// See [`spl_associated_token_account_interface::instruction::AssociatedTokenAccountInstruction::Create`].
     #[derive(
         Copy, Clone, Debug, Eq, PartialEq, InstructionArgs, BorshDeserialize, BorshSerialize,
     )]
@@ -169,7 +169,7 @@ pub mod instructions {
     empty_star_frame_instruction!(Create, CreateAccounts);
 
     // create idempotent
-    /// See [`spl_associated_token_account::instruction::AssociatedTokenAccountInstruction::CreateIdempotent`].
+    /// See [`spl_associated_token_account_interface::instruction::AssociatedTokenAccountInstruction::CreateIdempotent`].
     ///
     /// This instruction has an identical AccountSet to [`Create`].
     #[derive(
@@ -180,7 +180,7 @@ pub mod instructions {
     empty_star_frame_instruction!(CreateIdempotent, CreateAccounts);
 
     // recover nested
-    /// See [`spl_associated_token_account::instruction::AssociatedTokenAccountInstruction::RecoverNested`].
+    /// See [`spl_associated_token_account_interface::instruction::AssociatedTokenAccountInstruction::RecoverNested`].
     #[derive(
         Copy, Clone, Debug, Eq, PartialEq, InstructionArgs, BorshDeserialize, BorshSerialize,
     )]
