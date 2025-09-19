@@ -33,6 +33,7 @@ num-traits = { workspace = true }
 paste = { workspace = true }
 solana-instruction = { workspace = true }
 pinocchio = { workspace = true }
+pinocchio-log = { workspace = true }
 star_frame_proc = { workspace = true }
 static_assertions = { workspace = true }
 typenum = { workspace = true, features = ["const-generics"] }

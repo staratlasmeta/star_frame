@@ -380,7 +380,7 @@ pub mod client;
 pub mod cpi;
 pub mod data_types;
 mod entrypoint;
-mod errors;
+pub mod errors;
 
 pub mod context;
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
