@@ -1,15 +1,14 @@
 use std::{
     borrow::Cow,
     fmt::{Debug, Formatter},
+    panic::Location,
 };
 
 use derive_more::{Deref, DerefMut, Display, Error as DeriveError};
 use itertools::Itertools;
-use pinocchio::{msg, program_error::ProgramError};
-use pinocchio_log::{
-    log,
-    logger::{log_message, Logger},
-};
+use pinocchio::program_error::ProgramError;
+use pinocchio_log::{log, logger::Logger};
+pub use star_frame_proc::star_frame_error;
 
 #[must_use]
 #[allow(clippy::needless_pass_by_value)]
@@ -24,24 +23,26 @@ pub(crate) fn handle_error(error: eyre::Error) -> ProgramError {
     }
 }
 
-#[must_use]
-pub(crate) fn handle_error2(error: Error) -> ProgramError {
-    error.log();
-    error.into()
-}
+// #[must_use]
+// pub(crate) fn handle_error(error: Error) -> ProgramError {
+//     error.log();
+//     error.into()
+// }
 
 /// left is found, right is expected
 #[macro_export]
 macro_rules! ensure_eq {
-    ($left:expr, $right:expr, $err:expr $(, $($reason:expr)?)?) => {{
-        use $crate::errors::ErrorInfo;
-
+    ($left:expr, $right:expr, $err:expr $(,)?) => {{
         let left = $left;
         let right = $right;
         if left != right {
-            return $crate::err!($err, $($($reason)*)*)
-                .with_reason(|| format!("expected {:?}, found {:?}", right, left))
-                .into();
+            return $crate::err!($err, format!("expected {:?}, found {:?}", right, left)).into();
+        }
+    }};
+
+    ($left:expr, $right:expr, $err:expr, $($ctx:tt)*) => {{
+        if $left != $right {
+            return $crate::err!($err, $($ctx)*).into();
         }
     }};
 }
@@ -49,15 +50,19 @@ macro_rules! ensure_eq {
 /// left is found, right is expected
 #[macro_export]
 macro_rules! ensure_ne {
-    ($left:expr, $right:expr, $err:expr $(, $($reason:expr)?)?) => {{
-        use $crate::errors::ErrorInfo;
-
-        let left = $left;
+    ($left:expr, $right:expr, $err:expr $(,)?) => {{
         let right = $right;
         if left == right {
-            return $crate::err!($err, $($($reason)*)*)
-                .with_reason(|| format!("expected to not be {:?}, found {:?}", right, left))
-                .into();
+            return $crate::err!(
+                $err,
+                format!("expected to not be {:?}, found {:?}", right, left)
+            )
+            .into();
+        }
+    }};
+    ($left:expr, $right:expr, $err:expr, $($ctx:tt)*) => {{
+        if $left == $right {
+            return $crate::err!($err, $($ctx)*).into();
         }
     }};
 }
@@ -65,9 +70,9 @@ macro_rules! ensure_ne {
 /// Returns an Err<Error> if the condition is false
 #[macro_export]
 macro_rules! ensure {
-    ($cond:expr, $err:expr $(, $($reason:expr)?)?) => {
+    ($cond:expr, $err:expr $(, $($ctx:tt)*)?) => {
         if !$cond {
-            return Err($crate::error!($err, $($($reason)*)*)).into();
+            return Err($crate::error!($err, $($($ctx)*)*)).into();
         }
     };
 }
@@ -75,74 +80,56 @@ macro_rules! ensure {
 /// Returns an Err<Error>
 #[macro_export]
 macro_rules! bail {
-    ($err:expr $(, $($reason:expr)?)?) => {
-        return $crate::err!($err, $($($reason)*)*);
+    ($err:expr $(, $($ctx:tt)*)?) => {
+        return $crate::err!($err, $($($ctx)*)*)
     };
 }
 
 /// Construcs an Err<Error>
 #[macro_export]
 macro_rules! err {
-    ($err:expr $(, $($reason:expr)?)?) => {
-        Err($crate::error!($err, $($($reason)*)*))
+    ($err:expr $(, $($ctx:tt)*)?) => {
+        Err($crate::error!($err, $($($ctx)*)*))
     };
 }
 
 /// Constructs an Error
 #[macro_export]
 macro_rules! error {
-    ($err:expr) => {
-        $crate::errors::Error::new_with_source($err, $crate::star_frame_error_source!())
+    ($err:expr $(,)?) => {
+        $crate::errors::Error::new($err)
     };
-    ($err:expr, $reason:expr) => {{
-        $crate::error!($err).reason($reason)
-    }};
+    ($err:expr, $($ctx:tt)*) => {
+        $crate::errors::Error::new_with_ctx($err, format!($($ctx)*))
+    };
 }
 
-// TODO: Make this a real thing
-#[derive(Debug, derive_more::Display, Copy, Clone, PartialEq, Eq)]
-#[repr(u32)]
+#[star_frame_error]
 pub enum ErrorCode {
+    #[msg("An invalid argument was provided (the second)")]
     InvalidArgument2 = 0,
+    #[msg("An invalid argument was provided")]
     InvalidArgument = 1,
+    #[msg("An invalid instruction data was provided")]
     InvalidInstructionData = 2,
+    #[msg("An invalid account data was provided")]
     InvalidAccountData = 3,
+    #[msg("An account data was too small")]
     AccountDataTooSmall = 4,
+    #[msg("Insufficient funds")]
     InsufficientFunds = 5,
+    #[msg("TODO")]
+    TODO = 6,
 }
 
+/// Represents something that can be used as a error.
+///
+/// Can be converted into an [`Error`] via [`From`].
+///
+/// Derivable on enums via [`derive@star_frame_error`].
 pub trait StarFrameError: 'static + Debug {
     fn code(&self) -> u32;
     fn name(&self) -> Cow<'static, str>;
-    fn message(&self) -> Cow<'static, str>;
-}
-
-impl StarFrameError for ErrorCode {
-    fn code(&self) -> u32 {
-        *self as u32
-    }
-    fn name(&self) -> Cow<'static, str> {
-        match self {
-            ErrorCode::InvalidArgument2 => "InvalidArgument2",
-            ErrorCode::InvalidArgument => "InvalidArgument",
-            ErrorCode::InvalidInstructionData => "InvalidInstructionData",
-            ErrorCode::InvalidAccountData => "InvalidAccountData",
-            ErrorCode::AccountDataTooSmall => "AccountDataTooSmall",
-            ErrorCode::InsufficientFunds => "InsufficientFunds",
-        }
-        .into()
-    }
-    fn message(&self) -> Cow<'static, str> {
-        match self {
-            ErrorCode::InvalidArgument2 => "InvalidArgument2",
-            ErrorCode::InvalidArgument => "InvalidArgument",
-            ErrorCode::InvalidInstructionData => "InvalidInstructionData",
-            ErrorCode::InvalidAccountData => "InvalidAccountData",
-            ErrorCode::AccountDataTooSmall => "AccountDataTooSmall",
-            ErrorCode::InsufficientFunds => "InsufficientFunds",
-        }
-        .into()
-    }
 }
 
 impl<T> From<T> for ErrorKind
@@ -182,9 +169,9 @@ impl PartialEq for ErrorKind {
 pub struct ErrorInner {
     kind: ErrorKind,
     account_path: Vec<&'static str>,
-    reasons: Vec<Cow<'static, str>>,
-    #[error(not(source))]
-    source: Option<ErrorSource>,
+    initial_ctx: Option<Cow<'static, str>>,
+    initial_source: ErrorSource,
+    ctxs: Vec<(ErrorSource, Cow<'static, str>)>,
 }
 
 #[derive(Debug, DeriveError, Display, Deref, DerefMut)]
@@ -192,21 +179,24 @@ pub struct Error(#[error(source)] Box<ErrorInner>);
 
 impl std::fmt::Display for ErrorInner {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "{}", self.kind)?;
-        if let Some(source) = self.source {
-            writeln!(f, "\nOccurred at {source}")?;
+        write!(f, "{}", self.kind)?;
+        if let Some(initial_ctx) = &self.initial_ctx {
+            write!(f, " - {initial_ctx}")?;
         }
+        writeln!(f)?;
+
+        writeln!(f, "Occurred at: {}", self.initial_source)?;
+
         if !self.account_path.is_empty() {
             writeln!(
                 f,
-                "\nFor account: {}",
+                "For account: {}",
                 self.account_path.iter().rev().join(".")
             )?;
         }
-        if !self.reasons.is_empty() {
-            writeln!(f)?;
-            for reason in &self.reasons {
-                writeln!(f, "{reason}")?;
+        if !self.ctxs.is_empty() {
+            for (source, ctx) in &self.ctxs {
+                writeln!(f, "{source}: {ctx}")?;
             }
         }
         Ok(())
@@ -229,14 +219,22 @@ pub struct ErrorSource {
     line: u32,
 }
 
-#[macro_export]
-macro_rules! star_frame_error_source {
-    () => {
-        $crate::errors::ErrorSource {
-            file: file!(),
-            line: line!(),
+impl ErrorSource {
+    #[track_caller]
+    #[must_use]
+    pub const fn new() -> Self {
+        let location = Location::caller();
+        Self {
+            file: location.file(),
+            line: location.line(),
         }
-    };
+    }
+}
+
+impl Default for ErrorSource {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl From<borsh::io::Error> for ErrorKind {
@@ -245,12 +243,19 @@ impl From<borsh::io::Error> for ErrorKind {
     }
 }
 
+impl From<bytemuck::PodCastError> for ErrorKind {
+    fn from(_error: bytemuck::PodCastError) -> Self {
+        ErrorCode::InvalidInstructionData.into()
+    }
+}
+
 impl<T> From<T> for Error
 where
     T: Into<ErrorKind>,
 {
+    #[track_caller]
     fn from(value: T) -> Self {
-        Error::new(value)
+        Error::new_inner(value, None, Location::caller())
     }
 }
 
@@ -261,39 +266,41 @@ mod private {
 }
 
 pub trait ErrorInfo<T>: private::Sealed {
-    /// Adds a reason to the error
-    fn reason(self, reason: &'static str) -> Result<T, Error>;
+    /// Adds a ctx to the error
+    #[track_caller]
+    fn ctx(self, ctx: &'static str) -> Result<T, Error>;
 
-    /// Add a reason to the error with a closure. The reason is evaluated lazily, and should be used when
-    /// the reason is not static.
-    fn with_reason<C>(self, with_reason: impl FnOnce() -> C) -> Result<T, Error>
+    /// Add a ctx to the error with a closure. The ctx is evaluated lazily, and should be used when
+    /// the ctx is not static.
+    #[track_caller]
+    fn with_ctx<C>(self, with_ctx: impl FnOnce() -> C) -> Result<T, Error>
     where
         C: Into<Cow<'static, str>>;
 
     /// Add an account path to the error, from the inner account name to outermost
     fn account_path(self, account_path: &'static str) -> Result<T, Error>;
-
-    fn with_source(self, source: impl FnOnce() -> ErrorSource) -> Result<T, Error>;
 }
 
 impl<T, E> ErrorInfo<T> for Result<T, E>
 where
     E: Into<Error>,
 {
-    fn reason(self, reason: &'static str) -> Result<T, Error> {
+    #[track_caller]
+    fn ctx(self, ctx: &'static str) -> Result<T, Error> {
         match self {
             Ok(ok) => Ok(ok),
-            Err(error) => Err(error.into().reason(reason)),
+            Err(error) => Err(error.into().push_ctx(ctx, Location::caller())),
         }
     }
 
-    fn with_reason<C>(self, with_reason: impl FnOnce() -> C) -> Result<T, Error>
+    #[track_caller]
+    fn with_ctx<C>(self, with_ctx: impl FnOnce() -> C) -> Result<T, Error>
     where
         C: Into<Cow<'static, str>>,
     {
         match self {
             Ok(ok) => Ok(ok),
-            Err(error) => Err(error.into().reason(with_reason())),
+            Err(error) => Err(error.into().push_ctx(with_ctx(), Location::caller())),
         }
     }
 
@@ -301,13 +308,6 @@ where
         match self {
             Ok(ok) => Ok(ok),
             Err(error) => Err(error.into().push_account_path(account_path)),
-        }
-    }
-
-    fn with_source(self, source: impl FnOnce() -> ErrorSource) -> Result<T, Error> {
-        match self {
-            Ok(ok) => Ok(ok),
-            Err(error) => Err(error.into().add_source(source())),
         }
     }
 }
@@ -323,35 +323,52 @@ impl<T> CanMakeError for T where T: Into<ErrorKind> {}
 impl Error {
     #[cold]
     #[must_use]
+    #[track_caller]
     pub fn new(error: impl CanMakeError) -> Self {
-        Error(
-            ErrorInner {
-                kind: error.into(),
-                account_path: vec![],
-                reasons: vec![],
-                source: None,
-            }
-            .into(),
-        )
+        Self::new_inner(error, None, Location::caller())
     }
 
     #[cold]
     #[must_use]
-    pub fn new_with_source(error: impl CanMakeError, source: ErrorSource) -> Self {
+    #[track_caller]
+    pub fn new_with_ctx(error: impl CanMakeError, ctx: impl Into<Cow<'static, str>>) -> Self {
+        Self::new_inner(error, Some(ctx.into()), Location::caller())
+    }
+
+    fn new_inner(
+        error: impl CanMakeError,
+        ctx: Option<Cow<'static, str>>,
+        source: &'static Location<'static>,
+    ) -> Self {
         Error(
             ErrorInner {
                 kind: error.into(),
                 account_path: vec![],
-                reasons: vec![],
-                source: Some(source),
+                initial_ctx: ctx,
+                initial_source: ErrorSource {
+                    file: source.file(),
+                    line: source.line(),
+                },
+                ctxs: vec![],
             }
             .into(),
         )
     }
 
     #[must_use]
-    pub fn reason(mut self, reason: impl Into<Cow<'static, str>>) -> Self {
-        self.reasons.push(reason.into());
+    pub fn push_ctx(
+        mut self,
+        ctx: impl Into<Cow<'static, str>>,
+        location: &'static Location<'static>,
+    ) -> Self {
+        // self.ctxs.push(ctx.into());
+        self.ctxs.push((
+            ErrorSource {
+                file: location.file(),
+                line: location.line(),
+            },
+            ctx.into(),
+        ));
         self
     }
 
@@ -361,24 +378,32 @@ impl Error {
         self
     }
 
-    #[must_use]
-    fn add_source(mut self, source: ErrorSource) -> Self {
-        self.source = Some(source);
-        self
-    }
-
     pub fn log(&self) {
-        match &self.kind {
-            ErrorKind::ProgramError(program_error) => {
-                log!("ProgramError: {}", program_error.to_string().as_str());
+        {
+            let mut logger = Logger::<300>::default();
+            match &self.kind {
+                ErrorKind::ProgramError(program_error) => {
+                    logger.append("ProgramError: ");
+                    logger.append(program_error.to_string().as_str());
+                }
+                ErrorKind::Custom(custom) => {
+                    logger.append("StarFrameError: ");
+                    logger.append(custom.name().as_ref());
+                }
             }
-            ErrorKind::Custom(custom) => {
-                log!("Custom: {}", custom.name().as_ref());
+            if let Some(initial_ctx) = &self.initial_ctx {
+                logger.append(" - ");
+                logger.append(initial_ctx.as_ref());
             }
+            logger.log();
         }
-        if let Some(source) = self.source {
-            log!("Occurred at {}:{}", source.file, source.line);
-        }
+
+        log!(
+            "Occurred at: {}:{}",
+            self.initial_source.file,
+            self.initial_source.line
+        );
+
         if let Some((last, rest)) = self.account_path.split_last() {
             let mut logger = Logger::<200>::default();
             logger.append("For account: ");
@@ -389,8 +414,9 @@ impl Error {
             }
             logger.log();
         }
-        for reason in &self.reasons {
-            log_message(reason.as_bytes());
+
+        for (source, ctx) in &self.ctxs {
+            log!("{}:{}: {}", source.file, source.line, ctx.as_ref());
         }
     }
 }
@@ -403,13 +429,20 @@ mod tests {
 
     #[test]
     fn test_error_display() {
-        let error = Err::<(), _>(Error::new(ProgramError::IllegalOwner))
-            .with_source(|| star_frame_error_source!())
-            .reason("test")
-            .account_path("key")
-            .account_path("profiles")
-            .account_path("thingy")
-            .unwrap_err();
+        fn returns_error() -> Result<(), Error> {
+            Err::<(), Error>(error!(ErrorCode::InvalidArgument, "AAAHGAHAHAH"))
+                .ctx("test")
+                .account_path("key")
+                .account_path("profiles")
+                .account_path("thingy")?;
+
+            Err(ErrorCode::InvalidArgument)?;
+            Ok(())
+        }
+
+        let error = returns_error().ctx("Outer ctx").unwrap_err();
+        error.log();
+        eprintln!();
         eprintln!("{error}");
     }
 
@@ -430,13 +463,15 @@ mod tests {
 
     #[test]
     fn test_macros() -> Result<(), Error> {
+        ensure!(0 == 1, ProgramError::IllegalOwner, "ctx!!");
         // bail!(ProgramError::IllegalOwner);
-        // ensure!(0 == 1, ProgramError::IllegalOwner, "Reason!!");
         let res = (|| {
             ensure_eq!(0, 1, ProgramError::IllegalOwner, "test");
             Ok(())
-        })()
-        .unwrap_err();
+        })();
+
+        let res = res.ctx("AAA").unwrap_err();
+
         res.log();
         println!("{res}");
         Ok(())

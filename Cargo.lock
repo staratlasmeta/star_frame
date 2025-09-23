@@ -3335,12 +3335,12 @@ version = "0.25.1"
 dependencies = [
  "codama-nodes",
  "derive_more 2.0.1",
- "eyre",
  "hex",
  "itertools 0.14.0",
  "semver",
  "serde",
  "solana-pubkey",
+ "thiserror 2.0.16",
 ]
 
 [[package]]
