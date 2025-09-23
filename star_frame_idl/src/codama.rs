@@ -4,7 +4,7 @@ use crate::{
     instruction::IdlInstruction,
     seeds::{IdlFindSeed, IdlFindSeeds, IdlSeed},
     ty::{IdlEnumVariant, IdlTypeDef},
-    IdlDefinition, IdlDiscriminant, ItemDescription, ItemInfo,
+    IdlDefinition, IdlDiscriminant, ItemDescription, ItemInfo, Result,
 };
 use codama_nodes::{
     AccountNode, AccountValueNode, ArgumentValueNode, ArrayTypeNode, BooleanTypeNode,
@@ -18,8 +18,7 @@ use codama_nodes::{
     StringTypeNode, StructFieldTypeNode, StructTypeNode, TupleTypeNode, TypeNode, TypeNodeTrait,
     VariablePdaSeedNode,
 };
-pub use codama_nodes::{NodeTrait, ProgramNode};
-use eyre::{bail, OptionExt, Result, WrapErr};
+pub use codama_nodes::{ErrorNode, NodeTrait, ProgramNode};
 use itertools::Itertools;
 
 impl ItemInfo {
@@ -39,7 +38,7 @@ trait CodamaNodeExt {
 impl CodamaNodeExt for TypeNode {
     fn as_number(&self) -> Result<NumberTypeNode> {
         let TypeNode::Number(number) = self else {
-            bail!("Expected number type node, found {:?}", self)
+            return Err(crate::Error::ExpectedNumberTypeNode(format!("{self:?}")));
         };
         Ok(number.clone())
     }
@@ -64,15 +63,19 @@ fn discriminator_info(discriminant: &IdlDiscriminant) -> (StructFieldTypeNode, D
 }
 
 impl TryFrom<IdlDefinition> for ProgramNode {
-    type Error = eyre::Error;
+    type Error = crate::Error;
 
-    fn try_from(def: IdlDefinition) -> Result<Self, Self::Error> {
+    fn try_from(def: IdlDefinition) -> Result<Self> {
         let ctx = &mut TryToCodamaContext;
 
         let (accounts, maybe_pdas): (_, Vec<_>) = def
             .accounts
             .values()
-            .map(|account| account.try_to_codama(&def, ctx))
+            .map(|account| {
+                account.try_to_codama(&def, ctx).map_err(|e| {
+                    crate::Error::CodamaConversion(format!("Failed to convert account: {e}"))
+                })
+            })
             .try_collect()?;
 
         let pdas = maybe_pdas.into_iter().flatten().collect();
@@ -84,7 +87,7 @@ impl TryFrom<IdlDefinition> for ProgramNode {
                 !def.accounts.contains_key(*source) && !def.instructions.contains_key(*source)
             })
             .map(|(_source, idl_type)| {
-                eyre::Ok(DefinedTypeNode {
+                Ok(DefinedTypeNode {
                     name: idl_type.info.codama_name(),
                     docs: idl_type.info.codama_docs(),
                     r#type: idl_type.type_def.try_to_codama(&def, ctx)?,
@@ -98,7 +101,7 @@ impl TryFrom<IdlDefinition> for ProgramNode {
             .values()
             .map(|instruction| instruction.try_to_codama(&def, ctx))
             .try_collect()?;
-        instructions.sort_by_key(|ix| ix.name.to_string());
+        instructions.sort_by_key(|ix: &InstructionNode| ix.name.to_string());
 
         Ok(ProgramNode {
             name: def.metadata.crate_metadata.name.as_str().into(),
@@ -110,7 +113,7 @@ impl TryFrom<IdlDefinition> for ProgramNode {
             accounts,
             pdas, // todo: add "ghost-pda" support to star frame IDL definition
             instructions,
-            errors: vec![],
+            errors: def.errors,
         })
     }
 }
@@ -132,10 +135,10 @@ fn ensure_struct_node(type_node: TypeNode) -> Result<StructTypeNode> {
         TypeNode::Tuple(tuple_node) if tuple_node.items.is_empty() => {
             Ok(StructTypeNode { fields: vec![] })
         }
-        _ => bail!(
-            "Only struct account types are supported in Codama at the moment. Found: {:?}",
+        _ => Err(crate::Error::UnsupportedAccountType(format!(
+            "{:?}",
             type_node
-        ),
+        ))),
     }
 }
 
@@ -263,10 +266,10 @@ fn instruction_account_to_remaining(
     account: InstructionAccountNode,
 ) -> Result<InstructionRemainingAccountsNode> {
     if account.default_value.is_some() {
-        bail!(
-            "Remaining accounts cannot have default values: {:?}",
+        return Err(crate::Error::RemainingAccountsCannotHaveDefaults(format!(
+            "{:?}",
             account
-        );
+        )));
     }
     Ok(InstructionRemainingAccountsNode {
         is_optional: account.is_optional,
@@ -300,7 +303,7 @@ impl TryToCodama<CodamaInstructionInfo> for (&IdlAccountSetStructField, &PathInf
                 let mut set: IdlAccountSetDef = account_set.as_ref().clone();
                 let single = set
                     .single()
-                    .context("Many sets must be made of single sets for Codama")?;
+                    .map_err(|_| crate::Error::ManySetsMustBeSingle)?;
                 let single = single_set_to_account_node(single, paths, &field.description);
                 let remaining = instruction_account_to_remaining(single)?;
                 (vec![], vec![remaining])
@@ -333,17 +336,19 @@ impl TryToCodama<CodamaInstructionInfo> for (&IdlAccountSetDef, &PathInfo) {
                     let (new_fields, new_remaining) =
                         (field, &new_path).try_to_codama(idl_definition, _context)?;
                     if !remaining.is_empty() && !new_fields.is_empty() {
-                        bail!("All `Many` account sets must come at the end of the instruction's AccountSet");
+                        return Err(crate::Error::ManyAccountSetsMustComeLast);
                     }
                     fields.extend(new_fields);
                     remaining.extend(new_remaining);
                 }
                 (fields, remaining)
             }
-            _ => bail!(
-                "Only struct account sets are supported with Codama: {:?}",
-                self
-            ),
+            _ => {
+                return Err(crate::Error::UnsupportedAccountSetType(format!(
+                    "{:?}",
+                    self.0
+                )))
+            }
         };
         Ok(fields)
     }
@@ -406,13 +411,19 @@ impl TryToCodama<(AccountNode, Option<PdaNode>)> for IdlAccount {
             .seeds
             .as_ref()
             .map(|seeds| {
-                eyre::Ok(PdaNode {
+                Ok(PdaNode {
                     name: info.codama_name(),
                     docs: info.codama_docs(),
                     program_id: None,
                     seeds: seeds
                         .iter()
-                        .map(|seed| seed.try_to_codama(idl_definition, context))
+                        .map(|seed| {
+                            seed.try_to_codama(idl_definition, context).map_err(|e| {
+                                crate::Error::CodamaConversion(format!(
+                                    "Failed to convert seed: {e}"
+                                ))
+                            })
+                        })
                         .try_collect()?,
                 })
             })
@@ -453,7 +464,9 @@ impl TryToCodama<TypeNode> for IdlTypeDef {
                 // todo: Right now if we're linking external types this may break if the external type is actually an account.
                 //  Codama needs to have accounts be DefinedTypeLinkNodes first or a discriminator will magically appear in any
                 //  of these types
-                let defined = ty.get_defined(idl_def)?;
+                let defined = ty.get_defined(idl_def).map_err(|e| crate::Error::CodamaConversion(format!(
+                    "Failed to get defined type: {e}"
+                )))?;
                 let name = defined.info.codama_name();
                 let program = ty.namespace.as_ref().map(|namespace| ProgramLinkNode {
                     name: namespace.to_string().into(),
@@ -501,8 +514,8 @@ impl TryToCodama<TypeNode> for IdlTypeDef {
                         fields
                             .iter()
                             .map(|f|{
-                                eyre::Ok(StructFieldTypeNode {
-                                    name: f.path.clone().ok_or_eyre(format!("Missing name on named field for struct {self:?}"))?.into(),
+                                Ok(StructFieldTypeNode {
+                                    name: f.path.clone().ok_or(crate::Error::MissingNameOnNamedField)?.into(),
                                     default_value_strategy: None,
                                     docs: f.description.clone().into(),
                                     r#type: f.type_def.try_to_codama(idl_def, _context)?,
@@ -574,7 +587,7 @@ impl TryToCodama<TypeNode> for IdlTypeDef {
                     default_value: None,
                 },
             ]).into_type_node(),
-            IdlTypeDef::Generic(_) => bail!("Generic types are not supported in Codama"),
+            IdlTypeDef::Generic(_) => return Err(crate::Error::GenericTypesNotSupported),
         };
         Ok(node)
     }
@@ -608,7 +621,7 @@ impl TryToCodama<EnumVariantTypeNode> for IdlEnumVariant {
                 })
             }
             Some(def) => {
-                bail!("Idl type def not yet supported for enum variants: {def:?}")
+                return Err(crate::Error::UnsupportedEnumVariantType(format!("{def:?}")));
             }
         };
         Ok(variant)
@@ -617,10 +630,9 @@ impl TryToCodama<EnumVariantTypeNode> for IdlEnumVariant {
 
 fn discriminant_to_usize(discriminant: &IdlDiscriminant) -> Result<usize> {
     if discriminant.len() * 8 > std::mem::size_of::<usize>() {
-        bail!(
-            "Discriminant is too large. Max len: {}",
-            std::mem::size_of::<usize>()
-        )
+        return Err(crate::Error::DiscriminantTooLarge(
+            std::mem::size_of::<usize>(),
+        ));
     }
     let mut bytes = [0; std::mem::size_of::<usize>()];
     bytes[0..discriminant.len()][..].copy_from_slice(discriminant);
