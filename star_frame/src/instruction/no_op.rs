@@ -3,11 +3,7 @@ use crate::{instruction::IxArgs, prelude::*};
 impl InstructionSet for () {
     type Discriminant = ();
 
-    fn dispatch(
-        _program_id: &Pubkey,
-        _accounts: &[AccountInfo],
-        _ix_bytes: &[u8],
-    ) -> Result<()> {
+    fn dispatch(_program_id: &Pubkey, _accounts: &[AccountInfo], _ix_bytes: &[u8]) -> Result<()> {
         Ok(())
     }
 }
