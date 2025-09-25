@@ -74,6 +74,8 @@ pub enum ErrorCode {
     IdlError,
 }
 
+/// Returns an [`Err<Error>`](Error) if left is not equal to right
+///
 /// left is found, right is expected
 #[macro_export]
 macro_rules! ensure_eq {
@@ -92,6 +94,8 @@ macro_rules! ensure_eq {
     }};
 }
 
+/// Returns an [`Err<Error>`](Error) if left is equal to right
+///
 /// left is found, right is expected
 #[macro_export]
 macro_rules! ensure_ne {
@@ -112,7 +116,7 @@ macro_rules! ensure_ne {
     }};
 }
 
-/// Returns an Err<Error> if the condition is false
+/// Returns an [`Err<Error>`](Error) if the condition is false
 #[macro_export]
 macro_rules! ensure {
     ($cond:expr, $err:expr $(, $($ctx:tt)*)?) => {
@@ -122,7 +126,7 @@ macro_rules! ensure {
     };
 }
 
-/// Returns an Err<Error>
+/// Returns an [`Err<Error>`](Error)
 #[macro_export]
 macro_rules! bail {
     ($err:expr $(, $($ctx:tt)*)?) => {
@@ -130,7 +134,7 @@ macro_rules! bail {
     };
 }
 
-/// Construcs an Err<Error>
+/// Construcs an [`Err<Error>`](Error)
 #[macro_export]
 macro_rules! err {
     ($err:expr $(, $($ctx:tt)*)?) => {
@@ -138,7 +142,7 @@ macro_rules! err {
     };
 }
 
-/// Constructs an Error
+/// Constructs an [`Error`]
 #[macro_export]
 macro_rules! error {
     ($err:expr $(,)?) => {
@@ -151,9 +155,9 @@ macro_rules! error {
 
 /// Represents something that can be used as a error.
 ///
-/// Can be converted into an [`Error`] via [`From`].
+/// Can be converted into an [`Error`] via `From`.
 ///
-/// Derivable on enums via [`derive@star_frame_error`].
+/// Derivable on enums via [`macro@star_frame_error`].
 pub trait StarFrameError: 'static + Debug {
     fn code(&self) -> u32;
     fn name(&self) -> Cow<'static, str>;
