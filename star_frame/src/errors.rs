@@ -130,7 +130,7 @@ macro_rules! ensure {
 #[macro_export]
 macro_rules! bail {
     ($err:expr $(, $($ctx:tt)*)?) => {
-        return $crate::err!($err, $($($ctx)*)*)
+        return $crate::err!($err, $($($ctx)*)*).into()
     };
 }
 
@@ -580,7 +580,6 @@ mod idl_impls {
 
 #[cfg(test)]
 mod tests {
-
     use super::*;
 
     #[test]
@@ -589,7 +588,8 @@ mod tests {
         ensure!(true, ProgramError::IllegalOwner);
         ensure!(true, ErrorCode::BorrowError, "Hello {}!", "world");
         let res: Result<(), Error> = (|| {
-            ensure_eq!(0, 1, ProgramError::IllegalOwner, "test");
+            ensure_eq!(0, 1, ProgramError::IllegalOwner, "Test {:?}", "aaa");
+            ensure_ne!(0, 1, ProgramError::IllegalOwner, "Test {}", "aaa");
             Ok(())
         })();
 
@@ -598,5 +598,12 @@ mod tests {
         res.log();
         println!("{res}");
         Ok(())
+    }
+
+    #[test]
+    fn test_bail() {
+        let _: fn() -> Result<(), Error> = || bail!(ProgramError::IllegalOwner, "Static str");
+        let _: fn() -> Result<(), Error> = || bail!(ProgramError::IllegalOwner);
+        let _: fn() -> Result<(), Error> = || bail!(ErrorCode::BorrowError, "Hello {}!", "world");
     }
 }
