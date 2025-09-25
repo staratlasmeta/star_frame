@@ -12,6 +12,7 @@ use crate::{
     },
     prelude::*,
     program::system,
+    ErrorCode,
 };
 use pinocchio::account_info::{Ref, RefMut};
 use std::cmp::Ordering;
@@ -72,7 +73,7 @@ pub trait SingleAccountSet {
             Ok(())
         } else {
             bail!(
-                crate::ErrorCode::ExpectedSigner,
+                ErrorCode::ExpectedSigner,
                 "Account {} is not signed",
                 self.pubkey()
             )
@@ -92,7 +93,7 @@ pub trait SingleAccountSet {
             Ok(())
         } else {
             bail!(
-                crate::ErrorCode::ExpectedWritable,
+                ErrorCode::ExpectedWritable,
                 "Account {} is not writable",
                 self.pubkey()
             )

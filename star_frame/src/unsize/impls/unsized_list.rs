@@ -1175,18 +1175,15 @@ where
         let unsized_size_bytes = bytes.advance_array::<U32_SIZE>();
         let unsized_len = (T::INIT_BYTES * N).to_u32().ok_or_else(|| {
             error!(
-                crate::ErrorCode::ToPrimitiveError,
+                ErrorCode::ToPrimitiveError,
                 "Total init bytes must be less than u32::MAX"
             )
         })?;
         *unsized_size_bytes = unsized_len.to_le_bytes();
 
-        let len_l: u32 = N.to_u32().ok_or_else(|| {
-            error!(
-                crate::ErrorCode::ToPrimitiveError,
-                "N must be less than u32::MAX"
-            )
-        })?;
+        let len_l: u32 = N
+            .to_u32()
+            .ok_or_else(|| error!(ErrorCode::ToPrimitiveError, "N must be less than u32::MAX"))?;
         let len_bytes = bytes.try_advance(U32_SIZE).with_ctx(|| {
             format!(
                 "Failed to advance {} bytes for length in list header initialization of {}",

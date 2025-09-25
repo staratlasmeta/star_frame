@@ -12,7 +12,7 @@ use crate::{
         wrapper::ExclusiveRecurse,
         AsShared, FromOwned, RawSliceAdvance, UnsizedType, UnsizedTypeMut,
     },
-    Result,
+    ErrorCode, Result,
 };
 use advancer::Advance;
 use derive_more::{Deref, DerefMut};
@@ -146,7 +146,7 @@ unsafe impl UnsizedType for RemainingBytes {
             Ordering::Equal => {}
             Ordering::Greater => {
                 bail!(
-                    crate::ErrorCode::UnsizedUnexpected,
+                    ErrorCode::UnsizedUnexpected,
                     "Resize occurred after RemainingBytes, which shouldn't be possible"
                 )
             }

@@ -247,7 +247,7 @@ where
         let expected = self.account.account_info().pubkey();
         ensure!(
             address.fast_eq(expected),
-            ProgramError::InvalidSeeds,
+            ErrorCode::AddressMismatch,
             "Seeds: {seeds:?} result in address `{address}` and bump `{bump}`, expected `{expected}`"
         );
         self.seeds = Some(SeedsWithBump { seeds, bump });
@@ -320,7 +320,7 @@ where
         // override seeds. Init should be called after seeds are set
         if account_seeds.is_some() {
             bail!(
-                crate::ErrorCode::ConflictingAccountSeeds,
+                ErrorCode::ConflictingAccountSeeds,
                 "Conflicting account seeds during init."
             );
         }
@@ -330,7 +330,7 @@ where
             .map(|s| s.seeds_with_bump())
             .ok_or_else(|| {
                 error!(
-                    crate::ErrorCode::SeedsNotSet,
+                    ErrorCode::SeedsNotSet,
                     "Seeds not set for `Seeded` during init."
                 )
             })?;

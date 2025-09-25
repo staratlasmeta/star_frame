@@ -16,7 +16,7 @@ use crate::{
         AsShared, FromOwned, RawSliceAdvance, UnsizedType, UnsizedTypeMut,
     },
     util::uninit_array_bytes,
-    Result,
+    ErrorCode, Result,
 };
 use advancer::Advance;
 use bytemuck::{
@@ -399,7 +399,7 @@ where
         let len_l = from_bytes::<PackedValue<L>>(length_bytes);
         let length = len_l.to_usize().ok_or_else(|| {
             error!(
-                crate::ErrorCode::ToPrimitiveError,
+                ErrorCode::ToPrimitiveError,
                 "Could not convert list size to usize"
             )
         })?;
@@ -429,7 +429,7 @@ where
         let len_l: L = bytemuck::try_pod_read_unaligned(unsafe { &*len_ptr })?;
         let length = len_l.to_usize().ok_or_else(|| {
             error!(
-                crate::ErrorCode::ToPrimitiveError,
+                ErrorCode::ToPrimitiveError,
                 "Could not convert list size to usize"
             )
         })?;
@@ -557,13 +557,13 @@ where
             let old_len = list.len();
             if index > old_len {
                 bail!(
-                    crate::ErrorCode::IndexOutOfBounds,
+                    ErrorCode::IndexOutOfBounds,
                     "Index {index} is out of bounds for list of length {old_len}"
                 );
             }
             let new_len = L::from_usize(old_len + to_add).ok_or_else(|| {
                 error!(
-                    crate::ErrorCode::ToPrimitiveError,
+                    ErrorCode::ToPrimitiveError,
                     "Failed to convert new len to L"
                 )
             })?;
@@ -613,10 +613,10 @@ where
             std::ops::Bound::Unbounded => self.len(),
         };
 
-        ensure!(start <= end, crate::ErrorCode::InvalidRange);
+        ensure!(start <= end, ErrorCode::InvalidRange);
         ensure!(
             end <= self.len(),
-            crate::ErrorCode::IndexOutOfBounds,
+            ErrorCode::IndexOutOfBounds,
             "End index {end} for List of length {} out of bounds",
             self.len()
         );
@@ -634,7 +634,7 @@ where
         {
             self.len = PackedValue(L::from_usize(new_len).ok_or_else(|| {
                 error!(
-                    crate::ErrorCode::ToPrimitiveError,
+                    ErrorCode::ToPrimitiveError,
                     "Failed to convert new list len to L"
                 )
             })?);
@@ -681,7 +681,7 @@ where
     fn init(bytes: &mut &mut [u8], array: &[T; N]) -> Result<()> {
         let len_bytes = L::from_usize(N).ok_or_else(|| {
             error!(
-                crate::ErrorCode::ToPrimitiveError,
+                ErrorCode::ToPrimitiveError,
                 "Init array length larger than max size of List length {}",
                 type_name::<L>()
             )
