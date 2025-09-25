@@ -152,7 +152,7 @@ pub(super) fn cleanups(
         } else {
             quote! { #prelude::ErrorInfo::account_path(res, ::std::stringify!(#field_name))?; }
         }).collect::<Vec<_>>();
-        
+
         quote! {
             #[automatically_derived]
             impl #impl_generics #account_set_cleanup<#cleanup_type> for #ident #ty_generics #where_clause {

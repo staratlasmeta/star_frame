@@ -159,7 +159,6 @@ pub(super) fn decodes(
         let (impl_generics, _, where_clause) = generics.split_for_impl();
 
         let decode_inner = init(&mut decode_field_ty.iter().zip_eq(all_field_name).zip_eq(&decode_args).map(|((field_ty, field_name), decode_args)| {
-            
             match &field_ty {
                 DecodeFieldTy::Type(field_type) => {
                     let decode = quote! {
