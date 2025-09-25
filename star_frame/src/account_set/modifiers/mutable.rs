@@ -33,7 +33,6 @@ impl<T> WritableAccount for MaybeMut<false, T> where T: WritableAccount {}
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
 mod idl_impl {
     use super::*;
-    use crate::Result;
     use star_frame::idl::AccountSetToIdl;
     use star_frame_idl::{account_set::IdlAccountSetDef, IdlDefinition};
 
@@ -44,7 +43,7 @@ mod idl_impl {
         fn account_set_to_idl(
             idl_definition: &mut IdlDefinition,
             arg: A,
-        ) -> Result<IdlAccountSetDef> {
+        ) -> crate::IdlResult<IdlAccountSetDef> {
             let mut set = T::account_set_to_idl(idl_definition, arg)?;
             if MUT {
                 set.single()?.writable = true;

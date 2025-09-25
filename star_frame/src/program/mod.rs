@@ -16,6 +16,16 @@ pub trait StarFrameProgram {
 
     const ID: Pubkey;
 
+    /// Handles errors returned from the program and then returns a [`ProgramError`].
+    ///
+    /// By default, it logs the error with [`Error::log`].
+    #[inline]
+    #[must_use]
+    fn handle_error(error: Error) -> ProgramError {
+        error.log();
+        error.into()
+    }
+
     /// The entrypoint for the program which calls in to [`InstructionSet::dispatch`] on [`Self::InstructionSet`]. This has the same signature as the Solana program entrypoint, and
     /// is called by [`star_frame_entrypoint`](crate::star_frame_entrypoint) macro.
     #[allow(clippy::inline_always)]
@@ -27,7 +37,7 @@ pub trait StarFrameProgram {
     ) -> ProgramResult {
         let program_id = bytemuck::cast_ref(program_id);
         Self::InstructionSet::dispatch(program_id, accounts, instruction_data)
-            .map_err(crate::errors::handle_error)
+            .map_err(Self::handle_error)
     }
 }
 

@@ -6,21 +6,23 @@
 
 use crate::{
     align1::Align1,
+    bail,
     data_types::PackedValue,
+    ensure, error,
+    errors::ErrorInfo as _,
     unsize::{
         init::{DefaultInit, UnsizedInit},
         wrapper::ExclusiveRecurse,
         AsShared, FromOwned, RawSliceAdvance, UnsizedType, UnsizedTypeMut,
     },
     util::uninit_array_bytes,
-    Result,
+    ErrorCode, Result,
 };
 use advancer::Advance;
 use bytemuck::{
     bytes_of, cast_slice, cast_slice_mut, checked, from_bytes, CheckedBitPattern, NoUninit, Pod,
     Zeroable,
 };
-use eyre::{bail, ensure, eyre, Context, ContextCompat};
 use itertools::Itertools;
 use num_traits::{FromPrimitive, ToPrimitive, Zero};
 use ptr_meta::Pointee;
@@ -64,7 +66,7 @@ mod idl_impl {
         L: ListLength + TypeToIdl,
     {
         type AssociatedProgram = System;
-        fn type_to_idl(idl_definition: &mut IdlDefinition) -> Result<IdlTypeDef> {
+        fn type_to_idl(idl_definition: &mut IdlDefinition) -> crate::IdlResult<IdlTypeDef> {
             let inner_type = T::type_to_idl(idl_definition)?;
             Ok(IdlTypeDef::List {
                 item_ty: Box::new(inner_type),
@@ -387,7 +389,7 @@ where
 
     fn get_ref<'a>(data: &mut &'a [u8]) -> Result<Self::Ref<'a>> {
         let ptr = data.as_ptr();
-        let length_bytes = data.try_advance(size_of::<L>()).with_context(|| {
+        let length_bytes = data.try_advance(size_of::<L>()).with_ctx(|| {
             format!(
                 "Failed to read length bytes of size {} for {}",
                 size_of::<L>(),
@@ -395,10 +397,13 @@ where
             )
         })?;
         let len_l = from_bytes::<PackedValue<L>>(length_bytes);
-        let length = len_l
-            .to_usize()
-            .context("Could not convert list size to usize")?;
-        data.try_advance(size_of::<T>() * length).with_context(|| {
+        let length = len_l.to_usize().ok_or_else(|| {
+            error!(
+                ErrorCode::ToPrimitiveError,
+                "Could not convert list size to usize"
+            )
+        })?;
+        data.try_advance(size_of::<T>() * length).with_ctx(|| {
             format!(
                 "Failed to read list elements of total size {} for {}",
                 size_of::<T>() * length,
@@ -412,7 +417,7 @@ where
     }
 
     unsafe fn get_mut<'a>(data: &mut *mut [u8]) -> Result<Self::Mut<'a>> {
-        let len_ptr = data.try_advance(size_of::<L>()).with_context(|| {
+        let len_ptr = data.try_advance(size_of::<L>()).with_ctx(|| {
             format!(
                 "Failed to read length bytes of size {} for {}",
                 size_of::<L>(),
@@ -422,10 +427,13 @@ where
         // SAFETY:
         // We are allowed to read from the pointer per the method contract, and it must be valid.
         let len_l: L = bytemuck::try_pod_read_unaligned(unsafe { &*len_ptr })?;
-        let length = len_l
-            .to_usize()
-            .ok_or_else(|| eyre!("Could not convert list size to usize"))?;
-        data.try_advance(size_of::<T>() * length).with_context(|| {
+        let length = len_l.to_usize().ok_or_else(|| {
+            error!(
+                ErrorCode::ToPrimitiveError,
+                "Could not convert list size to usize"
+            )
+        })?;
+        data.try_advance(size_of::<T>() * length).with_ctx(|| {
             format!(
                 "Failed to read mutable list elements of total size {} for {}",
                 size_of::<T>() * length,
@@ -548,10 +556,17 @@ where
             let list: &mut List<T, L> = self;
             let old_len = list.len();
             if index > old_len {
-                bail!("Index {index} is out of bounds for list of length {old_len}");
+                bail!(
+                    ErrorCode::IndexOutOfBounds,
+                    "Index {index} is out of bounds for list of length {old_len}"
+                );
             }
-            let new_len =
-                L::from_usize(old_len + to_add).context("Failed to convert new len to L")?;
+            let new_len = L::from_usize(old_len + to_add).ok_or_else(|| {
+                error!(
+                    ErrorCode::ToPrimitiveError,
+                    "Failed to convert new len to L"
+                )
+            })?;
             let end_ptr = list.bytes.as_mut_ptr().wrapping_add(byte_index).cast();
             (end_ptr, old_len, new_len, self.0.cast_const().cast::<()>())
         };
@@ -598,8 +613,13 @@ where
             std::ops::Bound::Unbounded => self.len(),
         };
 
-        ensure!(start <= end);
-        ensure!(end <= self.len());
+        ensure!(start <= end, ErrorCode::InvalidRange);
+        ensure!(
+            end <= self.len(),
+            ErrorCode::IndexOutOfBounds,
+            "End index {end} for List of length {} out of bounds",
+            self.len()
+        );
 
         let to_remove = end - start;
         let old_len = self.len();
@@ -612,8 +632,12 @@ where
             ExclusiveRecurse::remove_bytes(self, source_ptr, start_ptr..end_ptr)?;
         };
         {
-            self.len =
-                PackedValue(L::from_usize(new_len).context("Failed to convert new list len to L")?);
+            self.len = PackedValue(L::from_usize(new_len).ok_or_else(|| {
+                error!(
+                    ErrorCode::ToPrimitiveError,
+                    "Failed to convert new list len to L"
+                )
+            })?);
             self.0 = ptr_meta::from_raw_parts_mut(self.0.cast::<()>(), new_len * size_of::<T>());
         }
         Ok(())
@@ -635,7 +659,7 @@ where
     fn init(bytes: &mut &mut [u8], _arg: DefaultInit) -> Result<()> {
         bytes
             .try_advance(<Self as UnsizedInit<DefaultInit>>::INIT_BYTES)
-            .with_context(|| {
+            .with_ctx(|| {
                 format!(
                     "Failed to advance {} bytes during default initialization of {}",
                     <Self as UnsizedInit<DefaultInit>>::INIT_BYTES,
@@ -655,15 +679,16 @@ where
     const INIT_BYTES: usize = size_of::<L>() + size_of::<T>() * N;
 
     fn init(bytes: &mut &mut [u8], array: &[T; N]) -> Result<()> {
-        let len_bytes = L::from_usize(N).with_context(|| {
-            format!(
+        let len_bytes = L::from_usize(N).ok_or_else(|| {
+            error!(
+                ErrorCode::ToPrimitiveError,
                 "Init array length larger than max size of List length {}",
                 type_name::<L>()
             )
         })?;
         let array_bytes = bytes
             .try_advance(<Self as UnsizedInit<&[T; N]>>::INIT_BYTES)
-            .with_context(|| {
+            .with_ctx(|| {
                 format!(
                     "Failed to advance {} bytes during array initialization of {}",
                     <Self as UnsizedInit<&[T; N]>>::INIT_BYTES,

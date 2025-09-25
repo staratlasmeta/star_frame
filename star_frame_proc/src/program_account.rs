@@ -28,12 +28,7 @@ pub fn program_account_impl(input: DeriveInput) -> TokenStream {
 }
 
 pub fn program_account_impl_inner(input: DeriveInput, args: ProgramAccountArgs) -> TokenStream {
-    Paths!(
-        prelude,
-        result,
-        type_to_idl_args_ident,
-        declared_program_type
-    );
+    Paths!(prelude, type_to_idl_args_ident, declared_program_type);
 
     reject_attributes(&input.attrs, &type_to_idl_args_ident, None);
 
@@ -86,7 +81,7 @@ pub fn program_account_impl_inner(input: DeriveInput, args: ProgramAccountArgs) 
             #[cfg(all(feature = "idl", not(target_os = "solana")))]
             #[automatically_derived]
             impl #impl_gen #prelude::AccountToIdl for #ident #ty_gen #where_clause {
-                fn account_to_idl(idl_definition: &mut #prelude::IdlDefinition) -> #result<#prelude::IdlAccountId> {
+                fn account_to_idl(idl_definition: &mut #prelude::IdlDefinition) -> #prelude::IdlResult<#prelude::IdlAccountId> {
                     let source = #prelude::item_source::<Self>();
                     let type_def = <Self as #prelude::TypeToIdl>::type_to_idl(idl_definition)?;
                     let type_id = type_def.assert_defined()?.clone();

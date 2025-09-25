@@ -24,6 +24,7 @@ impl StarFrameProgram for System {
 
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
 impl ProgramToIdl for System {
+    type Errors = ();
     fn crate_metadata() -> star_frame_idl::CrateMetadata {
         star_frame_idl::CrateMetadata {
             version: star_frame_idl::Version::new(1, 18, 10),

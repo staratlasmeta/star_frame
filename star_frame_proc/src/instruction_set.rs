@@ -102,7 +102,7 @@ pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
                 #[allow(clippy::let_unit_value)]
                 fn instruction_set_to_idl(
                     idl_definition: &mut #prelude::IdlDefinition,
-                ) -> #result<()> {
+                ) -> #prelude::IdlResult<()> {
                     #({
                         let definition =
                             <#variant_tys as #prelude::InstructionToIdl<#idl_arg_tys>>::instruction_to_idl(idl_definition, #idl_args)?;
@@ -123,13 +123,13 @@ pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
 
     let dispatch_body = if variant_tys.is_empty() {
         quote! {
-            #prelude::bail!("No instructions in this instruction set")
+            #prelude::bail!(#prelude::ProgramError::InvalidInstructionData, "No instructions in this instruction set")
         }
     } else {
         quote! {
             let maybe_discriminant_bytes =
                 #prelude::Advance::try_advance(&mut instruction_data, ::core::mem::size_of::<#discriminant_type>());
-            let discriminant_bytes = #prelude::eyre::Context::context(maybe_discriminant_bytes, "Failed to read instruction discriminant bytes")?;
+            let discriminant_bytes = #prelude::ErrorInfo::ctx(maybe_discriminant_bytes, "Failed to read instruction discriminant bytes")?;
             let discriminant = *#bytemuck::try_from_bytes(discriminant_bytes)?;
             #[deny(unreachable_patterns)]
             match discriminant {
@@ -143,7 +143,7 @@ pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
                         <#variant_tys as #instruction>::process_from_raw(program_id, accounts, instruction_data)
                     }
                 )*
-                x => #prelude::bail!("Invalid ix discriminant: {:?}", x),
+                x => #prelude::bail!(#prelude::ProgramError::InvalidInstructionData, "Invalid ix discriminant: {:?}", x),
             }
         }
     };

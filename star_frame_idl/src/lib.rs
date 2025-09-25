@@ -1,12 +1,11 @@
 extern crate alloc;
+extern crate codama_nodes;
 extern crate core;
 
+mod codama;
+pub use codama::*;
 pub mod account;
 pub mod account_set;
-#[cfg(feature = "codama")]
-mod codama;
-#[cfg(feature = "codama")]
-pub use codama::*;
 pub mod instruction;
 pub mod seeds;
 pub mod serde_impls;
@@ -33,6 +32,8 @@ pub fn idl_spec_version() -> Version {
 }
 
 pub type IdlDiscriminant = Vec<u8>;
+
+pub type Result<T> = std::result::Result<T, Error>;
 
 /// A source of an item in the IDL, found using the `item_source` function
 pub type ItemSource = String;
@@ -119,6 +120,7 @@ pub struct IdlDefinition {
     pub accounts: BTreeMap<ItemSource, IdlAccount>,
     pub types: BTreeMap<ItemSource, IdlType>,
     pub external_types: BTreeMap<ItemSource, IdlType>,
+    pub errors: Vec<ErrorNode>,
 }
 
 impl IdlDefinition {
@@ -130,7 +132,7 @@ impl IdlDefinition {
         &mut self,
         definition: IdlInstructionDef,
         discriminant: IdlDiscriminant,
-    ) -> eyre::Result<()> {
+    ) -> Result<()> {
         let source = definition.type_id.source.clone();
         let idl_instruction = IdlInstruction {
             definition,
@@ -144,7 +146,7 @@ impl IdlDefinition {
         &mut self,
         account: IdlAccount,
         namespace: IdlNamespace,
-    ) -> eyre::Result<Option<IdlNamespace>> {
+    ) -> Result<Option<IdlNamespace>> {
         let source = account.type_id.source.clone();
         if namespace == self.namespace() {
             self.accounts.entry(source).or_insert(account);
@@ -214,6 +216,48 @@ pub fn item_source<T: ?Sized>() -> String {
 // Serde helper function
 fn is_default<T: Default + PartialEq>(t: &T) -> bool {
     t == &T::default()
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum Error {
+    #[error("Invalid discriminant: {0}")]
+    InvalidDiscriminant(String),
+    #[error("Invalid type definition: expected {expected}, found {found}")]
+    InvalidTypeDef { expected: String, found: String },
+    #[error("Failed to convert to Codama: {0}")]
+    CodamaConversion(String),
+    #[error("Expected defined account set, found {0}")]
+    ExpectedDefinedAccountSet(String),
+    #[error("Expected single account set, found {0}")]
+    ExpectedSingleAccountSet(String),
+    #[error("Type not found in IDL definition: {0}")]
+    TypeNotFound(String),
+    #[error("Account set not found in IDL definition: {0}")]
+    AccountSetNotFound(String),
+    #[error("Missing name on named field for struct")]
+    MissingNameOnNamedField,
+    #[error("All 'Many' account sets must come at the end of the instruction's AccountSet")]
+    ManyAccountSetsMustComeLast,
+    #[error("Remaining accounts cannot have default values: {0}")]
+    RemainingAccountsCannotHaveDefaults(String),
+    #[error("Generic types are not supported in Codama")]
+    GenericTypesNotSupported,
+    #[error("IDL type definition not yet supported for enum variants: {0}")]
+    UnsupportedEnumVariantType(String),
+    #[error("Discriminant is too large. Max length: {0}")]
+    DiscriminantTooLarge(usize),
+    #[error("Expected number type node, found {0}")]
+    ExpectedNumberTypeNode(String),
+    #[error("Only struct account types are supported in Codama at the moment. Found: {0}")]
+    UnsupportedAccountType(String),
+    #[error("Only struct account sets are supported with Codama: {0}")]
+    UnsupportedAccountSetType(String),
+    #[error("Many sets must be made of single sets for Codama")]
+    ManySetsMustBeSingle,
+    #[error(transparent)]
+    SerdeJsonError(#[from] serde_json::Error),
+    #[error("Custom Error: {0}")]
+    Custom(String),
 }
 
 #[cfg(test)]

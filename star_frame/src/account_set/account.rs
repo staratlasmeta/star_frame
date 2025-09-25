@@ -8,12 +8,12 @@ use crate::{
         CanAddLamports, CanCloseAccount as _, CanFundRent, CanModifyRent as _,
         CanSystemCreateAccount as _,
     },
+    errors::ErrorCode,
     prelude::*,
     unsize::{init::UnsizedInit, wrapper::SharedWrapper},
 };
 use advancer::Advance;
 use bytemuck::bytes_of;
-use eyre::{ContextCompat as _, WrapErr};
 use std::marker::PhantomData;
 
 /// Increases or decreases the rent of self to be the minimum required using [`CanModifyRent::normalize_rent`](crate::account_set::CanModifyRent::normalize_rent).
@@ -59,7 +59,7 @@ pub struct CloseAccount<T>(pub T);
     arg = NormalizeRent<()>,
     generics = [],
     extra_cleanup = {
-        let funder = ctx.get_funder().context("Missing `funder` in cache for `NormalizeRent`")?;
+        let funder = ctx.get_funder().ok_or_else(|| error!(ErrorCode::EmptyFunderCache, "Missing `funder` in cache for `NormalizeRent`"))?;
         self.normalize_rent(funder, ctx)
     },
 )]
@@ -74,7 +74,7 @@ pub struct CloseAccount<T>(pub T);
     arg = ReceiveRent<()>,
     generics = [],
     extra_cleanup = {
-        let funder = ctx.get_funder().context("Missing `funder` in cache for `ReceiveRent`")?;
+        let funder = ctx.get_funder().ok_or_else(|| error!(ErrorCode::EmptyFunderCache, "Missing `funder` in cache for `ReceiveRent`"))?;
         self.receive_rent(funder, ctx)
     }
 )]
@@ -89,7 +89,7 @@ pub struct CloseAccount<T>(pub T);
     arg = RefundRent<()>,
     generics = [],
     extra_cleanup = {
-        let recipient = ctx.get_recipient().context("Missing `recipient` in cache for `RefundRent`")?;
+        let recipient = ctx.get_recipient().ok_or_else(|| error!(ErrorCode::EmptyRecipientCache, "Missing `recipient` in cache for `RefundRent`"))?;
         self.refund_rent(recipient, ctx)
     }
 )]
@@ -104,7 +104,7 @@ pub struct CloseAccount<T>(pub T);
     arg = CloseAccount<()>,
     generics = [],
     extra_cleanup = {
-        let recipient = ctx.get_recipient().context("Missing `recipient` in cache for `CloseAccount`")?;
+        let recipient = ctx.get_recipient().ok_or_else(|| error!(ErrorCode::EmptyRecipientCache, "Missing `recipient` in cache for `CloseAccount`"))?;
         self.close_account(recipient)
     }
 )]
@@ -141,6 +141,7 @@ where
         } else {
             // TODO: Perhaps put this behind a debug flag?
             bail!(
+                ProgramError::AccountBorrowFailed,
                 "Tried to borrow mutably from Account `{}` which is not writable",
                 self.pubkey()
             );
@@ -154,7 +155,6 @@ pub mod discriminant {
         account_set::modifiers::OwnerProgramDiscriminant,
         unsize::{init::UnsizedInit, FromOwned, RawSliceAdvance},
     };
-    use eyre::WrapErr;
 
     use super::*;
     #[derive(Debug)]
@@ -182,7 +182,7 @@ pub mod discriminant {
         #[inline]
         fn get_ref<'a>(data: &mut &'a [u8]) -> Result<Self::Ref<'a>> {
             data.try_advance(size_of::<OwnerProgramDiscriminant<T>>())
-                .with_context(|| {
+                .with_ctx(|| {
                     format!(
                         "Failed to advance past discriminant of size {}",
                         size_of::<OwnerProgramDiscriminant<T>>()
@@ -194,7 +194,7 @@ pub mod discriminant {
         #[inline]
         unsafe fn get_mut<'a>(data: &mut *mut [u8]) -> Result<Self::Mut<'a>> {
             data.try_advance(size_of::<OwnerProgramDiscriminant<T>>())
-                .with_context(|| {
+                .with_ctx(|| {
                     format!(
                         "Failed to advance past discriminant of size {}",
                         size_of::<OwnerProgramDiscriminant<T>>()
@@ -215,7 +215,7 @@ pub mod discriminant {
 
         fn owned(mut data: &[u8]) -> Result<Self::Owned> {
             data.try_advance(size_of::<OwnerProgramDiscriminant<T>>())
-                .with_context(|| {
+                .with_ctx(|| {
                     format!(
                         "Failed to advance past discriminant of size {}",
                         size_of::<OwnerProgramDiscriminant<T>>()
@@ -249,7 +249,7 @@ pub mod discriminant {
         fn from_owned(owned: T::Owned, bytes: &mut &mut [u8]) -> Result<usize> {
             bytes
                 .try_advance(size_of::<OwnerProgramDiscriminant<T>>())
-                .with_context(|| {
+                .with_ctx(|| {
                     format!(
                         "Failed to advance past discriminant during initialization of {}",
                         std::any::type_name::<T>()
@@ -269,7 +269,7 @@ pub mod discriminant {
         fn init(bytes: &mut &mut [u8], arg: I) -> Result<()> {
             bytes
                 .try_advance(size_of::<OwnerProgramDiscriminant<T>>())
-                .with_context(|| {
+                .with_ctx(|| {
                     format!(
                         "Failed to advance past discriminant during initialization of {}",
                         std::any::type_name::<T>()
@@ -341,9 +341,12 @@ where
         account_seeds: Option<Vec<&[u8]>>,
         ctx: &Context,
     ) -> Result<()> {
-        let funder = ctx
-            .get_funder()
-            .context("Missing tagged `funder` for Account `init_account`")?;
+        let funder = ctx.get_funder().ok_or_else(|| {
+            error!(
+                ErrorCode::EmptyFunderCache,
+                "Missing tagged `funder` for Account `init_account`"
+            )
+        })?;
         self.init_account::<IF_NEEDED>((arg, funder), account_seeds, ctx)
     }
 }
@@ -380,7 +383,7 @@ where
             &account_seeds,
             ctx,
         )
-        .context("system_create_account failed")?;
+        .ctx("system_create_account failed")?;
         let mut data_bytes = self.account_data_mut()?;
         let mut data_bytes = &mut *data_bytes;
         <AccountDiscriminant<T>>::init(&mut data_bytes, arg())?;
@@ -403,7 +406,7 @@ mod idl_impl {
         fn account_set_to_idl(
             idl_definition: &mut IdlDefinition,
             arg: A,
-        ) -> Result<IdlAccountSetDef> {
+        ) -> crate::IdlResult<IdlAccountSetDef> {
             let mut set = <AccountInfo>::account_set_to_idl(idl_definition, arg)?;
             set.single()?
                 .program_accounts

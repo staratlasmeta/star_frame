@@ -5,6 +5,7 @@
 //! within the unsized type system with runtime validation for data integrity.
 use crate::{
     align1::Align1,
+    errors::ErrorInfo as _,
     unsize::{
         init::{DefaultInit, DefaultInitable, UnsizedInit},
         AsShared, FromOwned, RawSliceAdvance, UnsizedType, UnsizedTypeMut,
@@ -13,7 +14,6 @@ use crate::{
 };
 use advancer::Advance;
 use bytemuck::{checked, CheckedBitPattern, NoUninit, Zeroable};
-use eyre::Context;
 use std::{
     marker::PhantomData,
     mem::size_of,
@@ -114,7 +114,7 @@ where
 
     #[inline]
     fn get_ref<'a>(data: &mut &'a [u8]) -> Result<Self::Ref<'a>> {
-        checked::try_from_bytes(data.try_advance(size_of::<T>()).with_context(|| {
+        checked::try_from_bytes(data.try_advance(size_of::<T>()).with_ctx(|| {
             format!(
                 "Failed to read {} bytes for checked type {}",
                 size_of::<T>(),
@@ -123,12 +123,12 @@ where
         })?)
         .map(std::ptr::from_ref)
         .map(|r| CheckedRef(r, PhantomData))
-        .context("Invalid data for type")
+        .ctx("Invalid data for type")
     }
 
     #[inline]
     unsafe fn get_mut<'a>(data: &mut *mut [u8]) -> Result<Self::Mut<'a>> {
-        let sized = data.try_advance(size_of::<T>()).with_context(|| {
+        let sized = data.try_advance(size_of::<T>()).with_ctx(|| {
             format!(
                 "Failed to read {} mutable bytes for checked type {}",
                 size_of::<T>(),
@@ -179,7 +179,7 @@ where
     fn from_owned(owned: Self::Owned, bytes: &mut &mut [u8]) -> Result<usize> {
         bytes
             .try_advance(size_of::<T>())
-            .with_context(|| {
+            .with_ctx(|| {
                 format!(
                     "Failed to advance bytes during `FromOwned` of {}",
                     std::any::type_name::<Self>()
@@ -200,7 +200,7 @@ where
     fn init(bytes: &mut &mut [u8], arg: T) -> Result<()> {
         bytes
             .try_advance(size_of::<T>())
-            .with_context(|| {
+            .with_ctx(|| {
                 format!(
                     "Failed to advance bytes during initialization of {}",
                     std::any::type_name::<T>()
@@ -221,7 +221,7 @@ where
     fn init(bytes: &mut &mut [u8], _arg: DefaultInit) -> Result<()> {
         bytes
             .try_advance(size_of::<T>())
-            .with_context(|| {
+            .with_ctx(|| {
                 format!(
                     "Failed to advance bytes during default initialization of {}",
                     std::any::type_name::<Self>()

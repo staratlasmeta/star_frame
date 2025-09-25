@@ -3,11 +3,7 @@ use crate::{instruction::IxArgs, prelude::*};
 impl InstructionSet for () {
     type Discriminant = ();
 
-    fn dispatch(
-        _program_id: &Pubkey,
-        _accounts: &[AccountInfo],
-        _ix_bytes: &[u8],
-    ) -> eyre::Result<()> {
+    fn dispatch(_program_id: &Pubkey, _accounts: &[AccountInfo], _ix_bytes: &[u8]) -> Result<()> {
         Ok(())
     }
 }
@@ -47,7 +43,7 @@ mod idl_impl {
     use star_frame_idl::IdlDefinition;
 
     impl InstructionSetToIdl for () {
-        fn instruction_set_to_idl(_idl_definition: &mut IdlDefinition) -> eyre::Result<()> {
+        fn instruction_set_to_idl(_idl_definition: &mut IdlDefinition) -> crate::IdlResult<()> {
             Ok(())
         }
     }

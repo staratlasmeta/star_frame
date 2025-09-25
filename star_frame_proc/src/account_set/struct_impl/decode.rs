@@ -160,11 +160,20 @@ pub(super) fn decodes(
 
         let decode_inner = init(&mut decode_field_ty.iter().zip_eq(all_field_name).zip_eq(&decode_args).map(|((field_ty, field_name), decode_args)| {
             match &field_ty {
-                DecodeFieldTy::Type(field_type) => quote! {
-                    #prelude::eyre::Context::context(
-                        <#field_type as #account_set_decode<#decode_lifetime, _>>::decode_accounts(accounts, #decode_args, ctx),
-                        ::std::stringify!(#ident::#field_name(#id)),
-                    )?
+                DecodeFieldTy::Type(field_type) => {
+                    let decode = quote! {
+                        <#field_type as #account_set_decode<#decode_lifetime, _>>::decode_accounts(accounts, #decode_args, ctx)
+                    };
+                    if single_set_field.is_some() {
+                        quote! { #decode? }
+                    } else {
+                        quote! {
+                            #prelude::ErrorInfo::account_path(
+                                #decode,
+                                ::std::stringify!(#field_name),
+                            )?
+                        }
+                    }
                 },
                 DecodeFieldTy::Default(default) => quote!(#default)
             }

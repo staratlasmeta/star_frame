@@ -22,7 +22,6 @@ pub fn derive_get_seeds_impl(input: DeriveInput) -> TokenStream {
 
     let Paths {
         get_seeds_ident,
-        result,
         prelude,
         ..
     } = Paths::default();
@@ -82,7 +81,7 @@ pub fn derive_get_seeds_impl(input: DeriveInput) -> TokenStream {
                 #[cfg(all(feature = "idl", not(target_os = "solana")))]
                 #[automatically_derived]
                 impl #impl_generics #prelude::SeedsToIdl for #ident #type_generics #where_clause {
-                    fn seeds_to_idl(idl_definition: &mut #prelude::IdlDefinition) -> #result<#prelude::IdlSeeds> {
+                    fn seeds_to_idl(idl_definition: &mut #prelude::IdlDefinition) -> #prelude::IdlResult<#prelude::IdlSeeds> {
                         Ok(#prelude::IdlSeeds(vec![
                             #(#idl_seeds),*
                         ]))
@@ -128,7 +127,7 @@ pub fn derive_get_seeds_impl(input: DeriveInput) -> TokenStream {
                 #[cfg(all(feature = "idl", not(target_os = "solana")))]
                 #[automatically_derived]
                 impl #impl_generics #prelude::FindIdlSeeds for #find_seeds_ident #type_generics #where_clause {
-                    fn find_seeds(&self) -> #result<Vec<#prelude::IdlFindSeed>> {
+                    fn find_seeds(&self) -> #prelude::IdlResult<Vec<#prelude::IdlFindSeed>> {
                         Ok(vec![#(#find_seeds),*])
                     }
                 }

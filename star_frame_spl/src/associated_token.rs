@@ -77,7 +77,7 @@ mod idl_impl {
     }
 
     impl SeedsToIdl for AssociatedTokenSeeds {
-        fn seeds_to_idl(idl_definition: &mut IdlDefinition) -> Result<IdlSeeds> {
+        fn seeds_to_idl(idl_definition: &mut IdlDefinition) -> star_frame::IdlResult<IdlSeeds> {
             Ok(IdlSeeds(vec![
                 IdlSeed::Variable {
                     name: "wallet".to_string(),
@@ -95,6 +95,7 @@ mod idl_impl {
     }
 
     impl ProgramToIdl for AssociatedToken {
+        type Errors = ();
         fn crate_metadata() -> star_frame::star_frame_idl::CrateMetadata {
             star_frame::star_frame_idl::CrateMetadata {
                 version: star_frame::star_frame_idl::Version::new(3, 0, 4),
@@ -114,7 +115,7 @@ mod idl_impl {
         pub mint: FindSeed<Pubkey>,
     }
     impl FindIdlSeeds for FindAssociatedTokenSeeds {
-        fn find_seeds(&self) -> Result<Vec<IdlFindSeed>> {
+        fn find_seeds(&self) -> star_frame::IdlResult<Vec<IdlFindSeed>> {
             Ok(vec![
                 Into::into(&self.wallet),
                 IdlFindSeed::Const(Token::ID.as_ref().to_vec()),
@@ -126,10 +127,7 @@ mod idl_impl {
 
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
 pub use idl_impl::*;
-use star_frame::{
-    derive_more::{Deref, DerefMut},
-    eyre::bail,
-};
+use star_frame::derive_more::{Deref, DerefMut};
 
 pub mod instructions {
     pub use super::*;
@@ -225,7 +223,7 @@ pub mod state {
             AccountSetValidate, CanFundRent,
         },
         data_types::{GetKeyFor, GetOptionalKeyFor},
-        eyre::ContextCompat as _,
+        errors::ErrorCode,
     };
 
     use super::*;
@@ -263,6 +261,7 @@ pub mod state {
                 AssociatedToken::find_address(validate_ata.wallet, validate_ata.mint);
             if self.pubkey() != &expected_address {
                 bail!(
+                    ErrorCode::AddressMismatch,
                     "Account {} is not the associated token account for wallet {} and mint {}",
                     self.pubkey(),
                     validate_ata.wallet,
@@ -345,9 +344,12 @@ pub mod state {
             account_seeds: Option<Vec<&[u8]>>,
             ctx: &Context,
         ) -> Result<()> {
-            let funder = ctx
-                .get_funder()
-                .context("Missing tagged `funder` for AssociatedTokenAccount `init_account`")?;
+            let funder = ctx.get_funder().ok_or_else(|| {
+                error!(
+                    ErrorCode::EmptyFunderCache,
+                    "Missing tagged `funder` for AssociatedTokenAccount `init_account`"
+                )
+            })?;
             self.init_account::<IF_NEEDED>((arg, funder), account_seeds, ctx)
         }
     }
@@ -382,7 +384,10 @@ pub mod state {
                 }
             }
             if account_seeds.is_some() {
-                bail!("Account seeds are not supported for Init<AssociatedTokenAccount>");
+                bail!(
+                    ProgramError::InvalidSeeds,
+                    "Account seeds are not supported for Init<AssociatedTokenAccount>"
+                );
             }
             self.check_writable()?;
             let funder_seeds = funder.signer_seeds();

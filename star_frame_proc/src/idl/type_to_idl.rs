@@ -39,12 +39,7 @@ pub fn derive_type_to_idl(input: &DeriveInput) -> TokenStream {
 }
 
 pub fn derive_type_to_idl_inner(input: &DeriveInput, args: TypeToIdlArgs) -> TokenStream {
-    let Paths {
-        prelude,
-        declared_program_type,
-        result,
-        ..
-    } = &Paths::default();
+    Paths!(prelude, declared_program_type);
 
     let associated_program = args.program.unwrap_or(declared_program_type.clone());
 
@@ -71,7 +66,7 @@ pub fn derive_type_to_idl_inner(input: &DeriveInput, args: TypeToIdlArgs) -> Tok
                 #[automatically_derived]
                 impl #impl_gen #prelude::TypeToIdl for #ident #ty_gen #where_clause {
                     type AssociatedProgram = #associated_program;
-                    fn type_to_idl(idl_definition: &mut #prelude::IdlDefinition) -> #result<#prelude::IdlTypeDef> {
+                    fn type_to_idl(idl_definition: &mut #prelude::IdlDefinition) -> #prelude::IdlResult<#prelude::IdlTypeDef> {
                         let source = #prelude::item_source::<Self>();
                         let type_def = #type_def;
                         let idl_type = #prelude::IdlType {

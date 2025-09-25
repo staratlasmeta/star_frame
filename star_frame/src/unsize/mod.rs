@@ -8,12 +8,11 @@ mod test_helpers;
 mod tests;
 pub mod wrapper;
 
-use eyre::ensure;
 pub use star_frame_proc::{unsized_impl, unsized_type};
 #[cfg(all(feature = "test_helpers", not(target_os = "solana")))]
 pub use test_helpers::*;
 
-use crate::Result;
+use crate::{ensure, ErrorCode, Result};
 
 pub trait AsShared {
     type Ref<'a>
@@ -117,7 +116,11 @@ impl RawSliceAdvance for *mut [u8] {
     #[inline]
     fn try_advance(&mut self, advance: usize) -> Result<Self> {
         let len = self.len();
-        ensure!(advance <= len, "advance is out of bounds");
+        ensure!(
+            advance <= len,
+            ErrorCode::RawSliceAdvance,
+            "Tried to advance a raw slice by {advance} bytes, but the slice only has {len} bytes remaining"
+        );
         let to_return = core::ptr::slice_from_raw_parts_mut(self.cast::<u8>(), advance);
         *self = core::ptr::slice_from_raw_parts_mut(
             self.cast::<u8>().wrapping_add(advance),

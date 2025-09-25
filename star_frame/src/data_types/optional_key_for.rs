@@ -179,7 +179,7 @@ mod idl_impl {
 
     impl<T> TypeToIdl for OptionalKeyFor<T> {
         type AssociatedProgram = System;
-        fn type_to_idl(_idl_definition: &mut IdlDefinition) -> Result<IdlTypeDef> {
+        fn type_to_idl(_idl_definition: &mut IdlDefinition) -> crate::IdlResult<IdlTypeDef> {
             Ok(IdlTypeDef::Pubkey)
         }
     }

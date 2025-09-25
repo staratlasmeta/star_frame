@@ -357,7 +357,6 @@ pub extern crate borsh;
 pub extern crate bytemuck;
 pub extern crate derive_more;
 pub extern crate derive_where;
-pub extern crate eyre;
 pub extern crate fixed;
 pub extern crate itertools;
 pub extern crate num_traits;
@@ -380,7 +379,7 @@ pub mod client;
 pub mod cpi;
 pub mod data_types;
 mod entrypoint;
-mod errors;
+pub mod errors;
 
 pub mod context;
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
@@ -395,7 +394,19 @@ pub mod util;
 #[doc(hidden)]
 pub mod __private;
 
-pub use eyre::Result;
+#[cfg(all(feature = "idl", not(target_os = "solana")))]
+pub use star_frame_idl::Result as IdlResult;
+
+pub(crate) use errors::ErrorCode;
+pub type Result<T, E = errors::Error> = std::result::Result<T, E>;
+
+/// Equivalent to `Ok::<_, Error>(value)`
+#[inline]
+#[allow(non_snake_case)]
+pub fn Ok<T>(value: T) -> Result<T> {
+    Result::Ok(value)
+}
+
 #[doc(hidden)]
 pub use solana_instruction::Instruction as SolanaInstruction;
 pub use star_frame_proc::{pubkey, sighash, zero_copy};

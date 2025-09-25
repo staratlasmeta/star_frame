@@ -1,7 +1,7 @@
 //! This program is used as a testing ground for on chain compute and unsized type behavior
 
 use star_frame::{
-    account_set::modifiers::MaybeMut,
+    account_set::{modifiers::MaybeMut, CheckKey as _},
     borsh::{BorshDeserialize, BorshSerialize},
     pinocchio::syscalls::sol_remaining_compute_units,
     prelude::*,
@@ -43,6 +43,25 @@ pub struct RunAccounts<const MUT: bool> {
     #[cleanup(arg = NormalizeRent(()))]
     pub borsh_account: Init<Signer<BorshAccount<MyBorshAccount>>>,
     pub system_program: Program<System>,
+    pub inner: RunAccountsInner,
+}
+
+#[derive(AccountSet)]
+pub struct RunAccountsInner {
+    inner2: RunAccountsInnerInner,
+}
+
+#[derive(AccountSet, Debug)]
+#[validate(extra_validation = self.validate())]
+pub struct RunAccountsInnerInner(#[single_account_set] AccountInfo);
+
+impl RunAccountsInnerInner {
+    fn validate(&self) -> Result<()> {
+        self.0
+            .check_key(&System::ID)
+            .with_ctx(|| format!("Key isnt system id!! {:?}", self))?;
+        Ok(())
+    }
 }
 
 #[unsized_type(program_account)]
@@ -161,6 +180,9 @@ mod tests {
                     borsh_account,
                     funder,
                     system_program: None,
+                    inner: RunAccountsInnerClientAccounts {
+                        inner2: Pubkey::new_unique(),
+                    },
                 },
             )?,
             &[Check::success()],

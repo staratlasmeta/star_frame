@@ -93,7 +93,7 @@ pub struct UpdateCounterSignerAccounts {
 impl UpdateCounterSignerAccounts {
     fn validate(&self) -> Result<()> {
         if *self.signer.pubkey() != self.counter.data()?.signer {
-            bail!("Incorrect signer");
+            bail!(CounterErrors::IncorrectSigner);
         }
         Ok(())
     }
@@ -126,7 +126,7 @@ pub struct CountAccounts {
 impl CountAccounts {
     fn validate(&self) -> Result<()> {
         if *self.owner.pubkey() != self.counter.data()?.owner {
-            bail!("Incorrect owner");
+            bail!(CounterErrors::IncorrectOwner);
         }
         Ok(())
     }
@@ -161,6 +161,14 @@ pub struct CloseCounterAccounts {
     pub funds_to: Mut<SystemAccount>,
     #[cleanup(arg = CloseAccount(()))]
     pub counter: Mut<WrappedCounter>,
+}
+
+#[star_frame_error]
+pub enum CounterErrors {
+    #[msg("Incorrect signer")]
+    IncorrectSigner,
+    #[msg("Incorrect owner")]
+    IncorrectOwner,
 }
 
 #[cfg(test)]

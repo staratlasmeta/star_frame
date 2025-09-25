@@ -5,7 +5,6 @@ use crate::{
     prelude::*,
 };
 use bytemuck::{bytes_of, Pod};
-use eyre::WrapErr;
 use pinocchio::cpi::set_return_data;
 
 pub use star_frame_proc::{
@@ -147,7 +146,7 @@ where
     ) -> Result<()> {
         let mut ctx = Context::new(program_id);
         let mut data = <T as BorshDeserialize>::deserialize(&mut data)
-            .context("Failed to deserialize instruction data")?;
+            .ctx("Failed to deserialize instruction data")?;
         let IxArgs {
             decode,
             validate,
@@ -160,15 +159,15 @@ where
                 decode,
                 &mut ctx,
             )
-            .context("Failed to decode accounts")?;
+            .ctx("Failed to decode accounts")?;
         account_set
             .validate_accounts(validate, &mut ctx)
-            .context("Failed to validate accounts")?;
+            .ctx("Failed to validate accounts")?;
         let ret: <T as StarFrameInstruction>::ReturnType =
-            Self::process(&mut account_set, run, &mut ctx).context("Failed to run instruction")?;
+            Self::process(&mut account_set, run, &mut ctx).ctx("Failed to run instruction")?;
         account_set
             .cleanup_accounts(cleanup, &mut ctx)
-            .context("Failed to cleanup accounts")?;
+            .ctx("Failed to cleanup accounts")?;
         if size_of::<T::ReturnType>() > 0 {
             set_return_data(bytemuck::bytes_of(&ret));
         }

@@ -12,8 +12,8 @@ use crate::{
     },
     prelude::*,
     program::system,
+    ErrorCode,
 };
-use eyre::WrapErr;
 use pinocchio::account_info::{Ref, RefMut};
 use std::cmp::Ordering;
 
@@ -72,7 +72,11 @@ pub trait SingleAccountSet {
         if self.is_signer() {
             Ok(())
         } else {
-            bail!("Account {} is not signed", self.pubkey())
+            bail!(
+                ErrorCode::ExpectedSigner,
+                "Account {} is not signed",
+                self.pubkey()
+            )
         }
     }
 
@@ -88,7 +92,11 @@ pub trait SingleAccountSet {
         if self.is_writable() {
             Ok(())
         } else {
-            bail!("Account {} is not writable", self.pubkey())
+            bail!(
+                ErrorCode::ExpectedWritable,
+                "Account {} is not writable",
+                self.pubkey()
+            )
         }
     }
 
@@ -109,13 +117,13 @@ pub trait SingleAccountSet {
     fn account_data(&self) -> Result<Ref<'_, [u8]>> {
         self.account_info()
             .try_borrow_data()
-            .with_context(|| format!("Failed to borrow data for account {}", self.pubkey()))
+            .with_ctx(|| format!("Failed to borrow data for account {}", self.pubkey()))
     }
 
     /// Returns a mutable reference to the data of the contained account.
     #[inline]
     fn account_data_mut(&self) -> Result<RefMut<'_, [u8]>> {
-        self.account_info().try_borrow_mut_data().with_context(|| {
+        self.account_info().try_borrow_mut_data().with_ctx(|| {
             format!(
                 "Failed to borrow mutable data for account {}",
                 self.pubkey()
@@ -134,6 +142,7 @@ where
             Ok(())
         } else {
             bail!(
+                ErrorCode::AddressMismatch,
                 "Account key {} does not match expected public key {}",
                 self.pubkey(),
                 expected
@@ -256,10 +265,11 @@ where
             Ordering::Equal => Ok(()),
             Ordering::Greater => {
                 if lamports > 0 {
-                    Err(eyre!(
+                    err!(
+                        ProgramError::InsufficientFunds,
                         "Tried to refund rent from {} but does not have enough lamports to cover rent",
                         account.pubkey()
-                    ))
+                    )
                 } else {
                     Ok(())
                 }
@@ -355,12 +365,12 @@ where
                 None,
             )
             .invoke_signed(seeds)
-            .context("System::CreateAccount CPI failed")?;
+            .ctx("System::CreateAccount CPI failed")?;
         } else {
             let required_lamports = exempt_lamports.saturating_sub(current_lamports).max(1);
             if required_lamports > 0 {
                 CanFundRent::fund_rent(funder, &account, required_lamports, ctx)
-                    .context("Failed to fund rent")?;
+                    .ctx("Failed to fund rent")?;
             }
             let account_seeds: &[&[&[u8]]] = match &account_seeds {
                 Some(seeds) => &[seeds],
@@ -374,14 +384,14 @@ where
                 None,
             )
             .invoke_signed(account_seeds)
-            .context("System::Allocate CPI failed")?;
+            .ctx("System::Allocate CPI failed")?;
             System::cpi(
                 system::Assign { owner },
                 system::AssignCpiAccounts { account },
                 None,
             )
             .invoke_signed(account_seeds)
-            .context("System::Assign CPI failed")?;
+            .ctx("System::Assign CPI failed")?;
         }
         Ok(())
     }

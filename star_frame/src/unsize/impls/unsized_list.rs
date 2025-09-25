@@ -6,28 +6,30 @@
 
 use crate::{
     align1::Align1,
+    bail,
     data_types::PackedValue,
+    ensure, error,
+    errors::ErrorInfo,
     unsize::{
         init::{DefaultInit, UnsizedInit},
         unsized_impl,
         wrapper::{ExclusiveRecurse, ExclusiveWrapper},
         AsShared, FromOwned, RawSliceAdvance, UnsizedType, UnsizedTypeMut,
     },
-    Result,
+    ErrorCode, Result,
 };
 use advancer::{Advance, AdvanceArray};
 use bytemuck::{bytes_of, cast_slice_mut, Pod, Zeroable};
 use core::slice;
-use eyre::{bail, ensure, Context, ContextCompat};
 use itertools::Itertools;
 use num_traits::ToPrimitive;
+use pinocchio::program_error::ProgramError;
 use ptr_meta::Pointee;
 use solana_program_memory::sol_memmove;
 use std::{
     borrow::Borrow,
     cmp::Ordering,
-    iter,
-    iter::FusedIterator,
+    iter::{self, FusedIterator},
     marker::PhantomData,
     mem::{size_of, MaybeUninit},
     ops::{Deref, DerefMut, RangeBounds},
@@ -118,14 +120,14 @@ where
         let owned = items.into_iter();
         let owned_len = owned.len();
         let owned_len_bytes = u32::try_from(owned_len)?.to_le_bytes();
-        let unsized_size_bytes = bytes.try_advance_array::<U32_SIZE>().with_context(|| {
+        let unsized_size_bytes = bytes.try_advance_array::<U32_SIZE>().with_ctx(|| {
             format!(
                 "Failed to read unsized size bytes for {} FromOwned",
                 std::any::type_name::<Self>()
             )
         })?;
 
-        let len_bytes = bytes.try_advance_array::<U32_SIZE>().with_context(|| {
+        let len_bytes = bytes.try_advance_array::<U32_SIZE>().with_ctx(|| {
             format!(
                 "Failed to read len bytes for {} FromOwned",
                 std::any::type_name::<Self>()
@@ -133,18 +135,15 @@ where
         })?;
         *len_bytes = owned_len_bytes;
 
-        let offset_list_bytes =
-            bytes
-                .try_advance(owned_len * size_of::<C>())
-                .with_context(|| {
-                    format!(
-                        "Failed to read offset list bytes for {} FromOwned",
-                        std::any::type_name::<Self>()
-                    )
-                })?;
+        let offset_list_bytes = bytes.try_advance(owned_len * size_of::<C>()).with_ctx(|| {
+            format!(
+                "Failed to read offset list bytes for {} FromOwned",
+                std::any::type_name::<Self>()
+            )
+        })?;
         let offset_array = bytemuck::try_cast_slice_mut::<_, C>(offset_list_bytes)?;
 
-        let copy_of_len_bytes = bytes.try_advance_array::<U32_SIZE>().with_context(|| {
+        let copy_of_len_bytes = bytes.try_advance_array::<U32_SIZE>().with_ctx(|| {
             format!(
                 "Failed to read copy of len bytes for {} FromOwned",
                 std::any::type_name::<Self>()
@@ -158,7 +157,7 @@ where
             .try_for_each(|((item, init), offset_item)| {
                 *offset_item = C::from_usize_offset(unsized_bytes_written, init)?;
                 unsized_bytes_written += T::from_owned(item, bytes)?;
-                eyre::Ok(())
+                crate::Ok(())
             })?;
 
         *unsized_size_bytes = u32::try_from(unsized_bytes_written)?.to_le_bytes();
@@ -193,7 +192,7 @@ mod idl_impl {
         C: UnsizedListOffset + TypeToIdl,
     {
         type AssociatedProgram = System;
-        fn type_to_idl(idl_definition: &mut IdlDefinition) -> Result<IdlTypeDef> {
+        fn type_to_idl(idl_definition: &mut IdlDefinition) -> crate::IdlResult<IdlTypeDef> {
             Ok(IdlTypeDef::UnsizedList {
                 item_ty: T::type_to_idl(idl_definition)?.into(),
                 offset_ty: C::type_to_idl(idl_definition)?.into(),
@@ -274,11 +273,13 @@ where
                 if let Some((first, rest)) = self.offset_list[start_index..].split_first_mut() {
                     let change: u32 = (-change).try_into()?;
                     // First item to change should be smallest, so this makes sure none of the offsets underflow
-                    first.as_mut_offset().0 = first
-                        .as_mut_offset()
-                        .0
-                        .checked_sub(change)
-                        .context("Failed to decrease bytes to first offset")?;
+                    first.as_mut_offset().0 =
+                        first.as_mut_offset().0.checked_sub(change).ok_or_else(|| {
+                            error!(
+                                ProgramError::ArithmeticOverflow,
+                                "Failed to decrease bytes to first offset"
+                            )
+                        })?;
 
                     for item in rest.iter_mut() {
                         item.as_mut_offset().0 =
@@ -291,11 +292,13 @@ where
                 if let Some((last, rest)) = self.offset_list[start_index..].split_last_mut() {
                     let change: u32 = change.try_into()?;
                     // Last item should be largest, so this makes sure none of the offsets overflow
-                    last.as_mut_offset().0 = last
-                        .as_mut_offset()
-                        .0
-                        .checked_add(change)
-                        .context("Failed to increase bytes to last offset")?;
+                    last.as_mut_offset().0 =
+                        last.as_mut_offset().0.checked_add(change).ok_or_else(|| {
+                            error!(
+                                ProgramError::ArithmeticOverflow,
+                                "Failed to increase bytes to last offset"
+                            )
+                        })?;
 
                     for item in rest.iter_mut() {
                         item.as_mut_offset().0 =
@@ -395,14 +398,16 @@ where
 
     #[inline]
     pub fn index(&self, index: usize) -> Result<T::Ref<'_>> {
-        self.get(index).transpose().context("Index out of bounds")?
+        self.get(index)
+            .transpose()
+            .ok_or_else(|| error!(ErrorCode::IndexOutOfBounds, "Index {index} out of bounds"))?
     }
 
     #[inline]
     pub fn index_mut(&mut self, index: usize) -> Result<T::Mut<'_>> {
         self.get_mut(index)
             .transpose()
-            .context("Index out of bounds")?
+            .ok_or_else(|| error!(ErrorCode::IndexOutOfBounds, "Index {index} out of bounds"))?
     }
 
     pub(super) fn iter_with_offsets(&self) -> UnsizedListWithOffsetIter<'_, T, C> {
@@ -625,23 +630,23 @@ where
 
         let unsized_size_bytes = data
             .try_advance_array::<U32_SIZE>()
-            .with_context(unsized_size_fail)?;
+            .with_ctx(unsized_size_fail)?;
         let unsized_size = u32::from_le_bytes(*unsized_size_bytes) as usize;
 
         let length_bytes = data
             .try_advance_array::<U32_SIZE>()
-            .with_context(length_bytes_fail)?;
+            .with_ctx(length_bytes_fail)?;
         let length = u32::from_le_bytes(*length_bytes) as usize;
 
         let _offset_list = data
             .try_advance(length * size_of::<C>())
-            .with_context(|| offset_list_fail(length))?;
+            .with_ctx(|| offset_list_fail(length))?;
 
-        let _length_copy = data.try_advance(U32_SIZE).with_context(length_copy_fail)?;
+        let _length_copy = data.try_advance(U32_SIZE).with_ctx(length_copy_fail)?;
 
         let _unsized_data = data
             .try_advance(unsized_size)
-            .with_context(|| unsized_data_fail(unsized_size))?;
+            .with_ctx(|| unsized_data_fail(unsized_size))?;
 
         Ok(UnsizedListRef {
             list_ptr: &raw const *ptr_meta::from_raw_parts(ptr.cast::<()>(), length),
@@ -685,13 +690,13 @@ where
 
         let ptr = *data;
 
-        let unsized_size_ptr = data.try_advance(U32_SIZE).with_context(unsized_size_fail)?;
+        let unsized_size_ptr = data.try_advance(U32_SIZE).with_ctx(unsized_size_fail)?;
         // SAFETY:
         // The advanced ptr must be the proper length per get_mut's safety contract, and it is safe to read.
         let unsized_bytes = unsafe { unsized_size_ptr.cast::<[u8; U32_SIZE]>().read() };
         let unsized_size: usize = u32::from_le_bytes(unsized_bytes) as usize;
 
-        let length_bytes_ptr = data.try_advance(U32_SIZE).with_context(length_fail)?;
+        let length_bytes_ptr = data.try_advance(U32_SIZE).with_ctx(length_fail)?;
         // SAFETY:
         // The advanced ptr must be the proper length per get_mut's safety contract, and it is safe to read.
         let length_bytes = unsafe { length_bytes_ptr.cast::<[u8; U32_SIZE]>().read() };
@@ -699,11 +704,11 @@ where
 
         let _offset_list = data
             .try_advance(length * size_of::<C>())
-            .with_context(|| offset_list_fail(length))?;
-        let _length_copy = data.try_advance(U32_SIZE).with_context(length_copy_fail)?;
+            .with_ctx(|| offset_list_fail(length))?;
+        let _length_copy = data.try_advance(U32_SIZE).with_ctx(length_copy_fail)?;
         let _unsized_data = data
             .try_advance(unsized_size)
-            .with_context(|| unsized_data_fail(unsized_size))?;
+            .with_ctx(|| unsized_data_fail(unsized_size))?;
 
         Ok(UnsizedListMut {
             list_ptr: ptr_meta::from_raw_parts_mut(ptr.cast::<()>(), length),
@@ -760,18 +765,16 @@ where
                     )?;
                 }
             } else {
-                bail!("An element UnsizedList is changing its size, but the inner Mut is not initialized. This should never happen");
+                bail!(ErrorCode::UnsizedUnexpected, "An element UnsizedList is changing its size, but the inner Mut is not initialized. This should never happen");
             }
             let new_unsized_len: isize = self_mut
                 .unsized_size
                 .to_isize()
-                .context("Failed to convert unsized_size to isize. This should never happen")?
+                .expect("u32 can be converted to isize")
                 + change;
             self_mut.unsized_size = new_unsized_len
                 .to_u32()
-                .context(
-                    "Failed to convert updated unsized_size size to u32. This should never happen",
-                )?
+                .expect("isize from u32 can be converted back to u32")
                 .into();
             self_mut.adjust_offsets_from_ptr(source_ptr, change)?;
         } else {
@@ -830,7 +833,7 @@ where
     ) -> Result<ExclusiveWrapper<'child, 'top, T::Mut<'top>, Self>> {
         self.get_exclusive(index)
             .transpose()
-            .context("Index out of bounds")?
+            .ok_or_else(|| error!(ErrorCode::IndexOutOfBounds, "Index {index} out of bounds"))?
     }
 
     #[exclusive]
@@ -935,7 +938,7 @@ where
     {
         let (source_ptr, add_bytes_start, insertion_offset) = {
             if index > self.len() {
-                bail!("Index out of bounds");
+                bail!(ErrorCode::IndexOutOfBounds, "Index {index} out of bounds");
             }
             let offset = self.get_offset(index);
             let start_ptr = self.unsized_data_ptr_mut().wrapping_byte_add(offset);
@@ -1033,8 +1036,13 @@ where
             return self.clear();
         }
 
-        ensure!(start <= end);
-        ensure!(end <= self.len());
+        ensure!(start <= end, ErrorCode::InvalidRange);
+        ensure!(
+            end <= self.len(),
+            ErrorCode::IndexOutOfBounds,
+            "End index {end} for UnsizedList of length {} out of bounds",
+            self.len()
+        );
 
         let (start_offset, offset_of_start_ptr, end_offset) = {
             let start_offset = self.get_offset(start);
@@ -1135,7 +1143,7 @@ where
     const INIT_BYTES: usize = U32_SIZE * 3;
 
     fn init(bytes: &mut &mut [u8], _init: DefaultInit) -> Result<()> {
-        let unsized_size_bytes = bytes.try_advance_array::<U32_SIZE>().with_context(|| {
+        let unsized_size_bytes = bytes.try_advance_array::<U32_SIZE>().with_ctx(|| {
             format!(
                 "Failed to read unsized size bytes during initialization of {}",
                 std::any::type_name::<Self>()
@@ -1143,14 +1151,12 @@ where
         })?;
         unsized_size_bytes.copy_from_slice(&<[u8; U32_SIZE]>::zeroed());
 
-        let both_len_bytes = bytes
-            .try_advance_array::<{ U32_SIZE * 2 }>()
-            .with_context(|| {
-                format!(
-                    "Failed to read both length bytes during initialization of {}",
-                    std::any::type_name::<Self>()
-                )
-            })?;
+        let both_len_bytes = bytes.try_advance_array::<{ U32_SIZE * 2 }>().with_ctx(|| {
+            format!(
+                "Failed to read both length bytes during initialization of {}",
+                std::any::type_name::<Self>()
+            )
+        })?;
         both_len_bytes.copy_from_slice(&<[u8; U32_SIZE * 2]>::zeroed());
         Ok(())
     }
@@ -1167,13 +1173,18 @@ where
         T: UnsizedInit<I>,
     {
         let unsized_size_bytes = bytes.advance_array::<U32_SIZE>();
-        let unsized_len = (T::INIT_BYTES * N)
-            .to_u32()
-            .context("Total init bytes must be less than u32::MAX")?;
+        let unsized_len = (T::INIT_BYTES * N).to_u32().ok_or_else(|| {
+            error!(
+                ErrorCode::ToPrimitiveError,
+                "Total init bytes must be less than u32::MAX"
+            )
+        })?;
         *unsized_size_bytes = unsized_len.to_le_bytes();
 
-        let len_l: u32 = N.to_u32().context("N must be less than u32::MAX")?;
-        let len_bytes = bytes.try_advance(U32_SIZE).with_context(|| {
+        let len_l: u32 = N
+            .to_u32()
+            .ok_or_else(|| error!(ErrorCode::ToPrimitiveError, "N must be less than u32::MAX"))?;
+        let len_bytes = bytes.try_advance(U32_SIZE).with_ctx(|| {
             format!(
                 "Failed to advance {} bytes for length in list header initialization of {}",
                 U32_SIZE,
@@ -1182,7 +1193,7 @@ where
         })?;
         len_bytes.copy_from_slice(bytes_of(&len_l));
 
-        let offset_slice_bytes = bytes.try_advance(N * size_of::<C>()).with_context(|| {
+        let offset_slice_bytes = bytes.try_advance(N * size_of::<C>()).with_ctx(|| {
             format!(
                 "Failed to advance {} bytes for offset slice in list header initialization of {}",
                 N * size_of::<C>(),
@@ -1191,7 +1202,7 @@ where
         })?;
         let offset_slice: &mut [C] = cast_slice_mut(offset_slice_bytes);
 
-        let offset_len_bytes = bytes.try_advance(U32_SIZE).with_context(|| {
+        let offset_len_bytes = bytes.try_advance(U32_SIZE).with_ctx(|| {
             format!(
                 "Failed to advance {} bytes for offset length in list header initialization of {}",
                 U32_SIZE,

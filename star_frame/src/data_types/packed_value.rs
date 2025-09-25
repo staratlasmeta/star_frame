@@ -335,7 +335,7 @@ primitive_impls!(PackedValueChecked);
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
 mod idl_impl {
     use super::*;
-    use crate::{idl::TypeToIdl, Result};
+    use crate::idl::TypeToIdl;
     use star_frame_idl::{ty::IdlTypeDef, IdlDefinition};
 
     impl<T> TypeToIdl for PackedValue<T>
@@ -344,7 +344,7 @@ mod idl_impl {
     {
         type AssociatedProgram = T::AssociatedProgram;
 
-        fn type_to_idl(idl_definition: &mut IdlDefinition) -> Result<IdlTypeDef> {
+        fn type_to_idl(idl_definition: &mut IdlDefinition) -> crate::IdlResult<IdlTypeDef> {
             T::type_to_idl(idl_definition)
         }
     }

@@ -13,6 +13,7 @@ pub struct StarFrameProgramDerive {
     account_discriminant: Option<Type>,
     instruction_set: Option<Type>,
     id: Option<Expr>,
+    errors: Option<Type>,
     #[argument(presence)]
     no_entrypoint: bool,
     #[argument(presence)]
@@ -40,6 +41,7 @@ pub(crate) fn program_impl(input: DeriveInput) -> TokenStream {
             account_discriminant,
             instruction_set,
             id: program_id,
+            errors,
             no_entrypoint,
             no_setup,
             skip_idl,
@@ -93,6 +95,13 @@ pub(crate) fn program_impl(input: DeriveInput) -> TokenStream {
             }
             derive_input.skip_idl = true;
         }
+
+        if let Some(errors) = errors {
+            let current = derive_input.errors.replace(errors.clone());
+            if current.is_some() {
+                abort!(errors, "Duplicate `errors` argument");
+            }
+        }
     }
 
     let Some(program_id) = derive_input.id else {
@@ -120,8 +129,13 @@ pub(crate) fn program_impl(input: DeriveInput) -> TokenStream {
         no_entrypoint,
         no_setup,
         skip_idl,
+        errors,
         ..
     } = derive_input;
+
+    let errors = errors.unwrap_or_else(|| {
+        parse_quote! {()}
+    });
 
     if account_discriminant.is_none() {
         account_discriminant.replace(parse_quote! { [u8; 8] });
@@ -148,6 +162,7 @@ pub(crate) fn program_impl(input: DeriveInput) -> TokenStream {
                 #[cfg(all(feature = "idl", not(target_os = "solana")))]
                 #[automatically_derived]
                 impl #prelude::ProgramToIdl for #ident {
+                    type Errors = #errors;
                     fn crate_metadata() -> #prelude::CrateMetadata {
                         #prelude::CrateMetadata {
                             docs: #docs,

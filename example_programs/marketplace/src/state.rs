@@ -1,12 +1,13 @@
 use std::{cmp::Reverse, fmt::Display};
 
-use star_frame::{eyre::ensure, prelude::*};
+use star_frame::prelude::*;
 
 create_unit_system!(pub struct MarketplaceUnitSystem<Currency>);
 
 use marketplace_unit_system_units::{Currency, Unitless};
-use star_frame::eyre::ContextCompat;
 use star_frame_spl::token::state::MintAccount;
+
+use crate::MarketplaceError;
 
 pub type Price = UnitVal<PackedValue<u64>, Currency>;
 pub type Quantity = UnitVal<PackedValue<u64>, Unitless>;
@@ -235,9 +236,12 @@ impl OrderBookSide {
         self.id_counter += 1;
         let order_index = self.find_order_index(price, order_id, side);
         // The search should fail (and give the insertion index) because we're searching with a new order id
-        let insertion_index = order_index.err().context(
-            "Order book with same price and order id already exists. This should never happen.",
-        )?;
+        let insertion_index = order_index.err().ok_or_else(|| {
+            error!(
+                MarketplaceError::DuplicateOrder,
+                "This should never happen."
+            )
+        })?;
         self.orders().insert(
             insertion_index,
             OrderInfo {
@@ -279,10 +283,12 @@ impl OrderBookSide {
                 break;
             }
 
-            let book_order_maker = self_mut
-                .makers
-                .get_mut(&book_order.maker)
-                .context("Missing order maker. This should never happen.")?;
+            let book_order_maker = self_mut.makers.get_mut(&book_order.maker).ok_or_else(|| {
+                error!(
+                    MarketplaceError::MissingOrderMaker,
+                    "This should never happen."
+                )
+            })?;
 
             let quantity_consumed = if { book_order.quantity } >= remaining_quantity {
                 // Book order is partially filled
@@ -398,14 +404,20 @@ pub struct ValidateCurrency<'a>(pub &'a KeyFor<MintAccount>);
 
 impl<'a> AccountValidate<ValidateMarketToken<'a>> for Market {
     fn validate_account(self_ref: &Self::Ref<'_>, arg: ValidateMarketToken<'a>) -> Result<()> {
-        ensure!(&self_ref.market_token == arg.0, "Market token mismatch");
+        ensure!(
+            &self_ref.market_token == arg.0,
+            MarketplaceError::MarketTokenMismatch,
+        );
         Ok(())
     }
 }
 
 impl<'a> AccountValidate<ValidateCurrency<'a>> for Market {
     fn validate_account(self_ref: &Self::Ref<'_>, arg: ValidateCurrency<'a>) -> Result<()> {
-        ensure!(&self_ref.currency == arg.0, "Currency mismatch");
+        ensure!(
+            &self_ref.currency == arg.0,
+            MarketplaceError::CurrencyMismatch,
+        );
         Ok(())
     }
 }
@@ -479,7 +491,7 @@ impl Market {
 
         if order_result.remaining_quantity > ZERO_QUANTITY {
             if fill_or_kill {
-                bail!("Fill or kill order was not filled");
+                bail!(MarketplaceError::FillOrKillNotFilled);
             }
             let order_id =
                 maker_book.add_order(price, order_result.remaining_quantity, side, maker)?;
@@ -517,6 +529,7 @@ impl Market {
             book.orders().remove(index)?;
             ensure!(
                 &order_to_remove.maker == maker,
+                MarketplaceError::OrderMakerMismatch,
                 "Order maker does not match order to remove"
             );
 
@@ -544,7 +557,10 @@ impl Market {
             filled_market_tokens = core::mem::take(&mut bid_maker.totals.market_tokens);
             remove_bid_maker = bid_maker.order_count == 0;
         } else if cancelled_bids > 0 {
-            bail!("Bids cancelled but no bid maker found");
+            bail!(
+                MarketplaceError::BidMakerNotFound,
+                "Bids cancelled but no bid maker found"
+            );
         }
 
         if let Some(ask_maker) = self.asks.makers.get_mut(maker) {
@@ -554,7 +570,10 @@ impl Market {
             filled_currency = core::mem::take(&mut ask_maker.totals.currency);
             remove_ask_maker = ask_maker.order_count == 0;
         } else if cancelled_asks > 0 {
-            bail!("Asks cancelled but no ask maker found");
+            bail!(
+                MarketplaceError::AskMakerNotFound,
+                "Asks cancelled but no ask maker found"
+            );
         }
 
         if remove_bid_maker {

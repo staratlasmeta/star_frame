@@ -6,7 +6,7 @@ pub use crate::idl::{
     ProgramToIdl, TypeToIdl,
 };
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
-pub use star_frame_idl::{NodeTrait as _, ProgramNode};
+pub use star_frame_idl::{NodeToJson, ProgramNode};
 
 #[cfg(all(feature = "test_helpers", not(target_os = "solana")))]
 pub use crate::{
@@ -17,7 +17,7 @@ pub use crate::{
 pub use crate::{
     account_set::prelude::*,
     align1::Align1,
-    borsh_with_bytemuck,
+    bail, borsh_with_bytemuck,
     client::{
         DeserializeAccount as _, DeserializeBorshAccount as _, DeserializeType as _,
         FindProgramAddress as _, MakeInstruction as _, SerializeAccount as _,
@@ -30,7 +30,8 @@ pub use crate::{
         ClockExt, GetKeyFor as _, GetOptionalKeyFor as _, KeyFor, OptionalKeyFor, OptionalPubkey,
         PackedValue, SetKeyFor as _, UnitVal,
     },
-    ensure_eq, ensure_ne,
+    ensure, ensure_eq, ensure_ne, err, error,
+    errors::{star_frame_error, Error, ErrorInfo as _},
     instruction::{
         star_frame_instruction, InstructionArgs, InstructionDiscriminant as _, InstructionSet,
         StarFrameInstruction,
@@ -46,7 +47,6 @@ pub use crate::{
 pub use star_frame_proc::{zero_copy, InstructionToIdl, TypeToIdl};
 
 // Solana stuff
-pub use eyre::{bail, ensure, eyre};
 pub use pinocchio::{
     account_info::AccountInfo, instruction::AccountMeta as PinocchioAccountMeta, msg,
     program_error::ProgramError, ProgramResult,

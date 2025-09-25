@@ -18,7 +18,6 @@ use crate::{
 
 use borsh::{object_length, BorshSerialize};
 use bytemuck::bytes_of;
-use eyre::ensure;
 use solana_instruction::Instruction as SolanaInstruction;
 
 #[doc(hidden)]
@@ -117,7 +116,8 @@ pub trait DeserializeBorshAccount: BorshDeserialize + ProgramAccount {
     fn deserialize_account(data: &[u8]) -> Result<Self> {
         ensure!(
             data.len() > size_of::<OwnerProgramDiscriminant<Self>>(),
-            "data is too short"
+            ProgramError::AccountDataTooSmall,
+            "Account data is too short to fit discriminant"
         );
         let data = &data[size_of::<OwnerProgramDiscriminant<Self>>()..];
         BorshDeserialize::try_from_slice(data).map_err(Into::into)

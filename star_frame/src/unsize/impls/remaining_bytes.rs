@@ -5,16 +5,17 @@
 //! implementing custom parsing logic while working within the unsized type system.
 use crate::{
     align1::Align1,
+    bail,
+    errors::ErrorInfo,
     unsize::{
         init::{DefaultInit, UnsizedInit},
         wrapper::ExclusiveRecurse,
         AsShared, FromOwned, RawSliceAdvance, UnsizedType, UnsizedTypeMut,
     },
-    Result,
+    ErrorCode, Result,
 };
 use advancer::Advance;
 use derive_more::{Deref, DerefMut};
-use eyre::{bail, Context};
 use ptr_meta::Pointee;
 use star_frame_proc::unsized_impl;
 use std::{
@@ -97,7 +98,7 @@ unsafe impl UnsizedType for RemainingBytes {
     }
 
     fn get_ref<'a>(data: &mut &'a [u8]) -> Result<Self::Ref<'a>> {
-        let remaining_bytes = data.try_advance(data.len()).with_context(|| {
+        let remaining_bytes = data.try_advance(data.len()).with_ctx(|| {
             format!(
                 "Failed to read remaining {} bytes for RemainingBytes",
                 data.len()
@@ -111,7 +112,7 @@ unsafe impl UnsizedType for RemainingBytes {
     }
 
     unsafe fn get_mut<'a>(data: &mut *mut [u8]) -> Result<Self::Mut<'a>> {
-        let remaining_bytes = data.try_advance(data.len()).with_context(|| {
+        let remaining_bytes = data.try_advance(data.len()).with_ctx(|| {
             format!(
                 "Failed to read remaining mutable {} bytes for RemainingBytes",
                 data.len()
@@ -144,7 +145,10 @@ unsafe impl UnsizedType for RemainingBytes {
             Ordering::Less => self_mut.0 = self_ptr.wrapping_byte_offset(change),
             Ordering::Equal => {}
             Ordering::Greater => {
-                bail!("Resize occurred after RemainingBytes, which shouldn't be possible")
+                bail!(
+                    ErrorCode::UnsizedUnexpected,
+                    "Resize occurred after RemainingBytes, which shouldn't be possible"
+                )
             }
         }
         Ok(())
@@ -208,7 +212,7 @@ impl<const N: usize> UnsizedInit<&[u8; N]> for RemainingBytes {
     fn init(bytes: &mut &mut [u8], array: &[u8; N]) -> Result<()> {
         bytes
             .try_advance(N)
-            .with_context(|| {
+            .with_ctx(|| {
                 format!("Failed to advance {N} bytes for RemainingBytes reference initialization")
             })?
             .copy_from_slice(array);
@@ -222,9 +226,7 @@ impl<const N: usize> UnsizedInit<[u8; N]> for RemainingBytes {
     fn init(bytes: &mut &mut [u8], array: [u8; N]) -> Result<()> {
         bytes
             .try_advance(N)
-            .with_context(|| {
-                format!("Failed to advance {N} bytes for RemainingBytes initialization")
-            })?
+            .with_ctx(|| format!("Failed to advance {N} bytes for RemainingBytes initialization"))?
             .copy_from_slice(&array);
         Ok(())
     }

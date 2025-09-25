@@ -14,7 +14,7 @@ use star_frame::{
         CanFundRent, CanSystemCreateAccount as _,
     },
     bytemuck,
-    eyre::ContextCompat as _,
+    errors::ErrorCode,
     pinocchio::account_info::Ref,
     prelude::*,
 };
@@ -72,6 +72,7 @@ impl MintAccount {
         // // todo: maybe relax this check to allow token22
         if self.owner_pubkey() != Token::ID {
             bail!(
+                ProgramError::InvalidAccountOwner,
                 "MintAccount owner {} does not match expected Token program ID {}",
                 self.owner_pubkey(),
                 Token::ID
@@ -79,6 +80,7 @@ impl MintAccount {
         }
         if self.account_data()?.len() != Self::LEN {
             bail!(
+                ProgramError::InvalidAccountData,
                 "MintAccount {} has invalid data length {}, expected {}",
                 self.pubkey(),
                 self.account_data()?.len(),
@@ -87,7 +89,11 @@ impl MintAccount {
         }
         // check initialized
         if !self.data_unchecked()?.is_initialized {
-            bail!("MintAccount {} is not initialized", self.pubkey());
+            bail!(
+                ProgramError::UninitializedAccount,
+                "MintAccount {} is not initialized",
+                self.pubkey()
+            );
         }
         Ok(())
     }
@@ -114,6 +120,7 @@ impl MintAccount {
         if let Some(decimals) = validate_mint.decimals {
             if data.decimals != decimals {
                 bail!(
+                    ProgramError::InvalidAccountData,
                     "MintAccount {} has decimals {}, expected {}",
                     self.pubkey(),
                     data.decimals,
@@ -124,6 +131,7 @@ impl MintAccount {
         if let Some(authority) = validate_mint.authority {
             if data.mint_authority != PodOption::some(*authority) {
                 bail!(
+                    ProgramError::InvalidAccountData,
                     "MintAccount {} has mint authority {:?}, expected {:?}",
                     self.pubkey(),
                     data.mint_authority,
@@ -135,6 +143,7 @@ impl MintAccount {
             FreezeAuthority::None => {
                 if data.freeze_authority.is_some() {
                     bail!(
+                        ProgramError::InvalidAccountData,
                         "MintAccount {} has a freeze authority but expected none",
                         self.pubkey()
                     );
@@ -143,6 +152,7 @@ impl MintAccount {
             FreezeAuthority::Some(authority) => {
                 if data.freeze_authority != PodOption::some(*authority) {
                     bail!(
+                        ProgramError::InvalidAccountData,
                         "MintAccount {} has freeze authority {:?}, expected {:?}",
                         self.pubkey(),
                         data.freeze_authority,
@@ -205,9 +215,12 @@ impl<'a> CanInitAccount<InitMint<'a>> for MintAccount {
         account_seeds: Option<Vec<&[u8]>>,
         ctx: &Context,
     ) -> Result<()> {
-        let funder = ctx
-            .get_funder()
-            .context("Missing tagged `funder` for MintAccount `init_account`")?;
+        let funder = ctx.get_funder().ok_or_else(|| {
+            error!(
+                ErrorCode::EmptyFunderCache,
+                "Missing tagged `funder` for MintAccount `init_account`"
+            )
+        })?;
         self.init_account::<IF_NEEDED>((arg, funder), account_seeds, ctx)
     }
 }
@@ -323,6 +336,7 @@ impl TokenAccount {
         // todo: maybe relax this check to allow token22
         if self.owner_pubkey() != Token::ID {
             bail!(
+                ProgramError::InvalidAccountOwner,
                 "TokenAccount owner {} does not match expected Token program ID {}",
                 self.owner_pubkey(),
                 Token::ID
@@ -330,6 +344,7 @@ impl TokenAccount {
         }
         if self.account_data()?.len() != Self::LEN {
             bail!(
+                ProgramError::InvalidAccountData,
                 "TokenAccount {} has invalid data length {}, expected {}",
                 self.pubkey(),
                 self.account_data()?.len(),
@@ -338,7 +353,11 @@ impl TokenAccount {
         }
         // set validate before checking state to allow us to call .data()
         if self.data_unchecked()?.state == AccountState::Uninitialized {
-            bail!("TokenAccount {} is not initialized", self.pubkey());
+            bail!(
+                ProgramError::UninitializedAccount,
+                "TokenAccount {} is not initialized",
+                self.pubkey()
+            );
         }
         Ok(())
     }
@@ -365,6 +384,7 @@ impl TokenAccount {
         if let Some(mint) = validate_token.mint {
             if data.mint != mint {
                 bail!(
+                    ProgramError::InvalidAccountData,
                     "TokenAccount {} has mint {}, expected {}",
                     self.pubkey(),
                     data.mint,
@@ -375,6 +395,7 @@ impl TokenAccount {
         if let Some(owner) = validate_token.owner {
             if data.owner != owner {
                 bail!(
+                    ProgramError::IncorrectAuthority,
                     "TokenAccount {} has owner {}, expected {}",
                     self.pubkey(),
                     data.owner,
@@ -424,9 +445,12 @@ where
         account_seeds: Option<Vec<&[u8]>>,
         ctx: &Context,
     ) -> Result<()> {
-        let funder = ctx
-            .get_funder()
-            .context("Missing tagged `funder` for TokenAccount `init_account`")?;
+        let funder = ctx.get_funder().ok_or_else(|| {
+            error!(
+                ErrorCode::EmptyFunderCache,
+                "Missing tagged `funder` for TokenAccount `init_account`"
+            )
+        })?;
         self.init_account::<IF_NEEDED>((arg, funder), account_seeds, ctx)
     }
 }

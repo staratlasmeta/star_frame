@@ -21,6 +21,7 @@ impl StarFrameProgram for Token {
 
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
 impl ProgramToIdl for Token {
+    type Errors = ();
     fn crate_metadata() -> star_frame::star_frame_idl::CrateMetadata {
         star_frame::star_frame_idl::CrateMetadata {
             version: star_frame::star_frame_idl::Version::new(4, 0, 0),

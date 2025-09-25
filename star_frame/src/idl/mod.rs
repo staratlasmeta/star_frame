@@ -13,39 +13,57 @@ pub(crate) use ty::*;
 /// Derivable via [`derive@InstructionSet`].   
 pub trait InstructionSetToIdl: InstructionSet {
     /// Adds each instruction in an instruction set to the idl definition.
-    fn instruction_set_to_idl(idl_definition: &mut IdlDefinition) -> Result<()>;
+    fn instruction_set_to_idl(idl_definition: &mut IdlDefinition) -> crate::IdlResult<()>;
 }
 
 /// Derivable via [`derive@InstructionToIdl`] or [`derive@InstructionArgs`].
 pub trait InstructionToIdl<A>: Instruction {
     /// Adds an instruction to the idl definition, handling any nested definitions as necessary.
-    fn instruction_to_idl(idl_definition: &mut IdlDefinition, arg: A) -> Result<IdlInstructionDef>;
+    fn instruction_to_idl(
+        idl_definition: &mut IdlDefinition,
+        arg: A,
+    ) -> crate::IdlResult<IdlInstructionDef>;
 }
 
 /// Derivable via [`derive@AccountSet`].
 pub trait AccountSetToIdl<A> {
     /// Adds the [`star_frame_idl::account_set::IdlAccountSetDef`] and associated account definitions to the idl definition.
-    fn account_set_to_idl(idl_definition: &mut IdlDefinition, arg: A) -> Result<IdlAccountSetDef>;
+    fn account_set_to_idl(
+        idl_definition: &mut IdlDefinition,
+        arg: A,
+    ) -> crate::IdlResult<IdlAccountSetDef>;
 }
 
 /// Derivable via [`derive@ProgramAccount`].
 pub trait AccountToIdl: TypeToIdl {
     /// Adds the [`star_frame_idl::account::IdlAccount`] and associated type definitions to the idl definition,
     /// returning the idl account id reference.
-    fn account_to_idl(idl_definition: &mut IdlDefinition) -> Result<IdlAccountId>;
+    fn account_to_idl(idl_definition: &mut IdlDefinition) -> crate::IdlResult<IdlAccountId>;
 }
 
 /// Derivable via [`derive@TypeToIdl`].
 pub trait TypeToIdl {
     type AssociatedProgram: ProgramToIdl;
     /// Returns the idl of this type.
-    fn type_to_idl(idl_definition: &mut IdlDefinition) -> Result<IdlTypeDef>;
+    fn type_to_idl(idl_definition: &mut IdlDefinition) -> crate::IdlResult<IdlTypeDef>;
 }
 
 /// Derivable via [`derive@GetSeeds`].
 pub trait SeedsToIdl: GetSeeds {
     /// Returns the [`IdlSeeds`] for a given [`GetSeeds`], adding any new types to the idl definition.
-    fn seeds_to_idl(idl_definition: &mut IdlDefinition) -> Result<IdlSeeds>;
+    fn seeds_to_idl(idl_definition: &mut IdlDefinition) -> crate::IdlResult<IdlSeeds>;
+}
+
+/// Derivable via [`star_frame_error`].
+pub trait ErrorsToIdl {
+    /// Adds the errors to the idl definition.
+    fn errors_to_idl(idl_definition: &mut IdlDefinition) -> crate::IdlResult<()>;
+}
+
+impl ErrorsToIdl for () {
+    fn errors_to_idl(_idl_definition: &mut IdlDefinition) -> crate::IdlResult<()> {
+        Ok(())
+    }
 }
 
 #[doc(hidden)]
@@ -79,19 +97,19 @@ macro_rules! crate_metadata {
 ///
 /// This should be derived via [`derive@StarFrameProgram`].
 pub trait ProgramToIdl: StarFrameProgram {
+    type Errors: ErrorsToIdl;
     #[must_use]
     fn crate_metadata() -> CrateMetadata {
         CrateMetadata {
-            docs: vec!["Hello".into()],
             ..crate_metadata!()
         }
     }
 
-    fn modify_idl(_idl_definition: &mut IdlDefinition) -> Result<()> {
+    fn modify_idl(_idl_definition: &mut IdlDefinition) -> crate::IdlResult<()> {
         Ok(())
     }
 
-    fn program_to_idl() -> Result<IdlDefinition>
+    fn program_to_idl() -> crate::IdlResult<IdlDefinition>
     where
         <Self as StarFrameProgram>::InstructionSet: InstructionSetToIdl,
     {
@@ -104,6 +122,7 @@ pub trait ProgramToIdl: StarFrameProgram {
             ..Default::default()
         };
         <Self as StarFrameProgram>::InstructionSet::instruction_set_to_idl(&mut out)?;
+        Self::Errors::errors_to_idl(&mut out)?;
         Self::modify_idl(&mut out)?;
         Ok(out)
     }
