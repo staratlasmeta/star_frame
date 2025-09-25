@@ -142,7 +142,7 @@ where
             Ok(())
         } else {
             bail!(
-                crate::errors::ErrorCode::AddressMismatch,
+                ErrorCode::AddressMismatch,
                 "Account key {} does not match expected public key {}",
                 self.pubkey(),
                 expected
