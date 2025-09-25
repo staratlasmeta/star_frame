@@ -20,3 +20,10 @@ pub enum {name_pascalcase}InstructionSet {
     Increment(Increment),
 }
 
+
+#[star_frame_error]
+pub enum {name_pascalcase}Error {
+    #[msg("Incorrect authority")]
+    IncorrectAuthority,
+}
+
