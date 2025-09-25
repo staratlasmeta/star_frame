@@ -463,7 +463,8 @@ mod tests {
             &mint_authority,
             freeze_authority.as_ref(),
             decimals,
-        )?;
+        )
+        .expect("REPLACE WITH ? WHEN PINOCCHIO USES SOLANA_ERRORS DIRECTLY");
         assert_eq!(initialize_mint_sf, initialize_mint_ix);
         Ok(())
     }
@@ -489,7 +490,8 @@ mod tests {
             &account,
             &mint,
             &owner,
-        )?;
+        )
+        .expect("REPLACE WITH ? WHEN PINOCCHIO USES SOLANA_ERRORS DIRECTLY");
         assert_eq!(initialize_account_sf, initialize_account_ix);
         Ok(())
     }
@@ -515,7 +517,8 @@ mod tests {
             &multisig,
             &signers,
             m,
-        )?;
+        )
+        .expect("REPLACE WITH ? WHEN PINOCCHIO USES SOLANA_ERRORS DIRECTLY");
         assert_eq!(initialize_multisig_sf, initialize_multisig_ix);
         Ok(())
     }
@@ -543,7 +546,8 @@ mod tests {
             &owner,
             &[],
             amount,
-        )?;
+        )
+        .expect("REPLACE WITH ? WHEN PINOCCHIO USES SOLANA_ERRORS DIRECTLY");
         assert_eq!(transfer_sf, transfer_ix);
         Ok(())
     }
@@ -571,7 +575,8 @@ mod tests {
             &owner,
             &[],
             amount,
-        )?;
+        )
+        .expect("REPLACE WITH ? WHEN PINOCCHIO USES SOLANA_ERRORS DIRECTLY");
         assert_eq!(approve_sf, approve_ix);
         Ok(())
     }
@@ -588,7 +593,8 @@ mod tests {
             &source,
             &owner,
             &[],
-        )?;
+        )
+        .expect("REPLACE WITH ? WHEN PINOCCHIO USES SOLANA_ERRORS DIRECTLY");
         assert_eq!(revoke_sf, revoke_ix);
         Ok(())
     }
@@ -619,7 +625,8 @@ mod tests {
             authority_type_spl,
             &current_authority,
             &[],
-        )?;
+        )
+        .expect("REPLACE WITH ? WHEN PINOCCHIO USES SOLANA_ERRORS DIRECTLY");
         assert_eq!(set_authority_sf, set_authority_ix);
         Ok(())
     }
@@ -647,7 +654,8 @@ mod tests {
             &mint_authority,
             &[],
             amount,
-        )?;
+        )
+        .expect("REPLACE WITH ? WHEN PINOCCHIO USES SOLANA_ERRORS DIRECTLY");
         assert_eq!(mint_to_sf, mint_to_ix);
         Ok(())
     }
@@ -675,7 +683,8 @@ mod tests {
             &owner,
             &[],
             amount,
-        )?;
+        )
+        .expect("REPLACE WITH ? WHEN PINOCCHIO USES SOLANA_ERRORS DIRECTLY");
         assert_eq!(burn_sf, burn_ix);
         Ok(())
     }
@@ -701,7 +710,8 @@ mod tests {
             &destination,
             &owner,
             &[],
-        )?;
+        )
+        .expect("REPLACE WITH ? WHEN PINOCCHIO USES SOLANA_ERRORS DIRECTLY");
         assert_eq!(close_account_sf, close_account_ix);
         Ok(())
     }
@@ -727,7 +737,8 @@ mod tests {
             &mint,
             &authority,
             &[],
-        )?;
+        )
+        .expect("REPLACE WITH ? WHEN PINOCCHIO USES SOLANA_ERRORS DIRECTLY");
         assert_eq!(freeze_account_sf, freeze_account_ix);
         Ok(())
     }
@@ -753,7 +764,8 @@ mod tests {
             &mint,
             &authority,
             &[],
-        )?;
+        )
+        .expect("REPLACE WITH ? WHEN PINOCCHIO USES SOLANA_ERRORS DIRECTLY");
         assert_eq!(thaw_account_sf, thaw_account_ix);
         Ok(())
     }
@@ -786,7 +798,8 @@ mod tests {
             &[],
             amount,
             decimals,
-        )?;
+        )
+        .expect("REPLACE WITH ? WHEN PINOCCHIO USES SOLANA_ERRORS DIRECTLY");
         assert_eq!(transfer_checked_sf, transfer_checked_ix);
         Ok(())
     }
@@ -819,7 +832,8 @@ mod tests {
             &[],
             amount,
             decimals,
-        )?;
+        )
+        .expect("REPLACE WITH ? WHEN PINOCCHIO USES SOLANA_ERRORS DIRECTLY");
         assert_eq!(approve_checked_sf, approve_checked_ix);
         Ok(())
     }
@@ -839,7 +853,8 @@ mod tests {
                 account,
                 mint_authority,
             },
-        )?;
+        )
+        .expect("REPLACE WITH ? WHEN PINOCCHIO USES SOLANA_ERRORS DIRECTLY");
 
         let mint_to_checked_ix = spl_token_interface::instruction::mint_to_checked(
             &spl_token_interface::id(),
@@ -849,7 +864,8 @@ mod tests {
             &[],
             amount,
             decimals,
-        )?;
+        )
+        .expect("REPLACE WITH ? WHEN PINOCCHIO USES SOLANA_ERRORS DIRECTLY");
         assert_eq!(mint_to_checked_sf, mint_to_checked_ix);
         Ok(())
     }
@@ -869,7 +885,8 @@ mod tests {
                 mint,
                 owner,
             },
-        )?;
+        )
+        .expect("REPLACE WITH ? WHEN PINOCCHIO USES SOLANA_ERRORS DIRECTLY");
 
         let burn_checked_ix = spl_token_interface::instruction::burn_checked(
             &spl_token_interface::id(),
@@ -879,7 +896,8 @@ mod tests {
             &[],
             amount,
             decimals,
-        )?;
+        )
+        .expect("REPLACE WITH ? WHEN PINOCCHIO USES SOLANA_ERRORS DIRECTLY");
         assert_eq!(burn_checked_sf, burn_checked_ix);
         Ok(())
     }
@@ -891,7 +909,8 @@ mod tests {
         let sync_native_sf = Token::instruction(&SyncNative, SyncNativeClientAccounts { account })?;
 
         let sync_native_ix =
-            spl_token_interface::instruction::sync_native(&spl_token_interface::id(), &account)?;
+            spl_token_interface::instruction::sync_native(&spl_token_interface::id(), &account)
+                .expect("REPLACE WITH ? WHEN PINOCCHIO USES SOLANA_ERRORS DIRECTLY");
         assert_eq!(sync_native_sf, sync_native_ix);
         Ok(())
     }
@@ -916,7 +935,8 @@ mod tests {
             &account,
             &mint,
             &owner,
-        )?;
+        )
+        .expect("REPLACE WITH ? WHEN PINOCCHIO USES SOLANA_ERRORS DIRECTLY");
         assert_eq!(initialize_account2_sf, initialize_account2_ix);
         Ok(())
     }
@@ -937,7 +957,8 @@ mod tests {
             &account,
             &mint,
             &owner,
-        )?;
+        )
+        .expect("REPLACE WITH ? WHEN PINOCCHIO USES SOLANA_ERRORS DIRECTLY");
         assert_eq!(initialize_account3_sf, initialize_account3_ix);
         Ok(())
     }
@@ -963,7 +984,8 @@ mod tests {
             &multisig,
             &signers,
             m,
-        )?;
+        )
+        .expect("REPLACE WITH ? WHEN PINOCCHIO USES SOLANA_ERRORS DIRECTLY");
         assert_eq!(initialize_multisig2_sf, initialize_multisig2_ix);
         Ok(())
     }
@@ -990,7 +1012,8 @@ mod tests {
             &mint_authority,
             freeze_authority.as_ref(),
             decimals,
-        )?;
+        )
+        .expect("REPLACE WITH ? WHEN PINOCCHIO USES SOLANA_ERRORS DIRECTLY");
         assert_eq!(initialize_mint2_sf, initialize_mint2_ix);
         Ok(())
     }
@@ -1007,7 +1030,8 @@ mod tests {
         let get_account_data_size_ix = spl_token_interface::instruction::get_account_data_size(
             &spl_token_interface::id(),
             &mint,
-        )?;
+        )
+        .expect("REPLACE WITH ? WHEN PINOCCHIO USES SOLANA_ERRORS DIRECTLY");
         assert_eq!(get_account_data_size_sf, get_account_data_size_ix);
         Ok(())
     }
@@ -1025,7 +1049,8 @@ mod tests {
             spl_token_interface::instruction::initialize_immutable_owner(
                 &spl_token_interface::id(),
                 &account,
-            )?;
+            )
+            .expect("REPLACE WITH ? WHEN PINOCCHIO USES SOLANA_ERRORS DIRECTLY");
         assert_eq!(initialize_immutable_owner_sf, initialize_immutable_owner_ix);
         Ok(())
     }
@@ -1044,7 +1069,8 @@ mod tests {
             &spl_token_interface::id(),
             &mint,
             amount,
-        )?;
+        )
+        .expect("REPLACE WITH ? WHEN PINOCCHIO USES SOLANA_ERRORS DIRECTLY");
         assert_eq!(amount_to_ui_amount_sf, amount_to_ui_amount_ix);
         Ok(())
     }

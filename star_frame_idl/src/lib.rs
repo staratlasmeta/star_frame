@@ -254,6 +254,10 @@ pub enum Error {
     UnsupportedAccountSetType(String),
     #[error("Many sets must be made of single sets for Codama")]
     ManySetsMustBeSingle,
+    #[error(transparent)]
+    SerdeJsonError(#[from] serde_json::Error),
+    #[error("Custom Error: {0}")]
+    Custom(String),
 }
 
 #[cfg(test)]

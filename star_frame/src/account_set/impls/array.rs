@@ -191,7 +191,7 @@ pub mod idl_impl {
         fn account_set_to_idl(
             idl_definition: &mut IdlDefinition,
             arg: (),
-        ) -> crate::Result<IdlAccountSetDef> {
+        ) -> crate::IdlResult<IdlAccountSetDef> {
             let account_set = Box::new(T::account_set_to_idl(idl_definition, arg)?);
             Ok(IdlAccountSetDef::Many {
                 account_set,

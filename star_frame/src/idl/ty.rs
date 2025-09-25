@@ -13,7 +13,7 @@ macro_rules! impl_type_to_idl_for_primitive {
         impl $crate::idl::TypeToIdl for $ty {
             type AssociatedProgram = $crate::program::system::System;
 
-            fn type_to_idl(_idl_definition: &mut $crate::star_frame_idl::IdlDefinition) -> $crate::Result<$crate::star_frame_idl::ty::IdlTypeDef> {
+            fn type_to_idl(_idl_definition: &mut $crate::star_frame_idl::IdlDefinition) -> $crate::IdlResult<$crate::star_frame_idl::ty::IdlTypeDef> {
                 Ok($crate::star_frame_idl::ty::IdlTypeDef::$ident)
             }
         }
@@ -46,7 +46,7 @@ impl_type_to_idl_for_primitive!(
 
 impl<T: TypeToIdl> TypeToIdl for Option<T> {
     type AssociatedProgram = System;
-    fn type_to_idl(idl_definition: &mut IdlDefinition) -> Result<IdlTypeDef> {
+    fn type_to_idl(idl_definition: &mut IdlDefinition) -> crate::IdlResult<IdlTypeDef> {
         Ok(IdlTypeDef::Option {
             ty: Box::new(T::type_to_idl(idl_definition)?),
             fixed: false,
@@ -56,14 +56,14 @@ impl<T: TypeToIdl> TypeToIdl for Option<T> {
 
 impl<T: TypeToIdl> TypeToIdl for Box<T> {
     type AssociatedProgram = System;
-    fn type_to_idl(idl_definition: &mut IdlDefinition) -> Result<IdlTypeDef> {
+    fn type_to_idl(idl_definition: &mut IdlDefinition) -> crate::IdlResult<IdlTypeDef> {
         T::type_to_idl(idl_definition)
     }
 }
 
 impl<T: TypeToIdl> TypeToIdl for Vec<T> {
     type AssociatedProgram = System;
-    fn type_to_idl(idl_definition: &mut IdlDefinition) -> Result<IdlTypeDef> {
+    fn type_to_idl(idl_definition: &mut IdlDefinition) -> crate::IdlResult<IdlTypeDef> {
         Ok(IdlTypeDef::List {
             item_ty: Box::new(T::type_to_idl(idl_definition)?),
             // The only serialization format currently used that
@@ -77,21 +77,21 @@ impl<T: TypeToIdl> TypeToIdl for Vec<T> {
 
 impl<T: TypeToIdl> TypeToIdl for VecDeque<T> {
     type AssociatedProgram = System;
-    fn type_to_idl(idl_definition: &mut IdlDefinition) -> Result<IdlTypeDef> {
+    fn type_to_idl(idl_definition: &mut IdlDefinition) -> crate::IdlResult<IdlTypeDef> {
         <Vec<T>>::type_to_idl(idl_definition)
     }
 }
 
 impl<T: TypeToIdl> TypeToIdl for LinkedList<T> {
     type AssociatedProgram = System;
-    fn type_to_idl(idl_definition: &mut IdlDefinition) -> Result<IdlTypeDef> {
+    fn type_to_idl(idl_definition: &mut IdlDefinition) -> crate::IdlResult<IdlTypeDef> {
         <Vec<T>>::type_to_idl(idl_definition)
     }
 }
 
 impl<T: TypeToIdl, const N: usize> TypeToIdl for [T; N] {
     type AssociatedProgram = System;
-    fn type_to_idl(idl_definition: &mut IdlDefinition) -> Result<IdlTypeDef> {
+    fn type_to_idl(idl_definition: &mut IdlDefinition) -> crate::IdlResult<IdlTypeDef> {
         Ok(IdlTypeDef::Array(
             Box::new(T::type_to_idl(idl_definition)?),
             N,
@@ -101,7 +101,7 @@ impl<T: TypeToIdl, const N: usize> TypeToIdl for [T; N] {
 
 impl<T: TypeToIdl> TypeToIdl for BTreeSet<T> {
     type AssociatedProgram = System;
-    fn type_to_idl(idl_definition: &mut IdlDefinition) -> Result<IdlTypeDef> {
+    fn type_to_idl(idl_definition: &mut IdlDefinition) -> crate::IdlResult<IdlTypeDef> {
         Ok(IdlTypeDef::Set {
             item_ty: Box::new(T::type_to_idl(idl_definition)?),
             len_ty: Box::new(IdlTypeDef::U32),
@@ -111,7 +111,7 @@ impl<T: TypeToIdl> TypeToIdl for BTreeSet<T> {
 
 impl<K: TypeToIdl, V: TypeToIdl> TypeToIdl for BTreeMap<K, V> {
     type AssociatedProgram = System;
-    fn type_to_idl(idl_definition: &mut IdlDefinition) -> Result<IdlTypeDef> {
+    fn type_to_idl(idl_definition: &mut IdlDefinition) -> crate::IdlResult<IdlTypeDef> {
         Ok(IdlTypeDef::Map {
             key_ty: Box::new(K::type_to_idl(idl_definition)?),
             value_ty: Box::new(V::type_to_idl(idl_definition)?),
@@ -122,14 +122,14 @@ impl<K: TypeToIdl, V: TypeToIdl> TypeToIdl for BTreeMap<K, V> {
 
 impl<T: TypeToIdl, S> TypeToIdl for HashSet<T, S> {
     type AssociatedProgram = System;
-    fn type_to_idl(idl_definition: &mut IdlDefinition) -> Result<IdlTypeDef> {
+    fn type_to_idl(idl_definition: &mut IdlDefinition) -> crate::IdlResult<IdlTypeDef> {
         <BTreeSet<T>>::type_to_idl(idl_definition)
     }
 }
 
 impl<K: TypeToIdl, V: TypeToIdl, S> TypeToIdl for HashMap<K, V, S> {
     type AssociatedProgram = System;
-    fn type_to_idl(idl_definition: &mut IdlDefinition) -> Result<IdlTypeDef> {
+    fn type_to_idl(idl_definition: &mut IdlDefinition) -> crate::IdlResult<IdlTypeDef> {
         <BTreeMap<K, V>>::type_to_idl(idl_definition)
     }
 }
@@ -138,7 +138,7 @@ macro_rules! impl_type_to_idl_for_tuple {
     ($($ty:ident),*) => {
         impl<$($ty: TypeToIdl),*> TypeToIdl for ($($ty,)*) {
             type AssociatedProgram = System;
-            fn type_to_idl(idl_definition: &mut IdlDefinition) -> Result<IdlTypeDef> {
+            fn type_to_idl(idl_definition: &mut IdlDefinition) -> crate::IdlResult<IdlTypeDef> {
                 Ok(IdlTypeDef::Struct(vec![
                     $(
                         IdlStructField {

@@ -18,7 +18,7 @@ mod idl_impl {
     use star_frame_idl::IdlDefinition;
 
     impl InstructionSetToIdl for UnCallable {
-        fn instruction_set_to_idl(_idl_definition: &mut IdlDefinition) -> Result<()> {
+        fn instruction_set_to_idl(_idl_definition: &mut IdlDefinition) -> crate::IdlResult<()> {
             Ok(())
         }
     }

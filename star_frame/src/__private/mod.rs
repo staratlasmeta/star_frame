@@ -11,9 +11,11 @@ pub mod macro_prelude {
             CpiConstWrapper, DynamicCpiAccountSetLen, ProgramAccount,
         },
         align1::Align1,
+        bail,
         client::MakeInstruction,
         context::Context,
         cpi::{CpiBuilder, MakeCpi},
+        errors::{ErrorCode, ErrorInfo, StarFrameError},
         instruction::{
             Instruction, InstructionArgs, InstructionDiscriminant, InstructionSet, IxArgs,
             IxReturnType, StarFrameInstruction,
@@ -34,9 +36,10 @@ pub mod macro_prelude {
     pub use crate::{
         crate_metadata,
         idl::{
-            seed_const, seed_path, AccountSetToIdl, AccountToIdl, FindIdlSeeds, FindSeed,
-            InstructionSetToIdl, InstructionToIdl, ProgramToIdl, SeedsToIdl, TypeToIdl,
+            seed_const, seed_path, AccountSetToIdl, AccountToIdl, ErrorsToIdl, FindIdlSeeds,
+            FindSeed, InstructionSetToIdl, InstructionToIdl, ProgramToIdl, SeedsToIdl, TypeToIdl,
         },
+        IdlResult,
     };
 
     #[cfg(all(feature = "idl", not(target_os = "solana")))]
@@ -47,7 +50,7 @@ pub mod macro_prelude {
         item_source,
         seeds::{IdlFindSeed, IdlFindSeeds, IdlSeed, IdlSeeds},
         ty::{IdlEnumVariant, IdlStructField, IdlType, IdlTypeDef, IdlTypeId},
-        CrateMetadata, IdlDefinition, IdlDefinitionReference, ItemInfo, Version,
+        CrateMetadata, ErrorNode, IdlDefinition, IdlDefinitionReference, ItemInfo, Version,
     };
 
     pub use star_frame_proc::{sighash, zero_copy, InstructionToIdl, TypeToIdl};
@@ -55,10 +58,9 @@ pub mod macro_prelude {
     pub use advancer::{Advance, AdvanceArray};
     pub use core::any::type_name;
     pub use derive_where::DeriveWhere;
-    pub use eyre::{self, bail};
     pub use pinocchio::{
         account_info::AccountInfo, instruction::AccountMeta as PinocchioAccountMeta, msg,
-        pubkey::Pubkey as PinocchioPubkey,
+        program_error::ProgramError, pubkey::Pubkey as PinocchioPubkey,
     };
     pub use solana_instruction::{AccountMeta, Instruction as SolanaInstruction};
     pub use solana_pubkey::Pubkey;

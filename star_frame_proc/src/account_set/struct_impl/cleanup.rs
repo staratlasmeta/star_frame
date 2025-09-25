@@ -147,6 +147,12 @@ pub(super) fn cleanups(
             quote!(#[inline])
         };
 
+        let handle_paths = field_name.iter().map(|field_name| if single_set_field.is_some() {
+            quote! { res?; }
+        } else {
+            quote! { #prelude::ErrorInfo::account_path(res, ::std::stringify!(#field_name))?; }
+        }).collect::<Vec<_>>();
+        
         quote! {
             #[automatically_derived]
             impl #impl_generics #account_set_cleanup<#cleanup_type> for #ident #ty_generics #where_clause {
@@ -158,11 +164,12 @@ pub(super) fn cleanups(
                 ) -> #result<()> {
                     #(
                         let __arg = #cleanup_args;
-                        #prelude::eyre::Context::context(#prelude::_account_set_cleanup_reverse::<#field_type, _>(
+                        let res = #prelude::_account_set_cleanup_reverse::<#field_type, _>(
                             __arg,
                             &mut self.#field_name,
                             ctx,
-                        ), ::std::stringify!(#ident::#field_name(#id)))?;
+                        );
+                        #handle_paths
                     )*
                     #extra_cleanup
                     Ok(())

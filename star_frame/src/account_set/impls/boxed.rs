@@ -166,7 +166,7 @@ where
 
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
 mod idl_impl {
-    use crate::{idl::AccountSetToIdl, Result};
+    use crate::idl::AccountSetToIdl;
     use star_frame_idl::{account_set::IdlAccountSetDef, IdlDefinition};
 
     impl<T, Arg> AccountSetToIdl<Arg> for Box<T>
@@ -176,7 +176,7 @@ mod idl_impl {
         fn account_set_to_idl(
             idl_definition: &mut IdlDefinition,
             arg: Arg,
-        ) -> Result<IdlAccountSetDef> {
+        ) -> crate::IdlResult<IdlAccountSetDef> {
             T::account_set_to_idl(idl_definition, arg)
         }
     }

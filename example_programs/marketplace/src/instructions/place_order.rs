@@ -92,7 +92,7 @@ mod tests {
     };
     use mollusk_svm::result::Check;
     use solana_account::Account as SolanaAccount;
-    use star_frame::{eyre::ensure, itertools::Itertools, solana_pubkey::Pubkey};
+    use star_frame::{itertools::Itertools, solana_pubkey::Pubkey};
     use star_frame_spl::associated_token::AssociatedToken;
     use std::{collections::HashMap, env};
     const STARTING_USER_CURRENCY_BALANCE: u64 = 1_000_000_000;
@@ -302,8 +302,8 @@ mod tests {
                 .as_slice(),
         )?;
 
-        ensure!(market_data.asks.orders.len() == 500);
-        ensure!(market_data.bids.orders.len() == 1); // the remaining quantity from the order being placed that was not filled
+        assert_eq!(market_data.asks.orders.len(), 500);
+        assert_eq!(market_data.bids.orders.len(), 1); // the remaining quantity from the order being placed that was not filled
 
         Ok(())
     }

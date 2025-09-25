@@ -8,9 +8,9 @@ use crate::{
         CpiAccountSet, DynamicCpiAccountSetLen,
     },
     prelude::*,
+    ErrorCode,
 };
 use advancer::Advance;
-use eyre::ContextCompat as _;
 use typenum::{Eq, IsEqual};
 
 #[doc(hidden)]
@@ -50,8 +50,12 @@ where
         if let Some(accounts) = accounts {
             T::write_account_infos(program, accounts, index, infos)
         } else {
-            infos[*index] =
-                MaybeUninit::new(program.context("Program not passed in to write_account_infos")?);
+            infos[*index] = MaybeUninit::new(program.ok_or_else(|| {
+                error!(
+                    ErrorCode::MissingOptionalProgram,
+                    "Program not passed in to write_account_infos. This should be prevented by the MakeCpi trait",
+                )
+            })?);
             *index += 1;
             Ok(())
         }
@@ -161,7 +165,7 @@ where
 
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
 mod idl_impl {
-    use crate::{idl::AccountSetToIdl, Result};
+    use crate::idl::AccountSetToIdl;
     use star_frame_idl::{account_set::IdlAccountSetDef, IdlDefinition};
 
     impl<A, Arg> AccountSetToIdl<Arg> for Option<A>
@@ -171,7 +175,7 @@ mod idl_impl {
         fn account_set_to_idl(
             idl_definition: &mut IdlDefinition,
             arg: Arg,
-        ) -> Result<IdlAccountSetDef> {
+        ) -> crate::IdlResult<IdlAccountSetDef> {
             let mut set = A::account_set_to_idl(idl_definition, arg)?;
             if let Ok(inner) = set.single() {
                 inner.optional = true;

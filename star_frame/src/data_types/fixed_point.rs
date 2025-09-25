@@ -13,7 +13,7 @@ mod idl_impl {
             {
                 type AssociatedProgram = System;
 
-                fn type_to_idl(_idl_definition: &mut IdlDefinition) -> crate::Result<IdlTypeDef> {
+                fn type_to_idl(_idl_definition: &mut IdlDefinition) -> crate::IdlResult<IdlTypeDef> {
                     Ok(IdlTypeDef::FixedPoint {
                         ty: Box::new(IdlTypeDef::$def_ident),
                         frac: Frac::U8,

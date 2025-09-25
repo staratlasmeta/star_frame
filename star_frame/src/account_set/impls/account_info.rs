@@ -10,7 +10,6 @@ use crate::{
     prelude::*,
 };
 use advancer::AdvanceArray;
-use eyre::WrapErr;
 
 impl SingleAccountSet for AccountInfo {
     #[inline]
@@ -174,7 +173,7 @@ impl<'a> AccountSetDecode<'a, ()> for AccountInfo {
     ) -> Result<Self> {
         let account: &[_; 1] = accounts
             .try_advance_array()
-            .context("Not enough accounts to decode AccountInfo")?;
+            .ctx("Not enough accounts to decode AccountInfo")?;
         Ok(account[0])
     }
 }
@@ -187,7 +186,7 @@ impl<'a> AccountSetDecode<'a, ()> for &'a AccountInfo {
     ) -> Result<Self> {
         let account: &[_; 1] = accounts
             .try_advance_array()
-            .context("Not enough accounts to decode AccountInfo")?;
+            .ctx("Not enough accounts to decode AccountInfo")?;
         Ok(&account[0])
     }
 }
@@ -235,7 +234,7 @@ pub mod idl_impl {
         fn account_set_to_idl(
             _idl_definition: &mut IdlDefinition,
             _arg: (),
-        ) -> Result<IdlAccountSetDef> {
+        ) -> crate::IdlResult<IdlAccountSetDef> {
             Ok(IdlAccountSetDef::Single(IdlSingleAccountSet::default()))
         }
     }
@@ -247,7 +246,7 @@ pub mod idl_impl {
         fn account_set_to_idl(
             _idl_definition: &mut IdlDefinition,
             arg: Seeds<(T, Pubkey)>,
-        ) -> Result<IdlAccountSetDef> {
+        ) -> crate::IdlResult<IdlAccountSetDef> {
             let (seeds, program) = arg.0;
             Ok(IdlAccountSetDef::Single(IdlSingleAccountSet {
                 seeds: Some(IdlFindSeeds {
@@ -266,7 +265,7 @@ pub mod idl_impl {
         fn account_set_to_idl(
             _idl_definition: &mut IdlDefinition,
             arg: Seeds<T>,
-        ) -> Result<IdlAccountSetDef> {
+        ) -> crate::IdlResult<IdlAccountSetDef> {
             Ok(IdlAccountSetDef::Single(IdlSingleAccountSet {
                 seeds: Some(IdlFindSeeds {
                     seeds: T::find_seeds(&arg.0)?,
@@ -284,7 +283,7 @@ pub mod idl_impl {
         fn account_set_to_idl(
             idl_definition: &mut IdlDefinition,
             arg: A,
-        ) -> Result<IdlAccountSetDef> {
+        ) -> crate::IdlResult<IdlAccountSetDef> {
             AccountInfo::account_set_to_idl(idl_definition, arg)
         }
     }

@@ -9,7 +9,6 @@ use crate::{
     prelude::*,
 };
 use derive_more::{Deref, DerefMut};
-use eyre::WrapErr;
 
 /// A modifier that handles account initialization and creation during instruction execution.
 ///
@@ -24,8 +23,8 @@ use eyre::WrapErr;
     generics = [<C> where T: CanInitSeeds<()> + CanInitAccount<C>],
     arg = Create<C>,
     before_validation = {
-        self.init_seeds(&(), ctx).context("Failed to init seeds")?;
-        self.init_account::<false>(arg.0, None, ctx).context("Failed to init account")
+        self.init_seeds(&(), ctx).ctx("Failed to init seeds")?;
+        self.init_account::<false>(arg.0, None, ctx).ctx("Failed to init account")
     }
 )]
 #[validate(
@@ -33,8 +32,8 @@ use eyre::WrapErr;
     generics = [<C, A> where T: CanInitSeeds<A> + CanInitAccount<C>],
     arg = (Create<C>, A),
     before_validation = {
-        self.init_seeds(&arg.1, ctx).context("Failed to init seeds")?;
-        self.init_account::<false>(arg.0.0, None, ctx).context("Failed to init account")
+        self.init_seeds(&arg.1, ctx).ctx("Failed to init seeds")?;
+        self.init_account::<false>(arg.0.0, None, ctx).ctx("Failed to init account")
     }
 )]
 #[validate(
@@ -42,8 +41,8 @@ use eyre::WrapErr;
     generics = [<C> where T: CanInitSeeds<()> + CanInitAccount<C>],
     arg = CreateIfNeeded<C>,
     before_validation = {
-        self.init_seeds(&(), ctx).context("Failed to init seeds")?;
-        self.init_account::<true>(arg.0, None, ctx).context("Failed to init account")
+        self.init_seeds(&(), ctx).ctx("Failed to init seeds")?;
+        self.init_account::<true>(arg.0, None, ctx).ctx("Failed to init account")
     }
 )]
 #[validate(
@@ -51,8 +50,8 @@ use eyre::WrapErr;
     generics = [<C, A> where T: CanInitSeeds<A> + CanInitAccount<C>],
     arg = (CreateIfNeeded<C>, A),
     before_validation = {
-        self.init_seeds(&arg.1, ctx).context("Failed to init seeds")?;
-        self.init_account::<true>(arg.0.0, None, ctx).context("Failed to init account")
+        self.init_seeds(&arg.1, ctx).ctx("Failed to init seeds")?;
+        self.init_account::<true>(arg.0.0, None, ctx).ctx("Failed to init account")
     }
 )]
 pub struct Init<T>(
@@ -81,7 +80,6 @@ pub struct CreateIfNeeded<T>(pub T);
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
 mod idl_impl {
     use super::*;
-    use eyre::bail;
     use star_frame::idl::AccountSetToIdl;
     use star_frame_idl::{account_set::IdlAccountSetDef, IdlDefinition};
 
@@ -92,14 +90,13 @@ mod idl_impl {
         fn account_set_to_idl(
             idl_definition: &mut IdlDefinition,
             arg: A,
-        ) -> Result<IdlAccountSetDef> {
+        ) -> crate::IdlResult<IdlAccountSetDef> {
             let mut set = <Mut<T> as AccountSetToIdl<A>>::account_set_to_idl(idl_definition, arg)?;
             let single = set.single()?;
             if single.is_init {
-                bail!(
-                    "Account set is already wrapped with `Init`! Got {:?}",
-                    single
-                );
+                return Err(star_frame_idl::Error::ExpectedSingleAccountSet(format!(
+                    "{single:?}"
+                )));
             }
             set.single()?.is_init = true;
             Ok(set)

@@ -87,7 +87,7 @@ impl TryFrom<IdlDefinition> for ProgramNode {
                 !def.accounts.contains_key(*source) && !def.instructions.contains_key(*source)
             })
             .map(|(_source, idl_type)| {
-                Ok(DefinedTypeNode {
+                Ok::<_, crate::Error>(DefinedTypeNode {
                     name: idl_type.info.codama_name(),
                     docs: idl_type.info.codama_docs(),
                     r#type: idl_type.type_def.try_to_codama(&def, ctx)?,
@@ -411,7 +411,7 @@ impl TryToCodama<(AccountNode, Option<PdaNode>)> for IdlAccount {
             .seeds
             .as_ref()
             .map(|seeds| {
-                Ok(PdaNode {
+                Ok::<_, crate::Error>(PdaNode {
                     name: info.codama_name(),
                     docs: info.codama_docs(),
                     program_id: None,
@@ -514,7 +514,7 @@ impl TryToCodama<TypeNode> for IdlTypeDef {
                         fields
                             .iter()
                             .map(|f|{
-                                Ok(StructFieldTypeNode {
+                                Ok::<_, crate::Error>(StructFieldTypeNode {
                                     name: f.path.clone().ok_or(crate::Error::MissingNameOnNamedField)?.into(),
                                     default_value_strategy: None,
                                     docs: f.description.clone().into(),
@@ -637,4 +637,18 @@ fn discriminant_to_usize(discriminant: &IdlDiscriminant) -> Result<usize> {
     let mut bytes = [0; std::mem::size_of::<usize>()];
     bytes[0..discriminant.len()][..].copy_from_slice(discriminant);
     Ok(usize::from_le_bytes(bytes))
+}
+
+pub trait NodeToJson {
+    fn to_json(&self) -> Result<String>;
+    fn to_json_pretty(&self) -> Result<String>;
+}
+
+impl NodeToJson for ProgramNode {
+    fn to_json(&self) -> Result<String> {
+        serde_json::to_string(self).map_err(Into::into)
+    }
+    fn to_json_pretty(&self) -> Result<String> {
+        serde_json::to_string_pretty(self).map_err(Into::into)
+    }
 }

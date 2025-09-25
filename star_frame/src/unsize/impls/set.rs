@@ -145,7 +145,7 @@ where
             if self.insert(value)? {
                 count += 1;
             }
-            eyre::Ok(())
+            crate::Ok(())
         })?;
         Ok(count)
     }
@@ -286,7 +286,7 @@ mod idl_impl {
     {
         type AssociatedProgram = System;
 
-        fn type_to_idl(idl_definition: &mut IdlDefinition) -> Result<IdlTypeDef> {
+        fn type_to_idl(idl_definition: &mut IdlDefinition) -> crate::IdlResult<IdlTypeDef> {
             Ok(IdlTypeDef::Set {
                 len_ty: L::type_to_idl(idl_definition)?.into(),
                 item_ty: T::type_to_idl(idl_definition)?.into(),

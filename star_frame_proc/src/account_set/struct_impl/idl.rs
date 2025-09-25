@@ -27,7 +27,6 @@ struct IdlFieldArgs {
 
 pub(super) fn idls(
     StepInput {
-        paths,
         input,
         account_set_struct_args,
         account_set_generics,
@@ -40,15 +39,11 @@ pub(super) fn idls(
 ) -> Vec<TokenStream> {
     let ident = &input.ident;
     let AccountSetGenerics { main_generics, .. } = account_set_generics;
-    let Paths {
-        result,
-        idl_ident,
-        prelude,
-        ..
-    } = paths;
+    Paths!(idl_ident, prelude);
 
     let mut idl_ids = HashMap::new();
-    for idl_struct_args in find_attrs(&input.attrs, idl_ident).map(IdlStructArgs::parse_arguments) {
+    for idl_struct_args in find_attrs(&input.attrs, &idl_ident).map(IdlStructArgs::parse_arguments)
+    {
         match idl_ids.entry(idl_struct_args.id.as_ref().map(LitStr::value)) {
             Entry::Vacant(entry) => {
                 entry.insert(idl_struct_args);
@@ -73,7 +68,7 @@ pub(super) fn idls(
     let field_idls = fields
         .iter()
         .map(|f| {
-            find_attrs(&f.attrs, idl_ident)
+            find_attrs(&f.attrs, &idl_ident)
                 .map(IdlFieldArgs::parse_arguments)
                 .collect::<Vec<_>>()
         })
@@ -163,7 +158,7 @@ pub(super) fn idls(
 
             let account_set_defs = relevant_field_types.iter().zip(idl_args).zip(idl_addresses).map(|((ty, idl_arg), idl_address)| {
                 let expression = quote! {
-                    #prelude::eyre::Context::context(<#ty as #prelude::AccountSetToIdl<_>>::account_set_to_idl(idl_definition, #idl_arg), ::std::stringify!(#ident::#ty))
+                    <#ty as #prelude::AccountSetToIdl<_>>::account_set_to_idl(idl_definition, #idl_arg)
                 };
                 if let Some(address) = idl_address {
                     quote! (#expression?.with_single_address(#address))
@@ -212,7 +207,7 @@ pub(super) fn idls(
                     fn account_set_to_idl(
                         idl_definition: &mut #prelude::IdlDefinition,
                         arg: #idl_type,
-                    ) -> #result<#prelude::IdlAccountSetDef> {
+                    ) -> #prelude::IdlResult<#prelude::IdlAccountSetDef> {
                         #inner
                     }
                 }

@@ -179,6 +179,7 @@ where
         Ok(())
     }
 }
+
 impl<T, TA> AccountSetValidate<Vec<TA>> for Vec<T>
 where
     T: AccountSetValidate<TA>,
@@ -186,7 +187,8 @@ where
     fn validate_accounts(&mut self, validate_input: Vec<TA>, ctx: &mut Context) -> Result<()> {
         if validate_input.len() < self.len() {
             bail!(
-                "Invalid account data: validate input length {} is less than required length {}",
+                ProgramError::InvalidArgument,
+                "Validate input length {} is less than required length {}",
                 validate_input.len(),
                 self.len()
             );
@@ -206,7 +208,8 @@ where
     fn validate_accounts(&mut self, validate_input: [TA; N], ctx: &mut Context) -> Result<()> {
         if validate_input.len() != self.len() {
             bail!(
-                "Invalid account data: validate input length {} does not match required length {}",
+                ProgramError::InvalidArgument,
+                "Validate input length {} does not match required length {}",
                 validate_input.len(),
                 self.len()
             );
@@ -229,7 +232,12 @@ where
         ctx: &mut Context,
     ) -> Result<()> {
         if validate_input.len() != self.len() {
-            bail!("Invalid account data");
+            bail!(
+                ProgramError::InvalidArgument,
+                "Validate input length {} does not match required length {}",
+                validate_input.len(),
+                self.len()
+            );
         }
 
         for (account, input) in self.iter_mut().zip(validate_input) {
@@ -270,7 +278,8 @@ where
     fn cleanup_accounts(&mut self, cleanup_input: Vec<TA>, ctx: &mut Context) -> Result<()> {
         if cleanup_input.len() < self.len() {
             bail!(
-                "Invalid account data: cleanup input length {} is less than required length {}",
+                ProgramError::InvalidArgument,
+                "Cleanup input length {} is less than required length {}",
                 cleanup_input.len(),
                 self.len()
             );
@@ -290,7 +299,8 @@ where
     fn cleanup_accounts(&mut self, cleanup_input: [TA; N], ctx: &mut Context) -> Result<()> {
         if cleanup_input.len() != self.len() {
             bail!(
-                "Invalid account data: cleanup input length {} does not match required length {}",
+                ProgramError::InvalidArgument,
+                "Cleanup input length {} does not match required length {}",
                 cleanup_input.len(),
                 self.len()
             );
@@ -313,7 +323,12 @@ where
         ctx: &mut Context,
     ) -> Result<()> {
         if cleanup_input.len() != self.len() {
-            bail!("Invalid account data");
+            bail!(
+                ProgramError::InvalidArgument,
+                "Cleanup input length {} does not match required length {}",
+                cleanup_input.len(),
+                self.len()
+            );
         }
 
         for (account, input) in self.iter_mut().zip(cleanup_input) {
@@ -339,7 +354,7 @@ pub mod idl_impl {
         fn account_set_to_idl(
             idl_definition: &mut IdlDefinition,
             arg: (B, A),
-        ) -> crate::Result<IdlAccountSetDef> {
+        ) -> crate::IdlResult<IdlAccountSetDef> {
             let account = Box::new(T::account_set_to_idl(idl_definition, arg.1)?);
             let min = match arg.0.start_bound() {
                 Bound::Included(x) => *x,
@@ -366,7 +381,7 @@ pub mod idl_impl {
         fn account_set_to_idl(
             idl_definition: &mut IdlDefinition,
             arg: (),
-        ) -> crate::Result<IdlAccountSetDef> {
+        ) -> crate::IdlResult<IdlAccountSetDef> {
             let account = Box::new(T::account_set_to_idl(idl_definition, arg)?);
             Ok(IdlAccountSetDef::Many {
                 account_set: account,

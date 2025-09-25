@@ -10,24 +10,69 @@ use pinocchio::program_error::ProgramError;
 use pinocchio_log::{log, logger::Logger};
 pub use star_frame_proc::star_frame_error;
 
-#[must_use]
-#[allow(clippy::needless_pass_by_value)]
-pub(crate) fn handle_error(error: eyre::Error) -> ProgramError {
-    for (index, e) in error.chain().enumerate() {
-        msg!("Error({}): {}", index, e);
-    }
-    if let Some(program_error) = error.downcast_ref::<ProgramError>() {
-        *program_error
-    } else {
-        ProgramError::Custom(426_000_000)
-    }
-}
+/// Error codes for errors emitted by `star_frame`
+#[star_frame_error(offset = 0)]
+pub enum ErrorCode {
+    // Account set errors
+    #[msg("Account is not writable")]
+    ExpectedWritable = 1_000,
+    #[msg("Account is not a signer")]
+    ExpectedSigner,
+    #[msg("Account's address does not match expected address")]
+    AddressMismatch,
+    #[msg("Discriminant mismatch")]
+    DiscriminantMismatch,
+    #[msg("Funder not set in account cache")]
+    EmptyFunderCache,
+    #[msg("Recipient not set in account cache")]
+    EmptyRecipientCache,
+    #[msg("Program not passed in for Optional account set")]
+    MissingOptionalProgram,
+    #[msg("Conflicting account seeds during init")]
+    ConflictingAccountSeeds,
+    #[msg("Seeds not set during init")]
+    SeedsNotSet,
 
-// #[must_use]
-// pub(crate) fn handle_error(error: Error) -> ProgramError {
-//     error.log();
-//     error.into()
-// }
+    // Unsized Type errors
+    #[msg("An unexpected unsized type error occurred. This is a bug in star_frame")]
+    UnsizedUnexpected = 2_000,
+    #[msg("Pointer out of bounds in unsized type operation")]
+    PointerOutOfBounds,
+    #[msg("RawSliceAdvance out of bounds")]
+    RawSliceAdvance,
+
+    // Invalid input errors
+    #[msg("Index out of bounds")]
+    IndexOutOfBounds = 3_000,
+    #[msg("Invalid range")]
+    InvalidRange,
+
+    // Conversion from other errors
+    #[msg("num_traits::cast::ToPrimitive")]
+    ToPrimitiveError = 9_000, // Conversion errors should be the last category
+    #[msg("std::io::Error")]
+    IoError,
+    #[msg("bytemuck::PodCastError")]
+    PodCastError,
+    #[msg("bytemuck::checked::CheckedCastError")]
+    CheckedCastError,
+    #[msg("advancer::AdvanceError")]
+    AdvanceError,
+    #[msg("std::str::Utf8Error")]
+    Utf8Error,
+    #[msg("core::num::TryFromIntError")]
+    TryFromIntError,
+    #[msg("core::array::TryFromSliceError")]
+    TryFromSliceError,
+    #[msg("std::cell::BorrowError")]
+    BorrowError,
+    #[msg("std::cell::BorrowMutError")]
+    BorrowMutError,
+    #[msg("serde_json::Error")]
+    SerdeJsonError,
+    #[msg("star_frame_idl::Error")]
+    IdlError,
+}
 
 /// left is found, right is expected
 #[macro_export]
@@ -104,24 +149,6 @@ macro_rules! error {
     };
 }
 
-#[star_frame_error]
-pub enum ErrorCode {
-    #[msg("An invalid argument was provided (the second)")]
-    InvalidArgument2 = 0,
-    #[msg("An invalid argument was provided")]
-    InvalidArgument = 1,
-    #[msg("An invalid instruction data was provided")]
-    InvalidInstructionData = 2,
-    #[msg("An invalid account data was provided")]
-    InvalidAccountData = 3,
-    #[msg("An account data was too small")]
-    AccountDataTooSmall = 4,
-    #[msg("Insufficient funds")]
-    InsufficientFunds = 5,
-    #[msg("TODO")]
-    TODO = 6,
-}
-
 /// Represents something that can be used as a error.
 ///
 /// Can be converted into an [`Error`] via [`From`].
@@ -132,21 +159,7 @@ pub trait StarFrameError: 'static + Debug {
     fn name(&self) -> Cow<'static, str>;
 }
 
-impl<T> From<T> for ErrorKind
-where
-    T: StarFrameError + 'static,
-{
-    fn from(error: T) -> Self {
-        ErrorKind::Custom(Box::new(error))
-    }
-}
-
-impl From<ProgramError> for ErrorKind {
-    fn from(error: ProgramError) -> Self {
-        ErrorKind::ProgramError(error)
-    }
-}
-
+/// The kind of error. Either a [`ProgramError`] or a custom error implementing [`StarFrameError`].
 #[derive(Debug, Display)]
 pub enum ErrorKind {
     #[display("ProgramError: {_0}")]
@@ -165,15 +178,17 @@ impl PartialEq for ErrorKind {
     }
 }
 
+/// The main body of the error struct, which is boxed to form [`Error`].
 #[derive(Debug, DeriveError)]
 pub struct ErrorInner {
     kind: ErrorKind,
     account_path: Vec<&'static str>,
     initial_ctx: Option<Cow<'static, str>>,
     initial_source: ErrorSource,
-    ctxs: Vec<(ErrorSource, Cow<'static, str>)>,
+    context: Vec<(ErrorSource, Cow<'static, str>)>,
 }
 
+/// The error type returned from `star_frame` traits and functions.
 #[derive(Debug, DeriveError, Display, Deref, DerefMut)]
 pub struct Error(#[error(source)] Box<ErrorInner>);
 
@@ -194,8 +209,8 @@ impl std::fmt::Display for ErrorInner {
                 self.account_path.iter().rev().join(".")
             )?;
         }
-        if !self.ctxs.is_empty() {
-            for (source, ctx) in &self.ctxs {
+        if !self.context.is_empty() {
+            for (source, ctx) in &self.context {
                 writeln!(f, "{source}: {ctx}")?;
             }
         }
@@ -212,6 +227,7 @@ impl From<Error> for ProgramError {
     }
 }
 
+/// Where the error occurred
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Display)]
 #[display("{}:{}", file, line)]
 pub struct ErrorSource {
@@ -220,6 +236,7 @@ pub struct ErrorSource {
 }
 
 impl ErrorSource {
+    /// Creates a new error source for the caller's location
     #[track_caller]
     #[must_use]
     pub const fn new() -> Self {
@@ -237,34 +254,13 @@ impl Default for ErrorSource {
     }
 }
 
-impl From<borsh::io::Error> for ErrorKind {
-    fn from(_error: borsh::io::Error) -> Self {
-        ErrorKind::ProgramError(ProgramError::BorshIoError)
-    }
-}
-
-impl From<bytemuck::PodCastError> for ErrorKind {
-    fn from(_error: bytemuck::PodCastError) -> Self {
-        ErrorCode::InvalidInstructionData.into()
-    }
-}
-
-impl<T> From<T> for Error
-where
-    T: Into<ErrorKind>,
-{
-    #[track_caller]
-    fn from(value: T) -> Self {
-        Error::new_inner(value, None, Location::caller())
-    }
-}
-
 mod private {
     #[doc(hidden)]
     pub trait Sealed {}
     impl<T, E> Sealed for Result<T, E> where E: Into<super::Error> {}
 }
 
+/// Adds additional context to an error, while automatically converting to the [`Error`] type.
 pub trait ErrorInfo<T>: private::Sealed {
     /// Adds a ctx to the error
     #[track_caller]
@@ -321,20 +317,26 @@ pub trait CanMakeError: Into<ErrorKind> {}
 impl<T> CanMakeError for T where T: Into<ErrorKind> {}
 
 impl Error {
+    /// Creates a new error at the caller's location
     #[cold]
+    #[inline]
     #[must_use]
     #[track_caller]
     pub fn new(error: impl CanMakeError) -> Self {
         Self::new_inner(error, None, Location::caller())
     }
 
+    /// Creates a new error with additional context at the caller's location
     #[cold]
+    #[inline]
     #[must_use]
     #[track_caller]
     pub fn new_with_ctx(error: impl CanMakeError, ctx: impl Into<Cow<'static, str>>) -> Self {
         Self::new_inner(error, Some(ctx.into()), Location::caller())
     }
 
+    #[inline]
+    #[cold]
     fn new_inner(
         error: impl CanMakeError,
         ctx: Option<Cow<'static, str>>,
@@ -349,20 +351,21 @@ impl Error {
                     file: source.file(),
                     line: source.line(),
                 },
-                ctxs: vec![],
+                context: vec![],
             }
             .into(),
         )
     }
 
+    #[inline]
+    #[cold]
     #[must_use]
-    pub fn push_ctx(
+    fn push_ctx(
         mut self,
         ctx: impl Into<Cow<'static, str>>,
         location: &'static Location<'static>,
     ) -> Self {
-        // self.ctxs.push(ctx.into());
-        self.ctxs.push((
+        self.context.push((
             ErrorSource {
                 file: location.file(),
                 line: location.line(),
@@ -372,15 +375,18 @@ impl Error {
         self
     }
 
+    #[inline]
+    #[cold]
     #[must_use]
     fn push_account_path(mut self, account_path: &'static str) -> Self {
         self.account_path.push(account_path);
         self
     }
 
+    /// Logs the error using [`pinocchio_log`]
     pub fn log(&self) {
         {
-            let mut logger = Logger::<300>::default();
+            let mut logger = Logger::<1000>::default();
             match &self.kind {
                 ErrorKind::ProgramError(program_error) => {
                     logger.append("ProgramError: ");
@@ -415,57 +421,175 @@ impl Error {
             logger.log();
         }
 
-        for (source, ctx) in &self.ctxs {
-            log!("{}:{}: {}", source.file, source.line, ctx.as_ref());
+        for (source, ctx) in &self.context {
+            log!(1000, "{}:{}: {}", source.file, source.line, ctx.as_ref(),);
+        }
+    }
+}
+
+// CONVERSIONS
+
+impl<T> From<T> for ErrorKind
+where
+    T: StarFrameError + 'static,
+{
+    fn from(error: T) -> Self {
+        ErrorKind::Custom(Box::new(error))
+    }
+}
+
+impl<T> From<T> for Error
+where
+    T: Into<ErrorKind>,
+{
+    #[track_caller]
+    fn from(value: T) -> Self {
+        Error::new_inner(value, None, Location::caller())
+    }
+}
+
+impl From<std::io::Error> for Error {
+    #[track_caller]
+    fn from(error: std::io::Error) -> Self {
+        Error::new_inner(
+            ErrorCode::IoError,
+            Some(error.to_string().into()),
+            Location::caller(),
+        )
+    }
+}
+
+impl From<bytemuck::PodCastError> for Error {
+    #[track_caller]
+    fn from(error: bytemuck::PodCastError) -> Self {
+        Error::new_inner(
+            ErrorCode::PodCastError,
+            Some(error.to_string().into()),
+            Location::caller(),
+        )
+    }
+}
+
+impl From<bytemuck::checked::CheckedCastError> for Error {
+    #[track_caller]
+    fn from(error: bytemuck::checked::CheckedCastError) -> Self {
+        Error::new_inner(
+            ErrorCode::CheckedCastError,
+            Some(error.to_string().into()),
+            Location::caller(),
+        )
+    }
+}
+
+impl From<advancer::AdvanceError> for Error {
+    #[track_caller]
+    fn from(error: advancer::AdvanceError) -> Self {
+        Error::new_inner(
+            ErrorCode::AdvanceError,
+            Some(error.to_string().into()),
+            Location::caller(),
+        )
+    }
+}
+
+impl From<std::str::Utf8Error> for Error {
+    #[track_caller]
+    fn from(error: std::str::Utf8Error) -> Self {
+        Error::new_inner(
+            ErrorCode::Utf8Error,
+            Some(error.to_string().into()),
+            Location::caller(),
+        )
+    }
+}
+
+impl From<core::array::TryFromSliceError> for Error {
+    #[track_caller]
+    fn from(error: core::array::TryFromSliceError) -> Self {
+        Error::new_inner(
+            ErrorCode::TryFromSliceError,
+            Some(error.to_string().into()),
+            Location::caller(),
+        )
+    }
+}
+
+// Static error messages with no useful extra information to log.
+
+impl From<ProgramError> for ErrorKind {
+    fn from(error: ProgramError) -> Self {
+        ErrorKind::ProgramError(error)
+    }
+}
+
+impl From<core::num::TryFromIntError> for ErrorKind {
+    fn from(_error: core::num::TryFromIntError) -> Self {
+        ErrorCode::TryFromIntError.into()
+    }
+}
+
+impl From<std::cell::BorrowError> for ErrorKind {
+    fn from(_error: std::cell::BorrowError) -> Self {
+        ErrorCode::BorrowError.into()
+    }
+}
+
+impl From<std::cell::BorrowMutError> for ErrorKind {
+    fn from(_error: std::cell::BorrowMutError) -> Self {
+        ErrorCode::BorrowMutError.into()
+    }
+}
+
+impl From<solana_pubkey::PubkeyError> for ErrorKind {
+    fn from(error: solana_pubkey::PubkeyError) -> Self {
+        let program_error = match error {
+            solana_pubkey::PubkeyError::MaxSeedLengthExceeded => {
+                ProgramError::MaxSeedLengthExceeded
+            }
+            solana_pubkey::PubkeyError::InvalidSeeds => ProgramError::InvalidSeeds,
+            solana_pubkey::PubkeyError::IllegalOwner => ProgramError::IllegalOwner,
+        };
+        ErrorKind::ProgramError(program_error)
+    }
+}
+
+#[cfg(all(feature = "idl", not(target_os = "solana")))]
+mod idl_impls {
+    use super::*;
+    impl From<star_frame_idl::Error> for Error {
+        #[track_caller]
+        fn from(error: star_frame_idl::Error) -> Self {
+            Error::new_inner(
+                ErrorCode::IdlError,
+                Some(error.to_string().into()),
+                Location::caller(),
+            )
+        }
+    }
+
+    impl From<serde_json::Error> for Error {
+        #[track_caller]
+        fn from(error: serde_json::Error) -> Self {
+            Error::new_inner(
+                ErrorCode::SerdeJsonError,
+                Some(error.to_string().into()),
+                Location::caller(),
+            )
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use eyre::Context as _;
 
     use super::*;
 
     #[test]
-    fn test_error_display() {
-        fn returns_error() -> Result<(), Error> {
-            Err::<(), Error>(error!(ErrorCode::InvalidArgument, "AAAHGAHAHAH"))
-                .ctx("test")
-                .account_path("key")
-                .account_path("profiles")
-                .account_path("thingy")?;
-
-            Err(ErrorCode::InvalidArgument)?;
-            Ok(())
-        }
-
-        let error = returns_error().ctx("Outer ctx").unwrap_err();
-        error.log();
-        eprintln!();
-        eprintln!("{error}");
-    }
-
-    // #[test]
-    // fn test_return_error() -> Result<(), Box<Error>> {
-    //     let error = Err::<(), _>(ErrorCode::InvalidArgument)?;
-    //     Ok(())
-    // }
-
-    #[test]
-
-    fn test_eyre_stuff() {
-        let err = Err::<(), _>(eyre::eyre!("test"))
-            .wrap_err("Hello")
-            .wrap_err("World");
-        eprintln!("{:#}", err.unwrap_err());
-    }
-
-    #[test]
-    fn test_macros() -> Result<(), Error> {
-        ensure!(0 == 1, ProgramError::IllegalOwner, "ctx!!");
-        // bail!(ProgramError::IllegalOwner);
-        let res = (|| {
+    fn test_ensure() -> Result<(), Error> {
+        ensure!(0 == 0, ProgramError::IllegalOwner, "Static str");
+        ensure!(true, ProgramError::IllegalOwner);
+        ensure!(true, ErrorCode::BorrowError, "Hello {}!", "world");
+        let res: Result<(), Error> = (|| {
             ensure_eq!(0, 1, ProgramError::IllegalOwner, "test");
             Ok(())
         })();

@@ -10,10 +10,10 @@ use crate::{
         AccountSetValidate,
     },
     prelude::*,
+    ErrorCode,
 };
 use bytemuck::bytes_of;
 use derive_more::{Deref, DerefMut};
-use eyre::{ensure, ContextCompat};
 use std::marker::PhantomData;
 
 pub use star_frame_proc::GetSeeds;
@@ -247,6 +247,7 @@ where
         let expected = self.account.account_info().pubkey();
         ensure!(
             address.fast_eq(expected),
+            ProgramError::InvalidSeeds,
             "Seeds: {seeds:?} result in address `{address}` and bump `{bump}`, expected `{expected}`"
         );
         self.seeds = Some(SeedsWithBump { seeds, bump });
@@ -266,6 +267,7 @@ where
         let expected = self.account.account_info().pubkey();
         ensure!(
             address.fast_eq(expected),
+            ErrorCode::AddressMismatch,
             "Seeds `{seeds:?}` result in address `{address}`, expected `{expected}`"
         );
         self.seeds = Some(seeds.clone());
@@ -317,13 +319,21 @@ where
     ) -> Result<()> {
         // override seeds. Init should be called after seeds are set
         if account_seeds.is_some() {
-            bail!("Conflicting account seeds during init!");
+            bail!(
+                crate::ErrorCode::ConflictingAccountSeeds,
+                "Conflicting account seeds during init."
+            );
         }
         let seeds = self
             .seeds
             .as_ref()
             .map(|s| s.seeds_with_bump())
-            .context("Seeds not set for `Seeded` during init!")?;
+            .ok_or_else(|| {
+                error!(
+                    crate::ErrorCode::SeedsNotSet,
+                    "Seeds not set for `Seeded` during init."
+                )
+            })?;
         self.account
             .init_account::<IF_NEEDED>(arg, Some(seeds), ctx)
     }
@@ -346,14 +356,18 @@ mod idl_impl {
         fn account_set_to_idl(
             idl_definition: &mut IdlDefinition,
             arg: (Seeds<F>, A),
-        ) -> Result<IdlAccountSetDef> {
+        ) -> crate::IdlResult<IdlAccountSetDef> {
             let mut set = T::account_set_to_idl(idl_definition, arg.1)?;
             let single = set.single()?;
             if single.seeds.is_some() {
-                bail!("Seeds already set for `Seeded`. Got: {single:?}");
+                return Err(star_frame_idl::Error::Custom(format!(
+                    "Seeds already set for `Seeded`. Got: {single:?}"
+                )));
             }
             if single.is_init {
-                bail!("`Seeded` should not wrap an init account. Wrap `Seeded` with `Init` instead. Got: {single:?}");
+                return Err(star_frame_idl::Error::Custom(format!(
+                    "`Seeded` should not wrap an init account. Wrap `Seeded` with `Init` instead. Got: {single:?}"
+                )));
             }
             let seeds = IdlFindSeeds {
                 seeds: F::find_seeds(&arg.0 .0)?,
@@ -375,7 +389,7 @@ mod idl_impl {
         fn account_set_to_idl(
             idl_definition: &mut IdlDefinition,
             arg: Seeds<F>,
-        ) -> Result<IdlAccountSetDef> {
+        ) -> crate::IdlResult<IdlAccountSetDef> {
             Self::account_set_to_idl(idl_definition, (arg, ()))
         }
     }
@@ -389,7 +403,7 @@ mod idl_impl {
         fn account_set_to_idl(
             idl_definition: &mut IdlDefinition,
             arg: (),
-        ) -> Result<IdlAccountSetDef> {
+        ) -> crate::IdlResult<IdlAccountSetDef> {
             T::account_set_to_idl(idl_definition, arg)?.assert_single()
         }
     }

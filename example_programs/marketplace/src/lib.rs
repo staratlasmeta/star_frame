@@ -18,6 +18,26 @@ pub enum MarketplaceInstructionSet {
     CancelOrders(CancelOrders),
 }
 
+#[star_frame_error]
+pub enum MarketplaceError {
+    #[msg("Currency mismatch")]
+    CurrencyMismatch,
+    #[msg("Market token mismatch")]
+    MarketTokenMismatch,
+    #[msg("Order book with same price and order id already exists")]
+    DuplicateOrder,
+    #[msg("Missing order maker")]
+    MissingOrderMaker,
+    #[msg("Fill or kill order was not filled")]
+    FillOrKillNotFilled,
+    #[msg("Order maker mismatch")]
+    OrderMakerMismatch,
+    #[msg("Bid maker not found")]
+    BidMakerNotFound,
+    #[msg("Ask maker not found")]
+    AskMakerNotFound,
+}
+
 #[cfg(test)]
 pub mod test_utils {
     use super::*;

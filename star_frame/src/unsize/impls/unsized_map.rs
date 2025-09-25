@@ -375,7 +375,7 @@ mod idl_impl {
     {
         type AssociatedProgram = System;
 
-        fn type_to_idl(idl_definition: &mut IdlDefinition) -> Result<IdlTypeDef> {
+        fn type_to_idl(idl_definition: &mut IdlDefinition) -> crate::IdlResult<IdlTypeDef> {
             // TODO: is there a way to make this structure shared in codama?
             Ok(IdlTypeDef::Struct(vec![
                 IdlStructField {
@@ -399,7 +399,7 @@ mod idl_impl {
     {
         type AssociatedProgram = System;
 
-        fn type_to_idl(idl_definition: &mut IdlDefinition) -> Result<IdlTypeDef> {
+        fn type_to_idl(idl_definition: &mut IdlDefinition) -> crate::IdlResult<IdlTypeDef> {
             <UnsizedList<V, OrdOffset<K>>>::type_to_idl(idl_definition)
         }
     }

@@ -21,7 +21,6 @@ aggressive_inline = []
 [dependencies]
 solana-pubkey = { workspace = true, features = ["curve25519", "borsh", "serde", "bytemuck"] }
 advancer = { workspace = true }
-eyre = { workspace = true }
 array-init = { workspace = true }
 borsh = { workspace = true }
 bytemuck = { workspace = true }
@@ -41,9 +40,9 @@ ref-cast = { workspace = true }
 ptr_meta = { workspace = true }
 solana-system-interface = { workspace = true, optional = true }
 solana-program-memory = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
 
 # feature = idl
-serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, optional = true }
 star_frame_idl = { workspace = true, optional = true }
 

@@ -12,7 +12,7 @@ pub mod validated_account;
 
 pub use star_frame_proc::{AccountSet, ProgramAccount};
 
-use crate::prelude::*;
+use crate::{prelude::*, ErrorCode};
 use bytemuck::bytes_of;
 use modifiers::{HasOwnerProgram, OwnerProgramDiscriminant};
 use std::{mem::MaybeUninit, slice};
@@ -38,6 +38,7 @@ pub trait ProgramAccount: HasOwnerProgram {
 
         if !info.owner().fast_eq(&Self::OwnerProgram::ID) {
             bail!(
+                ProgramError::InvalidAccountOwner,
                 "Account {} owner {} does not match expected program ID {}",
                 info.pubkey(),
                 info.owner_pubkey(),
@@ -63,6 +64,7 @@ fn validate_discriminant<T: ProgramAccount + ?Sized>(info: AccountInfo) -> Resul
     // Ensure account data is at least the size of the discriminant
     if info.data_len() < size_of::<OwnerProgramDiscriminant<T>>() {
         bail!(
+            ProgramError::AccountDataTooSmall,
             "Account {} data length {} is less than expected discriminant size {}",
             info.pubkey(),
             info.data_len(),
@@ -110,6 +112,7 @@ fn validate_discriminant<T: ProgramAccount + ?Sized>(info: AccountInfo) -> Resul
     };
     if !matches {
         bail!(
+            ErrorCode::DiscriminantMismatch,
             "Account {} data does not match expected discriminant for program {}",
             info.pubkey(),
             T::OwnerProgram::ID
@@ -414,8 +417,8 @@ pub(crate) mod internal_reverse {
 pub(crate) mod prelude {
     use super::*;
     pub use super::{
-        AccountSet, CanCloseAccount as _, CanModifyRent as _, ProgramAccount, TryFromAccounts,
-        TryFromAccountsWithArgs,
+        AccountSet, CanCloseAccount as _, CanModifyRent as _, CheckKey as _, ProgramAccount,
+        TryFromAccounts, TryFromAccountsWithArgs,
     };
     pub use account::{
         discriminant, Account, CloseAccount, NormalizeRent, ReceiveRent, RefundRent,

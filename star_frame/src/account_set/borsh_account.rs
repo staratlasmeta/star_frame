@@ -2,7 +2,6 @@
 
 use borsh::object_length;
 use derive_more::Debug;
-use eyre::{ensure, Context as _, ContextCompat};
 use std::ops::{Deref, DerefMut};
 
 use crate::{
@@ -12,6 +11,7 @@ use crate::{
         },
         AccountSetDecode, CanAddLamports, CanFundRent, CanSystemCreateAccount as _,
     },
+    errors::ErrorCode,
     prelude::*,
 };
 
@@ -48,7 +48,7 @@ use crate::{
     generics = [],
     extra_cleanup = {
         self.serialize()?;
-        let funder = ctx.get_funder().context("Missing `funder` in cache for `NormalizeRent`")?;
+        let funder = ctx.get_funder().ok_or_else(|| error!(ErrorCode::EmptyFunderCache, "Missing `funder` in cache for `NormalizeRent`"))?;
         self.normalize_rent(funder, ctx)
     },
 )]
@@ -66,7 +66,7 @@ use crate::{
     arg = ReceiveRent<()>,
     generics = [],
     extra_cleanup = {
-        let funder = ctx.get_funder().context("Missing `funder` in cache for `ReceiveRent`")?;
+        let funder = ctx.get_funder().ok_or_else(|| error!(ErrorCode::EmptyFunderCache, "Missing `funder` in cache for `ReceiveRent`"))?;
         self.serialize()?;
         self.receive_rent(funder, ctx)
     }
@@ -85,7 +85,7 @@ use crate::{
     arg = RefundRent<()>,
     generics = [],
     extra_cleanup = {
-        let recipient = ctx.get_recipient().context("Missing `recipient` in cache for `RefundRent`")?;
+        let recipient = ctx.get_recipient().ok_or_else(|| error!(ErrorCode::EmptyRecipientCache, "Missing `recipient` in cache for `RefundRent`"))?;
         self.serialize()?;
         self.refund_rent(recipient, ctx)
     }
@@ -105,7 +105,7 @@ use crate::{
     generics = [],
     extra_cleanup = {
         // We don't serialize here because we are about to close the account!
-        let recipient = ctx.get_recipient().context("Missing `recipient` in cache for `CloseAccount`")?;
+        let recipient = ctx.get_recipient().ok_or_else(|| error!(ErrorCode::EmptyRecipientCache, "Missing `recipient` in cache for `CloseAccount`"))?;
         self.close_account(recipient)
     }
 )]
@@ -218,7 +218,12 @@ impl<T: ProgramAccount + BorshSerialize + BorshDeserialize> BorshAccount<T> {
     ///
     /// Returns an error if the account is not writable.
     pub fn set_inner(&mut self, data: T) -> Result<()> {
-        ensure!(self.is_writable(), "BorshAccount is not writable");
+        ensure!(
+            self.is_writable(),
+            ErrorCode::ExpectedWritable,
+            "BorshAccount {} is not writable",
+            self.pubkey()
+        );
         self.data = Some(data);
         Ok(())
     }
@@ -272,9 +277,12 @@ where
         account_seeds: Option<Vec<&[u8]>>,
         ctx: &Context,
     ) -> Result<()> {
-        let funder = ctx
-            .get_funder()
-            .context("Missing tagged `funder` for Account `init_account`")?;
+        let funder = ctx.get_funder().ok_or_else(|| {
+            error!(
+                ErrorCode::EmptyFunderCache,
+                "Missing tagged `funder` for Account `init_account`"
+            )
+        })?;
         self.init_account::<IF_NEEDED>((arg, funder), account_seeds, ctx)
     }
 }
@@ -320,7 +328,7 @@ where
         let data = init_value();
         let space = size_of::<OwnerProgramDiscriminant<T>>() + object_length(&data)?;
         self.system_create_account(funder, T::OwnerProgram::ID, space, &account_seeds, ctx)
-            .context("system_create_account failed")?;
+            .ctx("system_create_account failed")?;
         self.account_data_mut()?[..size_of::<OwnerProgramDiscriminant<T>>()]
             .copy_from_slice(bytemuck::bytes_of(&T::DISCRIMINANT));
         // TODO: Should we serialize this now, or wait until cleanup?
@@ -343,7 +351,7 @@ mod idl_impl {
         fn account_set_to_idl(
             idl_definition: &mut IdlDefinition,
             arg: A,
-        ) -> Result<IdlAccountSetDef> {
+        ) -> crate::IdlResult<IdlAccountSetDef> {
             let mut set = <AccountInfo>::account_set_to_idl(idl_definition, arg)?;
             set.single()?
                 .program_accounts

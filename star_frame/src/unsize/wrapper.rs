@@ -8,12 +8,12 @@
 use super::{AsShared, UnsizedType};
 use crate::{
     account_set::single_set::SingleAccountSet,
+    ensure,
     unsize::{init::UnsizedInit, FromOwned, UnsizedTypeMut},
     Result,
 };
 use core::ptr;
 use derive_more::{Debug, Deref, DerefMut};
-use eyre::ensure;
 use pinocchio::account_info::AccountInfo;
 use solana_program_memory::sol_memmove;
 use std::{
@@ -316,8 +316,16 @@ where
             let data_addr = data_ptr.addr();
             let start_addr = start.addr();
 
-            ensure!(start_addr >= data_addr);
-            ensure!(start_addr <= data_addr + old_len);
+            ensure!(
+                start_addr >= data_addr,
+                crate::ErrorCode::PointerOutOfBounds,
+                "Start pointer out of bounds during add_bytes"
+            );
+            ensure!(
+                start_addr <= data_addr + old_len,
+                crate::ErrorCode::PointerOutOfBounds,
+                "Start pointer out of bounds during add_bytes"
+            );
 
             // Return early if length hasn't changed
             if amount == 0 {
@@ -379,13 +387,29 @@ where
 
             let start = match range.start_bound() {
                 Bound::Included(start) => {
-                    ensure!(*start as usize >= data_addr);
-                    ensure!(*start as usize <= data_addr + old_len);
+                    ensure!(
+                        *start as usize >= data_addr,
+                        crate::ErrorCode::PointerOutOfBounds,
+                        "Start pointer out of bounds during remove_bytes"
+                    );
+                    ensure!(
+                        *start as usize <= data_addr + old_len,
+                        crate::ErrorCode::PointerOutOfBounds,
+                        "Start pointer out of bounds during remove_bytes"
+                    );
                     start.cast::<u8>()
                 }
                 Bound::Excluded(start) => {
-                    ensure!(*start as usize >= data_addr);
-                    ensure!(*start as usize <= data_addr + old_len);
+                    ensure!(
+                        *start as usize >= data_addr,
+                        crate::ErrorCode::PointerOutOfBounds,
+                        "Start pointer out of bounds during remove_bytes"
+                    );
+                    ensure!(
+                        *start as usize <= data_addr + old_len,
+                        crate::ErrorCode::PointerOutOfBounds,
+                        "Start pointer out of bounds during remove_bytes"
+                    );
                     start.cast::<u8>().wrapping_add(1)
                 }
                 Bound::Unbounded => data_ptr.cast(),
@@ -393,13 +417,29 @@ where
 
             let end = match range.end_bound() {
                 Bound::Included(end) => {
-                    ensure!(*end as usize >= start as usize);
-                    ensure!((*end as usize) < data_addr + old_len);
+                    ensure!(
+                        *end as usize >= start as usize,
+                        crate::ErrorCode::PointerOutOfBounds,
+                        "End pointer out of bounds during remove_bytes",
+                    );
+                    ensure!(
+                        (*end as usize) < data_addr + old_len,
+                        crate::ErrorCode::PointerOutOfBounds,
+                        "End pointer out of bounds during remove_bytes",
+                    );
                     end.cast::<u8>().wrapping_add(1)
                 }
                 Bound::Excluded(end) => {
-                    ensure!(*end as usize >= start as usize);
-                    ensure!(*end as usize <= data_addr + old_len);
+                    ensure!(
+                        *end as usize >= start as usize,
+                        crate::ErrorCode::PointerOutOfBounds,
+                        "End pointer out of bounds during remove_bytes"
+                    );
+                    ensure!(
+                        *end as usize <= data_addr + old_len,
+                        crate::ErrorCode::PointerOutOfBounds,
+                        "End pointer out of bounds during remove_bytes"
+                    );
                     end.cast::<u8>()
                 }
                 Bound::Unbounded => data_ptr.cast::<u8>().wrapping_add(old_len),

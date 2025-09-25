@@ -3,22 +3,22 @@ use star_frame_idl::seeds::IdlFindSeed;
 
 pub trait FindIdlSeeds {
     /// Returns the idl of this find seeds.
-    fn find_seeds(&self) -> eyre::Result<Vec<IdlFindSeed>>;
+    fn find_seeds(&self) -> crate::IdlResult<Vec<IdlFindSeed>>;
 }
 
 impl FindIdlSeeds for Vec<IdlFindSeed> {
-    fn find_seeds(&self) -> eyre::Result<Vec<IdlFindSeed>> {
+    fn find_seeds(&self) -> crate::IdlResult<Vec<IdlFindSeed>> {
         Ok(self.clone())
     }
 }
 impl FindIdlSeeds for &[IdlFindSeed] {
-    fn find_seeds(&self) -> eyre::Result<Vec<IdlFindSeed>> {
+    fn find_seeds(&self) -> crate::IdlResult<Vec<IdlFindSeed>> {
         Ok(self.to_vec())
     }
 }
 
 impl<const N: usize> FindIdlSeeds for [IdlFindSeed; N] {
-    fn find_seeds(&self) -> eyre::Result<Vec<IdlFindSeed>> {
+    fn find_seeds(&self) -> crate::IdlResult<Vec<IdlFindSeed>> {
         Ok(self.to_vec())
     }
 }

@@ -9,6 +9,7 @@ mod instruction_set;
 mod program;
 mod program_account;
 mod solana_pubkey;
+mod star_frame_error;
 mod star_frame_instruction;
 mod unsize;
 mod util;
@@ -904,6 +905,43 @@ pub fn star_frame_instruction(
 
     let out =
         star_frame_instruction::star_frame_instruction_impl(parse_macro_input!(item as ItemFn));
+    out.into()
+}
+
+/// Derives the `StarFrameError` and `ErrorsToIdl` traits on an enum.
+///
+/// Additionally derives Copy, Clone, Debug, Display, Eq, and PartialEq.
+///
+/// # Attributes
+///
+/// ## `#[star_frame_error(offset = <u16>, skip_idl)]` (item level attribute)
+///
+/// - `offset` - The offset to use for the error code. Defaults to the first 2 bytes of the crate name's sha256 hash.
+///   to avoid collisions from other crates. Each variant's discriminant (even if explicitly set) will be offset by this value.
+/// - `skip_idl` - If present, `ErrorsToIdl` will not be derived.
+///
+/// ## `#[msg("My error message")]` (required variant level attribute)
+///
+/// Used in the Display implementation and as the name for the IDL ErrorNode. The message must be a string literal.
+///
+/// # Example
+/// ```
+/// use star_frame::prelude::*;
+///
+/// #[star_frame_error]
+/// pub enum MyError {
+///     #[msg("An invalid argument was provided")]
+///     InvalidArgument2 = 0, // The actual error code will be offset by the crate name's sha256 hash
+/// }
+/// ```
+#[proc_macro_error]
+#[proc_macro_attribute]
+pub fn star_frame_error(
+    args: proc_macro::TokenStream,
+    item: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
+    let out =
+        star_frame_error::star_frame_error_impl(parse_macro_input!(item as ItemEnum), args.into());
     out.into()
 }
 

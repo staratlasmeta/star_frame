@@ -57,7 +57,7 @@ pub fn get_docs<'a>(attrs: impl IntoIterator<Item = &'a Attribute>) -> Expr {
             string.trim().to_string()
         })
         .collect::<Vec<_>>();
-    parse_quote! { vec![#(#doc_strings.into()),*] }
+    parse_quote! { vec![#(#doc_strings.to_string()),*] }
 }
 
 pub fn is_doc_attribute(attribute: &impl Borrow<Attribute>) -> bool {

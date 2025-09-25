@@ -88,7 +88,7 @@ mod idl_impl {
         fn account_set_to_idl(
             idl_definition: &mut IdlDefinition,
             arg: A,
-        ) -> Result<IdlAccountSetDef> {
+        ) -> crate::IdlResult<IdlAccountSetDef> {
             let mut set = T::account_set_to_idl(idl_definition, arg)?;
             if SIGNER {
                 set.single()?.signer = true;

@@ -112,7 +112,7 @@ mod idl_impl {
         fn account_set_to_idl(
             idl_definition: &mut star_frame::__private::macro_prelude::IdlDefinition,
             arg: A,
-        ) -> star_frame::Result<star_frame::__private::macro_prelude::IdlAccountSetDef> {
+        ) -> star_frame::IdlResult<star_frame::__private::macro_prelude::IdlAccountSetDef> {
             <Vec<T> as AccountSetToIdl<_>>::account_set_to_idl(idl_definition, (.., arg))
         }
     }
