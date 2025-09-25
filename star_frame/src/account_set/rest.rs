@@ -90,7 +90,7 @@ where
         accounts: &mut &'a [AccountInfo],
         decode_input: A,
         ctx: &mut Context,
-    ) -> crate::Result<Self> {
+    ) -> Result<Self> {
         let mut out = vec![];
         while !accounts.is_empty() {
             out.push(T::decode_accounts(accounts, decode_input.clone(), ctx)?);
