@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.26.0] - 2025-09-25
+
 ### Added
 
 - New unit system functions including checked math, overflow, and fixed support (#255).
@@ -84,7 +86,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Additional documentation improvements (#223).
 
-[unreleased]: https://github.com/staratlasmeta/star_frame/compare/v0.25.1...HEAD
+[unreleased]: https://github.com/staratlasmeta/star_frame/compare/v0.26.0...HEAD
+[0.26.0]: https://github.com/staratlasmeta/star_frame/compare/v0.25.1...v0.26.0
 [0.25.1]: https://github.com/staratlasmeta/star_frame/compare/v0.25.0...v0.25.1
 [0.25.0]: https://github.com/staratlasmeta/star_frame/compare/v0.24.2...v0.25.0
 [0.24.2]: https://github.com/staratlasmeta/star_frame/compare/v0.24.1...v0.24.2
