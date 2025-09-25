@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `borsh` to `UnitVal` (#266)
 - Removed default init requirement on unsized list default init. (#267)
 - Added more `Align1` impls for tuples. (#268)
+- Added `star_frame_error` macro and custom error system (#271)
+
+### Changed
+
+- Replaced `eyre` with custom error system (#271)
 
 ### Updated
 
@@ -80,15 +85,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Additional documentation improvements (#223).
 
 [unreleased]: https://github.com/staratlasmeta/star_frame/compare/v0.25.1...HEAD
-
 [0.25.1]: https://github.com/staratlasmeta/star_frame/compare/v0.25.0...v0.25.1
-
 [0.25.0]: https://github.com/staratlasmeta/star_frame/compare/v0.24.2...v0.25.0
-
 [0.24.2]: https://github.com/staratlasmeta/star_frame/compare/v0.24.1...v0.24.2
-
 [0.24.1]: https://github.com/staratlasmeta/star_frame/compare/v0.24.0...v0.24.1
-
 [0.24.0]: https://github.com/staratlasmeta/star_frame/compare/v0.23.1...v0.24.0
-
 [0.23.1]: https://github.com/staratlasmeta/star_frame/compare/v0.23.0...v0.23.1
