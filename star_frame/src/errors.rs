@@ -323,7 +323,6 @@ impl<T> CanMakeError for T where T: Into<ErrorKind> {}
 impl Error {
     /// Creates a new error at the caller's location
     #[cold]
-    #[inline]
     #[must_use]
     #[track_caller]
     pub fn new(error: impl CanMakeError) -> Self {
@@ -332,14 +331,12 @@ impl Error {
 
     /// Creates a new error with additional context at the caller's location
     #[cold]
-    #[inline]
     #[must_use]
     #[track_caller]
     pub fn new_with_ctx(error: impl CanMakeError, ctx: impl Into<Cow<'static, str>>) -> Self {
         Self::new_inner(error, Some(ctx.into()), Location::caller())
     }
 
-    #[inline]
     #[cold]
     fn new_inner(
         error: impl CanMakeError,
@@ -361,7 +358,6 @@ impl Error {
         )
     }
 
-    #[inline]
     #[cold]
     #[must_use]
     fn push_ctx(
@@ -379,7 +375,6 @@ impl Error {
         self
     }
 
-    #[inline]
     #[cold]
     #[must_use]
     fn push_account_path(mut self, account_path: &'static str) -> Self {
