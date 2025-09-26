@@ -38,7 +38,7 @@ jobs:
         run: cargo login ${{ secrets.CRATES_IO_TOKEN }}
 
       - name: Run cargo release
-        run: cargo release --allow-branch 'main' --no-confirm --no-tag --unpublished -x
+        run: cargo release --allow-branch 'main' --no-confirm --no-tag -x
 
       - id: version
         uses: ./.github/actions/detect-version
