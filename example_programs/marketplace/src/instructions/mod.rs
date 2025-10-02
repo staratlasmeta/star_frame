@@ -12,7 +12,7 @@ use star_frame_spl::associated_token::FindAtaSeeds;
 use star_frame_spl::{
     associated_token::state::{AssociatedTokenAccount, ValidateAta},
     token::{
-        instructions::{Transfer, TransferCpiAccounts},
+        instructions::{TokenTransfer, TokenTransferCpiAccounts},
         state::{MintAccount, TokenAccount, ValidateToken},
         Token,
     },
@@ -80,10 +80,10 @@ impl ManageOrderAccounts {
         let signer_seeds = signer_seeds.as_ref().map(|seeds| seeds.seeds_with_bump());
         if market_tokens > ZERO_QUANTITY {
             Token::cpi(
-                Transfer {
+                TokenTransfer {
                     amount: market_tokens.val().0,
                 },
-                TransferCpiAccounts {
+                TokenTransferCpiAccounts {
                     source: *self.market_token_vault.account_info(),
                     destination: *self.user_market_token_vault.account_info(),
                     owner: *self.market.account_info(),
@@ -94,10 +94,10 @@ impl ManageOrderAccounts {
         }
         if currency > ZERO_PRICE {
             Token::cpi(
-                Transfer {
+                TokenTransfer {
                     amount: currency.val().0,
                 },
-                TransferCpiAccounts {
+                TokenTransferCpiAccounts {
                     source: *self.currency_vault.account_info(),
                     destination: *self.user_currency_vault.account_info(),
                     owner: *self.market.account_info(),
@@ -116,10 +116,10 @@ impl ManageOrderAccounts {
         } = totals;
         if market_tokens > ZERO_QUANTITY {
             Token::cpi(
-                Transfer {
+                TokenTransfer {
                     amount: market_tokens.val().0,
                 },
-                TransferCpiAccounts {
+                TokenTransferCpiAccounts {
                     source: *self.user_market_token_vault.account_info(),
                     destination: *self.market_token_vault.account_info(),
                     owner: *self.user.account_info(),
@@ -130,10 +130,10 @@ impl ManageOrderAccounts {
         }
         if currency > ZERO_PRICE {
             Token::cpi(
-                Transfer {
+                TokenTransfer {
                     amount: currency.val().0,
                 },
-                TransferCpiAccounts {
+                TokenTransferCpiAccounts {
                     source: *self.user_currency_vault.account_info(),
                     destination: *self.currency_vault.account_info(),
                     owner: *self.user.account_info(),
