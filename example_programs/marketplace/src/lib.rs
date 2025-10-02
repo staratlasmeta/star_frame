@@ -1,4 +1,7 @@
+#![no_std]
 use star_frame::prelude::*;
+#[cfg(test)]
+extern crate std;
 
 use instructions::{CancelOrders, Initialize, PlaceOrder};
 mod instructions;

@@ -19,15 +19,12 @@ use crate::{
     ErrorCode, Result,
 };
 use advancer::Advance;
+use alloc::{format, vec::Vec};
 use bytemuck::{
     bytes_of, cast_slice, cast_slice_mut, checked, from_bytes, CheckedBitPattern, NoUninit, Pod,
     Zeroable,
 };
-use itertools::Itertools;
-use num_traits::{FromPrimitive, ToPrimitive, Zero};
-use ptr_meta::Pointee;
-use star_frame_proc::unsized_impl;
-use std::{
+use core::{
     any::type_name,
     borrow::Borrow,
     cmp::Ordering,
@@ -37,6 +34,10 @@ use std::{
     mem::size_of,
     ops::{Deref, DerefMut, Index, IndexMut, RangeBounds},
 };
+use itertools::Itertools;
+use num_traits::{FromPrimitive, ToPrimitive, Zero};
+use ptr_meta::Pointee;
+use star_frame_proc::unsized_impl;
 
 /// A marker trait for types that can be used as the length of a [`List<T> `].
 pub trait ListLength: Pod + ToPrimitive + FromPrimitive {}
@@ -58,6 +59,7 @@ where
 mod idl_impl {
     use super::*;
     use crate::{idl::TypeToIdl, prelude::System};
+    use alloc::boxed::Box;
     use star_frame_idl::{ty::IdlTypeDef, IdlDefinition};
 
     impl<T, L> TypeToIdl for List<T, L>
@@ -156,7 +158,7 @@ where
     }
 
     /// See [`<[T]>::binary_search`]
-    pub fn binary_search(&self, x: &T) -> std::result::Result<usize, usize>
+    pub fn binary_search(&self, x: &T) -> core::result::Result<usize, usize>
     where
         T: Ord,
     {
@@ -254,14 +256,16 @@ where
     L: ListLength,
 {
     let start = match range.start_bound() {
-        std::ops::Bound::Included(&start) => start * size_of::<T>(),
-        std::ops::Bound::Excluded(&start) => (start + 1) * size_of::<T>(),
-        std::ops::Bound::Unbounded => 0,
+        core::ops::Bound::Included(&start) => start * size_of::<T>(),
+        core::ops::Bound::Excluded(&start) => (start + 1) * size_of::<T>(),
+        core::ops::Bound::Unbounded => 0,
     };
     let end = match range.end_bound() {
-        std::ops::Bound::Included(&end) => (end + 1) * size_of::<T>(),
-        std::ops::Bound::Excluded(&end) => end * size_of::<T>(),
-        std::ops::Bound::Unbounded => list.len.to_usize().expect("Invalid length") * size_of::<T>(),
+        core::ops::Bound::Included(&end) => (end + 1) * size_of::<T>(),
+        core::ops::Bound::Excluded(&end) => end * size_of::<T>(),
+        core::ops::Bound::Unbounded => {
+            list.len.to_usize().expect("Invalid length") * size_of::<T>()
+        }
     };
     (start, end)
 }
@@ -603,14 +607,14 @@ where
     #[exclusive]
     pub fn remove_range(&mut self, indices: impl RangeBounds<usize>) -> Result<()> {
         let start = match indices.start_bound() {
-            std::ops::Bound::Included(start) => *start,
-            std::ops::Bound::Excluded(start) => start + 1,
-            std::ops::Bound::Unbounded => 0,
+            core::ops::Bound::Included(start) => *start,
+            core::ops::Bound::Excluded(start) => start + 1,
+            core::ops::Bound::Unbounded => 0,
         };
         let end = match indices.end_bound() {
-            std::ops::Bound::Included(end) => *end + 1,
-            std::ops::Bound::Excluded(end) => *end,
-            std::ops::Bound::Unbounded => self.len(),
+            core::ops::Bound::Included(end) => *end + 1,
+            core::ops::Bound::Excluded(end) => *end,
+            core::ops::Bound::Unbounded => self.len(),
         };
 
         ensure!(start <= end, ErrorCode::InvalidRange);
@@ -663,7 +667,7 @@ where
                 format!(
                     "Failed to advance {} bytes during default initialization of {}",
                     <Self as UnsizedInit<DefaultInit>>::INIT_BYTES,
-                    std::any::type_name::<Self>()
+                    core::any::type_name::<Self>()
                 )
             })?
             .copy_from_slice(bytes_of(&<PackedValue<L>>::zeroed()));
@@ -692,7 +696,7 @@ where
                 format!(
                     "Failed to advance {} bytes during array initialization of {}",
                     <Self as UnsizedInit<&[T; N]>>::INIT_BYTES,
-                    std::any::type_name::<Self>()
+                    core::any::type_name::<Self>()
                 )
             })?;
         array_bytes[0..size_of::<L>()].copy_from_slice(bytes_of(&len_bytes));

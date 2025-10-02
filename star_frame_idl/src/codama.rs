@@ -629,12 +629,12 @@ impl TryToCodama<EnumVariantTypeNode> for IdlEnumVariant {
 }
 
 fn discriminant_to_usize(discriminant: &IdlDiscriminant) -> Result<usize> {
-    if discriminant.len() * 8 > std::mem::size_of::<usize>() {
-        return Err(crate::Error::DiscriminantTooLarge(
-            std::mem::size_of::<usize>(),
-        ));
+    if discriminant.len() * 8 > core::mem::size_of::<usize>() {
+        return Err(crate::Error::DiscriminantTooLarge(core::mem::size_of::<
+            usize,
+        >()));
     }
-    let mut bytes = [0; std::mem::size_of::<usize>()];
+    let mut bytes = [0; core::mem::size_of::<usize>()];
     bytes[0..discriminant.len()][..].copy_from_slice(discriminant);
     Ok(usize::from_le_bytes(bytes))
 }

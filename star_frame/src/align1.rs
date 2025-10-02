@@ -1,11 +1,11 @@
 //! Alignment to 1 byte. Much of the [`crate::unsize`] magic relies on packed alignment and no padding.
 
-use solana_pubkey::Pubkey;
-pub use star_frame_proc::Align1;
-use std::{
+use core::{
     marker::PhantomData,
     num::{NonZeroI8, NonZeroU8},
 };
+use solana_pubkey::Pubkey;
+pub use star_frame_proc::Align1;
 
 /// A marker trait for types that are guaranteed to be aligned to 1 byte. The [unsized type system](crate::unsize) relies on `Align1` types for its pointer manipulation.
 ///

@@ -12,17 +12,18 @@ use crate::{
     unsize::{init::UnsizedInit, FromOwned, UnsizedTypeMut},
     ErrorCode, Result,
 };
-use core::ptr;
+use alloc::boxed::Box;
+use core::{
+    cmp::Ordering,
+    convert::Infallible,
+    marker::PhantomData,
+    ops::{Bound, Deref, DerefMut, RangeBounds},
+    ptr,
+};
 use derive_more::{Debug, Deref, DerefMut};
 use pinocchio::account_info::AccountInfo;
 use solana_program_memory::sol_memmove;
-use std::{
-    cmp::Ordering,
-    collections::Bound,
-    convert::Infallible,
-    marker::PhantomData,
-    ops::{Deref, DerefMut, RangeBounds},
-};
+// Note: std::collections::Bound not available in no_std - may need alternative
 
 /// A trait for types that can be used to access the underlying data of an [`UnsizedType`].
 ///

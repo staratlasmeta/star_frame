@@ -7,7 +7,7 @@
 
 use pinocchio::{account_info::Ref, sysvars::slot_hashes::SlotHashes};
 use star_frame::prelude::*;
-use std::marker::PhantomData;
+use core::marker::PhantomData;
 
 use crate::account_set::ClientAccountSet;
 

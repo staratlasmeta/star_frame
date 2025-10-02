@@ -1,4 +1,4 @@
-use std::{cmp::Reverse, fmt::Display};
+use core::{cmp::Reverse, fmt::Display};
 
 use star_frame::prelude::*;
 
@@ -152,7 +152,7 @@ pub struct OrderBookResult {
 }
 
 impl Display for OrderBookResult {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("OrderBookResult")
             .field("order_id", &self.order_id)
             .field("executed_cost", &{ self.executed_cost.val().0 })
