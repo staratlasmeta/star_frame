@@ -83,13 +83,13 @@ macro_rules! ensure_eq {
         let left = $left;
         let right = $right;
         if left != right {
-            return $crate::err!($err, format!("expected {:?}, found {:?}", right, left)).into();
+            return Err($crate::error!($err, "expected {right:?}, found {left:?}").into());
         }
     }};
 
     ($left:expr, $right:expr, $err:expr, $($ctx:tt)*) => {{
         if $left != $right {
-            return $crate::err!($err, $($ctx)*).into();
+            return Err($crate::error!($err, $($ctx)*).into());
         }
     }};
 }
@@ -101,17 +101,17 @@ macro_rules! ensure_eq {
 macro_rules! ensure_ne {
     ($left:expr, $right:expr, $err:expr $(,)?) => {{
         let right = $right;
+        let left = $left;
         if left == right {
-            return $crate::err!(
+            return Err($crate::error!(
                 $err,
-                format!("expected to not be {:?}, found {:?}", right, left)
-            )
-            .into();
+                "expected to not be {right:?}, found {left:?}"
+            ).into());
         }
     }};
     ($left:expr, $right:expr, $err:expr, $($ctx:tt)*) => {{
         if $left == $right {
-            return $crate::err!($err, $($ctx)*).into();
+            return Err($crate::error!($err, $($ctx)*).into());
         }
     }};
 }
@@ -121,7 +121,7 @@ macro_rules! ensure_ne {
 macro_rules! ensure {
     ($cond:expr, $err:expr $(, $($ctx:tt)*)?) => {
         if !$cond {
-            return Err($crate::error!($err, $($($ctx)*)*)).into();
+            return Err($crate::error!($err, $($($ctx)*)*).into());
         }
     };
 }
@@ -130,15 +130,7 @@ macro_rules! ensure {
 #[macro_export]
 macro_rules! bail {
     ($err:expr $(, $($ctx:tt)*)?) => {
-        return $crate::err!($err, $($($ctx)*)*).into()
-    };
-}
-
-/// Construcs an [`Err<Error>`](Error)
-#[macro_export]
-macro_rules! err {
-    ($err:expr $(, $($ctx:tt)*)?) => {
-        Err($crate::error!($err, $($($ctx)*)*))
+        return Err($crate::error!($err, $($($ctx)*)*).into())
     };
 }
 
@@ -589,7 +581,9 @@ mod tests {
         ensure!(true, ErrorCode::BorrowError, "Hello {}!", "world");
         let res: Result<(), Error> = (|| {
             ensure_eq!(0, 1, ProgramError::IllegalOwner, "Test {:?}", "aaa");
+            ensure_eq!(0, 1, ProgramError::IllegalOwner);
             ensure_ne!(0, 1, ProgramError::IllegalOwner, "Test {}", "aaa");
+            ensure_ne!(0, 1, ProgramError::IllegalOwner);
             Ok(())
         })();
 

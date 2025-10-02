@@ -264,15 +264,13 @@ where
         match rent_lamports.cmp(&lamports) {
             Ordering::Equal => Ok(()),
             Ordering::Greater => {
-                if lamports > 0 {
-                    err!(
-                        ProgramError::InsufficientFunds,
-                        "Tried to refund rent from {} but does not have enough lamports to cover rent",
-                        account.pubkey()
-                    )
-                } else {
-                    Ok(())
-                }
+                ensure!(
+                    lamports > 0,
+                    ProgramError::InsufficientFunds,
+                    "Tried to refund rent from {} but does not have enough lamports to cover rent",
+                    account.pubkey()
+                );
+                Ok(())
             }
             Ordering::Less => {
                 let transfer_amount = lamports - rent_lamports;
