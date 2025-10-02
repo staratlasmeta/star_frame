@@ -1,5 +1,5 @@
 //! Cross program invocation (CPI) builders and utilities.
-use std::mem::MaybeUninit;
+use core::mem::MaybeUninit;
 
 use crate::{
     account_set::{CpiAccountSet, DynamicCpiAccountSetLen},
@@ -298,7 +298,7 @@ impl HandleCpiArray for DynamicCpiAccountSetLen {
         // SAFETY:
         // We can turn a slice of uninits to a slice of inits (we can assume up to the index is initialized)
         let metas_slice = unsafe {
-            &*(std::ptr::from_ref::<[MaybeUninit<PinocchioAccountMeta<'a>>]>(metas_slice)
+            &*(core::ptr::from_ref::<[MaybeUninit<PinocchioAccountMeta<'a>>]>(metas_slice)
                 as *const [PinocchioAccountMeta<'a>])
         };
 
@@ -306,7 +306,7 @@ impl HandleCpiArray for DynamicCpiAccountSetLen {
         // SAFETY:
         // We can turn a slice of uninits to a slice of inits (we can assume up to the index is initialized)
         let infos_slice = unsafe {
-            &*std::ptr::from_ref::<[MaybeUninit<&AccountInfo>]>(infos_slice)
+            &*core::ptr::from_ref::<[MaybeUninit<&AccountInfo>]>(infos_slice)
                 .cast::<[&AccountInfo; 64]>()
         };
 

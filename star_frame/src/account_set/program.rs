@@ -6,7 +6,7 @@
 
 use crate::{account_set::ClientAccountSet, prelude::*};
 use ref_cast::{ref_cast_custom, RefCastCustom};
-use std::marker::PhantomData;
+use core::marker::PhantomData;
 
 /// A typed wrapper for a program account that validates the program ID matches the expected ID.
 ///

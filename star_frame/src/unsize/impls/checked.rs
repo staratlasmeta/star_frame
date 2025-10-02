@@ -13,8 +13,9 @@ use crate::{
     Result,
 };
 use advancer::Advance;
+use alloc::format;
 use bytemuck::{checked, CheckedBitPattern, NoUninit, Zeroable};
-use std::{
+use core::{
     marker::PhantomData,
     mem::size_of,
     ops::{Deref, DerefMut},
@@ -118,10 +119,10 @@ where
             format!(
                 "Failed to read {} bytes for checked type {}",
                 size_of::<T>(),
-                std::any::type_name::<T>()
+                core::any::type_name::<T>()
             )
         })?)
-        .map(std::ptr::from_ref)
+        .map(core::ptr::from_ref)
         .map(|r| CheckedRef(r, PhantomData))
         .ctx("Invalid data for type")
     }
@@ -132,7 +133,7 @@ where
             format!(
                 "Failed to read {} mutable bytes for checked type {}",
                 size_of::<T>(),
-                std::any::type_name::<T>()
+                core::any::type_name::<T>()
             )
         })?;
 
@@ -182,7 +183,7 @@ where
             .with_ctx(|| {
                 format!(
                     "Failed to advance bytes during `FromOwned` of {}",
-                    std::any::type_name::<Self>()
+                    core::any::type_name::<Self>()
                 )
             })?
             .copy_from_slice(bytemuck::bytes_of(&owned));
@@ -203,7 +204,7 @@ where
             .with_ctx(|| {
                 format!(
                     "Failed to advance bytes during initialization of {}",
-                    std::any::type_name::<T>()
+                    core::any::type_name::<T>()
                 )
             })?
             .copy_from_slice(bytemuck::bytes_of(&arg));
@@ -224,7 +225,7 @@ where
             .with_ctx(|| {
                 format!(
                     "Failed to advance bytes during default initialization of {}",
-                    std::any::type_name::<Self>()
+                    core::any::type_name::<Self>()
                 )
             })?
             .copy_from_slice(bytemuck::bytes_of(&T::default_init()));

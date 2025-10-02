@@ -1,11 +1,11 @@
 use crate::{account_set::modifiers::HasInnerType, data_types::SetKeyFor, prelude::*};
 use bytemuck::{cast, cast_mut, cast_ref};
-use derive_where::DeriveWhere;
-use serde::{Deserialize, Serialize};
-use std::{
+use core::{
     fmt::{Display, Formatter},
     marker::PhantomData,
 };
+use derive_where::DeriveWhere;
+use serde::{Deserialize, Serialize};
 
 /// Allows getting an [`OptionalKeyFor`] from other types.
 pub trait GetOptionalKeyFor<T: ?Sized> {
@@ -35,7 +35,7 @@ impl<T: ?Sized> Default for OptionalKeyFor<T> {
 pub type OptionalPubkey = OptionalKeyFor<()>;
 
 impl<T> Display for OptionalKeyFor<T> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}", self.pubkey)
     }
 }

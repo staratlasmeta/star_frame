@@ -332,6 +332,7 @@
 //! - `cleanup_rent_warning` - Emits a warning message if the account has more lamports than required by rent on cleanup
 //! - `aggressive_inline` - Adds `#[inline(always)]` to more functions. Can be beneficial in some cases, but will likely increase binary size and may even reduce performance.
 //!   This should only be used when you have thorough benchmarks and are confident in the performance impact.
+#![no_std]
 #![warn(
     clippy::pedantic,
     missing_copy_implementations,
@@ -351,6 +352,10 @@
     clippy::expl_impl_clone_on_copy,
     clippy::non_canonical_partial_ord_impl
 )]
+
+pub extern crate alloc;
+#[cfg(any(feature = "std", test))]
+extern crate std;
 
 pub extern crate advancer;
 pub extern crate borsh;
@@ -398,7 +403,7 @@ pub mod __private;
 pub use star_frame_idl::Result as IdlResult;
 
 pub(crate) use errors::ErrorCode;
-pub type Result<T, E = errors::Error> = std::result::Result<T, E>;
+pub type Result<T, E = errors::Error> = core::result::Result<T, E>;
 
 /// Equivalent to `Ok::<_, Error>(value)`
 #[inline]
@@ -437,6 +442,6 @@ mod tests {
     fn test_idl() {
         use crate::idl::ProgramToIdl;
         let idl = MyProgram::program_to_idl().unwrap();
-        println!("{}", serde_json::to_string_pretty(&idl).unwrap());
+        std::println!("{}", serde_json::to_string_pretty(&idl).unwrap());
     }
 }
