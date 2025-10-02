@@ -30,7 +30,7 @@ pub use crate::{
         ClockExt, GetKeyFor as _, GetOptionalKeyFor as _, KeyFor, OptionalKeyFor, OptionalPubkey,
         PackedValue, SetKeyFor as _, UnitVal,
     },
-    ensure, ensure_eq, ensure_ne, err, error,
+    ensure, ensure_eq, ensure_ne, error,
     errors::{star_frame_error, Error, ErrorInfo as _},
     instruction::{
         star_frame_instruction, InstructionArgs, InstructionDiscriminant as _, InstructionSet,
