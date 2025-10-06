@@ -61,7 +61,7 @@ use star_frame::prelude::*;
 Below is a simple counter program demonstrating the basic features of Star Frame. In this example, only the designated authority can increment the counter.
 
 ```rust
-use star_frame::{anyhow::ensure, prelude::*};
+use star_frame::prelude::*;
 
 #[derive(StarFrameProgram)]
 #[program(
