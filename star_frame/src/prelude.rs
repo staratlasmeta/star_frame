@@ -14,20 +14,23 @@ pub use crate::{
     unsize::{NewByteSet, TestByteSet},
 };
 
+#[cfg(not(target_os = "solana"))]
+pub use crate::client::MakeInstruction as _;
+
 pub use crate::{
     account_set::prelude::*,
     align1::Align1,
     bail, borsh_with_bytemuck,
     client::{
         DeserializeAccount as _, DeserializeBorshAccount as _, DeserializeType as _,
-        FindProgramAddress as _, MakeInstruction as _, SerializeAccount as _,
-        SerializeBorshAccount as _, SerializeType as _,
+        FindProgramAddress as _, SerializeAccount as _, SerializeBorshAccount as _,
+        SerializeType as _,
     },
     context::Context,
     cpi::MakeCpi as _,
     create_unit_system,
     data_types::{
-        ClockExt, GetKeyFor as _, GetOptionalKeyFor as _, KeyFor, OptionalKeyFor, OptionalPubkey,
+        ClockExt, GetKeyFor as _, GetOptionalKeyFor as _, KeyFor, OptionalAddress, OptionalKeyFor,
         PackedValue, SetKeyFor as _, UnitVal,
     },
     ensure, ensure_eq, ensure_ne, error,
@@ -39,7 +42,7 @@ pub use crate::{
     program::{system::System, StarFrameProgram},
     pubkey,
     unsize::prelude::*,
-    util::{borsh_bytemuck, FastPubkeyEq as _},
+    util::{borsh_bytemuck, FastAddressEq as _},
     Result,
 };
 
@@ -48,12 +51,14 @@ pub use star_frame_proc::{zero_copy, InstructionToIdl, TypeToIdl};
 
 // Solana stuff
 pub use pinocchio::{
-    account_info::AccountInfo, instruction::AccountMeta as PinocchioAccountMeta, msg,
-    program_error::ProgramError, ProgramResult,
+    account::AccountView, error::ProgramError, instruction::AccountRole, ProgramResult,
 };
+
 pub use pinocchio_log::log;
+pub use solana_address::Address;
+#[cfg(not(target_os = "solana"))]
 pub use solana_instruction::AccountMeta;
-pub use solana_pubkey::Pubkey;
+pub use solana_msg::msg;
 
 // bytemuck
 pub use bytemuck::{CheckedBitPattern, NoUninit, Pod, Zeroable};

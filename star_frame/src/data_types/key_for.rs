@@ -27,7 +27,7 @@ pub trait GetKeyFor<T: ?Sized> {
 #[serde(transparent)]
 #[repr(transparent)]
 pub struct KeyFor<T: ?Sized> {
-    pubkey: Pubkey,
+    pubkey: Address,
     phantom: PhantomData<fn() -> T>,
 }
 
@@ -39,16 +39,16 @@ impl<T: ?Sized> Display for KeyFor<T> {
 impl<T: ?Sized> KeyFor<T> {
     /// Creates a new [`KeyFor`] for any `T`.
     #[must_use]
-    pub fn new(pubkey: Pubkey) -> Self {
+    pub fn new(pubkey: Address) -> Self {
         Self {
             pubkey,
             phantom: PhantomData,
         }
     }
 
-    /// Returns a reference to [`KeyFor`] for any `T` from a reference to a `Pubkey`.
+    /// Returns a reference to [`KeyFor`] for any `T` from a reference to a `Address`.
     #[must_use]
-    pub fn new_ref(pubkey: &Pubkey) -> &Self
+    pub fn new_ref(pubkey: &Address) -> &Self
     where
         T: 'static,
     {
@@ -57,31 +57,31 @@ impl<T: ?Sized> KeyFor<T> {
 
     /// Returns a reference to the contained pubkey.
     #[must_use]
-    pub fn pubkey(&self) -> &Pubkey {
+    pub fn address(&self) -> &Address {
         &self.pubkey
     }
 
     /// Sets the contained pubkey.
-    pub fn set_pubkey_direct(&mut self, pubkey: Pubkey) {
+    pub fn set_pubkey_direct(&mut self, pubkey: Address) {
         self.pubkey = pubkey;
     }
 }
 
 impl<T: HasInnerType + SingleAccountSet> SetKeyFor<T::Inner, &T> for KeyFor<T::Inner> {
     fn set_pubkey(&mut self, pubkey: &T) {
-        self.pubkey = *pubkey.pubkey();
+        self.pubkey = *pubkey.address();
     }
 }
 
 impl<T: HasInnerType + SingleAccountSet> GetKeyFor<T::Inner> for T {
     fn key_for(&self) -> &KeyFor<T::Inner> {
-        KeyFor::new_ref(self.pubkey())
+        KeyFor::new_ref(self.address())
     }
 }
 
 impl<T: ?Sized> PartialEq<OptionalKeyFor<T>> for KeyFor<T> {
     fn eq(&self, other: &OptionalKeyFor<T>) -> bool {
-        self.pubkey().fast_eq(other.as_inner())
+        self.address().fast_eq(other.as_inner())
     }
 }
 impl<'a, T: ?Sized + 'static> From<&'a mut OptionalKeyFor<T>> for &'a mut KeyFor<T> {
@@ -103,23 +103,23 @@ impl<T: 'static + ?Sized> From<OptionalKeyFor<T>> for KeyFor<T> {
 }
 
 // SAFETY:
-// `KeyFor` is a transparent wrapper around a `Pubkey` which is `Zeroable`
+// `KeyFor` is a transparent wrapper around a `Address` which is `Zeroable`
 #[allow(trivial_bounds)]
 unsafe impl<T: ?Sized> Zeroable for KeyFor<T>
 where
-    Pubkey: Zeroable,
+    Address: Zeroable,
 {
     fn zeroed() -> Self {
         Self {
-            pubkey: Pubkey::zeroed(),
+            pubkey: Address::zeroed(),
             phantom: PhantomData,
         }
     }
 }
 // SAFETY:
-// `KeyFor` is a transparent wrapper around a `Pubkey` which is `Pod`
+// `KeyFor` is a transparent wrapper around a `Address` which is `Pod`
 #[allow(trivial_bounds)]
-unsafe impl<T: 'static + ?Sized> Pod for KeyFor<T> where Pubkey: Pod {}
+unsafe impl<T: 'static + ?Sized> Pod for KeyFor<T> where Address: Pod {}
 
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
 mod idl_impl {
@@ -129,7 +129,7 @@ mod idl_impl {
     impl<T> TypeToIdl for KeyFor<T> {
         type AssociatedProgram = System;
         fn type_to_idl(_idl_definition: &mut IdlDefinition) -> crate::IdlResult<IdlTypeDef> {
-            Ok(IdlTypeDef::Pubkey)
+            Ok(IdlTypeDef::Address)
         }
     }
 }

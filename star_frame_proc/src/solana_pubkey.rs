@@ -10,20 +10,20 @@ use syn::{
 // #crate_name to allow using this from star_frame without depending on solana_program directly
 
 pub fn pubkey_impl(input: TokenStream) -> TokenStream {
-    let id = parse_macro_input!(input as ProgramSdkPubkey);
+    let id = parse_macro_input!(input as ProgramSdkAddress);
     TokenStream::from(quote! {#id})
 }
 
-struct ProgramSdkPubkey(proc_macro2::TokenStream);
+struct ProgramSdkAddress(proc_macro2::TokenStream);
 
-impl Parse for ProgramSdkPubkey {
+impl Parse for ProgramSdkAddress {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let crate_name = get_crate_name();
-        parse_id(input, quote! { #crate_name::solana_pubkey::Pubkey }).map(Self)
+        parse_id(input, quote! { #crate_name::solana_address::Address }).map(Self)
     }
 }
 
-impl ToTokens for ProgramSdkPubkey {
+impl ToTokens for ProgramSdkAddress {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         let id = &self.0;
         tokens.extend(quote! {#id})

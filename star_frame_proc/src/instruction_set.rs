@@ -138,7 +138,7 @@ pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
                         #[allow(unexpected_cfgs)]
                         {
                             #[cfg(any(feature = "log_ix_name", feature = "log-ix-name"))]
-                            #prelude::msg!(#ix_message);
+                            #prelude::msg!(&#ix_message);
                         }
                         <#variant_tys as #instruction>::process_from_raw(program_id, accounts, instruction_data)
                     }
@@ -158,7 +158,7 @@ pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
             fn dispatch(
                 program_id: &'static #pubkey,
                 accounts: &[#account_info],
-                mut instruction_data: &[u8],
+                mut instruction_data: &'static [u8],
             ) -> #result<()> {
                 #dispatch_body
             }

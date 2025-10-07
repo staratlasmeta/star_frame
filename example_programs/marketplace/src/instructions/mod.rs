@@ -43,16 +43,16 @@ pub struct ManageOrderAccounts {
     pub market: Mut<ValidatedAccount<Market>>,
     pub currency: MintAccount,
     pub market_token: MintAccount,
-    #[validate(arg = ValidateAta { mint: self.market_token.key_for(), wallet: self.market.pubkey()})]
+    #[validate(arg = ValidateAta { mint: self.market_token.key_for(), wallet: self.market.address()})]
     #[idl(arg = Seeds(FindAtaSeeds{ mint: seed_path("market_token"), wallet: seed_path("market") }))]
     pub market_token_vault: Mut<AssociatedTokenAccount>,
-    #[validate(arg = ValidateAta { mint: self.currency.key_for(), wallet: self.market.pubkey()})]
+    #[validate(arg = ValidateAta { mint: self.currency.key_for(), wallet: self.market.address()})]
     #[idl(arg = Seeds(FindAtaSeeds{ mint: seed_path("currency"), wallet: seed_path("market") }))]
     pub currency_vault: Mut<AssociatedTokenAccount>,
-    #[validate(arg = ValidateToken { mint: Some(*self.market_token.key_for()), owner: Some(*self.user.pubkey())})]
+    #[validate(arg = ValidateToken { mint: Some(*self.market_token.key_for()), owner: Some(*self.user.address())})]
     #[idl(arg = Seeds(FindAtaSeeds{ mint: seed_path("market_token"), wallet: seed_path("user") }))]
     pub user_market_token_vault: Mut<TokenAccount>,
-    #[validate(arg = ValidateToken { mint: Some(*self.currency.key_for()), owner: Some(*self.user.pubkey())})]
+    #[validate(arg = ValidateToken { mint: Some(*self.currency.key_for()), owner: Some(*self.user.address())})]
     #[idl(arg = Seeds(FindAtaSeeds{ mint: seed_path("currency"), wallet: seed_path("user") }))]
     pub user_currency_vault: Mut<TokenAccount>,
     pub token_program: Program<Token>,

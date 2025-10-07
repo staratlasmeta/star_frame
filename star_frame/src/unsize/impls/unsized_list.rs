@@ -32,7 +32,7 @@ use core::{
 };
 use itertools::Itertools;
 use num_traits::ToPrimitive;
-use pinocchio::program_error::ProgramError;
+use pinocchio::error::ProgramError;
 use ptr_meta::Pointee;
 use solana_program_memory::sol_memmove;
 

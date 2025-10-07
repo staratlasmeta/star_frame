@@ -129,8 +129,8 @@ impl Default for Paths {
             // bytemuck
             bytemuck: quote! { #crate_name::bytemuck },
             // solana
-            account_info: quote! { #prelude::AccountInfo },
-            pubkey: quote! { #prelude::Pubkey },
+            account_info: quote! { #prelude::AccountView },
+            pubkey: quote! { #prelude::Address },
             prelude,
         }
     }

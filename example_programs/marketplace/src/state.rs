@@ -27,7 +27,7 @@ pub struct OrderInfo {
     /// A unique (for the market) id for this order
     pub order_id: u64,
     /// The key of the maker who placed the order
-    pub maker: Pubkey,
+    pub maker: Address,
 }
 
 #[zero_copy(pod)]
@@ -178,7 +178,7 @@ pub struct OrderBookSide {
     /// An incrememnting counter for each order id. The first bit is set to 1 for asks.
     pub id_counter: u64,
     #[unsized_start]
-    pub makers: Map<Pubkey, MakerInfo>,
+    pub makers: Map<Address, MakerInfo>,
     pub orders: List<OrderInfo>,
 }
 
@@ -189,7 +189,7 @@ impl OrderBookSide {
     }
 
     #[exclusive]
-    pub fn remove_maker(&mut self, maker: &Pubkey) -> Result<Option<MakerInfo>> {
+    pub fn remove_maker(&mut self, maker: &Address) -> Result<Option<MakerInfo>> {
         let maker = self.makers().remove(maker)?;
         Ok(maker)
     }
@@ -230,7 +230,7 @@ impl OrderBookSide {
         price: Price,
         quantity: Quantity,
         side: OrderSide,
-        maker: Pubkey,
+        maker: Address,
     ) -> Result<u64> {
         let order_id = self.id_counter;
         self.id_counter += 1;
@@ -328,7 +328,7 @@ impl OrderBookSide {
 
     /// Returns the maker info and the additional rent bytes used
     #[exclusive]
-    pub fn get_or_insert_maker(&mut self, maker: &Pubkey) -> Result<&mut MakerInfo> {
+    pub fn get_or_insert_maker(&mut self, maker: &Address) -> Result<&mut MakerInfo> {
         if !self.makers.contains_key(maker) {
             self.makers().insert(
                 *maker,
@@ -351,7 +351,7 @@ pub struct MarketSeeds {
 
 #[derive(Debug, Copy, Clone)]
 pub struct CreateMarketArgs {
-    pub authority: Pubkey,
+    pub authority: Address,
     pub currency: KeyFor<MintAccount>,
     pub market_token: KeyFor<MintAccount>,
     pub bump: u8,
@@ -389,7 +389,7 @@ pub struct Market {
     pub version: u8,
     /// The bump for the PDA
     pub bump: u8,
-    pub authority: Pubkey,
+    pub authority: Address,
     pub currency: KeyFor<MintAccount>,
     pub market_token: KeyFor<MintAccount>,
     #[unsized_start]
@@ -448,14 +448,14 @@ impl Market {
         Ok(())
     }
 
-    pub fn get_combined_maker_info(&self, maker: &Pubkey) -> Option<MakerInfo> {
+    pub fn get_combined_maker_info(&self, maker: &Address) -> Option<MakerInfo> {
         let bid_maker = self.bids.makers.get(maker);
         let ask_maker = self.asks.makers.get(maker);
         MakerInfo::maybe_combine(bid_maker, ask_maker)
     }
 
     #[exclusive]
-    pub fn remove_maker_for_cleanup(&mut self, maker: &Pubkey) -> Result<Option<MakerInfo>> {
+    pub fn remove_maker_for_cleanup(&mut self, maker: &Address) -> Result<Option<MakerInfo>> {
         self.clear_orders_for_cleanup()?;
         let bid_maker = self.bids().remove_maker(maker)?;
         let ask_maker = self.asks().remove_maker(maker)?;
@@ -467,7 +467,7 @@ impl Market {
     pub fn process_order(
         &mut self,
         args: ProcessOrderArgs,
-        maker: Pubkey,
+        maker: Address,
     ) -> Result<OrderBookResult> {
         let ProcessOrderArgs {
             side,
@@ -505,7 +505,7 @@ impl Market {
     #[exclusive]
     pub fn cancel_orders(
         &mut self,
-        maker: &Pubkey,
+        maker: &Address,
         orders_to_cancel: &[CancelOrderArgs],
     ) -> Result<OrderTotals> {
         let mut cancelled_currency = ZERO_PRICE;
@@ -614,16 +614,16 @@ pub(crate) mod tests {
                 makers: BTreeMap::from_iter([]),
                 orders: vec![],
             },
-            authority: Pubkey::new_unique(),
-            currency: KeyFor::new(Pubkey::new_unique()),
-            market_token: KeyFor::new(Pubkey::new_unique()),
+            authority: Address::new_unique(),
+            currency: KeyFor::new(Address::new_unique()),
+            market_token: KeyFor::new(Address::new_unique()),
         }
     }
 
     #[test]
     fn unsized_test_place_orders() -> Result<()> {
         let mut market = default_market();
-        let maker = Pubkey::new_unique();
+        let maker = Address::new_unique();
         let price = new_price(10);
         let quantity = new_quantity(10);
         let side = OrderSide::Bid;
@@ -726,7 +726,7 @@ pub(crate) mod tests {
         );
 
         // Now add some to the sell side
-        let maker = Pubkey::new_unique();
+        let maker = Address::new_unique();
         let price = new_price(25);
         let quantity = new_quantity(10);
         let side = OrderSide::Ask;
@@ -781,27 +781,27 @@ pub(crate) mod tests {
 
     #[test]
     fn unsized_test_match_orders() -> Result<()> {
-        let buyer1 = Pubkey::new_unique();
+        let buyer1 = Address::new_unique();
         let buyer1_price = new_price(10);
         let buyer1_quantity = new_quantity(10);
 
-        let buyer2 = Pubkey::new_unique();
+        let buyer2 = Address::new_unique();
         let buyer2_price = new_price(8);
         let buyer2_quantity = new_quantity(8);
 
-        let buyer3 = Pubkey::new_unique();
+        let buyer3 = Address::new_unique();
         let buyer3_price = new_price(6);
         let buyer3_quantity = new_quantity(6);
 
-        let seller1 = Pubkey::new_unique();
+        let seller1 = Address::new_unique();
         let seller1_price = new_price(12);
         let seller1_quantity = new_quantity(10);
 
-        let seller2 = Pubkey::new_unique();
+        let seller2 = Address::new_unique();
         let seller2_price = new_price(14);
         let seller2_quantity = new_quantity(8);
 
-        let seller3 = Pubkey::new_unique();
+        let seller3 = Address::new_unique();
         let seller3_price = new_price(16);
         let seller3_quantity = new_quantity(6);
 
@@ -919,7 +919,7 @@ pub(crate) mod tests {
             ..default_market()
         };
 
-        let market_maker_buyer = Pubkey::new_unique();
+        let market_maker_buyer = Address::new_unique();
         let mm_buy_price = new_price(15);
         let mm_buy_quantity = new_quantity(15);
         let mut order_result = OrderBookResult::default();
@@ -977,7 +977,7 @@ pub(crate) mod tests {
         );
 
         // Now, a market maker places a sell order that partially fills and then rests on the book
-        let market_maker_seller = Pubkey::new_unique();
+        let market_maker_seller = Address::new_unique();
         let mm_sell_price = new_price(7);
         let mm_sell_quantity = new_quantity(20);
 
@@ -1066,24 +1066,24 @@ pub(crate) mod tests {
 
     #[test]
     fn unsized_test_cancel_orders() -> Result<()> {
-        let buyer1 = Pubkey::new_unique();
+        let buyer1 = Address::new_unique();
         let buyer1_price = new_price(10);
         let buyer1_quantity = new_quantity(5);
         let buyer1_filled_quantity = new_quantity(5);
         let buyer1_id = 0u64;
 
-        let buyer2 = Pubkey::new_unique();
+        let buyer2 = Address::new_unique();
         let buyer2_price = new_price(7);
         let buyer2_quantity = new_quantity(10);
         let buyer2_id = 1u64;
 
-        let seller = Pubkey::new_unique();
+        let seller = Address::new_unique();
         let seller_price = new_price(14);
         let seller_quantity = new_quantity(8);
         let seller_filled_price = new_price(5);
         let seller_id = ASK_ID_MASK;
 
-        let maker = Pubkey::new_unique();
+        let maker = Address::new_unique();
         let maker_first_buy_price = new_price(6);
         let maker_first_buy_quantity = new_quantity(12);
         let maker_first_buy_id = 2u64;

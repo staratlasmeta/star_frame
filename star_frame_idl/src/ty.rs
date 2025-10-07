@@ -54,7 +54,7 @@ pub enum IdlTypeDef {
     U128,
     I128,
     String,
-    Pubkey,
+    Address,
     FixedPoint {
         ty: Box<IdlTypeDef>,
         frac: u8,

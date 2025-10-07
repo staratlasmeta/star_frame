@@ -1,4 +1,6 @@
 pub mod macro_prelude {
+    #[cfg(not(target_os = "solana"))]
+    pub use crate::account_set::ClientAccountSet;
     pub use crate::{
         account_set::{
             internal_reverse::{_account_set_cleanup_reverse, _account_set_validate_reverse},
@@ -7,12 +9,11 @@ pub mod macro_prelude {
                 Seed, SignedAccount, WritableAccount,
             },
             single_set::{SingleAccountSet, SingleSetMeta},
-            AccountSet, AccountSetValidate, CheckKey, ClientAccountSet, CpiAccountSet,
-            CpiConstWrapper, DynamicCpiAccountSetLen, ProgramAccount,
+            AccountSet, AccountSetValidate, CheckKey, CpiAccountSet, CpiConstWrapper,
+            DynamicCpiAccountSetLen, ProgramAccount,
         },
         align1::Align1,
         bail,
-        client::MakeInstruction,
         context::Context,
         cpi::{CpiBuilder, MakeCpi},
         errors::{ErrorCode, ErrorInfo, StarFrameError},
@@ -58,11 +59,10 @@ pub mod macro_prelude {
     pub use advancer::{Advance, AdvanceArray};
     pub use core::any::type_name;
     pub use derive_where::DeriveWhere;
-    pub use pinocchio::{
-        account_info::AccountInfo, instruction::AccountMeta as PinocchioAccountMeta, msg,
-        program_error::ProgramError, pubkey::Pubkey as PinocchioPubkey,
-    };
-    pub use solana_instruction::{AccountMeta, Instruction as SolanaInstruction};
-    pub use solana_pubkey::Pubkey;
+    pub use pinocchio::{account::AccountView, error::ProgramError, instruction::AccountRole};
+    pub use solana_address::Address;
+    #[cfg(not(target_os = "solana"))]
+    pub use solana_instruction::AccountMeta;
+    pub use solana_msg::msg;
     pub use typenum;
 }

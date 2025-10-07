@@ -53,13 +53,13 @@ pub enum AuthorityType {
 #[type_to_idl(program = crate::token::Token)]
 pub struct InitializeMint {
     pub decimals: u8,
-    pub mint_authority: Pubkey,
-    pub freeze_authority: Option<Pubkey>,
+    pub mint_authority: Address,
+    pub freeze_authority: Option<Address>,
 }
 /// Accounts for the [`InitializeMint`] instruction.
 #[derive(Debug, Clone, AccountSet)]
 pub struct InitializeMintAccounts {
-    pub mint: Mut<AccountInfo>,
+    pub mint: Mut<AccountView>,
     pub rent: Sysvar<Rent>,
 }
 empty_star_frame_instruction!(InitializeMint, InitializeMintAccounts);
@@ -72,9 +72,9 @@ pub struct InitializeAccount;
 /// Accounts for the [`InitializeAccount`] instruction.
 #[derive(Debug, Clone, AccountSet)]
 pub struct InitializeAccountAccounts {
-    pub account: Mut<AccountInfo>,
-    pub mint: AccountInfo,
-    pub owner: AccountInfo,
+    pub account: Mut<AccountView>,
+    pub mint: AccountView,
+    pub owner: AccountView,
     pub rent: Sysvar<Rent>,
 }
 empty_star_frame_instruction!(InitializeAccount, InitializeAccountAccounts);
@@ -89,9 +89,9 @@ pub struct InitializeMultisig {
 /// Accounts for the [`InitializeMultisig`] instruction.
 #[derive(Debug, Clone, AccountSet)]
 pub struct InitializeMultisigAccounts {
-    pub multisig: Mut<AccountInfo>,
+    pub multisig: Mut<AccountView>,
     pub rent: Sysvar<Rent>,
-    pub signers: Rest<AccountInfo>,
+    pub signers: Rest<AccountView>,
 }
 empty_star_frame_instruction!(InitializeMultisig, InitializeMultisigAccounts);
 
@@ -106,8 +106,8 @@ pub struct Transfer {
 /// Accounts for the [`Transfer`] instruction.
 #[derive(Debug, Clone, AccountSet)]
 pub struct TransferAccounts {
-    pub source: Mut<AccountInfo>,
-    pub destination: Mut<AccountInfo>,
+    pub source: Mut<AccountView>,
+    pub destination: Mut<AccountView>,
     pub owner: Signer,
 }
 empty_star_frame_instruction!(Transfer, TransferAccounts);
@@ -123,8 +123,8 @@ pub struct Approve {
 /// Accounts for the [`Approve`] instruction.
 #[derive(Debug, Clone, AccountSet)]
 pub struct ApproveAccounts {
-    pub source: Mut<AccountInfo>,
-    pub delegate: AccountInfo,
+    pub source: Mut<AccountView>,
+    pub delegate: AccountView,
     pub owner: Signer,
 }
 empty_star_frame_instruction!(Approve, ApproveAccounts);
@@ -138,7 +138,7 @@ pub struct Revoke;
 /// Accounts for the [`Revoke`] instruction.
 #[derive(Debug, Clone, AccountSet)]
 pub struct RevokeAccounts {
-    pub source: Mut<AccountInfo>,
+    pub source: Mut<AccountView>,
     pub owner: Signer,
 }
 empty_star_frame_instruction!(Revoke, RevokeAccounts);
@@ -149,13 +149,13 @@ empty_star_frame_instruction!(Revoke, RevokeAccounts);
 #[type_to_idl(program = crate::token::Token)]
 pub struct SetAuthority {
     pub authority_type: AuthorityType,
-    pub new_authority: Option<Pubkey>,
+    pub new_authority: Option<Address>,
 }
 // todo: handle multisig with AccountSet enums
 /// Accounts for the [`SetAuthority`] instruction.
 #[derive(Debug, Clone, AccountSet)]
 pub struct SetAuthorityAccounts {
-    pub account: Mut<AccountInfo>,
+    pub account: Mut<AccountView>,
     pub current_authority: Signer,
 }
 empty_star_frame_instruction!(SetAuthority, SetAuthorityAccounts);
@@ -171,8 +171,8 @@ pub struct MintTo {
 /// Accounts for the [`MintTo`] instruction.
 #[derive(Debug, Clone, AccountSet)]
 pub struct MintToAccounts {
-    pub mint: Mut<AccountInfo>,
-    pub account: Mut<AccountInfo>,
+    pub mint: Mut<AccountView>,
+    pub account: Mut<AccountView>,
     pub mint_authority: Signer,
 }
 empty_star_frame_instruction!(MintTo, MintToAccounts);
@@ -188,8 +188,8 @@ pub struct Burn {
 /// Accounts for the [`Burn`] instruction.
 #[derive(Debug, Clone, AccountSet)]
 pub struct BurnAccounts {
-    pub account: Mut<AccountInfo>,
-    pub mint: Mut<AccountInfo>,
+    pub account: Mut<AccountView>,
+    pub mint: Mut<AccountView>,
     pub owner: Signer,
 }
 empty_star_frame_instruction!(Burn, BurnAccounts);
@@ -203,8 +203,8 @@ pub struct CloseAccount;
 /// Accounts for the [`CloseAccount`] instruction.
 #[derive(Debug, Clone, AccountSet)]
 pub struct CloseAccountAccounts {
-    pub account: Mut<AccountInfo>,
-    pub destination: Mut<AccountInfo>,
+    pub account: Mut<AccountView>,
+    pub destination: Mut<AccountView>,
     pub owner: Signer,
 }
 empty_star_frame_instruction!(CloseAccount, CloseAccountAccounts);
@@ -218,8 +218,8 @@ pub struct FreezeAccount;
 /// Accounts for the [`FreezeAccount`] instruction.
 #[derive(Debug, Clone, AccountSet)]
 pub struct FreezeAccountAccounts {
-    pub account: Mut<AccountInfo>,
-    pub mint: AccountInfo,
+    pub account: Mut<AccountView>,
+    pub mint: AccountView,
     pub authority: Signer,
 }
 empty_star_frame_instruction!(FreezeAccount, FreezeAccountAccounts);
@@ -233,8 +233,8 @@ pub struct ThawAccount;
 /// Accounts for the [`ThawAccount`] instruction.
 #[derive(Debug, Clone, AccountSet)]
 pub struct ThawAccountAccounts {
-    pub account: Mut<AccountInfo>,
-    pub mint: AccountInfo,
+    pub account: Mut<AccountView>,
+    pub mint: AccountView,
     pub authority: Signer,
 }
 empty_star_frame_instruction!(ThawAccount, ThawAccountAccounts);
@@ -251,9 +251,9 @@ pub struct TransferChecked {
 /// todo: Handle multisig with AccountSet enums.
 #[derive(Debug, Clone, AccountSet)]
 pub struct TransferCheckedAccounts {
-    pub source: Mut<AccountInfo>,
-    pub mint: AccountInfo,
-    pub destination: Mut<AccountInfo>,
+    pub source: Mut<AccountView>,
+    pub mint: AccountView,
+    pub destination: Mut<AccountView>,
     pub owner: Signer,
 }
 empty_star_frame_instruction!(TransferChecked, TransferCheckedAccounts);
@@ -270,9 +270,9 @@ pub struct ApproveChecked {
 /// todo: Handle multisig with AccountSet enums.
 #[derive(Debug, Clone, AccountSet)]
 pub struct ApproveCheckedAccounts {
-    pub source: Mut<AccountInfo>,
-    pub mint: AccountInfo,
-    pub delegate: AccountInfo,
+    pub source: Mut<AccountView>,
+    pub mint: AccountView,
+    pub delegate: AccountView,
     pub owner: Signer,
 }
 empty_star_frame_instruction!(ApproveChecked, ApproveCheckedAccounts);
@@ -289,8 +289,8 @@ pub struct MintToChecked {
 /// todo: Handle multisig with AccountSet enums.
 #[derive(Debug, Clone, AccountSet)]
 pub struct MintToCheckedAccounts {
-    pub mint: Mut<AccountInfo>,
-    pub account: Mut<AccountInfo>,
+    pub mint: Mut<AccountView>,
+    pub account: Mut<AccountView>,
     pub mint_authority: Signer,
 }
 empty_star_frame_instruction!(MintToChecked, MintToCheckedAccounts);
@@ -307,8 +307,8 @@ pub struct BurnChecked {
 /// todo: Handle multisig with AccountSet enums.
 #[derive(Debug, Clone, AccountSet)]
 pub struct BurnCheckedAccounts {
-    pub account: Mut<AccountInfo>,
-    pub mint: Mut<AccountInfo>,
+    pub account: Mut<AccountView>,
+    pub mint: Mut<AccountView>,
     pub owner: Signer,
 }
 empty_star_frame_instruction!(BurnChecked, BurnCheckedAccounts);
@@ -318,14 +318,14 @@ empty_star_frame_instruction!(BurnChecked, BurnCheckedAccounts);
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionArgs, BorshDeserialize, BorshSerialize)]
 #[type_to_idl(program = crate::token::Token)]
 pub struct InitializeAccount2 {
-    pub owner: Pubkey,
+    pub owner: Address,
 }
 /// Accounts for the [`InitializeAccount2`] instruction.
 /// todo: Consider multisig ownership scenarios if required.
 #[derive(Debug, Clone, AccountSet)]
 pub struct InitializeAccount2Accounts {
-    pub account: Mut<AccountInfo>,
-    pub mint: AccountInfo,
+    pub account: Mut<AccountView>,
+    pub mint: AccountView,
     pub rent: Sysvar<Rent>,
 }
 empty_star_frame_instruction!(InitializeAccount2, InitializeAccount2Accounts);
@@ -338,7 +338,7 @@ pub struct SyncNative;
 /// Accounts for the [`SyncNative`] instruction.
 #[derive(Debug, Clone, AccountSet)]
 pub struct SyncNativeAccounts {
-    pub account: Mut<AccountInfo>,
+    pub account: Mut<AccountView>,
 }
 empty_star_frame_instruction!(SyncNative, SyncNativeAccounts);
 
@@ -347,13 +347,13 @@ empty_star_frame_instruction!(SyncNative, SyncNativeAccounts);
 #[derive(Copy, Clone, Debug, Eq, PartialEq, InstructionArgs, BorshDeserialize, BorshSerialize)]
 #[type_to_idl(program = crate::token::Token)]
 pub struct InitializeAccount3 {
-    pub owner: Pubkey,
+    pub owner: Address,
 }
 /// Accounts for the [`InitializeAccount3`] instruction.
 #[derive(Debug, Clone, AccountSet)]
 pub struct InitializeAccount3Accounts {
-    pub account: Mut<AccountInfo>,
-    pub mint: AccountInfo,
+    pub account: Mut<AccountView>,
+    pub mint: AccountView,
 }
 empty_star_frame_instruction!(InitializeAccount3, InitializeAccount3Accounts);
 
@@ -367,8 +367,8 @@ pub struct InitializeMultisig2 {
 /// Accounts for the [`InitializeMultisig2`] instruction.
 #[derive(Debug, Clone, AccountSet)]
 pub struct InitializeMultisig2Accounts {
-    pub multisig: Mut<AccountInfo>,
-    pub signers: Rest<AccountInfo>,
+    pub multisig: Mut<AccountView>,
+    pub signers: Rest<AccountView>,
 }
 empty_star_frame_instruction!(InitializeMultisig2, InitializeMultisig2Accounts);
 
@@ -378,13 +378,13 @@ empty_star_frame_instruction!(InitializeMultisig2, InitializeMultisig2Accounts);
 #[type_to_idl(program = crate::token::Token)]
 pub struct InitializeMint2 {
     pub decimals: u8,
-    pub mint_authority: Pubkey,
-    pub freeze_authority: Option<Pubkey>,
+    pub mint_authority: Address,
+    pub freeze_authority: Option<Address>,
 }
 /// Accounts for the [`InitializeMint2`] instruction.
 #[derive(Debug, Clone, AccountSet)]
 pub struct InitializeMint2Accounts {
-    pub mint: Mut<AccountInfo>,
+    pub mint: Mut<AccountView>,
 }
 empty_star_frame_instruction!(InitializeMint2, InitializeMint2Accounts);
 
@@ -396,7 +396,7 @@ pub struct GetAccountDataSize;
 /// Accounts for the [`GetAccountDataSize`] instruction.
 #[derive(Debug, Clone, AccountSet)]
 pub struct GetAccountDataSizeAccounts {
-    pub mint: AccountInfo,
+    pub mint: AccountView,
 }
 empty_star_frame_instruction!(GetAccountDataSize, GetAccountDataSizeAccounts);
 
@@ -408,7 +408,7 @@ pub struct InitializeImmutableOwner;
 /// Accounts for the [`InitializeImmutableOwner`] instruction.
 #[derive(Debug, Clone, AccountSet)]
 pub struct InitializeImmutableOwnerAccounts {
-    pub account: Mut<AccountInfo>,
+    pub account: Mut<AccountView>,
 }
 empty_star_frame_instruction!(InitializeImmutableOwner, InitializeImmutableOwnerAccounts);
 
@@ -422,7 +422,7 @@ pub struct AmountToUiAmount {
 /// Accounts for the [`AmountToUiAmount`] instruction.
 #[derive(Debug, Clone, AccountSet)]
 pub struct AmountToUiAmountAccounts {
-    pub mint: AccountInfo,
+    pub mint: AccountView,
 }
 empty_star_frame_instruction!(AmountToUiAmount, AmountToUiAmountAccounts);
 
@@ -444,9 +444,9 @@ mod tests {
     #[test]
     fn test_initialize_mint() -> Result<()> {
         let decimals = 8u8;
-        let mint = Pubkey::new_unique();
-        let mint_authority = Pubkey::new_unique();
-        let freeze_authority = Some(Pubkey::new_unique());
+        let mint = Address::new_unique();
+        let mint_authority = Address::new_unique();
+        let freeze_authority = Some(Address::new_unique());
 
         let initialize_mint_sf = Token::instruction(
             &InitializeMint {
@@ -471,9 +471,9 @@ mod tests {
 
     #[test]
     fn test_initialize_account() -> Result<()> {
-        let account = Pubkey::new_unique();
-        let mint = Pubkey::new_unique();
-        let owner = Pubkey::new_unique();
+        let account = Address::new_unique();
+        let mint = Address::new_unique();
+        let owner = Address::new_unique();
 
         let initialize_account_sf = Token::instruction(
             &InitializeAccount,
@@ -498,8 +498,8 @@ mod tests {
 
     #[test]
     fn test_initialize_multisig() -> Result<()> {
-        let multisig = Pubkey::new_unique();
-        let signers = vec![Pubkey::new_unique(), Pubkey::new_unique()];
+        let multisig = Address::new_unique();
+        let signers = vec![Address::new_unique(), Address::new_unique()];
         let m = 2u8;
 
         let initialize_multisig_sf = Token::instruction(
@@ -525,9 +525,9 @@ mod tests {
 
     #[test]
     fn test_transfer() -> Result<()> {
-        let source = Pubkey::new_unique();
-        let destination = Pubkey::new_unique();
-        let owner = Pubkey::new_unique();
+        let source = Address::new_unique();
+        let destination = Address::new_unique();
+        let owner = Address::new_unique();
         let amount = 500u64;
 
         let transfer_sf = Token::instruction(
@@ -554,9 +554,9 @@ mod tests {
 
     #[test]
     fn test_approve() -> Result<()> {
-        let source = Pubkey::new_unique();
-        let delegate = Pubkey::new_unique();
-        let owner = Pubkey::new_unique();
+        let source = Address::new_unique();
+        let delegate = Address::new_unique();
+        let owner = Address::new_unique();
         let amount = 250u64;
 
         let approve_sf = Token::instruction(
@@ -583,8 +583,8 @@ mod tests {
 
     #[test]
     fn test_revoke() -> Result<()> {
-        let source = Pubkey::new_unique();
-        let owner = Pubkey::new_unique();
+        let source = Address::new_unique();
+        let owner = Address::new_unique();
 
         let revoke_sf = Token::instruction(&Revoke, RevokeClientAccounts { source, owner })?;
 
@@ -601,9 +601,9 @@ mod tests {
 
     #[test]
     fn test_set_authority() -> Result<()> {
-        let account = Pubkey::new_unique();
-        let current_authority = Pubkey::new_unique();
-        let new_authority = Some(Pubkey::new_unique());
+        let account = Address::new_unique();
+        let current_authority = Address::new_unique();
+        let new_authority = Some(Address::new_unique());
         let authority_type = AuthorityType::AccountOwner;
         let authority_type_spl = spl_token_interface::instruction::AuthorityType::AccountOwner;
 
@@ -633,9 +633,9 @@ mod tests {
 
     #[test]
     fn test_mint_to() -> Result<()> {
-        let mint = Pubkey::new_unique();
-        let account = Pubkey::new_unique();
-        let mint_authority = Pubkey::new_unique();
+        let mint = Address::new_unique();
+        let account = Address::new_unique();
+        let mint_authority = Address::new_unique();
         let amount = 1000u64;
 
         let mint_to_sf = Token::instruction(
@@ -662,9 +662,9 @@ mod tests {
 
     #[test]
     fn test_burn() -> Result<()> {
-        let account = Pubkey::new_unique();
-        let mint = Pubkey::new_unique();
-        let owner = Pubkey::new_unique();
+        let account = Address::new_unique();
+        let mint = Address::new_unique();
+        let owner = Address::new_unique();
         let amount = 500u64;
 
         let burn_sf = Token::instruction(
@@ -691,9 +691,9 @@ mod tests {
 
     #[test]
     fn test_close_account() -> Result<()> {
-        let account = Pubkey::new_unique();
-        let destination = Pubkey::new_unique();
-        let owner = Pubkey::new_unique();
+        let account = Address::new_unique();
+        let destination = Address::new_unique();
+        let owner = Address::new_unique();
 
         let close_account_sf = Token::instruction(
             &CloseAccount,
@@ -718,9 +718,9 @@ mod tests {
 
     #[test]
     fn test_freeze_account() -> Result<()> {
-        let account = Pubkey::new_unique();
-        let mint = Pubkey::new_unique();
-        let authority = Pubkey::new_unique();
+        let account = Address::new_unique();
+        let mint = Address::new_unique();
+        let authority = Address::new_unique();
 
         let freeze_account_sf = Token::instruction(
             &FreezeAccount,
@@ -745,9 +745,9 @@ mod tests {
 
     #[test]
     fn test_thaw_account() -> Result<()> {
-        let account = Pubkey::new_unique();
-        let mint = Pubkey::new_unique();
-        let authority = Pubkey::new_unique();
+        let account = Address::new_unique();
+        let mint = Address::new_unique();
+        let authority = Address::new_unique();
 
         let thaw_account_sf = Token::instruction(
             &ThawAccount,
@@ -772,10 +772,10 @@ mod tests {
 
     #[test]
     fn test_transfer_checked() -> Result<()> {
-        let source = Pubkey::new_unique();
-        let mint = Pubkey::new_unique();
-        let destination = Pubkey::new_unique();
-        let owner = Pubkey::new_unique();
+        let source = Address::new_unique();
+        let mint = Address::new_unique();
+        let destination = Address::new_unique();
+        let owner = Address::new_unique();
         let amount = 100u64;
         let decimals = 2u8;
 
@@ -806,10 +806,10 @@ mod tests {
 
     #[test]
     fn test_approve_checked() -> Result<()> {
-        let source = Pubkey::new_unique();
-        let mint = Pubkey::new_unique();
-        let delegate = Pubkey::new_unique();
-        let owner = Pubkey::new_unique();
+        let source = Address::new_unique();
+        let mint = Address::new_unique();
+        let delegate = Address::new_unique();
+        let owner = Address::new_unique();
         let amount = 50u64;
         let decimals = 2u8;
 
@@ -840,9 +840,9 @@ mod tests {
 
     #[test]
     fn test_mint_to_checked() -> Result<()> {
-        let mint = Pubkey::new_unique();
-        let account = Pubkey::new_unique();
-        let mint_authority = Pubkey::new_unique();
+        let mint = Address::new_unique();
+        let account = Address::new_unique();
+        let mint_authority = Address::new_unique();
         let amount = 1000u64;
         let decimals = 2u8;
 
@@ -872,9 +872,9 @@ mod tests {
 
     #[test]
     fn test_burn_checked() -> Result<()> {
-        let account = Pubkey::new_unique();
-        let mint = Pubkey::new_unique();
-        let owner = Pubkey::new_unique();
+        let account = Address::new_unique();
+        let mint = Address::new_unique();
+        let owner = Address::new_unique();
         let amount = 500u64;
         let decimals = 2u8;
 
@@ -904,7 +904,7 @@ mod tests {
 
     #[test]
     fn test_sync_native() -> Result<()> {
-        let account = Pubkey::new_unique();
+        let account = Address::new_unique();
 
         let sync_native_sf = Token::instruction(&SyncNative, SyncNativeClientAccounts { account })?;
 
@@ -917,9 +917,9 @@ mod tests {
 
     #[test]
     fn test_initialize_account2() -> Result<()> {
-        let account = Pubkey::new_unique();
-        let mint = Pubkey::new_unique();
-        let owner = Pubkey::new_unique();
+        let account = Address::new_unique();
+        let mint = Address::new_unique();
+        let owner = Address::new_unique();
 
         let initialize_account2_sf = Token::instruction(
             &InitializeAccount2 { owner },
@@ -943,9 +943,9 @@ mod tests {
 
     #[test]
     fn test_initialize_account3() -> Result<()> {
-        let account = Pubkey::new_unique();
-        let mint = Pubkey::new_unique();
-        let owner = Pubkey::new_unique();
+        let account = Address::new_unique();
+        let mint = Address::new_unique();
+        let owner = Address::new_unique();
 
         let initialize_account3_sf = Token::instruction(
             &InitializeAccount3 { owner },
@@ -965,8 +965,8 @@ mod tests {
 
     #[test]
     fn test_initialize_multisig2() -> Result<()> {
-        let multisig = Pubkey::new_unique();
-        let signers = vec![Pubkey::new_unique(), Pubkey::new_unique()];
+        let multisig = Address::new_unique();
+        let signers = vec![Address::new_unique(), Address::new_unique()];
         let m = 2u8;
 
         let initialize_multisig2_sf = Token::instruction(
@@ -993,8 +993,8 @@ mod tests {
     #[test]
     fn test_initialize_mint2() -> Result<()> {
         let decimals = 6u8;
-        let mint = Pubkey::new_unique();
-        let mint_authority = Pubkey::new_unique();
+        let mint = Address::new_unique();
+        let mint_authority = Address::new_unique();
         let freeze_authority = None;
 
         let initialize_mint2_sf = Token::instruction(
@@ -1020,7 +1020,7 @@ mod tests {
 
     #[test]
     fn test_get_account_data_size() -> Result<()> {
-        let mint = Pubkey::new_unique();
+        let mint = Address::new_unique();
 
         let get_account_data_size_sf = Token::instruction(
             &GetAccountDataSize,
@@ -1038,7 +1038,7 @@ mod tests {
 
     #[test]
     fn test_initialize_immutable_owner() -> Result<()> {
-        let account = Pubkey::new_unique();
+        let account = Address::new_unique();
 
         let initialize_immutable_owner_sf = Token::instruction(
             &InitializeImmutableOwner,
@@ -1057,7 +1057,7 @@ mod tests {
 
     #[test]
     fn test_amount_to_ui_amount() -> Result<()> {
-        let mint = Pubkey::new_unique();
+        let mint = Address::new_unique();
         let amount = 1000u64;
 
         let amount_to_ui_amount_sf = Token::instruction(
