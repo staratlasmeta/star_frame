@@ -30,7 +30,7 @@ pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
         account_info,
         bytemuck,
         instruction,
-        pubkey,
+        address,
         result,
         prelude,
         instruction_set_args_ident,
@@ -156,7 +156,7 @@ pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
 
             #[inline(always)]
             fn dispatch(
-                program_id: &'static #pubkey,
+                program_id: &'static #address,
                 accounts: &[#account_info],
                 mut instruction_data: &'static [u8],
             ) -> #result<()> {

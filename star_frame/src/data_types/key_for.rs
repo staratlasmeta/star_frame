@@ -9,8 +9,8 @@ use serde::{Deserialize, Serialize};
 
 /// Allows setting a [`KeyFor`] or [`OptionalKeyFor`] using other types.
 pub trait SetKeyFor<T: ?Sized, I> {
-    /// Sets the contained pubkey.
-    fn set_pubkey(&mut self, pubkey: I);
+    /// Sets the contained address.
+    fn set_address(&mut self, address: I);
 }
 
 /// Allows getting a [`KeyFor`] from other types.
@@ -27,49 +27,49 @@ pub trait GetKeyFor<T: ?Sized> {
 #[serde(transparent)]
 #[repr(transparent)]
 pub struct KeyFor<T: ?Sized> {
-    pubkey: Address,
+    address: Address,
     phantom: PhantomData<fn() -> T>,
 }
 
 impl<T: ?Sized> Display for KeyFor<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-        write!(f, "{}", self.pubkey)
+        write!(f, "{}", self.address)
     }
 }
 impl<T: ?Sized> KeyFor<T> {
     /// Creates a new [`KeyFor`] for any `T`.
     #[must_use]
-    pub fn new(pubkey: Address) -> Self {
+    pub fn new(address: Address) -> Self {
         Self {
-            pubkey,
+            address,
             phantom: PhantomData,
         }
     }
 
     /// Returns a reference to [`KeyFor`] for any `T` from a reference to a `Address`.
     #[must_use]
-    pub fn new_ref(pubkey: &Address) -> &Self
+    pub fn new_ref(address: &Address) -> &Self
     where
         T: 'static,
     {
-        bytemuck::cast_ref(pubkey)
+        bytemuck::cast_ref(address)
     }
 
-    /// Returns a reference to the contained pubkey.
+    /// Returns a reference to the contained address.
     #[must_use]
     pub fn address(&self) -> &Address {
-        &self.pubkey
+        &self.address
     }
 
-    /// Sets the contained pubkey.
-    pub fn set_pubkey_direct(&mut self, pubkey: Address) {
-        self.pubkey = pubkey;
+    /// Sets the contained address.
+    pub fn set_address_direct(&mut self, address: Address) {
+        self.address = address;
     }
 }
 
 impl<T: HasInnerType + SingleAccountSet> SetKeyFor<T::Inner, &T> for KeyFor<T::Inner> {
-    fn set_pubkey(&mut self, pubkey: &T) {
-        self.pubkey = *pubkey.address();
+    fn set_address(&mut self, address: &T) {
+        self.address = *address.address();
     }
 }
 
@@ -111,7 +111,7 @@ where
 {
     fn zeroed() -> Self {
         Self {
-            pubkey: Address::zeroed(),
+            address: Address::zeroed(),
             phantom: PhantomData,
         }
     }

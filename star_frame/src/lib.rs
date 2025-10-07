@@ -417,7 +417,7 @@ pub fn Ok<T>(value: T) -> Result<T> {
 #[cfg(not(target_os = "solana"))]
 #[doc(hidden)]
 pub use solana_instruction::Instruction as SolanaInstruction;
-pub use star_frame_proc::{pubkey, sighash, zero_copy};
+pub use star_frame_proc::{address, sighash, zero_copy};
 
 #[allow(unused_imports)]
 #[cfg(test)]

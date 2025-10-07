@@ -40,7 +40,7 @@ impl<T> Display for OptionalKeyFor<T> {
     }
 }
 impl<T: ?Sized> OptionalKeyFor<T> {
-    /// Gets the contained pubkey.
+    /// Gets the contained address.
     /// An [`OptionalKeyFor`] with the [`None`] variant.
     pub const NONE: OptionalKeyFor<T> = OptionalKeyFor {
         address: Address::new_from_array([0; 32]),
@@ -49,23 +49,23 @@ impl<T: ?Sized> OptionalKeyFor<T> {
 
     /// Creates a new [`OptionalKeyFor`] for any `T`.
     #[must_use]
-    pub fn new(pubkey: Address) -> Self {
+    pub fn new(address: Address) -> Self {
         Self {
-            address: pubkey,
+            address,
             phantom: PhantomData,
         }
     }
 
     /// Creates a new reference to [`OptionalKeyFor`] for any `T` from a reference to a `Address`.
     #[must_use]
-    pub fn new_ref(pubkey: &Address) -> &Self
+    pub fn new_ref(address: &Address) -> &Self
     where
         T: 'static,
     {
-        bytemuck::cast_ref(pubkey)
+        bytemuck::cast_ref(address)
     }
 
-    /// Attempts to return a reference to a [`KeyFor`] if the contained pubkey is not [`None`].
+    /// Attempts to return a reference to a [`KeyFor`] if the contained address is not [`None`].
     #[must_use]
     pub fn key_for(&self) -> Option<&KeyFor<T>>
     where
@@ -80,7 +80,7 @@ impl<T: ?Sized> OptionalKeyFor<T> {
 
     /// Attempts to return a reference to the contained [`Address`] if not [`None`].
     #[must_use]
-    pub fn pubkey(&self) -> Option<&Address> {
+    pub fn address(&self) -> Option<&Address> {
         if self.address.fast_eq(&Address::new_from_array([0; 32])) {
             None
         } else {
@@ -95,22 +95,22 @@ impl<T: ?Sized> OptionalKeyFor<T> {
     }
 
     /// Sets the contained [`Address`].
-    pub fn set_pubkey_direct(&mut self, pubkey: Option<Address>) {
-        self.address = pubkey.unwrap_or_default();
+    pub fn set_address_direct(&mut self, address: Option<Address>) {
+        self.address = address.unwrap_or_default();
     }
 }
 
 impl<T: HasInnerType + SingleAccountSet> SetKeyFor<T::Inner, &T> for OptionalKeyFor<T::Inner> {
-    fn set_pubkey(&mut self, pubkey: &T) {
-        self.address = *(pubkey.address());
+    fn set_address(&mut self, address: &T) {
+        self.address = *(address.address());
     }
 }
 
 impl<T: HasInnerType + SingleAccountSet> SetKeyFor<T::Inner, &Option<T>>
     for OptionalKeyFor<T::Inner>
 {
-    fn set_pubkey(&mut self, pubkey: &Option<T>) {
-        self.address = pubkey
+    fn set_address(&mut self, address: &Option<T>) {
+        self.address = address
             .as_ref()
             .map_or_else(Address::default, |acc| *(acc.address()));
     }

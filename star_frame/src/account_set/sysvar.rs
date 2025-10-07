@@ -18,7 +18,7 @@ impl SysvarId for pinocchio::sysvars::rent::Rent {
     }
 }
 
-pub const RECENT_BLOCKHASHES_ID: Address = pubkey!("SysvarRecentB1ockHashes11111111111111111111");
+pub const RECENT_BLOCKHASHES_ID: Address = address!("SysvarRecentB1ockHashes11111111111111111111");
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct InstructionsSysvar;

@@ -8,7 +8,7 @@ mod instruction_args;
 mod instruction_set;
 mod program;
 mod program_account;
-mod solana_pubkey;
+mod solana_address;
 mod star_frame_error;
 mod star_frame_instruction;
 mod unsize;
@@ -568,7 +568,7 @@ pub fn program(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 /// let mut data = account.data_mut()?;
 /// assert!(matches!(**data, MyEnumMut::UnitVariant));
 /// let new_key = Address::new_unique();
-/// let mut the_key = data.set_sized_pubkey(new_key)?;
+/// let mut the_key = data.set_sized_address(new_key)?;
 /// assert!(matches!(**the_key, new_key));
 ///
 /// let _unsized_inner = data.set_unsized(DefaultInit)?;
@@ -1011,6 +1011,6 @@ pub fn zero_copy(
 /// Compile time generation of a `Address` from a base58 string literal.
 // ---- Copied solana-program macros to use `star_frame::solana_program` path  ----
 #[proc_macro]
-pub fn pubkey(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    solana_pubkey::pubkey_impl(input)
+pub fn address(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    solana_address::address_impl(input)
 }

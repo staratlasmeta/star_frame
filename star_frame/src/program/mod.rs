@@ -53,7 +53,7 @@ macro_rules! program_setup {
         pub const ID: $crate::prelude::Address =
             <$program as $crate::program::StarFrameProgram>::ID;
 
-        #[doc = r" Returns `true` if given pubkey is the program ID."]
+        #[doc = r" Returns `true` if given address is the program ID."]
         pub fn check_id(id: &$crate::prelude::Address) -> bool {
             id == &ID
         }

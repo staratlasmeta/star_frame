@@ -46,7 +46,7 @@ impl StarFrameProgram for AssociatedToken {
     /// # use star_frame_spl::associated_token::AssociatedToken;
     /// assert_eq!(AssociatedToken::ID, spl_associated_token_account_interface::program::ID);
     /// ```
-    const ID: Address = pubkey!("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");
+    const ID: Address = address!("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");
 }
 
 #[cfg(all(feature = "idl", not(target_os = "solana")))]

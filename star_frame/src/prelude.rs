@@ -19,6 +19,7 @@ pub use crate::client::MakeInstruction as _;
 
 pub use crate::{
     account_set::prelude::*,
+    address,
     align1::Align1,
     bail, borsh_with_bytemuck,
     client::{
@@ -40,7 +41,6 @@ pub use crate::{
         StarFrameInstruction,
     },
     program::{system::System, StarFrameProgram},
-    pubkey,
     unsize::prelude::*,
     util::{borsh_bytemuck, FastAddressEq as _},
     Result,
