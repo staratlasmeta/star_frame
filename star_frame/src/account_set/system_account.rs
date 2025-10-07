@@ -8,12 +8,14 @@ use crate::account_set::HasOwnerProgram;
 #[derive(AccountSet, Debug, Deref, DerefMut, Clone, Copy)]
 #[validate(extra_validation = self.check_id())]
 #[repr(transparent)]
-pub struct SystemAccount(#[single_account_set(skip_has_owner_program)] AccountInfo);
+pub struct SystemAccount(#[single_account_set(skip_has_owner_program)] AccountView);
 
 impl SystemAccount {
     #[inline]
     pub fn check_id(&self) -> Result<()> {
-        if self.owner().fast_eq(&System::ID) {
+        // SAFETY:
+        // The reference is immediately used and dropped, so we don't need to worry about it being used after the function returns
+        if unsafe { self.owner() }.fast_eq(&System::ID) {
             Ok(())
         } else {
             Err(ProgramError::IllegalOwner.into())

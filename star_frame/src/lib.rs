@@ -115,7 +115,7 @@
 //! #[derive(Default, Debug, Eq, PartialEq, ProgramAccount)]
 //! #[program_account(seeds = CounterSeeds)]
 //! pub struct CounterAccount {
-//!     pub authority: Pubkey,
+//!     pub authority: Address,
 //!     pub count: u64,
 //! }
 //!
@@ -123,7 +123,7 @@
 //! #[derive(Debug, GetSeeds, Clone)]
 //! #[get_seeds(seed_const = b"COUNTER")]
 //! pub struct CounterSeeds {
-//!     pub authority: Pubkey,
+//!     pub authority: Address,
 //! }
 //! ```
 //!
@@ -146,9 +146,9 @@
 //!
 //! #[unsized_type(program_account, seeds = CounterSeeds)]
 //! pub struct CounterAccount {
-//!     pub authority: Pubkey,
+//!     pub authority: Address,
 //!     #[unsized_start]
-//!     pub count_tracker: UnsizedMap<Pubkey, PackedValue<u64>>,
+//!     pub count_tracker: UnsizedMap<Address, PackedValue<u64>>,
 //! }
 //! ```
 //! Check out the [`unsize`] module for more details.
@@ -167,7 +167,7 @@
 //!     pub authority: Signer<Mut<SystemAccount>>,
 //!     #[validate(arg = (
 //!         Create(()),
-//!         Seeds(CounterSeeds { authority: *self.authority.pubkey() }),
+//!         Seeds(CounterSeeds { authority: *self.authority.address() }),
 //!     ))]
 //!     pub counter: Init<Seeded<Account<CounterAccount>>>,
 //!     pub system_program: Program<System>,
@@ -181,13 +181,13 @@
 //! # #[program_account(seeds = CounterSeeds)]
 //! # #[repr(C, packed)]
 //! # pub struct CounterAccount {
-//! #   authority: Pubkey,
+//! #   authority: Address,
 //! # }
 //! #
 //! # #[derive(Debug, GetSeeds, Clone)]
 //! # #[get_seeds(seed_const = b"COUNTER")]
 //! # pub struct CounterSeeds {
-//! #     pub authority: Pubkey,
+//! #     pub authority: Address,
 //! # }
 //!
 //! ```
@@ -213,14 +213,14 @@
 //! # #[derive(Align1, Pod, Zeroable, Default, Copy, Clone, Debug, Eq, PartialEq, ProgramAccount)]
 //! # #[repr(C, packed)]
 //! # pub struct CounterAccount {
-//! #     pub authority: Pubkey,
+//! #     pub authority: Address,
 //! #     pub count: u64,
 //! # }
 //! # #[derive(AccountSet, Debug)]
 //! # #[account_set(skip_default_idl)]
 //! # pub struct InitializeAccounts {
 //! #     pub counter: Mut<Account<CounterAccount>>,
-//! #     pub authority: AccountInfo,
+//! #     pub authority: AccountView,
 //! # }
 //! use star_frame::prelude::*;
 //!
@@ -234,7 +234,7 @@
 //!         _ctx: &mut Context,
 //!     ) -> Result<()> {
 //!         **accounts.counter.data_mut()? = CounterAccount {
-//!             authority: *accounts.authority.pubkey(),
+//!             authority: *accounts.authority.address(),
 //!             count: start_at.unwrap_or(0),
 //!         };
 //!         Ok(())
@@ -260,21 +260,21 @@
 //! # #[derive(Align1, Pod, Zeroable, Default, Copy, Clone, Debug, Eq, PartialEq, ProgramAccount)]
 //! # #[repr(C, packed)]
 //! # pub struct CounterAccount {
-//! #     pub authority: Pubkey,
+//! #     pub authority: Address,
 //! #     pub count: u64,
 //! # }
 //! # #[derive(AccountSet, Debug)]
 //! # #[account_set(skip_default_idl)]
 //! # pub struct InitializeAccounts {
 //! #     pub counter: Mut<Account<CounterAccount>>,
-//! #     pub authority: AccountInfo,
+//! #     pub authority: AccountView,
 //! # }
 //! use star_frame::prelude::*;
 //!
 //! #[star_frame_instruction]
 //! fn Initialize(accounts: &mut InitializeAccounts, start_at: &Option<u64>) -> Result<()> {
 //!     **accounts.counter.data_mut()? = CounterAccount {
-//!         authority: *accounts.authority.pubkey(),
+//!         authority: *accounts.authority.address(),
 //!         count: start_at.unwrap_or(0),
 //!     };
 //!     Ok(())
@@ -369,14 +369,16 @@ pub extern crate paste;
 pub extern crate pinocchio;
 pub extern crate self as star_frame;
 pub extern crate serde;
-#[cfg(all(feature = "idl", not(target_os = "solana")))]
-pub extern crate serde_json;
-pub extern crate solana_instruction;
-pub extern crate solana_pubkey;
-#[cfg(all(feature = "idl", not(target_os = "solana")))]
-pub extern crate star_frame_idl;
+pub extern crate solana_address;
 pub extern crate static_assertions;
 pub extern crate typenum;
+
+#[cfg(all(feature = "idl", not(target_os = "solana")))]
+pub extern crate serde_json;
+#[cfg(not(target_os = "solana"))]
+pub extern crate solana_instruction;
+#[cfg(all(feature = "idl", not(target_os = "solana")))]
+pub extern crate star_frame_idl;
 
 pub mod account_set;
 pub mod align1;
@@ -412,9 +414,10 @@ pub fn Ok<T>(value: T) -> Result<T> {
     Result::Ok(value)
 }
 
+#[cfg(not(target_os = "solana"))]
 #[doc(hidden)]
 pub use solana_instruction::Instruction as SolanaInstruction;
-pub use star_frame_proc::{pubkey, sighash, zero_copy};
+pub use star_frame_proc::{address, sighash, zero_copy};
 
 #[allow(unused_imports)]
 #[cfg(test)]
@@ -427,12 +430,12 @@ compile_error!("You must enable the `test_helpers` feature for running tests!");
 mod tests {
     use super::*;
     use crate::program::StarFrameProgram;
-    use solana_pubkey::Pubkey;
+    use solana_address::Address;
 
     #[derive(StarFrameProgram)]
     #[program(
         instruction_set = (),
-        id = Pubkey::new_from_array([0; 32]),
+        id = Address::new_from_array([0; 32]),
         no_entrypoint,
     )]
     pub struct MyProgram;

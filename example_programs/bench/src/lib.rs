@@ -1,3 +1,4 @@
+#![no_std]
 use star_frame::{empty_star_frame_instruction, prelude::*};
 use star_frame_spl::token::state::{MintAccount, TokenAccount};
 
@@ -107,7 +108,7 @@ use star_frame::borsh::{BorshDeserialize, BorshSerialize};
 pub struct AccountInfo1;
 #[derive(AccountSet, Debug)]
 pub struct AccountInfo1Accounts {
-    pub account1: AccountInfo,
+    pub account1: AccountView,
 }
 empty_star_frame_instruction!(AccountInfo1, AccountInfo1Accounts);
 
@@ -115,8 +116,8 @@ empty_star_frame_instruction!(AccountInfo1, AccountInfo1Accounts);
 pub struct AccountInfo2;
 #[derive(AccountSet, Debug)]
 pub struct AccountInfo2Accounts {
-    pub account1: AccountInfo,
-    pub account2: AccountInfo,
+    pub account1: AccountView,
+    pub account2: AccountView,
 }
 empty_star_frame_instruction!(AccountInfo2, AccountInfo2Accounts);
 
@@ -124,10 +125,10 @@ empty_star_frame_instruction!(AccountInfo2, AccountInfo2Accounts);
 pub struct AccountInfo4;
 #[derive(AccountSet, Debug)]
 pub struct AccountInfo4Accounts {
-    pub account1: AccountInfo,
-    pub account2: AccountInfo,
-    pub account3: AccountInfo,
-    pub account4: AccountInfo,
+    pub account1: AccountView,
+    pub account2: AccountView,
+    pub account3: AccountView,
+    pub account4: AccountView,
 }
 empty_star_frame_instruction!(AccountInfo4, AccountInfo4Accounts);
 
@@ -135,14 +136,14 @@ empty_star_frame_instruction!(AccountInfo4, AccountInfo4Accounts);
 pub struct AccountInfo8;
 #[derive(AccountSet, Debug)]
 pub struct AccountInfo8Accounts {
-    pub account1: AccountInfo,
-    pub account2: AccountInfo,
-    pub account3: AccountInfo,
-    pub account4: AccountInfo,
-    pub account5: AccountInfo,
-    pub account6: AccountInfo,
-    pub account7: AccountInfo,
-    pub account8: AccountInfo,
+    pub account1: AccountView,
+    pub account2: AccountView,
+    pub account3: AccountView,
+    pub account4: AccountView,
+    pub account5: AccountView,
+    pub account6: AccountView,
+    pub account7: AccountView,
+    pub account8: AccountView,
 }
 empty_star_frame_instruction!(AccountInfo8, AccountInfo8Accounts);
 
@@ -1195,7 +1196,7 @@ empty_star_frame_instruction!(SystemAccount8, SystemAccount8Accounts);
 pub struct UncheckedAccount1;
 #[derive(AccountSet, Debug)]
 pub struct UncheckedAccount1Accounts {
-    pub account1: AccountInfo,
+    pub account1: AccountView,
 }
 empty_star_frame_instruction!(UncheckedAccount1, UncheckedAccount1Accounts);
 
@@ -1203,8 +1204,8 @@ empty_star_frame_instruction!(UncheckedAccount1, UncheckedAccount1Accounts);
 pub struct UncheckedAccount2;
 #[derive(AccountSet, Debug)]
 pub struct UncheckedAccount2Accounts {
-    pub account1: AccountInfo,
-    pub account2: AccountInfo,
+    pub account1: AccountView,
+    pub account2: AccountView,
 }
 empty_star_frame_instruction!(UncheckedAccount2, UncheckedAccount2Accounts);
 
@@ -1212,10 +1213,10 @@ empty_star_frame_instruction!(UncheckedAccount2, UncheckedAccount2Accounts);
 pub struct UncheckedAccount4;
 #[derive(AccountSet, Debug)]
 pub struct UncheckedAccount4Accounts {
-    pub account1: AccountInfo,
-    pub account2: AccountInfo,
-    pub account3: AccountInfo,
-    pub account4: AccountInfo,
+    pub account1: AccountView,
+    pub account2: AccountView,
+    pub account3: AccountView,
+    pub account4: AccountView,
 }
 empty_star_frame_instruction!(UncheckedAccount4, UncheckedAccount4Accounts);
 
@@ -1223,13 +1224,13 @@ empty_star_frame_instruction!(UncheckedAccount4, UncheckedAccount4Accounts);
 pub struct UncheckedAccount8;
 #[derive(AccountSet, Debug)]
 pub struct UncheckedAccount8Accounts {
-    pub account1: AccountInfo,
-    pub account2: AccountInfo,
-    pub account3: AccountInfo,
-    pub account4: AccountInfo,
-    pub account5: AccountInfo,
-    pub account6: AccountInfo,
-    pub account7: AccountInfo,
-    pub account8: AccountInfo,
+    pub account1: AccountView,
+    pub account2: AccountView,
+    pub account3: AccountView,
+    pub account4: AccountView,
+    pub account5: AccountView,
+    pub account6: AccountView,
+    pub account7: AccountView,
+    pub account8: AccountView,
 }
 empty_star_frame_instruction!(UncheckedAccount8, UncheckedAccount8Accounts);

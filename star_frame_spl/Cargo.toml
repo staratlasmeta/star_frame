@@ -20,6 +20,8 @@ idl = ["star_frame/idl"]
 star_frame.workspace = true
 borsh.workspace = true
 bytemuck.workspace = true
+
+[target.'cfg(not(any(target_os = "solana", target_arch = "bpf")))'.dependencies]
 spl-token-interface = { workspace = true, optional = true }
 spl-associated-token-account-interface = { workspace = true, optional = true }
 solana-program-pack = { workspace = true, optional = true }

@@ -12,7 +12,9 @@ use pinocchio::sysvars::{clock::Clock, rent::Rent, Sysvar};
 #[derive(Debug)]
 pub struct Context {
     /// The program id of the currently executing program.
-    program_id: &'static Pubkey,
+    program_id: &'static Address,
+    /// The remaining data that wasn't parsed from Borsh.
+    remaining_data: &'static [u8],
     // Rent cache to avoid repeated `Rent::get()` calls
     rent_cache: Cell<Option<Rent>>,
     // Clock cache to avoid repeated `Clock::get()` calls
@@ -25,17 +27,18 @@ pub struct Context {
 
 impl Default for Context {
     fn default() -> Self {
-        static ZERO_PUBKEY: Pubkey = Pubkey::new_from_array([0; 32]);
-        Self::new(&ZERO_PUBKEY)
+        static ZERO_PUBKEY: Address = Address::new_from_array([0; 32]);
+        Self::new(&ZERO_PUBKEY, &[])
     }
 }
 
 impl Context {
     /// Create a new context from a program id.
     #[must_use]
-    pub fn new(program_id: &'static Pubkey) -> Self {
+    pub fn new(program_id: &'static Address, remaining_data: &'static [u8]) -> Self {
         Self {
             program_id,
+            remaining_data,
             rent_cache: Cell::new(None),
             clock_cache: Cell::new(None),
             recipient: None,
@@ -44,8 +47,13 @@ impl Context {
     }
 
     /// Get the program id of the currently executing program.
-    pub fn current_program_id(&self) -> &Pubkey {
+    pub fn current_program_id(&self) -> &Address {
         self.program_id
+    }
+
+    /// Get the remaining data that wasn't parsed from Borsh.
+    pub fn remaining_data(&self) -> &'static [u8] {
+        self.remaining_data
     }
 
     /// Gets the rent sysvar from the cache, populating the cache with a call to `Rent::get()` if empty.

@@ -72,44 +72,43 @@ pub fn fast_32_byte_eq(a: &[u8; 32], b: &[u8; 32]) -> bool {
     bytemuck::cast_slice::<_, PackedValue<u64>>(a) == bytemuck::cast_slice::<_, PackedValue<u64>>(b)
 }
 
-pub trait FastPubkeyEq<T> {
+pub trait FastAddressEq<T> {
     fn fast_eq(&self, other: &T) -> bool;
 }
 
-impl FastPubkeyEq<Pubkey> for Pubkey {
+impl FastAddressEq<Address> for Address {
     #[inline]
-    fn fast_eq(&self, other: &Pubkey) -> bool {
+    fn fast_eq(&self, other: &Address) -> bool {
         fast_32_byte_eq(self.as_array(), other.as_array())
     }
 }
 
-impl FastPubkeyEq<[u8; 32]> for Pubkey {
+impl FastAddressEq<[u8; 32]> for Address {
     #[inline]
     fn fast_eq(&self, other: &[u8; 32]) -> bool {
         fast_32_byte_eq(self.as_array(), other)
     }
 }
 
-impl FastPubkeyEq<[u8; 32]> for [u8; 32] {
+impl FastAddressEq<[u8; 32]> for [u8; 32] {
     #[inline]
     fn fast_eq(&self, other: &[u8; 32]) -> bool {
         fast_32_byte_eq(self, other)
     }
 }
 
-impl FastPubkeyEq<Pubkey> for [u8; 32] {
+impl FastAddressEq<Address> for [u8; 32] {
     #[inline]
-    fn fast_eq(&self, other: &Pubkey) -> bool {
+    fn fast_eq(&self, other: &Address) -> bool {
         fast_32_byte_eq(self, other.as_array())
     }
 }
 
 /// Custom [`borsh`] derive `serialize_with` and `deserialize_with` overrides for use with [`bytemuck`] types.
 pub mod borsh_bytemuck {
-    use crate::align1::Align1;
+    use super::*;
     use borsh::io::{Read, Write};
-    use bytemuck::{CheckedBitPattern, NoUninit};
-    use core::mem::{size_of, MaybeUninit};
+    use core::mem::MaybeUninit;
 
     /// Custom `serialize_with` override for [`borsh::BorshSerialize`] that uses [`bytemuck`] to serialize.
     /// This is intended for packed structs that are probably used in account data.
@@ -170,7 +169,7 @@ pub mod borsh_bytemuck {
         };
         reader.read_exact(bytes)?;
         bytemuck::checked::try_from_bytes::<P>(bytes)
-            .map_err(|e| borsh::io::Error::new(borsh::io::ErrorKind::InvalidData, e))?;
+            .map_err(|e| borsh::io::Error::new(borsh::io::ErrorKind::InvalidData, e.to_string()))?;
         Ok(unsafe { buffer.assume_init() })
     }
 

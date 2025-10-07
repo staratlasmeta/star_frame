@@ -1,9 +1,9 @@
 use crate::{
-    account::IdlAccountId, seeds::IdlFindSeeds, serde_base58_pubkey_option, ty::IdlTypeDef,
+    account::IdlAccountId, seeds::IdlFindSeeds, serde_base58_address_option, ty::IdlTypeDef,
     IdlDefinition, IdlGeneric, ItemDescription, ItemInfo, ItemSource, Result,
 };
 use serde::{Deserialize, Serialize};
-use solana_pubkey::Pubkey;
+use solana_address::Address;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct IdlAccountSetId {
@@ -45,11 +45,11 @@ pub struct IdlSingleAccountSet {
     #[serde(skip_serializing_if = "crate::is_default", default)]
     pub seeds: Option<IdlFindSeeds>,
     #[serde(
-        with = "serde_base58_pubkey_option",
+        with = "serde_base58_address_option",
         skip_serializing_if = "crate::is_default",
         default
     )]
-    pub address: Option<Pubkey>,
+    pub address: Option<Address>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
@@ -100,7 +100,7 @@ impl IdlAccountSetDef {
         Ok(self)
     }
 
-    pub fn with_single_address(mut self, address: Pubkey) -> Result<Self> {
+    pub fn with_single_address(mut self, address: Address) -> Result<Self> {
         let single = self.single()?;
         if let Some(old_address) = single.address {
             eprintln!("Warning: Overwriting address `{old_address}` in single account set with address `{address}`");

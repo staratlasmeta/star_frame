@@ -1,15 +1,15 @@
-use crate::{serde_base58_pubkey_option, ty::IdlTypeDef, ItemDescription};
+use crate::{serde_base58_address_option, ty::IdlTypeDef, ItemDescription};
 use derive_more::{Deref, DerefMut};
 use serde::{Deserialize, Serialize};
-use solana_pubkey::Pubkey;
+use solana_address::Address;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, Default)]
 pub struct IdlFindSeeds {
     pub seeds: Vec<IdlFindSeed>,
     /// The program used to find the PDA. If None, the seeds should be for the program this instruction
     /// is being called on.
-    #[serde(with = "serde_base58_pubkey_option")]
-    pub program: Option<Pubkey>,
+    #[serde(with = "serde_base58_address_option")]
+    pub program: Option<Address>,
 }
 
 /// The only seeds we can reliably derive are ones that only rely on constants and account keys in

@@ -15,14 +15,14 @@ pub mod verifier;
 
 use crate::{
     instruction::IdlInstructionDef,
-    serde_impls::{serde_base58_pubkey, serde_base58_pubkey_option},
+    serde_impls::{serde_base58_address, serde_base58_address_option},
 };
 use account::IdlAccount;
 use account_set::IdlAccountSet;
 use instruction::IdlInstruction;
 pub use semver::{Version, VersionReq};
 use serde::{Deserialize, Serialize};
-use solana_pubkey::Pubkey;
+use solana_address::Address;
 use std::{any::type_name, collections::BTreeMap};
 use ty::IdlType;
 
@@ -112,8 +112,8 @@ impl Default for IdlMetadata {
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct IdlDefinition {
-    #[serde(with = "serde_base58_pubkey")]
-    pub address: Pubkey,
+    #[serde(with = "serde_base58_address")]
+    pub address: Address,
     pub metadata: IdlMetadata,
     pub instructions: BTreeMap<ItemSource, IdlInstruction>,
     pub account_sets: BTreeMap<ItemSource, IdlAccountSet>,

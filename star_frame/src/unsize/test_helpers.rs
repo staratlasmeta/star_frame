@@ -1,5 +1,5 @@
 #![allow(unused)]
-use pinocchio::account_info::MAX_PERMITTED_DATA_INCREASE;
+use pinocchio::account::MAX_PERMITTED_DATA_INCREASE;
 
 use crate::{
     unsize::{
