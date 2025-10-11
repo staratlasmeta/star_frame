@@ -13,7 +13,7 @@ use crate::{
             UnsizedListWithOffsetIterMut,
         },
         init::UnsizedInit,
-        FromOwned,
+        FromOwned, UnsizedTypeMut,
     },
 };
 use std::{collections::BTreeMap, iter::FusedIterator};
@@ -189,12 +189,13 @@ where
     pub fn insert<I>(&mut self, key: K, value: I) -> Result<bool>
     where
         V: UnsizedInit<I>,
+        V::Mut<'top>: UnsizedTypeMut<UnsizedType = V>,
     {
         match self.get_index(&key) {
             Ok(existing_index) => {
-                // TODO: optimize this by just modifying bytes to fit and then writing to them
-                self.list().remove(existing_index)?;
-                self.list().insert_with_offset(existing_index, value, key)?;
+                let mut list = self.list();
+                let mut item = list.index_exclusive(existing_index)?;
+                item.set_from_init(value)?;
                 Ok(false)
             }
             Err(insertion_index) => {
