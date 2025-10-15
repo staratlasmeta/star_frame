@@ -654,7 +654,7 @@ impl UnsizedStructContext {
         if self.args.owned_type.is_some() {
             return None;
         }
-        Paths!(prelude, default);
+        Paths!(prelude, default, result);
         UnsizedStructContext!(self => struct_type, sized_field_idents, unsized_field_types, unsized_field_idents, sized_type);
 
         let from_owned_generics =
@@ -694,7 +694,7 @@ impl UnsizedStructContext {
                 }
 
                 #[inline]
-                fn from_owned(owned: Self::Owned, bytes: &mut &mut [u8]) -> Result<usize> {
+                fn from_owned(owned: Self::Owned, bytes: &mut &mut [u8]) -> #result<usize> {
                     let size = {
                         #sized_from_owned #(<#unsized_field_types as #prelude::FromOwned>::from_owned(owned.#unsized_field_idents, bytes)? +)* 0
                     };

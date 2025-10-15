@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Reduced unsized map CU cost by 50% when key already exists (#281)
+- Use full result path in unsized_type proc macro (#281)
+
 ## [0.26.1] - 2025-10-02
 
 ### Fixed

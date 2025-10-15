@@ -282,8 +282,8 @@ where
                         })?;
 
                     for item in rest.iter_mut() {
-                        item.as_mut_offset().0 =
-                            unsafe { item.as_mut_offset().0.unchecked_sub(change) }
+                        let item = item.as_mut_offset();
+                        item.0 = unsafe { item.0.unchecked_sub(change) };
                     }
                 }
             }
@@ -301,8 +301,8 @@ where
                         })?;
 
                     for item in rest.iter_mut() {
-                        item.as_mut_offset().0 =
-                            unsafe { item.as_mut_offset().0.unchecked_add(change) }
+                        let item = item.as_mut_offset();
+                        item.0 = unsafe { item.0.unchecked_add(change) };
                     }
                 }
             }
