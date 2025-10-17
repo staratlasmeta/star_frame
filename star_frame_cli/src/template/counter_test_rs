@@ -10,8 +10,10 @@ use crate::*;
 #[test]
 #[allow(unused)]
 fn program_test() -> Result<(), Box<dyn Error>> {
-        ensure!(!env::var("SBF_OUT_DIR").is_err(), "SBF_OUT_DIR not set");
-
+    ensure!(
+        !env::var("SBF_OUT_DIR").is_err(),
+        SfProjError::SbfOutDirNotSet
+    );
     
     let mollusk = Mollusk::new(&{name_pascalcase}Program::ID, "{name_lowercase}");
     let authority = Pubkey::new_unique();
