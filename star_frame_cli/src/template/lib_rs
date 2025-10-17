@@ -25,5 +25,9 @@ pub enum {name_pascalcase}InstructionSet {
 pub enum {name_pascalcase}Error {
     #[msg("Incorrect authority")]
     IncorrectAuthority,
+    #[msg("SBF_OUT_DIR not set")]
+    SbfOutDirNotSet,
+
+
 }
 
