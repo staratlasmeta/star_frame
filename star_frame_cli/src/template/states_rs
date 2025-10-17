@@ -19,9 +19,7 @@ pub struct Authority(pub Pubkey);
 
 impl AccountValidate<&Pubkey> for CounterAccount {
     fn validate_account(self_ref: &Self::Ref<'_>, signer: &Pubkey) -> Result<()> {
-        if self_ref.authority.ne(signer) {
-            return Err({name_pascalcase}Error::IncorrectAuthority.into());
-        }
+        ensure_eq!(&self_ref.authority, signer, {name_pascalcase}Error::IncorrectAuthority);
         Ok(())
     }
 }
