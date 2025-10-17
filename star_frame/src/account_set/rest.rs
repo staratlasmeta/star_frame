@@ -50,7 +50,7 @@ where
         program: Option<&'a AccountInfo>,
         accounts: &'a Self::CpiAccounts,
         index: &mut usize,
-        infos: &mut [std::mem::MaybeUninit<&'a AccountInfo>],
+        infos: &mut [core::mem::MaybeUninit<&'a AccountInfo>],
     ) -> Result<()> {
         <Vec<T>>::write_account_infos(program, accounts, index, infos)
     }
@@ -59,7 +59,7 @@ where
         program_id: &'a Pubkey,
         accounts: &'a Self::CpiAccounts,
         index: &mut usize,
-        metas: &mut [std::mem::MaybeUninit<pinocchio::instruction::AccountMeta<'a>>],
+        metas: &mut [core::mem::MaybeUninit<pinocchio::instruction::AccountMeta<'a>>],
     ) {
         <Vec<T>>::write_account_metas(program_id, accounts, index, metas);
     }

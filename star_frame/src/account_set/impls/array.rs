@@ -1,6 +1,6 @@
 //! `AccountSet` implementations for fixed-size arrays. Enables working with multiple accounts of the same type using `[T; N]` syntax with automatic iteration and validation.
 
-use std::{mem::MaybeUninit, ops::Mul};
+use core::{mem::MaybeUninit, ops::Mul};
 
 use crate::{
     account_set::{
@@ -181,6 +181,7 @@ where
 
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
 pub mod idl_impl {
+    use super::*;
     use crate::idl::AccountSetToIdl;
     use star_frame_idl::{account_set::IdlAccountSetDef, IdlDefinition};
 

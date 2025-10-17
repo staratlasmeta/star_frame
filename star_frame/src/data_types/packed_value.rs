@@ -1,7 +1,5 @@
-use std::{
-    cmp::Ordering,
-    io::{Read, Write},
-};
+use borsh::io::{Read, Write};
+use core::cmp::Ordering;
 
 use crate::prelude::*;
 use bytemuck::AnyBitPattern;

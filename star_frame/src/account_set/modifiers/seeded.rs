@@ -13,8 +13,8 @@ use crate::{
     ErrorCode,
 };
 use bytemuck::bytes_of;
+use core::marker::PhantomData;
 use derive_more::{Deref, DerefMut};
-use std::marker::PhantomData;
 
 pub use star_frame_proc::GetSeeds;
 /// A trait for getting the seed bytes of an account. The last element of the returned vector should be an empty slice, in order to replace it with a bump later on without
