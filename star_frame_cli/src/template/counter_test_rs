@@ -1,21 +1,15 @@
 use std::collections::HashMap;
-use std::env;
-
+use std::{env, error::Error};
 use mollusk_svm::result::Check;
 use mollusk_svm::{program::keyed_account_for_system_program, Mollusk};
 use solana_account::Account as SolanaAccount;
 use star_frame::{client::MakeInstruction, prelude::*, program::StarFrameProgram};
 use crate::states::*;
 use crate::*;
-use star_frame::eyre;
 
 #[test]
 #[allow(unused)]
-fn program_test() -> Result<()> {
-    if env::var("SBF_OUT_DIR").is_err() {
-        eyre::bail!("SBF_OUT_DIR is not set");
-    };
-    
+fn program_test() -> Result<(), Box<dyn Error>> {
     let mollusk = Mollusk::new(&{name_pascalcase}Program::ID, "{name_lowercase}");
     let authority = Pubkey::new_unique();
 
