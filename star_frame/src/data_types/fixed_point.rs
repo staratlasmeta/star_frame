@@ -15,7 +15,7 @@ mod idl_impl {
 
                 fn type_to_idl(_idl_definition: &mut IdlDefinition) -> crate::IdlResult<IdlTypeDef> {
                     Ok(IdlTypeDef::FixedPoint {
-                        ty: Box::new(IdlTypeDef::$def_ident),
+                        ty: alloc::boxed::Box::new(IdlTypeDef::$def_ident),
                         frac: Frac::U8,
                     })
                 }

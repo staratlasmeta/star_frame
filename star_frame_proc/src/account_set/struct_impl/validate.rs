@@ -197,7 +197,7 @@ pub(super) fn validates(
                     let address_check = args.address.as_ref().map(|address| quote! {
                         #prelude::ErrorInfo::account_path(
                             <#field_type as #prelude::CheckKey>::check_key(&self.#field_name, #address),
-                            ::std::stringify!(#field_name),
+                            ::core::stringify!(#field_name),
                         )?;
                     });
                     let temp = temp.as_ref().map(|temp| quote! {
@@ -207,7 +207,7 @@ pub(super) fn validates(
                     let handle_path = if single_set_field.is_some() {
                         quote! { res?; }
                     } else {
-                        quote! { #prelude::ErrorInfo::account_path(res, ::std::stringify!(#field_name))?; }
+                        quote! { #prelude::ErrorInfo::account_path(res, ::core::stringify!(#field_name))?; }
                     };
 
                     quote! {
