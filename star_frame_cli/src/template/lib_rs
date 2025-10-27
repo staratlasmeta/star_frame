@@ -1,5 +1,4 @@
 use star_frame::prelude::*;
-
 use instructions::*;
 mod instructions;
 pub mod states;
