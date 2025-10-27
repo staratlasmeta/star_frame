@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Fixed errors in cli template caused due to breaking changes made in star_frame (#283)
 
+- Fixed errors in cli test template caused due to breaking changes made in star_frame (#284)
+
+
+
 ## [0.26.2] - 2025-10-15
 
 ### Fixed
