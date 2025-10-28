@@ -121,7 +121,7 @@ pub struct IncrementAccounts {
 fn Increment(accounts: &mut IncrementAccounts) -> Result<()> {
     ensure!(
         *accounts.authority.pubkey() == accounts.counter.data()?.authority,
-        ProgramError::IllegalOwner
+        ProgramError::IncorrectAuthority
     );
     let mut counter = accounts.counter.data_mut()?;
     counter.count += 1;
