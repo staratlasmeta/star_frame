@@ -16,18 +16,18 @@
 
 Star Frame is a modern Solana program framework designed to make developing on-chain programs more ergonomic, safe, and performant. Built with a trait-based architecture, it provides:
 
-- **Performance**: Optimized for Solana's compute unit constraints by utilizing Pinocchio and our `unsized_type` system (check out the [Compute Units](example_programs/bench/COMPUTE_UNITS.md) benchmark vs Anchor).
-- **Developer Experience**: Intuitive APIs with comprehensive compile-time validation (traits and types all the way down!).
-- **Modularity**: Everything is a trait or a type, so you can use what you need when you need it. For example, the entrypoint is a method on the `StarFrameProgram` trait, and client/cpi account sets are associated types of the `ClientAccountSet` and `CpiAccountSet` traits.
+-   **Performance**: Optimized for Solana's compute unit constraints by utilizing Pinocchio and our `unsized_type` system (check out the [Compute Units](example_programs/bench/COMPUTE_UNITS.md) benchmark vs Anchor).
+-   **Developer Experience**: Intuitive APIs with comprehensive compile-time validation (traits and types all the way down!).
+-   **Modularity**: Everything is a trait or a type, so you can use what you need when you need it. For example, the entrypoint is a method on the `StarFrameProgram` trait, and client/cpi account sets are associated types of the `ClientAccountSet` and `CpiAccountSet` traits.
 
 ## Getting Help
 
 Star Frame is in active development (and improving our docs is a main priority now!). If you need help:
 
-- Check out the [API documentation](https://docs.rs/star_frame)
-- Browse the [examples](example_programs/) in this repository
-- Open an [issue](https://github.com/staratlasmeta/star_frame/issues) for bug reports or feature requests
-- Join our [Star Atlas Discord](https://discord.gg/gahmBHsc) and chat in our `#community-developers` channel
+-   Check out the [API documentation](https://docs.rs/star_frame)
+-   Browse the [examples](example_programs/) in this repository
+-   Open an [issue](https://github.com/staratlasmeta/star_frame/issues) for bug reports or feature requests
+-   Join our [Star Atlas Discord](https://discord.gg/gahmBHsc) and chat in our `#community-developers` channel
 
 ## Getting Started
 
@@ -59,6 +59,7 @@ use star_frame::prelude::*;
 ## Example
 
 Below is a simple counter program demonstrating the basic features of Star Frame. In this example, only the designated authority can increment the counter.
+See the [full example](example_programs/simple_counter/src/lib.rs) for additional useful features.
 
 ```rust
 use star_frame::prelude::*;
@@ -78,71 +79,51 @@ pub enum CounterInstructionSet {
 
 #[zero_copy(pod)]
 #[derive(ProgramAccount, Default, Debug, Eq, PartialEq)]
-#[program_account(seeds = CounterSeeds)]
 pub struct CounterAccount {
     pub authority: Pubkey,
     pub count: u64,
 }
 
-#[derive(Debug, GetSeeds, Clone)]
-#[get_seeds(seed_const = b"COUNTER")]
-pub struct CounterSeeds {
-    pub authority: Pubkey,
-}
-
-#[derive(Debug)]
-pub struct Authority(Pubkey);
-
-impl AccountValidate<Authority> for CounterAccount {
-    fn validate_account(self_ref: &Self::Ref<'_>, arg: Authority) -> Result<()> {
-        ensure!(arg.0 == self_ref.authority, "Incorrect authority", ProgramError::IncorrectAuthority);
-        Ok(())
-    }
-}
-
-/// Initialize the counter
 #[derive(BorshSerialize, BorshDeserialize, Debug, InstructionArgs)]
 pub struct Initialize {
-    #[ix_args(&run)]
-    pub start_at: Option<u64>,
+    #[ix_args(run)]
+    pub start_at: u64,
 }
 
 #[derive(AccountSet)]
 pub struct InitializeAccounts {
     #[validate(funder)]
     pub authority: Signer<Mut<SystemAccount>>,
-    #[validate(arg = (
-        Create(()),
-        Seeds(CounterSeeds { authority: *self.authority.pubkey() }),
-    ))]
-    #[idl(arg = Seeds(FindCounterSeeds { authority: seed_path("authority") }))]
-    pub counter: Init<Seeded<Account<CounterAccount>>>,
+    #[validate(arg = Create(()))]
+    pub counter: Init<Signer<Account<CounterAccount>>>,
     pub system_program: Program<System>,
 }
 
 #[star_frame_instruction]
-fn Initialize(account_set: &mut InitializeAccounts, start_at: &Option<u64>) -> Result<()> {
+fn Initialize(account_set: &mut InitializeAccounts, start_at: u64) -> Result<()> {
     **account_set.counter.data_mut()? = CounterAccount {
         authority: *account_set.authority.pubkey(),
-        count: start_at.unwrap_or(0),
+        count: start_at,
     };
     Ok(())
 }
 
-/// Increment the counter by 1
 #[derive(BorshSerialize, BorshDeserialize, Debug, Copy, Clone, InstructionArgs)]
 pub struct Increment;
 
 #[derive(AccountSet, Debug)]
 pub struct IncrementAccounts {
     pub authority: Signer,
-    #[validate(arg = Authority(*self.authority.pubkey()))]
-    pub counter: Mut<ValidatedAccount<CounterAccount>>,
+    pub counter: Mut<Account<CounterAccount>>,
 }
 
 #[star_frame_instruction]
-fn Increment(account_set: &mut IncrementAccounts) -> Result<()> {
-    let mut counter = account_set.counter.data_mut()?;
+fn Increment(accounts: &mut IncrementAccounts) -> Result<()> {
+    ensure!(
+        *accounts.authority.pubkey() == accounts.counter.data()?.authority,
+        ProgramError::IllegalOwner
+    );
+    let mut counter = accounts.counter.data_mut()?;
     counter.count += 1;
     Ok(())
 }
