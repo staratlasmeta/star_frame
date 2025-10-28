@@ -23,6 +23,6 @@ pub enum {name_pascalcase}InstructionSet {
 #[star_frame_error]
 pub enum {name_pascalcase}Error {
     #[msg("Incorrect authority")]
-    IncorrectAuthority,
+    IncorrectAuthority
 }
 
