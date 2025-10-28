@@ -265,27 +265,41 @@ where
     };
     (start, end)
 }
-impl<T, L, R> Index<(R,)> for List<T, L>
+
+/// This wraps the [`std::ops::RangeBounds`] trait to get around orphan rule issues.
+///
+/// Without this, we'd run into the following:
+/// upstream crates may add a new impl of trait `std::ops::RangeBounds<usize>` for type `usize` in future versions
+trait GetBounds: RangeBounds<usize> {}
+
+impl GetBounds for std::ops::RangeFull {}
+impl GetBounds for std::ops::Range<usize> {}
+impl GetBounds for std::ops::RangeFrom<usize> {}
+impl GetBounds for std::ops::RangeTo<usize> {}
+impl GetBounds for std::ops::RangeInclusive<usize> {}
+impl GetBounds for std::ops::RangeToInclusive<usize> {}
+
+impl<T, L, R> Index<R> for List<T, L>
 where
     T: CheckedBitPattern + NoUninit + Align1,
     L: ListLength,
-    R: RangeBounds<usize>,
+    R: GetBounds,
 {
     type Output = [T];
 
-    fn index(&self, index: (R,)) -> &Self::Output {
-        let (start, end) = get_bounds(self, index.0);
+    fn index(&self, index: R) -> &Self::Output {
+        let (start, end) = get_bounds(self, index);
         checked::try_cast_slice(&self.bytes[start..end]).expect("Invalid data for range")
     }
 }
-impl<T, L, R> IndexMut<(R,)> for List<T, L>
+impl<T, L, R> IndexMut<R> for List<T, L>
 where
     T: CheckedBitPattern + NoUninit + Align1,
     L: ListLength,
-    R: RangeBounds<usize>,
+    R: GetBounds,
 {
-    fn index_mut(&mut self, index: (R,)) -> &mut Self::Output {
-        let (start, end) = get_bounds(self, index.0);
+    fn index_mut(&mut self, index: R) -> &mut Self::Output {
+        let (start, end) = get_bounds(self, index);
         checked::try_cast_slice_mut(&mut self.bytes[start..end]).expect("Invalid data for range")
     }
 }
