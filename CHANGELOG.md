@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.26.3] - 2025-10-28
+
 ### Fixed 
 
 - Fixed errors in cli template caused due to breaking changes made in star_frame (#283)
@@ -109,7 +111,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Additional documentation improvements (#223).
 
-[unreleased]: https://github.com/staratlasmeta/star_frame/compare/v0.26.2...HEAD
+[unreleased]: https://github.com/staratlasmeta/star_frame/compare/v0.26.3...HEAD
+[0.26.3]: https://github.com/staratlasmeta/star_frame/compare/v0.26.2...v0.26.3
 [0.26.2]: https://github.com/staratlasmeta/star_frame/compare/v0.26.1...v0.26.2
 [0.26.1]: https://github.com/staratlasmeta/star_frame/compare/v0.26.0...v0.26.1
 [0.26.0]: https://github.com/staratlasmeta/star_frame/compare/v0.25.1...v0.26.0
