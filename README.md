@@ -16,7 +16,7 @@
 
 Star Frame is a modern Solana program framework designed to make developing on-chain programs more ergonomic, safe, and performant. Built with a trait-based architecture, it provides:
 
--   **Performance**: Optimized for Solana's compute unit constraints by utilizing Pinocchio and our `unsized_type` system (check out the [Compute Units](example_programs/bench/COMPUTE_UNITS.md) benchmark vs Anchor).
+-   **Performance**: Optimized for Solana's compute unit constraints by utilizing Pinocchio and our `unsized_type` system (check out the [Compute Units](/example_programs/bench/COMPUTE_UNITS.md) benchmark vs Anchor).
 -   **Developer Experience**: Intuitive APIs with comprehensive compile-time validation (traits and types all the way down!).
 -   **Modularity**: Everything is a trait or a type, so you can use what you need when you need it. For example, the entrypoint is a method on the `StarFrameProgram` trait, and client/cpi account sets are associated types of the `ClientAccountSet` and `CpiAccountSet` traits.
 
@@ -25,7 +25,7 @@ Star Frame is a modern Solana program framework designed to make developing on-c
 Star Frame is in active development (and improving our docs is a main priority now!). If you need help:
 
 -   Check out the [API documentation](https://docs.rs/star_frame)
--   Browse the [examples](example_programs/) in this repository
+-   Browse the [examples](/example_programs/) in this repository
 -   Open an [issue](https://github.com/staratlasmeta/star_frame/issues) for bug reports or feature requests
 -   Join our [Star Atlas Discord](https://discord.gg/gahmBHsc) and chat in our `#community-developers` channel
 
@@ -59,7 +59,7 @@ use star_frame::prelude::*;
 ## Example
 
 Below is a simple counter program demonstrating the basic features of Star Frame. In this example, only the designated authority can increment the counter.
-See the [full example](example_programs/simple_counter/src/lib.rs) for additional useful features.
+See the [full example](/example_programs/simple_counter/src/lib.rs) for additional useful features.
 
 ```rust
 use star_frame::prelude::*;
