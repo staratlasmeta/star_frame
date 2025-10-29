@@ -7,9 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Improved ergonomics of indexing into UnsizedList by allowing direct use of RangeBounds instead of wrapping in a tuple. (#285)
+
 ## [0.26.3] - 2025-10-28
 
-### Fixed 
+### Fixed
 
 - Fixed errors in cli template caused due to breaking changes made in star_frame (#283)
 
