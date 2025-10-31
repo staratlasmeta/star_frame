@@ -9,7 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Improved ergonomics of indexing into UnsizedList by allowing direct use of RangeBounds instead of wrapping in a tuple. (#285)
+- Improved ergonomics of indexing into UnsizedList by allowing direct use of RangeBounds instead of wrapping in a tuple. (#289)
+
+### Fixed
+
+- Ensure our `Error` type implements `Send` and `Sync` traits. (#290)
 
 ## [0.26.3] - 2025-10-28
 
