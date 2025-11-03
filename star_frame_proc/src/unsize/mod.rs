@@ -49,7 +49,7 @@ pub struct UnsizedTypeArgs {
     #[argument(default)]
     pub owned_attributes: UnsizedAttributeMetas,
     pub owned_type: Option<Type>,
-    pub owned_from_ref: Option<Path>,
+    pub owned_from_ptr: Option<Path>,
     #[argument(default)]
     pub sized_attributes: UnsizedAttributeMetas,
     #[argument(presence)]
@@ -74,10 +74,10 @@ impl UnsizedTypeArgs {
                     "owned_attributes cannot be used with a custom owned_type"
                 )
             }
-            if self.owned_from_ref.is_none() {
+            if self.owned_from_ptr.is_none() {
                 abort!(
                     owned_type,
-                    "owned_from_ref must be specified when using a custom owned_type"
+                    "owned_from_ptr must be specified when using a custom owned_type"
                 )
             }
         }

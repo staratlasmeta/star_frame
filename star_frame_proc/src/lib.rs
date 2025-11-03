@@ -25,7 +25,7 @@ use syn::{
 ///
 /// The `AccountSet` proc macro generates implementations for the three core traits:
 /// - `AccountSetDecode` - Decodes accounts from `&[AccountInfo]` arrays
-/// - `AccountSetValidate` - Validates decoded accounts  
+/// - `AccountSetValidate` - Validates decoded accounts
 /// - `AccountSetCleanup` - Performs cleanup operations after instruction execution
 ///
 /// It also generates client-side implementations:
@@ -49,7 +49,7 @@ use syn::{
 ///
 /// Controls which implementations are generated:
 /// - `skip_client_account_set` - Skips generating `ClientAccountSet` implementation
-/// - `skip_cpi_account_set` - Skips generating `CpiAccountSet` implementation  
+/// - `skip_cpi_account_set` - Skips generating `CpiAccountSet` implementation
 /// - `skip_default_decode` - Skips generating default `AccountSetDecode` implementation
 /// - `skip_default_validate` - Skips generating default `AccountSetValidate` implementation
 /// - `skip_default_cleanup` - Skips generating default `AccountSetCleanup` implementation
@@ -102,7 +102,7 @@ use syn::{
 ///
 /// Options:
 /// - `signer` - Mark this account as a signer
-/// - `writable` - Mark this account as writable  
+/// - `writable` - Mark this account as writable
 /// - `meta = <expr>` - Custom metadata expression
 /// - `skip_signed_account` - Skip `SignedAccount` trait implementation
 /// - `skip_writable_account` - Skip `WritableAccount` trait implementation
@@ -486,7 +486,7 @@ pub fn program(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 /// #[unsized_type(
 ///     owned_attributes = [derive(...)],
 ///     owned_type = <ty>,
-///     owned_from_ref = <path>,
+///     owned_from_ptr = <path>,
 ///     sized_attributes = [derive(...)],
 ///     program_account,
 ///     skip_idl,
@@ -500,7 +500,7 @@ pub fn program(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 /// - `owned_attributes` - Additional attributes to apply to the `UnsizedType::Owned` variant
 /// - `sized_attributes` - Additional attributes to apply to the generated Sized portion of the struct
 /// - `owned_type` - Override the type for the `UnsizedType::Owned` variant
-/// - `owned_from_ref` - Override the function to convert from reference to `UnsizedType::Owned`
+/// - `owned_from_ptr` - Override the function to convert from self to `UnsizedType::Owned`
 /// - `program_account` - Mark as a program account, deriving the `ProgramAccount` and `AccountToIdl` traits
 /// - `skip_idl` - Skips `TypeToIdl`/`AccountToIdl` generation
 /// - `skip_phantom_generics` - Skip phantom generic parameters in the generated Sized struct
@@ -566,7 +566,7 @@ pub fn program(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 /// # fn main() -> Result<()> {
 /// let account = TestByteSet::<MyEnum>::new_default()?;
 /// let mut data = account.data_mut()?;
-/// assert!(matches!(**data, MyEnumMut::UnitVariant));
+/// assert!(matches!(**data, MyEnum::UnitVariant));
 /// let new_key = Pubkey::new_unique();
 /// let mut the_key = data.set_sized_pubkey(new_key)?;
 /// assert!(matches!(**the_key, new_key));
@@ -593,28 +593,20 @@ pub fn unsized_type(
     out.into()
 }
 
-/// Generates an impl block for an unsized type using standard rust syntax.
-///
-/// This generates the neccesary boilerplate to work with `UnsizedType`s.
+/// Generates an impl block for working with `ExclusiveWrapper`s around unsized types.
 ///
 /// # Arguments
 /// ```ignore
-/// #[unsized_impl(tag = <str>, ref_ident = <ident>, mut_ident = <ident>)]
+/// #[unsized_impl(tag = <str>)]
 /// ```
-/// - `tag` - The tag for the impl block. This is used to avoid trait name collisions when using `#[exclusive]`
-/// - `ref_ident` - Overrides the identifier for the `UnsizedType::Ref` type. Defaults to `<SelfTypeName>Ref`
-/// - `mut_ident` - Overrides the identifier for the `UnsizedType::Mut` type. Defaults to `<SelfTypeName>Mut`
+/// - `tag` - The tag for the impl block. This is used to avoid trait name collisions.
 ///
 /// # Usage
 ///
-/// All methods must be inherent impls on `&self` or `&mut self`.
-///
-/// For methods that need to resize the data, take in `&mut self` and add `#[exclusive]` to the method name. This turns &mut self into an `ExclusiveWrapper`
-/// around the impl type. This generates a trait that is implemented on the ExclusiveWrapper. For multiple separate impl blocks, add `#[unsized_impl(tag = <str>)]`
-/// to avoid trait name collisions. The trait name for public methods is `<SelfTypeName>ExclusiveImpl<optional_tag>` and for private methods is `<SelfTypeName>ExclusiveImplPrivate<optional_tag>`.
-///
-/// Non-exclusive methods will be called on the `UnsizedType::Ref` or `UnsizedType::Mut` types, with `&self` methods being generated for both.
-/// To skip generating a shared impl on Mut, add `#[skip_mut]` to the method.
+/// All methods must be inherent impls on `&mut self`. This will turn &mut self into an `ExclusiveWrapper`
+/// around the impl type. This generates a trait that is implemented on the ExclusiveWrapper. For multiple separate
+/// impl blocks, add `#[unsized_impl(tag = <str>)]` to avoid trait name collisions. The trait name for public methods is
+/// `<SelfTypeName>ExclusiveImpl<optional_tag>` and for private methods is `<SelfTypeName>ExclusiveImplPrivate<optional_tag>`.
 ///
 /// # Example
 /// ```
@@ -632,29 +624,23 @@ pub fn unsized_type(
 ///     pub items: List<u8>,
 /// }
 ///
-/// #[unsized_impl]
+/// // Standard impl blocks for non-resizing methods
 /// impl MyStruct {
-///     // Implemented on both Ref and Mut
 ///     pub fn len(&self) -> usize {
 ///         self.items.len()
 ///     }
 ///
-///     // Implemented on Ref only
-///     #[skip_mut]
-///     fn len_shared_only(&self) -> usize {
-///         self.items.len()
-///     }
-///
-///     // Implemented on Mut only
 ///     pub fn set_sized(&mut self, item: u64) {
 ///         self.sized_field = item;
 ///     }
+/// }
 ///
-///     #[exclusive]
+/// #[unsized_impl]
+/// impl MyStruct {
 ///     fn push(&mut self, item: u8) -> Result<()> {
 ///         self.sized_field += item as u64;
 ///         // This is a method that needs to resize the data, so to access the field we use the method() version of the field name.
-///         // This requires being called on an ExclusiveWrapper, which is created by adding #[exclusive] to the method.
+///         // This requires being called on an ExclusiveWrapper, which is created automatically with #[unsized_impl].
 ///         self.items().push(item)?;
 ///         Ok(())
 ///     }

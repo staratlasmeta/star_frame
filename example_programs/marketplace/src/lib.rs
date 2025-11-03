@@ -119,11 +119,11 @@ pub mod test_utils {
 
 #[cfg(test)]
 mod idl_test {
-    use super::*;
 
     #[cfg(feature = "idl")]
     #[test]
-    fn generate_idl() -> Result<()> {
+    fn generate_idl() -> super::Result<()> {
+        use super::*;
         let idl = StarFrameDeclaredProgram::program_to_idl()?;
         let codama_idl: ProgramNode = idl.try_into()?;
         let idl_json = codama_idl.to_json()?;

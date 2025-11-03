@@ -1,4 +1,4 @@
-use clap::{command, Parser, Subcommand};
+use clap::{Parser, Subcommand};
 pub mod new_project;
 use new_project::*;
 

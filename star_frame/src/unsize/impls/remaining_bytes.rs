@@ -10,7 +10,7 @@ use crate::{
     unsize::{
         init::{DefaultInit, UnsizedInit},
         wrapper::ExclusiveRecurse,
-        AsShared, FromOwned, RawSliceAdvance, UnsizedType, UnsizedTypeMut,
+        FromOwned, RawSliceAdvance, UnsizedType, UnsizedTypePtr,
     },
     ErrorCode, Result,
 };
@@ -20,7 +20,6 @@ use ptr_meta::Pointee;
 use star_frame_proc::unsized_impl;
 use std::{
     cmp::Ordering,
-    marker::PhantomData,
     ops::{Deref, DerefMut},
 };
 
@@ -35,108 +34,62 @@ mod idl_impl {
 }
 
 #[derive(Debug)]
-pub struct RemainingBytesRef<'a>(*const RemainingBytes, PhantomData<&'a ()>);
+pub struct RemainingBytesPtr(*mut RemainingBytes);
 
-impl Deref for RemainingBytesRef<'_> {
+impl Deref for RemainingBytesPtr {
     type Target = [u8];
 
     fn deref(&self) -> &Self::Target {
         unsafe { &*self.0 }
     }
 }
-#[derive(Debug)]
-pub struct RemainingBytesMut<'a>(*mut RemainingBytes, PhantomData<&'a ()>);
-
-impl Deref for RemainingBytesMut<'_> {
-    type Target = [u8];
-
-    fn deref(&self) -> &Self::Target {
-        unsafe { &*self.0 }
-    }
-}
-impl DerefMut for RemainingBytesMut<'_> {
+impl DerefMut for RemainingBytesPtr {
     fn deref_mut(&mut self) -> &mut Self::Target {
         unsafe { &mut *self.0 }
     }
 }
 
-impl AsShared for RemainingBytesRef<'_> {
-    type Ref<'a>
-        = RemainingBytesRef<'a>
-    where
-        Self: 'a;
-    fn as_shared(&self) -> Self::Ref<'_> {
-        RemainingBytesRef(self.0, PhantomData)
-    }
-}
-impl AsShared for RemainingBytesMut<'_> {
-    type Ref<'a>
-        = RemainingBytesRef<'a>
-    where
-        Self: 'a;
-    fn as_shared(&self) -> Self::Ref<'_> {
-        RemainingBytes::mut_as_ref(self)
-    }
-}
-
-unsafe impl UnsizedTypeMut for RemainingBytesMut<'_> {
+unsafe impl UnsizedTypePtr for RemainingBytesPtr {
     type UnsizedType = RemainingBytes;
+    fn check_pointers(&self, range: &std::ops::Range<usize>, cursor: &mut usize) -> bool {
+        let addr = self.0.addr();
+        let is_advanced = addr >= *cursor;
+        *cursor = addr;
+        is_advanced && range.contains(&addr)
+    }
 }
 
 unsafe impl UnsizedType for RemainingBytes {
-    type Ref<'a> = RemainingBytesRef<'a>;
-    type Mut<'a> = RemainingBytesMut<'a>;
+    type Ptr = RemainingBytesPtr;
     type Owned = Vec<u8>;
     const ZST_STATUS: bool = false;
 
-    fn ref_as_ref<'a>(r: &'a Self::Ref<'_>) -> Self::Ref<'a> {
-        RemainingBytesRef(r.0, PhantomData)
-    }
-
-    fn mut_as_ref<'a>(m: &'a Self::Mut<'_>) -> Self::Ref<'a> {
-        RemainingBytesRef(m.0, PhantomData)
-    }
-
-    fn get_ref<'a>(data: &mut &'a [u8]) -> Result<Self::Ref<'a>> {
-        let remaining_bytes = data.try_advance(data.len()).with_ctx(|| {
-            format!(
-                "Failed to read remaining {} bytes for RemainingBytes",
-                data.len()
-            )
-        })?;
-        let ptr = remaining_bytes.as_ptr();
-        Ok(RemainingBytesRef(
-            &raw const *ptr_meta::from_raw_parts(ptr.cast::<()>(), remaining_bytes.len()),
-            PhantomData,
-        ))
-    }
-
-    unsafe fn get_mut<'a>(data: &mut *mut [u8]) -> Result<Self::Mut<'a>> {
+    unsafe fn get_ptr(data: &mut *mut [u8]) -> Result<Self::Ptr> {
         let remaining_bytes = data.try_advance(data.len()).with_ctx(|| {
             format!(
                 "Failed to read remaining mutable {} bytes for RemainingBytes",
                 data.len()
             )
         })?;
-        Ok(RemainingBytesMut(remaining_bytes as _, PhantomData))
+        Ok(RemainingBytesPtr(remaining_bytes as _))
     }
 
     #[inline]
-    fn data_len(m: &Self::Mut<'_>) -> usize {
+    fn data_len(m: &Self::Ptr) -> usize {
         m.len()
     }
 
     #[inline]
-    fn start_ptr(m: &Self::Mut<'_>) -> *mut () {
+    fn start_ptr(m: &Self::Ptr) -> *mut () {
         m.0.cast::<()>()
     }
 
-    fn owned_from_ref(r: &Self::Ref<'_>) -> Result<Self::Owned> {
+    fn owned_from_ptr(r: &Self::Ptr) -> Result<Self::Owned> {
         Ok(r.to_vec())
     }
 
     unsafe fn resize_notification(
-        self_mut: &mut Self::Mut<'_>,
+        self_mut: &mut Self::Ptr,
         source_ptr: *const (),
         change: isize,
     ) -> Result<()> {
@@ -168,7 +121,6 @@ impl FromOwned for RemainingBytes {
 
 #[unsized_impl]
 impl RemainingBytes {
-    #[exclusive]
     pub fn set_len(&mut self, len: usize) -> Result<()> {
         let self_len = self.len();
         match self.len().cmp(&len) {

@@ -1,12 +1,15 @@
+use std::mem::ManuallyDrop;
+
 use crate::{
     data_types::PackedValueChecked,
     prelude::*,
     unsize::{
-        impls::{ListMut, UnsizedGenerics},
+        impls::{List, ListPtr, UnsizedGenerics},
         test_helpers::TestByteSet,
         ModifyOwned,
     },
 };
+
 use pretty_assertions::assert_eq;
 use star_frame_proc::unsized_impl;
 
@@ -29,10 +32,13 @@ pub struct UnsizedTest3 {
 
 #[unsized_impl]
 impl UnsizedTest3 {
-    #[exclusive]
-    fn foo<'child>(
+    fn foo<'child, 'rt>(
         &'child mut self,
-    ) -> ExclusiveWrapper<'child, 'top, ListMut<'top, PackedValue<u16>, u8>, Self> {
+    ) -> ExclusiveWrapper<'rt, 'top, ListPtr<PackedValue<u16>, u8>, Self>
+    where
+        'child: 'rt,
+        'parent: 'rt,
+    {
         self.unsized3()
     }
 }
@@ -82,7 +88,6 @@ fn test_unsized_test() -> Result<()> {
     assert_eq!(&**item.unsized3, unsized3_arr);
     item.unsized3().push(6.into())?;
     item.unsized_map().insert(1, [1, 2, 3])?;
-    drop(item); // ensure drop works properly still
     let mut some_item = banana.unsized2();
     some_item.push(204.into())?;
     let unsized3 = UnsizedTest3Owned {
@@ -169,9 +174,12 @@ use many_unsized::ManyUnsizedExclusiveExt;
 
 #[unsized_impl]
 impl many_unsized::ManyUnsized {
-    #[exclusive]
+    fn unsized1_again(&mut self) -> ExclusiveWrapper<'_, 'top, ListPtr<PackedValue<u16>>, Self> {
+        unsafe { Self::map_mut::<List<PackedValue<u16>>>(self, |a| &raw mut (*a).unsized1) }
+    }
+
     fn foo(&mut self) -> Result<u16> {
-        let list = &mut self.unsized1();
+        let mut list = self.unsized1_again();
         list.push(2u16.into())?;
         self.unsized5().push(TestStruct { val1: 8, val2: 9 })?;
         Ok(10)
@@ -180,7 +188,6 @@ impl many_unsized::ManyUnsized {
 
 #[unsized_impl(tag = "1")]
 impl many_unsized::ManyUnsized {
-    #[exclusive]
     fn bar(&mut self) -> Result<u16> {
         let mut list = self.unsized1();
         list.push(426u16.into())?;
@@ -399,7 +406,6 @@ where
     B: UnsizedType<Owned: Clone + PartialEq + Eq> + ?Sized,
     C: CheckedBitPattern + Align1 + NoUninit + Zeroable,
 {
-    #[exclusive]
     fn thingy(&mut self) -> Result<()> {
         let item_to_push = self.sized2;
         self.unsized2().push(item_to_push)?;
@@ -431,4 +437,34 @@ fn test_with_sized_and_unsized_generics() -> Result<()> {
     Ok(())
 }
 
+#[unsized_type]
+struct MutliList {
+    #[unsized_start]
+    list1: List<u8>,
+    list2: List<u8>,
+}
+
+#[test]
+#[should_panic(expected = "ExclusiveTopDrop's Mut pointers have been invalidated during drop")]
+fn test_multi_list() {
+    let owned = MutliListOwned {
+        list1: vec![1, 2, 3, 4, 5, 6],
+        list2: vec![4, 5, 6],
+    };
+    let owned_set = TestByteSet::<MutliList>::new(owned.clone()).unwrap();
+    let owned_set2 = TestByteSet::<MutliList>::new(owned.clone()).unwrap();
+
+    let mut data = owned_set.data_mut().unwrap();
+    let mut data2 = ManuallyDrop::new(owned_set2.data_mut().unwrap());
+    data2.add_miri_static_roots();
+    core::mem::swap(&mut data.list1, &mut data2.list1);
+    drop(data);
+    let mut data_again = owned_set.data_mut().unwrap();
+    // We should panic when data is dropped so the following should never execute!
+    let actually_data1_slice = data2.list1.as_mut_slice();
+    let same_mut_slice = data_again.list1.as_mut_slice();
+
+    actually_data1_slice[0] = 99;
+    same_mut_slice[0] = 100;
+}
 //todo: make a single very complex struct and test it with a watcher on owned like list

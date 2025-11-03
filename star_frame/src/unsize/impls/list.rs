@@ -13,15 +13,14 @@ use crate::{
     unsize::{
         init::{DefaultInit, UnsizedInit},
         wrapper::ExclusiveRecurse,
-        AsShared, FromOwned, RawSliceAdvance, UnsizedType, UnsizedTypeMut,
+        FromOwned, RawSliceAdvance, UnsizedType, UnsizedTypePtr,
     },
     util::uninit_array_bytes,
     ErrorCode, Result,
 };
 use advancer::Advance;
 use bytemuck::{
-    bytes_of, cast_slice, cast_slice_mut, checked, from_bytes, CheckedBitPattern, NoUninit, Pod,
-    Zeroable,
+    bytes_of, cast_slice, cast_slice_mut, checked, CheckedBitPattern, NoUninit, Pod, Zeroable,
 };
 use itertools::Itertools;
 use num_traits::{FromPrimitive, ToPrimitive, Zero};
@@ -305,12 +304,12 @@ where
 }
 
 #[derive(Debug)]
-pub struct ListRef<'a, T, L = u32>(*const List<T, L>, PhantomData<&'a ()>)
+pub struct ListPtr<T, L = u32>(*mut List<T, L>)
 where
     L: ListLength,
     T: CheckedBitPattern + NoUninit + Align1;
 
-impl<T, L> Deref for ListRef<'_, T, L>
+impl<T, L> Deref for ListPtr<T, L>
 where
     L: ListLength,
     T: CheckedBitPattern + NoUninit + Align1,
@@ -321,24 +320,7 @@ where
         unsafe { &*self.0 }
     }
 }
-#[derive(Debug)]
-pub struct ListMut<'a, T, L = u32>(*mut List<T, L>, PhantomData<&'a ()>)
-where
-    L: ListLength,
-    T: CheckedBitPattern + NoUninit + Align1;
-
-impl<T, L> Deref for ListMut<'_, T, L>
-where
-    L: ListLength,
-    T: CheckedBitPattern + NoUninit + Align1,
-{
-    type Target = List<T, L>;
-
-    fn deref(&self) -> &Self::Target {
-        unsafe { &*self.0 }
-    }
-}
-impl<T, L> DerefMut for ListMut<'_, T, L>
+impl<T, L> DerefMut for ListPtr<T, L>
 where
     L: ListLength,
     T: CheckedBitPattern + NoUninit + Align1,
@@ -348,39 +330,18 @@ where
     }
 }
 
-impl<T, L> AsShared for ListRef<'_, T, L>
-where
-    L: ListLength,
-    T: CheckedBitPattern + NoUninit + Align1,
-{
-    type Ref<'a>
-        = ListRef<'a, T, L>
-    where
-        Self: 'a;
-    fn as_shared(&self) -> Self::Ref<'_> {
-        ListRef(self.0, PhantomData)
-    }
-}
-impl<T, L> AsShared for ListMut<'_, T, L>
-where
-    L: ListLength,
-    T: CheckedBitPattern + NoUninit + Align1,
-{
-    type Ref<'a>
-        = ListRef<'a, T, L>
-    where
-        Self: 'a;
-    fn as_shared(&self) -> Self::Ref<'_> {
-        List::mut_as_ref(self)
-    }
-}
-
-unsafe impl<T, L> UnsizedTypeMut for ListMut<'_, T, L>
+unsafe impl<T, L> UnsizedTypePtr for ListPtr<T, L>
 where
     L: ListLength,
     T: CheckedBitPattern + NoUninit + Align1,
 {
     type UnsizedType = List<T, L>;
+    fn check_pointers(&self, range: &std::ops::Range<usize>, cursor: &mut usize) -> bool {
+        let addr = self.0.addr();
+        let is_advanced = addr >= *cursor;
+        *cursor = addr;
+        is_advanced && range.contains(&addr)
+    }
 }
 
 unsafe impl<T, L> UnsizedType for List<T, L>
@@ -388,49 +349,11 @@ where
     L: ListLength,
     T: Align1 + CheckedBitPattern + NoUninit,
 {
-    type Ref<'a> = ListRef<'a, T, L>;
-    type Mut<'a> = ListMut<'a, T, L>;
+    type Ptr = ListPtr<T, L>;
     type Owned = Vec<T>;
     const ZST_STATUS: bool = { size_of::<L>() != 0 };
 
-    fn ref_as_ref<'a>(r: &'a Self::Ref<'_>) -> Self::Ref<'a> {
-        ListRef(r.0, PhantomData)
-    }
-
-    fn mut_as_ref<'a>(m: &'a Self::Mut<'_>) -> Self::Ref<'a> {
-        ListRef(m.0, PhantomData)
-    }
-
-    fn get_ref<'a>(data: &mut &'a [u8]) -> Result<Self::Ref<'a>> {
-        let ptr = data.as_ptr();
-        let length_bytes = data.try_advance(size_of::<L>()).with_ctx(|| {
-            format!(
-                "Failed to read length bytes of size {} for {}",
-                size_of::<L>(),
-                type_name::<Self>()
-            )
-        })?;
-        let len_l = from_bytes::<PackedValue<L>>(length_bytes);
-        let length = len_l.to_usize().ok_or_else(|| {
-            error!(
-                ErrorCode::ToPrimitiveError,
-                "Could not convert list size to usize"
-            )
-        })?;
-        data.try_advance(size_of::<T>() * length).with_ctx(|| {
-            format!(
-                "Failed to read list elements of total size {} for {}",
-                size_of::<T>() * length,
-                type_name::<Self>()
-            )
-        })?;
-        Ok(ListRef(
-            ptr_meta::from_raw_parts(ptr.cast::<()>(), size_of::<T>() * length),
-            PhantomData,
-        ))
-    }
-
-    unsafe fn get_mut<'a>(data: &mut *mut [u8]) -> Result<Self::Mut<'a>> {
+    unsafe fn get_ptr(data: &mut *mut [u8]) -> Result<Self::Ptr> {
         let len_ptr = data.try_advance(size_of::<L>()).with_ctx(|| {
             format!(
                 "Failed to read length bytes of size {} for {}",
@@ -454,28 +377,28 @@ where
                 type_name::<Self>()
             )
         })?;
-        Ok(ListMut(
-            ptr_meta::from_raw_parts_mut(len_ptr.cast::<()>(), size_of::<T>() * length),
-            PhantomData,
-        ))
+        Ok(ListPtr(ptr_meta::from_raw_parts_mut(
+            len_ptr.cast::<()>(),
+            size_of::<T>() * length,
+        )))
     }
 
     #[inline]
-    fn data_len(m: &Self::Mut<'_>) -> usize {
+    fn data_len(m: &Self::Ptr) -> usize {
         m.bytes.len() + size_of::<L>()
     }
 
     #[inline]
-    fn start_ptr(m: &Self::Mut<'_>) -> *mut () {
+    fn start_ptr(m: &Self::Ptr) -> *mut () {
         m.0.cast::<()>()
     }
 
-    fn owned_from_ref(r: &Self::Ref<'_>) -> Result<Self::Owned> {
+    fn owned_from_ptr(r: &Self::Ptr) -> Result<Self::Owned> {
         Ok(checked::try_cast_slice(&r.bytes)?.to_vec())
     }
 
     unsafe fn resize_notification(
-        self_mut: &mut Self::Mut<'_>,
+        self_mut: &mut Self::Ptr,
         source_ptr: *const (),
         change: isize,
     ) -> Result<()> {
@@ -536,13 +459,11 @@ where
     L: ListLength,
 {
     #[inline]
-    #[exclusive]
     pub fn push(&mut self, item: T) -> Result<()> {
         let len = self.len();
         self.insert(len, item)
     }
     #[inline]
-    #[exclusive]
     pub fn push_all<I>(&mut self, items: I) -> Result<()>
     where
         I: IntoIterator<Item = T>,
@@ -551,12 +472,10 @@ where
         self.insert_all(self.len(), items)
     }
     #[inline]
-    #[exclusive]
     pub fn insert(&mut self, index: usize, item: T) -> Result<()> {
         self.insert_all(index, iter::once(item))
     }
 
-    #[exclusive]
     pub fn insert_all<I>(&mut self, index: usize, items: I) -> Result<()>
     where
         I: IntoIterator,
@@ -600,7 +519,6 @@ where
     }
 
     #[inline]
-    #[exclusive]
     pub fn pop(&mut self) -> Result<Option<()>> {
         if self.is_empty() {
             return Ok(None);
@@ -609,12 +527,10 @@ where
     }
 
     #[inline]
-    #[exclusive]
     pub fn remove(&mut self, index: usize) -> Result<()> {
         self.remove_range(index..=index)
     }
 
-    #[exclusive]
     pub fn remove_range(&mut self, indices: impl RangeBounds<usize>) -> Result<()> {
         let start = match indices.start_bound() {
             std::ops::Bound::Included(start) => *start,
@@ -658,7 +574,6 @@ where
     }
 
     #[inline]
-    #[exclusive]
     pub fn clear(&mut self) -> Result<()> {
         self.remove_range(..)
     }

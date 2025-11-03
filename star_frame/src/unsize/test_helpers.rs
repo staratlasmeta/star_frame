@@ -4,7 +4,7 @@ use pinocchio::account_info::MAX_PERMITTED_DATA_INCREASE;
 use crate::{
     unsize::{
         init::{DefaultInit, UnsizedInit},
-        wrapper::{DataMutDrop, SharedWrapper, UnsizedTypeDataAccess},
+        wrapper::{DataMutDrop, SharedWrapper, UnsizedDataMut, UnsizedTypeDataAccess},
         UnsizedType,
     },
     Result,
@@ -13,6 +13,7 @@ use std::{
     cell::{Cell, Ref, RefCell, RefMut},
     marker::PhantomData,
     mem::MaybeUninit,
+    ops::Range,
     ptr::slice_from_raw_parts_mut,
     slice::from_raw_parts_mut,
 };
@@ -82,10 +83,12 @@ unsafe impl UnsizedTypeDataAccess for TestUnderlyingData {
         Ok(Ref::map(this.data.borrow(), |data| &data[..this.len.get()]))
     }
 
-    fn data_mut<'a>(this: &'a Self) -> Result<(*mut [u8], Box<dyn DataMutDrop + 'a>)> {
+    fn data_mut(this: &Self) -> Result<UnsizedDataMut<'_>> {
         let mut data = this.data.borrow_mut();
-        let ptr = ptr_meta::from_raw_parts_mut(data.as_mut_ptr().cast::<()>(), this.len.get());
-        Ok((ptr, Box::new(data)))
+        let ptr: *mut [u8] =
+            ptr_meta::from_raw_parts_mut(data.as_mut_ptr().cast::<()>(), this.len.get());
+        let range = ptr.addr()..(ptr.addr() + this.original_len + MAX_PERMITTED_DATA_INCREASE);
+        Ok((ptr, range, Box::new(data)))
     }
 }
 
@@ -104,7 +107,7 @@ where
         // Temporarily leak the data. It will be cleaned up in the Drop implementation.
         let test_account = TestUnderlyingData::new(size);
         {
-            let (mut data, _guard) = UnsizedTypeDataAccess::data_mut(&test_account)?;
+            let (mut data, .., _guard) = UnsizedTypeDataAccess::data_mut(&test_account)?;
             // SAFETY:
             // We can mutate the data while the guard is alive. No one else has access to the data
             let mut data = unsafe { &mut *data };
@@ -144,7 +147,7 @@ where
         Self::new_from_init(DefaultInit)
     }
 
-    pub fn data(&self) -> Result<SharedWrapper<'_, T::Ref<'_>>> {
+    pub fn data(&self) -> Result<SharedWrapper<'_, T::Ptr>> {
         SharedWrapper::new::<T>(&self.test_data)
     }
 
@@ -169,18 +172,6 @@ macro_rules! assert_with_shared {
         {
             let $the_mut = $the_mut.as_shared();
             assert!($expr, $($($arg)*)*);
-        }
-    };
-}
-
-#[doc(hidden)]
-#[macro_export]
-macro_rules! assert_eq_with_shared {
-    ($the_mut:ident => $left:expr, $right:expr $(, $($arg:tt)*)?) => {
-        assert_eq!($left, $right, $($($arg)*)*);
-        {
-            let $the_mut = $the_mut.as_shared();
-            assert_eq!($left, $right, $($($arg)*)*)
         }
     };
 }

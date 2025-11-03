@@ -27,6 +27,7 @@ pub struct Paths {
     pub partial_ord: TokenStream,
     #[allow(dead_code)]
     pub ord: TokenStream,
+    pub range: TokenStream,
     pub phantom_data: TokenStream,
     #[allow(dead_code)]
     pub ptr: TokenStream,
@@ -100,6 +101,7 @@ impl Default for Paths {
             ptr: quote! { ::core::ptr },
             size_of: quote! { ::core::mem::size_of },
             maybe_uninit: quote! { ::core::mem::MaybeUninit },
+            range: quote! { ::core::ops::Range },
             // account set
             account_set_decode: quote! { #crate_name::account_set::AccountSetDecode },
             account_set_validate: quote! { #crate_name::account_set::AccountSetValidate },

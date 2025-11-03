@@ -5,24 +5,26 @@
 //! memory reallocation, and provide safe interfaces for reading and modifying dynamically-sized
 //! data while maintaining Rust's safety guarantees. Almost all interactions with the
 //! Unsized Type system will be through these wrappers.
-use super::{AsShared, UnsizedType};
+use super::UnsizedType;
 use crate::{
     account_set::single_set::SingleAccountSet,
     ensure,
-    unsize::{init::UnsizedInit, FromOwned, UnsizedTypeMut},
+    unsize::{init::UnsizedInit, FromOwned, UnsizedTypePtr},
     ErrorCode, Result,
 };
 use core::ptr;
 use derive_more::{Debug, Deref, DerefMut};
-use pinocchio::account_info::AccountInfo;
+use pinocchio::account_info::{AccountInfo, MAX_PERMITTED_DATA_INCREASE};
 use solana_program_memory::sol_memmove;
 use std::{
     cmp::Ordering,
     collections::Bound,
     convert::Infallible,
     marker::PhantomData,
-    ops::{Deref, DerefMut, RangeBounds},
+    ops::{Deref, DerefMut, Range, RangeBounds},
 };
+
+pub type UnsizedDataMut<'a> = (*mut [u8], Range<usize>, Box<dyn DataMutDrop + 'a>);
 
 /// A trait for types that can be used to access the underlying data of an [`UnsizedType`].
 ///
@@ -38,7 +40,7 @@ pub unsafe trait UnsizedTypeDataAccess {
     unsafe fn unsized_data_realloc(this: &Self, data: &mut *mut [u8], new_len: usize)
         -> Result<()>;
     fn data_ref(this: &Self) -> Result<impl Deref<Target = [u8]>>;
-    fn data_mut<'a>(this: &'a Self) -> Result<(*mut [u8], Box<dyn DataMutDrop + 'a>)>;
+    fn data_mut(this: &Self) -> Result<UnsizedDataMut<'_>>;
 }
 
 /// A marker trait implemented for types that [`UnsizedTypeDataAccess::data_mut`] returns so it can prevent the Ref from being dropped.
@@ -71,12 +73,18 @@ unsafe impl UnsizedTypeDataAccess for AccountInfo {
     }
 
     #[inline]
-    fn data_mut<'a>(this: &'a Self) -> Result<(*mut [u8], Box<dyn DataMutDrop + 'a>)> {
+    fn data_mut<'a>(
+        this: &'a Self,
+    ) -> Result<(*mut [u8], Range<usize>, Box<dyn DataMutDrop + 'a>)> {
         let ref_mut = this.account_data_mut()?;
         let current_len = this.data_len();
         let data_ptr = this.data_ptr();
-        let ptr = ptr_meta::from_raw_parts_mut(data_ptr.cast(), current_len);
-        Ok((ptr, Box::new(ref_mut)))
+        let ptr: *mut [u8] = ptr_meta::from_raw_parts_mut(data_ptr.cast(), current_len);
+        let start = data_ptr.addr();
+        let end = i64::try_from(ptr.addr() + MAX_PERMITTED_DATA_INCREASE)?
+            + i64::from(this.resize_delta());
+        let range = start..usize::try_from(end)?;
+        Ok((ptr, range, Box::new(ref_mut)))
     }
 }
 
@@ -85,34 +93,27 @@ pub struct SharedWrapper<'top, T> {
     top_ref: T,
     #[debug(skip)]
     _to_drop: Box<dyn Deref<Target = [u8]> + 'top>,
-    phantom: PhantomData<&'top ()>,
 }
 
-impl<'a, T> SharedWrapper<'a, T> {
+impl<'top, T> SharedWrapper<'top, T> {
     /// # Safety
     #[inline]
-    pub fn new<U>(underlying_data: &'a impl UnsizedTypeDataAccess) -> Result<Self>
+    pub fn new<U>(underlying_data: &'top impl UnsizedTypeDataAccess) -> Result<Self>
     where
-        T: 'a,
-        U: UnsizedType<Ref<'a> = T> + ?Sized,
+        U: UnsizedType<Ptr = T> + ?Sized,
     {
         // ensure no ZSTs in middle of struct
         let _ = U::ZST_STATUS;
         let data = UnsizedTypeDataAccess::data_ref(underlying_data)?;
         let data_ptr = ptr::from_ref(&*data);
 
-        // SAFETY:
-        // We are technically extending the lifetime here of the returned data, but it's okay because we keep data alive in the to_drop,
-        // and the reference is never exposed. We do this to get a U::Ref<'a>, but since UnsizedType::Ref cannot be copied out from behind a reference,
-        // that lifetime cannot escape through the Deref/DerefMut on SharedWrapper.
-        let mut data_bytes: &'a [u8] = unsafe { &*data_ptr };
         Ok(SharedWrapper {
             _to_drop: Box::new(data),
-            top_ref: U::get_ref(&mut data_bytes)?,
-            phantom: PhantomData,
+            top_ref: unsafe { U::get_ptr(&mut data_ptr.cast_mut())? },
         })
     }
 }
+
 impl<T> Deref for SharedWrapper<'_, T> {
     type Target = T;
 
@@ -124,31 +125,52 @@ impl<T> Deref for SharedWrapper<'_, T> {
 /// The heart of the `UnsizedType` system. This wrapper enables resizing through the [`ExclusiveRecurse`] trait, and mapping to
 /// child wrappers through [`Self::try_map_mut`]. In addition, this implements [`Deref`] and [`DerefMut`] for easy access to Mut type.
 #[derive(Debug)]
-pub struct ExclusiveWrapper<'parent, 'top, Mut, P>(ExclusiveWrapperEnum<'parent, 'top, Mut, P>);
+pub struct ExclusiveWrapper<'parent, 'top, Mut: UnsizedTypePtr, P>(
+    ExclusiveWrapperEnum<'parent, 'top, Mut, P>,
+);
+
+/// Split off fields needed for the drop check so we don't need any `#[may_dangle]` unstable shenanigans.
+#[derive(Debug)]
+struct ExclusiveTopDrop<Mut: UnsizedTypePtr> {
+    // We Box the Mut so its derived from a separate allocation, so dereferencing parent in inners wont invalidate the top Mut.
+    top_mut: Box<Mut>,
+    /// The range where the pointers inside `top_mut` should be valid.
+    /// This should be the allocated data range (e.g., entire existing account + 10k bytes for `AccountInfo`).
+    range: Range<usize>,
+}
+
+impl<Mut: UnsizedTypePtr> Drop for ExclusiveTopDrop<Mut> {
+    fn drop(&mut self) {
+        let mut cursor = self.range.start;
+        assert!(
+            self.top_mut.check_pointers(&self.range, &mut cursor),
+            "ExclusiveTopDrop's Mut pointers have been invalidated during drop"
+        );
+    }
+}
 
 /// Private enum for [`ExclusiveWrapper`].
 #[derive(Debug)]
-enum ExclusiveWrapperEnum<'parent, 'top, Mut, P> {
+enum ExclusiveWrapperEnum<'parent, 'top, Mut: UnsizedTypePtr, P> {
     Top {
         exclusive_top: P,
-        // We Box the Mut so its derived from a separate allocation, so dereferencing parent in inners wont invalidate the top Mut.
-        top_mut: Box<Mut>,
+        /// SAFETY:
+        /// This variant has to be before [`ExclusiveWrapperEnum::Top::_to_drop`]
+        /// so that it is dropped first in case of a panic from `check_pointers` in [`ExclusiveTopDrop::drop`]
+        top_drop: ExclusiveTopDrop<Mut>,
         #[debug(skip)]
-        _to_drop: Box<dyn DataMutDrop + 'top>,
+        _drop_guard: Box<dyn DataMutDrop + 'top>,
     },
     Inner {
         parent_lt: PhantomData<&'parent ()>,
+        range: Range<usize>,
         parent: *mut P, // 'parent
         field: *mut Mut,
     },
 }
 
-pub type ExclusiveWrapperTop<'top, Top, A> = ExclusiveWrapper<
-    'top,
-    'top,
-    <Top as UnsizedType>::Mut<'top>,
-    ExclusiveWrapperTopMeta<'top, Top, A>,
->;
+pub type ExclusiveWrapperTop<'top, Top, A> =
+    ExclusiveWrapper<'top, 'top, <Top as UnsizedType>::Ptr, ExclusiveWrapperTopMeta<'top, Top, A>>;
 
 /// The generic `P` for an [`ExclusiveWrapper`] that is at the top level of the wrapper stack.
 #[derive(Debug)]
@@ -173,27 +195,62 @@ where
     pub fn new(info: &'top A) -> Result<Self> {
         // ensure no ZSTs in middle of struct
         let _ = Top::ZST_STATUS;
-        let (mut data_ptr, to_drop) = UnsizedTypeDataAccess::data_mut(info)?;
+        let (mut data_ptr, range, to_drop) = UnsizedTypeDataAccess::data_mut(info)?;
         // We are technically extending the lifetime here of the returned data, but it's okay because we keep data alive in the to_drop,
         // and the reference is never exposed.
         let data = data_ptr;
         Ok(Self(ExclusiveWrapperEnum::Top {
-            _to_drop: to_drop,
-            top_mut: Box::new(unsafe { Top::get_mut(&mut data_ptr)? }),
+            top_drop: ExclusiveTopDrop {
+                top_mut: Box::new(unsafe { Top::get_ptr(&mut data_ptr)? }),
+                range,
+            },
             exclusive_top: ExclusiveWrapperTopMeta {
                 info,
                 data,
                 top_phantom: PhantomData,
             },
+            _drop_guard: to_drop,
         }))
     }
 }
 
-impl<Mut, P> ExclusiveWrapper<'_, '_, Mut, P> {
+impl<Mut: UnsizedTypePtr, P> ExclusiveWrapper<'_, '_, Mut, P> {
+    #[cfg(test)]
+    #[allow(clippy::unused_self)]
+    pub(crate) fn add_miri_static_roots(&self) {
+        #[cfg(miri)]
+        {
+            if let ExclusiveWrapperEnum::Top {
+                top_drop: ExclusiveTopDrop { top_mut, .. },
+                _drop_guard,
+                ..
+            } = &self.0
+            {
+                use crate::unsize::miri_static_root;
+                unsafe {
+                    miri_static_root((&raw const **top_mut).cast::<()>());
+                    miri_static_root((&raw const **_drop_guard).cast::<()>());
+                }
+            }
+        }
+    }
+    #[inline]
+    pub fn range(this: &Self) -> &Range<usize> {
+        match &this.0 {
+            ExclusiveWrapperEnum::Top {
+                top_drop: ExclusiveTopDrop { range, .. },
+                ..
+            }
+            | ExclusiveWrapperEnum::Inner { range, .. } => range,
+        }
+    }
     #[inline]
     fn mut_ref(this: &Self) -> &Mut {
         match &this.0 {
-            ExclusiveWrapperEnum::Top { top_mut, .. } => top_mut,
+            ExclusiveWrapperEnum::Top {
+                top_drop: ExclusiveTopDrop { top_mut, .. },
+                ..
+            } => top_mut,
             ExclusiveWrapperEnum::Inner { field, .. } => {
                 // SAFETY:
                 // We have shared access to self right now, so no mutable references to self can exist.
@@ -209,16 +266,11 @@ impl<Mut, P> ExclusiveWrapper<'_, '_, Mut, P> {
     #[inline]
     fn mut_mut(this: &mut Self) -> *mut Mut {
         match &mut this.0 {
-            ExclusiveWrapperEnum::Top { top_mut, .. } => &raw mut **top_mut,
-            ExclusiveWrapperEnum::Inner { field, .. } => {
-                // SAFETY:
-                // We have exclusive access to self right now, so no mutable references to self can exist.
-                // Field is created in ExclusiveWrapper::new, and this pointer is derived from ExclusiveWrapper::map,
-                // which takes in &mut self, so no references to upper fields can exist at the same time.
-                // Self cannot be used again until the mut_mut is dropped due to lifetimes, so no other references to field can be created
-                // while mut_mut is still alive.
-                *field
-            }
+            ExclusiveWrapperEnum::Top {
+                top_drop: ExclusiveTopDrop { top_mut, .. },
+                ..
+            } => &raw mut **top_mut,
+            ExclusiveWrapperEnum::Inner { field, .. } => *field,
         }
     }
 }
@@ -226,7 +278,7 @@ mod sealed {
     use super::*;
 
     pub trait Sealed {}
-    impl<Mut, P> Sealed for ExclusiveWrapper<'_, '_, Mut, P> {}
+    impl<Mut: UnsizedTypePtr, P> Sealed for ExclusiveWrapper<'_, '_, Mut, P> {}
 }
 
 pub trait ExclusiveRecurse: sealed::Sealed + Sized {
@@ -247,7 +299,7 @@ pub trait ExclusiveRecurse: sealed::Sealed + Sized {
     ) -> Result<()>;
 }
 
-impl<Mut, P> ExclusiveRecurse for ExclusiveWrapper<'_, '_, Mut, P>
+impl<Mut: UnsizedTypePtr, P> ExclusiveRecurse for ExclusiveWrapper<'_, '_, Mut, P>
 where
     P: ExclusiveRecurse,
 {
@@ -298,14 +350,21 @@ where
         start: *const (),
         amount: usize,
     ) -> Result<()> {
-        let (top_meta, top_mut) = match &mut wrapper.0 {
-            ExclusiveWrapperEnum::Top {
-                exclusive_top,
-                top_mut,
-                ..
-            } => (exclusive_top, top_mut),
-            ExclusiveWrapperEnum::Inner { .. } => unreachable!(),
+        let ExclusiveWrapperEnum::Top {
+            exclusive_top: top_meta,
+            top_drop: ExclusiveTopDrop { top_mut, range },
+            ..
+        } = &mut wrapper.0
+        else {
+            unreachable!();
         };
+        debug_assert!(
+            {
+                let mut cursor = range.start;
+                top_mut.check_pointers(range, &mut cursor)
+            },
+            "Top Mut pointers have been invalidated before add_bytes"
+        );
 
         {
             // SAFETY:
@@ -362,20 +421,32 @@ where
         Ok(())
     }
 
+    #[allow(clippy::too_many_lines)]
     unsafe fn remove_bytes(
         wrapper: &mut Self,
         source_ptr: *const (),
         range: impl RangeBounds<*const ()>,
         // after_remove: impl FnOnce(&mut Self::T) -> Result<()>,
     ) -> Result<()> {
-        let (top_meta, top_mut) = match &mut wrapper.0 {
-            ExclusiveWrapperEnum::Top {
-                exclusive_top,
-                top_mut,
-                ..
-            } => (exclusive_top, top_mut),
-            ExclusiveWrapperEnum::Inner { .. } => unreachable!(),
+        let ExclusiveWrapperEnum::Top {
+            exclusive_top: top_meta,
+            top_drop:
+                ExclusiveTopDrop {
+                    top_mut,
+                    range: valid_range,
+                },
+            ..
+        } = &mut wrapper.0
+        else {
+            unreachable!();
         };
+        debug_assert!(
+            {
+                let mut cursor = valid_range.start;
+                top_mut.check_pointers(valid_range, &mut cursor)
+            },
+            "Top Mut pointers have been invalidated before remove_bytes"
+        );
 
         let amount = {
             // SAFETY:
@@ -477,7 +548,7 @@ where
     }
 }
 
-impl<'top, Mut, P> ExclusiveWrapper<'_, 'top, Mut, P>
+impl<'top, Mut: UnsizedTypePtr, P> ExclusiveWrapper<'_, 'top, Mut, P>
 where
     Self: ExclusiveRecurse,
 {
@@ -486,8 +557,8 @@ where
     #[inline]
     pub unsafe fn map_mut<'child, O>(
         parent: &'child mut Self,
-        mapper: impl FnOnce(*mut Mut) -> *mut O::Mut<'top>,
-    ) -> ExclusiveWrapper<'child, 'top, O::Mut<'top>, Self>
+        mapper: impl FnOnce(*mut Mut) -> *mut O::Ptr,
+    ) -> ExclusiveWrapper<'child, 'top, O::Ptr, Self>
     where
         O: UnsizedType + ?Sized,
     {
@@ -499,21 +570,23 @@ where
     #[inline]
     pub unsafe fn try_map_mut<'child, O, E>(
         parent: &'child mut Self,
-        mapper: impl FnOnce(*mut Mut) -> Result<*mut O::Mut<'top>, E>,
-    ) -> Result<ExclusiveWrapper<'child, 'top, O::Mut<'top>, Self>, E>
+        mapper: impl FnOnce(*mut Mut) -> Result<*mut O::Ptr, E>,
+    ) -> Result<ExclusiveWrapper<'child, 'top, O::Ptr, Self>, E>
     where
         O: UnsizedType + ?Sized,
     {
+        let range = Self::range(parent).clone();
         let parent_mut: *mut Self = parent;
         Ok(ExclusiveWrapper(ExclusiveWrapperEnum::Inner {
             parent_lt: PhantomData,
             parent: parent_mut,
+            range,
             field: mapper(Self::mut_mut(parent))?,
         }))
     }
 }
 
-impl<Mut, P> Deref for ExclusiveWrapper<'_, '_, Mut, P>
+impl<Mut: UnsizedTypePtr, P> Deref for ExclusiveWrapper<'_, '_, Mut, P>
 where
     Self: ExclusiveRecurse,
 {
@@ -525,7 +598,7 @@ where
     }
 }
 
-impl<Mut, P> DerefMut for ExclusiveWrapper<'_, '_, Mut, P>
+impl<Mut: UnsizedTypePtr, P> DerefMut for ExclusiveWrapper<'_, '_, Mut, P>
 where
     Self: ExclusiveRecurse,
 {
@@ -544,26 +617,17 @@ pub struct StartPointer<T> {
     start: *mut (),
 }
 
-impl<T> AsShared for StartPointer<T>
+unsafe impl<T> UnsizedTypePtr for StartPointer<T>
 where
-    T: AsShared,
-{
-    type Ref<'b>
-        = T::Ref<'b>
-    where
-        Self: 'b;
-
-    #[inline]
-    fn as_shared(&self) -> Self::Ref<'_> {
-        self.data.as_shared()
-    }
-}
-
-unsafe impl<T> UnsizedTypeMut for StartPointer<T>
-where
-    T: UnsizedTypeMut,
+    T: UnsizedTypePtr,
 {
     type UnsizedType = T::UnsizedType;
+    fn check_pointers(&self, range: &Range<usize>, cursor: &mut usize) -> bool {
+        let start = self.start.addr();
+        let is_advanced = start >= *cursor;
+        *cursor = start;
+        is_advanced && range.contains(&start) && self.data.check_pointers(range, cursor)
+    }
 }
 
 impl<T> StartPointer<T> {
@@ -589,11 +653,11 @@ impl<T> StartPointer<T> {
     }
 }
 
-impl<'top, Mut, P, U> ExclusiveWrapper<'_, 'top, Mut, P>
+impl<Mut, P, U> ExclusiveWrapper<'_, '_, Mut, P>
 where
     Self: ExclusiveRecurse,
-    U: ?Sized + UnsizedType<Mut<'top> = Mut>,
-    Mut: UnsizedTypeMut<UnsizedType = U>,
+    U: ?Sized + UnsizedType<Ptr = Mut>,
+    Mut: UnsizedTypePtr<UnsizedType = U>,
 {
     #[inline]
     fn set_data_inner<I>(
@@ -636,7 +700,7 @@ where
             // SAFETY:
             // The underlying data is valid for 'top, and we just created the slice so it's length is valid.
             // We just resizd the underlying data to be enough for `len`
-            let res: U::Mut<'top> = unsafe { U::get_mut(&mut slice_ptr)? };
+            let res: U::Ptr = unsafe { U::get_ptr(&mut slice_ptr)? };
             debug_assert_eq!(<U as UnsizedType>::data_len(&res), new_len);
             debug_assert_eq!(<U as UnsizedType>::start_ptr(&res), start_ptr);
             res

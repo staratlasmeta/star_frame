@@ -182,18 +182,10 @@ pub struct OrderBookSide {
     pub orders: List<OrderInfo>,
 }
 
-#[unsized_impl]
 impl OrderBookSide {
     pub fn is_empty(&self) -> bool {
         self.makers.is_empty() && self.orders.is_empty()
     }
-
-    #[exclusive]
-    pub fn remove_maker(&mut self, maker: &Pubkey) -> Result<Option<MakerInfo>> {
-        let maker = self.makers().remove(maker)?;
-        Ok(maker)
-    }
-
     #[inline]
     pub fn find_bid_index(&self, price: Price, order_id: u64) -> Result<usize, usize> {
         // Bids are sorted by price descending, then order id ascending
@@ -222,9 +214,16 @@ impl OrderBookSide {
             OrderSide::Ask => self.find_ask_index(price, order_id),
         }
     }
+}
+
+#[unsized_impl]
+impl OrderBookSide {
+    pub fn remove_maker(&mut self, maker: &Pubkey) -> Result<Option<MakerInfo>> {
+        let maker = self.makers().remove(maker)?;
+        Ok(maker)
+    }
 
     /// Returns the new order id
-    #[exclusive]
     fn add_order(
         &mut self,
         price: Price,
@@ -267,7 +266,6 @@ impl OrderBookSide {
         Ok(order_id)
     }
 
-    #[exclusive]
     fn process_order_inner(
         &mut self,
         price: Price,
@@ -327,7 +325,6 @@ impl OrderBookSide {
     }
 
     /// Returns the maker info and the additional rent bytes used
-    #[exclusive]
     pub fn get_or_insert_maker(&mut self, maker: &Pubkey) -> Result<&mut MakerInfo> {
         if !self.makers.contains_key(maker) {
             self.makers().insert(
@@ -403,7 +400,7 @@ pub struct ValidateMarketToken<'a>(pub &'a KeyFor<MintAccount>);
 pub struct ValidateCurrency<'a>(pub &'a KeyFor<MintAccount>);
 
 impl<'a> AccountValidate<ValidateMarketToken<'a>> for Market {
-    fn validate_account(self_ref: &Self::Ref<'_>, arg: ValidateMarketToken<'a>) -> Result<()> {
+    fn validate_account(self_ref: &Market, arg: ValidateMarketToken<'a>) -> Result<()> {
         ensure!(
             &self_ref.market_token == arg.0,
             MarketplaceError::MarketTokenMismatch,
@@ -413,7 +410,7 @@ impl<'a> AccountValidate<ValidateMarketToken<'a>> for Market {
 }
 
 impl<'a> AccountValidate<ValidateCurrency<'a>> for Market {
-    fn validate_account(self_ref: &Self::Ref<'_>, arg: ValidateCurrency<'a>) -> Result<()> {
+    fn validate_account(self_ref: &Market, arg: ValidateCurrency<'a>) -> Result<()> {
         ensure!(
             &self_ref.currency == arg.0,
             MarketplaceError::CurrencyMismatch,
@@ -422,7 +419,6 @@ impl<'a> AccountValidate<ValidateCurrency<'a>> for Market {
     }
 }
 
-#[unsized_impl]
 impl Market {
     pub fn initialize(&mut self, args: CreateMarketArgs) {
         let CreateMarketArgs {
@@ -441,20 +437,21 @@ impl Market {
         self.asks.id_counter = ASK_ID_MASK; // Set the first bit to a 1 for asks to tell the difference between asks and bids
     }
 
-    #[exclusive]
+    pub fn get_combined_maker_info(&self, maker: &Pubkey) -> Option<MakerInfo> {
+        let bid_maker = self.bids.makers.get(maker);
+        let ask_maker = self.asks.makers.get(maker);
+        MakerInfo::maybe_combine(bid_maker, ask_maker)
+    }
+}
+
+#[unsized_impl]
+impl Market {
     fn clear_orders_for_cleanup(&mut self) -> Result<()> {
         self.bids().orders().clear()?;
         self.asks().orders().clear()?;
         Ok(())
     }
 
-    pub fn get_combined_maker_info(&self, maker: &Pubkey) -> Option<MakerInfo> {
-        let bid_maker = self.bids.makers.get(maker);
-        let ask_maker = self.asks.makers.get(maker);
-        MakerInfo::maybe_combine(bid_maker, ask_maker)
-    }
-
-    #[exclusive]
     pub fn remove_maker_for_cleanup(&mut self, maker: &Pubkey) -> Result<Option<MakerInfo>> {
         self.clear_orders_for_cleanup()?;
         let bid_maker = self.bids().remove_maker(maker)?;
@@ -463,7 +460,6 @@ impl Market {
         Ok(combined_maker)
     }
 
-    #[exclusive]
     pub fn process_order(
         &mut self,
         args: ProcessOrderArgs,
@@ -502,7 +498,6 @@ impl Market {
         Ok(order_result)
     }
 
-    #[exclusive]
     pub fn cancel_orders(
         &mut self,
         maker: &Pubkey,
@@ -589,6 +584,7 @@ impl Market {
         })
     }
 }
+
 #[cfg(test)]
 pub(crate) mod tests {
     use std::collections::BTreeMap;

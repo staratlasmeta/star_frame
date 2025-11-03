@@ -3,7 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use clap::{arg, Parser};
+use clap::Parser;
 use colored::*;
 use convert_case::{Case, Casing};
 use solana_pubkey::Pubkey;

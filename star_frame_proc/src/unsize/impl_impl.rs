@@ -1,20 +1,15 @@
 use crate::util::{combine_gen, new_generic, new_lifetime, strip_inner_attributes, Paths};
 use easy_proc::ArgumentList;
 use heck::ToUpperCamelCase;
-use itertools::Itertools;
+use itertools::{Either, Itertools};
 use proc_macro2::{Ident, TokenStream};
-use proc_macro_error2::{abort, OptionExt};
+use proc_macro_error2::abort;
 use quote::{format_ident, quote};
-use syn::{
-    parse_quote, AngleBracketedGenericArguments, FnArg, ImplItem, ImplItemFn, ItemImpl, Lifetime,
-    LitStr, PathArguments, PathSegment, Receiver, Type, Visibility,
-};
+use syn::{parse_quote, FnArg, ImplItem, ImplItemFn, ItemImpl, LitStr, Receiver, Type, Visibility};
 
 #[derive(ArgumentList)]
 pub struct UnsizedImplArgs {
     tag: Option<LitStr>,
-    ref_ident: Option<Ident>,
-    mut_ident: Option<Ident>,
 }
 
 pub fn unsized_impl_impl(item: ItemImpl, args: TokenStream) -> TokenStream {
@@ -65,142 +60,47 @@ pub fn unsized_impl_impl(item: ItemImpl, args: TokenStream) -> TokenStream {
 
     let self_ident = self_segment.ident.clone();
 
-    let angle_bracketed_self = match &self_segment.arguments {
-        PathArguments::None => AngleBracketedGenericArguments {
-            colon2_token: None,
-            lt_token: Default::default(),
-            args: Default::default(),
-            gt_token: Default::default(),
-        },
-        PathArguments::AngleBracketed(angle_bracketed) => angle_bracketed.clone(),
-        PathArguments::Parenthesized(paren) => {
-            abort!(
-                paren,
-                "Parenthesized path arguments are not allowed in type paths"
-            );
-        }
-    };
-
-    let ptr_lt = new_lifetime(&item.generics, Some("ptr"));
-    let new_last_segment = |ident: Ident, lifetime: Lifetime| {
-        let mut new_ty_path = self_ty_path.clone();
-        let mut angle_generic = angle_bracketed_self.clone();
-        angle_generic.args.insert(0, parse_quote!(#lifetime));
-        let arguments = PathArguments::AngleBracketed(angle_generic);
-        *new_ty_path
-            .path
-            .segments
-            .last_mut()
-            .expect_or_abort("Last segment is None") = PathSegment { ident, arguments };
-        new_ty_path
-    };
-    let ref_ty = new_last_segment(
-        impl_args
-            .ref_ident
-            .unwrap_or_else(|| format_ident!("{self_ident}Ref")),
-        ptr_lt.clone(),
-    );
-    let mut_ident = impl_args
-        .mut_ident
-        .unwrap_or_else(|| format_ident!("{self_ident}Mut"));
-    let mut_ty = new_last_segment(mut_ident.clone(), ptr_lt.clone());
-
     let impl_fns = item
         .items
         .into_iter()
         .map(|item| match item {
             ImplItem::Fn(item_fn) => item_fn,
-            _ => abort!(item, "`unsafe_impl` only supports methods"),
+            _ => abort!(item, "`unsized_impl` only supports methods"),
         })
         .collect_vec();
 
-    if let Some(duplicate) = impl_fns.iter().duplicates_by(|item| &item.sig.ident).next() {
-        abort!(
-            duplicate.sig.ident,
-            "Duplicate method name found in `unsized_impl`"
-        );
-    }
-
-    let mut exclusive_fns = vec![];
-    let mut mut_fns = vec![];
-    let mut ref_fns = vec![];
-    impl_fns.into_iter()
-        .for_each(|mut item_fn| {
-            let Some(FnArg::Receiver(Receiver { reference: Some(..), mutability, .. })) = item_fn.sig.inputs.first() else {
-                abort!(item_fn.sig, "`unsafe_impl` requires all methods take a reference to self argument, i.e., `fn foo(&self, ...)` or `fn foo(&mut self, ...)`");
-            };
-
-            let has_exclusive = strip_inner_attributes(&mut item_fn.attrs, &format_ident!("exclusive")).collect_vec();
-            let has_exclusive = has_exclusive.first();
-            let skip_mut = strip_inner_attributes(&mut item_fn.attrs, &format_ident!("skip_mut")).collect_vec();
-            let skip_mut = skip_mut.first();
-
-            if skip_mut.is_some() && has_exclusive.is_some() {
-                abort!(skip_mut.unwrap().attribute, "`unsafe_impl` cannot have both exclusive and skip_mut");
+    let (mut pub_exclusive_fns, mut priv_exclusive_fns): (Vec<_>, Vec<_>) = impl_fns.into_iter()
+        .partition_map(|mut item_fn| {
+            if !matches!(item_fn.sig.inputs.first(), Some(FnArg::Receiver(Receiver { reference: Some(..), mutability: Some(..), .. }))) {
+                abort!(item_fn.sig, "`unsized_impl` requires all methods take a mutable reference to self argument, i.e., `fn foo(&mut self, ...)`");
             }
-
-            if mutability.is_some() {
-                if has_exclusive.is_some() {
-                    exclusive_fns.push(item_fn);
-                } else {
-                    mut_fns.push(item_fn);
+            match item_fn.vis {
+                Visibility::Public(_) => {
+                    item_fn.vis = Visibility::Inherited;
+                    Either::Left(item_fn)
                 }
-            } else {
-                if has_exclusive.is_some() { abort!(has_exclusive.unwrap().attribute, "`exclusive` can only be on `&mut self` inherent functions"); }
-                if skip_mut.is_none() {
-                    mut_fns.push(item_fn.clone());
+                Visibility::Restricted(_) => abort!(
+                    item_fn.vis,
+                    "`exclusive` functions can only have pub or inherited visibilities"
+                ),
+                Visibility::Inherited => {
+                    Either::Right(item_fn)
                 }
-                ref_fns.push(item_fn);
             }
         });
-
-    let ref_mut_generics = combine_gen!(item.generics; <#ptr_lt>);
-    let (impl_gen, _, where_clause) = ref_mut_generics.split_for_impl();
-    let ref_impls = (!ref_fns.is_empty()).then(|| {
-        quote! {
-            impl #impl_gen #ref_ty #where_clause {
-                #(#ref_fns)*
-            }
-        }
-    });
-    let mut_impls = (!mut_fns.is_empty()).then(|| {
-        quote! {
-            impl #impl_gen #mut_ty #where_clause {
-                #(#mut_fns)*
-            }
-        }
-    });
 
     let parent_lt = new_lifetime(&item.generics, Some("parent"));
     let top_lt = new_lifetime(&item.generics, Some("top"));
     let p = new_generic(&item.generics, Some("P"));
-    let mut_ut = quote!(<#self_ty as #prelude::UnsizedType>::Mut<#top_lt>);
+    let ptr_lt = quote!(<#self_ty as #prelude::UnsizedType>::Ptr);
     let exclusive_trait_generics = combine_gen!(item.generics; <#parent_lt, #top_lt, #p>
         where Self: #prelude::ExclusiveRecurse + #sized,
     );
     let (impl_gen, ty_gen, where_clause) = exclusive_trait_generics.split_for_impl();
-    let impl_for = quote!(#prelude::ExclusiveWrapper<#parent_lt, #top_lt, #mut_ut, #p>);
+    let impl_for = quote!(#prelude::ExclusiveWrapper<#parent_lt, #top_lt, #ptr_lt, #p>);
 
     let pub_exclusive_ident = format_ident!("{self_ident}ExclusiveImpl{tag_str}");
     let priv_exclusive_ident = format_ident!("{self_ident}ExclusiveImplPrivate{tag_str}");
-    let mut pub_exclusive_fns = vec![];
-    let mut priv_exclusive_fns = vec![];
-
-    for mut exclusive_fn in exclusive_fns {
-        match exclusive_fn.vis {
-            Visibility::Public(_) => {
-                exclusive_fn.vis = Visibility::Inherited;
-                pub_exclusive_fns.push(exclusive_fn);
-            }
-            Visibility::Restricted(_) => abort!(
-                exclusive_fn.vis,
-                "`exclusive` functions can only have pub or inherited visibilities"
-            ),
-            Visibility::Inherited => {
-                priv_exclusive_fns.push(exclusive_fn);
-            }
-        }
-    }
 
     let make_exclusive = |vis: Visibility, trait_ident: Ident, funcs: &mut [ImplItemFn]| {
         let signatures = funcs
@@ -244,8 +144,6 @@ pub fn unsized_impl_impl(item: ItemImpl, args: TokenStream) -> TokenStream {
     });
 
     quote! {
-        #ref_impls
-        #mut_impls
         #pub_exclusive
         #priv_exclusive
     }

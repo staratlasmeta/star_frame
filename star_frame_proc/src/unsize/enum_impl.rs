@@ -1,9 +1,8 @@
 use crate::{
     unsize::{account::account_impl, UnsizedTypeArgs},
     util::{
-        combine_gen, get_doc_attributes, get_repr, new_generic, new_lifetime,
-        phantom_generics_type, restrict_attributes, strip_inner_attributes, IntegerRepr, Paths,
-        Representation,
+        combine_gen, get_doc_attributes, get_repr, new_generic, new_lifetime, restrict_attributes,
+        strip_inner_attributes, IntegerRepr, Paths, Representation,
     },
 };
 use heck::{ToShoutySnakeCase, ToSnakeCase};
@@ -31,16 +30,13 @@ pub(crate) fn unsized_type_enum_impl(
     unsized_args: UnsizedTypeArgs,
 ) -> TokenStream {
     let context = UnsizedEnumContext::parse(item_enum, unsized_args);
-    let enum_struct = context.enum_struct();
+    let main_enum = context.main_enum();
     let discriminant_enum = context.discriminant_enum();
     let owned_enum = context
         .args
         .owned_type
         .is_none()
         .then(|| context.owned_enum());
-    let ref_enum = context.ref_enum();
-    let mut_enum = context.mut_enum();
-    let as_shared_impl = context.as_shared_impl();
     let from_owned_impl = context.from_owned_impl();
     let unsized_type_mut_impl = context.unsized_type_mut_impl();
     let unsized_type_impl = context.unsized_type_impl();
@@ -50,12 +46,9 @@ pub(crate) fn unsized_type_enum_impl(
     let idl_impl = context.idl_impl();
 
     quote! {
-        #enum_struct
+        #main_enum
         #discriminant_enum
         #owned_enum
-        #ref_enum
-        #mut_enum
-        #as_shared_impl
         #from_owned_impl
         #unsized_type_mut_impl
         #unsized_type_impl
@@ -75,17 +68,12 @@ pub struct UnsizedEnumContext {
     enum_type: Type,
     discriminant_ident: Ident,
     discriminant_values: Vec<TokenStream>,
-    ref_ident: Ident,
-    ref_type: Type,
-    mut_ident: Ident,
-    mut_type: Type,
     owned_ident: Ident,
     owned_type: Type,
     variant_idents: Vec<Ident>,
     variant_docs: Vec<Vec<Attribute>>,
     filtered_variant_types: Vec<Type>,
     variant_types: Vec<Option<Type>>,
-    ref_mut_generics: Generics,
     top_lt: Lifetime,
     args: UnsizedTypeArgs,
     integer_repr: IntegerRepr,
@@ -95,16 +83,10 @@ impl UnsizedEnumContext {
     fn parse(item_enum: ItemEnum, args: UnsizedTypeArgs) -> Self {
         restrict_attributes(&item_enum, &["default_init", "doc"]);
         let top_lt = new_lifetime(&item_enum.generics, Some("top"));
-        let ref_mut_generics = combine_gen!(item_enum.generics; <#top_lt>);
-        let ref_mut_type_generics = ref_mut_generics.split_for_impl().1;
         let type_generics = item_enum.generics.split_for_impl().1;
         let enum_ident = item_enum.ident.clone();
         let enum_type = parse_quote!(#enum_ident #type_generics);
         let discriminant_ident = format_ident!("{enum_ident}Discriminants");
-        let ref_ident = format_ident!("{enum_ident}Ref");
-        let ref_type = parse_quote!(#ref_ident #ref_mut_type_generics);
-        let mut_ident = format_ident!("{enum_ident}Mut");
-        let mut_type = parse_quote!(#mut_ident #ref_mut_type_generics);
         let owned_ident = format_ident!("{enum_ident}Owned");
         let owned_type = parse_quote!(#owned_ident #type_generics);
         let repr = get_repr(&item_enum.attrs);
@@ -176,7 +158,6 @@ impl UnsizedEnumContext {
         Self {
             vis: item_enum.vis.clone(),
             generics: item_enum.generics.clone(),
-            ref_mut_generics,
             top_lt,
             discriminant_values,
             repr,
@@ -185,10 +166,6 @@ impl UnsizedEnumContext {
             enum_ident,
             enum_type,
             discriminant_ident,
-            ref_ident,
-            ref_type,
-            mut_ident,
-            mut_type,
             owned_ident,
             owned_type,
             variant_idents,
@@ -232,37 +209,35 @@ impl UnsizedEnumContext {
         )
     }
 
-    fn split_for_declaration(&self, ref_mut: bool) -> (&Generics, Option<&syn::WhereClause>) {
-        let the_generics = if ref_mut {
-            &self.ref_mut_generics
-        } else {
-            &self.generics
-        };
+    fn split_for_declaration(&self) -> (&Generics, Option<&syn::WhereClause>) {
+        let the_generics = &self.generics;
         (the_generics, the_generics.where_clause.as_ref())
     }
 
-    fn enum_struct(&self) -> TokenStream {
-        Paths!(prelude, debug);
-        UnsizedEnumContext!(self => enum_ident, generics, vis);
+    fn main_enum(&self) -> TokenStream {
+        Paths!(prelude);
+        UnsizedEnumContext!(self => integer_repr, enum_ident, variant_docs, filtered_variant_types);
+        let (generics, wc) = self.split_for_declaration();
 
-        let wc = &generics.where_clause;
-        let phantom_generics_type = phantom_generics_type(generics);
-
-        let phantom_generics: Option<TokenStream> = phantom_generics_type.map(|ty| quote!((#ty)));
-
-        let derives = if phantom_generics.is_some() {
+        let variants = self.make_variants(|variant_type| {
             quote! {
-                #[derive(#prelude::DeriveWhere)]
-                #[derive_where(Debug)]
+                <#variant_type as #prelude::UnsizedType>::Ptr
             }
-        } else {
-            quote!(#[derive(#debug)])
-        };
+        });
+
+        let docs = get_doc_attributes(&self.item_enum.attrs);
 
         quote! {
-            #[repr(C)]
-            #derives
-            #vis struct #enum_ident #generics #phantom_generics #wc;
+            #(#docs)*
+            #[derive(#prelude::DeriveWhere)]
+            #[derive_where(Debug; #(<#filtered_variant_types as #prelude::UnsizedType>::Ptr,)*)]
+            #[repr(#integer_repr)]
+            pub enum #enum_ident #generics #wc {
+                #(
+                    #(#variant_docs)*
+                    #variants,
+                )*
+            }
         }
     }
 
@@ -302,99 +277,6 @@ impl UnsizedEnumContext {
                     #(#variant_docs)*
                     #variants #discriminant_values,
                 )*
-            }
-        }
-    }
-
-    fn ref_enum(&self) -> TokenStream {
-        Paths!(prelude);
-        UnsizedEnumContext!(self => ref_ident, variant_docs, top_lt, filtered_variant_types);
-        let (generics, wc) = self.split_for_declaration(true);
-
-        let variants = self.make_variants(|variant_type| {
-            quote! {
-                <#variant_type as #prelude::UnsizedType>::Ref<#top_lt>
-            }
-        });
-
-        quote! {
-            #[derive(#prelude::DeriveWhere)]
-            #[derive_where(Debug; #(<#filtered_variant_types as #prelude::UnsizedType>::Ref<#top_lt>,)*)]
-            pub enum #ref_ident #generics #wc {
-                #(
-                    #(#variant_docs)*
-                    #variants,
-                )*
-            }
-        }
-    }
-
-    fn mut_enum(&self) -> TokenStream {
-        Paths!(prelude);
-        UnsizedEnumContext!(self => integer_repr, mut_ident, variant_docs, top_lt, filtered_variant_types);
-        let (generics, wc) = self.split_for_declaration(true);
-
-        let variants = self.make_variants(|variant_type| {
-            quote! {
-                <#variant_type as #prelude::UnsizedType>::Mut<#top_lt>
-            }
-        });
-
-        quote! {
-            #[derive(#prelude::DeriveWhere)]
-            #[derive_where(Debug; #(<#filtered_variant_types as #prelude::UnsizedType>::Mut<#top_lt>,)*)]
-            #[repr(#integer_repr)]
-            pub enum #mut_ident #generics #wc {
-                #(
-                    #(#variant_docs)*
-                    #variants,
-                )*
-            }
-        }
-    }
-
-    fn as_shared_impl(&self) -> TokenStream {
-        Paths!(prelude);
-        UnsizedEnumContext!(self => ref_type, top_lt, ref_ident, mut_ident);
-        let underscore_gen = combine_gen!(self.generics; <'_>);
-        let underscore_ty_gen = underscore_gen.split_for_impl().1;
-
-        let (impl_gen, _, where_clause) = self.generics.split_for_impl();
-
-        let variant_matches = self.make_variants(|_| quote!(inner));
-
-        let variant_returns_ref = self.make_variants(|variant_type| {
-            quote! {
-                <#variant_type as #prelude::UnsizedType>::ref_as_ref(inner)
-            }
-        });
-        let variant_returns_mut = self.make_variants(|variant_type| {
-            quote! {
-                <#variant_type as #prelude::UnsizedType>::mut_as_ref(inner)
-            }
-        });
-
-        quote! {
-            #[automatically_derived]
-            impl #impl_gen #prelude::AsShared for #ref_ident #underscore_ty_gen #where_clause {
-                type Ref<#top_lt> = #ref_type
-                    where Self: #top_lt;
-                fn as_shared(&self) -> Self::Ref<'_> {
-                    match self {
-                        #(#ref_ident::#variant_matches => #ref_ident::#variant_returns_ref),*
-                    }
-                }
-            }
-
-            #[automatically_derived]
-            impl #impl_gen #prelude::AsShared for #mut_ident #underscore_ty_gen #where_clause {
-                type Ref<#top_lt> = #ref_type
-                    where Self: #top_lt;
-                fn as_shared(&self) -> Self::Ref<'_> {
-                    match self {
-                        #(#mut_ident::#variant_matches => #ref_ident::#variant_returns_mut),*
-                    }
-                }
             }
         }
     }
@@ -467,22 +349,45 @@ impl UnsizedEnumContext {
     }
 
     fn unsized_type_mut_impl(&self) -> TokenStream {
-        Paths!(prelude);
-        UnsizedEnumContext!(self => enum_type, mut_type);
-        let (impl_gen, _, where_clause) = self.ref_mut_generics.split_for_impl();
+        Paths!(prelude, range);
+        UnsizedEnumContext!(self => enum_type, enum_ident);
+        let (impl_gen, _, where_clause) = self.generics.split_for_impl();
+
+        let checks = self.map_variants(
+            |_, ty| {
+                quote! {
+                    <<#ty as #prelude::UnsizedType>::Ptr as #prelude::UnsizedTypePtr>::check_pointers(inner, range, cursor)
+                }
+            },
+            |_| {
+                quote! {
+                    true
+                }
+            },
+        );
+
+        let variant_matches = self.make_variants(|_| quote!(inner));
 
         quote! {
             #[automatically_derived]
-            unsafe impl #impl_gen #prelude::UnsizedTypeMut for #mut_type #where_clause {
+            unsafe impl #impl_gen #prelude::UnsizedTypePtr for #enum_type #where_clause {
                 type UnsizedType = #enum_type;
+                fn check_pointers(&self, range: &#range<usize>, cursor: &mut usize) -> bool {
+                    match &self {
+                        #(
+                            #enum_ident::#variant_matches => {
+                                #checks
+                            },
+                        )*
+                    }
+                }
             }
         }
     }
 
     fn unsized_type_impl(&self) -> TokenStream {
         Paths!(prelude, result, size_of);
-        UnsizedEnumContext!(self => ref_type, top_lt,
-            ref_ident, mut_type, mut_ident, enum_type, integer_repr,
+        UnsizedEnumContext!(self => enum_ident, enum_type, integer_repr,
             discriminant_ident, variant_idents, owned_ident, filtered_variant_types
         );
         let (impl_gen, _, where_clause) = self.generics.split_for_impl();
@@ -492,9 +397,9 @@ impl UnsizedEnumContext {
             .map(|var_ident| format_ident!("{}", var_ident.to_string().to_shouty_snake_case()))
             .collect_vec();
 
-        let variant_owned_from_ref = self.make_variants(|variant_type| {
+        let variant_owned_from_ptr = self.make_variants(|variant_type| {
             quote! {
-                <#variant_type as #prelude::UnsizedType>::owned_from_ref(inner)?
+                <#variant_type as #prelude::UnsizedType>::owned_from_ptr(inner)?
             }
         });
 
@@ -502,42 +407,22 @@ impl UnsizedEnumContext {
 
         let owned_type = self.args.owned_type.as_ref().unwrap_or(&self.owned_type);
 
-        let owned_from_ref = self
+        let owned_from_ptr = self
             .args
-            .owned_from_ref
+            .owned_from_ptr
             .as_ref()
             .map(|path| quote!(#path(r)))
             .unwrap_or(quote! {
-                match r {
+                match &**r {
                         #(
-                            #ref_ident::#variant_matches => Ok(#owned_ident::#variant_owned_from_ref),
+                            #enum_ident::#variant_matches => Ok(#owned_ident::#variant_owned_from_ptr),
                         )*
                     }
             });
 
-        let mut_lt = new_lifetime(&self.generics, Some("m"));
-
-        let variant_ref_as_ref = self.make_variants(|variant_type| {
+        let variant_get_ptr = self.make_variants(|variant_type| {
             quote! {
-                <#variant_type as #prelude::UnsizedType>::ref_as_ref(inner)
-            }
-        });
-
-        let variant_mut_as_ref = self.make_variants(|variant_type| {
-            quote! {
-                <#variant_type as #prelude::UnsizedType>::mut_as_ref(inner)
-            }
-        });
-
-        let variant_get_ref = self.make_variants(|variant_type| {
-            quote! {
-                <#variant_type as #prelude::UnsizedType>::get_ref(data)?
-            }
-        });
-
-        let variant_get_mut = self.make_variants(|variant_type| {
-            quote! {
-                unsafe { <#variant_type as #prelude::UnsizedType>::get_mut(data)? }
+                unsafe { <#variant_type as #prelude::UnsizedType>::get_ptr(data)? }
             }
         });
 
@@ -559,45 +444,14 @@ impl UnsizedEnumContext {
         quote! {
             #[automatically_derived]
             unsafe impl #impl_gen #prelude::UnsizedType for #enum_type #where_clause {
-                type Ref<#top_lt> = #ref_type;
-                type Mut<#top_lt> = #prelude::StartPointer<#mut_type>;
+                type Ptr = #prelude::StartPointer<#enum_type>;
                 type Owned = #owned_type;
 
                 const ZST_STATUS: bool = {
                     true #(&& <#filtered_variant_types as #prelude::UnsizedType>::ZST_STATUS)*
                 };
 
-                fn ref_as_ref<#mut_lt>(r: &#mut_lt Self::Ref<'_>) -> Self::Ref<#mut_lt> {
-                    match &r {
-                        #(
-                            #ref_ident::#variant_matches => #ref_ident::#variant_ref_as_ref,
-                        )*
-                    }
-                }
-
-                fn mut_as_ref<#mut_lt>(m: &#mut_lt Self::Mut<'_>) -> Self::Ref<#mut_lt> {
-                    match &m.data {
-                        #(
-                            #mut_ident::#variant_matches => #ref_ident::#variant_mut_as_ref,
-                        )*
-                    }
-                }
-
-                fn get_ref<#top_lt>(data: &mut &#top_lt [u8]) -> #result<Self::Ref<#top_lt>> {
-                    #(const #discriminant_consts: #integer_repr = #discriminant_ident::#variant_idents as #integer_repr;)*
-                    let maybe_repr_bytes_ptr = #prelude::AdvanceArray::try_advance_array(data);
-                    let repr_bytes_ptr = #prelude::ErrorInfo::with_ctx(maybe_repr_bytes_ptr, || format!("Not enough bytes to get enum discriminant of {}", #prelude::type_name::<#enum_type>()))?;
-                    let repr: #integer_repr = <#integer_repr>::from_le_bytes(*repr_bytes_ptr);
-                    match repr {
-                        #(
-                            #discriminant_consts =>
-                                Ok(#ref_ident::#variant_get_ref),
-                        )*
-                        _ => #prelude::bail!(#prelude::ProgramError::InvalidAccountData, "Invalid enum discriminant for {} during get_ref", #prelude::type_name::<#enum_type>()),
-                    }
-                }
-
-                unsafe fn get_mut<#top_lt>(data: &mut *mut [u8]) -> #result<Self::Mut<#top_lt>> {
+                unsafe fn get_ptr(data: &mut *mut [u8]) -> #result<Self::Ptr> {
                     #(const #discriminant_consts: #integer_repr = #discriminant_ident::#variant_idents as #integer_repr;)*
                     let start_ptr = data.cast::<()>();
                     let maybe_repr_bytes = #prelude::RawSliceAdvance::try_advance(data, #size_of::<#integer_repr>());
@@ -607,36 +461,36 @@ impl UnsizedEnumContext {
                     let res = match repr {
                         #(
                             #discriminant_consts =>
-                                #mut_ident::#variant_get_mut,
+                                #enum_ident::#variant_get_ptr,
                         )*
                         _ => #prelude::bail!(#prelude::ProgramError::InvalidAccountData, "Invalid enum discriminant for {} during get_mut", #prelude::type_name::<#enum_type>()),
                     };
                     Ok(unsafe { #prelude::StartPointer::new(res, start_ptr) })
                 }
 
-                fn start_ptr(m: &Self::Mut<'_>) -> *mut () {
+                fn start_ptr(m: &Self::Ptr) -> *mut () {
                     #prelude::StartPointer::start_ptr(m)
                 }
 
-                fn data_len(m: &Self::Mut<'_>) -> usize {
+                fn data_len(m: &Self::Ptr) -> usize {
                     #size_of::<#integer_repr>() + match &m.data {
                         #(
-                            #mut_ident::#variant_matches => #variant_data_len,
+                            #enum_ident::#variant_matches => #variant_data_len,
                         )*
                     }
                 }
 
-                fn owned_from_ref(r: &Self::Ref<'_>) -> #result<Self::Owned> {
-                    #owned_from_ref
+                fn owned_from_ptr(r: &Self::Ptr) -> #result<Self::Owned> {
+                    #owned_from_ptr
                 }
 
-                unsafe fn resize_notification(self_mut: &mut Self::Mut<'_>, source_ptr: *const (), change: isize) -> #result<()> {
+                unsafe fn resize_notification(self_ptr: &mut Self::Ptr, source_ptr: *const (), change: isize) -> #result<()> {
                     unsafe {
-                        Self::Mut::handle_resize_notification(self_mut, source_ptr, change);
+                        Self::Ptr::handle_resize_notification(self_ptr, source_ptr, change);
                     }
-                    match &mut self_mut.data {
+                    match &mut self_ptr.data {
                         #(
-                            #mut_ident::#variant_matches => {
+                            #enum_ident::#variant_matches => {
                                 #variant_resize_notification
                             },
                         )*
@@ -793,7 +647,7 @@ impl UnsizedEnumContext {
 
     fn extension_impl(&self) -> TokenStream {
         Paths!(prelude, ptr, result, sized);
-        UnsizedEnumContext!(self => vis, enum_ident, mut_ident, enum_type, top_lt, mut_type, filtered_variant_types);
+        UnsizedEnumContext!(self => vis, enum_ident, enum_type, top_lt, filtered_variant_types);
 
         // Create new lifetimes and generics for the extension trait
         let parent_lt = new_lifetime(&self.generics, Some("parent"));
@@ -810,20 +664,20 @@ impl UnsizedEnumContext {
         let (impl_gen, ty_gen, wc) = ext_trait_generics.split_for_impl();
         let exclusive_ident = format_ident!("{enum_ident}Exclusive");
         let exclusive_variants = self.make_variants(|variant_ty| {
-            quote!(#prelude::ExclusiveWrapper<#parent_lt, #top_lt, <#variant_ty as #prelude::UnsizedType>::Mut<#top_lt>, #p>)
+            quote!(#prelude::ExclusiveWrapper<#parent_lt, #top_lt, <#variant_ty as #prelude::UnsizedType>::Ptr, #p>)
         });
 
         let exclusive_enum = {
             quote! {
                 #[derive(#prelude::DeriveWhere)]
-                #[derive_where(Debug; #(#prelude::ExclusiveWrapper<#parent_lt, #top_lt, <#filtered_variant_types as #prelude::UnsizedType>::Mut<#top_lt>, #p>,)*)]
+                #[derive_where(Debug; #(#prelude::ExclusiveWrapper<#parent_lt, #top_lt, <#filtered_variant_types as #prelude::UnsizedType>::Ptr, #p>,)*)]
                 #vis enum #exclusive_ident #ext_trait_generics #wc {
                     #(#exclusive_variants,)*
                 }
             }
         };
 
-        let enum_as_mut = quote!(<#enum_type as #prelude::UnsizedType>::Mut<#top_lt>);
+        let enum_as_mut = quote!(<#enum_type as #prelude::UnsizedType>::Ptr);
 
         let get_return_gen = combine_gen!(self.generics; <#child_lt, #top_lt>);
         let get_return_gen_tt = get_return_gen.split_for_impl().1.to_token_stream();
@@ -834,7 +688,7 @@ impl UnsizedEnumContext {
         let ext_impl_trait_generics = combine_gen!(ext_trait_generics;
             where
                 Self: #prelude::ExclusiveRecurse + #sized,
-                #enum_type: #prelude::UnsizedType<Mut<'top> = #prelude::StartPointer<#mut_type>>
+                #enum_type: #prelude::UnsizedType<Ptr = #prelude::StartPointer<#enum_type>>
         );
         let impl_wc = ext_impl_trait_generics.split_for_impl().2;
 
@@ -846,7 +700,7 @@ impl UnsizedEnumContext {
                     let variant_addr = #ptr::from_ref(variant).addr();
                     #exclusive_ident::#variant_ident(unsafe {
                         #prelude::ExclusiveWrapper::map_mut::<#variant_type>(self, |inner| {
-                            inner.with_addr(variant_addr).cast::<<#variant_type as #prelude::UnsizedType>::Mut<#top_lt>>()
+                            inner.with_addr(variant_addr).cast::<<#variant_type as #prelude::UnsizedType>::Ptr>()
                         })
                     })
                 }
@@ -863,7 +717,7 @@ impl UnsizedEnumContext {
                 let setter_method = make_setter_ident(variant_ident);
                 let init_ident = self.init_ident(variant_ident);
                 quote! {
-                    fn #setter_method<#child_lt, #init>(&#child_lt mut self, init: #init) -> #result<#prelude::ExclusiveWrapper<#child_lt, #top_lt, <#variant_type as #prelude::UnsizedType>::Mut<#top_lt>, Self>>
+                    fn #setter_method<#child_lt, #init>(&#child_lt mut self, init: #init) -> #result<#prelude::ExclusiveWrapper<#child_lt, #top_lt, <#variant_type as #prelude::UnsizedType>::Ptr, Self>>
                     where
                         #enum_type: #prelude::UnsizedInit<#init_ident<#init>>
                 }
@@ -887,13 +741,13 @@ impl UnsizedEnumContext {
                             #init_ident(init)
                         )?;
                     }
-                    let #mut_ident::#variant_ident(variant) = &***self else {
+                    let #enum_ident::#variant_ident(variant) = &***self else {
                         ::core::unreachable!();
                     };
                     let variant_addr = #ptr::from_ref(variant).addr();
                     Ok(unsafe {
                         #prelude::ExclusiveWrapper::map_mut::<#variant_type>(self, |inner| {
-                            inner.with_addr(variant_addr).cast::<<#variant_type as #prelude::UnsizedType>::Mut<#top_lt>>()
+                            inner.with_addr(variant_addr).cast::<<#variant_type as #prelude::UnsizedType>::Ptr>()
                         })
                     })
                 }
@@ -923,7 +777,7 @@ impl UnsizedEnumContext {
                 fn get<#child_lt>(&#child_lt mut self) -> #exclusive_ident #get_return_gen_args {
                     match &***self {
                         #(
-                            #mut_ident::#variant_matches => {
+                            #enum_ident::#variant_matches => {
                                 #getter_bodies
                             }
                         )*
