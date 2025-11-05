@@ -150,7 +150,7 @@ macro_rules! error {
 /// Can be converted into an [`Error`] via `From`.
 ///
 /// Derivable on enums via [`macro@star_frame_error`].
-pub trait StarFrameError: 'static + Debug {
+pub trait StarFrameError: 'static + Debug + Send + Sync {
     fn code(&self) -> u32;
     fn name(&self) -> Cow<'static, str>;
 }
@@ -187,6 +187,7 @@ pub struct ErrorInner {
 /// The error type returned from `star_frame` traits and functions.
 #[derive(Debug, DeriveError, Display, Deref, DerefMut)]
 pub struct Error(#[error(source)] Box<ErrorInner>);
+static_assertions::assert_impl_all!(Error: Send, Sync);
 
 impl std::fmt::Display for ErrorInner {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
