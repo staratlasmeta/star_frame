@@ -73,9 +73,7 @@ unsafe impl UnsizedTypeDataAccess for AccountInfo {
     }
 
     #[inline]
-    fn data_mut<'a>(
-        this: &'a Self,
-    ) -> Result<(*mut [u8], Range<usize>, Box<dyn DataMutDrop + 'a>)> {
+    fn data_mut(this: &Self) -> Result<UnsizedDataMut<'_>> {
         let ref_mut = this.account_data_mut()?;
         let current_len = this.data_len();
         let data_ptr = this.data_ptr();
