@@ -79,7 +79,7 @@ unsafe impl UnsizedTypeDataAccess for AccountInfo {
         let data_ptr = this.data_ptr();
         let ptr: *mut [u8] = ptr_meta::from_raw_parts_mut(data_ptr.cast(), current_len);
         let start = data_ptr.addr();
-        let end = i64::try_from(ptr.addr() + MAX_PERMITTED_DATA_INCREASE)?
+        let end = i64::try_from(ptr.addr() + current_len + MAX_PERMITTED_DATA_INCREASE)?
             + i64::from(this.resize_delta());
         let range = start..usize::try_from(end)?;
         Ok((ptr, range, Box::new(ref_mut)))
