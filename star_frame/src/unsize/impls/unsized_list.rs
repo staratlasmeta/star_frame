@@ -373,7 +373,7 @@ where
     C: UnsizedListOffset,
 {
     list_ptr: *mut UnsizedList<T, C>,
-    // We use MaybeUninit here to allow us to access the pointer directly without reborrowing (TODO: Fully understand why this is neccesary lol)
+    // We box the inner pointer to allow us to access the pointer directly without reborrowing (TODO: Fully understand why this is necessary lol)
     inner_exclusive: Option<Box<T::Ptr>>,
     possible_mut_borrow: Cell<bool>,
     range: Range<usize>,
