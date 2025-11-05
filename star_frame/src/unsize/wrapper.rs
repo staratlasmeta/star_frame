@@ -155,7 +155,7 @@ enum ExclusiveWrapperEnum<'parent, 'top, Mut: UnsizedTypePtr, P> {
     Top {
         exclusive_top: P,
         /// SAFETY:
-        /// This variant has to be before [`ExclusiveWrapperEnum::Top::_to_drop`]
+        /// This variant has to be before [`ExclusiveWrapperEnum::Top::_drop_guard`]
         /// so that it is dropped first in case of a panic from `check_pointers` in [`ExclusiveTopDrop::drop`]
         top_drop: ExclusiveTopDrop<Mut>,
         #[debug(skip)]
