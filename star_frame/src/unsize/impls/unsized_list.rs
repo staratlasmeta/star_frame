@@ -1470,7 +1470,7 @@ mod tests {
 
     #[test]
     #[should_panic = "Inner pointer invariant violated on UnsizedList. Was I `mem::swapped`?"]
-    fn test_check_pointers_get() {
+    fn test_check_pointers_resize() {
         let owned_list = vec![vec![0u8, 1, 2], vec![10, 11, 12], vec![20, 21, 22]];
         let u1 = UnsizedList::<List<u8>>::new_byte_set(owned_list.clone()).unwrap();
         let u2 = UnsizedList::<List<u8>>::new_byte_set(owned_list.clone()).unwrap();

@@ -380,6 +380,7 @@ pub struct CancelOrdersResult {
     pub cancelled_count: usize,
 }
 
+/// The marketplace account that handles orders between two currencies
 #[unsized_type(program_account, seeds = MarketSeeds)]
 pub struct Market {
     /// The version flag of this account type
