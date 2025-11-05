@@ -16,7 +16,7 @@ pub use test_helpers::*;
 
 use crate::{ensure, ErrorCode, Result};
 
-/// A helper trait that connects an [`UnsizedType::Mut`] to its parent [`UnsizedType`].
+/// A helper trait that connects an [`UnsizedType::Ptr`] to its parent [`UnsizedType`].
 ///
 /// # Safety
 /// The `UnsizedType` should almost always be the same as the `UnsizedTypePtr`'s parent.

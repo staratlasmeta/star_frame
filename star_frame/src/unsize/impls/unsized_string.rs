@@ -11,7 +11,7 @@ use crate::{
 ///
 /// Under the hood, this is a [`List`] of bytes, prefixed with `L` representing the length of the string, defaulting to `u32`.
 ///
-/// See [`Self::as_str`](UnsizedStringMut::as_str) and [`Self::as_mut_str`](UnsizedStringMut::as_mut_str) to access the underlying string slice,
+/// See [`Self::as_str`] and [`Self::as_mut_str`] to access the underlying string slice,
 /// and [`UnsizedStringExclusiveImpl::set`] to set the string to a given value.
 
 #[unsized_type(skip_idl, owned_type = String, owned_from_ptr = unsized_string_owned_from_ptr)]
