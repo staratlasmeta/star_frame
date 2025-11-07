@@ -603,8 +603,7 @@ pub fn unsized_type(
 ///
 /// # Usage
 ///
-/// All methods must be inherent impls on `&mut self`. This will turn &mut self into an `ExclusiveWrapper`
-/// around the impl type. This generates a trait that is implemented on the ExclusiveWrapper. For multiple separate
+/// Only methods that take in `&mut self` or `self` directly are permitted. This generates a trait that is implemented on an ExclusiveWrapper around the given type. For multiple separate
 /// impl blocks, add `#[unsized_impl(tag = <str>)]` to avoid trait name collisions. The trait name for public methods is
 /// `<SelfTypeName>ExclusiveImpl<optional_tag>` and for private methods is `<SelfTypeName>ExclusiveImplPrivate<optional_tag>`.
 ///

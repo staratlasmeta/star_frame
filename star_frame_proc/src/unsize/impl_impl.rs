@@ -69,10 +69,10 @@ pub fn unsized_impl_impl(item: ItemImpl, args: TokenStream) -> TokenStream {
         })
         .collect_vec();
 
-    let (mut pub_exclusive_fns, mut priv_exclusive_fns): (Vec<_>, Vec<_>) = impl_fns.into_iter()
-        .partition_map(|mut item_fn| {
-            if !matches!(item_fn.sig.inputs.first(), Some(FnArg::Receiver(Receiver { reference: Some(..), mutability: Some(..), .. }))) {
-                abort!(item_fn.sig, "`unsized_impl` requires all methods take a mutable reference to self argument, i.e., `fn foo(&mut self, ...)`");
+    let (mut pub_exclusive_fns, mut priv_exclusive_fns): (Vec<_>, Vec<_>) =
+        impl_fns.into_iter().partition_map(|mut item_fn| {
+            if !matches!(item_fn.sig.inputs.first(), Some(FnArg::Receiver(Receiver { reference: Some(..), mutability: Some(..), .. } | Receiver { reference: None, .. }))) {
+                abort!(item_fn.sig, "`unsized_impl` requires all methods take self directly or a mutable reference to self argument, i.e., `fn foo(&mut self, ...)` or `fn foo(self, ...)`");
             }
             match item_fn.vis {
                 Visibility::Public(_) => {
@@ -83,9 +83,7 @@ pub fn unsized_impl_impl(item: ItemImpl, args: TokenStream) -> TokenStream {
                     item_fn.vis,
                     "`exclusive` functions can only have pub or inherited visibilities"
                 ),
-                Visibility::Inherited => {
-                    Either::Right(item_fn)
-                }
+                Visibility::Inherited => Either::Right(item_fn),
             }
         });
 
