@@ -9,11 +9,11 @@ use crate::{
     prelude::*,
     unsize::{
         impls::{
-            unsized_list_exclusive_fn, UnsizedListOffset, UnsizedListWithOffsetIter,
-            UnsizedListWithOffsetIterMut,
+            unsized_list::Ptr, unsized_list_exclusive_fn, UnsizedListOffset,
+            UnsizedListWithOffsetIter,
         },
         init::UnsizedInit,
-        FromOwned, UnsizedTypeMut,
+        FromOwned, UnsizedTypePtr,
     },
 };
 use std::{collections::BTreeMap, iter::FusedIterator};
@@ -60,7 +60,7 @@ where
     }
 }
 
-fn unsized_map_owned_from_ref<K, V>(r: &UnsizedMapRef<'_, K, V>) -> Result<BTreeMap<K, V::Owned>>
+fn unsized_map_owned_from_ptr<K, V>(r: &UnsizedMap<K, V>) -> Result<BTreeMap<K, V::Owned>>
 where
     K: Pod + Ord + Align1,
     V: UnsizedType + ?Sized,
@@ -68,13 +68,13 @@ where
     let mut owned = BTreeMap::new();
     for result in r.list.iter_with_offsets() {
         let (item, ord_offset) = result?;
-        let owned_item = V::owned_from_ref(&item)?;
+        let owned_item = V::owned_from_ptr(&item)?;
         owned.insert(ord_offset.key, owned_item);
     }
     Ok(owned)
 }
 
-#[unsized_type(skip_idl, owned_type = BTreeMap<K, V::Owned>, owned_from_ref = unsized_map_owned_from_ref::<K, V>, skip_init_struct)]
+#[unsized_type(skip_idl, owned_type = BTreeMap<K, V::Owned>, owned_from_ptr = unsized_map_owned_from_ptr::<K, V>, skip_init_struct)]
 pub struct UnsizedMap<K, V>
 where
     K: Pod + Ord + Align1,
@@ -100,7 +100,7 @@ where
         )
     }
 }
-#[unsized_impl]
+
 impl<K, V> UnsizedMap<K, V>
 where
     K: Pod + Ord + Align1,
@@ -129,40 +129,23 @@ where
         self.get_index(key).is_ok()
     }
 
-    pub fn get(&self, key: &K) -> Result<Option<V::Ref<'_>>> {
+    pub fn get(&self, key: &K) -> Result<Option<Ptr<'_, V::Ptr>>> {
         match self.get_index(key) {
             Ok(existing_index) => self.list.get(existing_index),
             Err(_) => Ok(None),
         }
     }
 
-    pub fn get_mut(&mut self, key: &K) -> Result<Option<V::Mut<'_>>> {
+    pub fn get_mut(&mut self, key: &K) -> Result<Option<&mut V::Ptr>> {
         match self.get_index(key) {
             Ok(existing_index) => self.list.get_mut(existing_index),
             Err(_) => Ok(None),
         }
     }
 
-    #[exclusive]
-    pub fn get_exclusive<'child>(
-        &'child mut self,
-        key: &K,
-    ) -> Result<Option<ExclusiveWrapper<'child, 'top, V::Mut<'top>, Self>>> {
-        let Ok(index) = self.get_index(key) else {
-            return Ok(None);
-        };
-        let (start, _end) = self.list.get_unsized_range(index).expect("Index exists");
-        unsafe {
-            ExclusiveWrapper::try_map_mut::<V, _>(self, |data| {
-                unsized_list_exclusive_fn(&raw mut (*data).list, start)
-            })
-        }
-        .map(Some)
-    }
-
     /// Accesses the items from the underlying list by index. Returns `None` if the index is out of bounds.
     /// This makes no guarantees about the order of the items when adding or removing elements.
-    pub fn get_by_index(&self, index: usize) -> Result<Option<(K, V::Ref<'_>)>> {
+    pub fn get_by_index(&self, index: usize) -> Result<Option<(K, Ptr<'_, V::Ptr>)>> {
         if let Some(offset) = self.list.offset_list.get(index) {
             let offset = *offset;
             let item = self.list.get(index)?.expect("Index exists");
@@ -174,7 +157,7 @@ where
 
     /// Accesses the items from the underlying list by index. Returns `None` if the index is out of bounds.
     /// This makes no guarantees about the order of the items when adding or removing elements.
-    pub fn get_by_index_mut(&mut self, index: usize) -> Result<Option<(K, V::Mut<'_>)>> {
+    pub fn get_by_index_mut(&mut self, index: usize) -> Result<Option<(K, &mut V::Ptr)>> {
         if let Some(offset) = self.list.offset_list.get(index) {
             let offset = *offset;
             let item = self.list.get_mut(index)?.expect("Index exists");
@@ -184,66 +167,11 @@ where
         }
     }
 
-    /// Inserts or modifies an item into the map, returning true if the item was newly inserted, and false otherwise.
-    #[exclusive]
-    pub fn insert<I>(&mut self, key: K, value: I) -> Result<bool>
-    where
-        V: UnsizedInit<I>,
-        V::Mut<'top>: UnsizedTypeMut<UnsizedType = V>,
-    {
-        match self.get_index(&key) {
-            Ok(existing_index) => {
-                let mut list = self.list();
-                let mut item = list.index_exclusive(existing_index)?;
-                item.set_from_init(value)?;
-                Ok(false)
-            }
-            Err(insertion_index) => {
-                self.list()
-                    .insert_with_offset(insertion_index, value, key)?;
-                Ok(true)
-            }
-        }
-    }
-
-    /// Removes an item from the map, returning true if the item existed, and false otherwise.
-    #[exclusive]
-    pub fn remove(&mut self, key: &K) -> Result<bool> {
-        match self.get_index(key) {
-            Ok(existing_index) => {
-                self.list().remove(existing_index)?;
-                Ok(true)
-            }
-            Err(_) => Ok(false),
-        }
-    }
-
-    #[exclusive]
-    pub fn clear(&mut self) -> Result<()> {
-        self.list().remove_range(..)?;
-        Ok(())
-    }
-}
-
-#[unsized_impl]
-impl<K, V> UnsizedMap<K, V>
-where
-    K: Pod + Ord + Align1,
-    V: UnsizedType + ?Sized,
-{
     #[inline]
     #[must_use]
     pub fn iter(&self) -> UnsizedMapIter<'_, K, V> {
         UnsizedMapIter {
             iter: self.list.iter_with_offsets(),
-        }
-    }
-
-    #[inline]
-    #[must_use]
-    pub fn iter_mut(&mut self) -> UnsizedMapIterMut<'_, K, V> {
-        UnsizedMapIterMut {
-            iter: self.list.iter_with_offsets_mut(),
         }
     }
 
@@ -262,49 +190,76 @@ where
             iter: self.list.iter_with_offsets(),
         }
     }
+}
+#[unsized_impl]
+impl<K, V> UnsizedMap<K, V>
+where
+    K: Pod + Ord + Align1,
+    V: UnsizedType + ?Sized,
+{
+    pub fn get_exclusive<'child>(
+        &'child mut self,
+        key: &K,
+    ) -> Result<Option<ExclusiveWrapper<'child, 'top, V::Ptr, Self>>> {
+        let Ok(index) = self.get_index(key) else {
+            return Ok(None);
+        };
+        let (start, _end) = self.list.get_unsized_range(index).expect("Index exists");
+        unsafe {
+            ExclusiveWrapper::try_map_mut::<V, _>(self, |data| {
+                unsized_list_exclusive_fn(&raw mut (*data).list, start)
+            })
+        }
+        .map(Some)
+    }
 
-    #[inline]
-    #[must_use]
-    pub fn values_mut(&mut self) -> UnsizedMapValuesMut<'_, K, V> {
-        UnsizedMapValuesMut {
-            iter: self.list.iter_with_offsets_mut(),
+    /// Inserts or modifies an item into the map, returning true if the item was newly inserted, and false otherwise.
+    pub fn insert<I>(&mut self, key: K, value: I) -> Result<bool>
+    where
+        V: UnsizedInit<I>,
+        V::Ptr: UnsizedTypePtr<UnsizedType = V>,
+    {
+        match self.get_index(&key) {
+            Ok(existing_index) => {
+                let mut list = self.list();
+                let mut item = list.index_exclusive(existing_index)?;
+                item.set_from_init(value)?;
+                Ok(false)
+            }
+            Err(insertion_index) => {
+                self.list()
+                    .insert_with_offset(insertion_index, value, key)?;
+                Ok(true)
+            }
         }
     }
-}
 
-impl<'a, K, V> IntoIterator for &'a UnsizedMapRef<'_, K, V>
-where
-    K: Pod + Ord + Align1,
-    V: UnsizedType + ?Sized,
-{
-    type Item = Result<(K, <V as UnsizedType>::Ref<'a>)>;
-    type IntoIter = UnsizedMapIter<'a, K, V>;
-    fn into_iter(self) -> Self::IntoIter {
-        self.iter()
+    /// Removes an item from the map, returning true if the item existed, and false otherwise.
+    pub fn remove(&mut self, key: &K) -> Result<bool> {
+        match self.get_index(key) {
+            Ok(existing_index) => {
+                self.list().remove(existing_index)?;
+                Ok(true)
+            }
+            Err(_) => Ok(false),
+        }
+    }
+
+    pub fn clear(&mut self) -> Result<()> {
+        self.list().remove_range(..)?;
+        Ok(())
     }
 }
 
-impl<'a, K, V> IntoIterator for &'a UnsizedMapMut<'_, K, V>
+impl<'a, K, V> IntoIterator for &'a UnsizedMap<K, V>
 where
     K: Pod + Ord + Align1,
     V: UnsizedType + ?Sized,
 {
-    type Item = Result<(K, <V as UnsizedType>::Ref<'a>)>;
+    type Item = Result<(K, Ptr<'a, <V as UnsizedType>::Ptr>)>;
     type IntoIter = UnsizedMapIter<'a, K, V>;
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
-    }
-}
-
-impl<'a, K, V> IntoIterator for &'a mut UnsizedMapMut<'_, K, V>
-where
-    K: Pod + Ord + Align1,
-    V: UnsizedType + ?Sized,
-{
-    type Item = Result<(K, <V as UnsizedType>::Mut<'a>)>;
-    type IntoIter = UnsizedMapIterMut<'a, K, V>;
-    fn into_iter(self) -> Self::IntoIter {
-        self.iter_mut()
     }
 }
 
@@ -355,11 +310,9 @@ macro_rules! map_iter {
     };
 }
 
-map_iter!(UnsizedMapIter: Clone, UnsizedListWithOffsetIter, (K, V::Ref<'a>), this => |(item, offset)| (offset.key, item));
-map_iter!(UnsizedMapIterMut, UnsizedListWithOffsetIterMut, (K, V::Mut<'a>), this => |(item, offset)| (offset.key, item));
+map_iter!(UnsizedMapIter: Clone, UnsizedListWithOffsetIter, (K, Ptr<'a, V::Ptr>), this => |(item, offset)| (offset.key, item));
 map_iter!(UnsizedMapKeys: Clone, UnsizedListWithOffsetIter, K, this => |(_item, offset)| offset.key);
-map_iter!(UnsizedMapValues: Clone, UnsizedListWithOffsetIter, V::Ref<'a>, this => |(item, _offset)| item);
-map_iter!(UnsizedMapValuesMut, UnsizedListWithOffsetIterMut, V::Mut<'a>, this => |(item, _offset)| item);
+map_iter!(UnsizedMapValues: Clone, UnsizedListWithOffsetIter, Ptr<'a, V::Ptr>, this => |(item, _offset)| item);
 
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
 mod idl_impl {
@@ -451,11 +404,12 @@ mod tests {
         let mut second_item = data.get_exclusive(&1)?.expect("Second item exists");
         second_item.push(18)?;
         second_item.insert(0, 14)?;
+        drop(second_item);
 
         let mut last_item = data.get_exclusive(&2)?.expect("Last item exists");
         last_item.insert(0, 19)?;
         last_item.push_all([23, 24])?;
-
+        drop(last_item);
         drop(data);
         {
             let _data_again = map.data_mut()?;

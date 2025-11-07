@@ -215,7 +215,6 @@ macro_rules! impl_blank_ix {
 
 #[cfg(test)]
 mod test {
-    use crate::impl_blank_ix;
     use star_frame_proc::InstructionSet;
     // todo: better testing here!
 

@@ -227,13 +227,14 @@ mod tests {
         let mollusk = mollusk.with_context(account_store);
 
         // Call instruction directly
-        let price_u64 = 499;
+        const PRICE_U64: u64 = 999;
+        const ORDERS_TO_FILL: u64 = PRICE_U64 + 1;
         let quantity_u64 = 100_000;
-        let price = new_price(price_u64); // this should consume the first 500 orders
+        let price = new_price(PRICE_U64); // this should consume the first 1000 orders
         let quantity = new_quantity(quantity_u64);
 
-        let executed_cost = (0..500).sum::<u64>() * 10; // The first 500 filled orders
-        let remaining_cost = (quantity_u64 - 500 * 10) * price_u64; // the remaining new order quantity
+        let executed_cost = (0..ORDERS_TO_FILL).sum::<u64>() * 10; // The first 1000 filled orders
+        let remaining_cost = (quantity_u64 - ORDERS_TO_FILL * 10) * PRICE_U64; // the remaining new order quantity
         let consumed_cost = executed_cost + remaining_cost;
 
         mollusk.process_and_validate_instruction(
@@ -272,7 +273,7 @@ mod tests {
                     .data(&token_account_data(
                         market_pda,
                         market_token_mint,
-                        NUM_MAKERS as u64 * 10 - 10 * 500, // consumed 500 orders of 10 market tokens each
+                        NUM_MAKERS as u64 * 10 - 10 * ORDERS_TO_FILL, // consumed 1000 orders of 10 market tokens each
                     ))
                     .build(),
                 Check::account(&user_currency_vault)
@@ -286,7 +287,7 @@ mod tests {
                     .data(&token_account_data(
                         user,
                         market_token_mint,
-                        STARTING_USER_MARKET_TOKEN_BALANCE + 10 * 500, // filled 500 orders of 10 market tokens each
+                        STARTING_USER_MARKET_TOKEN_BALANCE + 10 * ORDERS_TO_FILL, // filled 1000 orders of 10 market tokens each
                     ))
                     .build(),
             ],
@@ -302,7 +303,10 @@ mod tests {
                 .as_slice(),
         )?;
 
-        assert_eq!(market_data.asks.orders.len(), 500);
+        assert_eq!(
+            market_data.asks.orders.len(),
+            NUM_MAKERS - ORDERS_TO_FILL as usize
+        );
         assert_eq!(market_data.bids.orders.len(), 1); // the remaining quantity from the order being placed that was not filled
 
         Ok(())

@@ -49,7 +49,7 @@ unsafe impl<K: UnsizedGenerics, V: UnsizedGenerics> CheckedBitPattern for ListIt
     }
 }
 
-#[unsized_type(skip_idl, owned_type = BTreeMap<K, V>, owned_from_ref = map_owned_from_ref::<K, V, L>, skip_init_struct)]
+#[unsized_type(skip_idl, owned_type = BTreeMap<K, V>, owned_from_ptr = map_owned_from_ptr::<K, V, L>, skip_init_struct)]
 pub struct Map<K, V, L = u32>
 where
     K: UnsizedGenerics + Ord,
@@ -61,7 +61,7 @@ where
 }
 
 #[allow(clippy::unnecessary_wraps)]
-fn map_owned_from_ref<K, V, L>(r: &MapRef<'_, K, V, L>) -> Result<BTreeMap<K, V>>
+fn map_owned_from_ptr<K, V, L>(r: &Map<K, V, L>) -> Result<BTreeMap<K, V>>
 where
     K: UnsizedGenerics + Ord,
     V: UnsizedGenerics,
@@ -89,8 +89,6 @@ where
         )
     }
 }
-
-#[unsized_impl]
 impl<K, V, L> Map<K, V, L>
 where
     K: UnsizedGenerics + Ord,
@@ -148,51 +146,6 @@ where
         }
     }
 
-    /// Inserts all key-value pairs from the provided iterator into the map. Returns the number of new items inserted.
-    #[exclusive]
-    pub fn insert_all(&mut self, values: impl IntoIterator<Item = (K, V)>) -> Result<usize> {
-        let mut count = 0;
-        values.into_iter().try_for_each(|(key, value)| {
-            if self.insert(key, value)?.is_none() {
-                count += 1;
-            }
-            crate::Ok(())
-        })?;
-        Ok(count)
-    }
-
-    #[exclusive]
-    pub fn insert(&mut self, key: K, value: V) -> Result<Option<V>> {
-        match self.get_index(&key) {
-            Ok(existing_index) => {
-                let old = core::mem::replace(&mut self.list[existing_index].value, value);
-                Ok(Some(old))
-            }
-            Err(insertion_index) => {
-                self.list()
-                    .insert(insertion_index, ListItemSized { key, value })?;
-                Ok(None)
-            }
-        }
-    }
-
-    #[exclusive]
-    pub fn remove(&mut self, key: &K) -> Result<Option<V>> {
-        match self.get_index(key) {
-            Ok(existing_index) => {
-                let to_return = self.list[existing_index].value;
-                self.list().remove(existing_index)?;
-                Ok(Some(to_return))
-            }
-            Err(_) => Ok(None),
-        }
-    }
-
-    #[exclusive]
-    pub fn clear(&mut self) -> Result<()> {
-        self.list().remove_range(..)
-    }
-
     #[must_use]
     #[inline]
     pub fn iter(&self) -> MapIter<'_, K, V, L> {
@@ -231,6 +184,55 @@ where
         MapValuesMut {
             iter: self.list.iter_mut(),
         }
+    }
+}
+
+#[unsized_impl]
+impl<K, V, L> Map<K, V, L>
+where
+    K: UnsizedGenerics + Ord,
+    V: UnsizedGenerics,
+    L: ListLength,
+{
+    /// Inserts all key-value pairs from the provided iterator into the map. Returns the number of new items inserted.
+    pub fn insert_all(&mut self, values: impl IntoIterator<Item = (K, V)>) -> Result<usize> {
+        let mut count = 0;
+        values.into_iter().try_for_each(|(key, value)| {
+            if self.insert(key, value)?.is_none() {
+                count += 1;
+            }
+            crate::Ok(())
+        })?;
+        Ok(count)
+    }
+
+    pub fn insert(&mut self, key: K, value: V) -> Result<Option<V>> {
+        match self.get_index(&key) {
+            Ok(existing_index) => {
+                let old = core::mem::replace(&mut self.list[existing_index].value, value);
+                Ok(Some(old))
+            }
+            Err(insertion_index) => {
+                self.list()
+                    .insert(insertion_index, ListItemSized { key, value })?;
+                Ok(None)
+            }
+        }
+    }
+
+    pub fn remove(&mut self, key: &K) -> Result<Option<V>> {
+        match self.get_index(key) {
+            Ok(existing_index) => {
+                let to_return = self.list[existing_index].value;
+                self.list().remove(existing_index)?;
+                Ok(Some(to_return))
+            }
+            Err(_) => Ok(None),
+        }
+    }
+
+    pub fn clear(&mut self) -> Result<()> {
+        self.list().remove_range(..)
     }
 }
 
@@ -291,7 +293,7 @@ map_iter!(MapKeys: Clone, ListIter, &'a K, this => |item| &item.key);
 map_iter!(MapValues: Clone, ListIter, &'a V, this => |item| &item.value);
 map_iter!(MapValuesMut, ListIterMut, &'a mut V, this => |item| &mut item.value);
 
-impl<'a, K, V, L> IntoIterator for &'a MapMut<'_, K, V, L>
+impl<'a, K, V, L> IntoIterator for &'a Map<K, V, L>
 where
     K: UnsizedGenerics + Ord,
     V: UnsizedGenerics,
@@ -304,20 +306,7 @@ where
     }
 }
 
-impl<'a, K, V, L> IntoIterator for &'a MapRef<'_, K, V, L>
-where
-    K: UnsizedGenerics + Ord,
-    V: UnsizedGenerics,
-    L: ListLength,
-{
-    type Item = (&'a K, &'a V);
-    type IntoIter = MapIter<'a, K, V, L>;
-    fn into_iter(self) -> Self::IntoIter {
-        self.iter()
-    }
-}
-
-impl<'a, K, V, L> IntoIterator for &'a mut MapMut<'_, K, V, L>
+impl<'a, K, V, L> IntoIterator for &'a mut Map<K, V, L>
 where
     K: UnsizedGenerics + Ord,
     V: UnsizedGenerics,

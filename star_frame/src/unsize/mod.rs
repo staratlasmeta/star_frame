@@ -8,32 +8,35 @@ mod test_helpers;
 mod tests;
 pub mod wrapper;
 
+use std::ops::Range;
+
 pub use star_frame_proc::{unsized_impl, unsized_type};
 #[cfg(all(feature = "test_helpers", not(target_os = "solana")))]
 pub use test_helpers::*;
 
 use crate::{ensure, ErrorCode, Result};
 
-pub trait AsShared {
-    type Ref<'a>
-    where
-        Self: 'a;
-    fn as_shared(&self) -> Self::Ref<'_>;
-}
-
-/// A helper trait that connects an [`UnsizedType::Mut`] to its parent [`UnsizedType`].
+/// A helper trait that connects an [`UnsizedType::Ptr`] to its parent [`UnsizedType`].
 ///
 /// # Safety
-/// The `UnsizedType` should almost always be the same as the `UnsizedTypeMut`'s parent
-pub unsafe trait UnsizedTypeMut {
+/// The `UnsizedType` should almost always be the same as the `UnsizedTypePtr`'s parent.
+/// The `check_pointers` method should ensure that the pointers inside the `UnsizedTypePtr`
+/// are within the given range and are sequential (past the cursor which should be updated on each check).
+/// This is to ensure that the pointers have not been swapped out with a `mem::swap` or similar operation.
+pub unsafe trait UnsizedTypePtr {
     type UnsizedType: UnsizedType + ?Sized;
+    /// Ensures that the pointers haven't been swapped out with another allocation.
+    /// Cursor ensures each pointer is sequential, and is moved forward at each check
+    fn check_pointers(&self, range: &Range<usize>, cursor: &mut usize) -> bool;
 }
 
+/// The core trait of the unsized type system, representing an effective 'zero copy' type that can be operated on a contiguous memory buffer.
+///
 /// # Safety
-/// Neither the `Ref` or `Mut` types should be allowed to Copy themselves from behind a reference. They definitely should not implement `Copy` or `Clone` as a result.
+/// `Self::Ptr` should not be allowed to Copy itself from behind a reference. It should definitely not implement `Copy` or `Clone`, but any other methods also need to
+/// ensure that invariant.
 pub unsafe trait UnsizedType: 'static {
-    type Ref<'a>: AsShared<Ref<'a> = Self::Ref<'a>>;
-    type Mut<'a>: AsShared<Ref<'a> = Self::Ref<'a>> + UnsizedTypeMut;
+    type Ptr: UnsizedTypePtr;
 
     type Owned;
 
@@ -41,40 +44,33 @@ pub unsafe trait UnsizedType: 'static {
     /// false if a single ZST is at the end of Self, and panic if there is a ZST in the middle.
     const ZST_STATUS: bool;
 
-    fn ref_as_ref<'a>(r: &'a Self::Ref<'_>) -> Self::Ref<'a>;
-
-    fn mut_as_ref<'a>(m: &'a Self::Mut<'_>) -> Self::Ref<'a>;
-
-    fn get_ref<'a>(data: &mut &'a [u8]) -> Result<Self::Ref<'a>>;
-
     /// # Safety
-    /// The pointer must be valid for `'a`, and the length metadata must not be more than the slice's actual
-    /// length. Implementations are allowed to modify the pointer and read from the data it points to, but should not write to it.
+    /// Implementations are allowed to modify the pointer and read from the data it points to, but should not write to it.
     ///
     /// We use raw pointers here to avoid invalidating the main data pointer through reborrowing, allowing us to pass Miri with the
     /// Tree Borrows aliasing model.
     ///
     /// This implementation should probably be correct as well. TODO: check if unsafe code relies on this being correct.
-    unsafe fn get_mut<'a>(data: &mut *mut [u8]) -> Result<Self::Mut<'a>>;
+    unsafe fn get_ptr(data: &mut *mut [u8]) -> Result<Self::Ptr>;
 
     /// Gets the pointer to the start of the data for Self
-    fn start_ptr(m: &Self::Mut<'_>) -> *mut ();
+    fn start_ptr(m: &Self::Ptr) -> *mut ();
 
     /// Gets the length of data that Self occupies
-    fn data_len(m: &Self::Mut<'_>) -> usize;
+    fn data_len(m: &Self::Ptr) -> usize;
 
-    fn owned(mut data: &[u8]) -> Result<Self::Owned> {
-        let data = &mut data;
-        Self::owned_from_ref(&Self::get_ref(data)?)
+    fn owned(data: &[u8]) -> Result<Self::Owned> {
+        let data: *const [u8] = data;
+        Self::owned_from_ptr(&unsafe { Self::get_ptr(&mut data.cast_mut()) }?)
     }
 
-    fn owned_from_ref(r: &Self::Ref<'_>) -> Result<Self::Owned>;
+    fn owned_from_ptr(r: &Self::Ptr) -> Result<Self::Owned>;
 
     /// # Safety
     /// No resize operations should be performed on the data.
     #[allow(unused_variables)]
     unsafe fn resize_notification(
-        self_mut: &mut Self::Mut<'_>,
+        self_mut: &mut Self::Ptr,
         source_ptr: *const (),
         change: isize,
     ) -> Result<()>;
@@ -88,10 +84,6 @@ mod sealed {
 
 /// Convenience trait for advancing a raw pointer. See the sole implementation for `*mut [u8]` for more details.
 pub trait RawSliceAdvance: Sized + sealed::Sealed {
-    fn try_advance(&mut self, advance: usize) -> Result<Self>;
-}
-
-impl RawSliceAdvance for *mut [u8] {
     /// Advances the pointer by `advance` bytes, returning a pointer to the advanced over section.
     /// This uses the `wrapping_add` method on `*mut T` to advance the pointer, so while this method is safe to call,
     /// the resulting pointer may be unsafe to dereference if Self and its metadata (slice length) are not valid.
@@ -113,6 +105,10 @@ impl RawSliceAdvance for *mut [u8] {
     /// assert_eq!(first_part, &[1, 2, 3]);
     /// assert_eq!(remaining, &[4, 5]);
     /// ```
+    fn try_advance(&mut self, advance: usize) -> Result<Self>;
+}
+
+impl RawSliceAdvance for *mut [u8] {
     #[inline]
     fn try_advance(&mut self, advance: usize) -> Result<Self> {
         let len = self.len();
@@ -196,10 +192,16 @@ pub trait FromOwned: UnsizedType {
 #[cfg(doctest)]
 struct TestUnsizedZst;
 
+#[allow(unused)]
+#[cfg(miri)]
+extern "Rust" {
+    fn miri_static_root(ptr: *const ());
+}
+
 /// Commonly used types and traits for the unsized type system.
 pub mod prelude {
     use super::*;
-    pub use super::{unsized_impl, unsized_type, AsShared as _, UnsizedType};
+    pub use super::{unsized_impl, unsized_type, UnsizedType};
     pub use impls::prelude::*;
     pub use init::DefaultInit;
     pub use wrapper::{ExclusiveRecurse, ExclusiveWrapper, ExclusiveWrapperTop};

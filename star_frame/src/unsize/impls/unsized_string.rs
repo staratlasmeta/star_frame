@@ -11,10 +11,10 @@ use crate::{
 ///
 /// Under the hood, this is a [`List`] of bytes, prefixed with `L` representing the length of the string, defaulting to `u32`.
 ///
-/// See [`Self::as_str`](UnsizedStringMut::as_str) and [`Self::as_mut_str`](UnsizedStringMut::as_mut_str) to access the underlying string slice,
+/// See [`Self::as_str`] and [`Self::as_mut_str`] to access the underlying string slice,
 /// and [`UnsizedStringExclusiveImpl::set`] to set the string to a given value.
 
-#[unsized_type(skip_idl, owned_type = String, owned_from_ref = unsized_string_owned_from_ref)]
+#[unsized_type(skip_idl, owned_type = String, owned_from_ptr = unsized_string_owned_from_ptr)]
 pub struct UnsizedString<L = u32>
 where
     L: ListLength,
@@ -23,7 +23,6 @@ where
     chars: List<u8, L>,
 }
 
-#[unsized_impl]
 impl<L> UnsizedString<L>
 where
     L: ListLength,
@@ -43,9 +42,14 @@ where
     pub fn as_mut_str(&mut self) -> Result<&mut str> {
         Ok(std::str::from_utf8_mut(self.chars.as_mut_slice())?)
     }
+}
 
+#[unsized_impl]
+impl<L> UnsizedString<L>
+where
+    L: ListLength,
+{
     /// Sets the string to the given value.
-    #[exclusive]
     pub fn set(&mut self, s: impl AsRef<str>) -> Result<()> {
         let mut chars = self.chars();
         chars.clear()?;
@@ -54,7 +58,7 @@ where
     }
 }
 
-fn unsized_string_owned_from_ref<L>(r: &UnsizedStringRef<'_, L>) -> Result<String>
+fn unsized_string_owned_from_ptr<L>(r: &UnsizedString<L>) -> Result<String>
 where
     L: ListLength,
 {

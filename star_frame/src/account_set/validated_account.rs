@@ -9,7 +9,7 @@ use crate::prelude::*;
 use derive_more::{Deref, DerefMut};
 
 pub trait AccountValidate<ValidateArg>: UnsizedType {
-    fn validate_account(self_ref: &Self::Ref<'_>, arg: ValidateArg) -> Result<()>;
+    fn validate_account(self_ref: &Self::Ptr, arg: ValidateArg) -> Result<()>;
 }
 
 /// An account wrapper that performs additional custom validation during the validation phase.
@@ -45,7 +45,7 @@ macro_rules! account_validate_tuple {
             where
             $(Acc: star_frame::prelude::AccountValidate<$generic>),*
             {
-                fn validate_account(self_ref: &Self::Ref<'_>, arg: ($($generic,)*)) -> star_frame::prelude::Result<()> {
+                fn validate_account(self_ref: &Self::Ptr, arg: ($($generic,)*)) -> star_frame::prelude::Result<()> {
                     let ($([<$generic:snake>],)*) = arg;
                     $(
                         <Acc as star_frame::prelude::AccountValidate<$generic>>::validate_account(self_ref, [<$generic:snake>])?;

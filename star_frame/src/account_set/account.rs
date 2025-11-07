@@ -125,7 +125,7 @@ where
     T: ProgramAccount + UnsizedType + ?Sized,
 {
     #[inline]
-    pub fn data(&self) -> Result<SharedWrapper<'_, T::Ref<'_>>> {
+    pub fn data(&self) -> Result<SharedWrapper<'_, T::Ptr>> {
         // If the account is writable, changes could have been made after AccountSetValidate has been run
         if self.is_writable() {
             T::validate_account_info(self.info)?;
@@ -164,23 +164,12 @@ pub mod discriminant {
     where
         T: ProgramAccount + UnsizedType + ?Sized,
     {
-        type Ref<'a> = T::Ref<'a>;
-        type Mut<'a> = T::Mut<'a>;
+        type Ptr = T::Ptr;
         type Owned = T::Owned;
         const ZST_STATUS: bool = T::ZST_STATUS;
 
         #[inline]
-        fn ref_as_ref<'a>(r: &'a Self::Ref<'_>) -> Self::Ref<'a> {
-            T::ref_as_ref(r)
-        }
-
-        #[inline]
-        fn mut_as_ref<'a>(m: &'a Self::Mut<'_>) -> Self::Ref<'a> {
-            T::mut_as_ref(m)
-        }
-
-        #[inline]
-        fn get_ref<'a>(data: &mut &'a [u8]) -> Result<Self::Ref<'a>> {
+        unsafe fn get_ptr(data: &mut *mut [u8]) -> Result<Self::Ptr> {
             data.try_advance(size_of::<OwnerProgramDiscriminant<T>>())
                 .with_ctx(|| {
                     format!(
@@ -188,28 +177,16 @@ pub mod discriminant {
                         size_of::<OwnerProgramDiscriminant<T>>()
                     )
                 })?;
-            T::get_ref(data)
+            unsafe { T::get_ptr(data) }
         }
 
         #[inline]
-        unsafe fn get_mut<'a>(data: &mut *mut [u8]) -> Result<Self::Mut<'a>> {
-            data.try_advance(size_of::<OwnerProgramDiscriminant<T>>())
-                .with_ctx(|| {
-                    format!(
-                        "Failed to advance past discriminant of size {}",
-                        size_of::<OwnerProgramDiscriminant<T>>()
-                    )
-                })?;
-            unsafe { T::get_mut(data) }
-        }
-
-        #[inline]
-        fn data_len(m: &Self::Mut<'_>) -> usize {
+        fn data_len(m: &Self::Ptr) -> usize {
             T::data_len(m)
         }
 
         #[inline]
-        fn start_ptr(m: &Self::Mut<'_>) -> *mut () {
+        fn start_ptr(m: &Self::Ptr) -> *mut () {
             T::start_ptr(m)
         }
 
@@ -224,13 +201,13 @@ pub mod discriminant {
             T::owned(data)
         }
 
-        fn owned_from_ref(r: &Self::Ref<'_>) -> Result<Self::Owned> {
-            T::owned_from_ref(r)
+        fn owned_from_ptr(r: &Self::Ptr) -> Result<Self::Owned> {
+            T::owned_from_ptr(r)
         }
 
         #[inline]
         unsafe fn resize_notification(
-            self_mut: &mut Self::Mut<'_>,
+            self_mut: &mut Self::Ptr,
             source_ptr: *const (),
             change: isize,
         ) -> Result<()> {

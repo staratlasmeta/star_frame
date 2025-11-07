@@ -31,7 +31,7 @@ pub struct CounterSeeds {
 pub struct Authority(Pubkey);
 
 impl AccountValidate<Authority> for CounterAccount {
-    fn validate_account(self_ref: &Self::Ref<'_>, arg: Authority) -> Result<()> {
+    fn validate_account(self_ref: &Self::Ptr, arg: Authority) -> Result<()> {
         ensure!(
             arg.0 == self_ref.authority,
             ProgramError::IncorrectAuthority

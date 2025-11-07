@@ -9,10 +9,7 @@ pub use crate::idl::{
 pub use star_frame_idl::{NodeToJson, ProgramNode};
 
 #[cfg(all(feature = "test_helpers", not(target_os = "solana")))]
-pub use crate::{
-    assert_eq_with_shared, assert_with_shared,
-    unsize::{NewByteSet, TestByteSet},
-};
+pub use crate::unsize::{NewByteSet, TestByteSet};
 
 pub use crate::{
     account_set::prelude::*,

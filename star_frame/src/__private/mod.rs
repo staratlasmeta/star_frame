@@ -27,7 +27,7 @@ pub mod macro_prelude {
                 ExclusiveRecurse, ExclusiveWrapper, SharedWrapper, StartPointer,
                 UnsizedTypeDataAccess,
             },
-            AsShared, FromOwned, RawSliceAdvance, UnsizedType, UnsizedTypeMut,
+            FromOwned, RawSliceAdvance, UnsizedType, UnsizedTypePtr,
         },
         Result,
     };
