@@ -17,7 +17,7 @@ impl SingleAccountSet for AccountInfo {
         SingleSetMeta::default()
     }
     #[inline]
-    fn account_info(&self) -> &AccountInfo {
+    fn account_info_ref(&self) -> &AccountInfo {
         self
     }
     #[inline]
@@ -85,7 +85,7 @@ unsafe impl CpiAccountSet for AccountInfo {
 
     #[inline]
     fn to_cpi_accounts(&self) -> Self::CpiAccounts {
-        *self.account_info()
+        self.account_info()
     }
 
     #[inline]
@@ -123,7 +123,7 @@ unsafe impl CpiAccountSet for &AccountInfo {
 
     #[inline]
     fn to_cpi_accounts(&self) -> Self::CpiAccounts {
-        *self.account_info()
+        *self.account_info_ref()
     }
 
     #[inline]
@@ -160,7 +160,7 @@ impl SingleAccountSet for &AccountInfo {
         SingleSetMeta::default()
     }
     #[inline]
-    fn account_info(&self) -> &AccountInfo {
+    fn account_info_ref(&self) -> &AccountInfo {
         self
     }
 }

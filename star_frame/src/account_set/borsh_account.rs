@@ -315,7 +315,7 @@ where
         ctx: &Context,
     ) -> Result<()> {
         if IF_NEEDED {
-            let needs_init = self.account_info().owner().fast_eq(&System::ID)
+            let needs_init = self.account_info_ref().owner().fast_eq(&System::ID)
                 || self.account_data()?[..size_of::<OwnerProgramDiscriminant<T>>()]
                     .iter()
                     .all(|x| *x == 0);

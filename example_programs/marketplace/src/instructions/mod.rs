@@ -56,6 +56,7 @@ pub struct ManageOrderAccounts {
     #[idl(arg = Seeds(FindAtaSeeds{ mint: seed_path("currency"), wallet: seed_path("user") }))]
     pub user_currency_vault: Mut<TokenAccount>,
     pub token_program: Program<Token>,
+    pub system_program: Program<System>,
 }
 
 impl ManageOrderAccounts {
@@ -84,9 +85,9 @@ impl ManageOrderAccounts {
                     amount: market_tokens.val().0,
                 },
                 TransferCpiAccounts {
-                    source: *self.market_token_vault.account_info(),
-                    destination: *self.user_market_token_vault.account_info(),
-                    owner: *self.market.account_info(),
+                    source: self.market_token_vault.account_info(),
+                    destination: self.user_market_token_vault.account_info(),
+                    owner: self.market.account_info(),
                 },
                 None,
             )
@@ -98,9 +99,9 @@ impl ManageOrderAccounts {
                     amount: currency.val().0,
                 },
                 TransferCpiAccounts {
-                    source: *self.currency_vault.account_info(),
-                    destination: *self.user_currency_vault.account_info(),
-                    owner: *self.market.account_info(),
+                    source: self.currency_vault.account_info(),
+                    destination: self.user_currency_vault.account_info(),
+                    owner: self.market.account_info(),
                 },
                 None,
             )
@@ -120,9 +121,9 @@ impl ManageOrderAccounts {
                     amount: market_tokens.val().0,
                 },
                 TransferCpiAccounts {
-                    source: *self.user_market_token_vault.account_info(),
-                    destination: *self.market_token_vault.account_info(),
-                    owner: *self.user.account_info(),
+                    source: self.user_market_token_vault.account_info(),
+                    destination: self.market_token_vault.account_info(),
+                    owner: self.user.account_info(),
                 },
                 None,
             )
@@ -134,9 +135,9 @@ impl ManageOrderAccounts {
                     amount: currency.val().0,
                 },
                 TransferCpiAccounts {
-                    source: *self.user_currency_vault.account_info(),
-                    destination: *self.currency_vault.account_info(),
-                    owner: *self.user.account_info(),
+                    source: self.user_currency_vault.account_info(),
+                    destination: self.currency_vault.account_info(),
+                    owner: self.user.account_info(),
                 },
                 None,
             )

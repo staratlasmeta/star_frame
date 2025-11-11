@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+-   Renamed `account_info` on `SingleAccountSet` to `account_info_ref` and makes the old one return an owned version of `AccountInfo` (#294)
+
 ## [0.27.0] - 2025-11-07
 
 ### Changed

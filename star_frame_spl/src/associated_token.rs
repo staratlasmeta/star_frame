@@ -373,7 +373,7 @@ pub mod state {
                 return Ok(());
             }
             if !funder.can_create_account() {
-                let current_lamports = self.account_info().lamports();
+                let current_lamports = self.account_info_ref().lamports();
                 let required_rent = ctx
                     .get_rent()?
                     .minimum_balance(TokenAccount::LEN)
@@ -400,11 +400,11 @@ pub mod state {
                 instructions::Create,
                 instructions::CreateCpiAccounts {
                     funder: funder.account_to_modify(),
-                    token_account: *self.account_info(),
-                    wallet: *init_ata.wallet.account_info(),
-                    mint: *init_ata.mint.account_info(),
-                    system_program: *init_ata.system_program.account_info(),
-                    token_program: *init_ata.token_program.account_info(),
+                    token_account: *self.account_info_ref(),
+                    wallet: *init_ata.wallet.account_info_ref(),
+                    mint: *init_ata.mint.account_info_ref(),
+                    system_program: *init_ata.system_program.account_info_ref(),
+                    token_program: *init_ata.token_program.account_info_ref(),
                 },
                 None,
             )

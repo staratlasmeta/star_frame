@@ -46,13 +46,19 @@ pub trait SingleAccountSet {
     where
         Self: Sized;
 
-    /// Gets the contained account by reference
-    fn account_info(&self) -> &AccountInfo;
+    /// Gets the contained account infoby reference
+    fn account_info_ref(&self) -> &AccountInfo;
+
+    /// Gets the contained account info
+    #[inline]
+    fn account_info(&self) -> AccountInfo {
+        *self.account_info_ref()
+    }
 
     /// Gets the account meta of the contained account.
     #[inline]
     fn account_meta(&self) -> AccountMeta {
-        let info = self.account_info();
+        let info = self.account_info_ref();
         AccountMeta {
             pubkey: *info.pubkey(),
             is_signer: info.is_signer(),
@@ -63,7 +69,7 @@ pub trait SingleAccountSet {
     /// Returns true if this account is signed.
     #[inline]
     fn is_signer(&self) -> bool {
-        self.account_info().is_signer()
+        self.account_info_ref().is_signer()
     }
 
     /// Checks that this account is a signer. Returns an error if it is not.
@@ -83,7 +89,7 @@ pub trait SingleAccountSet {
     /// Returns true if this account is writable.
     #[inline]
     fn is_writable(&self) -> bool {
-        self.account_info().is_writable()
+        self.account_info_ref().is_writable()
     }
 
     /// Checks that this account is writable. Returns an error if it is not.
@@ -103,19 +109,19 @@ pub trait SingleAccountSet {
     /// Returns a reference to the public key of the contained account.
     #[inline]
     fn pubkey(&self) -> &Pubkey {
-        self.account_info().pubkey()
+        self.account_info_ref().pubkey()
     }
 
     /// Returns the public key of the owner of the contained account.
     #[inline]
     fn owner_pubkey(&self) -> Pubkey {
-        bytemuck::cast(*self.account_info().owner())
+        bytemuck::cast(*self.account_info_ref().owner())
     }
 
     /// Returns a reference to the data of the contained account.
     #[inline]
     fn account_data(&self) -> Result<Ref<'_, [u8]>> {
-        self.account_info()
+        self.account_info_ref()
             .try_borrow_data()
             .with_ctx(|| format!("Failed to borrow data for account {}", self.pubkey()))
     }
@@ -123,7 +129,7 @@ pub trait SingleAccountSet {
     /// Returns a mutable reference to the data of the contained account.
     #[inline]
     fn account_data_mut(&self) -> Result<RefMut<'_, [u8]>> {
-        self.account_info().try_borrow_mut_data().with_ctx(|| {
+        self.account_info_ref().try_borrow_mut_data().with_ctx(|| {
             format!(
                 "Failed to borrow mutable data for account {}",
                 self.pubkey()
@@ -138,7 +144,7 @@ where
 {
     #[inline]
     fn check_key(&self, expected: &Pubkey) -> Result<()> {
-        if self.account_info().key().fast_eq(expected) {
+        if self.account_info_ref().key().fast_eq(expected) {
             Ok(())
         } else {
             bail!(
@@ -157,7 +163,7 @@ where
 {
     #[inline]
     fn account_to_modify(&self) -> AccountInfo {
-        *self.account_info()
+        self.account_info()
     }
 }
 
@@ -179,8 +185,8 @@ where
         let cpi = System::cpi(
             system::Transfer { lamports },
             system::TransferCpiAccounts {
-                funder: *self.account_info(),
-                recipient: *recipient.account_info(),
+                funder: *self.account_info_ref(),
+                recipient: *recipient.account_info_ref(),
             },
             None,
         );
@@ -207,7 +213,7 @@ where
         Self: HasOwnerProgram,
         Self: Sized,
     {
-        let info = self.account_info();
+        let info = self.account_info_ref();
         info.resize(size_of::<OwnerProgramDiscriminant<Self>>())?;
         info.account_data_mut()?.fill(u8::MAX);
         recipient.add_lamports(info.lamports())?;
@@ -217,7 +223,7 @@ where
 
     #[inline]
     fn close_account_full(&self, recipient: &dyn CanAddLamports) -> Result<()> {
-        let info = self.account_info();
+        let info = self.account_info_ref();
         recipient.add_lamports(info.lamports())?;
         info.close()?;
         Ok(())
@@ -230,7 +236,7 @@ where
 {
     #[inline]
     fn normalize_rent(&self, funder: &(impl CanFundRent + ?Sized), ctx: &Context) -> Result<()> {
-        let account = self.account_info();
+        let account = self.account_info_ref();
         let rent = ctx.get_rent()?;
         let lamports = *account.try_borrow_lamports()?;
         let data_len = account.data_len();
@@ -256,7 +262,7 @@ where
 
     #[inline]
     fn refund_rent(&self, recipient: &(impl CanAddLamports + ?Sized), ctx: &Context) -> Result<()> {
-        let account = self.account_info();
+        let account = self.account_info_ref();
         let rent = ctx.get_rent()?;
         let lamports = *account.try_borrow_lamports()?;
         let data_len = account.data_len();
@@ -283,7 +289,7 @@ where
 
     #[inline]
     fn receive_rent(&self, funder: &(impl CanFundRent + ?Sized), ctx: &Context) -> Result<()> {
-        let account = self.account_info();
+        let account = self.account_info_ref();
         let rent = ctx.get_rent()?;
         let lamports = *account.try_borrow_lamports()?;
         let data_len = account.data_len();
@@ -304,7 +310,7 @@ where
         #[cfg(feature = "cleanup_rent_warning")]
         {
             use std::cmp::Ordering;
-            let account = self.account_info();
+            let account = self.account_info_ref();
             if account.is_writable() {
                 let rent = ctx.get_rent()?;
                 let lamports = account.lamports();
@@ -335,7 +341,7 @@ where
         account_seeds: &Option<Vec<&[u8]>>,
         ctx: &Context,
     ) -> Result<()> {
-        let account = *self.account_info();
+        let account = *self.account_info_ref();
         if !account.owner().fast_eq(&System::ID) {
             bail!(ProgramError::InvalidAccountOwner);
         }
