@@ -210,7 +210,7 @@ pub(super) fn derive_account_set_impl_struct(
 
                     #[inline]
                     fn to_cpi_accounts(&self) -> Self::CpiAccounts {
-                        *self.account_info()
+                        self.account_info()
                     }
                     #[inline(always)]
                     fn write_account_infos<#lt>(
@@ -270,8 +270,8 @@ pub(super) fn derive_account_set_impl_struct(
                 }
 
                 #[inline(always)]
-                fn account_info(&self) -> &#account_info {
-                    <#field_ty as #prelude::SingleAccountSet>::account_info(&self.#field_name)
+                fn account_info_ref(&self) -> &#account_info {
+                    <#field_ty as #prelude::SingleAccountSet>::account_info_ref(&self.#field_name)
                 }
             }
 

@@ -16,7 +16,7 @@ pub struct PlaceOrder {
 }
 
 #[zero_copy]
-#[derive(Debug, PartialEq, Eq, TypeToIdl)]
+#[derive(Debug, PartialEq, Eq, TypeToIdl, Default)]
 pub struct PlaceOrderReturn {
     pub placed: bool,
     pub order_id: u64,
@@ -258,6 +258,7 @@ mod tests {
                     user_market_token_vault,
                     user_currency_vault,
                     token_program: None,
+                    system_program: None,
                 },
             )?,
             &[

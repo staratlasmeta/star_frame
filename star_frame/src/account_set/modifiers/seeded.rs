@@ -244,7 +244,7 @@ where
         }
         let seeds = seeds.clone().0;
         let (address, bump) = Pubkey::find_program_address(&seeds.seeds(), &P::id(ctx)?);
-        let expected = self.account.account_info().pubkey();
+        let expected = self.account.account_info_ref().pubkey();
         ensure!(
             address.fast_eq(expected),
             ErrorCode::AddressMismatch,
@@ -264,7 +264,7 @@ where
         }
         let arg_seeds = seeds.seeds_with_bump();
         let address = Pubkey::create_program_address(&arg_seeds, &P::id(ctx)?)?;
-        let expected = self.account.account_info().pubkey();
+        let expected = self.account.account_info_ref().pubkey();
         ensure!(
             address.fast_eq(expected),
             ErrorCode::AddressMismatch,

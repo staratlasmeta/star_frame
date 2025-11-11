@@ -254,7 +254,7 @@ where
                 freeze_authority: init_mint.freeze_authority.cloned(),
             },
             InitializeMint2CpiAccounts {
-                mint: *self.account_info(),
+                mint: self.account_info(),
             },
             None,
         )
@@ -483,8 +483,8 @@ where
                 owner: init_token.owner,
             },
             InitializeAccount3CpiAccounts {
-                account: *self.account_info(),
-                mint: *init_token.mint.account_info(),
+                account: self.account_info(),
+                mint: init_token.mint.account_info(),
             },
             None,
         )

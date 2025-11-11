@@ -203,6 +203,7 @@ mod tests {
                     user_market_token_vault,
                     user_currency_vault,
                     token_program: None,
+                    system_program: None,
                 },
             )?,
             &[
