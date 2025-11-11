@@ -623,6 +623,7 @@ mod tests {
         }
         empty_star_frame_instruction!(TouchSplAccounts, TouchSplAccountsAccounts);
 
+        #[allow(dead_code)]
         #[derive(Copy, Debug, Clone, PartialEq, Eq, InstructionSet)]
         #[ix_set(use_repr)]
         #[repr(u8)]
