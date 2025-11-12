@@ -71,6 +71,10 @@ pub fn new_project(args: NewArgs) -> eyre::Result<()> {
 fn stub_file(template: &str, path: &PathBuf, project_name: &String) -> io::Result<()> {
     let content = template
         .replace("{name_lowercase}", &project_name.to_ascii_lowercase())
+        .replace(
+            "{name_lowercase_underscore}",
+            &project_name.to_ascii_lowercase().replace('-', "_"),
+        )
         .replace("{name_uppercase}", &project_name.to_ascii_uppercase())
         .replace("{name_pascalcase}", &project_name.to_case(Case::Pascal))
         .replace("{pubkey}", &Pubkey::new_unique().to_string());

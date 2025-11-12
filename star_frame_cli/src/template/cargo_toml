@@ -12,7 +12,7 @@ release.release = false
 # Using only `cdylib` enables the compiler to optimize with LTO. If you need to use the library, make a separate lib crate
 # or add `rlib` here if the performance impact is acceptable.
 crate-type = ["cdylib"]
-name = "{name_lowercase}"
+name = "{name_lowercase_underscore}"
 
 [features]
 no_entrypoint = []
