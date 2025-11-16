@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+-   Updated CLI template `increment_rs`: Changed authority validation to use `Authority` type wrapper instead of raw `Pubkey` in `IncrementAccounts` (#297)
+-   Updated CLI template `states_rs`: Changed `AccountValidate` implementation for `CounterAccount` to use `Authority` type parameter instead of `&Pubkey`, and updated reference type from `Self::Ref<'_>` to `Self::Ptr` (#297)
+
 ## [0.27.0] - 2025-11-07
 
 ### Changed
