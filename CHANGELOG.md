@@ -11,7 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 -   Updated CLI template `increment_rs`: Changed authority validation to use `Authority` type wrapper instead of raw `Pubkey` in `IncrementAccounts` (#297)
 -   Updated CLI template `states_rs`: Changed `AccountValidate` implementation for `CounterAccount` to use `Authority` type parameter instead of `&Pubkey`, and updated reference type from `Self::Ref<'_>` to `Self::Ptr` (#297)
--  Updated CLI template `initialize_rs`: Changed `Seeds` argument in `idl` macro to use `FindCounterAccountSeeds` instead of `FindCounterSeeds` (#297)
+-   Updated CLI template `initialize_rs`: Changed `Seeds` argument in `idl` macro to use `FindCounterAccountSeeds` instead of `FindCounterSeeds` (#297)
+
+### Changed
+
+-   Used `Option<&[&[u8]]>` instead of `Option<Vec<&[u8]>>` for `CanInitAccount::init_account`
 
 ## [0.27.0] - 2025-11-07
 
@@ -31,7 +35,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 -   Fixed errors in cli template caused due to breaking changes made in star_frame (#283)
-
 -   Fixed errors in cli test template caused due to breaking changes made in star_frame (#284)
 
 ## [0.26.2] - 2025-10-15
