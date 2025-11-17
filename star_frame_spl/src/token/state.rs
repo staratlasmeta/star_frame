@@ -212,7 +212,7 @@ impl<'a> CanInitAccount<InitMint<'a>> for MintAccount {
     fn init_account<const IF_NEEDED: bool>(
         &mut self,
         arg: InitMint<'a>,
-        account_seeds: Option<Vec<&[u8]>>,
+        account_seeds: Option<&[&[u8]]>,
         ctx: &Context,
     ) -> Result<()> {
         let funder = ctx.get_funder().ok_or_else(|| {
@@ -232,7 +232,7 @@ where
     fn init_account<const IF_NEEDED: bool>(
         &mut self,
         arg: (InitMint, &Funder),
-        account_seeds: Option<Vec<&[u8]>>,
+        account_seeds: Option<&[&[u8]]>,
         ctx: &Context,
     ) -> Result<()> {
         let (init_mint, funder) = arg;
@@ -242,7 +242,7 @@ where
             return Ok(());
         }
         self.check_writable()?;
-        self.system_create_account(funder, Token::ID, Self::LEN, &account_seeds, ctx)?;
+        self.system_create_account(funder, Token::ID, Self::LEN, account_seeds, ctx)?;
         let account_seeds: &[&[&[u8]]] = match &account_seeds {
             Some(seeds) => &[seeds],
             None => &[],
@@ -442,7 +442,7 @@ where
     fn init_account<const IF_NEEDED: bool>(
         &mut self,
         arg: InitToken<MintInfo>,
-        account_seeds: Option<Vec<&[u8]>>,
+        account_seeds: Option<&[&[u8]]>,
         ctx: &Context,
     ) -> Result<()> {
         let funder = ctx.get_funder().ok_or_else(|| {
@@ -463,7 +463,7 @@ where
     fn init_account<const IF_NEEDED: bool>(
         &mut self,
         arg: (InitToken<MintInfo>, &Funder),
-        account_seeds: Option<Vec<&[u8]>>,
+        account_seeds: Option<&[&[u8]]>,
         ctx: &Context,
     ) -> Result<()> {
         if IF_NEEDED && self.owner_pubkey() == Token::ID {
@@ -473,7 +473,7 @@ where
         }
         self.check_writable()?;
         let (init_token, funder) = arg;
-        self.system_create_account(funder, Token::ID, Self::LEN, &account_seeds, ctx)?;
+        self.system_create_account(funder, Token::ID, Self::LEN, account_seeds, ctx)?;
         let account_seeds: &[&[&[u8]]] = match &account_seeds {
             Some(seeds) => &[seeds],
             None => &[],

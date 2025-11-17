@@ -314,7 +314,7 @@ where
     fn init_account<const IF_NEEDED: bool>(
         &mut self,
         arg: A,
-        account_seeds: Option<Vec<&[u8]>>,
+        account_seeds: Option<&[&[u8]]>,
         ctx: &Context,
     ) -> Result<()> {
         // override seeds. Init should be called after seeds are set
@@ -335,7 +335,7 @@ where
                 )
             })?;
         self.account
-            .init_account::<IF_NEEDED>(arg, Some(seeds), ctx)
+            .init_account::<IF_NEEDED>(arg, Some(&seeds), ctx)
     }
 }
 

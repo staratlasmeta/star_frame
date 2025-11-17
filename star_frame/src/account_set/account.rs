@@ -282,7 +282,7 @@ where
     fn init_account<const IF_NEEDED: bool>(
         &mut self,
         _arg: (),
-        account_seeds: Option<Vec<&[u8]>>,
+        account_seeds: Option<&[&[u8]]>,
         ctx: &Context,
     ) -> Result<()> {
         self.init_account::<IF_NEEDED>(|| DefaultInit, account_seeds, ctx)
@@ -298,7 +298,7 @@ where
     fn init_account<const IF_NEEDED: bool>(
         &mut self,
         arg: (&Funder,),
-        account_seeds: Option<Vec<&[u8]>>,
+        account_seeds: Option<&[&[u8]]>,
         ctx: &Context,
     ) -> Result<()> {
         self.init_account::<IF_NEEDED>((|| DefaultInit, arg.0), account_seeds, ctx)
@@ -315,7 +315,7 @@ where
     fn init_account<const IF_NEEDED: bool>(
         &mut self,
         arg: InitFn,
-        account_seeds: Option<Vec<&[u8]>>,
+        account_seeds: Option<&[&[u8]]>,
         ctx: &Context,
     ) -> Result<()> {
         let funder = ctx.get_funder().ok_or_else(|| {
@@ -339,7 +339,7 @@ where
     fn init_account<const IF_NEEDED: bool>(
         &mut self,
         arg: (InitFn, &Funder),
-        account_seeds: Option<Vec<&[u8]>>,
+        account_seeds: Option<&[&[u8]]>,
         ctx: &Context,
     ) -> Result<()> {
         if IF_NEEDED {
@@ -357,7 +357,7 @@ where
             funder,
             T::OwnerProgram::ID,
             <AccountDiscriminant<T>>::INIT_BYTES,
-            &account_seeds,
+            account_seeds,
             ctx,
         )
         .ctx("system_create_account failed")?;

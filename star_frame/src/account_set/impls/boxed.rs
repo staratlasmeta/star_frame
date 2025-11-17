@@ -157,7 +157,7 @@ where
     fn init_account<const IF_NEEDED: bool>(
         &mut self,
         arg: A,
-        account_seeds: Option<Vec<&[u8]>>,
+        account_seeds: Option<&[&[u8]]>,
         ctx: &Context,
     ) -> Result<()> {
         T::init_account::<IF_NEEDED>(self, arg, account_seeds, ctx)

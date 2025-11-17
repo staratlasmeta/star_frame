@@ -332,7 +332,7 @@ where
         funder: &(impl CanFundRent + ?Sized),
         owner: Pubkey,
         space: usize,
-        account_seeds: &Option<Vec<&[u8]>>,
+        account_seeds: Option<&[&[u8]]>,
         ctx: &Context,
     ) -> Result<()> {
         let account = *self.account_info();
