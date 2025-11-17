@@ -474,7 +474,7 @@ where
         self.check_writable()?;
         let (init_token, funder) = arg;
         self.system_create_account(funder, Token::ID, Self::LEN, account_seeds, ctx)?;
-        let account_seeds: &[&[&[u8]]] = match &account_seeds {
+        let account_seeds: &[&[&[u8]]] = match account_seeds {
             Some(seeds) => &[seeds],
             None => &[],
         };
