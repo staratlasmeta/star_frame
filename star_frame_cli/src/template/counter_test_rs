@@ -1,9 +1,9 @@
 use std::collections::HashMap;
-use std::{env, error::Error};
+use std::{error::Error};
 use mollusk_svm::result::Check;
 use mollusk_svm::{program::keyed_account_for_system_program, Mollusk};
 use solana_account::Account as SolanaAccount;
-use star_frame::{client::MakeInstruction, prelude::*, program::StarFrameProgram};
+use star_frame::{client::MakeInstruction, program::StarFrameProgram};
 use crate::states::*;
 use crate::*;
 
@@ -65,16 +65,3 @@ fn program_test() -> Result<(), Box<dyn Error>> {
 
     Ok(())
 }
-
-//Idl Generation Test
-#[cfg(feature = "idl")]
-#[test]
-fn generate_idl() -> Result<()> {
-    use star_frame::prelude::*;
-    let idl = {name_pascalcase}Program::program_to_idl()?;
-    let codama_idl: ProgramNode = idl.try_into()?;
-    let idl_json = codama_idl.to_json()?;
-    std::fs::write("idl.json", &idl_json)?;
-    Ok(())
-}
-

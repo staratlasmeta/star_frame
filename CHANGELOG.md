@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+-   Added `build` command to CLI for building Solana programs
+-   Added `idl` command to CLI for generating Solana program IDL file
+
+### Changed
+
+-   Remove generate_idl test from counter_test template
+-   Updated lib_rs coutner template to include #![allow(unexpected_cfgs)]
+
 ### Fixed
 
 -   Updated CLI template `increment_rs`: Changed authority validation to use `Authority` type wrapper instead of raw `Pubkey` in `IncrementAccounts` (#297)
