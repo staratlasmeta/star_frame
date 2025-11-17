@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 -   Remove generate_idl test from counter_test template
 -   Updated lib_rs coutner template to include #![allow(unexpected_cfgs)]
+-   Updated `StarFrameProgram` derive macro to include the idl build test (gated behind appropriate cfgs) 
 
 ### Fixed
 
