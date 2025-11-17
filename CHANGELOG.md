@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 -   Updated CLI template `increment_rs`: Changed authority validation to use `Authority` type wrapper instead of raw `Pubkey` in `IncrementAccounts` (#297)
 -   Updated CLI template `states_rs`: Changed `AccountValidate` implementation for `CounterAccount` to use `Authority` type parameter instead of `&Pubkey`, and updated reference type from `Self::Ref<'_>` to `Self::Ptr` (#297)
 -  Updated CLI template `initialize_rs`: Changed `Seeds` argument in `idl` macro to use `FindCounterAccountSeeds` instead of `FindCounterSeeds` (#297)
+-   CLI template: ensure crate name uses underscores in `cargo_toml`. Added `{name_lowercase_underscore}` placeholder and generator replacement to convert hyphens to underscores in generated project names. (#296)
 
 ## [0.27.0] - 2025-11-07
 
