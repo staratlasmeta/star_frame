@@ -15,7 +15,7 @@ pub struct InitializeAccounts {
         Create(()),
         Seeds(CounterAccountSeeds { authority: *self.authority.pubkey() }),
     ))]
-    #[idl(arg = Seeds(FindCounterSeeds { authority: seed_path("authority") }))]
+    #[idl(arg = Seeds(FindCounterAccountSeeds { authority: seed_path("authority") }))]
     pub counter: Init<Seeded<Account<CounterAccount>>>,
     pub system_program: Program<System>,
 }
