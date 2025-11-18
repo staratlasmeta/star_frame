@@ -15,7 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
--   Used `Option<&[&[u8]]>` instead of `Option<Vec<&[u8]>>` for `CanInitAccount::init_account`
+-   Used `Option<&[&[u8]]>` instead of `Option<Vec<&[u8]>>` for `CanInitAccount::init_account` (#300)
+-   CLI template: ensure crate name uses underscores in `cargo_toml`. Added `{name_lowercase_underscore}` placeholder and generator replacement to convert hyphens to underscores in generated project names. (#296)
 
 ## [0.27.0] - 2025-11-07
 
