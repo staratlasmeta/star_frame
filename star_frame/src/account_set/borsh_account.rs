@@ -258,7 +258,7 @@ where
     fn init_account<const IF_NEEDED: bool>(
         &mut self,
         _arg: (),
-        account_seeds: Option<Vec<&[u8]>>,
+        account_seeds: Option<&[&[u8]]>,
         ctx: &Context,
     ) -> Result<()> {
         self.init_account::<IF_NEEDED>(|| Default::default(), account_seeds, ctx)
@@ -274,7 +274,7 @@ where
     fn init_account<const IF_NEEDED: bool>(
         &mut self,
         arg: InitFn,
-        account_seeds: Option<Vec<&[u8]>>,
+        account_seeds: Option<&[&[u8]]>,
         ctx: &Context,
     ) -> Result<()> {
         let funder = ctx.get_funder().ok_or_else(|| {
@@ -295,7 +295,7 @@ where
     fn init_account<const IF_NEEDED: bool>(
         &mut self,
         arg: (&Funder,),
-        account_seeds: Option<Vec<&[u8]>>,
+        account_seeds: Option<&[&[u8]]>,
         ctx: &Context,
     ) -> Result<()> {
         self.init_account::<IF_NEEDED>((|| Default::default(), arg.0), account_seeds, ctx)
@@ -311,7 +311,7 @@ where
     fn init_account<const IF_NEEDED: bool>(
         &mut self,
         arg: (InitValue, &Funder),
-        account_seeds: Option<Vec<&[u8]>>,
+        account_seeds: Option<&[&[u8]]>,
         ctx: &Context,
     ) -> Result<()> {
         if IF_NEEDED {
@@ -327,7 +327,7 @@ where
         let (init_value, funder) = arg;
         let data = init_value();
         let space = size_of::<OwnerProgramDiscriminant<T>>() + object_length(&data)?;
-        self.system_create_account(funder, T::OwnerProgram::ID, space, &account_seeds, ctx)
+        self.system_create_account(funder, T::OwnerProgram::ID, space, account_seeds, ctx)
             .ctx("system_create_account failed")?;
         self.account_data_mut()?[..size_of::<OwnerProgramDiscriminant<T>>()]
             .copy_from_slice(bytemuck::bytes_of(&T::DISCRIMINANT));

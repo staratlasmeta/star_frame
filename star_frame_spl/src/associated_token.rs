@@ -341,7 +341,7 @@ pub mod state {
         fn init_account<const IF_NEEDED: bool>(
             &mut self,
             arg: InitAta<'a, WalletInfo, MintInfo>,
-            account_seeds: Option<Vec<&[u8]>>,
+            account_seeds: Option<&[&[u8]]>,
             ctx: &Context,
         ) -> Result<()> {
             let funder = ctx.get_funder().ok_or_else(|| {
@@ -364,7 +364,7 @@ pub mod state {
         fn init_account<const IF_NEEDED: bool>(
             &mut self,
             (init_ata, funder): (InitAta<'a, WalletInfo, MintInfo>, &Funder),
-            account_seeds: Option<Vec<&[u8]>>,
+            account_seeds: Option<&[&[u8]]>,
             ctx: &Context,
         ) -> Result<()> {
             if IF_NEEDED && self.owner_pubkey() == Token::ID {
