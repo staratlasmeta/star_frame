@@ -336,9 +336,6 @@ where
         ctx: &Context,
     ) -> Result<()> {
         let account = *self.account_info();
-        if !account.owner().fast_eq(&System::ID) {
-            bail!(ProgramError::InvalidAccountOwner);
-        }
         let current_lamports = account.lamports();
         let exempt_lamports = ctx.get_rent()?.minimum_balance(space);
 
