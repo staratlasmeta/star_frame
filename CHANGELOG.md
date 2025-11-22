@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 -   Updated CLI template `increment_rs`: Changed authority validation to use `Authority` type wrapper instead of raw `Pubkey` in `IncrementAccounts` (#297)
 -   Updated CLI template `states_rs`: Changed `AccountValidate` implementation for `CounterAccount` to use `Authority` type parameter instead of `&Pubkey`, and updated reference type from `Self::Ref<'_>` to `Self::Ptr` (#297)
 -   Updated CLI template `initialize_rs`: Changed `Seeds` argument in `idl` macro to use `FindCounterAccountSeeds` instead of `FindCounterSeeds` (#297)
+-   Check the account discriminants during client AccountDeserialize calls (#302)
 
 ### Changed
 
