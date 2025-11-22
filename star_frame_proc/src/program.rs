@@ -3,6 +3,7 @@ use crate::{
     util::{ensure_data_struct, ignore_cfg_module, reject_generics, Paths},
 };
 use easy_proc::{find_attrs, ArgumentList};
+use heck::ToSnakeCase;
 use proc_macro2::TokenStream;
 use proc_macro_error2::{abort, abort_call_site};
 use quote::{quote, ToTokens};
@@ -174,6 +175,26 @@ pub(crate) fn program_impl(input: DeriveInput) -> TokenStream {
         )
     });
 
+    let idl_generate_fn = (!skip_idl).then(|| {
+        let program_name = ident.to_string().to_snake_case();
+        let idl_filename = format!("{}-idl.json", program_name);
+        quote! {
+            #[cfg(all(feature = "idl", not(target_os = "solana"), test))]
+            mod idl_generation {
+                use super::*;
+                #[test]
+                fn generate_idl() -> Result<()> {
+                    use #prelude::*;
+                    let idl = StarFrameDeclaredProgram::program_to_idl()?;
+                    let codama_idl: ProgramNode = idl.try_into()?;
+                    let idl_json = codama_idl.to_json()?;
+                    std::fs::write(#idl_filename, &idl_json)?;
+                    Ok(())
+                }
+            }
+        }
+    });
+
     quote! {
         #[automatically_derived]
         impl #prelude::StarFrameProgram for #ident {
@@ -185,5 +206,6 @@ pub(crate) fn program_impl(input: DeriveInput) -> TokenStream {
         #entrypoint
 
         #idl_impl
+        #idl_generate_fn
     }
 }
