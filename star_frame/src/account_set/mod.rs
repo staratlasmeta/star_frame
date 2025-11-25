@@ -424,6 +424,7 @@ pub(crate) mod prelude {
         discriminant, Account, CloseAccount, NormalizeRent, ReceiveRent, RefundRent,
     };
     pub use borsh_account::BorshAccount;
+    #[allow(deprecated)]
     pub use modifiers::{
         init::{Create, CreateIfNeeded, Init},
         mutable::Mut,
