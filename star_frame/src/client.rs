@@ -14,6 +14,7 @@ use crate::{
     instruction::InstructionDiscriminant,
     prelude::*,
     unsize::{init::UnsizedInit, FromOwned},
+    ErrorCode,
 };
 
 use borsh::{object_length, BorshSerialize};
@@ -104,8 +105,27 @@ pub trait SerializeType: UnsizedType {
 
 impl<T> SerializeType for T where T: UnsizedType + ?Sized {}
 
+#[inline]
+fn check_discriminant<T: ProgramAccount + ?Sized>(data: &[u8]) -> Result<()> {
+    let discriminant_bytes = data.get(0..size_of_val(&T::DISCRIMINANT)).ok_or_else(|| {
+        error!(
+            ErrorCode::DiscriminantMismatch,
+            "Not enough bytes for the discriminant"
+        )
+    })?;
+    let expected_discriminant = &T::DISCRIMINANT;
+    ensure_eq!(
+        discriminant_bytes,
+        bytes_of(expected_discriminant),
+        ErrorCode::DiscriminantMismatch,
+    );
+    Ok(())
+}
+
 pub trait DeserializeAccount: UnsizedType + ProgramAccount {
     fn deserialize_account(data: &[u8]) -> Result<Self::Owned> {
+        check_discriminant::<Self>(data)
+            .ctx("Failed to validate the discriminant in DeserializeAccount")?;
         <AccountDiscriminant<Self> as DeserializeType>::deserialize_type(data)
     }
 }
@@ -114,11 +134,8 @@ impl<T> DeserializeAccount for T where T: UnsizedType + ProgramAccount + ?Sized 
 
 pub trait DeserializeBorshAccount: BorshDeserialize + ProgramAccount {
     fn deserialize_account(data: &[u8]) -> Result<Self> {
-        ensure!(
-            data.len() > size_of::<OwnerProgramDiscriminant<Self>>(),
-            ProgramError::AccountDataTooSmall,
-            "Account data is too short to fit discriminant"
-        );
+        check_discriminant::<Self>(data)
+            .ctx("Failed to validate the discriminant in DeserializeBorshAccount")?;
         let data = &data[size_of::<OwnerProgramDiscriminant<Self>>()..];
         BorshDeserialize::try_from_slice(data).map_err(Into::into)
     }
