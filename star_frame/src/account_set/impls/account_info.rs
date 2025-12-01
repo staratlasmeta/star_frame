@@ -239,15 +239,15 @@ pub mod idl_impl {
         }
     }
 
-    impl<T> AccountSetToIdl<Seeds<(T, Pubkey)>> for AccountInfo
+    impl<T> AccountSetToIdl<(T, Pubkey)> for AccountInfo
     where
         T: FindIdlSeeds,
     {
         fn account_set_to_idl(
             _idl_definition: &mut IdlDefinition,
-            arg: Seeds<(T, Pubkey)>,
+            arg: (T, Pubkey),
         ) -> crate::IdlResult<IdlAccountSetDef> {
-            let (seeds, program) = arg.0;
+            let (seeds, program) = arg;
             Ok(IdlAccountSetDef::Single(IdlSingleAccountSet {
                 seeds: Some(IdlFindSeeds {
                     seeds: T::find_seeds(&seeds)?,
@@ -258,17 +258,17 @@ pub mod idl_impl {
         }
     }
 
-    impl<T> AccountSetToIdl<Seeds<T>> for AccountInfo
+    impl<T> AccountSetToIdl<T> for AccountInfo
     where
         T: FindIdlSeeds,
     {
         fn account_set_to_idl(
             _idl_definition: &mut IdlDefinition,
-            arg: Seeds<T>,
+            arg: T,
         ) -> crate::IdlResult<IdlAccountSetDef> {
             Ok(IdlAccountSetDef::Single(IdlSingleAccountSet {
                 seeds: Some(IdlFindSeeds {
-                    seeds: T::find_seeds(&arg.0)?,
+                    seeds: T::find_seeds(&arg)?,
                     program: None,
                 }),
                 ..Default::default()

@@ -62,7 +62,7 @@ pub struct CreateCounterAccounts {
     pub owner: SystemAccount,
     #[validate(arg = (
         CreateIfNeeded(()),
-        Seeds(CounterAccountSeeds { owner: *self.owner.pubkey() }),
+        CounterAccountSeeds { owner: *self.owner.pubkey() },
     ))]
     #[idl(arg = Seeds(FindCounterAccountSeeds { owner: seed_path("owner") }))]
     pub counter: Init<Seeded<WrappedCounter>>,
