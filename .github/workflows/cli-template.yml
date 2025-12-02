@@ -1,0 +1,74 @@
+name: CLI Template CI
+
+on:
+  push:
+    branches: ['**']
+    paths:
+      - "star_frame_cli/**"
+      - "star_frame_cli/src/template/**"
+  pull_request:
+    branches: ['**']
+    paths:
+      - "star_frame_cli/**"
+      - "star_frame_cli/src/template/**"
+
+jobs:
+  cli-template:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl build-essential pkg-config libssl-dev ca-certificates git
+
+      - name: Setup Rust (nightly)
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: nightly-2025-01-01  
+          cache: true
+
+      - name: Install Solana CLI 
+        shell: bash
+        run: |
+          curl -sSfL https://github.com/solana-labs/solana/releases/download/v1.18.26/solana-release-x86_64-unknown-linux-gnu.tar.bz2 -o solana.tar.bz2
+          mkdir -p $HOME/.local/share/solana/install/active_release
+          tar -xjf solana.tar.bz2 -C $HOME/.local/share/solana/install/active_release --strip-components=1
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
+
+      - name: Verify Rust + Solana CLI
+        shell: bash
+        run: |
+          source $HOME/.cargo/env
+          rustc --version
+          cargo --version
+          solana --version
+
+      - name: Install Starframe CLI
+        shell: bash
+        run: |
+          source $HOME/.cargo/env
+          cd star_frame_cli
+          RUSTFLAGS="-A warnings" cargo install --path .
+
+      - name: Generate test project
+        shell: bash
+        run: |
+          source $HOME/.cargo/env
+          mkdir -p /tmp/test_project
+          cd /tmp
+          sf new test_project
+
+      - name: Build program
+        shell: bash
+        run: |
+          set -euxo pipefail
+          source $HOME/.cargo/env
+          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
+          cd /tmp/test_project
+          cargo build --release
+
+      
