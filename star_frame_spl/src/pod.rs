@@ -22,7 +22,7 @@ impl<T: Pod + Default> PodOption<T> {
 
     /// Create a PodCOption equivalent of `Option::None`
     ///
-    /// This could be made `const` by using `std::mem::zeroed`, but that would
+    /// This could be made `const` by using `core::mem::zeroed`, but that would
     /// require `unsafe` code, which is prohibited at the crate level.
     pub fn none() -> Self {
         Self {

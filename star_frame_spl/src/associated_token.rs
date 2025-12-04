@@ -423,7 +423,7 @@ mod tests {
     #[test]
     fn print_token_idl() -> Result<()> {
         let idl = AssociatedToken::program_to_idl()?;
-        println!("{}", star_frame::serde_json::to_string_pretty(&idl)?);
+        std::println!("{}", star_frame::serde_json::to_string_pretty(&idl)?);
         Ok(())
     }
 }

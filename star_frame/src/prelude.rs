@@ -48,6 +48,7 @@ pub use pinocchio::{
     account_info::AccountInfo, instruction::AccountMeta as PinocchioAccountMeta, msg,
     program_error::ProgramError, ProgramResult,
 };
+pub use pinocchio_log::log;
 pub use solana_instruction::AccountMeta;
 pub use solana_pubkey::Pubkey;
 
@@ -56,4 +57,13 @@ pub use bytemuck::{CheckedBitPattern, NoUninit, Pod, Zeroable};
 
 pub use borsh::{self, BorshDeserialize, BorshSerialize};
 
-pub use std::fmt::Debug;
+pub use core::fmt::Debug;
+
+pub use alloc::{
+    borrow::ToOwned,
+    boxed::Box,
+    format,
+    string::{String, ToString},
+    vec,
+    vec::Vec,
+};

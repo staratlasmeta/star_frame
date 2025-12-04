@@ -1,6 +1,6 @@
 //! `AccountSet` implementations for optional types. Enables conditional account presence using `Option<T>` syntax with automatic handling of None cases.
 
-use std::mem::MaybeUninit;
+use core::mem::MaybeUninit;
 
 use crate::{
     account_set::{
@@ -165,6 +165,7 @@ where
 
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
 mod idl_impl {
+    use super::*;
     use crate::idl::AccountSetToIdl;
     use star_frame_idl::{account_set::IdlAccountSetDef, IdlDefinition};
 

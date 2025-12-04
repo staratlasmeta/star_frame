@@ -1,4 +1,4 @@
-use star_frame::prelude::*;
+use star_frame::{pinocchio::log::sol_log, prelude::*};
 
 use crate::{
     instructions::ManageOrderAccounts,
@@ -67,7 +67,7 @@ fn PlaceOrder(
         }
     }
 
-    msg!("{}", order_result);
+    sol_log(order_result.to_string().as_str());
 
     accounts.withdraw(withdraw_totals)?;
     accounts.deposit(deposit_totals)?;
@@ -101,7 +101,7 @@ mod tests {
     #[test]
     fn place_bid() -> Result<()> {
         if env::var("SBF_OUT_DIR").is_err() {
-            println!("SBF_OUT_DIR is not set, skipping test");
+            std::println!("SBF_OUT_DIR is not set, skipping test");
             return Ok(());
         }
         let mollusk = crate::test_utils::new_mollusk();

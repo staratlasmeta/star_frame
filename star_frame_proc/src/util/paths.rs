@@ -86,7 +86,7 @@ impl Default for Paths {
 
             // std
             sized: quote! { ::core::marker::Sized },
-            box_ty: quote! { ::std::boxed::Box },
+            box_ty: quote! { #crate_name::alloc::boxed::Box },
             clone: quote! { ::core::clone::Clone },
             copy: quote! { ::core::marker::Copy },
             debug: quote! { ::core::fmt::Debug },

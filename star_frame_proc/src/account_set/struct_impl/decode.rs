@@ -170,7 +170,7 @@ pub(super) fn decodes(
                         quote! {
                             #prelude::ErrorInfo::account_path(
                                 #decode,
-                                ::std::stringify!(#field_name),
+                                ::core::stringify!(#field_name),
                             )?
                         }
                     }

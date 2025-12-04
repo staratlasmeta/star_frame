@@ -1,9 +1,10 @@
-use std::{
-    borrow::Cow,
+use alloc::{borrow::Cow, boxed::Box, vec, vec::Vec};
+use core::{
     fmt::{Debug, Formatter},
     panic::Location,
 };
 
+use alloc::string::ToString;
 use derive_more::{Deref, DerefMut, Display, Error as DeriveError};
 use itertools::Itertools;
 use pinocchio::program_error::ProgramError;
@@ -141,7 +142,7 @@ macro_rules! error {
         $crate::errors::Error::new($err)
     };
     ($err:expr, $($ctx:tt)*) => {
-        $crate::errors::Error::new_with_ctx($err, format!($($ctx)*))
+        $crate::errors::Error::new_with_ctx($err, $crate::alloc::format!($($ctx)*))
     };
 }
 
@@ -189,8 +190,8 @@ pub struct ErrorInner {
 pub struct Error(#[error(source)] Box<ErrorInner>);
 static_assertions::assert_impl_all!(Error: Send, Sync);
 
-impl std::fmt::Display for ErrorInner {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for ErrorInner {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}", self.kind)?;
         if let Some(initial_ctx) = &self.initial_ctx {
             write!(f, " - {initial_ctx}")?;
@@ -440,9 +441,9 @@ where
     }
 }
 
-impl From<std::io::Error> for Error {
+impl From<borsh::io::Error> for Error {
     #[track_caller]
-    fn from(error: std::io::Error) -> Self {
+    fn from(error: borsh::io::Error) -> Self {
         Error::new_inner(
             ErrorCode::IoError,
             Some(error.to_string().into()),
@@ -484,9 +485,9 @@ impl From<advancer::AdvanceError> for Error {
     }
 }
 
-impl From<std::str::Utf8Error> for Error {
+impl From<core::str::Utf8Error> for Error {
     #[track_caller]
-    fn from(error: std::str::Utf8Error) -> Self {
+    fn from(error: core::str::Utf8Error) -> Self {
         Error::new_inner(
             ErrorCode::Utf8Error,
             Some(error.to_string().into()),
@@ -520,14 +521,14 @@ impl From<core::num::TryFromIntError> for ErrorKind {
     }
 }
 
-impl From<std::cell::BorrowError> for ErrorKind {
-    fn from(_error: std::cell::BorrowError) -> Self {
+impl From<core::cell::BorrowError> for ErrorKind {
+    fn from(_error: core::cell::BorrowError) -> Self {
         ErrorCode::BorrowError.into()
     }
 }
 
-impl From<std::cell::BorrowMutError> for ErrorKind {
-    fn from(_error: std::cell::BorrowMutError) -> Self {
+impl From<core::cell::BorrowMutError> for ErrorKind {
+    fn from(_error: core::cell::BorrowMutError) -> Self {
         ErrorCode::BorrowMutError.into()
     }
 }
@@ -591,7 +592,7 @@ mod tests {
         let res = res.ctx("AAA").unwrap_err();
 
         res.log();
-        println!("{res}");
+        std::println!("{res}");
         Ok(())
     }
 

@@ -1,8 +1,9 @@
 //! A [`ProgramAccount`] that is serialized and deserialized using [`borsh`].
 
 use borsh::object_length;
+use core::ops::{Deref, DerefMut};
 use derive_more::Debug;
-use std::ops::{Deref, DerefMut};
+use pinocchio_log::log;
 
 use crate::{
     account_set::{
@@ -143,9 +144,9 @@ where
     fn deref_mut(&mut self) -> &mut Self::Target {
         if !self.is_writable() {
             // TODO: Perhaps put this behind a debug flag?
-            msg!(
+            log!(
                 "Tried to borrow mutably from BorshAccount `{}` which is not writable",
-                self.pubkey()
+                self.pubkey().to_string().as_str()
             );
             panic!(
                 "Tried to borrow mutably from BorshAccount `{}` which is not writable",

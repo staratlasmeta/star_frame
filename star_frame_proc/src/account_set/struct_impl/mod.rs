@@ -8,12 +8,12 @@ use crate::{
         recurse_type_operator, GetGenerics, Paths,
     },
 };
+use core::ops::Not;
 use easy_proc::{find_attr, ArgumentList};
 use itertools::Itertools;
 use proc_macro2::TokenStream;
 use proc_macro_error2::abort;
 use quote::{format_ident, quote, ToTokens};
-use std::ops::Not;
 use syn::{
     bracketed,
     parse::{Parse, ParseStream},

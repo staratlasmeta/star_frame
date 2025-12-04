@@ -67,7 +67,7 @@ mod tests {
     #[test]
     fn initialize_creates_market_account() -> Result<()> {
         if env::var("SBF_OUT_DIR").is_err() {
-            println!("SBF_OUT_DIR is not set, skipping test");
+            std::println!("SBF_OUT_DIR is not set, skipping test");
             return Ok(());
         }
 

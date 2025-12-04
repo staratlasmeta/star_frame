@@ -1,4 +1,3 @@
-use derive_more::Debug;
 use easy_proc::{find_attr, ArgumentList};
 use proc_macro2::TokenStream;
 use proc_macro_error2::abort;

@@ -14,7 +14,7 @@ use crate::{
 };
 use advancer::Advance;
 use bytemuck::bytes_of;
-use std::marker::PhantomData;
+use core::marker::PhantomData;
 
 /// Increases or decreases the rent of self to be the minimum required using [`CanModifyRent::normalize_rent`](crate::account_set::CanModifyRent::normalize_rent).
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
@@ -229,7 +229,7 @@ pub mod discriminant {
                 .with_ctx(|| {
                     format!(
                         "Failed to advance past discriminant during initialization of {}",
-                        std::any::type_name::<T>()
+                        core::any::type_name::<T>()
                     )
                 })?
                 .copy_from_slice(bytes_of(&T::DISCRIMINANT));
@@ -249,7 +249,7 @@ pub mod discriminant {
                 .with_ctx(|| {
                     format!(
                         "Failed to advance past discriminant during initialization of {}",
-                        std::any::type_name::<T>()
+                        core::any::type_name::<T>()
                     )
                 })?
                 .copy_from_slice(bytes_of(&T::DISCRIMINANT));

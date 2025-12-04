@@ -14,8 +14,8 @@ pub use star_frame_proc::{AccountSet, ProgramAccount};
 
 use crate::{prelude::*, ErrorCode};
 use bytemuck::bytes_of;
+use core::{mem::MaybeUninit, slice};
 use modifiers::{HasOwnerProgram, OwnerProgramDiscriminant};
-use std::{mem::MaybeUninit, slice};
 
 /// An account that has a discriminant and is owned by a [`StarFrameProgram`].
 ///
@@ -440,6 +440,7 @@ pub(crate) mod prelude {
 
 #[cfg(test)]
 mod test {
+    use super::*;
     use crate::{account_set::AccountSetValidate, prelude::Context};
     use star_frame_proc::AccountSet;
 

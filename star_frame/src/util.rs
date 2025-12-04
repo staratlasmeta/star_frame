@@ -1,6 +1,6 @@
 //! Useful miscellaneous functions.
 use crate::prelude::*;
-use std::{
+use core::{
     cell::{Ref, RefMut},
     mem::size_of,
 };
@@ -107,11 +107,9 @@ impl FastPubkeyEq<Pubkey> for [u8; 32] {
 /// Custom [`borsh`] derive `serialize_with` and `deserialize_with` overrides for use with [`bytemuck`] types.
 pub mod borsh_bytemuck {
     use crate::align1::Align1;
+    use borsh::io::{Read, Write};
     use bytemuck::{CheckedBitPattern, NoUninit};
-    use std::{
-        io::{Read, Write},
-        mem::{size_of, MaybeUninit},
-    };
+    use core::mem::{size_of, MaybeUninit};
 
     /// Custom `serialize_with` override for [`borsh::BorshSerialize`] that uses [`bytemuck`] to serialize.
     /// This is intended for packed structs that are probably used in account data.
@@ -137,7 +135,7 @@ pub mod borsh_bytemuck {
     pub fn serialize<W: Write, P: NoUninit + Align1>(
         value: &P,
         writer: &mut W,
-    ) -> std::io::Result<()> {
+    ) -> borsh::io::Result<()> {
         let bytes = bytemuck::bytes_of(value);
         writer.write_all(bytes)
     }
@@ -165,14 +163,14 @@ pub mod borsh_bytemuck {
     /// ```
     pub fn deserialize<R: Read, P: NoUninit + CheckedBitPattern + Align1>(
         reader: &mut R,
-    ) -> std::io::Result<P> {
+    ) -> borsh::io::Result<P> {
         let mut buffer = MaybeUninit::<P>::zeroed();
         let bytes = unsafe {
             &mut *ptr_meta::from_raw_parts_mut(buffer.as_mut_ptr().cast::<()>(), size_of::<P>())
         };
         reader.read_exact(bytes)?;
         bytemuck::checked::try_from_bytes::<P>(bytes)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+            .map_err(|e| borsh::io::Error::new(borsh::io::ErrorKind::InvalidData, e))?;
         Ok(unsafe { buffer.assume_init() })
     }
 
@@ -196,13 +194,13 @@ pub mod borsh_bytemuck {
         ($($ty:ident),*) => {
             $(
                 impl $crate::borsh::BorshSerialize for $ty {
-                    fn serialize<W: ::std::io::Write>(&self, writer: &mut W) -> ::std::io::Result<()> {
+                    fn serialize<W: $crate::borsh::io::Write>(&self, writer: &mut W) -> $crate::borsh::io::Result<()> {
                         $crate::util::borsh_bytemuck::serialize(self, writer)
                     }
                 }
 
                 impl $crate::borsh::BorshDeserialize for $ty {
-                    fn deserialize_reader<R: ::std::io::Read>(reader: &mut R) -> ::std::io::Result<Self> {
+                    fn deserialize_reader<R: $crate::borsh::io::Read>(reader: &mut R) -> $crate::borsh::io::Result<Self> {
                         $crate::util::borsh_bytemuck::deserialize(reader)
                     }
                 }

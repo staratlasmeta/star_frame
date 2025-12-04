@@ -89,7 +89,7 @@ fn Run(accounts: &mut RunAccounts<true>, arg: Run) -> Result<()> {
     let before = remaining_compute();
     let mut list = data.list();
     let after = remaining_compute();
-    msg!("compute units: {}", before - after - 100);
+    log!("compute units: {}", before - after - 100);
 
     accounts
         .borsh_account

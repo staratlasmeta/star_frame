@@ -1,6 +1,6 @@
 //! `AccountSet` implementations for boxed types. Enables heap allocation of account sets with transparent delegation to the underlying type.
 
-use std::mem::MaybeUninit;
+use core::mem::MaybeUninit;
 
 use crate::{
     account_set::{
@@ -166,6 +166,7 @@ where
 
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
 mod idl_impl {
+    use super::*;
     use crate::idl::AccountSetToIdl;
     use star_frame_idl::{account_set::IdlAccountSetDef, IdlDefinition};
 

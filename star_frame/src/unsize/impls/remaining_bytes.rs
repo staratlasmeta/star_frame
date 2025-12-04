@@ -15,13 +15,14 @@ use crate::{
     ErrorCode, Result,
 };
 use advancer::Advance;
-use derive_more::{Deref, DerefMut};
-use ptr_meta::Pointee;
-use star_frame_proc::unsized_impl;
-use std::{
+use alloc::{format, vec::Vec};
+use core::{
     cmp::Ordering,
     ops::{Deref, DerefMut},
 };
+use derive_more::{Deref, DerefMut};
+use ptr_meta::Pointee;
+use star_frame_proc::unsized_impl;
 
 #[derive(Debug, Deref, DerefMut, Align1, Pointee)]
 #[repr(transparent)]
@@ -195,7 +196,7 @@ mod tests {
         let test_bytes = TestByteSet::<RemainingBytes>::new_from_init(&byte_array)?;
         let mut bytes = test_bytes.data_mut()?;
         bytes.set_len(3)?;
-        println!("{:?}", &**bytes);
+        std::println!("{:?}", &**bytes);
         Ok(())
     }
 }

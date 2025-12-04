@@ -1,6 +1,6 @@
 //! Implementation of `AccountSet` traits for [`AccountInfo`].
 
-use std::mem::MaybeUninit;
+use core::mem::MaybeUninit;
 
 use crate::{
     account_set::{

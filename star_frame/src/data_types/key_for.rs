@@ -1,11 +1,11 @@
 use crate::{account_set::modifiers::HasInnerType, prelude::*};
 use bytemuck::{cast, cast_mut, cast_ref};
-use derive_where::DeriveWhere;
-use serde::{Deserialize, Serialize};
-use std::{
+use core::{
     fmt::{Display, Formatter},
     marker::PhantomData,
 };
+use derive_where::DeriveWhere;
+use serde::{Deserialize, Serialize};
 
 /// Allows setting a [`KeyFor`] or [`OptionalKeyFor`] using other types.
 pub trait SetKeyFor<T: ?Sized, I> {
@@ -32,7 +32,7 @@ pub struct KeyFor<T: ?Sized> {
 }
 
 impl<T: ?Sized> Display for KeyFor<T> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}", self.pubkey)
     }
 }

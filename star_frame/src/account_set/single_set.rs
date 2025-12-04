@@ -14,8 +14,8 @@ use crate::{
     program::system,
     ErrorCode,
 };
+use core::cmp::Ordering;
 use pinocchio::account_info::{Ref, RefMut};
-use std::cmp::Ordering;
 
 /// Metadata associated with a single account, describing its mutability and signing requirements.
 #[derive(Debug, Clone, Copy)]
@@ -311,9 +311,9 @@ where
                 let data_len = account.data_len();
                 let rent_lamports = rent.minimum_balance(data_len);
                 if rent_lamports.cmp(&lamports) == Ordering::Less {
-                    pinocchio::msg!(
+                    pinocchio_log::log!(
                         "{} was left with more lamports than required by rent",
-                        account.pubkey()
+                        account.pubkey().to_string().as_str()
                     );
                 }
             }

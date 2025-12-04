@@ -1,6 +1,6 @@
 //! `AccountSet` implementation for the unit type. Enables instructions that require no accounts using `()` syntax as a zero-cost abstraction.
 
-use std::mem::MaybeUninit;
+use core::mem::MaybeUninit;
 
 use crate::{
     account_set::{

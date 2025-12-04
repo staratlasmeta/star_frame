@@ -20,6 +20,7 @@ idl = ["star_frame/idl"]
 [dependencies]
 star_frame = { workspace = true }
 bytemuck = { workspace = true }
+pinocchio-log = { workspace = true }
 
 [dev-dependencies]
 mollusk-svm = { workspace = true }

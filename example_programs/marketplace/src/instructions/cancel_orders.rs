@@ -53,7 +53,7 @@ mod tests {
     #[test]
     fn cancel_orders() -> Result<()> {
         if env::var("SBF_OUT_DIR").is_err() {
-            println!("SBF_OUT_DIR is not set, skipping test");
+            std::println!("SBF_OUT_DIR is not set, skipping test");
             return Ok(());
         }
         let mollusk = crate::test_utils::new_mollusk();

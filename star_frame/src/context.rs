@@ -5,8 +5,8 @@ use crate::{
     account_set::{CanAddLamports, CanFundRent},
     prelude::*,
 };
+use core::cell::Cell;
 use pinocchio::sysvars::{clock::Clock, rent::Rent, Sysvar};
-use std::cell::Cell;
 
 /// Additional context given to [`crate::instruction::StarFrameInstruction`]s, enabling programs to cache and retrieve helpful information during instruction execution.
 #[derive(Debug)]
@@ -74,7 +74,7 @@ impl Context {
 
     /// Gets the cached funder for rent if it has been set.
     pub fn get_funder(&self) -> Option<&dyn CanFundRent> {
-        self.funder.as_ref().map(std::convert::AsRef::as_ref)
+        self.funder.as_ref().map(core::convert::AsRef::as_ref)
     }
 
     /// Sets the funder for rent.
@@ -84,7 +84,7 @@ impl Context {
 
     /// Gets the cached recipient for rent if it has been set.
     pub fn get_recipient(&self) -> Option<&dyn CanAddLamports> {
-        self.recipient.as_ref().map(std::convert::AsRef::as_ref)
+        self.recipient.as_ref().map(core::convert::AsRef::as_ref)
     }
 
     /// Sets the recipient for rent.

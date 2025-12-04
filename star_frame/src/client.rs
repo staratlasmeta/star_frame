@@ -27,7 +27,7 @@ where
     S: InstructionSet,
     I: InstructionDiscriminant<S> + BorshSerialize,
 {
-    let data_len = std::mem::size_of::<S::Discriminant>() + object_length(data)?;
+    let data_len = core::mem::size_of::<S::Discriminant>() + object_length(data)?;
     let mut ix_data = Vec::with_capacity(data_len);
     ix_data.extend_from_slice(bytes_of(&I::DISCRIMINANT));
     BorshSerialize::serialize(data, &mut ix_data)?;

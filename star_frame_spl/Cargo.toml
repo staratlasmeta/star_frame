@@ -9,6 +9,7 @@ license.workspace = true
 
 repository.workspace = true
 [features]
+std = ["star_frame/std"]
 rustdoc = ["spl-token-interface", "spl-associated-token-account-interface", "solana-program-pack"]
 # todo: are these default features okay?
 default = ["token"]

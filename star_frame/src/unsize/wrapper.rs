@@ -12,17 +12,17 @@ use crate::{
     unsize::{init::UnsizedInit, FromOwned, UnsizedTypePtr},
     ErrorCode, Result,
 };
-use core::ptr;
+use alloc::boxed::Box;
+use core::{
+    cmp::Ordering,
+    convert::Infallible,
+    marker::PhantomData,
+    ops::{Bound, Deref, DerefMut, RangeBounds},
+    ptr,
+};
 use derive_more::{Debug, Deref, DerefMut};
 use pinocchio::account_info::{AccountInfo, MAX_PERMITTED_DATA_INCREASE};
 use solana_program_memory::sol_memmove;
-use std::{
-    cmp::Ordering,
-    collections::Bound,
-    convert::Infallible,
-    marker::PhantomData,
-    ops::{Deref, DerefMut, Range, RangeBounds},
-};
 
 pub type UnsizedDataMut<'a> = (*mut [u8], Range<usize>, Box<dyn DataMutDrop + 'a>);
 

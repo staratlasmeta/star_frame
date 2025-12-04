@@ -226,7 +226,7 @@ mod tests {
     #[test]
     fn print_idl() {
         let idl = System::program_to_idl().unwrap();
-        println!("{}", serde_json::to_string_pretty(&idl).unwrap());
+        std::println!("{}", serde_json::to_string_pretty(&idl).unwrap());
     }
 
     // TODO: add tests for all the ix builders to ensure they match the solana_system_interface::instruction ix methods

@@ -16,7 +16,8 @@ use crate::{
         FromOwned, UnsizedTypePtr,
     },
 };
-use std::{collections::BTreeMap, iter::FusedIterator};
+use alloc::collections::BTreeMap;
+use core::iter::FusedIterator;
 
 #[derive(Align1, Zeroable, Debug, Copy, Clone)]
 #[repr(C)]

@@ -25,7 +25,7 @@ where
         program: Option<&'a AccountInfo>,
         accounts: &'a Self::CpiAccounts,
         index: &mut usize,
-        infos: &mut [std::mem::MaybeUninit<&'a AccountInfo>],
+        infos: &mut [core::mem::MaybeUninit<&'a AccountInfo>],
     ) -> Result<()> {
         for a in accounts {
             T::write_account_infos(program, a, index, infos)?;
@@ -37,7 +37,7 @@ where
         program_id: &'a Pubkey,
         accounts: &'a Self::CpiAccounts,
         index: &mut usize,
-        metas: &mut [std::mem::MaybeUninit<pinocchio::instruction::AccountMeta<'a>>],
+        metas: &mut [core::mem::MaybeUninit<pinocchio::instruction::AccountMeta<'a>>],
     ) {
         for a in accounts {
             T::write_account_metas(program_id, a, index, metas);
@@ -341,7 +341,8 @@ where
 
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
 pub mod idl_impl {
-    use std::ops::{Bound, RangeBounds};
+    use super::*;
+    use core::ops::{Bound, RangeBounds};
 
     use crate::idl::AccountSetToIdl;
     use star_frame_idl::{account_set::IdlAccountSetDef, IdlDefinition};

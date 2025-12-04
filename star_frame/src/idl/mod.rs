@@ -79,18 +79,19 @@ pub fn empty_env_option(env: &str) -> Option<String> {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! crate_metadata {
-    () => {
+    () => {{
+        use $crate::alloc::string::ToString;
         $crate::star_frame_idl::CrateMetadata {
             version: $crate::star_frame_idl::Version::parse(env!("CARGO_PKG_VERSION"))
                 .expect("Invalid package version. This should never happen."),
             name: env!("CARGO_PKG_NAME").to_string(),
             description: $crate::idl::empty_env_option(env!("CARGO_PKG_DESCRIPTION")),
-            docs: vec![],
+            docs: $crate::alloc::vec![],
             homepage: $crate::idl::empty_env_option(env!("CARGO_PKG_HOMEPAGE")),
             license: $crate::idl::empty_env_option(env!("CARGO_PKG_LICENSE")),
             repository: $crate::idl::empty_env_option(env!("CARGO_PKG_REPOSITORY")),
         }
-    };
+    }};
 }
 
 /// The root IDL generation trait to generate an [`IdlDefinition`] for a program.

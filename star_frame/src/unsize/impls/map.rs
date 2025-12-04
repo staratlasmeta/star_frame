@@ -11,8 +11,9 @@ use crate::{
         FromOwned,
     },
 };
+use alloc::collections::BTreeMap;
 use bytemuck::AnyBitPattern;
-use std::{collections::BTreeMap, iter::FusedIterator};
+use core::iter::FusedIterator;
 
 #[derive(Align1, Copy, Clone, Debug, Default, PartialEq, Eq, Ord, PartialOrd, Hash)]
 #[repr(C)]
