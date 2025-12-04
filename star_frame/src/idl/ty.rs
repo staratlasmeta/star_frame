@@ -41,7 +41,7 @@ impl_type_to_idl_for_primitive!(
     u128: U128,
     i128: I128,
     String: String,
-    Pubkey: Pubkey,
+    Address: Address,
 );
 
 impl<T: TypeToIdl> TypeToIdl for Option<T> {

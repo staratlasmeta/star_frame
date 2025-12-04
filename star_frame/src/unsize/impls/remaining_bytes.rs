@@ -52,7 +52,7 @@ impl DerefMut for RemainingBytesPtr {
 
 unsafe impl UnsizedTypePtr for RemainingBytesPtr {
     type UnsizedType = RemainingBytes;
-    fn check_pointers(&self, range: &std::ops::Range<usize>, cursor: &mut usize) -> bool {
+    fn check_pointers(&self, range: &core::ops::Range<usize>, cursor: &mut usize) -> bool {
         let addr = self.0.addr();
         let is_advanced = addr >= *cursor;
         *cursor = addr;

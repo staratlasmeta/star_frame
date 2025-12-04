@@ -5,30 +5,27 @@
 //! instruction contexts, automatically validating that the correct sysvar account is provided and
 //! providing type-safe access to the sysvar's functionality.
 
-use pinocchio::{account_info::Ref, sysvars::slot_hashes::SlotHashes};
-use star_frame::prelude::*;
 use core::marker::PhantomData;
-
-use crate::account_set::ClientAccountSet;
-
+use pinocchio::{account::Ref, sysvars::slot_hashes::SlotHashes};
+use star_frame::prelude::*;
 pub trait SysvarId: Sized {
-    fn id() -> Pubkey;
+    fn id() -> Address;
 }
 
 impl SysvarId for pinocchio::sysvars::rent::Rent {
-    fn id() -> Pubkey {
-        bytemuck::cast(pinocchio::sysvars::rent::RENT_ID)
+    fn id() -> Address {
+        pinocchio::sysvars::rent::RENT_ID
     }
 }
 
-pub const RECENT_BLOCKHASHES_ID: Pubkey = pubkey!("SysvarRecentB1ockHashes11111111111111111111");
+pub const RECENT_BLOCKHASHES_ID: Address = address!("SysvarRecentB1ockHashes11111111111111111111");
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct InstructionsSysvar;
 
 impl SysvarId for InstructionsSysvar {
-    fn id() -> Pubkey {
-        bytemuck::cast(pinocchio::sysvars::instructions::INSTRUCTIONS_ID)
+    fn id() -> Address {
+        pinocchio::sysvars::instructions::INSTRUCTIONS_ID
     }
 }
 
@@ -36,8 +33,8 @@ impl SysvarId for InstructionsSysvar {
 pub struct SlotHashesSysvar;
 
 impl SysvarId for SlotHashesSysvar {
-    fn id() -> Pubkey {
-        bytemuck::cast(pinocchio::sysvars::slot_hashes::SLOTHASHES_ID)
+    fn id() -> Address {
+        pinocchio::sysvars::slot_hashes::SLOTHASHES_ID
     }
 }
 
@@ -58,18 +55,19 @@ where
     #[single_account_set]
     #[idl(address = T::id())]
     #[validate(address = &T::id())]
-    info: AccountInfo,
+    info: AccountView,
     #[account_set(skip = PhantomData)]
     phantom_t: PhantomData<fn() -> T>,
 }
 
-impl<T: SysvarId> ClientAccountSet for Sysvar<T> {
-    type ClientAccounts = Option<Pubkey>;
+#[cfg(not(target_os = "solana"))]
+impl<T: SysvarId> crate::account_set::ClientAccountSet for Sysvar<T> {
+    type ClientAccounts = Option<Address>;
 
     const MIN_LEN: usize = 1;
 
     fn extend_account_metas(
-        _program_id: &Pubkey,
+        _program_id: &Address,
         accounts: &Self::ClientAccounts,
         metas: &mut Vec<AccountMeta>,
     ) {

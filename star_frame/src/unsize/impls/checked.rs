@@ -16,7 +16,6 @@ use advancer::Advance;
 use alloc::format;
 use bytemuck::{checked, CheckedBitPattern, NoUninit, Zeroable};
 use core::{
-    marker::PhantomData,
     mem::size_of,
     ops::{Deref, DerefMut},
 };
@@ -53,7 +52,7 @@ where
 
 unsafe impl<T: CheckedBitPattern + NoUninit + Align1> UnsizedTypePtr for CheckedPtr<T> {
     type UnsizedType = T;
-    fn check_pointers(&self, range: &std::ops::Range<usize>, cursor: &mut usize) -> bool {
+    fn check_pointers(&self, range: &core::ops::Range<usize>, cursor: &mut usize) -> bool {
         let addr = self.0.addr();
         let is_advanced = addr >= *cursor;
         *cursor = addr;

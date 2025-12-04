@@ -13,7 +13,7 @@ pub struct InitializeAccounts {
     pub authority: Signer<Mut<SystemAccount>>,
     #[validate(arg = (
         Create(()),
-        Seeds(CounterAccountSeeds { authority: *self.authority.pubkey() }),
+        Seeds(CounterAccountSeeds { authority: *self.authority.address() }),
     ))]
     #[idl(arg = Seeds(FindCounterAccountSeeds { authority: seed_path("authority") }))]
     pub counter: Init<Seeded<Account<CounterAccount>>>,
@@ -23,7 +23,7 @@ pub struct InitializeAccounts {
 #[star_frame_instruction]
 fn InitializeCounter(accounts: &mut InitializeAccounts, start_at: Option<u64>) -> Result<()> {
     **accounts.counter.data_mut()? = CounterAccount {
-        authority: *accounts.authority.pubkey(),
+        authority: *accounts.authority.address(),
         count: start_at.unwrap_or(0),
     };
     Ok(())

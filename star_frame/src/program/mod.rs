@@ -14,7 +14,7 @@ pub trait StarFrameProgram {
 
     type AccountDiscriminant: Pod + Eq;
 
-    const ID: Pubkey;
+    const ID: Address;
 
     /// Handles errors returned from the program and then returns a [`ProgramError`].
     ///
@@ -31,11 +31,10 @@ pub trait StarFrameProgram {
     #[allow(clippy::inline_always)]
     #[inline(always)]
     fn entrypoint(
-        program_id: &'static pinocchio::pubkey::Pubkey,
-        accounts: &[AccountInfo],
-        instruction_data: &[u8],
+        program_id: &'static Address,
+        accounts: &[AccountView],
+        instruction_data: &'static [u8],
     ) -> ProgramResult {
-        let program_id = bytemuck::cast_ref(program_id);
         Self::InstructionSet::dispatch(program_id, accounts, instruction_data)
             .map_err(Self::handle_error)
     }
@@ -51,15 +50,16 @@ macro_rules! program_setup {
         pub type StarFrameDeclaredProgram = $program;
 
         #[doc = r" The const program ID."]
-        pub const ID: $crate::prelude::Pubkey = <$program as $crate::program::StarFrameProgram>::ID;
+        pub const ID: $crate::prelude::Address =
+            <$program as $crate::program::StarFrameProgram>::ID;
 
-        #[doc = r" Returns `true` if given pubkey is the program ID."]
-        pub fn check_id(id: &$crate::prelude::Pubkey) -> bool {
+        #[doc = r" Returns `true` if given address is the program ID."]
+        pub fn check_id(id: &$crate::prelude::Address) -> bool {
             id == &ID
         }
 
         #[doc = r" Returns the program ID."]
-        pub const fn id() -> $crate::prelude::Pubkey {
+        pub const fn id() -> $crate::prelude::Address {
             ID
         }
 

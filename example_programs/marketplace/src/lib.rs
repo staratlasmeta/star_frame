@@ -10,7 +10,7 @@ pub mod state;
 #[derive(StarFrameProgram)]
 #[program(
     instruction_set = MarketplaceInstructionSet,
-    id = Pubkey::new_from_array([10; 32])
+    id = Address::new_from_array([10; 32])
 )]
 pub struct Marketplace;
 
@@ -47,7 +47,7 @@ pub mod test_utils {
 
     use mollusk_svm::Mollusk;
     use solana_account::Account as SolanaAccount;
-    use star_frame::{data_types::PackedValue, solana_pubkey::Pubkey};
+    use star_frame::{data_types::PackedValue, solana_address::Address};
     use star_frame_spl::token::{state::MintAccount, Token};
 
     use crate::state::{Price, Quantity};
@@ -64,7 +64,7 @@ pub mod test_utils {
         Quantity::new(PackedValue(v))
     }
 
-    pub fn new_mint_account(mint: KeyFor<MintAccount>) -> (Pubkey, SolanaAccount) {
+    pub fn new_mint_account(mint: KeyFor<MintAccount>) -> (Address, SolanaAccount) {
         let acc = SolanaAccount {
             lamports: LAMPORTS_PER_SOL,
             data: bytemuck::bytes_of(&star_frame_spl::token::state::MintAccountData {
@@ -79,10 +79,10 @@ pub mod test_utils {
             executable: false,
             rent_epoch: 0,
         };
-        (*mint.pubkey(), acc)
+        (*mint.address(), acc)
     }
 
-    pub fn token_account_data(owner: Pubkey, mint: KeyFor<MintAccount>, amount: u64) -> Vec<u8> {
+    pub fn token_account_data(owner: Address, mint: KeyFor<MintAccount>, amount: u64) -> Vec<u8> {
         bytemuck::bytes_of(&star_frame_spl::token::state::TokenAccountData {
             mint,
             owner,
@@ -97,11 +97,11 @@ pub mod test_utils {
     }
 
     pub fn new_token_account(
-        key: Pubkey,
-        owner: Pubkey,
+        key: Address,
+        owner: Address,
         mint: KeyFor<MintAccount>,
         amount: u64,
-    ) -> (Pubkey, SolanaAccount) {
+    ) -> (Address, SolanaAccount) {
         let acc = SolanaAccount {
             lamports: LAMPORTS_PER_SOL,
             data: token_account_data(owner, mint, amount),

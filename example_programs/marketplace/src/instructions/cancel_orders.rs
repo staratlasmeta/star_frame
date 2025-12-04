@@ -19,7 +19,7 @@ fn CancelOrders(
     let cancelled_totals = accounts
         .market
         .data_mut()?
-        .cancel_orders(accounts.user.pubkey(), orders_to_cancel)?;
+        .cancel_orders(accounts.user.address(), orders_to_cancel)?;
 
     accounts.withdraw(cancelled_totals)?;
 
@@ -59,11 +59,11 @@ mod tests {
         let mollusk = crate::test_utils::new_mollusk();
 
         // Keys
-        let payer = Pubkey::new_unique();
-        let user = Pubkey::new_unique();
-        let authority = Pubkey::new_unique();
-        let currency_mint = KeyFor::new(Pubkey::new_unique());
-        let market_token_mint = KeyFor::new(Pubkey::new_unique());
+        let payer = Address::new_unique();
+        let user = Address::new_unique();
+        let authority = Address::new_unique();
+        let currency_mint = KeyFor::new(Address::new_unique());
+        let market_token_mint = KeyFor::new(Address::new_unique());
         let (market_pda, bump) = Market::find_program_address(&MarketSeeds {
             currency: currency_mint,
             market_token: market_token_mint,
@@ -72,8 +72,8 @@ mod tests {
         // Vault addresses
         let currency_vault = AssociatedToken::find_address(&market_pda, &currency_mint);
         let market_token_vault = AssociatedToken::find_address(&market_pda, &market_token_mint);
-        let user_currency_vault = Pubkey::new_unique();
-        let user_market_token_vault = Pubkey::new_unique();
+        let user_currency_vault = Address::new_unique();
+        let user_market_token_vault = Address::new_unique();
         // Seed market with a single resting bid and ask owned by user
         let bid_price = price(10);
         let bid_qty = qty(5);
@@ -196,8 +196,8 @@ mod tests {
                     funder: payer,
                     user,
                     market: market_pda,
-                    currency: *currency_mint.pubkey(),
-                    market_token: *market_token_mint.pubkey(),
+                    currency: *currency_mint.address(),
+                    market_token: *market_token_mint.address(),
                     market_token_vault,
                     currency_vault,
                     user_market_token_vault,

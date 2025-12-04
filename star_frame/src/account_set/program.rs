@@ -4,9 +4,9 @@
 //! account set. It automatically validates that the provided account matches the expected program ID
 //! and provides type-safe access to program-specific functionality.
 
-use crate::{account_set::ClientAccountSet, prelude::*};
-use ref_cast::{ref_cast_custom, RefCastCustom};
+use crate::prelude::*;
 use core::marker::PhantomData;
+use ref_cast::{ref_cast_custom, RefCastCustom};
 
 /// A typed wrapper for a program account that validates the program ID matches the expected ID.
 ///
@@ -23,17 +23,18 @@ use core::marker::PhantomData;
 pub struct Program<T: StarFrameProgram>(
     #[single_account_set]
     #[idl(address = T::ID)]
-    pub(crate) AccountInfo,
+    pub(crate) AccountView,
     #[account_set(skip = PhantomData)] pub(crate) PhantomData<T>,
 );
 
-impl<T: StarFrameProgram> ClientAccountSet for Program<T> {
-    type ClientAccounts = Option<Pubkey>;
+#[cfg(not(target_os = "solana"))]
+impl<T: StarFrameProgram> crate::account_set::ClientAccountSet for Program<T> {
+    type ClientAccounts = Option<Address>;
 
     const MIN_LEN: usize = 1;
 
     fn extend_account_metas(
-        _program_id: &Pubkey,
+        _program_id: &Address,
         accounts: &Self::ClientAccounts,
         metas: &mut Vec<AccountMeta>,
     ) {
@@ -43,15 +44,15 @@ impl<T: StarFrameProgram> ClientAccountSet for Program<T> {
 
 impl<T: StarFrameProgram> Program<T> {
     pub fn check_id(&self) -> Result<()> {
-        if self.0.pubkey().fast_eq(&T::ID) {
+        if self.0.address().fast_eq(&T::ID) {
             Ok(())
         } else {
             Err(ProgramError::IncorrectProgramId.into())
         }
     }
 
-    /// Allows casting references from an `AccountInfo` without validating the program id.
+    /// Allows casting references from an `AccountView` without validating the program id.
     #[allow(dead_code)]
     #[ref_cast_custom]
-    pub(crate) fn cast_info_unchecked<'a>(info: &'a AccountInfo) -> &'a Self;
+    pub(crate) fn cast_info_unchecked<'a>(info: &'a AccountView) -> &'a Self;
 }

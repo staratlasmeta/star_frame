@@ -490,7 +490,7 @@ impl TryToCodama<TypeNode> for IdlTypeDef {
                 StringTypeNode::utf8(),
                 NumberTypeNode::le(Num::U32),
             ).into_type_node(),
-            IdlTypeDef::Pubkey => PublicKeyTypeNode {}.into_type_node(),
+            IdlTypeDef::Address => PublicKeyTypeNode {}.into_type_node(),
             IdlTypeDef::FixedPoint { ty, .. } => ty.try_to_codama(idl_def, _context)?,
             IdlTypeDef::Option { ty, fixed } =>
                 OptionTypeNode {

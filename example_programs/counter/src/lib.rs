@@ -23,8 +23,8 @@ pub enum CounterInstructionSet {
 #[program_account(seeds = CounterAccountSeeds)]
 pub struct CounterAccount {
     pub version: u8,
-    pub owner: Pubkey,
-    pub signer: Pubkey,
+    pub owner: Address,
+    pub signer: Address,
     pub count: u64,
     pub bump: u8,
     pub data: CounterAccountData,
@@ -34,8 +34,8 @@ pub struct CounterAccount {
 #[derive(Default, Debug, Eq, PartialEq, TypeToIdl)]
 pub struct CounterAccountData {
     pub version: u8,
-    pub owner: Pubkey,
-    pub signer: Pubkey,
+    pub owner: Address,
+    pub signer: Address,
     pub count: u64,
     pub bump: u8,
 }
@@ -46,7 +46,7 @@ pub struct WrappedCounter(#[single_account_set] Account<CounterAccount>);
 #[derive(Debug, GetSeeds, Clone)]
 #[get_seeds(seed_const = b"COUNTER")]
 pub struct CounterAccountSeeds {
-    pub owner: Pubkey,
+    pub owner: Address,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Debug, InstructionArgs)]
@@ -62,7 +62,7 @@ pub struct CreateCounterAccounts {
     pub owner: SystemAccount,
     #[validate(arg = (
         CreateIfNeeded(()),
-        Seeds(CounterAccountSeeds { owner: *self.owner.pubkey() }),
+        Seeds(CounterAccountSeeds { owner: *self.owner.address() }),
     ))]
     #[idl(arg = Seeds(FindCounterAccountSeeds { owner: seed_path("owner") }))]
     pub counter: Init<Seeded<WrappedCounter>>,
@@ -73,8 +73,8 @@ pub struct CreateCounterAccounts {
 fn CreateCounter(accounts: &mut CreateCounterAccounts, start_at: Option<u64>) -> Result<()> {
     **accounts.counter.data_mut()? = CounterAccount {
         version: 0,
-        signer: *accounts.owner.pubkey(),
-        owner: *accounts.owner.pubkey(),
+        signer: *accounts.owner.address(),
+        owner: *accounts.owner.address(),
         bump: accounts.counter.access_seeds().bump,
         count: start_at.unwrap_or(0),
         data: Default::default(),
@@ -92,7 +92,7 @@ pub struct UpdateCounterSignerAccounts {
 
 impl UpdateCounterSignerAccounts {
     fn validate(&self) -> Result<()> {
-        if *self.signer.pubkey() != self.counter.data()?.signer {
+        if *self.signer.address() != self.counter.data()?.signer {
             bail!(CounterErrors::IncorrectSigner);
         }
         Ok(())
@@ -105,7 +105,7 @@ pub struct UpdateCounterSigner;
 #[star_frame_instruction]
 fn UpdateCounterSigner(accounts: &mut UpdateCounterSignerAccounts) -> Result<()> {
     let mut counter = accounts.counter.data_mut()?;
-    counter.signer = *accounts.new_signer.pubkey();
+    counter.signer = *accounts.new_signer.address();
     Ok(())
 }
 
@@ -125,7 +125,7 @@ pub struct CountAccounts {
 
 impl CountAccounts {
     fn validate(&self) -> Result<()> {
-        if *self.owner.pubkey() != self.counter.data()?.owner {
+        if *self.owner.address() != self.counter.data()?.owner {
             bail!(CounterErrors::IncorrectOwner);
         }
         Ok(())
@@ -204,15 +204,15 @@ mod tests {
         }
         let mollusk = Mollusk::new(&CounterProgram::ID, "counter");
 
-        let owner = Pubkey::new_unique();
-        let signer2 = Pubkey::new_unique();
-        let funder = Pubkey::new_unique();
-        let funds_to = Pubkey::new_unique();
+        let owner = Address::new_unique();
+        let signer2 = Address::new_unique();
+        let funder = Address::new_unique();
+        let funds_to = Address::new_unique();
 
         let start_at = Some(2u64);
         let seeds = CounterAccountSeeds { owner };
         let (counter_account, bump) =
-            Pubkey::find_program_address(&seeds.seeds(), &StarFrameDeclaredProgram::ID);
+            Address::find_program_address(&seeds.seeds(), &StarFrameDeclaredProgram::ID);
 
         let mollusk = mollusk.with_context(HashMap::from_iter([
             (funder, SolanaAccount::new(1_000_000_000, 0, &System::ID)),

@@ -8,6 +8,7 @@ use crate::{
     align1::Align1,
     bail,
     data_types::PackedValue,
+    derive_more::Deref,
     ensure, error,
     errors::ErrorInfo,
     unsize::{
@@ -21,19 +22,20 @@ use crate::{
 use advancer::{Advance, AdvanceArray};
 use alloc::{boxed::Box, format, vec::Vec};
 use bytemuck::{bytes_of, cast_slice_mut, Pod, Zeroable};
+
 use core::{
     borrow::Borrow,
     cell::Cell,
     cmp::Ordering,
     iter::{self, FusedIterator},
     marker::PhantomData,
-    mem::{size_of, MaybeUninit},
-    ops::{Deref, DerefMut, RangeBounds},
+    mem::size_of,
+    ops::{Deref, DerefMut, Range, RangeBounds},
     slice,
 };
 use itertools::Itertools;
 use num_traits::ToPrimitive;
-use pinocchio::program_error::ProgramError;
+use pinocchio::error::ProgramError;
 use ptr_meta::Pointee;
 use solana_program_memory::sol_memmove;
 
@@ -508,7 +510,7 @@ where
     C: UnsizedListOffset,
 {
     type UnsizedType = UnsizedList<T, C>;
-    fn check_pointers(&self, range: &std::ops::Range<usize>, cursor: &mut usize) -> bool {
+    fn check_pointers(&self, range: &Range<usize>, cursor: &mut usize) -> bool {
         let addr = self.list_ptr.addr();
         let is_advanced = addr >= *cursor;
         *cursor = addr;

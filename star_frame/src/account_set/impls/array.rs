@@ -3,9 +3,7 @@
 use core::{mem::MaybeUninit, ops::Mul};
 
 use crate::{
-    account_set::{
-        AccountSetCleanup, AccountSetDecode, AccountSetValidate, ClientAccountSet, CpiAccountSet,
-    },
+    account_set::{AccountSetCleanup, AccountSetDecode, AccountSetValidate, CpiAccountSet},
     prelude::*,
 };
 use array_init::try_array_init;
@@ -28,10 +26,10 @@ where
 
     #[inline]
     fn write_account_infos<'a>(
-        program: Option<&'a AccountInfo>,
+        program: Option<&'a AccountView>,
         accounts: &'a Self::CpiAccounts,
         index: &mut usize,
-        infos: &mut [MaybeUninit<&'a AccountInfo>],
+        infos: &mut [MaybeUninit<&'a AccountView>],
     ) -> Result<()> {
         for acc in accounts {
             A::write_account_infos(program, acc, index, infos)?;
@@ -41,10 +39,10 @@ where
 
     #[inline]
     fn write_account_metas<'a>(
-        program_id: &'a Pubkey,
+        program_id: &'a Address,
         accounts: &'a Self::CpiAccounts,
         index: &mut usize,
-        metas: &mut [MaybeUninit<PinocchioAccountMeta<'a>>],
+        metas: &mut [MaybeUninit<InstructionAccount<'a>>],
     ) {
         for acc in accounts {
             A::write_account_metas(program_id, acc, index, metas);
@@ -52,15 +50,16 @@ where
     }
 }
 
-impl<A, const N: usize> ClientAccountSet for [A; N]
+#[cfg(not(target_os = "solana"))]
+impl<A, const N: usize> crate::account_set::ClientAccountSet for [A; N]
 where
-    A: ClientAccountSet,
+    A: crate::account_set::ClientAccountSet,
 {
     type ClientAccounts = [A::ClientAccounts; N];
     const MIN_LEN: usize = N * A::MIN_LEN;
     #[inline]
     fn extend_account_metas(
-        program_id: &Pubkey,
+        program_id: &Address,
         accounts: &Self::ClientAccounts,
         metas: &mut Vec<AccountMeta>,
     ) {
@@ -75,7 +74,7 @@ where
     A: AccountSetDecode<'a, DArg>,
 {
     fn decode_accounts(
-        accounts: &mut &'a [AccountInfo],
+        accounts: &mut &'a [AccountView],
         decode_input: [DArg; N],
         ctx: &mut Context,
     ) -> Result<Self> {
@@ -89,7 +88,7 @@ where
     DArg: Clone,
 {
     fn decode_accounts(
-        accounts: &mut &'a [AccountInfo],
+        accounts: &mut &'a [AccountView],
         decode_input: (DArg,),
         ctx: &mut Context,
     ) -> Result<Self> {
@@ -101,7 +100,7 @@ where
     A: AccountSetDecode<'a, ()>,
 {
     fn decode_accounts(
-        accounts: &mut &'a [AccountInfo],
+        accounts: &mut &'a [AccountView],
         decode_input: (),
         ctx: &mut Context,
     ) -> Result<Self> {

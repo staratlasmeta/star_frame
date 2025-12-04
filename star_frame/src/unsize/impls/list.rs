@@ -275,12 +275,12 @@ where
 /// upstream crates may add a new impl of trait `std::ops::RangeBounds<usize>` for type `usize` in future versions
 trait GetBounds: RangeBounds<usize> {}
 
-impl GetBounds for std::ops::RangeFull {}
-impl GetBounds for std::ops::Range<usize> {}
-impl GetBounds for std::ops::RangeFrom<usize> {}
-impl GetBounds for std::ops::RangeTo<usize> {}
-impl GetBounds for std::ops::RangeInclusive<usize> {}
-impl GetBounds for std::ops::RangeToInclusive<usize> {}
+impl GetBounds for core::ops::RangeFull {}
+impl GetBounds for core::ops::Range<usize> {}
+impl GetBounds for core::ops::RangeFrom<usize> {}
+impl GetBounds for core::ops::RangeTo<usize> {}
+impl GetBounds for core::ops::RangeInclusive<usize> {}
+impl GetBounds for core::ops::RangeToInclusive<usize> {}
 
 impl<T, L, R> Index<R> for List<T, L>
 where
@@ -340,7 +340,7 @@ where
     T: CheckedBitPattern + NoUninit + Align1,
 {
     type UnsizedType = List<T, L>;
-    fn check_pointers(&self, range: &std::ops::Range<usize>, cursor: &mut usize) -> bool {
+    fn check_pointers(&self, range: &core::ops::Range<usize>, cursor: &mut usize) -> bool {
         let addr = self.0.addr();
         let is_advanced = addr >= *cursor;
         *cursor = addr;

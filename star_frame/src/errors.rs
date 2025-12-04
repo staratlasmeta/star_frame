@@ -7,8 +7,9 @@ use core::{
 use alloc::string::ToString;
 use derive_more::{Deref, DerefMut, Display, Error as DeriveError};
 use itertools::Itertools;
-use pinocchio::program_error::ProgramError;
+use pinocchio::error::ProgramError;
 use pinocchio_log::{log, logger::Logger};
+use solana_address::error::AddressError;
 pub use star_frame_proc::star_frame_error;
 
 /// Error codes for errors emitted by `star_frame`
@@ -219,7 +220,7 @@ impl core::fmt::Display for ErrorInner {
 impl From<Error> for ProgramError {
     fn from(error: Error) -> Self {
         match &error.kind {
-            ErrorKind::ProgramError(program_error) => *program_error,
+            ErrorKind::ProgramError(program_error) => program_error.clone(),
             ErrorKind::Custom(custom) => ProgramError::Custom(custom.code()),
         }
     }
@@ -533,14 +534,12 @@ impl From<core::cell::BorrowMutError> for ErrorKind {
     }
 }
 
-impl From<solana_pubkey::PubkeyError> for ErrorKind {
-    fn from(error: solana_pubkey::PubkeyError) -> Self {
+impl From<AddressError> for ErrorKind {
+    fn from(error: AddressError) -> Self {
         let program_error = match error {
-            solana_pubkey::PubkeyError::MaxSeedLengthExceeded => {
-                ProgramError::MaxSeedLengthExceeded
-            }
-            solana_pubkey::PubkeyError::InvalidSeeds => ProgramError::InvalidSeeds,
-            solana_pubkey::PubkeyError::IllegalOwner => ProgramError::IllegalOwner,
+            AddressError::MaxSeedLengthExceeded => ProgramError::MaxSeedLengthExceeded,
+            AddressError::InvalidSeeds => ProgramError::InvalidSeeds,
+            AddressError::IllegalOwner => ProgramError::IllegalOwner,
         };
         ErrorKind::ProgramError(program_error)
     }

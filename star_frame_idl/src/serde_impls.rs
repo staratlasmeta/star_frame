@@ -1,32 +1,32 @@
 use std::collections::HashMap;
 
-pub mod serde_base58_pubkey {
+pub mod serde_base58_address {
     use serde::Deserialize;
-    use solana_pubkey::Pubkey;
+    use solana_address::Address;
     use std::str::FromStr;
 
-    pub fn serialize<S>(val: &Pubkey, serializer: S) -> Result<S::Ok, S::Error>
+    pub fn serialize<S>(val: &Address, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
         serializer.serialize_str(&val.to_string())
     }
 
-    pub fn deserialize<'de, D>(deserializer: D) -> Result<Pubkey, D::Error>
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Address, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        Pubkey::from_str(&s).map_err(serde::de::Error::custom)
+        Address::from_str(&s).map_err(serde::de::Error::custom)
     }
 }
 
-pub mod serde_base58_pubkey_option {
+pub mod serde_base58_address_option {
     use serde::Deserialize;
-    use solana_pubkey::Pubkey;
+    use solana_address::Address;
     use std::str::FromStr;
 
-    pub fn serialize<S>(val: &Option<Pubkey>, serializer: S) -> Result<S::Ok, S::Error>
+    pub fn serialize<S>(val: &Option<Address>, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
@@ -39,12 +39,12 @@ pub mod serde_base58_pubkey_option {
         }
     }
 
-    pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<Pubkey>, D::Error>
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<Address>, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
         let s = Option::<String>::deserialize(deserializer)?;
-        s.map(|s| Pubkey::from_str(&s).map_err(serde::de::Error::custom))
+        s.map(|s| Address::from_str(&s).map_err(serde::de::Error::custom))
             .transpose()
     }
 }

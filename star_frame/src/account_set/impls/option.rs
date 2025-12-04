@@ -4,8 +4,8 @@ use core::mem::MaybeUninit;
 
 use crate::{
     account_set::{
-        AccountSetCleanup, AccountSetDecode, AccountSetValidate, CheckKey, ClientAccountSet,
-        CpiAccountSet, DynamicCpiAccountSetLen,
+        AccountSetCleanup, AccountSetDecode, AccountSetValidate, CheckKey, CpiAccountSet,
+        DynamicCpiAccountSetLen,
     },
     prelude::*,
     ErrorCode,
@@ -42,10 +42,10 @@ where
     }
 
     fn write_account_infos<'a>(
-        program: Option<&'a AccountInfo>,
+        program: Option<&'a AccountView>,
         accounts: &'a Self::CpiAccounts,
         index: &mut usize,
-        infos: &mut [MaybeUninit<&'a AccountInfo>],
+        infos: &mut [MaybeUninit<&'a AccountView>],
     ) -> Result<()> {
         if let Some(accounts) = accounts {
             T::write_account_infos(program, accounts, index, infos)
@@ -62,31 +62,30 @@ where
     }
 
     fn write_account_metas<'a>(
-        program_id: &'a Pubkey,
+        program_id: &'a Address,
         accounts: &'a Self::CpiAccounts,
         index: &mut usize,
-        metas: &mut [MaybeUninit<pinocchio::instruction::AccountMeta<'a>>],
+        metas: &mut [MaybeUninit<InstructionAccount<'a>>],
     ) {
         if let Some(accounts) = accounts {
             T::write_account_metas(program_id, accounts, index, metas);
         } else {
-            metas[*index] = MaybeUninit::new(pinocchio::instruction::AccountMeta::readonly(
-                program_id.as_array(),
-            ));
+            metas[*index] = MaybeUninit::new(InstructionAccount::readonly(program_id));
             *index += 1;
         }
     }
 }
 
-impl<T> ClientAccountSet for Option<T>
+#[cfg(not(target_os = "solana"))]
+impl<T> crate::account_set::ClientAccountSet for Option<T>
 where
-    T: ClientAccountSet,
+    T: crate::account_set::ClientAccountSet,
 {
     type ClientAccounts = Option<T::ClientAccounts>;
     const MIN_LEN: usize = 1;
     #[inline]
     fn extend_account_metas(
-        program_id: &Pubkey,
+        program_id: &Address,
         accounts: &Self::ClientAccounts,
         metas: &mut Vec<AccountMeta>,
     ) {
@@ -104,13 +103,13 @@ where
 {
     #[inline]
     fn decode_accounts(
-        accounts: &mut &'a [AccountInfo],
+        accounts: &mut &'a [AccountView],
         decode_input: DArg,
         ctx: &mut Context,
     ) -> Result<Self> {
         if accounts.is_empty() {
             Ok(None)
-        } else if accounts[0].pubkey().fast_eq(ctx.current_program_id()) {
+        } else if accounts[0].address().fast_eq(ctx.current_program_id()) {
             let _program = accounts
                 .try_advance(1)
                 .expect("There is at least one account skip Option<None>");
@@ -154,7 +153,7 @@ where
     T: CheckKey,
 {
     #[inline]
-    fn check_key(&self, key: &Pubkey) -> Result<()> {
+    fn check_key(&self, key: &Address) -> Result<()> {
         if let Some(inner) = self {
             inner.check_key(key)
         } else {

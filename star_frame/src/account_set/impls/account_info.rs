@@ -1,32 +1,24 @@
-//! Implementation of `AccountSet` traits for [`AccountInfo`].
+//! Implementation of `AccountSet` traits for [`AccountView`].
 
 use core::mem::MaybeUninit;
 
 use crate::{
     account_set::{
         single_set::SingleSetMeta, AccountSetCleanup, AccountSetDecode, AccountSetValidate,
-        ClientAccountSet, CpiAccountSet,
+        CpiAccountSet,
     },
     prelude::*,
 };
 use advancer::AdvanceArray;
 
-impl SingleAccountSet for AccountInfo {
+impl SingleAccountSet for AccountView {
     #[inline]
     fn meta() -> SingleSetMeta {
         SingleSetMeta::default()
     }
     #[inline]
-    fn account_info(&self) -> &AccountInfo {
+    fn account_info(&self) -> &AccountView {
         self
-    }
-    #[inline]
-    fn account_meta(&self) -> AccountMeta {
-        AccountMeta {
-            pubkey: *SingleAccountSet::pubkey(self),
-            is_signer: self.is_signer(),
-            is_writable: self.is_writable(),
-        }
     }
     #[inline]
     fn is_signer(&self) -> bool {
@@ -37,18 +29,19 @@ impl SingleAccountSet for AccountInfo {
         self.is_writable()
     }
     #[inline]
-    fn pubkey(&self) -> &Pubkey {
-        bytemuck::cast_ref(self.key())
+    fn address(&self) -> &Address {
+        self.address()
     }
 }
 
-impl ClientAccountSet for &AccountInfo {
-    type ClientAccounts = Pubkey;
+#[cfg(not(target_os = "solana"))]
+impl crate::account_set::ClientAccountSet for &AccountView {
+    type ClientAccounts = Address;
     const MIN_LEN: usize = 1;
 
     #[inline]
     fn extend_account_metas(
-        _program_id: &Pubkey,
+        _program_id: &Address,
         accounts: &Self::ClientAccounts,
         metas: &mut Vec<AccountMeta>,
     ) {
@@ -60,13 +53,14 @@ impl ClientAccountSet for &AccountInfo {
     }
 }
 
-impl ClientAccountSet for AccountInfo {
-    type ClientAccounts = Pubkey;
+#[cfg(not(target_os = "solana"))]
+impl crate::account_set::ClientAccountSet for AccountView {
+    type ClientAccounts = Address;
     const MIN_LEN: usize = 1;
 
     #[inline]
     fn extend_account_metas(
-        _program_id: &Pubkey,
+        _program_id: &Address,
         accounts: &Self::ClientAccounts,
         metas: &mut Vec<AccountMeta>,
     ) {
@@ -78,9 +72,9 @@ impl ClientAccountSet for AccountInfo {
     }
 }
 
-unsafe impl CpiAccountSet for AccountInfo {
+unsafe impl CpiAccountSet for AccountView {
     type ContainsOption = typenum::False;
-    type CpiAccounts = AccountInfo;
+    type CpiAccounts = AccountView;
     type AccountLen = typenum::U1;
 
     #[inline]
@@ -90,10 +84,10 @@ unsafe impl CpiAccountSet for AccountInfo {
 
     #[inline]
     fn write_account_infos<'a>(
-        _program: Option<&'a AccountInfo>,
+        _program: Option<&'a AccountView>,
         accounts: &'a Self::CpiAccounts,
         index: &mut usize,
-        infos: &mut [MaybeUninit<&'a AccountInfo>],
+        infos: &mut [MaybeUninit<&'a AccountView>],
     ) -> Result<()> {
         infos[*index] = MaybeUninit::new(accounts);
         *index += 1;
@@ -102,13 +96,13 @@ unsafe impl CpiAccountSet for AccountInfo {
 
     #[inline]
     fn write_account_metas<'a>(
-        _program_id: &Pubkey,
+        _program_id: &Address,
         accounts: &'a Self::CpiAccounts,
         index: &mut usize,
-        metas: &mut [MaybeUninit<PinocchioAccountMeta<'a>>],
+        metas: &mut [MaybeUninit<InstructionAccount<'a>>],
     ) {
-        metas[*index] = MaybeUninit::new(PinocchioAccountMeta {
-            pubkey: accounts.key(),
+        metas[*index] = MaybeUninit::new(InstructionAccount {
+            address: accounts.address(),
             is_signer: false,
             is_writable: false,
         });
@@ -116,9 +110,9 @@ unsafe impl CpiAccountSet for AccountInfo {
     }
 }
 
-unsafe impl CpiAccountSet for &AccountInfo {
+unsafe impl CpiAccountSet for &AccountView {
     type ContainsOption = typenum::False;
-    type CpiAccounts = AccountInfo;
+    type CpiAccounts = AccountView;
     type AccountLen = typenum::U1;
 
     #[inline]
@@ -128,10 +122,10 @@ unsafe impl CpiAccountSet for &AccountInfo {
 
     #[inline]
     fn write_account_infos<'a>(
-        _program: Option<&'a AccountInfo>,
+        _program: Option<&'a AccountView>,
         accounts: &'a Self::CpiAccounts,
         index: &mut usize,
-        infos: &mut [MaybeUninit<&'a AccountInfo>],
+        infos: &mut [MaybeUninit<&'a AccountView>],
     ) -> Result<()> {
         infos[*index] = MaybeUninit::new(accounts);
         *index += 1;
@@ -140,13 +134,13 @@ unsafe impl CpiAccountSet for &AccountInfo {
 
     #[inline]
     fn write_account_metas<'a>(
-        _program_id: &Pubkey,
+        _program_id: &Address,
         accounts: &'a Self::CpiAccounts,
         index: &mut usize,
-        metas: &mut [MaybeUninit<PinocchioAccountMeta<'a>>],
+        metas: &mut [MaybeUninit<InstructionAccount<'a>>],
     ) {
-        metas[*index] = MaybeUninit::new(PinocchioAccountMeta {
-            pubkey: accounts.key(),
+        metas[*index] = MaybeUninit::new(InstructionAccount {
+            address: accounts.address(),
             is_signer: false,
             is_writable: false,
         });
@@ -154,43 +148,43 @@ unsafe impl CpiAccountSet for &AccountInfo {
     }
 }
 
-impl SingleAccountSet for &AccountInfo {
+impl SingleAccountSet for &AccountView {
     #[inline]
     fn meta() -> SingleSetMeta {
         SingleSetMeta::default()
     }
     #[inline]
-    fn account_info(&self) -> &AccountInfo {
+    fn account_info(&self) -> &AccountView {
         self
     }
 }
-impl<'a> AccountSetDecode<'a, ()> for AccountInfo {
+impl<'a> AccountSetDecode<'a, ()> for AccountView {
     #[inline]
     fn decode_accounts(
-        accounts: &mut &'a [AccountInfo],
+        accounts: &mut &'a [AccountView],
         _decode_input: (),
         _ctx: &mut Context,
     ) -> Result<Self> {
         let account: &[_; 1] = accounts
             .try_advance_array()
-            .ctx("Not enough accounts to decode AccountInfo")?;
+            .ctx("Not enough accounts to decode AccountView")?;
         Ok(account[0])
     }
 }
-impl<'a> AccountSetDecode<'a, ()> for &'a AccountInfo {
+impl<'a> AccountSetDecode<'a, ()> for &'a AccountView {
     #[inline]
     fn decode_accounts(
-        accounts: &mut &'a [AccountInfo],
+        accounts: &mut &'a [AccountView],
         _decode_input: (),
         _ctx: &mut Context,
     ) -> Result<Self> {
         let account: &[_; 1] = accounts
             .try_advance_array()
-            .ctx("Not enough accounts to decode AccountInfo")?;
+            .ctx("Not enough accounts to decode AccountView")?;
         Ok(&account[0])
     }
 }
-impl AccountSetValidate<()> for AccountInfo {
+impl AccountSetValidate<()> for AccountView {
     #[allow(clippy::inline_always)]
     #[inline(always)]
     fn validate_accounts(&mut self, _validate_input: (), _ctx: &mut Context) -> Result<()> {
@@ -198,7 +192,7 @@ impl AccountSetValidate<()> for AccountInfo {
     }
 }
 
-impl AccountSetValidate<()> for &AccountInfo {
+impl AccountSetValidate<()> for &AccountView {
     #[allow(clippy::inline_always)]
     #[inline(always)]
     fn validate_accounts(&mut self, _validate_input: (), _ctx: &mut Context) -> Result<()> {
@@ -206,14 +200,14 @@ impl AccountSetValidate<()> for &AccountInfo {
     }
 }
 
-impl AccountSetCleanup<()> for AccountInfo {
+impl AccountSetCleanup<()> for AccountView {
     #[allow(clippy::inline_always)]
     #[inline(always)]
     fn cleanup_accounts(&mut self, _cleanup_input: (), _ctx: &mut Context) -> Result<()> {
         Ok(())
     }
 }
-impl AccountSetCleanup<()> for &AccountInfo {
+impl AccountSetCleanup<()> for &AccountView {
     #[allow(clippy::inline_always)]
     #[inline(always)]
     fn cleanup_accounts(&mut self, _cleanup_input: (), _ctx: &mut Context) -> Result<()> {
@@ -230,7 +224,7 @@ pub mod idl_impl {
         IdlDefinition,
     };
 
-    impl AccountSetToIdl<()> for AccountInfo {
+    impl AccountSetToIdl<()> for AccountView {
         fn account_set_to_idl(
             _idl_definition: &mut IdlDefinition,
             _arg: (),
@@ -239,13 +233,13 @@ pub mod idl_impl {
         }
     }
 
-    impl<T> AccountSetToIdl<Seeds<(T, Pubkey)>> for AccountInfo
+    impl<T> AccountSetToIdl<Seeds<(T, Address)>> for AccountView
     where
         T: FindIdlSeeds,
     {
         fn account_set_to_idl(
             _idl_definition: &mut IdlDefinition,
-            arg: Seeds<(T, Pubkey)>,
+            arg: Seeds<(T, Address)>,
         ) -> crate::IdlResult<IdlAccountSetDef> {
             let (seeds, program) = arg.0;
             Ok(IdlAccountSetDef::Single(IdlSingleAccountSet {
@@ -258,7 +252,7 @@ pub mod idl_impl {
         }
     }
 
-    impl<T> AccountSetToIdl<Seeds<T>> for AccountInfo
+    impl<T> AccountSetToIdl<Seeds<T>> for AccountView
     where
         T: FindIdlSeeds,
     {
@@ -276,15 +270,15 @@ pub mod idl_impl {
         }
     }
 
-    impl<A> AccountSetToIdl<A> for &AccountInfo
+    impl<A> AccountSetToIdl<A> for &AccountView
     where
-        AccountInfo: AccountSetToIdl<A>,
+        AccountView: AccountSetToIdl<A>,
     {
         fn account_set_to_idl(
             idl_definition: &mut IdlDefinition,
             arg: A,
         ) -> crate::IdlResult<IdlAccountSetDef> {
-            AccountInfo::account_set_to_idl(idl_definition, arg)
+            AccountView::account_set_to_idl(idl_definition, arg)
         }
     }
 }

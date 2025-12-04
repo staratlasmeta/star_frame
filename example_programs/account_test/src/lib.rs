@@ -1,24 +1,36 @@
 //! This program is used as a testing ground for on chain compute and unsized type behavior
-
+#![no_std]
 use star_frame::{
     account_set::{modifiers::MaybeMut, CheckKey as _},
     borsh::{BorshDeserialize, BorshSerialize},
-    pinocchio::syscalls::sol_remaining_compute_units,
     prelude::*,
 };
 
 #[allow(unused)]
+#[allow(unexpected_cfgs)]
 fn remaining_compute() -> u64 {
-    unsafe { sol_remaining_compute_units() }
+    #[cfg(target_os = "solana")]
+    unsafe {
+        star_frame::pinocchio::syscalls::sol_remaining_compute_units()
+    }
+    #[cfg(not(target_os = "solana"))]
+    0
 }
 
-const TEST_ID: Pubkey = Pubkey::new_from_array([1; 32]);
+const TEST_ID: Address = Address::new_from_array([1; 32]);
 #[derive(StarFrameProgram)]
 #[program(
     instruction_set = AccountTestInstructionSet,
     id = TEST_ID,
 )]
 pub struct AccountTest;
+
+#[allow(unexpected_cfgs)]
+mod panic_handler {
+    use star_frame::pinocchio::nostd_panic_handler;
+
+    nostd_panic_handler!();
+}
 
 #[derive(InstructionSet)]
 pub enum AccountTestInstructionSet {
@@ -29,7 +41,7 @@ pub enum AccountTestInstructionSet {
 #[ix_args(run)]
 #[borsh(crate = "star_frame::borsh")]
 pub struct Run {
-    key_to_find: Pubkey,
+    key_to_find: Address,
     id_to_find: u64,
 }
 
@@ -53,7 +65,7 @@ pub struct RunAccountsInner {
 
 #[derive(AccountSet, Debug)]
 #[validate(extra_validation = self.validate())]
-pub struct RunAccountsInnerInner(#[single_account_set] AccountInfo);
+pub struct RunAccountsInnerInner(#[single_account_set] AccountView);
 
 impl RunAccountsInnerInner {
     fn validate(&self) -> Result<()> {
@@ -80,7 +92,7 @@ pub struct MyBorshAccount {
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, TypeToIdl)]
 struct ListInner {
     id: u64,
-    key: Pubkey,
+    key: Address,
 }
 
 #[star_frame_instruction]
@@ -130,21 +142,21 @@ mod tests {
 
         const LAMPORTS_PER_SOL: u64 = 1_000_000_000;
 
-        let account = Pubkey::new_unique();
-        let borsh_account = Pubkey::new_unique();
+        let account = Address::new_unique();
+        let borsh_account = Address::new_unique();
 
         let list = std::iter::repeat_with(|| ListInner {
             id: 2,
-            key: Pubkey::new_unique(),
+            key: Address::new_unique(),
         })
         .take(10000)
         .collect::<Vec<_>>();
 
         let account_data = AccountData::serialize_account(AccountDataOwned { list })?;
 
-        let funder = Pubkey::new_unique();
+        let funder = Address::new_unique();
 
-        let mut account_store: HashMap<Pubkey, SolanaAccount> = HashMap::from_iter([
+        let mut account_store: HashMap<Address, SolanaAccount> = HashMap::from_iter([
             (
                 account,
                 SolanaAccount {
@@ -172,7 +184,7 @@ mod tests {
         let res = mollusk.process_and_validate_instruction(
             &AccountTest::instruction(
                 &Run {
-                    key_to_find: Pubkey::new_unique(),
+                    key_to_find: Address::new_unique(),
                     id_to_find: 1,
                 },
                 RunClientAccounts {
@@ -181,7 +193,7 @@ mod tests {
                     funder,
                     system_program: None,
                     inner: RunAccountsInnerClientAccounts {
-                        inner2: Pubkey::new_unique(),
+                        inner2: Address::new_unique(),
                     },
                 },
             )?,

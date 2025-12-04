@@ -368,18 +368,18 @@ mod tests {
 
     #[test]
     fn test_from_owned() -> Result<()> {
-        type MyMap = UnsizedMap<Pubkey, List<Pubkey>>;
+        type MyMap = UnsizedMap<Address, List<Address>>;
         let owned: <MyMap as UnsizedType>::Owned = [
-            (Pubkey::new_unique(), vec![Pubkey::new_unique()]),
+            (Address::new_unique(), vec![Address::new_unique()]),
             (
-                Pubkey::new_unique(),
+                Address::new_unique(),
                 vec![
-                    Pubkey::new_unique(),
-                    Pubkey::new_unique(),
-                    Pubkey::new_unique(),
+                    Address::new_unique(),
+                    Address::new_unique(),
+                    Address::new_unique(),
                 ],
             ),
-            (Pubkey::new_unique(), vec![Pubkey::new_unique()]),
+            (Address::new_unique(), vec![Address::new_unique()]),
         ]
         .into_iter()
         .collect();

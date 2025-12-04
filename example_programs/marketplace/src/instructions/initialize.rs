@@ -43,7 +43,7 @@ fn Initialize(accounts: &mut InitializeAccounts) -> Result<()> {
         .market_account
         .data_mut()?
         .initialize(CreateMarketArgs {
-            authority: *accounts.authority.pubkey(),
+            authority: *accounts.authority.address(),
             currency: *accounts.currency.key_for(),
             market_token: *accounts.market_token.key_for(),
             bump: accounts.market_account.access_seeds().bump,
@@ -61,7 +61,7 @@ mod tests {
     };
     use mollusk_svm::{result::Check, Mollusk};
     use solana_account::Account as SolanaAccount;
-    use star_frame::{client::SerializeAccount, solana_pubkey::Pubkey};
+    use star_frame::{client::SerializeAccount, solana_address::Address};
     use std::{collections::HashMap, env};
 
     #[test]
@@ -74,10 +74,10 @@ mod tests {
         let mut mollusk: Mollusk = Mollusk::new(&crate::Marketplace::ID, "marketplace");
         mollusk_svm_programs_token::token::add_program(&mut mollusk);
 
-        let payer = Pubkey::new_unique();
-        let authority = Pubkey::new_unique();
-        let currency = KeyFor::new(Pubkey::new_unique());
-        let market_token = KeyFor::new(Pubkey::new_unique());
+        let payer = Address::new_unique();
+        let authority = Address::new_unique();
+        let currency = KeyFor::new(Address::new_unique());
+        let market_token = KeyFor::new(Address::new_unique());
 
         let (market_pda, bump) =
             crate::state::Market::find_program_address(&crate::state::MarketSeeds {
@@ -100,8 +100,8 @@ mod tests {
             InitializeClientAccounts {
                 payer,
                 authority,
-                currency: *currency.pubkey(),
-                market_token: *market_token.pubkey(),
+                currency: *currency.address(),
+                market_token: *market_token.address(),
                 market_account: market_pda,
                 token_program: None,
                 system_program: None,

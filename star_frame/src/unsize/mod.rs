@@ -8,7 +8,7 @@ mod test_helpers;
 mod tests;
 pub mod wrapper;
 
-use std::ops::Range;
+use core::ops::Range;
 
 pub use star_frame_proc::{unsized_impl, unsized_type};
 #[cfg(all(feature = "test_helpers", not(target_os = "solana")))]
