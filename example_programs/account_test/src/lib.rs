@@ -123,6 +123,7 @@ fn Run(accounts: &mut RunAccounts<true>, arg: Run) -> Result<()> {
 #[cfg(test)]
 #[allow(unused)]
 mod tests {
+    extern crate std;
     use super::*;
     use mollusk_svm::{program::keyed_account_for_system_program, result::Check, Mollusk};
     use pretty_assertions::assert_eq;
@@ -133,7 +134,7 @@ mod tests {
     #[test]
     fn test_ix() -> Result<()> {
         if env::var("SBF_OUT_DIR").is_err() {
-            println!("SBF_OUT_DIR is not set, skipping test");
+            std::println!("SBF_OUT_DIR is not set, skipping test");
             return Ok(());
         }
         let mut mollusk = Mollusk::new(&AccountTest::ID, "account_test");

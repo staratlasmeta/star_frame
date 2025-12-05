@@ -566,13 +566,10 @@ pub fn program(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 /// # fn main() -> Result<()> {
 /// let account = TestByteSet::<MyEnum>::new_default()?;
 /// let mut data = account.data_mut()?;
-/// assert!(matches!(**data, MyEnum::UnitVariant));
-/// let new_key = Pubkey::new_unique();
-/// let mut the_key = data.set_sized_pubkey(new_key)?;
-/// assert!(matches!(**data, MyEnumMut::UnitVariant));
-/// let new_key = Address::new_unique();
-/// let mut the_key = data.set_sized_address(new_key)?;
-/// assert!(matches!(**the_key, new_key));
+/// assert!(matches!(&**data, &MyEnum::UnitVariant));
+/// let new_addr = Address::new_unique();
+/// let mut the_key = data.set_sized_address(new_addr)?;
+/// assert!(matches!(**the_key, new_addr));
 ///
 /// let _unsized_inner = data.set_unsized(DefaultInit)?;
 ///
@@ -580,7 +577,7 @@ pub fn program(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 /// let MyEnumExclusive::Unsized(mut unsized_inner) = data.get() else {
 ///     panic!("Expected Unsized variant");
 /// };
-/// unsized_inner.map().insert(new_key, 10);
+/// unsized_inner.map().insert(new_addr, 10);
 ///
 /// # Ok(())
 /// # }
