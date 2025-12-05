@@ -71,7 +71,7 @@ impl<T: ?Sized> OptionalAddressFor<T> {
     where
         T: 'static,
     {
-        if &self.address == &Address::new_from_array([0; 32]) {
+        if self.address == Address::new_from_array([0; 32]) {
             None
         } else {
             Some(AddressFor::new_ref(&self.address))
@@ -81,7 +81,7 @@ impl<T: ?Sized> OptionalAddressFor<T> {
     /// Attempts to return a reference to the contained [`Address`] if not [`None`].
     #[must_use]
     pub fn addr(&self) -> Option<&Address> {
-        if &self.address == &Address::new_from_array([0; 32]) {
+        if self.address == Address::new_from_array([0; 32]) {
             None
         } else {
             Some(&self.address)
