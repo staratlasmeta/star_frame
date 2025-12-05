@@ -38,10 +38,10 @@ pub struct CloseAccount<T>(pub T);
 #[derive(AccountSet, derive_where::DeriveWhere)]
 #[derive_where(Clone, Debug, Copy)]
 #[account_set(skip_default_idl, skip_default_cleanup)]
-#[cfg_attr(feature = "aggressive_inline", 
+#[cfg_attr(feature = "aggressive_inline",
     validate(inline_always, extra_validation = T::validate_account_info(self.info))
 )]
-#[cfg_attr(not(feature = "aggressive_inline"), 
+#[cfg_attr(not(feature = "aggressive_inline"),
     validate(extra_validation = T::validate_account_info(self.info))
 )]
 #[cleanup(
@@ -143,7 +143,7 @@ where
             bail!(
                 ProgramError::AccountBorrowFailed,
                 "Tried to borrow mutably from Account `{}` which is not writable",
-                self.address()
+                self.addr()
             );
         }
         ExclusiveWrapper::new(&self.info)
@@ -343,7 +343,7 @@ where
         ctx: &Context,
     ) -> Result<()> {
         if IF_NEEDED {
-            let needs_init = unsafe { self.info.owner().fast_eq(&System::ID) }
+            let needs_init = self.info.owned_by(&System::ID)
                 || self.account_data()?[..size_of::<OwnerProgramDiscriminant<T>>()]
                     .iter()
                     .all(|x| *x == 0);

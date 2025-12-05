@@ -44,11 +44,8 @@ impl<T: StarFrameProgram> crate::account_set::ClientAccountSet for Program<T> {
 
 impl<T: StarFrameProgram> Program<T> {
     pub fn check_id(&self) -> Result<()> {
-        if self.0.address().fast_eq(&T::ID) {
-            Ok(())
-        } else {
-            Err(ProgramError::IncorrectProgramId.into())
-        }
+        ensure!(self.0.address() == &T::ID, ProgramError::IncorrectProgramId);
+        Ok(())
     }
 
     /// Allows casting references from an `AccountView` without validating the program id.

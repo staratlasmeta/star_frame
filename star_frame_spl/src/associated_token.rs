@@ -16,22 +16,25 @@ impl AssociatedToken {
     /// # use star_frame_spl::{token::state::MintAccount,associated_token::AssociatedToken};
     /// # use spl_associated_token_account_interface::address::get_associated_token_address;
     /// # use pretty_assertions::assert_eq;
-    /// # use star_frame::prelude::{KeyFor, Address};
+    /// # use star_frame::prelude::{AddressFor, Address};
     /// let wallet = Address::new_unique();
-    /// let mint = KeyFor::<MintAccount>::new(Address::new_unique());
+    /// let mint = AddressFor::<MintAccount>::new(Address::new_unique());
     /// assert_eq!(
     ///     AssociatedToken::find_address(&wallet, &mint),
-    ///     get_associated_token_address(&wallet, &mint.address()),
+    ///     get_associated_token_address(&wallet, &mint.addr()),
     /// );
     /// ```
-    pub fn find_address(wallet: &Address, mint: &KeyFor<MintAccount>) -> Address {
+    pub fn find_address(wallet: &Address, mint: &AddressFor<MintAccount>) -> Address {
         Self::find_address_with_bump(wallet, mint).0
     }
 
     /// Find the associated token address for the given wallet and mint, with a bump.
-    pub fn find_address_with_bump(wallet: &Address, mint: &KeyFor<MintAccount>) -> (Address, u8) {
+    pub fn find_address_with_bump(
+        wallet: &Address,
+        mint: &AddressFor<MintAccount>,
+    ) -> (Address, u8) {
         Address::find_program_address(
-            &[wallet.as_ref(), Token::ID.as_ref(), mint.address().as_ref()],
+            &[wallet.as_ref(), Token::ID.as_ref(), mint.addr().as_ref()],
             &Self::ID,
         )
     }
@@ -64,7 +67,7 @@ mod idl_impl {
     #[derive(Debug, Clone, PartialEq, Eq, BorshDeserialize, BorshSerialize)]
     pub struct AssociatedTokenSeeds {
         pub wallet: Address,
-        pub mint: KeyFor<MintAccount>,
+        pub mint: AddressFor<MintAccount>,
     }
 
     pub type AtaSeeds = AssociatedTokenSeeds;
@@ -222,7 +225,7 @@ pub mod state {
             modifiers::{CanInitAccount, CanInitSeeds},
             AccountSetValidate, CanFundRent,
         },
-        data_types::{GetKeyFor, GetOptionalKeyFor},
+        data_types::{GetAddressFor, GetOptionalAddressFor},
         errors::ErrorCode,
     };
 
@@ -242,15 +245,15 @@ pub mod state {
     // TODO: should AssociatedTokenAccount's inner type be TokenAccount or AssociatedTokenAccount?
     // Having both is sorta okay, but if for example the account set was Option<AssociatedTokenAccount>, optional_key_for would
     // only return TokenAccount since thats the inner type right now.
-    impl GetKeyFor<AssociatedTokenAccount> for AssociatedTokenAccount {
-        fn key_for(&self) -> &KeyFor<AssociatedTokenAccount> {
-            KeyFor::new_ref(self.address())
+    impl GetAddressFor<AssociatedTokenAccount> for AssociatedTokenAccount {
+        fn addr_for(&self) -> &AddressFor<AssociatedTokenAccount> {
+            AddressFor::new_ref(self.addr())
         }
     }
 
-    impl GetOptionalKeyFor<AssociatedTokenAccount> for AssociatedTokenAccount {
-        fn optional_key_for(&self) -> &OptionalKeyFor<AssociatedTokenAccount> {
-            self.key_for().into()
+    impl GetOptionalAddressFor<AssociatedTokenAccount> for AssociatedTokenAccount {
+        fn optional_addr_for(&self) -> &OptionalAddressFor<AssociatedTokenAccount> {
+            self.addr_for().into()
         }
     }
 
@@ -259,11 +262,11 @@ pub mod state {
         pub fn validate_ata(&self, validate_ata: ValidateAta) -> Result<()> {
             let expected_address =
                 AssociatedToken::find_address(validate_ata.wallet, validate_ata.mint);
-            if self.address() != &expected_address {
+            if self.addr() != &expected_address {
                 bail!(
                     ErrorCode::AddressMismatch,
                     "Account {} is not the associated token account for wallet {} and mint {}",
-                    self.address(),
+                    self.addr(),
                     validate_ata.wallet,
                     validate_ata.mint
                 );
@@ -284,7 +287,7 @@ pub mod state {
     #[derive(Debug, Clone, PartialEq, Eq, Copy)]
     pub struct ValidateAta<'a> {
         pub wallet: &'a Address,
-        pub mint: &'a KeyFor<MintAccount>,
+        pub mint: &'a AddressFor<MintAccount>,
     }
 
     #[derive(Debug, Clone, Copy)]
@@ -326,8 +329,8 @@ pub mod state {
     {
         fn from(value: InitAta<'a, WalletInfo, MintInfo>) -> Self {
             Self {
-                mint: KeyFor::new_ref(value.mint.address()),
-                wallet: value.wallet.address(),
+                mint: AddressFor::new_ref(value.mint.addr()),
+                wallet: value.wallet.addr(),
             }
         }
     }
@@ -367,15 +370,13 @@ pub mod state {
             account_seeds: Option<&[&[u8]]>,
             ctx: &Context,
         ) -> Result<()> {
-            // SAFETY:
-            // The reference is immediately used and dropped, so we don't need to worry about it being used after the function returns
-            if IF_NEEDED && unsafe { self.account_info().owner() }.fast_eq(&Token::ID) {
+            if IF_NEEDED && self.account_view().owned_by(&Token::ID) {
                 self.validate()?;
                 self.validate_ata(init_ata.into())?;
                 return Ok(());
             }
             if !funder.can_create_account() {
-                let current_lamports = self.account_info().lamports();
+                let current_lamports = self.account_view().lamports();
                 let required_rent = ctx
                     .get_rent()?
                     .minimum_balance(TokenAccount::LEN)
@@ -402,11 +403,11 @@ pub mod state {
                 instructions::Create,
                 instructions::CreateCpiAccounts {
                     funder: funder.account_to_modify(),
-                    token_account: *self.account_info(),
-                    wallet: *init_ata.wallet.account_info(),
-                    mint: *init_ata.mint.account_info(),
-                    system_program: *init_ata.system_program.account_info(),
-                    token_program: *init_ata.token_program.account_info(),
+                    token_account: self.account_view(),
+                    wallet: init_ata.wallet.account_view(),
+                    mint: init_ata.mint.account_view(),
+                    system_program: init_ata.system_program.account_view(),
+                    token_program: init_ata.token_program.account_view(),
                 },
                 None,
             )

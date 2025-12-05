@@ -63,44 +63,37 @@ pub fn uninit_array_bytes<T: NoUninit, const N: usize>(array: &[T; N]) -> &[u8] 
     unsafe { core::slice::from_raw_parts(array.as_ptr().cast::<u8>(), size_of::<T>() * N) }
 }
 
-/// Quicker way to compare 32 bytes.
-///
-/// Adapted from [Typhoon](https://github.com/exotic-markets-labs/typhoon/blob/60c5197cc632f1bce07ba27876669e4ca8580421/crates/accounts/src/utils.rs#L2)
-#[inline]
-#[must_use]
-pub fn fast_32_byte_eq(a: &[u8; 32], b: &[u8; 32]) -> bool {
-    bytemuck::cast_slice::<_, PackedValue<u64>>(a) == bytemuck::cast_slice::<_, PackedValue<u64>>(b)
-}
-
+/// Previously quicker way to compare 32 bytes, but this has since been fixed in the toolchain and should no longer be used.
 pub trait FastAddressEq<T> {
+    #[deprecated(since = "0.1.0", note = "Use `PartialEq` instead")]
     fn fast_eq(&self, other: &T) -> bool;
 }
 
 impl FastAddressEq<Address> for Address {
     #[inline]
     fn fast_eq(&self, other: &Address) -> bool {
-        fast_32_byte_eq(self.as_array(), other.as_array())
+        self == other
     }
 }
 
 impl FastAddressEq<[u8; 32]> for Address {
     #[inline]
     fn fast_eq(&self, other: &[u8; 32]) -> bool {
-        fast_32_byte_eq(self.as_array(), other)
+        self.as_array() == other
     }
 }
 
 impl FastAddressEq<[u8; 32]> for [u8; 32] {
     #[inline]
     fn fast_eq(&self, other: &[u8; 32]) -> bool {
-        fast_32_byte_eq(self, other)
+        self == other
     }
 }
 
 impl FastAddressEq<Address> for [u8; 32] {
     #[inline]
     fn fast_eq(&self, other: &Address) -> bool {
-        fast_32_byte_eq(self, other.as_array())
+        self == other.as_array()
     }
 }
 
@@ -173,7 +166,7 @@ pub mod borsh_bytemuck {
         Ok(unsafe { buffer.assume_init() })
     }
 
-    /// Derives [`BorshSerialize`](borsh::BorshSerialize) and [`BorshDeserialize`](borsh::BorshDeserialize) for [`bytemuck`] types.
+    /// Derives [`BorshSerialize`] and [`BorshDeserialize`] for [`bytemuck`] types.
     ///
     /// # Example
     /// ```

@@ -36,14 +36,12 @@ pub trait ProgramAccount: HasOwnerProgram {
     fn validate_account_info(info: AccountView) -> Result<()> {
         validate_discriminant::<Self>(info)?;
 
-        // SAFETY:
-        // The reference is immediately used and dropped, so we don't need to worry about it being used after the function returns
-        if !unsafe { info.owner() }.fast_eq(&Self::OwnerProgram::ID) {
+        if !info.owned_by(&Self::OwnerProgram::ID) {
             bail!(
                 ProgramError::InvalidAccountOwner,
                 "Account {} owner {} does not match expected program ID {}",
                 info.address(),
-                info.owner_address(),
+                info.owner_addr(),
                 Self::OwnerProgram::ID
             );
         }

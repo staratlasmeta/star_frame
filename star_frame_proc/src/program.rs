@@ -23,7 +23,7 @@ pub struct StarFrameProgramDerive {
 }
 
 pub(crate) fn program_impl(input: DeriveInput) -> TokenStream {
-    Paths!(crate_name, address, prelude, star_frame_program_ident);
+    Paths!(crate_name, prelude, star_frame_program_ident);
 
     ensure_data_struct(&input, None);
     reject_generics(&input, None);
@@ -175,7 +175,7 @@ pub(crate) fn program_impl(input: DeriveInput) -> TokenStream {
         impl #prelude::StarFrameProgram for #ident {
             type InstructionSet = #instruction_set_type;
             type AccountDiscriminant = #account_discriminant;
-            const ID: #address = #program_id;
+            const ID: #prelude::Address = #program_id;
         }
         #program_setup
         #entrypoint

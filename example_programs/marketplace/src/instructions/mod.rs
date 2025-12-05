@@ -36,23 +36,23 @@ pub struct ManageOrderAccounts {
         market_token: seed_path("market_token")
     }))]
     #[validate(arg = (
-        ValidateCurrency(self.currency.key_for()),
-        ValidateMarketToken(self.market_token.key_for())
+        ValidateCurrency(self.currency.addr_for()),
+        ValidateMarketToken(self.market_token.addr_for())
     ))]
     #[cleanup(arg = NormalizeRent(()))]
     pub market: Mut<ValidatedAccount<Market>>,
     pub currency: MintAccount,
     pub market_token: MintAccount,
-    #[validate(arg = ValidateAta { mint: self.market_token.key_for(), wallet: self.market.address()})]
+    #[validate(arg = ValidateAta { mint: self.market_token.addr_for(), wallet: self.market.addr()})]
     #[idl(arg = Seeds(FindAtaSeeds{ mint: seed_path("market_token"), wallet: seed_path("market") }))]
     pub market_token_vault: Mut<AssociatedTokenAccount>,
-    #[validate(arg = ValidateAta { mint: self.currency.key_for(), wallet: self.market.address()})]
+    #[validate(arg = ValidateAta { mint: self.currency.addr_for(), wallet: self.market.addr()})]
     #[idl(arg = Seeds(FindAtaSeeds{ mint: seed_path("currency"), wallet: seed_path("market") }))]
     pub currency_vault: Mut<AssociatedTokenAccount>,
-    #[validate(arg = ValidateToken { mint: Some(*self.market_token.key_for()), owner: Some(*self.user.address())})]
+    #[validate(arg = ValidateToken { mint: Some(*self.market_token.addr_for()), owner: Some(*self.user.addr())})]
     #[idl(arg = Seeds(FindAtaSeeds{ mint: seed_path("market_token"), wallet: seed_path("user") }))]
     pub user_market_token_vault: Mut<TokenAccount>,
-    #[validate(arg = ValidateToken { mint: Some(*self.currency.key_for()), owner: Some(*self.user.address())})]
+    #[validate(arg = ValidateToken { mint: Some(*self.currency.addr_for()), owner: Some(*self.user.addr())})]
     #[idl(arg = Seeds(FindAtaSeeds{ mint: seed_path("currency"), wallet: seed_path("user") }))]
     pub user_currency_vault: Mut<TokenAccount>,
     pub token_program: Program<Token>,
@@ -68,8 +68,8 @@ impl ManageOrderAccounts {
             let market = self.market.data()?;
             let seeds_with_bump = SeedsWithBump {
                 seeds: MarketSeeds {
-                    currency: *self.currency.key_for(),
-                    market_token: *self.market_token.key_for(),
+                    currency: *self.currency.addr_for(),
+                    market_token: *self.market_token.addr_for(),
                 },
                 bump: market.bump,
             };
@@ -84,9 +84,9 @@ impl ManageOrderAccounts {
                     amount: market_tokens.val().0,
                 },
                 TransferCpiAccounts {
-                    source: *self.market_token_vault.account_info(),
-                    destination: *self.user_market_token_vault.account_info(),
-                    owner: *self.market.account_info(),
+                    source: self.market_token_vault.account_view(),
+                    destination: self.user_market_token_vault.account_view(),
+                    owner: self.market.account_view(),
                 },
                 None,
             )
@@ -98,9 +98,9 @@ impl ManageOrderAccounts {
                     amount: currency.val().0,
                 },
                 TransferCpiAccounts {
-                    source: *self.currency_vault.account_info(),
-                    destination: *self.user_currency_vault.account_info(),
-                    owner: *self.market.account_info(),
+                    source: self.currency_vault.account_view(),
+                    destination: self.user_currency_vault.account_view(),
+                    owner: self.market.account_view(),
                 },
                 None,
             )
@@ -120,9 +120,9 @@ impl ManageOrderAccounts {
                     amount: market_tokens.val().0,
                 },
                 TransferCpiAccounts {
-                    source: *self.user_market_token_vault.account_info(),
-                    destination: *self.market_token_vault.account_info(),
-                    owner: *self.user.account_info(),
+                    source: self.user_market_token_vault.account_view(),
+                    destination: self.market_token_vault.account_view(),
+                    owner: self.user.account_view(),
                 },
                 None,
             )
@@ -134,9 +134,9 @@ impl ManageOrderAccounts {
                     amount: currency.val().0,
                 },
                 TransferCpiAccounts {
-                    source: *self.user_currency_vault.account_info(),
-                    destination: *self.currency_vault.account_info(),
-                    owner: *self.user.account_info(),
+                    source: self.user_currency_vault.account_view(),
+                    destination: self.currency_vault.account_view(),
+                    owner: self.user.account_view(),
                 },
                 None,
             )

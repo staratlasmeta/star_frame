@@ -109,7 +109,7 @@ where
     ) -> Result<Self> {
         if accounts.is_empty() {
             Ok(None)
-        } else if accounts[0].address().fast_eq(ctx.current_program_id()) {
+        } else if accounts[0].address() == ctx.current_program_id() {
             let _program = accounts
                 .try_advance(1)
                 .expect("There is at least one account skip Option<None>");

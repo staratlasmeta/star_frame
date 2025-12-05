@@ -62,7 +62,7 @@ pub struct CreateCounterAccounts {
     pub owner: SystemAccount,
     #[validate(arg = (
         CreateIfNeeded(()),
-        Seeds(CounterAccountSeeds { owner: *self.owner.address() }),
+        Seeds(CounterAccountSeeds { owner: *self.owner.addr() }),
     ))]
     #[idl(arg = Seeds(FindCounterAccountSeeds { owner: seed_path("owner") }))]
     pub counter: Init<Seeded<WrappedCounter>>,
@@ -73,8 +73,8 @@ pub struct CreateCounterAccounts {
 fn CreateCounter(accounts: &mut CreateCounterAccounts, start_at: Option<u64>) -> Result<()> {
     **accounts.counter.data_mut()? = CounterAccount {
         version: 0,
-        signer: *accounts.owner.address(),
-        owner: *accounts.owner.address(),
+        signer: *accounts.owner.addr(),
+        owner: *accounts.owner.addr(),
         bump: accounts.counter.access_seeds().bump,
         count: start_at.unwrap_or(0),
         data: Default::default(),
@@ -92,7 +92,7 @@ pub struct UpdateCounterSignerAccounts {
 
 impl UpdateCounterSignerAccounts {
     fn validate(&self) -> Result<()> {
-        if *self.signer.address() != self.counter.data()?.signer {
+        if *self.signer.addr() != self.counter.data()?.signer {
             bail!(CounterErrors::IncorrectSigner);
         }
         Ok(())
@@ -105,7 +105,7 @@ pub struct UpdateCounterSigner;
 #[star_frame_instruction]
 fn UpdateCounterSigner(accounts: &mut UpdateCounterSignerAccounts) -> Result<()> {
     let mut counter = accounts.counter.data_mut()?;
-    counter.signer = *accounts.new_signer.address();
+    counter.signer = *accounts.new_signer.addr();
     Ok(())
 }
 
@@ -125,7 +125,7 @@ pub struct CountAccounts {
 
 impl CountAccounts {
     fn validate(&self) -> Result<()> {
-        if *self.owner.address() != self.counter.data()?.owner {
+        if *self.owner.addr() != self.counter.data()?.owner {
             bail!(CounterErrors::IncorrectOwner);
         }
         Ok(())

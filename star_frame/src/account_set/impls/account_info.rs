@@ -17,7 +17,7 @@ impl SingleAccountSet for AccountView {
         SingleSetMeta::default()
     }
     #[inline]
-    fn account_info(&self) -> &AccountView {
+    fn account_view_ref(&self) -> &AccountView {
         self
     }
     #[inline]
@@ -29,7 +29,7 @@ impl SingleAccountSet for AccountView {
         self.is_writable()
     }
     #[inline]
-    fn address(&self) -> &Address {
+    fn addr(&self) -> &Address {
         self.address()
     }
 }
@@ -79,7 +79,7 @@ unsafe impl CpiAccountSet for AccountView {
 
     #[inline]
     fn to_cpi_accounts(&self) -> Self::CpiAccounts {
-        *self.account_info()
+        self.account_view()
     }
 
     #[inline]
@@ -117,7 +117,7 @@ unsafe impl CpiAccountSet for &AccountView {
 
     #[inline]
     fn to_cpi_accounts(&self) -> Self::CpiAccounts {
-        *self.account_info()
+        self.account_view()
     }
 
     #[inline]
@@ -154,7 +154,7 @@ impl SingleAccountSet for &AccountView {
         SingleSetMeta::default()
     }
     #[inline]
-    fn account_info(&self) -> &AccountView {
+    fn account_view_ref(&self) -> &AccountView {
         self
     }
 }

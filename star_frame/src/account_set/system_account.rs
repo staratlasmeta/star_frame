@@ -13,9 +13,7 @@ pub struct SystemAccount(#[single_account_set(skip_has_owner_program)] AccountVi
 impl SystemAccount {
     #[inline]
     pub fn check_id(&self) -> Result<()> {
-        // SAFETY:
-        // The reference is immediately used and dropped, so we don't need to worry about it being used after the function returns
-        if unsafe { self.owner() }.fast_eq(&System::ID) {
+        if self.owned_by(&System::ID) {
             Ok(())
         } else {
             Err(ProgramError::IllegalOwner.into())

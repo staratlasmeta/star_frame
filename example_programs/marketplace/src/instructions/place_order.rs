@@ -49,7 +49,7 @@ fn PlaceOrder(
     let order_result = accounts
         .market
         .data_mut()?
-        .process_order(process_order_args, *accounts.user.address())?;
+        .process_order(process_order_args, *accounts.user.addr())?;
 
     let mut withdraw_totals = OrderTotals::default();
     let mut deposit_totals = OrderTotals::default();
@@ -110,8 +110,8 @@ mod tests {
         let payer = Address::new_unique();
         let user = Address::new_unique();
         let authority = Address::new_unique();
-        let currency_mint = KeyFor::new(Address::new_unique());
-        let market_token_mint = KeyFor::new(Address::new_unique());
+        let currency_mint = AddressFor::new(Address::new_unique());
+        let market_token_mint = AddressFor::new(Address::new_unique());
         let (market_pda, bump) = Market::find_program_address(&MarketSeeds {
             currency: currency_mint,
             market_token: market_token_mint,
@@ -251,8 +251,8 @@ mod tests {
                     funder: payer,
                     user,
                     market: market_pda,
-                    currency: *currency_mint.address(),
-                    market_token: *market_token_mint.address(),
+                    currency: *currency_mint.addr(),
+                    market_token: *market_token_mint.addr(),
                     market_token_vault,
                     currency_vault,
                     user_market_token_vault,

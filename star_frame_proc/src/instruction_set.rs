@@ -27,10 +27,8 @@ pub struct InstructionSetFieldArgs {
 
 pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
     Paths!(
-        account_info,
         bytemuck,
         instruction,
-        address,
         result,
         prelude,
         instruction_set_args_ident,
@@ -156,8 +154,8 @@ pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
 
             #[inline(always)]
             fn dispatch(
-                program_id: &'static #address,
-                accounts: &[#account_info],
+                program_id: &'static #prelude::Address,
+                accounts: &[#prelude::AccountView],
                 mut instruction_data: &'static [u8],
             ) -> #result<()> {
                 #dispatch_body

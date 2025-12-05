@@ -24,10 +24,10 @@ use crate::{
 /// updated `T` to the account info when the account is writable during `AccountSetCleanup`
 #[derive(AccountSet, Debug, Clone)]
 #[account_set(skip_default_decode, skip_default_idl)]
-#[cfg_attr(feature = "aggressive_inline", 
+#[cfg_attr(feature = "aggressive_inline",
     validate(inline_always, extra_validation = T::validate_account_info(self.info))
 )]
-#[cfg_attr(not(feature = "aggressive_inline"), 
+#[cfg_attr(not(feature = "aggressive_inline"),
     validate(extra_validation = T::validate_account_info(self.info))
 )]
 #[cleanup(generics = [], extra_cleanup = {
@@ -146,11 +146,11 @@ where
             // TODO: Perhaps put this behind a debug flag?
             log!(
                 "Tried to borrow mutably from BorshAccount `{}` which is not writable",
-                self.address().to_string().as_str()
+                self.addr().to_string().as_str()
             );
             panic!(
                 "Tried to borrow mutably from BorshAccount `{}` which is not writable",
-                self.address()
+                self.addr()
             );
         }
         self.data.as_mut().unwrap_or_else(|| {
@@ -190,9 +190,7 @@ impl<T: ProgramAccount + BorshSerialize + BorshDeserialize> BorshAccount<T> {
     pub fn serialize(&mut self) -> Result<()> {
         if self.is_writable()
             && self.info.data_len() > size_of::<OwnerProgramDiscriminant<T>>()
-            // SAFETY:
-            // The reference is immediately used and dropped, so we don't need to worry about it being used after the function returns
-            && unsafe { self.account_info().owner().fast_eq(&T::OwnerProgram::ID) }
+            && self.account_view().owned_by(&T::OwnerProgram::ID)
         {
             let new_size = size_of::<OwnerProgramDiscriminant<T>>() + object_length(&self.data)?;
             self.info.resize(new_size)?;
@@ -225,7 +223,7 @@ impl<T: ProgramAccount + BorshSerialize + BorshDeserialize> BorshAccount<T> {
             self.is_writable(),
             ErrorCode::ExpectedWritable,
             "BorshAccount {} is not writable",
-            self.address()
+            self.addr()
         );
         self.data = Some(data);
         Ok(())
@@ -318,9 +316,7 @@ where
         ctx: &Context,
     ) -> Result<()> {
         if IF_NEEDED {
-            // SAFETY:
-            // The reference is immediately used and dropped, so we don't need to worry about it being used after the function returns
-            let needs_init = unsafe { self.account_info().owner() }.fast_eq(&System::ID)
+            let needs_init = self.account_view().owned_by(&System::ID)
                 || self.account_data()?[..size_of::<OwnerProgramDiscriminant<T>>()]
                     .iter()
                     .all(|x| *x == 0);

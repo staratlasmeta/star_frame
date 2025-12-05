@@ -71,7 +71,7 @@ pub(super) fn derive_account_set_impl_struct(
 ) -> TokenStream {
     let AccountSetGenerics { main_generics, .. } = &account_set_generics;
 
-    Paths!(account_info, prelude, result, clone, debug, maybe_uninit);
+    Paths!(prelude, result, clone, debug, maybe_uninit);
 
     let ident = &input.ident;
     let input_vis = &input.vis;
@@ -211,7 +211,7 @@ pub(super) fn derive_account_set_impl_struct(
 
                     #[inline]
                     fn to_cpi_accounts(&self) -> Self::CpiAccounts {
-                        *self.account_info()
+                        self.account_view()
                     }
                     #[inline(always)]
                     fn write_account_infos<#lt>(
@@ -272,8 +272,8 @@ pub(super) fn derive_account_set_impl_struct(
                 }
 
                 #[inline(always)]
-                fn account_info(&self) -> &#account_info {
-                    <#field_ty as #prelude::SingleAccountSet>::account_info(&self.#field_name)
+                fn account_view_ref(&self) -> &AccountView {
+                    <#field_ty as #prelude::SingleAccountSet>::account_view_ref(&self.#field_name)
                 }
             }
 

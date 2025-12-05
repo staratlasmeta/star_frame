@@ -16,8 +16,8 @@ pub struct InitializeAccounts {
     #[validate(arg = (
       Create(()),
       Seeds(MarketSeeds {
-        currency: *self.currency.key_for(),
-        market_token: *self.market_token.key_for()
+        currency: *self.currency.addr_for(),
+        market_token: *self.market_token.addr_for()
       })
     ))]
     #[idl(
@@ -43,9 +43,9 @@ fn Initialize(accounts: &mut InitializeAccounts) -> Result<()> {
         .market_account
         .data_mut()?
         .initialize(CreateMarketArgs {
-            authority: *accounts.authority.address(),
-            currency: *accounts.currency.key_for(),
-            market_token: *accounts.market_token.key_for(),
+            authority: *accounts.authority.addr(),
+            currency: *accounts.currency.addr_for(),
+            market_token: *accounts.market_token.addr_for(),
             bump: accounts.market_account.access_seeds().bump,
         });
 
@@ -76,8 +76,8 @@ mod tests {
 
         let payer = Address::new_unique();
         let authority = Address::new_unique();
-        let currency = KeyFor::new(Address::new_unique());
-        let market_token = KeyFor::new(Address::new_unique());
+        let currency = AddressFor::new(Address::new_unique());
+        let market_token = AddressFor::new(Address::new_unique());
 
         let (market_pda, bump) =
             crate::state::Market::find_program_address(&crate::state::MarketSeeds {
@@ -100,8 +100,8 @@ mod tests {
             InitializeClientAccounts {
                 payer,
                 authority,
-                currency: *currency.address(),
-                market_token: *market_token.address(),
+                currency: *currency.addr(),
+                market_token: *market_token.addr(),
                 market_account: market_pda,
                 token_program: None,
                 system_program: None,

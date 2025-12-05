@@ -70,11 +70,11 @@ impl MintAccount {
     #[inline]
     pub fn validate(&self) -> Result<()> {
         // // todo: maybe relax this check to allow token22
-        if unsafe { self.account_info().owner() }.fast_eq(&Token::ID) {
+        if !self.account_view().owned_by(&Token::ID) {
             bail!(
                 ProgramError::InvalidAccountOwner,
                 "MintAccount owner {} does not match expected Token program ID {}",
-                self.owner_address(),
+                self.owner_addr(),
                 Token::ID
             );
         }
@@ -82,7 +82,7 @@ impl MintAccount {
             bail!(
                 ProgramError::InvalidAccountData,
                 "MintAccount {} has invalid data length {}, expected {}",
-                self.address(),
+                self.addr(),
                 self.account_data()?.len(),
                 Self::LEN
             );
@@ -92,7 +92,7 @@ impl MintAccount {
             bail!(
                 ProgramError::UninitializedAccount,
                 "MintAccount {} is not initialized",
-                self.address()
+                self.addr()
             );
         }
         Ok(())
@@ -122,7 +122,7 @@ impl MintAccount {
                 bail!(
                     ProgramError::InvalidAccountData,
                     "MintAccount {} has decimals {}, expected {}",
-                    self.address(),
+                    self.addr(),
                     data.decimals,
                     decimals
                 );
@@ -133,7 +133,7 @@ impl MintAccount {
                 bail!(
                     ProgramError::InvalidAccountData,
                     "MintAccount {} has mint authority {:?}, expected {:?}",
-                    self.address(),
+                    self.addr(),
                     data.mint_authority,
                     authority
                 );
@@ -145,7 +145,7 @@ impl MintAccount {
                     bail!(
                         ProgramError::InvalidAccountData,
                         "MintAccount {} has a freeze authority but expected none",
-                        self.address()
+                        self.addr()
                     );
                 }
             }
@@ -154,7 +154,7 @@ impl MintAccount {
                     bail!(
                         ProgramError::InvalidAccountData,
                         "MintAccount {} has freeze authority {:?}, expected {:?}",
-                        self.address(),
+                        self.addr(),
                         data.freeze_authority,
                         authority
                     );
@@ -163,7 +163,7 @@ impl MintAccount {
             _ => {}
         }
         // if let Some(token_program) = validate_mint.token_program {
-        //     if self.owner() != &token_program {
+        //     if !self.owned_by(&token_program) {
         //         bail!(ProgramError::InvalidArgument);
         //     }
         // }
@@ -236,7 +236,7 @@ where
         ctx: &Context,
     ) -> Result<()> {
         let (init_mint, funder) = arg;
-        if IF_NEEDED && unsafe { self.account_info().owner() }.fast_eq(&Token::ID) {
+        if IF_NEEDED && self.account_view().owned_by(&Token::ID) {
             self.validate()?;
             self.validate_mint(init_mint.into())?;
             return Ok(());
@@ -254,7 +254,7 @@ where
                 freeze_authority: init_mint.freeze_authority.cloned(),
             },
             InitializeMint2CpiAccounts {
-                mint: *self.account_info(),
+                mint: self.account_view(),
             },
             None,
         )
@@ -269,7 +269,7 @@ where
 #[derive(AccountSet, Debug, Clone)]
 #[validate(extra_validation = self.validate())]
 #[validate(
-    id = "validate_token", 
+    id = "validate_token",
     arg = ValidateToken,
     generics = [],
     extra_validation = {
@@ -311,7 +311,7 @@ pub enum AccountState {
 #[derive(Clone, Copy, Debug, Default, PartialEq, CheckedBitPattern, Zeroable, NoUninit)]
 #[repr(C, packed)]
 pub struct TokenAccountData {
-    pub mint: KeyFor<MintAccount>,
+    pub mint: AddressFor<MintAccount>,
     pub owner: Address,
     pub amount: u64,
     pub delegate: PodOption<Address>,
@@ -334,11 +334,11 @@ impl TokenAccount {
     #[inline]
     pub fn validate(&self) -> Result<()> {
         // todo: maybe relax this check to allow token22
-        if unsafe { self.account_info().owner() }.fast_eq(&Token::ID) {
+        if !self.account_view().owned_by(&Token::ID) {
             bail!(
                 ProgramError::InvalidAccountOwner,
                 "TokenAccount owner {} does not match expected Token program ID {}",
-                self.owner_address(),
+                self.owner_addr(),
                 Token::ID
             );
         }
@@ -346,7 +346,7 @@ impl TokenAccount {
             bail!(
                 ProgramError::InvalidAccountData,
                 "TokenAccount {} has invalid data length {}, expected {}",
-                self.owner_address(),
+                self.owner_addr(),
                 self.account_data()?.len(),
                 Self::LEN
             );
@@ -356,7 +356,7 @@ impl TokenAccount {
             bail!(
                 ProgramError::UninitializedAccount,
                 "TokenAccount {} is not initialized",
-                self.address()
+                self.addr()
             );
         }
         Ok(())
@@ -386,7 +386,7 @@ impl TokenAccount {
                 bail!(
                     ProgramError::InvalidAccountData,
                     "TokenAccount {} has mint {}, expected {}",
-                    self.address(),
+                    self.addr(),
                     data.mint,
                     mint
                 );
@@ -397,7 +397,7 @@ impl TokenAccount {
                 bail!(
                     ProgramError::IncorrectAuthority,
                     "TokenAccount {} has owner {}, expected {}",
-                    self.address(),
+                    self.addr(),
                     data.owner,
                     owner
                 );
@@ -409,7 +409,7 @@ impl TokenAccount {
 
 #[derive(Debug, Clone, PartialEq, Eq, Copy, Default)]
 pub struct ValidateToken {
-    pub mint: Option<KeyFor<MintAccount>>,
+    pub mint: Option<AddressFor<MintAccount>>,
     pub owner: Option<Address>,
     // pub token_program: Option<Address>,
 }
@@ -429,7 +429,7 @@ where
 {
     fn from(value: InitToken<'a, MintInfo>) -> Self {
         Self {
-            mint: Some(KeyFor::new(*value.mint.address())),
+            mint: Some(AddressFor::new(*value.mint.addr())),
             owner: Some(value.owner),
         }
     }
@@ -466,7 +466,7 @@ where
         account_seeds: Option<&[&[u8]]>,
         ctx: &Context,
     ) -> Result<()> {
-        if IF_NEEDED && unsafe { self.account_info().owner() }.fast_eq(&Token::ID) {
+        if IF_NEEDED && self.account_view().owned_by(&Token::ID) {
             self.validate()?;
             self.validate_token(arg.0.into())?;
             return Ok(());
@@ -483,8 +483,8 @@ where
                 owner: init_token.owner,
             },
             InitializeAccount3CpiAccounts {
-                account: *self.account_info(),
-                mint: *init_token.mint.account_info(),
+                account: self.account_view(),
+                mint: init_token.mint.account_view(),
             },
             None,
         )

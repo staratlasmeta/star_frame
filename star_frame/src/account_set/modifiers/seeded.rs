@@ -244,9 +244,9 @@ where
         }
         let seeds = seeds.clone().0;
         let (address, bump) = Address::find_program_address(&seeds.seeds(), &P::id(ctx)?);
-        let expected = self.account.account_info().address();
+        let expected = self.account.account_view_ref().address();
         ensure!(
-            address.fast_eq(expected),
+            &address == expected,
             ErrorCode::AddressMismatch,
             "Seeds: {seeds:?} result in address `{address}` and bump `{bump}`, expected `{expected}`"
         );
@@ -264,9 +264,9 @@ where
         }
         let arg_seeds = seeds.seeds_with_bump();
         let address = Address::create_program_address(&arg_seeds, &P::id(ctx)?)?;
-        let expected = self.account.account_info().address();
+        let expected = self.account.account_view_ref().address();
         ensure!(
-            address.fast_eq(expected),
+            address == *expected,
             ErrorCode::AddressMismatch,
             "Seeds `{seeds:?}` result in address `{address}`, expected `{expected}`"
         );

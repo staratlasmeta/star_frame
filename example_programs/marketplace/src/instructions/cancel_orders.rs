@@ -19,7 +19,7 @@ fn CancelOrders(
     let cancelled_totals = accounts
         .market
         .data_mut()?
-        .cancel_orders(accounts.user.address(), orders_to_cancel)?;
+        .cancel_orders(accounts.user.addr(), orders_to_cancel)?;
 
     accounts.withdraw(cancelled_totals)?;
 
@@ -62,8 +62,8 @@ mod tests {
         let payer = Address::new_unique();
         let user = Address::new_unique();
         let authority = Address::new_unique();
-        let currency_mint = KeyFor::new(Address::new_unique());
-        let market_token_mint = KeyFor::new(Address::new_unique());
+        let currency_mint = AddressFor::new(Address::new_unique());
+        let market_token_mint = AddressFor::new(Address::new_unique());
         let (market_pda, bump) = Market::find_program_address(&MarketSeeds {
             currency: currency_mint,
             market_token: market_token_mint,
@@ -196,8 +196,8 @@ mod tests {
                     funder: payer,
                     user,
                     market: market_pda,
-                    currency: *currency_mint.address(),
-                    market_token: *market_token_mint.address(),
+                    currency: *currency_mint.addr(),
+                    market_token: *market_token_mint.addr(),
                     market_token_vault,
                     currency_vault,
                     user_market_token_vault,

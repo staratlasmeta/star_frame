@@ -47,12 +47,26 @@ pub trait SingleAccountSet {
         Self: Sized;
 
     /// Gets the contained account by reference
-    fn account_info(&self) -> &AccountView;
+    #[deprecated(
+        since = "0.28.0",
+        note = "Use `account_view_ref` or `account_view` instead"
+    )]
+    fn account_info(&self) -> &AccountView {
+        self.account_view_ref()
+    }
+
+    /// Gets the contained account by reference
+    fn account_view_ref(&self) -> &AccountView;
+
+    /// Gets the contained account by value
+    fn account_view(&self) -> AccountView {
+        *self.account_view_ref()
+    }
 
     /// Returns true if this account is signed.
     #[inline]
     fn is_signer(&self) -> bool {
-        self.account_info().is_signer()
+        self.account_view().is_signer()
     }
 
     /// Checks that this account is a signer. Returns an error if it is not.
@@ -64,7 +78,7 @@ pub trait SingleAccountSet {
             bail!(
                 ErrorCode::ExpectedSigner,
                 "Account {} is not signed",
-                self.address()
+                self.addr()
             )
         }
     }
@@ -72,7 +86,7 @@ pub trait SingleAccountSet {
     /// Returns true if this account is writable.
     #[inline]
     fn is_writable(&self) -> bool {
-        self.account_info().is_writable()
+        self.account_view().is_writable()
     }
 
     /// Checks that this account is writable. Returns an error if it is not.
@@ -84,41 +98,38 @@ pub trait SingleAccountSet {
             bail!(
                 ErrorCode::ExpectedWritable,
                 "Account {} is not writable",
-                self.address()
+                self.addr()
             )
         }
     }
 
     /// Returns a reference to the public key of the contained account.
     #[inline]
-    fn address(&self) -> &Address {
-        self.account_info().address()
+    fn addr(&self) -> &Address {
+        self.account_view_ref().address()
     }
 
     /// Returns the public key of the owner of the contained account.
     #[inline]
-    fn owner_address(&self) -> Address {
+    fn owner_addr(&self) -> Address {
         // SAFETY: We are copying out the owner immediately
-        unsafe { *self.account_info().owner() }
+        unsafe { *self.account_view().owner() }
     }
 
     /// Returns a reference to the data of the contained account.
     #[inline]
     fn account_data(&self) -> Result<Ref<'_, [u8]>> {
-        self.account_info()
+        self.account_view_ref()
             .try_borrow()
-            .with_ctx(|| format!("Failed to borrow data for account {}", self.address()))
+            .with_ctx(|| format!("Failed to borrow data for account {}", self.addr()))
     }
 
     /// Returns a mutable reference to the data of the contained account.
     #[inline]
     fn account_data_mut(&self) -> Result<RefMut<'_, [u8]>> {
-        self.account_info().try_borrow_mut().with_ctx(|| {
-            format!(
-                "Failed to borrow mutable data for account {}",
-                self.address()
-            )
-        })
+        self.account_view_ref()
+            .try_borrow_mut()
+            .with_ctx(|| format!("Failed to borrow mutable data for account {}", self.addr()))
     }
 }
 
@@ -128,13 +139,13 @@ where
 {
     #[inline]
     fn check_key(&self, expected: &Address) -> Result<()> {
-        if self.account_info().address().fast_eq(expected) {
+        if self.account_view().address() == expected {
             Ok(())
         } else {
             bail!(
                 ErrorCode::AddressMismatch,
                 "Account key {} does not match expected public key {}",
-                self.address(),
+                self.addr(),
                 expected
             )
         }
@@ -147,7 +158,7 @@ where
 {
     #[inline]
     fn account_to_modify(&self) -> AccountView {
-        *self.account_info()
+        self.account_view()
     }
 }
 
@@ -169,8 +180,8 @@ where
         let cpi = System::cpi(
             system::Transfer { lamports },
             system::TransferCpiAccounts {
-                funder: *self.account_info(),
-                recipient: *recipient.account_info(),
+                funder: self.account_view(),
+                recipient: recipient.account_view(),
             },
             None,
         );
@@ -197,7 +208,7 @@ where
         Self: HasOwnerProgram,
         Self: Sized,
     {
-        let info = self.account_info();
+        let info = self.account_view();
         info.resize(size_of::<OwnerProgramDiscriminant<Self>>())?;
         info.account_data_mut()?.fill(u8::MAX);
         recipient.add_lamports(info.lamports())?;
@@ -207,7 +218,7 @@ where
 
     #[inline]
     fn close_account_full(&self, recipient: &dyn CanAddLamports) -> Result<()> {
-        let info = self.account_info();
+        let info = self.account_view();
         recipient.add_lamports(info.lamports())?;
         info.close()?;
         Ok(())
@@ -220,7 +231,7 @@ where
 {
     #[inline]
     fn normalize_rent(&self, funder: &(impl CanFundRent + ?Sized), ctx: &Context) -> Result<()> {
-        let account = self.account_info();
+        let account = self.account_view();
         let rent = ctx.get_rent()?;
         let lamports = account.lamports();
         let data_len = account.data_len();
@@ -246,7 +257,7 @@ where
 
     #[inline]
     fn refund_rent(&self, recipient: &(impl CanAddLamports + ?Sized), ctx: &Context) -> Result<()> {
-        let account = self.account_info();
+        let account = self.account_view();
         let rent = ctx.get_rent()?;
         let lamports = account.lamports();
         let data_len = account.data_len();
@@ -273,7 +284,7 @@ where
 
     #[inline]
     fn receive_rent(&self, funder: &(impl CanFundRent + ?Sized), ctx: &Context) -> Result<()> {
-        let account = self.account_info();
+        let account = self.account_view();
         let rent = ctx.get_rent()?;
         let lamports = account.lamports();
         let data_len = account.data_len();
@@ -294,7 +305,7 @@ where
         #[cfg(feature = "cleanup_rent_warning")]
         {
             use core::cmp::Ordering;
-            let account = self.account_info();
+            let account = self.account_view();
             if account.is_writable() {
                 let rent = ctx.get_rent()?;
                 let lamports = account.lamports();
@@ -325,7 +336,7 @@ where
         account_seeds: Option<&[&[u8]]>,
         ctx: &Context,
     ) -> Result<()> {
-        let account = *self.account_info();
+        let account = self.account_view();
         let current_lamports = account.lamports();
         let exempt_lamports = ctx.get_rent()?.minimum_balance(space);
 

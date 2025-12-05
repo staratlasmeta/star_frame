@@ -60,10 +60,6 @@ pub struct Paths {
 
     // bytemuck
     pub bytemuck: TokenStream,
-
-    // solana
-    pub account_info: TokenStream,
-    pub address: TokenStream,
 }
 
 macro_rules! paths_macro {
@@ -130,9 +126,7 @@ impl Default for Paths {
 
             // bytemuck
             bytemuck: quote! { #crate_name::bytemuck },
-            // solana
-            account_info: quote! { #prelude::AccountView },
-            address: quote! { #prelude::Address },
+
             prelude,
         }
     }

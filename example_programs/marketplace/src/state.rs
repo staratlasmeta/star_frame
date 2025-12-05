@@ -342,15 +342,15 @@ impl OrderBookSide {
 #[derive(Debug, Copy, Clone, GetSeeds)]
 #[get_seeds(seed_const = b"market")]
 pub struct MarketSeeds {
-    pub currency: KeyFor<MintAccount>,
-    pub market_token: KeyFor<MintAccount>,
+    pub currency: AddressFor<MintAccount>,
+    pub market_token: AddressFor<MintAccount>,
 }
 
 #[derive(Debug, Copy, Clone)]
 pub struct CreateMarketArgs {
     pub authority: Address,
-    pub currency: KeyFor<MintAccount>,
-    pub market_token: KeyFor<MintAccount>,
+    pub currency: AddressFor<MintAccount>,
+    pub market_token: AddressFor<MintAccount>,
     pub bump: u8,
 }
 
@@ -388,8 +388,8 @@ pub struct Market {
     /// The bump for the PDA
     pub bump: u8,
     pub authority: Address,
-    pub currency: KeyFor<MintAccount>,
-    pub market_token: KeyFor<MintAccount>,
+    pub currency: AddressFor<MintAccount>,
+    pub market_token: AddressFor<MintAccount>,
     #[unsized_start]
     /// The bids for this market, with orders sorted by price from highest to lowest
     pub bids: OrderBookSide,
@@ -397,8 +397,8 @@ pub struct Market {
     pub asks: OrderBookSide,
 }
 
-pub struct ValidateMarketToken<'a>(pub &'a KeyFor<MintAccount>);
-pub struct ValidateCurrency<'a>(pub &'a KeyFor<MintAccount>);
+pub struct ValidateMarketToken<'a>(pub &'a AddressFor<MintAccount>);
+pub struct ValidateCurrency<'a>(pub &'a AddressFor<MintAccount>);
 
 impl<'a> AccountValidate<ValidateMarketToken<'a>> for Market {
     fn validate_account(self_ref: &Market, arg: ValidateMarketToken<'a>) -> Result<()> {
@@ -612,8 +612,8 @@ pub(crate) mod tests {
                 orders: vec![],
             },
             authority: Address::new_unique(),
-            currency: KeyFor::new(Address::new_unique()),
-            market_token: KeyFor::new(Address::new_unique()),
+            currency: AddressFor::new(Address::new_unique()),
+            market_token: AddressFor::new(Address::new_unique()),
         }
     }
 

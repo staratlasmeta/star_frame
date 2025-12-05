@@ -28,8 +28,8 @@ pub use crate::{
     cpi::MakeCpi as _,
     create_unit_system,
     data_types::{
-        ClockExt, GetKeyFor as _, GetOptionalKeyFor as _, KeyFor, OptionalAddress, OptionalKeyFor,
-        PackedValue, SetKeyFor as _, UnitVal,
+        AddressFor, ClockExt, GetAddressFor as _, GetOptionalAddressFor as _, OptionalAddress,
+        OptionalAddressFor, PackedValue, SetAddressFor as _, UnitVal,
     },
     ensure, ensure_eq, ensure_ne, error,
     errors::{star_frame_error, Error, ErrorInfo as _},

@@ -24,8 +24,8 @@ where
     }
 
     #[inline]
-    fn account_info(&self) -> &AccountView {
-        T::account_info(self)
+    fn account_view_ref(&self) -> &AccountView {
+        T::account_view_ref(self)
     }
 }
 
