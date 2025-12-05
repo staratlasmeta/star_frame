@@ -1,6 +1,6 @@
 //! Useful miscellaneous functions.
 use crate::prelude::*;
-use std::{
+use core::{
     cell::{Ref, RefMut},
     mem::size_of,
 };
@@ -63,55 +63,45 @@ pub fn uninit_array_bytes<T: NoUninit, const N: usize>(array: &[T; N]) -> &[u8] 
     unsafe { core::slice::from_raw_parts(array.as_ptr().cast::<u8>(), size_of::<T>() * N) }
 }
 
-/// Quicker way to compare 32 bytes.
-///
-/// Adapted from [Typhoon](https://github.com/exotic-markets-labs/typhoon/blob/60c5197cc632f1bce07ba27876669e4ca8580421/crates/accounts/src/utils.rs#L2)
-#[inline]
-#[must_use]
-pub fn fast_32_byte_eq(a: &[u8; 32], b: &[u8; 32]) -> bool {
-    bytemuck::cast_slice::<_, PackedValue<u64>>(a) == bytemuck::cast_slice::<_, PackedValue<u64>>(b)
-}
-
-pub trait FastPubkeyEq<T> {
+/// Previously quicker way to compare 32 bytes, but this has since been fixed in the toolchain and should no longer be used.
+pub trait FastAddressEq<T> {
+    #[deprecated(since = "0.1.0", note = "Use `PartialEq` instead")]
     fn fast_eq(&self, other: &T) -> bool;
 }
 
-impl FastPubkeyEq<Pubkey> for Pubkey {
+impl FastAddressEq<Address> for Address {
     #[inline]
-    fn fast_eq(&self, other: &Pubkey) -> bool {
-        fast_32_byte_eq(self.as_array(), other.as_array())
+    fn fast_eq(&self, other: &Address) -> bool {
+        self == other
     }
 }
 
-impl FastPubkeyEq<[u8; 32]> for Pubkey {
+impl FastAddressEq<[u8; 32]> for Address {
     #[inline]
     fn fast_eq(&self, other: &[u8; 32]) -> bool {
-        fast_32_byte_eq(self.as_array(), other)
+        self.as_array() == other
     }
 }
 
-impl FastPubkeyEq<[u8; 32]> for [u8; 32] {
+impl FastAddressEq<[u8; 32]> for [u8; 32] {
     #[inline]
     fn fast_eq(&self, other: &[u8; 32]) -> bool {
-        fast_32_byte_eq(self, other)
+        self == other
     }
 }
 
-impl FastPubkeyEq<Pubkey> for [u8; 32] {
+impl FastAddressEq<Address> for [u8; 32] {
     #[inline]
-    fn fast_eq(&self, other: &Pubkey) -> bool {
-        fast_32_byte_eq(self, other.as_array())
+    fn fast_eq(&self, other: &Address) -> bool {
+        self == other.as_array()
     }
 }
 
 /// Custom [`borsh`] derive `serialize_with` and `deserialize_with` overrides for use with [`bytemuck`] types.
 pub mod borsh_bytemuck {
-    use crate::align1::Align1;
-    use bytemuck::{CheckedBitPattern, NoUninit};
-    use std::{
-        io::{Read, Write},
-        mem::{size_of, MaybeUninit},
-    };
+    use super::*;
+    use borsh::io::{Read, Write};
+    use core::mem::MaybeUninit;
 
     /// Custom `serialize_with` override for [`borsh::BorshSerialize`] that uses [`bytemuck`] to serialize.
     /// This is intended for packed structs that are probably used in account data.
@@ -137,7 +127,7 @@ pub mod borsh_bytemuck {
     pub fn serialize<W: Write, P: NoUninit + Align1>(
         value: &P,
         writer: &mut W,
-    ) -> std::io::Result<()> {
+    ) -> borsh::io::Result<()> {
         let bytes = bytemuck::bytes_of(value);
         writer.write_all(bytes)
     }
@@ -165,18 +155,18 @@ pub mod borsh_bytemuck {
     /// ```
     pub fn deserialize<R: Read, P: NoUninit + CheckedBitPattern + Align1>(
         reader: &mut R,
-    ) -> std::io::Result<P> {
+    ) -> borsh::io::Result<P> {
         let mut buffer = MaybeUninit::<P>::zeroed();
         let bytes = unsafe {
             &mut *ptr_meta::from_raw_parts_mut(buffer.as_mut_ptr().cast::<()>(), size_of::<P>())
         };
         reader.read_exact(bytes)?;
         bytemuck::checked::try_from_bytes::<P>(bytes)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+            .map_err(|e| borsh::io::Error::new(borsh::io::ErrorKind::InvalidData, e.to_string()))?;
         Ok(unsafe { buffer.assume_init() })
     }
 
-    /// Derives [`BorshSerialize`](borsh::BorshSerialize) and [`BorshDeserialize`](borsh::BorshDeserialize) for [`bytemuck`] types.
+    /// Derives [`BorshSerialize`] and [`BorshDeserialize`] for [`bytemuck`] types.
     ///
     /// # Example
     /// ```
@@ -196,13 +186,13 @@ pub mod borsh_bytemuck {
         ($($ty:ident),*) => {
             $(
                 impl $crate::borsh::BorshSerialize for $ty {
-                    fn serialize<W: ::std::io::Write>(&self, writer: &mut W) -> ::std::io::Result<()> {
+                    fn serialize<W: $crate::borsh::io::Write>(&self, writer: &mut W) -> $crate::borsh::io::Result<()> {
                         $crate::util::borsh_bytemuck::serialize(self, writer)
                     }
                 }
 
                 impl $crate::borsh::BorshDeserialize for $ty {
-                    fn deserialize_reader<R: ::std::io::Read>(reader: &mut R) -> ::std::io::Result<Self> {
+                    fn deserialize_reader<R: $crate::borsh::io::Read>(reader: &mut R) -> $crate::borsh::io::Result<Self> {
                         $crate::util::borsh_bytemuck::deserialize(reader)
                     }
                 }

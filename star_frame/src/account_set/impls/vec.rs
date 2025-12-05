@@ -2,7 +2,7 @@
 
 use crate::{
     account_set::{
-        AccountSetCleanup, AccountSetDecode, AccountSetValidate, ClientAccountSet, CpiAccountSet,
+        AccountSetCleanup, AccountSetDecode, AccountSetValidate, CpiAccountSet,
         DynamicCpiAccountSetLen,
     },
     prelude::*,
@@ -22,10 +22,10 @@ where
 
     #[inline]
     fn write_account_infos<'a>(
-        program: Option<&'a AccountInfo>,
+        program: Option<&'a AccountView>,
         accounts: &'a Self::CpiAccounts,
         index: &mut usize,
-        infos: &mut [std::mem::MaybeUninit<&'a AccountInfo>],
+        infos: &mut [core::mem::MaybeUninit<&'a AccountView>],
     ) -> Result<()> {
         for a in accounts {
             T::write_account_infos(program, a, index, infos)?;
@@ -34,10 +34,10 @@ where
     }
 
     fn write_account_metas<'a>(
-        program_id: &'a Pubkey,
+        program_id: &'a Address,
         accounts: &'a Self::CpiAccounts,
         index: &mut usize,
-        metas: &mut [std::mem::MaybeUninit<pinocchio::instruction::AccountMeta<'a>>],
+        metas: &mut [core::mem::MaybeUninit<InstructionAccount<'a>>],
     ) {
         for a in accounts {
             T::write_account_metas(program_id, a, index, metas);
@@ -45,15 +45,16 @@ where
     }
 }
 
-impl<T> ClientAccountSet for Vec<T>
+#[cfg(not(target_os = "solana"))]
+impl<T> crate::account_set::ClientAccountSet for Vec<T>
 where
-    T: ClientAccountSet,
+    T: crate::account_set::ClientAccountSet,
 {
     type ClientAccounts = Vec<T::ClientAccounts>;
     const MIN_LEN: usize = 0;
     #[inline]
     fn extend_account_metas(
-        program_id: &Pubkey,
+        program_id: &Address,
         accounts: &Self::ClientAccounts,
         metas: &mut Vec<AccountMeta>,
     ) {
@@ -68,7 +69,7 @@ where
     T: AccountSetDecode<'a, ()>,
 {
     fn decode_accounts(
-        accounts: &mut &'a [AccountInfo],
+        accounts: &mut &'a [AccountView],
         len: usize,
         ctx: &mut Context,
     ) -> Result<Self> {
@@ -81,7 +82,7 @@ where
     TA: Clone,
 {
     fn decode_accounts(
-        accounts: &mut &'a [AccountInfo],
+        accounts: &mut &'a [AccountView],
         (len, decode_input): (usize, TA),
         ctx: &mut Context,
     ) -> Result<Self> {
@@ -97,7 +98,7 @@ where
     T: AccountSetDecode<'a, TA>,
 {
     fn decode_accounts(
-        accounts: &mut &'a [AccountInfo],
+        accounts: &mut &'a [AccountView],
         decode_input: [TA; N],
         ctx: &mut Context,
     ) -> Result<Self> {
@@ -112,7 +113,7 @@ where
     T: AccountSetDecode<'a, &'b TA>,
 {
     fn decode_accounts(
-        accounts: &mut &'a [AccountInfo],
+        accounts: &mut &'a [AccountView],
         decode_input: &'b [TA; N],
         ctx: &mut Context,
     ) -> Result<Self> {
@@ -127,7 +128,7 @@ where
     T: AccountSetDecode<'a, &'b mut TA>,
 {
     fn decode_accounts(
-        accounts: &mut &'a [AccountInfo],
+        accounts: &mut &'a [AccountView],
         decode_input: &'b mut [TA; N],
         ctx: &mut Context,
     ) -> Result<Self> {
@@ -143,7 +144,7 @@ where
     T: AccountSetDecode<'a, I::Item>,
 {
     fn decode_accounts(
-        accounts: &mut &'a [AccountInfo],
+        accounts: &mut &'a [AccountView],
         decode_input: (I,),
         ctx: &mut Context,
     ) -> Result<Self> {
@@ -341,7 +342,8 @@ where
 
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
 pub mod idl_impl {
-    use std::ops::{Bound, RangeBounds};
+    use super::*;
+    use core::ops::{Bound, RangeBounds};
 
     use crate::idl::AccountSetToIdl;
     use star_frame_idl::{account_set::IdlAccountSetDef, IdlDefinition};

@@ -16,7 +16,7 @@ impl StarFrameProgram for Token {
     /// # use star_frame_spl::token::Token;
     /// assert_eq!(Token::ID, spl_token_interface::ID);
     /// ```
-    const ID: Pubkey = pubkey!("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
+    const ID: Address = address!("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
 }
 
 #[cfg(all(feature = "idl", not(target_os = "solana")))]

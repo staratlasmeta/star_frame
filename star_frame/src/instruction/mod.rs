@@ -5,7 +5,7 @@ use crate::{
     prelude::*,
 };
 use bytemuck::{bytes_of, Pod};
-use pinocchio::cpi::set_return_data;
+use pinocchio::instruction::cpi::set_return_data;
 
 pub use star_frame_proc::{
     star_frame_instruction, InstructionArgs, InstructionSet, InstructionToIdl,
@@ -27,9 +27,9 @@ pub trait InstructionSet {
     ///
     /// This is called directly by [`StarFrameProgram::entrypoint`].
     fn dispatch(
-        program_id: &'static Pubkey,
-        accounts: &[AccountInfo],
-        instruction_data: &[u8],
+        program_id: &'static Address,
+        accounts: &[AccountView],
+        instruction_data: &'static [u8],
     ) -> Result<()>;
 }
 
@@ -57,9 +57,9 @@ pub trait Instruction {
     ///
     /// This is called from [`InstructionSet::dispatch`] after the discriminant is parsed and matched on.
     fn process_from_raw(
-        program_id: &'static Pubkey,
-        accounts: &[AccountInfo],
-        instruction_data: &[u8],
+        program_id: &'static Address,
+        accounts: &[AccountView],
+        instruction_data: &'static [u8],
     ) -> Result<()>;
 }
 
@@ -140,13 +140,13 @@ where
 {
     #[inline]
     fn process_from_raw(
-        program_id: &'static Pubkey,
-        mut accounts: &[AccountInfo],
-        mut data: &[u8],
+        program_id: &'static Address,
+        mut accounts: &[AccountView],
+        mut bytes: &'static [u8],
     ) -> Result<()> {
-        let mut ctx = Context::new(program_id);
-        let mut data = <T as BorshDeserialize>::deserialize(&mut data)
+        let mut data = <T as BorshDeserialize>::deserialize(&mut bytes)
             .ctx("Failed to deserialize instruction data")?;
+        let mut ctx = Context::new(program_id, bytes);
         let IxArgs {
             decode,
             validate,
@@ -202,8 +202,8 @@ macro_rules! impl_blank_ix {
         $(
             impl $crate::instruction::Instruction for $ix {
                 fn process_from_raw(
-                    _program_id: &'static $crate::prelude::Pubkey,
-                    _accounts: &[$crate::prelude::AccountInfo],
+                    _program_id: &'static $crate::prelude::Address,
+                    _accounts: &[$crate::prelude::AccountView],
                     _data: &[u8],
                 ) -> $crate::Result<()> {
                     todo!()

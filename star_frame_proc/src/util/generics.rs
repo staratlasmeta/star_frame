@@ -1,5 +1,6 @@
+use std::ops::{Deref, DerefMut};
+
 use crate::util::Paths;
-use derive_more::{Deref, DerefMut};
 use itertools::Itertools;
 use proc_macro2::Span;
 use proc_macro_error2::abort;
@@ -13,12 +14,23 @@ use syn::{
     ItemStruct, Lifetime, LifetimeParam, Token, Type, TypeParam, WhereClause,
 };
 
-#[derive(Debug, Deref, DerefMut, Clone, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct BetterGenerics {
     _bracket: token::Bracket,
-    #[deref]
-    #[deref_mut]
     pub generics: Generics,
+}
+
+impl Deref for BetterGenerics {
+    type Target = Generics;
+    fn deref(&self) -> &Self::Target {
+        &self.generics
+    }
+}
+
+impl DerefMut for BetterGenerics {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.generics
+    }
 }
 
 impl ToTokens for BetterGenerics {

@@ -60,10 +60,6 @@ pub struct Paths {
 
     // bytemuck
     pub bytemuck: TokenStream,
-
-    // solana
-    pub account_info: TokenStream,
-    pub pubkey: TokenStream,
 }
 
 macro_rules! paths_macro {
@@ -86,7 +82,7 @@ impl Default for Paths {
 
             // std
             sized: quote! { ::core::marker::Sized },
-            box_ty: quote! { ::std::boxed::Box },
+            box_ty: quote! { #crate_name::alloc::boxed::Box },
             clone: quote! { ::core::clone::Clone },
             copy: quote! { ::core::marker::Copy },
             debug: quote! { ::core::fmt::Debug },
@@ -130,9 +126,7 @@ impl Default for Paths {
 
             // bytemuck
             bytemuck: quote! { #crate_name::bytemuck },
-            // solana
-            account_info: quote! { #prelude::AccountInfo },
-            pubkey: quote! { #prelude::Pubkey },
+
             prelude,
         }
     }

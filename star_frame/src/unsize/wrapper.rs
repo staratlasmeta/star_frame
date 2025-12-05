@@ -12,17 +12,17 @@ use crate::{
     unsize::{init::UnsizedInit, FromOwned, UnsizedTypePtr},
     ErrorCode, Result,
 };
-use core::ptr;
-use derive_more::{Debug, Deref, DerefMut};
-use pinocchio::account_info::{AccountInfo, MAX_PERMITTED_DATA_INCREASE};
-use solana_program_memory::sol_memmove;
-use std::{
+use alloc::boxed::Box;
+use core::{
     cmp::Ordering,
-    collections::Bound,
     convert::Infallible,
     marker::PhantomData,
-    ops::{Deref, DerefMut, Range, RangeBounds},
+    ops::{Bound, Deref, DerefMut, Range, RangeBounds},
+    ptr,
 };
+use derive_more::{Debug, Deref, DerefMut};
+use pinocchio::account::{AccountView, MAX_PERMITTED_DATA_INCREASE};
+use solana_program_memory::sol_memmove;
 
 pub type UnsizedDataMut<'a> = (*mut [u8], Range<usize>, Box<dyn DataMutDrop + 'a>);
 
@@ -46,11 +46,11 @@ pub unsafe trait UnsizedTypeDataAccess {
 /// A marker trait implemented for types that [`UnsizedTypeDataAccess::data_mut`] returns so it can prevent the Ref from being dropped.
 pub trait DataMutDrop {}
 
-impl<T: ?Sized> DataMutDrop for pinocchio::account_info::RefMut<'_, T> {}
+impl<T: ?Sized> DataMutDrop for pinocchio::account::RefMut<'_, T> {}
 
 /// # Safety
 /// We are checking the length of the underlying data pointer in [`Self::unsized_data_realloc`].
-unsafe impl UnsizedTypeDataAccess for AccountInfo {
+unsafe impl UnsizedTypeDataAccess for AccountView {
     #[inline]
     unsafe fn unsized_data_realloc(
         this: &Self,

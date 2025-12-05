@@ -16,22 +16,25 @@ impl AssociatedToken {
     /// # use star_frame_spl::{token::state::MintAccount,associated_token::AssociatedToken};
     /// # use spl_associated_token_account_interface::address::get_associated_token_address;
     /// # use pretty_assertions::assert_eq;
-    /// # use star_frame::prelude::{KeyFor, Pubkey};
-    /// let wallet = Pubkey::new_unique();
-    /// let mint = KeyFor::<MintAccount>::new(Pubkey::new_unique());
+    /// # use star_frame::prelude::{AddressFor, Address};
+    /// let wallet = Address::new_unique();
+    /// let mint = AddressFor::<MintAccount>::new(Address::new_unique());
     /// assert_eq!(
     ///     AssociatedToken::find_address(&wallet, &mint),
-    ///     get_associated_token_address(&wallet, &mint.pubkey()),
+    ///     get_associated_token_address(&wallet, &mint.addr()),
     /// );
     /// ```
-    pub fn find_address(wallet: &Pubkey, mint: &KeyFor<MintAccount>) -> Pubkey {
+    pub fn find_address(wallet: &Address, mint: &AddressFor<MintAccount>) -> Address {
         Self::find_address_with_bump(wallet, mint).0
     }
 
     /// Find the associated token address for the given wallet and mint, with a bump.
-    pub fn find_address_with_bump(wallet: &Pubkey, mint: &KeyFor<MintAccount>) -> (Pubkey, u8) {
-        Pubkey::find_program_address(
-            &[wallet.as_ref(), Token::ID.as_ref(), mint.pubkey().as_ref()],
+    pub fn find_address_with_bump(
+        wallet: &Address,
+        mint: &AddressFor<MintAccount>,
+    ) -> (Address, u8) {
+        Address::find_program_address(
+            &[wallet.as_ref(), Token::ID.as_ref(), mint.addr().as_ref()],
             &Self::ID,
         )
     }
@@ -46,7 +49,7 @@ impl StarFrameProgram for AssociatedToken {
     /// # use star_frame_spl::associated_token::AssociatedToken;
     /// assert_eq!(AssociatedToken::ID, spl_associated_token_account_interface::program::ID);
     /// ```
-    const ID: Pubkey = pubkey!("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");
+    const ID: Address = address!("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");
 }
 
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
@@ -63,8 +66,8 @@ mod idl_impl {
     // todo: potentially support multiple token programs here
     #[derive(Debug, Clone, PartialEq, Eq, BorshDeserialize, BorshSerialize)]
     pub struct AssociatedTokenSeeds {
-        pub wallet: Pubkey,
-        pub mint: KeyFor<MintAccount>,
+        pub wallet: Address,
+        pub mint: AddressFor<MintAccount>,
     }
 
     pub type AtaSeeds = AssociatedTokenSeeds;
@@ -82,13 +85,13 @@ mod idl_impl {
                 IdlSeed::Variable {
                     name: "wallet".to_string(),
                     description: vec![],
-                    ty: <Pubkey as TypeToIdl>::type_to_idl(idl_definition)?,
+                    ty: <Address as TypeToIdl>::type_to_idl(idl_definition)?,
                 },
                 IdlSeed::Const(Token::ID.as_ref().to_vec()),
                 IdlSeed::Variable {
                     name: "mint".to_string(),
                     description: vec![],
-                    ty: <Pubkey as TypeToIdl>::type_to_idl(idl_definition)?,
+                    ty: <Address as TypeToIdl>::type_to_idl(idl_definition)?,
                 },
             ]))
         }
@@ -111,8 +114,8 @@ mod idl_impl {
 
     #[derive(Debug, Clone)]
     pub struct FindAssociatedTokenSeeds {
-        pub wallet: FindSeed<Pubkey>,
-        pub mint: FindSeed<Pubkey>,
+        pub wallet: FindSeed<Address>,
+        pub mint: FindSeed<Address>,
     }
     impl FindIdlSeeds for FindAssociatedTokenSeeds {
         fn find_seeds(&self) -> star_frame::IdlResult<Vec<IdlFindSeed>> {
@@ -158,9 +161,9 @@ pub mod instructions {
                 mint: seed_path("mint"),
             })
         )]
-        pub token_account: Mut<AccountInfo>,
-        pub wallet: AccountInfo,
-        pub mint: AccountInfo,
+        pub token_account: Mut<AccountView>,
+        pub wallet: AccountView,
+        pub mint: AccountView,
         pub system_program: Program<System>,
         pub token_program: Program<Token>,
     }
@@ -193,23 +196,23 @@ pub mod instructions {
                 mint: seed_path("nested_mint"),
             })
         )]
-        pub nested_ata: Mut<AccountInfo>,
-        pub nested_mint: AccountInfo,
+        pub nested_ata: Mut<AccountView>,
+        pub nested_mint: AccountView,
         #[idl(arg =
             Seeds(FindAtaSeeds {
                 wallet: seed_path("wallet"),
                 mint: seed_path("nested_mint"),
             })
         )]
-        pub destination_ata: Mut<AccountInfo>,
+        pub destination_ata: Mut<AccountView>,
         #[idl(arg =
             Seeds(FindAtaSeeds {
                 wallet: seed_path("wallet"),
                 mint: seed_path("owner_mint"),
             })
         )]
-        pub owner_ata: Mut<AccountInfo>,
-        pub owner_mint: AccountInfo,
+        pub owner_ata: Mut<AccountView>,
+        pub owner_mint: AccountView,
         pub wallet: Mut<Signer>,
         pub token_program: Program<Token>,
     }
@@ -222,7 +225,7 @@ pub mod state {
             modifiers::{CanInitAccount, CanInitSeeds},
             AccountSetValidate, CanFundRent,
         },
-        data_types::{GetKeyFor, GetOptionalKeyFor},
+        data_types::{GetAddressFor, GetOptionalAddressFor},
         errors::ErrorCode,
     };
 
@@ -242,15 +245,15 @@ pub mod state {
     // TODO: should AssociatedTokenAccount's inner type be TokenAccount or AssociatedTokenAccount?
     // Having both is sorta okay, but if for example the account set was Option<AssociatedTokenAccount>, optional_key_for would
     // only return TokenAccount since thats the inner type right now.
-    impl GetKeyFor<AssociatedTokenAccount> for AssociatedTokenAccount {
-        fn key_for(&self) -> &KeyFor<AssociatedTokenAccount> {
-            KeyFor::new_ref(self.pubkey())
+    impl GetAddressFor<AssociatedTokenAccount> for AssociatedTokenAccount {
+        fn addr_for(&self) -> &AddressFor<AssociatedTokenAccount> {
+            AddressFor::new_ref(self.addr())
         }
     }
 
-    impl GetOptionalKeyFor<AssociatedTokenAccount> for AssociatedTokenAccount {
-        fn optional_key_for(&self) -> &OptionalKeyFor<AssociatedTokenAccount> {
-            self.key_for().into()
+    impl GetOptionalAddressFor<AssociatedTokenAccount> for AssociatedTokenAccount {
+        fn optional_addr_for(&self) -> &OptionalAddressFor<AssociatedTokenAccount> {
+            self.addr_for().into()
         }
     }
 
@@ -259,11 +262,11 @@ pub mod state {
         pub fn validate_ata(&self, validate_ata: ValidateAta) -> Result<()> {
             let expected_address =
                 AssociatedToken::find_address(validate_ata.wallet, validate_ata.mint);
-            if self.pubkey() != &expected_address {
+            if self.addr() != &expected_address {
                 bail!(
                     ErrorCode::AddressMismatch,
                     "Account {} is not the associated token account for wallet {} and mint {}",
-                    self.pubkey(),
+                    self.addr(),
                     validate_ata.wallet,
                     validate_ata.mint
                 );
@@ -283,8 +286,8 @@ pub mod state {
 
     #[derive(Debug, Clone, PartialEq, Eq, Copy)]
     pub struct ValidateAta<'a> {
-        pub wallet: &'a Pubkey,
-        pub mint: &'a KeyFor<MintAccount>,
+        pub wallet: &'a Address,
+        pub mint: &'a AddressFor<MintAccount>,
     }
 
     #[derive(Debug, Clone, Copy)]
@@ -326,8 +329,8 @@ pub mod state {
     {
         fn from(value: InitAta<'a, WalletInfo, MintInfo>) -> Self {
             Self {
-                mint: KeyFor::new_ref(value.mint.pubkey()),
-                wallet: value.wallet.pubkey(),
+                mint: AddressFor::new_ref(value.mint.addr()),
+                wallet: value.wallet.addr(),
             }
         }
     }
@@ -367,13 +370,13 @@ pub mod state {
             account_seeds: Option<&[&[u8]]>,
             ctx: &Context,
         ) -> Result<()> {
-            if IF_NEEDED && self.owner_pubkey() == Token::ID {
+            if IF_NEEDED && self.account_view().owned_by(&Token::ID) {
                 self.validate()?;
                 self.validate_ata(init_ata.into())?;
                 return Ok(());
             }
             if !funder.can_create_account() {
-                let current_lamports = self.account_info().lamports();
+                let current_lamports = self.account_view().lamports();
                 let required_rent = ctx
                     .get_rent()?
                     .minimum_balance(TokenAccount::LEN)
@@ -400,11 +403,11 @@ pub mod state {
                 instructions::Create,
                 instructions::CreateCpiAccounts {
                     funder: funder.account_to_modify(),
-                    token_account: *self.account_info(),
-                    wallet: *init_ata.wallet.account_info(),
-                    mint: *init_ata.mint.account_info(),
-                    system_program: *init_ata.system_program.account_info(),
-                    token_program: *init_ata.token_program.account_info(),
+                    token_account: self.account_view(),
+                    wallet: init_ata.wallet.account_view(),
+                    mint: init_ata.mint.account_view(),
+                    system_program: init_ata.system_program.account_view(),
+                    token_program: init_ata.token_program.account_view(),
                 },
                 None,
             )
@@ -423,7 +426,7 @@ mod tests {
     #[test]
     fn print_token_idl() -> Result<()> {
         let idl = AssociatedToken::program_to_idl()?;
-        println!("{}", star_frame::serde_json::to_string_pretty(&idl)?);
+        std::println!("{}", star_frame::serde_json::to_string_pretty(&idl)?);
         Ok(())
     }
 }

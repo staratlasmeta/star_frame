@@ -6,7 +6,7 @@ use std::{
 use clap::Parser;
 use colored::*;
 use convert_case::{Case, Casing};
-use solana_pubkey::Pubkey;
+use solana_address::Address;
 
 #[derive(Parser, Debug)]
 pub struct NewArgs {
@@ -77,7 +77,7 @@ fn stub_file(template: &str, path: &PathBuf, project_name: &String) -> io::Resul
         )
         .replace("{name_uppercase}", &project_name.to_ascii_uppercase())
         .replace("{name_pascalcase}", &project_name.to_case(Case::Pascal))
-        .replace("{pubkey}", &Pubkey::new_unique().to_string());
+        .replace("{address}", &Address::new_unique().to_string());
     fs::write(path, content)?;
     Ok(())
 }

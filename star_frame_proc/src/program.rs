@@ -23,13 +23,7 @@ pub struct StarFrameProgramDerive {
 }
 
 pub(crate) fn program_impl(input: DeriveInput) -> TokenStream {
-    let Paths {
-        crate_name,
-        pubkey,
-        prelude,
-        star_frame_program_ident,
-        ..
-    } = Paths::default();
+    Paths!(crate_name, prelude, star_frame_program_ident);
 
     ensure_data_struct(&input, None);
     reject_generics(&input, None);
@@ -118,7 +112,7 @@ pub(crate) fn program_impl(input: DeriveInput) -> TokenStream {
         Expr::Lit(ExprLit {
             lit: Lit::Str(lit), ..
         }) => quote! {
-            #crate_name::pubkey!(#lit)
+            #crate_name::address!(#lit)
         },
         e => e.to_token_stream(),
     };
@@ -159,6 +153,8 @@ pub(crate) fn program_impl(input: DeriveInput) -> TokenStream {
             ident,
             "_program_to_idl",
             quote! {
+                use #crate_name::alloc::vec;
+
                 #[cfg(all(feature = "idl", not(target_os = "solana")))]
                 #[automatically_derived]
                 impl #prelude::ProgramToIdl for #ident {
@@ -179,7 +175,7 @@ pub(crate) fn program_impl(input: DeriveInput) -> TokenStream {
         impl #prelude::StarFrameProgram for #ident {
             type InstructionSet = #instruction_set_type;
             type AccountDiscriminant = #account_discriminant;
-            const ID: #pubkey = #program_id;
+            const ID: #prelude::Address = #program_id;
         }
         #program_setup
         #entrypoint

@@ -1,6 +1,6 @@
 //! `AccountSet` implementations for boxed types. Enables heap allocation of account sets with transparent delegation to the underlying type.
 
-use std::mem::MaybeUninit;
+use core::mem::MaybeUninit;
 
 use crate::{
     account_set::{
@@ -9,7 +9,7 @@ use crate::{
             WritableAccount,
         },
         single_set::SingleSetMeta,
-        AccountSetCleanup, AccountSetDecode, AccountSetValidate, ClientAccountSet, CpiAccountSet,
+        AccountSetCleanup, AccountSetDecode, AccountSetValidate, CpiAccountSet,
     },
     prelude::*,
 };
@@ -24,8 +24,8 @@ where
     }
 
     #[inline]
-    fn account_info(&self) -> &AccountInfo {
-        T::account_info(self)
+    fn account_view_ref(&self) -> &AccountView {
+        T::account_view_ref(self)
     }
 }
 
@@ -44,33 +44,35 @@ where
 
     #[inline]
     fn write_account_infos<'a>(
-        program: Option<&'a AccountInfo>,
+        program: Option<&'a AccountView>,
         accounts: &'a Self::CpiAccounts,
         index: &mut usize,
-        infos: &mut [MaybeUninit<&'a AccountInfo>],
+        infos: &mut [MaybeUninit<&'a AccountView>],
     ) -> Result<()> {
         T::write_account_infos(program, accounts, index, infos)
     }
 
     #[inline]
     fn write_account_metas<'a>(
-        program_id: &'a Pubkey,
+        program_id: &'a Address,
         accounts: &'a Self::CpiAccounts,
         index: &mut usize,
-        metas: &mut [MaybeUninit<PinocchioAccountMeta<'a>>],
+        metas: &mut [MaybeUninit<InstructionAccount<'a>>],
     ) {
         T::write_account_metas(program_id, accounts, index, metas);
     }
 }
-impl<T> ClientAccountSet for Box<T>
+
+#[cfg(not(target_os = "solana"))]
+impl<T> crate::account_set::ClientAccountSet for Box<T>
 where
-    T: ClientAccountSet,
+    T: crate::account_set::ClientAccountSet,
 {
     type ClientAccounts = T::ClientAccounts;
     const MIN_LEN: usize = T::MIN_LEN;
     #[inline]
     fn extend_account_metas(
-        program_id: &Pubkey,
+        program_id: &Address,
         accounts: &Self::ClientAccounts,
         metas: &mut Vec<AccountMeta>,
     ) {
@@ -83,7 +85,7 @@ where
     T: AccountSetDecode<'a, DArg>,
 {
     fn decode_accounts(
-        accounts: &mut &'a [AccountInfo],
+        accounts: &mut &'a [AccountView],
         decode_input: DArg,
         ctx: &mut Context,
     ) -> Result<Self> {
@@ -166,6 +168,7 @@ where
 
 #[cfg(all(feature = "idl", not(target_os = "solana")))]
 mod idl_impl {
+    use super::*;
     use crate::idl::AccountSetToIdl;
     use star_frame_idl::{account_set::IdlAccountSetDef, IdlDefinition};
 

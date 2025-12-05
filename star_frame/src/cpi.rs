@@ -1,5 +1,5 @@
 //! Cross program invocation (CPI) builders and utilities.
-use std::mem::MaybeUninit;
+use core::mem::MaybeUninit;
 
 use crate::{
     account_set::{CpiAccountSet, DynamicCpiAccountSetLen},
@@ -9,12 +9,9 @@ use crate::{
 use borsh::object_length;
 use bytemuck::bytes_of;
 use itertools::Itertools;
-use pinocchio::{
-    account_info::AccountInfo,
-    instruction::{
-        AccountMeta as PinocchioAccountMeta, Instruction as PinocchioInstruction,
-        Seed as PinocchioSeed, Signer as PinocchioSigner,
-    },
+use pinocchio::instruction::{
+    cpi::{Seed as PinocchioSeed, Signer as PinocchioSigner},
+    InstructionView,
 };
 use typenum::{False, True};
 
@@ -31,8 +28,8 @@ where
         + InstructionDiscriminant<P::InstructionSet>,
     A: CpiAccountSet<AccountLen: HandleCpiArray, ContainsOption: CpiProgramInput<P>>,
 {
-    /// If the account set contains an option, the program [`AccountInfo`] must be passed in to the CPI builder.
-    /// Otherwise, an [`Option<Pubkey>`] to override the program ID can be passed in.
+    /// If the account set contains an option, the program [`AccountView`] must be passed in to the CPI builder.
+    /// Otherwise, an [`Option<Address>`] to override the program ID can be passed in.
     program: <A::ContainsOption as CpiProgramInput<P>>::Input<'program>,
     data: Ix,
     accounts: A::CpiAccounts,
@@ -40,40 +37,40 @@ where
 
 /// Helper trait to handle the input to a CPI program.
 ///
-/// When an account set contains an option, the program [`AccountInfo`] must be passed in to the CPI builder.
+/// When an account set contains an option, the program [`AccountView`] must be passed in to the CPI builder.
 #[doc(hidden)]
 pub trait CpiProgramInput<P: StarFrameProgram> {
     type Input<'a>: Clone + Debug + Copy;
-    fn pubkey(input: Self::Input<'_>) -> &Pubkey;
-    fn program(input: Self::Input<'_>) -> Option<&AccountInfo>;
+    fn address(input: Self::Input<'_>) -> &Address;
+    fn program(input: Self::Input<'_>) -> Option<&AccountView>;
 }
 
 #[allow(clippy::inline_always)]
 impl<P: StarFrameProgram> CpiProgramInput<P> for False {
-    type Input<'a> = Option<&'a Pubkey>;
+    type Input<'a> = Option<&'a Address>;
 
     #[inline(always)]
-    fn pubkey(input: Self::Input<'_>) -> &Pubkey {
+    fn address(input: Self::Input<'_>) -> &Address {
         input.unwrap_or(&P::ID)
     }
 
     #[inline(always)]
-    fn program(_input: Self::Input<'_>) -> Option<&AccountInfo> {
+    fn program(_input: Self::Input<'_>) -> Option<&AccountView> {
         None
     }
 }
 
 #[allow(clippy::inline_always)]
 impl<P: StarFrameProgram> CpiProgramInput<P> for True {
-    type Input<'a> = &'a AccountInfo;
+    type Input<'a> = &'a AccountView;
 
     #[inline(always)]
-    fn pubkey(input: Self::Input<'_>) -> &Pubkey {
-        input.pubkey()
+    fn address(input: Self::Input<'_>) -> &Address {
+        input.address()
     }
 
     #[inline(always)]
-    fn program(input: Self::Input<'_>) -> Option<&AccountInfo> {
+    fn program(input: Self::Input<'_>) -> Option<&AccountView> {
         Some(input)
     }
 }
@@ -81,8 +78,8 @@ impl<P: StarFrameProgram> CpiProgramInput<P> for True {
 pub trait MakeCpi: StarFrameProgram + Sized {
     /// Creates a `CpiBuilder` with a `StarFrameInstruction`.
     ///
-    /// - `program` - If the account set contains an `Option<T>`, the program's [`AccountInfo`] must be passed in to the CPI builder.
-    ///   Otherwise, an [`Option<Pubkey>`] to override the program ID can be passed in.
+    /// - `program` - If the account set contains an `Option<T>`, the program's [`AccountView`] must be passed in to the CPI builder.
+    ///   Otherwise, an [`Option<Address>`] to override the program ID can be passed in.
     ///
     /// # Example
     /// ```ignore
@@ -136,7 +133,7 @@ where
             infos_arr.as_mut(),
         )?;
 
-        let program_id = <A::ContainsOption as CpiProgramInput<P>>::pubkey(self.program);
+        let program_id = <A::ContainsOption as CpiProgramInput<P>>::address(self.program);
         let mut metas_index = 0;
         let mut metas_arr = <<A as CpiAccountSet>::AccountLen as HandleCpiArray>::uninit_metas();
         A::write_account_metas(
@@ -188,16 +185,16 @@ where
 #[doc(hidden)]
 pub trait HandleCpiArray {
     type Arr<T>: AsMut<[MaybeUninit<T>]>;
-    fn uninit_infos<'a>() -> Self::Arr<&'a AccountInfo>;
-    fn uninit_metas<'a>() -> Self::Arr<PinocchioAccountMeta<'a>>;
+    fn uninit_infos<'a>() -> Self::Arr<&'a AccountView>;
+    fn uninit_metas<'a>() -> Self::Arr<InstructionAccount<'a>>;
     /// # Safety
     /// The metas and infos must be initialized up to their respective indices
     unsafe fn invoke_signed<'a>(
-        program_id: &Pubkey,
+        program_id: &Address,
         data: &[u8],
-        infos: Self::Arr<&'a AccountInfo>,
+        infos: Self::Arr<&'a AccountView>,
         infos_index: usize,
-        metas: Self::Arr<PinocchioAccountMeta<'a>>,
+        metas: Self::Arr<InstructionAccount<'a>>,
         metas_index: usize,
         signers: &[PinocchioSigner],
     ) -> Result<()>;
@@ -210,11 +207,11 @@ macro_rules! impl_handle_cpi_array {
                 impl HandleCpiArray for typenum::[<U $n>] {
                     type Arr<T> = [MaybeUninit<T>; $n];
                     #[inline(always)]
-                    fn uninit_infos<'a>() -> Self::Arr<&'a AccountInfo> {
+                    fn uninit_infos<'a>() -> Self::Arr<&'a AccountView> {
                         [const { MaybeUninit::uninit() }; $n]
                     }
                     #[inline(always)]
-                    fn uninit_metas<'a>() -> Self::Arr<PinocchioAccountMeta<'a>> {
+                    fn uninit_metas<'a>() -> Self::Arr<InstructionAccount<'a>> {
                         // SAFETY:
                         // This is fine because it's initializing an array of uninits.
                         // For some reason this is more effecient than a const init?
@@ -222,38 +219,37 @@ macro_rules! impl_handle_cpi_array {
                     }
                     #[inline(always)]
                     unsafe fn invoke_signed<'a>(
-                        program_id: &Pubkey,
+                        program_id: &Address,
                         data: &[u8],
-                        infos: Self::Arr<&'a AccountInfo>,
+                        infos: Self::Arr<&'a AccountView>,
                         infos_index: usize,
-                        metas: Self::Arr<PinocchioAccountMeta<'a>>,
+                        metas: Self::Arr<InstructionAccount<'a>>,
                         metas_index: usize,
                         signers: &[PinocchioSigner],
                     ) -> Result<()> {
                         assert_eq!(infos_index, infos.len());
                         assert_eq!(metas_index, metas.len());
 
-                        let metas: [PinocchioAccountMeta<'a>; $n] = metas.map(|meta|
+                        let metas: [InstructionAccount<'a>; $n] = metas.map(|meta|
                             // SAFETY:
                             // We can assume the array has been initialized based on the index safety requirements
                             unsafe { meta.assume_init() }
                         );
-                        let infos: [&AccountInfo; $n] = infos.map(|info|
+                        let infos: [&AccountView; $n] = infos.map(|info|
                             // SAFETY:
                             // We can assume the array has been initialized based on the index safety requirements
                             unsafe { info.assume_init() }
                         );
 
 
-                        pinocchio::cpi::invoke_signed(
-                            &PinocchioInstruction {
-                                program_id: program_id.as_array(),
+                        pinocchio::instruction::cpi::invoke_signed(
+                            &InstructionView {
+                                program_id,
                                 data,
-                                accounts:
-                                &metas,
+                                accounts: &metas,
                             },
                             &infos,
-                            signers,
+                            &signers,
                         )?;
                         Ok(())
                     }
@@ -273,22 +269,22 @@ impl HandleCpiArray for DynamicCpiAccountSetLen {
     type Arr<T> = [MaybeUninit<T>; 64];
 
     #[inline(always)]
-    fn uninit_infos<'a>() -> Self::Arr<&'a AccountInfo> {
+    fn uninit_infos<'a>() -> Self::Arr<&'a AccountView> {
         unsafe { MaybeUninit::uninit().assume_init() }
     }
 
     #[inline(always)]
-    fn uninit_metas<'a>() -> Self::Arr<PinocchioAccountMeta<'a>> {
+    fn uninit_metas<'a>() -> Self::Arr<InstructionAccount<'a>> {
         unsafe { MaybeUninit::uninit().assume_init() }
     }
 
     #[inline(always)]
     unsafe fn invoke_signed<'a>(
-        program_id: &Pubkey,
+        program_id: &Address,
         data: &[u8],
-        infos: Self::Arr<&'a AccountInfo>,
+        infos: Self::Arr<&'a AccountView>,
         infos_index: usize,
-        metas: Self::Arr<PinocchioAccountMeta<'a>>,
+        metas: Self::Arr<InstructionAccount<'a>>,
         metas_index: usize,
         signers: &[PinocchioSigner],
     ) -> Result<()> {
@@ -298,21 +294,21 @@ impl HandleCpiArray for DynamicCpiAccountSetLen {
         // SAFETY:
         // We can turn a slice of uninits to a slice of inits (we can assume up to the index is initialized)
         let metas_slice = unsafe {
-            &*(std::ptr::from_ref::<[MaybeUninit<PinocchioAccountMeta<'a>>]>(metas_slice)
-                as *const [PinocchioAccountMeta<'a>])
+            &*(core::ptr::from_ref::<[MaybeUninit<InstructionAccount<'a>>]>(metas_slice)
+                as *const [InstructionAccount<'a>])
         };
 
         let infos_slice = &infos[..infos_index];
         // SAFETY:
         // We can turn a slice of uninits to a slice of inits (we can assume up to the index is initialized)
         let infos_slice = unsafe {
-            &*std::ptr::from_ref::<[MaybeUninit<&AccountInfo>]>(infos_slice)
-                .cast::<[&AccountInfo; 64]>()
+            &*core::ptr::from_ref::<[MaybeUninit<&AccountView>]>(infos_slice)
+                .cast::<[&AccountView; 64]>()
         };
 
-        pinocchio::cpi::slice_invoke_signed(
-            &PinocchioInstruction {
-                program_id: program_id.as_array(),
+        pinocchio::instruction::cpi::invoke_signed_with_slice(
+            &InstructionView {
+                program_id,
                 data,
                 accounts: metas_slice,
             },

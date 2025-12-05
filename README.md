@@ -80,7 +80,7 @@ pub enum CounterInstructionSet {
 #[zero_copy(pod)]
 #[derive(ProgramAccount, Default, Debug, Eq, PartialEq)]
 pub struct CounterAccount {
-    pub authority: Pubkey,
+    pub authority: Address,
     pub count: u64,
 }
 
@@ -102,7 +102,7 @@ pub struct InitializeAccounts {
 #[star_frame_instruction]
 fn Initialize(account_set: &mut InitializeAccounts, start_at: u64) -> Result<()> {
     **account_set.counter.data_mut()? = CounterAccount {
-        authority: *account_set.authority.pubkey(),
+        authority: *account_set.authority.addr(),
         count: start_at,
     };
     Ok(())
@@ -120,7 +120,7 @@ pub struct IncrementAccounts {
 #[star_frame_instruction]
 fn Increment(accounts: &mut IncrementAccounts) -> Result<()> {
     ensure!(
-        *accounts.authority.pubkey() == accounts.counter.data()?.authority,
+        *accounts.authority.addr() == accounts.counter.data()?.authority,
         ProgramError::IncorrectAuthority
     );
     let mut counter = accounts.counter.data_mut()?;

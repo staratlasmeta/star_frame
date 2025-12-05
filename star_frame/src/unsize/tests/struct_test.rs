@@ -72,7 +72,7 @@ fn test_unsized_test() -> Result<()> {
     assert_eq!(&**banana.unsized2, [200, 201, 202, 203]);
     assert_eq!(&**banana.unsized3.unsized3, [150, 151, 152, 153]);
     for (key, value) in &mut banana.map {
-        println!("{key:?}: {value:?}");
+        std::println!("{key:?}: {value:?}");
     }
 
     let mut map2 = banana.map2();

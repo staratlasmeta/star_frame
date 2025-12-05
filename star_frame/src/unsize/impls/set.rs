@@ -10,7 +10,7 @@ use crate::{
         FromOwned,
     },
 };
-use std::collections::BTreeSet;
+use alloc::collections::BTreeSet;
 
 /// A resizable set of unique, fixed-size elements. The [`UnsizedType`] version of [`BTreeSet`].
 ///

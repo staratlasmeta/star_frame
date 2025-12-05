@@ -2,11 +2,11 @@
 //!
 //! For zero-copy types that are supported by [`bytemuck`], we use that representation. For all other types, we use the [`borsh`] representation.
 use crate::{data_types::PodBool, prelude::*};
+use alloc::collections::{BTreeMap, BTreeSet, LinkedList, VecDeque};
 use star_frame_idl::{
     ty::{IdlStructField, IdlTypeDef},
     IdlDefinition,
 };
-use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, LinkedList, VecDeque};
 
 macro_rules! impl_type_to_idl_for_primitive {
     (@impl $ty:ty: $ident:ident) => {
@@ -41,7 +41,7 @@ impl_type_to_idl_for_primitive!(
     u128: U128,
     i128: I128,
     String: String,
-    Pubkey: Pubkey,
+    Address: Address,
 );
 
 impl<T: TypeToIdl> TypeToIdl for Option<T> {
@@ -120,14 +120,16 @@ impl<K: TypeToIdl, V: TypeToIdl> TypeToIdl for BTreeMap<K, V> {
     }
 }
 
-impl<T: TypeToIdl, S> TypeToIdl for HashSet<T, S> {
+#[cfg(feature = "std")]
+impl<T: TypeToIdl, S> TypeToIdl for std::collections::HashSet<T, S> {
     type AssociatedProgram = System;
     fn type_to_idl(idl_definition: &mut IdlDefinition) -> crate::IdlResult<IdlTypeDef> {
         <BTreeSet<T>>::type_to_idl(idl_definition)
     }
 }
 
-impl<K: TypeToIdl, V: TypeToIdl, S> TypeToIdl for HashMap<K, V, S> {
+#[cfg(feature = "std")]
+impl<K: TypeToIdl, V: TypeToIdl, S> TypeToIdl for std::collections::HashMap<K, V, S> {
     type AssociatedProgram = System;
     fn type_to_idl(idl_definition: &mut IdlDefinition) -> crate::IdlResult<IdlTypeDef> {
         <BTreeMap<K, V>>::type_to_idl(idl_definition)

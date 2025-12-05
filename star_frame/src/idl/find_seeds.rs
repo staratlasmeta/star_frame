@@ -1,3 +1,7 @@
+use alloc::{
+    string::{String, ToString},
+    vec::Vec,
+};
 use bytemuck::NoUninit;
 use star_frame_idl::seeds::IdlFindSeed;
 

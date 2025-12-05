@@ -1,8 +1,9 @@
 //! A [`ProgramAccount`] that is serialized and deserialized using [`borsh`].
 
 use borsh::object_length;
+use core::ops::{Deref, DerefMut};
 use derive_more::Debug;
-use std::ops::{Deref, DerefMut};
+use pinocchio_log::log;
 
 use crate::{
     account_set::{
@@ -23,10 +24,10 @@ use crate::{
 /// updated `T` to the account info when the account is writable during `AccountSetCleanup`
 #[derive(AccountSet, Debug, Clone)]
 #[account_set(skip_default_decode, skip_default_idl)]
-#[cfg_attr(feature = "aggressive_inline", 
+#[cfg_attr(feature = "aggressive_inline",
     validate(inline_always, extra_validation = T::validate_account_info(self.info))
 )]
-#[cfg_attr(not(feature = "aggressive_inline"), 
+#[cfg_attr(not(feature = "aggressive_inline"),
     validate(extra_validation = T::validate_account_info(self.info))
 )]
 #[cleanup(generics = [], extra_cleanup = {
@@ -116,7 +117,7 @@ pub struct BorshAccount<T: ProgramAccount + BorshSerialize + BorshDeserialize> {
         skip_has_seeds,
         skip_has_owner_program
     )]
-    info: AccountInfo,
+    info: AccountView,
     #[account_set(skip = )]
     data: Option<T>,
 }
@@ -130,7 +131,7 @@ where
         self.data.as_ref().unwrap_or_else(|| {
             panic!(
                 "Accessing BorshAccount `{}` data before it is initialized",
-                self.info.pubkey()
+                self.info.address()
             );
         })
     }
@@ -143,19 +144,19 @@ where
     fn deref_mut(&mut self) -> &mut Self::Target {
         if !self.is_writable() {
             // TODO: Perhaps put this behind a debug flag?
-            msg!(
+            log!(
                 "Tried to borrow mutably from BorshAccount `{}` which is not writable",
-                self.pubkey()
+                self.addr().to_string().as_str()
             );
             panic!(
                 "Tried to borrow mutably from BorshAccount `{}` which is not writable",
-                self.pubkey()
+                self.addr()
             );
         }
         self.data.as_mut().unwrap_or_else(|| {
             panic!(
                 "Accessing BorshAccount `{}` data before it is initialized",
-                self.info.pubkey()
+                self.info.address()
             );
         })
     }
@@ -166,11 +167,11 @@ where
     T: BorshDeserialize + BorshSerialize + ProgramAccount + Default,
 {
     fn decode_accounts(
-        accounts: &mut &'a [AccountInfo],
+        accounts: &mut &'a [AccountView],
         _decode_input: (),
         ctx: &mut Context,
     ) -> Result<Self> {
-        let info = <AccountInfo as AccountSetDecode<'a, ()>>::decode_accounts(accounts, (), ctx)?;
+        let info = <AccountView as AccountSetDecode<'a, ()>>::decode_accounts(accounts, (), ctx)?;
         let data = if info.data_len() > size_of::<OwnerProgramDiscriminant<T>>() {
             Some(T::try_from_slice(
                 &info.account_data()?[size_of::<OwnerProgramDiscriminant<T>>()..],
@@ -189,7 +190,7 @@ impl<T: ProgramAccount + BorshSerialize + BorshDeserialize> BorshAccount<T> {
     pub fn serialize(&mut self) -> Result<()> {
         if self.is_writable()
             && self.info.data_len() > size_of::<OwnerProgramDiscriminant<T>>()
-            && self.owner_pubkey() == T::OwnerProgram::ID
+            && self.account_view().owned_by(&T::OwnerProgram::ID)
         {
             let new_size = size_of::<OwnerProgramDiscriminant<T>>() + object_length(&self.data)?;
             self.info.resize(new_size)?;
@@ -222,7 +223,7 @@ impl<T: ProgramAccount + BorshSerialize + BorshDeserialize> BorshAccount<T> {
             self.is_writable(),
             ErrorCode::ExpectedWritable,
             "BorshAccount {} is not writable",
-            self.pubkey()
+            self.addr()
         );
         self.data = Some(data);
         Ok(())
@@ -315,7 +316,7 @@ where
         ctx: &Context,
     ) -> Result<()> {
         if IF_NEEDED {
-            let needs_init = self.account_info().owner().fast_eq(&System::ID)
+            let needs_init = self.account_view().owned_by(&System::ID)
                 || self.account_data()?[..size_of::<OwnerProgramDiscriminant<T>>()]
                     .iter()
                     .all(|x| *x == 0);
@@ -345,14 +346,14 @@ mod idl_impl {
 
     impl<T, A> AccountSetToIdl<A> for BorshAccount<T>
     where
-        AccountInfo: AccountSetToIdl<A>,
+        AccountView: AccountSetToIdl<A>,
         T: BorshDeserialize + BorshSerialize + ProgramAccount + AccountToIdl,
     {
         fn account_set_to_idl(
             idl_definition: &mut IdlDefinition,
             arg: A,
         ) -> crate::IdlResult<IdlAccountSetDef> {
-            let mut set = <AccountInfo>::account_set_to_idl(idl_definition, arg)?;
+            let mut set = <AccountView>::account_set_to_idl(idl_definition, arg)?;
             set.single()?
                 .program_accounts
                 .push(T::account_to_idl(idl_definition)?);

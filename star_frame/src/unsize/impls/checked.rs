@@ -13,8 +13,9 @@ use crate::{
     Result,
 };
 use advancer::Advance;
+use alloc::format;
 use bytemuck::{checked, CheckedBitPattern, NoUninit, Zeroable};
-use std::{
+use core::{
     mem::size_of,
     ops::{Deref, DerefMut},
 };
@@ -51,7 +52,7 @@ where
 
 unsafe impl<T: CheckedBitPattern + NoUninit + Align1> UnsizedTypePtr for CheckedPtr<T> {
     type UnsizedType = T;
-    fn check_pointers(&self, range: &std::ops::Range<usize>, cursor: &mut usize) -> bool {
+    fn check_pointers(&self, range: &core::ops::Range<usize>, cursor: &mut usize) -> bool {
         let addr = self.0.addr();
         let is_advanced = addr >= *cursor;
         *cursor = addr;
@@ -73,7 +74,7 @@ where
             format!(
                 "Failed to read {} mutable bytes for checked type {}",
                 size_of::<T>(),
-                std::any::type_name::<T>()
+                core::any::type_name::<T>()
             )
         })?;
 
@@ -123,7 +124,7 @@ where
             .with_ctx(|| {
                 format!(
                     "Failed to advance bytes during `FromOwned` of {}",
-                    std::any::type_name::<Self>()
+                    core::any::type_name::<Self>()
                 )
             })?
             .copy_from_slice(bytemuck::bytes_of(&owned));
@@ -144,7 +145,7 @@ where
             .with_ctx(|| {
                 format!(
                     "Failed to advance bytes during initialization of {}",
-                    std::any::type_name::<T>()
+                    core::any::type_name::<T>()
                 )
             })?
             .copy_from_slice(bytemuck::bytes_of(&arg));
@@ -165,7 +166,7 @@ where
             .with_ctx(|| {
                 format!(
                     "Failed to advance bytes during default initialization of {}",
-                    std::any::type_name::<Self>()
+                    core::any::type_name::<Self>()
                 )
             })?
             .copy_from_slice(bytemuck::bytes_of(&T::default_init()));

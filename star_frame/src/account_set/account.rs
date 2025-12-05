@@ -14,7 +14,7 @@ use crate::{
 };
 use advancer::Advance;
 use bytemuck::bytes_of;
-use std::marker::PhantomData;
+use core::marker::PhantomData;
 
 /// Increases or decreases the rent of self to be the minimum required using [`CanModifyRent::normalize_rent`](crate::account_set::CanModifyRent::normalize_rent).
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
@@ -38,10 +38,10 @@ pub struct CloseAccount<T>(pub T);
 #[derive(AccountSet, derive_where::DeriveWhere)]
 #[derive_where(Clone, Debug, Copy)]
 #[account_set(skip_default_idl, skip_default_cleanup)]
-#[cfg_attr(feature = "aggressive_inline", 
+#[cfg_attr(feature = "aggressive_inline",
     validate(inline_always, extra_validation = T::validate_account_info(self.info))
 )]
-#[cfg_attr(not(feature = "aggressive_inline"), 
+#[cfg_attr(not(feature = "aggressive_inline"),
     validate(extra_validation = T::validate_account_info(self.info))
 )]
 #[cleanup(
@@ -115,7 +115,7 @@ pub struct Account<T: ProgramAccount + UnsizedType + ?Sized> {
         skip_has_seeds,
         skip_has_owner_program
     )]
-    info: AccountInfo,
+    info: AccountView,
     #[account_set(skip = PhantomData)]
     phantom_t: PhantomData<T>,
 }
@@ -134,7 +134,7 @@ where
     }
 
     #[inline]
-    pub fn data_mut(&self) -> Result<ExclusiveWrapperTop<'_, AccountDiscriminant<T>, AccountInfo>> {
+    pub fn data_mut(&self) -> Result<ExclusiveWrapperTop<'_, AccountDiscriminant<T>, AccountView>> {
         // If the account is writable, changes could have been made after AccountSetValidate has been run
         if self.is_writable() {
             T::validate_account_info(self.info)?;
@@ -143,7 +143,7 @@ where
             bail!(
                 ProgramError::AccountBorrowFailed,
                 "Tried to borrow mutably from Account `{}` which is not writable",
-                self.pubkey()
+                self.addr()
             );
         }
         ExclusiveWrapper::new(&self.info)
@@ -229,7 +229,7 @@ pub mod discriminant {
                 .with_ctx(|| {
                     format!(
                         "Failed to advance past discriminant during initialization of {}",
-                        std::any::type_name::<T>()
+                        core::any::type_name::<T>()
                     )
                 })?
                 .copy_from_slice(bytes_of(&T::DISCRIMINANT));
@@ -249,7 +249,7 @@ pub mod discriminant {
                 .with_ctx(|| {
                     format!(
                         "Failed to advance past discriminant during initialization of {}",
-                        std::any::type_name::<T>()
+                        core::any::type_name::<T>()
                     )
                 })?
                 .copy_from_slice(bytes_of(&T::DISCRIMINANT));
@@ -343,7 +343,7 @@ where
         ctx: &Context,
     ) -> Result<()> {
         if IF_NEEDED {
-            let needs_init = self.info.owner().fast_eq(&System::ID)
+            let needs_init = self.info.owned_by(&System::ID)
                 || self.account_data()?[..size_of::<OwnerProgramDiscriminant<T>>()]
                     .iter()
                     .all(|x| *x == 0);
@@ -377,14 +377,14 @@ mod idl_impl {
 
     impl<T: ProgramAccount + UnsizedType + ?Sized, A> AccountSetToIdl<A> for Account<T>
     where
-        AccountInfo: AccountSetToIdl<A>,
+        AccountView: AccountSetToIdl<A>,
         T: AccountToIdl,
     {
         fn account_set_to_idl(
             idl_definition: &mut IdlDefinition,
             arg: A,
         ) -> crate::IdlResult<IdlAccountSetDef> {
-            let mut set = <AccountInfo>::account_set_to_idl(idl_definition, arg)?;
+            let mut set = <AccountView>::account_set_to_idl(idl_definition, arg)?;
             set.single()?
                 .program_accounts
                 .push(T::account_to_idl(idl_definition)?);

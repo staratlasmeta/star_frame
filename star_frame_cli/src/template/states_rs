@@ -4,18 +4,18 @@ use crate::{name_pascalcase}Error;
 #[derive(Debug, GetSeeds, Clone)]
 #[get_seeds(seed_const = b"COUNTER")]
 pub struct CounterAccountSeeds {
-    pub authority: Pubkey,
+    pub authority: Address,
 }
 
 #[zero_copy(pod)]
 #[derive(Default, Debug, Eq, PartialEq, ProgramAccount)]
 #[program_account(seeds = CounterAccountSeeds)]
 pub struct CounterAccount {
-    pub authority: Pubkey,
+    pub authority: Address,
     pub count: u64,
 }
 
-pub struct Authority(pub Pubkey);
+pub struct Authority(pub Address);
 
 impl AccountValidate<Authority> for CounterAccount {
     fn validate_account(self_ref: &Self::Ptr, arg: Authority) -> Result<()> {

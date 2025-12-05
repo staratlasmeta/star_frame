@@ -49,7 +49,7 @@ fn PlaceOrder(
     let order_result = accounts
         .market
         .data_mut()?
-        .process_order(process_order_args, *accounts.user.pubkey())?;
+        .process_order(process_order_args, *accounts.user.addr())?;
 
     let mut withdraw_totals = OrderTotals::default();
     let mut deposit_totals = OrderTotals::default();
@@ -67,7 +67,7 @@ fn PlaceOrder(
         }
     }
 
-    msg!("{}", order_result);
+    msg!(&order_result.to_string());
 
     accounts.withdraw(withdraw_totals)?;
     accounts.deposit(deposit_totals)?;
@@ -92,7 +92,7 @@ mod tests {
     };
     use mollusk_svm::result::Check;
     use solana_account::Account as SolanaAccount;
-    use star_frame::{itertools::Itertools, solana_pubkey::Pubkey};
+    use star_frame::{itertools::Itertools, solana_address::Address};
     use star_frame_spl::associated_token::AssociatedToken;
     use std::{collections::HashMap, env};
     const STARTING_USER_CURRENCY_BALANCE: u64 = 1_000_000_000;
@@ -101,17 +101,17 @@ mod tests {
     #[test]
     fn place_bid() -> Result<()> {
         if env::var("SBF_OUT_DIR").is_err() {
-            println!("SBF_OUT_DIR is not set, skipping test");
+            std::println!("SBF_OUT_DIR is not set, skipping test");
             return Ok(());
         }
         let mollusk = crate::test_utils::new_mollusk();
 
         // Keys
-        let payer = Pubkey::new_unique();
-        let user = Pubkey::new_unique();
-        let authority = Pubkey::new_unique();
-        let currency_mint = KeyFor::new(Pubkey::new_unique());
-        let market_token_mint = KeyFor::new(Pubkey::new_unique());
+        let payer = Address::new_unique();
+        let user = Address::new_unique();
+        let authority = Address::new_unique();
+        let currency_mint = AddressFor::new(Address::new_unique());
+        let market_token_mint = AddressFor::new(Address::new_unique());
         let (market_pda, bump) = Market::find_program_address(&MarketSeeds {
             currency: currency_mint,
             market_token: market_token_mint,
@@ -124,7 +124,7 @@ mod tests {
         let makers = (0..NUM_MAKERS)
             .map(|_| {
                 (
-                    Pubkey::new_unique(),
+                    Address::new_unique(),
                     MakerInfo {
                         totals: OrderTotals {
                             currency: ZERO_PRICE,
@@ -162,8 +162,8 @@ mod tests {
 
         let market_data = Market::serialize_account(market_owned.clone())?;
         let market_lamports = mollusk.sysvars.rent.minimum_balance(market_data.len());
-        let user_currency_vault = Pubkey::new_unique();
-        let user_market_token_vault = Pubkey::new_unique();
+        let user_currency_vault = Address::new_unique();
+        let user_market_token_vault = Address::new_unique();
         // Accounts
         let account_store = HashMap::from_iter([
             (
@@ -251,8 +251,8 @@ mod tests {
                     funder: payer,
                     user,
                     market: market_pda,
-                    currency: *currency_mint.pubkey(),
-                    market_token: *market_token_mint.pubkey(),
+                    currency: *currency_mint.addr(),
+                    market_token: *market_token_mint.addr(),
                     market_token_vault,
                     currency_vault,
                     user_market_token_vault,

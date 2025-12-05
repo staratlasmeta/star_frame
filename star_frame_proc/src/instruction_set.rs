@@ -27,10 +27,8 @@ pub struct InstructionSetFieldArgs {
 
 pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
     Paths!(
-        account_info,
         bytemuck,
         instruction,
-        pubkey,
         result,
         prelude,
         instruction_set_args_ident,
@@ -138,7 +136,7 @@ pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
                         #[allow(unexpected_cfgs)]
                         {
                             #[cfg(any(feature = "log_ix_name", feature = "log-ix-name"))]
-                            #prelude::msg!(#ix_message);
+                            #prelude::msg!(&#ix_message);
                         }
                         <#variant_tys as #instruction>::process_from_raw(program_id, accounts, instruction_data)
                     }
@@ -156,9 +154,9 @@ pub fn instruction_set_impl(item: ItemEnum) -> TokenStream {
 
             #[inline(always)]
             fn dispatch(
-                program_id: &'static #pubkey,
-                accounts: &[#account_info],
-                mut instruction_data: &[u8],
+                program_id: &'static #prelude::Address,
+                accounts: &[#prelude::AccountView],
+                mut instruction_data: &'static [u8],
             ) -> #result<()> {
                 #dispatch_body
             }

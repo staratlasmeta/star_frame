@@ -32,7 +32,7 @@ where
     /// # Errors
     /// Returns an error if the underlying bytes are not valid UTF-8.
     pub fn as_str(&self) -> Result<&str> {
-        Ok(std::str::from_utf8(self.chars.as_slice())?)
+        Ok(alloc::str::from_utf8(self.chars.as_slice())?)
     }
 
     /// Returns a mutable reference to the underlying string slice.
@@ -40,7 +40,7 @@ where
     /// # Errors
     /// Returns an error if the underlying bytes are not valid UTF-8.
     pub fn as_mut_str(&mut self) -> Result<&mut str> {
-        Ok(std::str::from_utf8_mut(self.chars.as_mut_slice())?)
+        Ok(alloc::str::from_utf8_mut(self.chars.as_mut_slice())?)
     }
 }
 
