@@ -177,7 +177,7 @@
 //! # #[program(instruction_set = (), id = System::ID, no_entrypoint)]
 //! # pub struct MyProgram;
 //! #
-//! #[derive(Align1, Pod, Zeroable, Default, Copy, Clone, Debug, Eq, PartialEq, ProgramAccount)]
+//! # #[derive(Align1, Pod, Zeroable, Default, Copy, Clone, Debug, Eq, PartialEq, ProgramAccount)]
 //! # #[program_account(seeds = CounterSeeds)]
 //! # #[repr(C, packed)]
 //! # pub struct CounterAccount {
