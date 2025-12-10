@@ -1,5 +1,5 @@
 #![allow(unused)]
-use pinocchio::account_info::MAX_PERMITTED_DATA_INCREASE;
+use pinocchio::account::MAX_PERMITTED_DATA_INCREASE;
 
 use crate::{
     unsize::{
@@ -9,7 +9,8 @@ use crate::{
     },
     Result,
 };
-use std::{
+use alloc::{boxed::Box, vec, vec::Vec};
+use core::{
     cell::{Cell, Ref, RefCell, RefMut},
     marker::PhantomData,
     mem::MaybeUninit,
@@ -79,7 +80,7 @@ unsafe impl UnsizedTypeDataAccess for TestUnderlyingData {
         Ok(())
     }
 
-    fn data_ref(this: &Self) -> Result<impl std::ops::Deref<Target = [u8]>> {
+    fn data_ref(this: &Self) -> Result<impl core::ops::Deref<Target = [u8]>> {
         Ok(Ref::map(this.data.borrow(), |data| &data[..this.len.get()]))
     }
 

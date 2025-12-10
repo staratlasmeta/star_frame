@@ -52,7 +52,6 @@ pub(super) fn decodes(
         ..
     } = account_set_generics;
     let Paths {
-        account_info,
         result,
         account_set_decode,
         prelude,
@@ -170,7 +169,7 @@ pub(super) fn decodes(
                         quote! {
                             #prelude::ErrorInfo::account_path(
                                 #decode,
-                                ::std::stringify!(#field_name),
+                                ::core::stringify!(#field_name),
                             )?
                         }
                     }
@@ -190,7 +189,7 @@ pub(super) fn decodes(
             impl #impl_generics #account_set_decode<#decode_lifetime, #decode_type> for #ident #ty_generics #where_clause {
                 #inline_attr
                 fn decode_accounts(
-                    accounts: &mut &#decode_lifetime [#account_info],
+                    accounts: &mut &#decode_lifetime [#prelude::AccountView],
                     arg: #decode_type,
                     ctx: &mut #prelude::Context,
                 ) -> #result<Self> {

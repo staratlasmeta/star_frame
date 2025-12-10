@@ -13,8 +13,8 @@ use crate::{
     ErrorCode,
 };
 use bytemuck::bytes_of;
+use core::marker::PhantomData;
 use derive_more::{Deref, DerefMut};
-use std::marker::PhantomData;
 
 pub use star_frame_proc::GetSeeds;
 /// A trait for getting the seed bytes of an account. The last element of the returned vector should be an empty slice, in order to replace it with a bump later on without
@@ -34,7 +34,7 @@ pub use star_frame_proc::GetSeeds;
 /// # use star_frame::prelude::*;
 /// #[derive(Debug, Clone)]
 /// pub struct Cool {
-///     key: Pubkey,
+///     key: Address,
 ///     number: u64,
 /// }
 ///
@@ -106,17 +106,17 @@ pub struct Seeds<T>(pub T);
 pub struct CurrentProgram;
 /// Trait for types that can provide a program ID for PDA derivation.
 pub trait SeedProgram {
-    fn id(ctx: &Context) -> Result<Pubkey>;
+    fn id(ctx: &Context) -> Result<Address>;
     #[cfg(all(feature = "idl", not(target_os = "solana")))]
-    fn idl_program() -> Option<Pubkey>;
+    fn idl_program() -> Option<Address>;
 }
 
 impl SeedProgram for CurrentProgram {
-    fn id(ctx: &Context) -> Result<Pubkey> {
+    fn id(ctx: &Context) -> Result<Address> {
         Ok(*ctx.current_program_id())
     }
     #[cfg(all(feature = "idl", not(target_os = "solana")))]
-    fn idl_program() -> Option<Pubkey> {
+    fn idl_program() -> Option<Address> {
         None
     }
 }
@@ -125,12 +125,12 @@ impl<P> SeedProgram for P
 where
     P: StarFrameProgram,
 {
-    fn id(_ctx: &Context) -> Result<Pubkey> {
+    fn id(_ctx: &Context) -> Result<Address> {
         Ok(P::ID)
     }
 
     #[cfg(all(feature = "idl", not(target_os = "solana")))]
-    fn idl_program() -> Option<Pubkey> {
+    fn idl_program() -> Option<Address> {
         Some(P::ID)
     }
 }
@@ -243,10 +243,10 @@ where
             return Ok(());
         }
         let seeds = seeds.clone().0;
-        let (address, bump) = Pubkey::find_program_address(&seeds.seeds(), &P::id(ctx)?);
-        let expected = self.account.account_info().pubkey();
+        let (address, bump) = Address::find_program_address(&seeds.seeds(), &P::id(ctx)?);
+        let expected = self.account.account_view_ref().address();
         ensure!(
-            address.fast_eq(expected),
+            &address == expected,
             ErrorCode::AddressMismatch,
             "Seeds: {seeds:?} result in address `{address}` and bump `{bump}`, expected `{expected}`"
         );
@@ -263,10 +263,10 @@ where
             return Ok(());
         }
         let arg_seeds = seeds.seeds_with_bump();
-        let address = Pubkey::create_program_address(&arg_seeds, &P::id(ctx)?)?;
-        let expected = self.account.account_info().pubkey();
+        let address = Address::create_program_address(&arg_seeds, &P::id(ctx)?)?;
+        let expected = self.account.account_view_ref().address();
         ensure!(
-            address.fast_eq(expected),
+            address == *expected,
             ErrorCode::AddressMismatch,
             "Seeds `{seeds:?}` result in address `{address}`, expected `{expected}`"
         );
@@ -421,7 +421,7 @@ fn _unnamed_seed_structs_fail() {}
 mod tests {
     use crate::prelude::*;
 
-    use solana_pubkey::Pubkey;
+    use solana_address::Address;
 
     #[derive(Debug, GetSeeds, Clone)]
     pub struct UnitSeeds {}
@@ -434,12 +434,12 @@ mod tests {
 
     #[derive(Debug, GetSeeds, Clone)]
     pub struct SingleKey {
-        key: Pubkey,
+        key: Address,
     }
     #[test]
     fn test_single_key() {
         let single_key = SingleKey {
-            key: Pubkey::new_unique(),
+            key: Address::new_unique(),
         };
         let intended_seeds = vec![single_key.key.seed(), &[]];
         let seeds = single_key.seeds();
@@ -448,14 +448,14 @@ mod tests {
 
     #[derive(Debug, GetSeeds, Clone)]
     pub struct TwoKeys {
-        key1: Pubkey,
-        key2: Pubkey,
+        key1: Address,
+        key2: Address,
     }
     #[test]
     fn test_two_keys() {
         let two_keys = TwoKeys {
-            key1: Pubkey::new_unique(),
-            key2: Pubkey::new_unique(),
+            key1: Address::new_unique(),
+            key2: Address::new_unique(),
         };
         let intended_seeds = vec![two_keys.key1.seed(), two_keys.key2.seed(), &[]];
         let seeds = two_keys.seeds();
@@ -464,13 +464,13 @@ mod tests {
 
     #[derive(Debug, GetSeeds, Clone)]
     pub struct KeyAndNumber {
-        key: Pubkey,
+        key: Address,
         number: u64,
     }
     #[test]
     fn test_key_and_number() {
         let key_and_number = KeyAndNumber {
-            key: Pubkey::new_unique(),
+            key: Address::new_unique(),
             number: 42,
         };
         let intended_seeds = vec![key_and_number.key.seed(), key_and_number.number.seed(), &[]];
@@ -492,12 +492,12 @@ mod tests {
     #[derive(Debug, GetSeeds, Clone)]
     #[get_seeds(seed_const = b"TEST_CONST")]
     pub struct OneKeyConstSeed {
-        key: Pubkey,
+        key: Address,
     }
     #[test]
     fn test_one_key_with_const_seed() {
         let account = OneKeyConstSeed {
-            key: Pubkey::new_unique(),
+            key: Address::new_unique(),
         };
         let intended_seeds = vec![b"TEST_CONST".as_ref(), account.key.seed(), &[]];
         let seeds = account.seeds();

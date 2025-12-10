@@ -9,7 +9,6 @@ use crate::{
     account_set::{
         account::discriminant::AccountDiscriminant,
         modifiers::{HasOwnerProgram, HasSeeds, OwnerProgramDiscriminant},
-        ClientAccountSet,
     },
     instruction::InstructionDiscriminant,
     prelude::*,
@@ -19,7 +18,6 @@ use crate::{
 
 use borsh::{object_length, BorshSerialize};
 use bytemuck::bytes_of;
-use solana_instruction::Instruction as SolanaInstruction;
 
 #[doc(hidden)]
 pub fn star_frame_instruction_data<S, I>(data: &I) -> Result<Vec<u8>>
@@ -27,44 +25,53 @@ where
     S: InstructionSet,
     I: InstructionDiscriminant<S> + BorshSerialize,
 {
-    let data_len = std::mem::size_of::<S::Discriminant>() + object_length(data)?;
+    let data_len = core::mem::size_of::<S::Discriminant>() + object_length(data)?;
     let mut ix_data = Vec::with_capacity(data_len);
     ix_data.extend_from_slice(bytes_of(&I::DISCRIMINANT));
     BorshSerialize::serialize(data, &mut ix_data)?;
     Ok(ix_data)
 }
 
-pub trait MakeInstruction: StarFrameProgram {
-    fn instruction<I, A>(data: &I, accounts: A::ClientAccounts) -> Result<SolanaInstruction>
-    where
-        I: StarFrameInstruction<Accounts<'static, 'static> = A>
-            + InstructionDiscriminant<Self::InstructionSet>
-            + BorshSerialize,
-        A: ClientAccountSet,
-    {
-        let mut metas = Vec::with_capacity(A::MIN_LEN);
-        A::extend_account_metas(&Self::ID, &accounts, &mut metas);
-        let data = star_frame_instruction_data::<Self::InstructionSet, I>(data)?;
-        Ok(SolanaInstruction {
-            program_id: Self::ID,
-            accounts: metas,
-            data,
-        })
+#[cfg(not(target_os = "solana"))]
+mod instruction_builder {
+    use super::*;
+    use crate::account_set::ClientAccountSet;
+    use solana_instruction::Instruction as SolanaInstruction;
+    pub trait MakeInstruction: StarFrameProgram {
+        fn instruction<I, A>(data: &I, accounts: A::ClientAccounts) -> Result<SolanaInstruction>
+        where
+            I: StarFrameInstruction<Accounts<'static, 'static> = A>
+                + InstructionDiscriminant<Self::InstructionSet>
+                + BorshSerialize,
+            A: ClientAccountSet,
+        {
+            let mut metas = Vec::with_capacity(A::MIN_LEN);
+            A::extend_account_metas(&Self::ID, &accounts, &mut metas);
+            let data = star_frame_instruction_data::<Self::InstructionSet, I>(data)?;
+            Ok(SolanaInstruction {
+                program_id: Self::ID,
+                accounts: metas,
+                data,
+            })
+        }
     }
+
+    impl<T> MakeInstruction for T where T: StarFrameProgram + ?Sized {}
 }
 
-impl<T> MakeInstruction for T where T: StarFrameProgram + ?Sized {}
+#[cfg(not(target_os = "solana"))]
+pub use instruction_builder::MakeInstruction;
 
 pub trait FindProgramAddress: HasSeeds + HasOwnerProgram {
-    fn find_program_address(seeds: &Self::Seeds) -> (Pubkey, u8) {
-        Pubkey::find_program_address(&seeds.seeds(), &Self::OwnerProgram::ID)
+    fn find_program_address(seeds: &Self::Seeds) -> (Address, u8) {
+        Address::find_program_address(&seeds.seeds(), &Self::OwnerProgram::ID)
     }
 
-    fn create_program_address(seeds: &Self::Seeds, bump: u8) -> Result<Pubkey> {
+    fn create_program_address(seeds: &Self::Seeds, bump: u8) -> Result<Address> {
         let mut seeds = seeds.seeds();
         let bump = &[bump];
         seeds.push(bump);
-        Ok(Pubkey::create_program_address(
+        Ok(Address::create_program_address(
             &seeds,
             &Self::OwnerProgram::ID,
         )?)

@@ -14,8 +14,8 @@ pub use star_frame_proc::{AccountSet, ProgramAccount};
 
 use crate::{prelude::*, ErrorCode};
 use bytemuck::bytes_of;
+use core::{mem::MaybeUninit, slice};
 use modifiers::{HasOwnerProgram, OwnerProgramDiscriminant};
-use std::{mem::MaybeUninit, slice};
 
 /// An account that has a discriminant and is owned by a [`StarFrameProgram`].
 ///
@@ -33,15 +33,15 @@ pub trait ProgramAccount: HasOwnerProgram {
     /// Validates the owner matches [`Self::OwnerProgram::ID`](`crate::program::StarFrameProgram::ID`) and the discriminant matches [`Self::DISCRIMINANT`].
     #[allow(clippy::inline_always)]
     #[inline(always)]
-    fn validate_account_info(info: AccountInfo) -> Result<()> {
+    fn validate_account_info(info: AccountView) -> Result<()> {
         validate_discriminant::<Self>(info)?;
 
-        if !info.owner().fast_eq(&Self::OwnerProgram::ID) {
+        if !info.owned_by(&Self::OwnerProgram::ID) {
             bail!(
                 ProgramError::InvalidAccountOwner,
                 "Account {} owner {} does not match expected program ID {}",
-                info.pubkey(),
-                info.owner_pubkey(),
+                info.address(),
+                info.owner_addr(),
                 Self::OwnerProgram::ID
             );
         }
@@ -55,7 +55,7 @@ pub trait ProgramAccount: HasOwnerProgram {
 /// Adapted from [Typhoon](https://github.com/exotic-markets-labs/typhoon/blob/60c5197cc632f1bce07ba27876669e4ca8580421/crates/accounts/src/discriminator.rs#L8)
 #[allow(clippy::inline_always)]
 #[inline(always)]
-fn validate_discriminant<T: ProgramAccount + ?Sized>(info: AccountInfo) -> Result<()> {
+fn validate_discriminant<T: ProgramAccount + ?Sized>(info: AccountView) -> Result<()> {
     // This check should be optimized out
     if size_of::<OwnerProgramDiscriminant<T>>() == 0 {
         return Ok(());
@@ -66,13 +66,13 @@ fn validate_discriminant<T: ProgramAccount + ?Sized>(info: AccountInfo) -> Resul
         bail!(
             ProgramError::AccountDataTooSmall,
             "Account {} data length {} is less than expected discriminant size {}",
-            info.pubkey(),
+            info.address(),
             info.data_len(),
             size_of::<OwnerProgramDiscriminant<T>>()
         );
     }
 
-    info.can_borrow_data()?;
+    info.check_borrow()?;
     let data_ptr = info.data_ptr();
 
     // SAFETY:
@@ -114,7 +114,7 @@ fn validate_discriminant<T: ProgramAccount + ?Sized>(info: AccountInfo) -> Resul
         bail!(
             ErrorCode::DiscriminantMismatch,
             "Account {} data does not match expected discriminant for program {}",
-            info.pubkey(),
+            info.address(),
             T::OwnerProgram::ID
         );
     }
@@ -122,7 +122,7 @@ fn validate_discriminant<T: ProgramAccount + ?Sized>(info: AccountInfo) -> Resul
     Ok(())
 }
 
-/// Convenience methods for decoding and validating a list of [`AccountInfo`]s to an [`AccountSet`].
+/// Convenience methods for decoding and validating a list of [`AccountView`]s to an [`AccountSet`].
 ///
 /// Performs [`AccountSetDecode::decode_accounts`] and [`AccountSetValidate::validate_accounts`] on the accounts.
 ///
@@ -131,7 +131,7 @@ pub trait TryFromAccountsWithArgs<'a, D, V>:
     AccountSetDecode<'a, D> + AccountSetValidate<V>
 {
     fn try_from_accounts_with_args(
-        accounts: &mut &'a [AccountInfo],
+        accounts: &mut &'a [AccountView],
         decode: D,
         validate: V,
         ctx: &mut Context,
@@ -142,7 +142,7 @@ pub trait TryFromAccountsWithArgs<'a, D, V>:
     }
 
     fn try_from_account_with_args(
-        account: &'a AccountInfo,
+        account: &'a AccountView,
         decode: D,
         validate: V,
         ctx: &mut Context,
@@ -157,11 +157,11 @@ pub trait TryFromAccountsWithArgs<'a, D, V>:
 
 /// Additional convenience methods around [`TryFromAccountsWithArgs`] for when the [`AccountSetDecode`] and [`AccountSetValidate`] args are `()`.
 pub trait TryFromAccounts<'a>: TryFromAccountsWithArgs<'a, (), ()> {
-    fn try_from_accounts(accounts: &mut &'a [AccountInfo], ctx: &mut Context) -> Result<Self> {
+    fn try_from_accounts(accounts: &mut &'a [AccountView], ctx: &mut Context) -> Result<Self> {
         Self::try_from_accounts_with_args(accounts, (), (), ctx)
     }
 
-    fn try_from_account(account: &'a AccountInfo, ctx: &mut Context) -> Result<Self>
+    fn try_from_account(account: &'a AccountView, ctx: &mut Context) -> Result<Self>
     where
         Self: SingleAccountSet,
     {
@@ -176,13 +176,13 @@ impl<'a, T, D, V> TryFromAccountsWithArgs<'a, D, V> for T where
 
 impl<'a, T> TryFromAccounts<'a> for T where T: TryFromAccountsWithArgs<'a, (), ()> {}
 
-/// An [`AccountSet`] that can be decoded from a list of [`AccountInfo`]s using arg `A`.
+/// An [`AccountSet`] that can be decoded from a list of [`AccountView`]s using arg `A`.
 ///
 /// Derivable via [`derive@AccountSet`].
 pub trait AccountSetDecode<'a, A>: Sized {
     /// Decode the accounts from `accounts` using `decode_input`.
     fn decode_accounts(
-        accounts: &mut &'a [AccountInfo],
+        accounts: &mut &'a [AccountView],
         decode_input: A,
         ctx: &mut Context,
     ) -> Result<Self>;
@@ -211,7 +211,7 @@ pub trait AccountSetCleanup<A> {
 /// Sentinel value for [`CpiAccountSet::AccountLen`] for a dynamic CPI account set.
 pub type DynamicCpiAccountSetLen = typenum::U100;
 
-/// An [`AccountSet`] that can be converted into a list of [`AccountInfo`]s and [`AccountMeta`]s for a CPI.
+/// An [`AccountSet`] that can be converted into a list of [`AccountView`]s and [`InstructionAccount`]s for a CPI.
 ///
 /// # Safety
 /// With N >= 0, [`Self::write_account_infos`] and [`Self::write_account_metas`] must write to N elements of the array and increment the index by N.
@@ -227,16 +227,16 @@ pub unsafe trait CpiAccountSet {
     #[rust_analyzer::completions(ignore_flyimport)]
     fn to_cpi_accounts(&self) -> Self::CpiAccounts;
     fn write_account_infos<'a>(
-        program: Option<&'a AccountInfo>,
+        program: Option<&'a AccountView>,
         accounts: &'a Self::CpiAccounts,
         index: &mut usize,
-        infos: &mut [MaybeUninit<&'a AccountInfo>],
+        infos: &mut [MaybeUninit<&'a AccountView>],
     ) -> Result<()>;
     fn write_account_metas<'a>(
-        program_id: &'a Pubkey,
+        program_id: &'a Address,
         accounts: &'a Self::CpiAccounts,
         index: &mut usize,
-        metas: &mut [MaybeUninit<pinocchio::instruction::AccountMeta<'a>>],
+        metas: &mut [MaybeUninit<InstructionAccount<'a>>],
     );
 }
 
@@ -258,25 +258,26 @@ where
     }
 
     fn write_account_infos<'a>(
-        _program: Option<&'a AccountInfo>,
+        _program: Option<&'a AccountView>,
         _accounts: &'a Self::CpiAccounts,
         _index: &mut usize,
-        _infos: &mut [MaybeUninit<&'a AccountInfo>],
+        _infos: &mut [MaybeUninit<&'a AccountView>],
     ) -> Result<()> {
         unimplemented!()
     }
 
     fn write_account_metas<'a>(
-        _program_id: &'a Pubkey,
+        _program_id: &'a Address,
         _accounts: &'a Self::CpiAccounts,
         _index: &mut usize,
-        _metas: &mut [MaybeUninit<PinocchioAccountMeta<'a>>],
+        _metas: &mut [MaybeUninit<InstructionAccount<'a>>],
     ) {
         unimplemented!()
     }
 }
 
 /// Used to convert an `AccountSet`s [`Self::ClientAccounts`] into a list of [`AccountMeta`]s for an instruction.
+#[cfg(not(target_os = "solana"))]
 #[rust_analyzer::completions(ignore_methods)]
 pub trait ClientAccountSet {
     /// The minimum information needed to create a list of account metas for Self.
@@ -284,7 +285,7 @@ pub trait ClientAccountSet {
     /// The minimum number of accounts the instructionmight use
     const MIN_LEN: usize;
     fn extend_account_metas(
-        program_id: &Pubkey,
+        program_id: &Address,
         accounts: &Self::ClientAccounts,
         metas: &mut Vec<AccountMeta>,
     );
@@ -293,7 +294,7 @@ pub trait ClientAccountSet {
 /// Used to check if the key matches the expected key.
 pub trait CheckKey {
     /// Checks if the key matches the expected key.
-    fn check_key(&self, key: &Pubkey) -> Result<()>;
+    fn check_key(&self, key: &Address) -> Result<()>;
 }
 
 static_assertions::assert_obj_safe!(CanAddLamports, CanFundRent);
@@ -302,10 +303,11 @@ static_assertions::assert_obj_safe!(CanAddLamports, CanFundRent);
 #[rust_analyzer::completions(ignore_methods)]
 pub trait CanAddLamports: Debug {
     #[rust_analyzer::completions(ignore_flyimport)]
-    fn account_to_modify(&self) -> AccountInfo;
+    fn account_to_modify(&self) -> AccountView;
     #[inline]
     fn add_lamports(&self, lamports: u64) -> Result<()> {
-        *self.account_to_modify().try_borrow_mut_lamports()? += lamports;
+        let account = self.account_to_modify();
+        account.set_lamports(account.lamports() + lamports);
         Ok(())
     }
 }
@@ -340,7 +342,7 @@ pub trait CanCloseAccount {
     /// Closes the account by reallocating to zero and assigning to the System program.
     /// This is the same as calling `close` but not abusable and harder for indexer detection.
     ///
-    /// It also happens to be unsound because [`AccountInfo::assign`] is unsound.
+    /// It also happens to be unsound because [`AccountView::assign`] is unsound.
     fn close_account_full(&self, recipient: &dyn CanAddLamports) -> Result<()>;
 }
 
@@ -376,7 +378,7 @@ pub trait CanSystemCreateAccount {
     fn system_create_account(
         &self,
         funder: &(impl CanFundRent + ?Sized),
-        owner: Pubkey,
+        owner: Address,
         space: usize,
         account_seeds: Option<&[&[u8]]>,
         ctx: &Context,
@@ -440,6 +442,7 @@ pub(crate) mod prelude {
 
 #[cfg(test)]
 mod test {
+    use super::*;
     use crate::{account_set::AccountSetValidate, prelude::Context};
     use star_frame_proc::AccountSet;
 

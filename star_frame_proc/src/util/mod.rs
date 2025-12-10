@@ -7,6 +7,7 @@ pub use paths::*;
 pub use repr::*;
 use std::borrow::Borrow;
 
+use core::fmt::Debug;
 use easy_proc::find_attr;
 use heck::ToSnakeCase;
 use itertools::Itertools;
@@ -14,7 +15,6 @@ use proc_macro2::{Ident, TokenStream};
 use proc_macro_crate::{crate_name, FoundCrate};
 use proc_macro_error2::abort;
 use quote::{format_ident, quote, ToTokens};
-use std::fmt::Debug;
 use syn::{
     parse_quote,
     punctuated::Punctuated,

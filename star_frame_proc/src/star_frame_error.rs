@@ -39,7 +39,7 @@ const ERROR_MESSAGE_ATTR: &str =
     "Each variant must have an attribute in the format `#[msg(\"My error message\")]`";
 
 pub fn star_frame_error_impl(mut item: ItemEnum, args: TokenStream) -> TokenStream {
-    Paths!(prelude);
+    Paths!(crate_name, prelude);
 
     let args = StarFrameErrorArgs::parse_arguments(&parse_quote!(#[star_frame_error(#args)]));
 
@@ -89,7 +89,7 @@ pub fn star_frame_error_impl(mut item: ItemEnum, args: TokenStream) -> TokenStre
             fn code(&self) -> u32 {
                 *self as u32
             }
-            fn name(&self) -> ::std::borrow::Cow<'static, str> {
+            fn name(&self) -> #crate_name::alloc::borrow::Cow<'static, str> {
                 match self {
                     #(Self::#variant_idents => #messages),*
                 }
@@ -129,6 +129,8 @@ pub fn star_frame_error_impl(mut item: ItemEnum, args: TokenStream) -> TokenStre
             }
         });
         ignore_cfg_module(ident, "_errors_to_idl", quote! {
+            use #crate_name::alloc::string::ToString;
+
             #[cfg(all(feature = "idl", not(target_os = "solana")))]
             #[automatically_derived]
             impl #prelude::ErrorsToIdl for #ident {

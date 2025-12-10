@@ -5,14 +5,16 @@ use crate::{
     account_set::{CanAddLamports, CanFundRent},
     prelude::*,
 };
+use core::cell::Cell;
 use pinocchio::sysvars::{clock::Clock, rent::Rent, Sysvar};
-use std::cell::Cell;
 
 /// Additional context given to [`crate::instruction::StarFrameInstruction`]s, enabling programs to cache and retrieve helpful information during instruction execution.
 #[derive(Debug)]
 pub struct Context {
     /// The program id of the currently executing program.
-    program_id: &'static Pubkey,
+    program_id: &'static Address,
+    /// The remaining data that wasn't parsed from Borsh.
+    remaining_data: &'static [u8],
     // Rent cache to avoid repeated `Rent::get()` calls
     rent_cache: Cell<Option<Rent>>,
     // Clock cache to avoid repeated `Clock::get()` calls
@@ -25,17 +27,18 @@ pub struct Context {
 
 impl Default for Context {
     fn default() -> Self {
-        static ZERO_PUBKEY: Pubkey = Pubkey::new_from_array([0; 32]);
-        Self::new(&ZERO_PUBKEY)
+        static ZERO_PUBKEY: Address = Address::new_from_array([0; 32]);
+        Self::new(&ZERO_PUBKEY, &[])
     }
 }
 
 impl Context {
     /// Create a new context from a program id.
     #[must_use]
-    pub fn new(program_id: &'static Pubkey) -> Self {
+    pub fn new(program_id: &'static Address, remaining_data: &'static [u8]) -> Self {
         Self {
             program_id,
+            remaining_data,
             rent_cache: Cell::new(None),
             clock_cache: Cell::new(None),
             recipient: None,
@@ -44,8 +47,13 @@ impl Context {
     }
 
     /// Get the program id of the currently executing program.
-    pub fn current_program_id(&self) -> &Pubkey {
+    pub fn current_program_id(&self) -> &Address {
         self.program_id
+    }
+
+    /// Get the remaining data that wasn't parsed from Borsh.
+    pub fn remaining_data(&self) -> &'static [u8] {
+        self.remaining_data
     }
 
     /// Gets the rent sysvar from the cache, populating the cache with a call to `Rent::get()` if empty.
@@ -74,7 +82,7 @@ impl Context {
 
     /// Gets the cached funder for rent if it has been set.
     pub fn get_funder(&self) -> Option<&dyn CanFundRent> {
-        self.funder.as_ref().map(std::convert::AsRef::as_ref)
+        self.funder.as_ref().map(core::convert::AsRef::as_ref)
     }
 
     /// Sets the funder for rent.
@@ -84,7 +92,7 @@ impl Context {
 
     /// Gets the cached recipient for rent if it has been set.
     pub fn get_recipient(&self) -> Option<&dyn CanAddLamports> {
-        self.recipient.as_ref().map(std::convert::AsRef::as_ref)
+        self.recipient.as_ref().map(core::convert::AsRef::as_ref)
     }
 
     /// Sets the recipient for rent.

@@ -150,7 +150,7 @@ pub(super) fn cleanups(
         let handle_paths = field_name.iter().map(|field_name| if single_set_field.is_some() {
             quote! { res?; }
         } else {
-            quote! { #prelude::ErrorInfo::account_path(res, ::std::stringify!(#field_name))?; }
+            quote! { #prelude::ErrorInfo::account_path(res, ::core::stringify!(#field_name))?; }
         }).collect::<Vec<_>>();
 
         quote! {

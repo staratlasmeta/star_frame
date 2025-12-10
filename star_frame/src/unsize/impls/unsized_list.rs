@@ -8,6 +8,7 @@ use crate::{
     align1::Align1,
     bail,
     data_types::PackedValue,
+    derive_more::Deref,
     ensure, error,
     errors::ErrorInfo,
     unsize::{
@@ -19,15 +20,10 @@ use crate::{
     ErrorCode, Result,
 };
 use advancer::{Advance, AdvanceArray};
+use alloc::{boxed::Box, format, vec::Vec};
 use bytemuck::{bytes_of, cast_slice_mut, Pod, Zeroable};
-use core::slice;
-use derive_more::Deref;
-use itertools::Itertools;
-use num_traits::ToPrimitive;
-use pinocchio::program_error::ProgramError;
-use ptr_meta::Pointee;
-use solana_program_memory::sol_memmove;
-use std::{
+
+use core::{
     borrow::Borrow,
     cell::Cell,
     cmp::Ordering,
@@ -35,7 +31,13 @@ use std::{
     marker::PhantomData,
     mem::size_of,
     ops::{Deref, DerefMut, Range, RangeBounds},
+    slice,
 };
+use itertools::Itertools;
+use num_traits::ToPrimitive;
+use pinocchio::error::ProgramError;
+use ptr_meta::Pointee;
+use solana_program_memory::sol_memmove;
 
 type PackedU32 = PackedValue<u32>;
 
@@ -125,14 +127,14 @@ where
         let unsized_size_bytes = bytes.try_advance_array::<U32_SIZE>().with_ctx(|| {
             format!(
                 "Failed to read unsized size bytes for {} FromOwned",
-                std::any::type_name::<Self>()
+                core::any::type_name::<Self>()
             )
         })?;
 
         let len_bytes = bytes.try_advance_array::<U32_SIZE>().with_ctx(|| {
             format!(
                 "Failed to read len bytes for {} FromOwned",
-                std::any::type_name::<Self>()
+                core::any::type_name::<Self>()
             )
         })?;
         *len_bytes = owned_len_bytes;
@@ -140,7 +142,7 @@ where
         let offset_list_bytes = bytes.try_advance(owned_len * size_of::<C>()).with_ctx(|| {
             format!(
                 "Failed to read offset list bytes for {} FromOwned",
-                std::any::type_name::<Self>()
+                core::any::type_name::<Self>()
             )
         })?;
         let offset_array = bytemuck::try_cast_slice_mut::<_, C>(offset_list_bytes)?;
@@ -148,7 +150,7 @@ where
         let copy_of_len_bytes = bytes.try_advance_array::<U32_SIZE>().with_ctx(|| {
             format!(
                 "Failed to read copy of len bytes for {} FromOwned",
-                std::any::type_name::<Self>()
+                core::any::type_name::<Self>()
             )
         })?;
         *copy_of_len_bytes = owned_len_bytes;
@@ -508,7 +510,7 @@ where
     C: UnsizedListOffset,
 {
     type UnsizedType = UnsizedList<T, C>;
-    fn check_pointers(&self, range: &std::ops::Range<usize>, cursor: &mut usize) -> bool {
+    fn check_pointers(&self, range: &Range<usize>, cursor: &mut usize) -> bool {
         let addr = self.list_ptr.addr();
         let is_advanced = addr >= *cursor;
         *cursor = addr;
@@ -540,33 +542,33 @@ where
         let unsized_size_fail = || {
             format!(
                 "Failed to read unsized size bytes for {}",
-                std::any::type_name::<Self>()
+                core::any::type_name::<Self>()
             )
         };
         let length_fail = || {
             format!(
                 "Failed to read length bytes for {}",
-                std::any::type_name::<Self>()
+                core::any::type_name::<Self>()
             )
         };
         let offset_list_fail = |length| {
             format!(
                 "Failed to read offset list of length {} for {}",
                 length,
-                std::any::type_name::<Self>()
+                core::any::type_name::<Self>()
             )
         };
         let length_copy_fail = || {
             format!(
                 "Failed to read length copy for {}",
-                std::any::type_name::<Self>()
+                core::any::type_name::<Self>()
             )
         };
         let unsized_data_fail = |size| {
             format!(
                 "Failed to read unsized data of size {} for {}",
                 size,
-                std::any::type_name::<Self>()
+                core::any::type_name::<Self>()
             )
         };
 
@@ -892,14 +894,14 @@ where
         self.check_inner_initialized();
         self.possible_mut_borrow.set(false);
         let start = match indices.start_bound() {
-            std::ops::Bound::Included(start) => *start,
-            std::ops::Bound::Excluded(start) => start + 1,
-            std::ops::Bound::Unbounded => 0,
+            core::ops::Bound::Included(start) => *start,
+            core::ops::Bound::Excluded(start) => start + 1,
+            core::ops::Bound::Unbounded => 0,
         };
         let end = match indices.end_bound() {
-            std::ops::Bound::Included(end) => *end + 1,
-            std::ops::Bound::Excluded(end) => *end,
-            std::ops::Bound::Unbounded => self.len(),
+            core::ops::Bound::Included(end) => *end + 1,
+            core::ops::Bound::Excluded(end) => *end,
+            core::ops::Bound::Unbounded => self.len(),
         };
 
         if start == 0 && end == self.len() {
@@ -1017,7 +1019,7 @@ where
         let unsized_size_bytes = bytes.try_advance_array::<U32_SIZE>().with_ctx(|| {
             format!(
                 "Failed to read unsized size bytes during initialization of {}",
-                std::any::type_name::<Self>()
+                core::any::type_name::<Self>()
             )
         })?;
         unsized_size_bytes.copy_from_slice(&<[u8; U32_SIZE]>::zeroed());
@@ -1025,7 +1027,7 @@ where
         let both_len_bytes = bytes.try_advance_array::<{ U32_SIZE * 2 }>().with_ctx(|| {
             format!(
                 "Failed to read both length bytes during initialization of {}",
-                std::any::type_name::<Self>()
+                core::any::type_name::<Self>()
             )
         })?;
         both_len_bytes.copy_from_slice(&<[u8; U32_SIZE * 2]>::zeroed());
@@ -1059,7 +1061,7 @@ where
             format!(
                 "Failed to advance {} bytes for length in list header initialization of {}",
                 U32_SIZE,
-                std::any::type_name::<Self>()
+                core::any::type_name::<Self>()
             )
         })?;
         len_bytes.copy_from_slice(bytes_of(&len_l));
@@ -1068,7 +1070,7 @@ where
             format!(
                 "Failed to advance {} bytes for offset slice in list header initialization of {}",
                 N * size_of::<C>(),
-                std::any::type_name::<Self>()
+                core::any::type_name::<Self>()
             )
         })?;
         let offset_slice: &mut [C] = cast_slice_mut(offset_slice_bytes);
@@ -1077,7 +1079,7 @@ where
             format!(
                 "Failed to advance {} bytes for offset length in list header initialization of {}",
                 U32_SIZE,
-                std::any::type_name::<Self>()
+                core::any::type_name::<Self>()
             )
         })?;
         offset_len_bytes.copy_from_slice(bytes_of(&len_l));

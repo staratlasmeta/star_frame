@@ -17,7 +17,7 @@ codama-nodes = { workspace = true }
 hex = { workspace = true }
 derive_more = { workspace = true }
 serde = { workspace = true }
-solana-pubkey = { workspace = true }
+solana-address = { workspace = true }
 semver = { workspace = true }
 itertools = { workspace = true }
 serde_json = { workspace = true }

@@ -13,8 +13,8 @@ name = "sf"
 path = "src/main.rs"
 
 [dependencies]
-clap = { workspace = true, features = ["derive", "env"]}
+clap = { workspace = true, features = ["derive", "env"] }
 colored = { workspace = true }
 eyre = { workspace = true }
 convert_case = { workspace = true }
-solana-pubkey = { workspace = true }
+solana-address = { workspace = true, features = ["atomic"] }

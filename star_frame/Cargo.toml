@@ -6,7 +6,6 @@ edition.workspace = true
 publish.workspace = true
 rust-version.workspace = true
 license.workspace = true
-
 repository.workspace = true
 
 [features]
@@ -17,20 +16,20 @@ rustdoc = ["solana-system-interface"]
 # Adds `#[inline(always)]` to more functions. Can be beneficial in some cases, but will likely increase binary size and may even reduce performance.
 # Should only be used when you have thorough benchmarks and are confident in the performance impact.
 aggressive_inline = []
+std = ["borsh/std", "serde/std"]
 
 [dependencies]
-solana-pubkey = { workspace = true, features = ["curve25519", "borsh", "serde", "bytemuck"] }
+borsh = { workspace = true }
 advancer = { workspace = true }
 array-init = { workspace = true }
-borsh = { workspace = true }
 bytemuck = { workspace = true }
 derive-where = { workspace = true }
+solana-address = { workspace = true, features = ["curve25519", "borsh", "serde", "bytemuck"] }
 derive_more = { workspace = true }
 fixed = { workspace = true }
 itertools = { workspace = true }
 num-traits = { workspace = true }
 paste = { workspace = true }
-solana-instruction = { workspace = true }
 pinocchio = { workspace = true }
 pinocchio-log = { workspace = true }
 star_frame_proc = { workspace = true }
@@ -38,15 +37,20 @@ static_assertions = { workspace = true }
 typenum = { workspace = true, features = ["const-generics"] }
 ref-cast = { workspace = true }
 ptr_meta = { workspace = true }
-solana-system-interface = { workspace = true, optional = true }
 solana-program-memory = { workspace = true }
-serde = { workspace = true, features = ["derive"] }
+serde = { workspace = true }
+solana-msg = { workspace = true }
 
+[target.'cfg(not(any(target_os = "solana", target_arch = "bpf")))'.dependencies]
+solana-instruction = { workspace = true }
+solana-system-interface = { workspace = true, optional = true }
 # feature = idl
 serde_json = { workspace = true, optional = true }
 star_frame_idl = { workspace = true, optional = true }
 
 [dev-dependencies]
+solana-msg = { workspace = true, features = ["std"] }
+solana-address = { workspace = true, features = ["atomic"] }
 pretty_assertions = { workspace = true }
 solana-system-interface = { workspace = true }
 

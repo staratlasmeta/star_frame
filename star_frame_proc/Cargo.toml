@@ -16,18 +16,17 @@ proc-macro = true
 default = []
 
 [dependencies]
-bs58 = { workspace = true }
-daggy = { workspace = true }
-derive_more = { workspace = true }
-itertools = { workspace = true }
-easy_proc = { workspace = true }
-heck = { workspace = true }
-proc-macro-crate = { workspace = true }
-proc-macro-error2 = { workspace = true }
-proc-macro2 = { workspace = true }
-quote = { workspace = true }
-syn = { workspace = true }
-sha2 = { workspace = true }
+bs58 = "^0.5.0"
+daggy = "^0.9.0"
+itertools = { workspace = true, features = ["use_std"] }
+easy_proc = "^0.4.0"
+heck = "^0.5.0"
+proc-macro-crate = "^3.1.0"
+proc-macro-error2 = { version = "^2.0.1", default-features = false }
+proc-macro2 = "^1.0.27"
+quote = "^1.0.9"
+syn = { version = "^2.0.40", features = ["extra-traits"] }
+sha2 = "^0.10.8"
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }

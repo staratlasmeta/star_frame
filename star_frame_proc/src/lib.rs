@@ -8,7 +8,7 @@ mod instruction_args;
 mod instruction_set;
 mod program;
 mod program_account;
-mod solana_pubkey;
+mod solana_address;
 mod star_frame_error;
 mod star_frame_instruction;
 mod unsize;
@@ -128,7 +128,7 @@ use syn::{
 /// - `arg = <expr>` - Argument to pass to the field's `AccountSetValidate`` function
 /// - `temp = <expr>` - Temporary variable expression to use with `arg` (requires `arg` to be specified)
 /// - `arg_ty = <type>` - Type of the validation argument. Usually inferred, but can be specified to get better error messages
-/// - `address = <expr>` - Check that the field's key matches this address, expr must return a `&Pubkey`
+/// - `address = <expr>` - Check that the field's key matches this address, expr must return a `&Address`
 ///
 /// ## `#[decode(id = <str>, arg = <expr>)]`
 ///
@@ -148,7 +148,7 @@ use syn::{
 /// Pass arguments to IDL generation:
 /// - `id = <str>` - Which IDL variant this field participates in, to enable multiple `AccountSetToIdl` implementations
 /// - `arg = <expr>` - Argument to pass to the field's `AccountSetToIdl` function for IDL generation
-/// - `address = <expr>` - Address expression for single account IDL generation, expr must return a `Pubkey`
+/// - `address = <expr>` - Address expression for single account IDL generation, expr must return a `Address`
 ///
 /// # Examples
 ///
@@ -245,12 +245,12 @@ pub fn derive_account_set(input: proc_macro::TokenStream) -> proc_macro::TokenSt
 ///
 /// #[derive(Debug, GetSeeds, Clone)]
 /// pub struct TestAccount {
-///     key: Pubkey,
+///     key: Address,
 ///     number: u64,
 /// }
 ///
 /// let account = TestAccount {
-///     key: Pubkey::new_unique(),
+///     key: Address::new_unique(),
 ///     number: 42,
 /// };
 /// ```
@@ -277,7 +277,7 @@ pub fn derive_account_set(input: proc_macro::TokenStream) -> proc_macro::TokenSt
 /// #[derive(Debug, GetSeeds, Clone)]
 /// #[get_seeds(seed_const = b"TEST_CONST")]
 /// pub struct TestAccount {
-///     key: Pubkey,
+///     key: Address,
 /// }
 /// ```
 #[proc_macro_error]
@@ -397,7 +397,7 @@ pub fn star_frame_instruction_set(item: proc_macro::TokenStream) -> proc_macro::
 ///
 /// #[derive(GetSeeds, Debug, Clone)]
 /// pub struct MyAccountSeeds {
-///     pub key: Pubkey,
+///     pub key: Address,
 /// }
 /// ```
 #[proc_macro_error]
@@ -427,7 +427,7 @@ pub fn program_account(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
 /// #[derive(StarFrameProgram)]
 /// #[program(
 ///     instruction_set = MyInstructionSet<'static>,
-///     id = Pubkey::new_from_array([0; 32]),
+///     id = Address::new_from_array([0; 32]),
 ///     account_discriminant = [u8; 8],
 ///     no_entrypoint,
 ///     no_setup,
@@ -462,7 +462,7 @@ pub fn program_account(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
 /// - `instruction_set` - The enum that implements `InstructionSet` for the program. If the instruction set has a
 /// lifetime, it should be passed in as `'static`.
 /// - `id` - The program id for the program. This can be either a literal string in base58 ("AABBCC42")
-/// or an expression that resolves to a `Pubkey`
+/// or an expression that resolves to a `Address`
 /// - `account_discriminant` - The `AccountDiscriminant` type used for the program. Defaults to `[u8; 8]` (similarly to Anchor)
 /// - `closed_account_discriminant` - The `AccountDiscriminant` value used for closed accounts. Defaults to `[u8::MAX; 8]`
 /// - `no_entrypoint` - If present, the macro will not generate an entrypoint for the program.
@@ -524,13 +524,13 @@ pub fn program(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 ///     pub another_sized_field: bool,
 ///     #[unsized_start]
 ///     pub bytes: List<u8>,
-///     pub map: Map<Pubkey, [u8; 10]>,
+///     pub map: Map<Address, [u8; 10]>,
 /// }
 ///
 /// # fn main() -> Result<()> {
 /// let account = TestByteSet::<MyAccount>::new_default()?; // Get from program entrypoint or use `TestByteSet`
 /// let mut data = account.data_mut()?;
-/// data.map().insert(Pubkey::new_unique(), [0; 10]); // To resize a field, access it with the method() version of the field name
+/// data.map().insert(Address::new_unique(), [0; 10]); // To resize a field, access it with the method() version of the field name
 /// data.bytes().push(10);
 /// data.bytes[0] = 10;
 /// let len = data.bytes().len(); // To just read or write to the field without resizing, you can access the field like a normal struct.
@@ -551,7 +551,7 @@ pub fn program(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 /// pub struct MyUnsizedType {
 ///     pub sized: u64,
 ///     #[unsized_start]
-///     pub map: Map<Pubkey, u8>,
+///     pub map: Map<Address, u8>,
 /// }
 ///
 /// #[unsized_type]
@@ -559,17 +559,17 @@ pub fn program(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 /// pub enum MyEnum {
 ///     #[default_init]
 ///     UnitVariant,
-///     SizedPubkey(Pubkey),
+///     SizedAddress(Address),
 ///     Unsized(MyUnsizedType),
 /// }
 ///
 /// # fn main() -> Result<()> {
 /// let account = TestByteSet::<MyEnum>::new_default()?;
 /// let mut data = account.data_mut()?;
-/// assert!(matches!(**data, MyEnum::UnitVariant));
-/// let new_key = Pubkey::new_unique();
-/// let mut the_key = data.set_sized_pubkey(new_key)?;
-/// assert!(matches!(**the_key, new_key));
+/// assert!(matches!(&**data, &MyEnum::UnitVariant));
+/// let new_addr = Address::new_unique();
+/// let mut the_key = data.set_sized_address(new_addr)?;
+/// assert!(matches!(**the_key, new_addr));
 ///
 /// let _unsized_inner = data.set_unsized(DefaultInit)?;
 ///
@@ -577,7 +577,7 @@ pub fn program(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 /// let MyEnumExclusive::Unsized(mut unsized_inner) = data.get() else {
 ///     panic!("Expected Unsized variant");
 /// };
-/// unsized_inner.map().insert(new_key, 10);
+/// unsized_inner.map().insert(new_addr, 10);
 ///
 /// # Ok(())
 /// # }
@@ -814,7 +814,7 @@ pub fn derive_type_to_idl(item: proc_macro::TokenStream) -> proc_macro::TokenStr
 /// #[derive(TypeToIdl)]
 /// pub struct MyInstruction {
 ///     pub amount: u64,
-///     pub recipient: Pubkey,
+///     pub recipient: Address,
 /// }
 /// ```
 #[proc_macro_error]
@@ -849,14 +849,14 @@ pub fn derive_instruction_to_idl(input: proc_macro::TokenStream) -> proc_macro::
 /// # #[zero_copy(pod)]
 /// # #[derive(ProgramAccount)]
 /// # pub struct CounterAccount {
-/// #     pub authority: Pubkey,
+/// #     pub authority: Address,
 /// #     pub count: u64,
 /// # }
 /// #
 /// # #[derive(AccountSet)]
 /// # pub struct InitializeAccounts {
 /// #     pub counter: Mut<Account<CounterAccount>>,
-/// #     pub authority: AccountInfo,
+/// #     pub authority: AccountView,
 /// # }
 ///
 /// #[derive(InstructionArgs, BorshDeserialize)]
@@ -874,7 +874,7 @@ pub fn derive_instruction_to_idl(input: proc_macro::TokenStream) -> proc_macro::
 /// #[star_frame_instruction]
 /// fn Initialize(initialize_accounts: &mut InitializeAccounts, start_at: &mut Option<u64>) -> Result<()> {
 ///     **initialize_accounts.counter.data_mut()? = CounterAccount {
-///         authority: *initialize_accounts.authority.pubkey(),
+///         authority: *initialize_accounts.authority.address(),
 ///         count: start_at.unwrap_or(0),
 ///     };
 ///     Ok(())
@@ -993,9 +993,9 @@ pub fn zero_copy(
     zero_copy::zero_copy_impl(parse_macro_input!(input as DeriveInput), args.into()).into()
 }
 
-/// Compile time generation of a `Pubkey` from a base58 string literal.
+/// Compile time generation of a `Address` from a base58 string literal.
 // ---- Copied solana-program macros to use `star_frame::solana_program` path  ----
 #[proc_macro]
-pub fn pubkey(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    solana_pubkey::pubkey_impl(input)
+pub fn address(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    solana_address::address_impl(input)
 }

@@ -15,11 +15,11 @@ use star_frame::{
     },
     bytemuck,
     errors::ErrorCode,
-    pinocchio::account_info::Ref,
+    pinocchio::account::Ref,
     prelude::*,
 };
 
-/// A wrapper around `AccountInfo` for the [`spl_token_interface::state::Mint`] account.
+/// A wrapper around `AccountView` for the [`spl_token_interface::state::Mint`] account.
 /// It validates the account data on validate and provides cheap accessor methods for accessing fields
 /// without deserializing the entire account data.
 #[derive(AccountSet, Debug, Clone)]
@@ -33,7 +33,7 @@ use star_frame::{
 )]
 pub struct MintAccount {
     #[single_account_set(skip_can_init_account, skip_has_owner_program, skip_has_inner_type)]
-    info: AccountInfo,
+    info: AccountView,
 }
 
 impl HasOwnerProgram for MintAccount {
@@ -50,11 +50,11 @@ impl HasInnerType for MintAccount {
 )]
 #[repr(C, packed)]
 pub struct MintAccountData {
-    pub mint_authority: PodOption<Pubkey>,
+    pub mint_authority: PodOption<Address>,
     pub supply: u64,
     pub decimals: u8,
     pub is_initialized: bool,
-    pub freeze_authority: PodOption<Pubkey>,
+    pub freeze_authority: PodOption<Address>,
 }
 
 impl MintAccount {
@@ -70,11 +70,11 @@ impl MintAccount {
     #[inline]
     pub fn validate(&self) -> Result<()> {
         // // todo: maybe relax this check to allow token22
-        if self.owner_pubkey() != Token::ID {
+        if !self.account_view().owned_by(&Token::ID) {
             bail!(
                 ProgramError::InvalidAccountOwner,
                 "MintAccount owner {} does not match expected Token program ID {}",
-                self.owner_pubkey(),
+                self.owner_addr(),
                 Token::ID
             );
         }
@@ -82,7 +82,7 @@ impl MintAccount {
             bail!(
                 ProgramError::InvalidAccountData,
                 "MintAccount {} has invalid data length {}, expected {}",
-                self.pubkey(),
+                self.addr(),
                 self.account_data()?.len(),
                 Self::LEN
             );
@@ -92,7 +92,7 @@ impl MintAccount {
             bail!(
                 ProgramError::UninitializedAccount,
                 "MintAccount {} is not initialized",
-                self.pubkey()
+                self.addr()
             );
         }
         Ok(())
@@ -122,7 +122,7 @@ impl MintAccount {
                 bail!(
                     ProgramError::InvalidAccountData,
                     "MintAccount {} has decimals {}, expected {}",
-                    self.pubkey(),
+                    self.addr(),
                     data.decimals,
                     decimals
                 );
@@ -133,7 +133,7 @@ impl MintAccount {
                 bail!(
                     ProgramError::InvalidAccountData,
                     "MintAccount {} has mint authority {:?}, expected {:?}",
-                    self.pubkey(),
+                    self.addr(),
                     data.mint_authority,
                     authority
                 );
@@ -145,7 +145,7 @@ impl MintAccount {
                     bail!(
                         ProgramError::InvalidAccountData,
                         "MintAccount {} has a freeze authority but expected none",
-                        self.pubkey()
+                        self.addr()
                     );
                 }
             }
@@ -154,7 +154,7 @@ impl MintAccount {
                     bail!(
                         ProgramError::InvalidAccountData,
                         "MintAccount {} has freeze authority {:?}, expected {:?}",
-                        self.pubkey(),
+                        self.addr(),
                         data.freeze_authority,
                         authority
                     );
@@ -163,7 +163,7 @@ impl MintAccount {
             _ => {}
         }
         // if let Some(token_program) = validate_mint.token_program {
-        //     if self.owner() != &token_program {
+        //     if !self.owned_by(&token_program) {
         //         bail!(ProgramError::InvalidArgument);
         //     }
         // }
@@ -176,22 +176,22 @@ pub enum FreezeAuthority<'a> {
     #[default]
     Any,
     None,
-    Some(&'a Pubkey),
+    Some(&'a Address),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Copy, Default)]
 pub struct ValidateMint<'a> {
     pub decimals: Option<u8>,
-    pub authority: Option<&'a Pubkey>,
+    pub authority: Option<&'a Address>,
     pub freeze_authority: FreezeAuthority<'a>,
-    // pub token_program: Option<Pubkey>,
+    // pub token_program: Option<Address>,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct InitMint<'a> {
     pub decimals: u8,
-    pub mint_authority: &'a Pubkey,
-    pub freeze_authority: Option<&'a Pubkey>,
+    pub mint_authority: &'a Address,
+    pub freeze_authority: Option<&'a Address>,
 }
 
 impl<'a> From<InitMint<'a>> for ValidateMint<'a> {
@@ -236,7 +236,7 @@ where
         ctx: &Context,
     ) -> Result<()> {
         let (init_mint, funder) = arg;
-        if IF_NEEDED && self.owner_pubkey() == Token::ID {
+        if IF_NEEDED && self.account_view().owned_by(&Token::ID) {
             self.validate()?;
             self.validate_mint(init_mint.into())?;
             return Ok(());
@@ -254,7 +254,7 @@ where
                 freeze_authority: init_mint.freeze_authority.cloned(),
             },
             InitializeMint2CpiAccounts {
-                mint: *self.account_info(),
+                mint: self.account_view(),
             },
             None,
         )
@@ -263,13 +263,13 @@ where
     }
 }
 
-/// A wrapper around `AccountInfo` for the [`spl_token_interface::state::Account`] account.
+/// A wrapper around `AccountView` for the [`spl_token_interface::state::Account`] account.
 /// It validates the account data on validate and provides cheap accessor methods for accessing fields
 /// without deserializing the entire account data, although it does provide full deserialization methods.
 #[derive(AccountSet, Debug, Clone)]
 #[validate(extra_validation = self.validate())]
 #[validate(
-    id = "validate_token", 
+    id = "validate_token",
     arg = ValidateToken,
     generics = [],
     extra_validation = {
@@ -279,7 +279,7 @@ where
 )]
 pub struct TokenAccount {
     #[single_account_set(skip_can_init_account, skip_has_owner_program, skip_has_inner_type)]
-    info: AccountInfo,
+    info: AccountView,
 }
 
 impl HasOwnerProgram for TokenAccount {
@@ -311,14 +311,14 @@ pub enum AccountState {
 #[derive(Clone, Copy, Debug, Default, PartialEq, CheckedBitPattern, Zeroable, NoUninit)]
 #[repr(C, packed)]
 pub struct TokenAccountData {
-    pub mint: KeyFor<MintAccount>,
-    pub owner: Pubkey,
+    pub mint: AddressFor<MintAccount>,
+    pub owner: Address,
     pub amount: u64,
-    pub delegate: PodOption<Pubkey>,
+    pub delegate: PodOption<Address>,
     pub state: AccountState,
     pub is_native: PodOption<u64>,
     pub delegated_amount: u64,
-    pub close_authority: PodOption<Pubkey>,
+    pub close_authority: PodOption<Address>,
 }
 
 impl TokenAccount {
@@ -334,11 +334,11 @@ impl TokenAccount {
     #[inline]
     pub fn validate(&self) -> Result<()> {
         // todo: maybe relax this check to allow token22
-        if self.owner_pubkey() != Token::ID {
+        if !self.account_view().owned_by(&Token::ID) {
             bail!(
                 ProgramError::InvalidAccountOwner,
                 "TokenAccount owner {} does not match expected Token program ID {}",
-                self.owner_pubkey(),
+                self.owner_addr(),
                 Token::ID
             );
         }
@@ -346,7 +346,7 @@ impl TokenAccount {
             bail!(
                 ProgramError::InvalidAccountData,
                 "TokenAccount {} has invalid data length {}, expected {}",
-                self.pubkey(),
+                self.owner_addr(),
                 self.account_data()?.len(),
                 Self::LEN
             );
@@ -356,7 +356,7 @@ impl TokenAccount {
             bail!(
                 ProgramError::UninitializedAccount,
                 "TokenAccount {} is not initialized",
-                self.pubkey()
+                self.addr()
             );
         }
         Ok(())
@@ -386,7 +386,7 @@ impl TokenAccount {
                 bail!(
                     ProgramError::InvalidAccountData,
                     "TokenAccount {} has mint {}, expected {}",
-                    self.pubkey(),
+                    self.addr(),
                     data.mint,
                     mint
                 );
@@ -397,7 +397,7 @@ impl TokenAccount {
                 bail!(
                     ProgramError::IncorrectAuthority,
                     "TokenAccount {} has owner {}, expected {}",
-                    self.pubkey(),
+                    self.addr(),
                     data.owner,
                     owner
                 );
@@ -409,9 +409,9 @@ impl TokenAccount {
 
 #[derive(Debug, Clone, PartialEq, Eq, Copy, Default)]
 pub struct ValidateToken {
-    pub mint: Option<KeyFor<MintAccount>>,
-    pub owner: Option<Pubkey>,
-    // pub token_program: Option<Pubkey>,
+    pub mint: Option<AddressFor<MintAccount>>,
+    pub owner: Option<Address>,
+    // pub token_program: Option<Address>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]
@@ -419,7 +419,7 @@ pub struct InitToken<'a, MintInfo>
 where
     MintInfo: SingleAccountSet,
 {
-    pub owner: Pubkey,
+    pub owner: Address,
     pub mint: &'a MintInfo,
 }
 
@@ -429,7 +429,7 @@ where
 {
     fn from(value: InitToken<'a, MintInfo>) -> Self {
         Self {
-            mint: Some(KeyFor::new(*value.mint.pubkey())),
+            mint: Some(AddressFor::new(*value.mint.addr())),
             owner: Some(value.owner),
         }
     }
@@ -466,7 +466,7 @@ where
         account_seeds: Option<&[&[u8]]>,
         ctx: &Context,
     ) -> Result<()> {
-        if IF_NEEDED && self.owner_pubkey() == Token::ID {
+        if IF_NEEDED && self.account_view().owned_by(&Token::ID) {
             self.validate()?;
             self.validate_token(arg.0.into())?;
             return Ok(());
@@ -483,8 +483,8 @@ where
                 owner: init_token.owner,
             },
             InitializeAccount3CpiAccounts {
-                account: *self.account_info(),
-                mint: *init_token.mint.account_info(),
+                account: self.account_view(),
+                mint: init_token.mint.account_view(),
             },
             None,
         )
@@ -500,8 +500,8 @@ mod tests {
     #[test]
     fn test_mint_accessors() -> Result<()> {
         // let mut lamports = 0;
-        // let key = Pubkey::new_unique();
-        // let mint_authority = Pubkey::new_unique();
+        // let key = Address::new_unique();
+        // let mint_authority = Address::new_unique();
         // let data = spl_token_interface::state::Mint {
         //     mint_authority: COption::Some(mint_authority),
         //     supply: 42069,
@@ -511,7 +511,7 @@ mod tests {
         // };
         // let mut mint_data = vec![0u8; spl_token_interface::state::Mint::LEN];
         // data.pack_into_slice(&mut mint_data);
-        // let info = AccountInfo::new(
+        // let info = AccountView::new(
         //     &key,
         //     false,
         //     false,
@@ -549,20 +549,20 @@ mod tests {
     #[test]
     fn test_account_accessors() -> Result<()> {
         // let mut lamports = 0;
-        // let key = Pubkey::new_unique();
+        // let key = Address::new_unique();
         // let data = spl_token_interface::state::Account {
-        //     mint: Pubkey::new_unique(),
-        //     owner: Pubkey::new_unique(),
+        //     mint: Address::new_unique(),
+        //     owner: Address::new_unique(),
         //     amount: 69,
         //     delegate: COption::None,
         //     state: spl_token_interface::state::AccountState::Initialized,
         //     is_native: COption::Some(100),
         //     delegated_amount: 42,
-        //     close_authority: COption::Some(Pubkey::new_unique()),
+        //     close_authority: COption::Some(Address::new_unique()),
         // };
         // let mut account_data = vec![0u8; spl_token_interface::state::Account::LEN];
         // data.pack_into_slice(&mut account_data);
-        // let info = AccountInfo::new(
+        // let info = AccountView::new(
         //     &key,
         //     false,
         //     false,

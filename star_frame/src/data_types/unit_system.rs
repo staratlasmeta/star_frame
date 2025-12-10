@@ -1,5 +1,9 @@
 #![allow(clippy::extra_unused_type_parameters)]
 use crate::prelude::*;
+use core::{
+    marker::PhantomData,
+    ops::{Add, AddAssign, Div, Mul, Neg, Rem, Sub, SubAssign},
+};
 use derive_where::derive_where;
 use fixed::traits::{Fixed, FromFixed, ToFixed};
 use num_traits::{
@@ -8,10 +12,6 @@ use num_traits::{
 };
 use pinocchio::sysvars::clock::Clock;
 use serde::{Deserialize, Serialize};
-use std::{
-    marker::PhantomData,
-    ops::{Add, AddAssign, Div, Mul, Neg, Rem, Sub, SubAssign},
-};
 use typenum::{IsEqual, Mod, True, Unsigned, P2, Z0};
 
 /// Strongly typed values with units from [`create_unit_system`].
@@ -722,7 +722,7 @@ macro_rules! create_unit_system {
         #[serde(bound = "", crate = "_serde_unit_system")]
         #[derive_where(Copy, Clone, Default, Debug, PartialEq, Eq)]
         #[repr(transparent)]
-        $vis struct $ident<$($unit,)+>(::std::marker::PhantomData<($($unit,)+)>);
+        $vis struct $ident<$($unit,)+>(::core::marker::PhantomData<($($unit,)+)>);
 
         $vis mod [<$ident:snake _units>] {
             use super::*;
@@ -740,11 +740,11 @@ macro_rules! create_unit_system {
             $($unit: $crate::typenum::Integer,)+
         {}
         #[automatically_derived]
-        impl<$([<$unit 1>], [<$unit 2>],)+> ::std::ops::Add<$ident<$([<$unit 2>],)+>>
+        impl<$([<$unit 1>], [<$unit 2>],)+> ::core::ops::Add<$ident<$([<$unit 2>],)+>>
             for $ident<$([<$unit 1>],)+>
         where
             $(
-                [<$unit 1>]: $crate::typenum::Integer + ::std::ops::Add<[<$unit 2>]>,
+                [<$unit 1>]: $crate::typenum::Integer + ::core::ops::Add<[<$unit 2>]>,
                 [<$unit 2>]: $crate::typenum::Integer,
                 [<$unit 1>]::Output: $crate::typenum::Integer,
             )+
@@ -755,15 +755,15 @@ macro_rules! create_unit_system {
                 self,
                 _rhs: $ident<$([<$unit 2>],)+>,
             ) -> Self::Output {
-                ::std::panic!("Not implemented")
+                ::core::panic!("Not implemented")
             }
         }
         #[automatically_derived]
-        impl<$([<$unit 1>], [<$unit 2>],)+> ::std::ops::Sub<$ident<$([<$unit 2>],)+>>
+        impl<$([<$unit 1>], [<$unit 2>],)+> ::core::ops::Sub<$ident<$([<$unit 2>],)+>>
             for $ident<$([<$unit 1>],)+>
         where
             $(
-                [<$unit 1>]: $crate::typenum::Integer + ::std::ops::Sub<[<$unit 2>]>,
+                [<$unit 1>]: $crate::typenum::Integer + ::core::ops::Sub<[<$unit 2>]>,
                 [<$unit 2>]: $crate::typenum::Integer,
                 [<$unit 1>]::Output: $crate::typenum::Integer,
             )+
@@ -774,49 +774,49 @@ macro_rules! create_unit_system {
                 self,
                 _rhs: $ident<$([<$unit 2>],)+>,
             ) -> Self::Output {
-                ::std::panic!("Not implemented")
+                ::core::panic!("Not implemented")
             }
         }
         #[automatically_derived]
-        impl<$($unit,)+ Value> ::std::ops::Mul<Value> for $ident<$($unit,)+>
+        impl<$($unit,)+ Value> ::core::ops::Mul<Value> for $ident<$($unit,)+>
         where
             $(
-                $unit: $crate::typenum::Integer + ::std::ops::Mul<Value>,
+                $unit: $crate::typenum::Integer + ::core::ops::Mul<Value>,
                 $unit::Output: $crate::typenum::Integer,
             )+
         {
             type Output = $ident<$($unit::Output,)+>;
             /// This trait implementation is solely used as trait bounds in `UnitVal` and the method isn't actually called
             fn mul(self, _rhs: Value) -> Self::Output {
-                ::std::panic!("Not implemented")
+                ::core::panic!("Not implemented")
             }
         }
         #[automatically_derived]
-        impl<$($unit,)+ Value> ::std::ops::Div<Value> for $ident<$($unit,)+>
+        impl<$($unit,)+ Value> ::core::ops::Div<Value> for $ident<$($unit,)+>
         where
             $(
-                $unit: $crate::typenum::Integer + ::std::ops::Div<Value>,
+                $unit: $crate::typenum::Integer + ::core::ops::Div<Value>,
                 $unit::Output: $crate::typenum::Integer,
             )+
         {
             type Output = $ident<$($unit::Output,)+>;
             /// This trait implementation is solely used as trait bounds in `UnitVal` and the method isn't actually called
             fn div(self, _rhs: Value) -> Self::Output {
-                ::std::panic!("Not implemented")
+                ::core::panic!("Not implemented")
             }
         }
         #[automatically_derived]
-        impl<$($unit,)+ Value> ::std::ops::Rem<Value> for $ident<$($unit,)+>
+        impl<$($unit,)+ Value> ::core::ops::Rem<Value> for $ident<$($unit,)+>
         where
             $(
-                $unit: $crate::typenum::Integer + ::std::ops::Rem<Value>,
+                $unit: $crate::typenum::Integer + ::core::ops::Rem<Value>,
                 $unit::Output: $crate::typenum::Integer,
             )+
         {
             type Output = $ident<$($unit::Output,)+>;
             /// This trait implementation is solely used as trait bounds in `UnitVal` and the method isn't actually called
             fn rem(self, _rhs: Value) -> Self::Output {
-                ::std::panic!("Not implemented")
+                ::core::panic!("Not implemented")
             }
         }
         #[automatically_derived]

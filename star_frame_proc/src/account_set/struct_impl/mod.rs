@@ -8,12 +8,12 @@ use crate::{
         recurse_type_operator, GetGenerics, Paths,
     },
 };
+use core::ops::Not;
 use easy_proc::{find_attr, ArgumentList};
 use itertools::Itertools;
 use proc_macro2::TokenStream;
 use proc_macro_error2::abort;
 use quote::{format_ident, quote, ToTokens};
-use std::ops::Not;
 use syn::{
     bracketed,
     parse::{Parse, ParseStream},
@@ -71,9 +71,10 @@ pub(super) fn derive_account_set_impl_struct(
 ) -> TokenStream {
     let AccountSetGenerics { main_generics, .. } = &account_set_generics;
 
-    Paths!(account_info, prelude, result, clone, debug, maybe_uninit);
+    Paths!(prelude, result, clone, debug, maybe_uninit);
 
     let ident = &input.ident;
+    let input_vis = &input.vis;
 
     let filter_skip = |f: &&Field| -> bool {
         find_attr(&f.attrs, &paths.account_set_ident)
@@ -204,32 +205,32 @@ pub(super) fn derive_account_set_impl_struct(
             quote! {
                 #[automatically_derived]
                 unsafe impl #sg_impl #prelude::CpiAccountSet for #ident #ty_generics #cpi_set_wc {
-                    type CpiAccounts = #prelude::AccountInfo;
+                    type CpiAccounts = #prelude::AccountView;
                     type ContainsOption = <#field_ty as #prelude::CpiAccountSet>::ContainsOption;
                     type AccountLen = #prelude::typenum::U1;
 
                     #[inline]
                     fn to_cpi_accounts(&self) -> Self::CpiAccounts {
-                        *self.account_info()
+                        self.account_view()
                     }
                     #[inline(always)]
                     fn write_account_infos<#lt>(
-                        program: Option<&#lt #prelude::AccountInfo>,
-                        accounts: &#lt #prelude::AccountInfo,
+                        program: Option<&#lt #prelude::AccountView>,
+                        accounts: &#lt #prelude::AccountView,
                         index: &mut usize,
-                        infos: &mut [#maybe_uninit<&#lt #prelude::AccountInfo>],
+                        infos: &mut [#maybe_uninit<&#lt #prelude::AccountView>],
                     ) -> #prelude::Result<()> {
-                        <#prelude::AccountInfo as #prelude::CpiAccountSet>::write_account_infos(program,  accounts, index, infos)
+                        <#prelude::AccountView as #prelude::CpiAccountSet>::write_account_infos(program,  accounts, index, infos)
                     }
                     #[inline(always)]
                     fn write_account_metas<'a>(
-                        _program_id: &#lt #prelude::Pubkey,
-                        accounts: &#lt #prelude::AccountInfo,
+                        _program_id: &#lt #prelude::Address,
+                        accounts: &#lt #prelude::AccountView,
                         index: &mut usize,
-                        metas: &mut [#maybe_uninit<#prelude::PinocchioAccountMeta<#lt>>],
+                        metas: &mut [#maybe_uninit<#prelude::InstructionAccount<#lt>>],
                     ) {
-                        metas[*index] = #maybe_uninit::new(#prelude::PinocchioAccountMeta {
-                            pubkey: accounts.key(),
+                        metas[*index] = #maybe_uninit::new(#prelude::InstructionAccount {
+                            address: accounts.address(),
                             is_signer: <Self as #prelude::SingleAccountSet>::meta().signer,
                             is_writable: <Self as #prelude::SingleAccountSet>::meta().writable,
                         });
@@ -240,14 +241,15 @@ pub(super) fn derive_account_set_impl_struct(
         });
 
         let client_set_impl = account_set_struct_args.skip_client_account_set.not().then(|| {
-            quote! {
+            ignore_cfg_module(ident, "_client_account_set", quote! {
+                #[cfg(not(target_os = "solana"))]
                 #[automatically_derived]
                 impl #sg_impl #prelude::ClientAccountSet for #ident #ty_generics #client_set_wc {
-                    type ClientAccounts = #prelude::Pubkey;
+                    type ClientAccounts = #prelude::Address;
                     const MIN_LEN: usize = 1;
                     #[inline]
                     fn extend_account_metas(
-                        _program_id: &#prelude::Pubkey,
+                        _program_id: &#prelude::Address,
                         accounts: &Self::ClientAccounts,
                         metas: &mut Vec<#prelude::AccountMeta>,
                     ) {
@@ -258,7 +260,7 @@ pub(super) fn derive_account_set_impl_struct(
                         });
                     }
                 }
-            }
+            })
         });
 
         let single = quote! {
@@ -270,8 +272,8 @@ pub(super) fn derive_account_set_impl_struct(
                 }
 
                 #[inline(always)]
-                fn account_info(&self) -> &#account_info {
-                    <#field_ty as #prelude::SingleAccountSet>::account_info(&self.#field_name)
+                fn account_view_ref(&self) -> &AccountView {
+                    <#field_ty as #prelude::SingleAccountSet>::account_view_ref(&self.#field_name)
                 }
             }
 
@@ -408,7 +410,6 @@ pub(super) fn derive_account_set_impl_struct(
             .iter()
             .map(|field| {
                 let Field {
-                    vis,
                     ident,
                     colon_token,
                     ty,
@@ -417,7 +418,7 @@ pub(super) fn derive_account_set_impl_struct(
                 where_clause.predicates.push(parse_quote! {
                     for <#cpi_lt> #ty: #cpi_set
                 });
-                parse_quote!(#vis #ident #colon_token <#ty as #cpi_set>::CpiAccounts)
+                parse_quote!( #input_vis #ident #colon_token <#ty as #cpi_set>::CpiAccounts)
             })
             .collect();
 
@@ -456,20 +457,20 @@ pub(super) fn derive_account_set_impl_struct(
 
                 #[inline(always)]
                 fn write_account_infos<#lt>(
-                    program: Option<&#lt #prelude::AccountInfo>,
+                    program: Option<&#lt #prelude::AccountView>,
                     accounts: &#lt Self::CpiAccounts,
                     index: &mut usize,
-                    infos: &mut [#maybe_uninit<&#lt #prelude::AccountInfo>],
+                    infos: &mut [#maybe_uninit<&#lt #prelude::AccountView>],
                 ) -> #prelude::Result<()> {
                     #(<#field_type as #cpi_set>::write_account_infos(program, &accounts.#field_name, index, infos)?;)*
                     Ok(())
                 }
                 #[inline(always)]
                 fn write_account_metas<#lt>(
-                    program_id: &#lt #prelude::Pubkey,
+                    program_id: &#lt #prelude::Address,
                     accounts: &#lt Self::CpiAccounts,
                     index: &mut usize,
-                    metas: &mut [#maybe_uninit<#prelude::PinocchioAccountMeta<#lt>>],
+                    metas: &mut [#maybe_uninit<#prelude::InstructionAccount<#lt>>],
                 ) {
                     #(<#field_type as #cpi_set>::write_account_metas(program_id, &accounts.#field_name, index, metas);)*
                 }
@@ -489,7 +490,6 @@ pub(super) fn derive_account_set_impl_struct(
             .iter()
             .map(|field| {
                 let Field {
-                    vis,
                     ident,
                     colon_token,
                     ty,
@@ -498,7 +498,7 @@ pub(super) fn derive_account_set_impl_struct(
                 where_clause.predicates.push(parse_quote! {
                     #ty: #client_set
                 });
-                parse_quote!(#vis #ident #colon_token <#ty as #client_set>::ClientAccounts)
+                parse_quote!(#input_vis #ident #colon_token <#ty as #client_set>::ClientAccounts)
             })
             .collect();
 
@@ -507,10 +507,15 @@ pub(super) fn derive_account_set_impl_struct(
 
         let (impl_gen, ty_gen, where_clause) = client_gen.split_for_impl();
 
+        ignore_cfg_module(
+            ident,
+            "_client_account_set",
         quote! {
+            #[cfg(not(target_os = "solana"))]
             #[derive(#clone, #debug)]
             #client_accounts_struct
 
+            #[cfg(not(target_os = "solana"))]
             #[automatically_derived]
             impl #impl_gen #client_set for #ident #ty_gen #where_clause {
                 type ClientAccounts = #client_accounts_ident #ty_gen;
@@ -518,14 +523,14 @@ pub(super) fn derive_account_set_impl_struct(
 
                 #[inline]
                 fn extend_account_metas(
-                    program_id: &#prelude::Pubkey,
+                    program_id: &#prelude::Address,
                     accounts: &#client_accounts,
                     metas: &mut Vec<#prelude::AccountMeta>,
                 ) {
                     #(<#field_type as #client_set>::extend_account_metas(program_id, &accounts.#field_name, metas);)*
                 }
             }
-        }
+        })
     });
 
     let decode_types = data_struct
