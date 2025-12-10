@@ -10,7 +10,8 @@ pub mod state;
 #[derive(StarFrameProgram)]
 #[program(
     instruction_set = MarketplaceInstructionSet,
-    id = Address::new_from_array([10; 32])
+    id = Address::new_from_array([10; 32]),
+    errors = MarketplaceError
 )]
 pub struct Marketplace;
 
