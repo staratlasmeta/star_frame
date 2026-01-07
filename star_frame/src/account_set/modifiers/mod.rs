@@ -48,12 +48,10 @@ pub trait CanInitSeeds<A>: SingleAccountSet + AccountSetValidate<A> {
 
 /// A trait that provides logic for the initializing the underlying account. This helps enable the [`Init`] and [`Seeded`] modifiers.
 pub trait CanInitAccount<A>: SingleAccountSet {
-
     /// Returns whether the account was just initialized (if it was already initialized, returns `false`).
     ///
     /// If `IF_NEEDED` is `false`, initialization is always attempted and may error if the account is already initialized.
     /// If `IF_NEEDED` is `true`, initialization is skipped (returning `false`) if the account is already initialized.
-
     #[rust_analyzer::completions(ignore_flyimport)]
     fn init_account<const IF_NEEDED: bool>(
         &mut self,
