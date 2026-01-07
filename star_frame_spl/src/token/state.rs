@@ -214,7 +214,7 @@ impl<'a> CanInitAccount<InitMint<'a>> for MintAccount {
         arg: InitMint<'a>,
         account_seeds: Option<&[&[u8]]>,
         ctx: &Context,
-    ) -> Result<()> {
+    ) -> Result<bool> {
         let funder = ctx.get_funder().ok_or_else(|| {
             error!(
                 ErrorCode::EmptyFunderCache,
@@ -234,12 +234,12 @@ where
         arg: (InitMint, &Funder),
         account_seeds: Option<&[&[u8]]>,
         ctx: &Context,
-    ) -> Result<()> {
+    ) -> Result<bool> {
         let (init_mint, funder) = arg;
         if IF_NEEDED && self.owner_pubkey() == Token::ID {
             self.validate()?;
             self.validate_mint(init_mint.into())?;
-            return Ok(());
+            return Ok(false);
         }
         self.check_writable()?;
         self.system_create_account(funder, Token::ID, Self::LEN, account_seeds, ctx)?;
@@ -259,7 +259,7 @@ where
             None,
         )
         .invoke_signed(account_seeds)?;
-        Ok(())
+        Ok(true)
     }
 }
 
@@ -269,7 +269,7 @@ where
 #[derive(AccountSet, Debug, Clone)]
 #[validate(extra_validation = self.validate())]
 #[validate(
-    id = "validate_token", 
+    id = "validate_token",
     arg = ValidateToken,
     generics = [],
     extra_validation = {
@@ -444,7 +444,7 @@ where
         arg: InitToken<MintInfo>,
         account_seeds: Option<&[&[u8]]>,
         ctx: &Context,
-    ) -> Result<()> {
+    ) -> Result<bool> {
         let funder = ctx.get_funder().ok_or_else(|| {
             error!(
                 ErrorCode::EmptyFunderCache,
@@ -465,11 +465,11 @@ where
         arg: (InitToken<MintInfo>, &Funder),
         account_seeds: Option<&[&[u8]]>,
         ctx: &Context,
-    ) -> Result<()> {
+    ) -> Result<bool> {
         if IF_NEEDED && self.owner_pubkey() == Token::ID {
             self.validate()?;
             self.validate_token(arg.0.into())?;
-            return Ok(());
+            return Ok(false);
         }
         self.check_writable()?;
         let (init_token, funder) = arg;
@@ -489,7 +489,7 @@ where
             None,
         )
         .invoke_signed(account_seeds)?;
-        Ok(())
+        Ok(true)
     }
 }
 

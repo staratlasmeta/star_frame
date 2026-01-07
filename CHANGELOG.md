@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+-   Added `Init::needed_init` to check if the initialization ran (#311)
+
 ### Fixed
 
 -   Updated CLI template `increment_rs`: Changed authority validation to use `Authority` type wrapper instead of raw `Pubkey` in `IncrementAccounts` (#297)

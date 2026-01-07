@@ -23,10 +23,10 @@ use crate::{
 /// updated `T` to the account info when the account is writable during `AccountSetCleanup`
 #[derive(AccountSet, Debug, Clone)]
 #[account_set(skip_default_decode, skip_default_idl)]
-#[cfg_attr(feature = "aggressive_inline", 
+#[cfg_attr(feature = "aggressive_inline",
     validate(inline_always, extra_validation = T::validate_account_info(self.info))
 )]
-#[cfg_attr(not(feature = "aggressive_inline"), 
+#[cfg_attr(not(feature = "aggressive_inline"),
     validate(extra_validation = T::validate_account_info(self.info))
 )]
 #[cleanup(generics = [], extra_cleanup = {
@@ -260,7 +260,7 @@ where
         _arg: (),
         account_seeds: Option<&[&[u8]]>,
         ctx: &Context,
-    ) -> Result<()> {
+    ) -> Result<bool> {
         self.init_account::<IF_NEEDED>(|| Default::default(), account_seeds, ctx)
     }
 }
@@ -276,7 +276,7 @@ where
         arg: InitFn,
         account_seeds: Option<&[&[u8]]>,
         ctx: &Context,
-    ) -> Result<()> {
+    ) -> Result<bool> {
         let funder = ctx.get_funder().ok_or_else(|| {
             error!(
                 ErrorCode::EmptyFunderCache,
@@ -297,7 +297,7 @@ where
         arg: (&Funder,),
         account_seeds: Option<&[&[u8]]>,
         ctx: &Context,
-    ) -> Result<()> {
+    ) -> Result<bool> {
         self.init_account::<IF_NEEDED>((|| Default::default(), arg.0), account_seeds, ctx)
     }
 }
@@ -313,14 +313,14 @@ where
         arg: (InitValue, &Funder),
         account_seeds: Option<&[&[u8]]>,
         ctx: &Context,
-    ) -> Result<()> {
+    ) -> Result<bool> {
         if IF_NEEDED {
             let needs_init = self.account_info().owner().fast_eq(&System::ID)
                 || self.account_data()?[..size_of::<OwnerProgramDiscriminant<T>>()]
                     .iter()
                     .all(|x| *x == 0);
             if !needs_init {
-                return Ok(());
+                return Ok(false);
             }
         }
         self.check_writable()?;
@@ -333,7 +333,7 @@ where
             .copy_from_slice(bytemuck::bytes_of(&T::DISCRIMINANT));
         // TODO: Should we serialize this now, or wait until cleanup?
         self.data = Some(data);
-        Ok(())
+        Ok(true)
     }
 }
 

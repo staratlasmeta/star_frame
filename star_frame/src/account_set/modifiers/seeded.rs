@@ -316,7 +316,7 @@ where
         arg: A,
         account_seeds: Option<&[&[u8]]>,
         ctx: &Context,
-    ) -> Result<()> {
+    ) -> Result<bool> {
         // override seeds. Init should be called after seeds are set
         if account_seeds.is_some() {
             bail!(
