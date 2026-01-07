@@ -371,7 +371,7 @@ pub(super) fn derive_account_set_impl_struct(
                         arg: #init_gen,
                         account_seeds: Option<&[&[u8]]>,
                         ctx: &#prelude::Context,
-                    ) -> #result<()> {
+                    ) -> #result<bool> {
                         <#field_ty as #prelude::CanInitAccount<#init_gen>>::init_account::<#if_needed>(&mut self.#field_name, arg, account_seeds, ctx)
                     }
                 }

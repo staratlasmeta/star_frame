@@ -4,6 +4,8 @@
 //! instruction execution. It handles the account creation process including seed initialization
 //! and account initialization, with support for both required creation and conditional creation.
 
+use std::cell::Cell;
+
 use crate::{
     account_set::modifiers::{CanInitAccount, CanInitSeeds},
     prelude::*,
@@ -16,7 +18,6 @@ use derive_more::{Deref, DerefMut};
 /// It supports different creation modes through validation arguments like `Create<T>` and
 /// `CreateIfNeeded<T>`, automatically handling seed initialization and account creation.
 #[derive(AccountSet, Clone, Debug, Deref, DerefMut)]
-#[repr(transparent)]
 #[account_set(skip_default_idl, skip_default_validate)]
 #[validate(
     id = "create",
@@ -24,7 +25,9 @@ use derive_more::{Deref, DerefMut};
     arg = Create<C>,
     before_validation = {
         self.init_seeds(&(), ctx).ctx("Failed to init seeds")?;
-        self.init_account::<false>(arg.0, None, ctx).ctx("Failed to init account")
+        let needed_init = self.init_account::<false>(arg.0, None, ctx).ctx("Failed to init account")?;
+        self.needed_init.set(needed_init);
+        Ok(())
     }
 )]
 #[validate(
@@ -33,7 +36,9 @@ use derive_more::{Deref, DerefMut};
     arg = (Create<C>, A),
     before_validation = {
         self.init_seeds(&arg.1, ctx).ctx("Failed to init seeds")?;
-        self.init_account::<false>(arg.0.0, None, ctx).ctx("Failed to init account")
+        let needed_init = self.init_account::<false>(arg.0.0, None, ctx).ctx("Failed to init account")?;
+        self.needed_init.set(needed_init);
+        Ok(())
     }
 )]
 #[validate(
@@ -42,7 +47,9 @@ use derive_more::{Deref, DerefMut};
     arg = CreateIfNeeded<C>,
     before_validation = {
         self.init_seeds(&(), ctx).ctx("Failed to init seeds")?;
-        self.init_account::<true>(arg.0, None, ctx).ctx("Failed to init account")
+        let needed_init = self.init_account::<true>(arg.0, None, ctx).ctx("Failed to init account")?;
+        self.needed_init.set(needed_init);
+        Ok(())
     }
 )]
 #[validate(
@@ -51,15 +58,28 @@ use derive_more::{Deref, DerefMut};
     arg = (CreateIfNeeded<C>, A),
     before_validation = {
         self.init_seeds(&arg.1, ctx).ctx("Failed to init seeds")?;
-        self.init_account::<true>(arg.0.0, None, ctx).ctx("Failed to init account")
+        let needed_init = self.init_account::<true>(arg.0.0, None, ctx).ctx("Failed to init account")?;
+        self.needed_init.set(needed_init);
+        Ok(())
     }
 )]
-pub struct Init<T>(
+pub struct Init<T> {
+    #[deref]
+    #[deref_mut]
     #[single_account_set(writable, skip_can_init_seeds, skip_can_init_account)]
     #[validate(id = "create_generic", arg = arg.1)]
     #[validate(id = "create_if_needed_generic", arg = arg.1)]
-    T,
-);
+    inner: T,
+    #[account_set(skip = Cell::new(false))]
+    needed_init: Cell<bool>,
+}
+
+impl<T> Init<T> {
+    /// Returns whether the initialization step happened, which occurs if the account is not already initialized.
+    pub fn needed_init(&self) -> bool {
+        self.needed_init.get()
+    }
+}
 
 /// Validation argument for `Init<T>` that requires account creation.
 ///

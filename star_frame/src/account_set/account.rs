@@ -38,10 +38,10 @@ pub struct CloseAccount<T>(pub T);
 #[derive(AccountSet, derive_where::DeriveWhere)]
 #[derive_where(Clone, Debug, Copy)]
 #[account_set(skip_default_idl, skip_default_cleanup)]
-#[cfg_attr(feature = "aggressive_inline", 
+#[cfg_attr(feature = "aggressive_inline",
     validate(inline_always, extra_validation = T::validate_account_info(self.info))
 )]
-#[cfg_attr(not(feature = "aggressive_inline"), 
+#[cfg_attr(not(feature = "aggressive_inline"),
     validate(extra_validation = T::validate_account_info(self.info))
 )]
 #[cleanup(
@@ -284,7 +284,7 @@ where
         _arg: (),
         account_seeds: Option<&[&[u8]]>,
         ctx: &Context,
-    ) -> Result<()> {
+    ) -> Result<bool> {
         self.init_account::<IF_NEEDED>(|| DefaultInit, account_seeds, ctx)
     }
 }
@@ -300,7 +300,7 @@ where
         arg: (&Funder,),
         account_seeds: Option<&[&[u8]]>,
         ctx: &Context,
-    ) -> Result<()> {
+    ) -> Result<bool> {
         self.init_account::<IF_NEEDED>((|| DefaultInit, arg.0), account_seeds, ctx)
     }
 }
@@ -317,7 +317,7 @@ where
         arg: InitFn,
         account_seeds: Option<&[&[u8]]>,
         ctx: &Context,
-    ) -> Result<()> {
+    ) -> Result<bool> {
         let funder = ctx.get_funder().ok_or_else(|| {
             error!(
                 ErrorCode::EmptyFunderCache,
@@ -341,14 +341,14 @@ where
         arg: (InitFn, &Funder),
         account_seeds: Option<&[&[u8]]>,
         ctx: &Context,
-    ) -> Result<()> {
+    ) -> Result<bool> {
         if IF_NEEDED {
             let needs_init = self.info.owner().fast_eq(&System::ID)
                 || self.account_data()?[..size_of::<OwnerProgramDiscriminant<T>>()]
                     .iter()
                     .all(|x| *x == 0);
             if !needs_init {
-                return Ok(());
+                return Ok(false);
             }
         }
         self.check_writable()?;
@@ -364,7 +364,7 @@ where
         let mut data_bytes = self.account_data_mut()?;
         let mut data_bytes = &mut *data_bytes;
         <AccountDiscriminant<T>>::init(&mut data_bytes, arg())?;
-        Ok(())
+        Ok(true)
     }
 }
 

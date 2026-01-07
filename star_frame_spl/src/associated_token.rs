@@ -343,7 +343,7 @@ pub mod state {
             arg: InitAta<'a, WalletInfo, MintInfo>,
             account_seeds: Option<&[&[u8]]>,
             ctx: &Context,
-        ) -> Result<()> {
+        ) -> Result<bool> {
             let funder = ctx.get_funder().ok_or_else(|| {
                 error!(
                     ErrorCode::EmptyFunderCache,
@@ -366,11 +366,11 @@ pub mod state {
             (init_ata, funder): (InitAta<'a, WalletInfo, MintInfo>, &Funder),
             account_seeds: Option<&[&[u8]]>,
             ctx: &Context,
-        ) -> Result<()> {
+        ) -> Result<bool> {
             if IF_NEEDED && self.owner_pubkey() == Token::ID {
                 self.validate()?;
                 self.validate_ata(init_ata.into())?;
-                return Ok(());
+                return Ok(false);
             }
             if !funder.can_create_account() {
                 let current_lamports = self.account_info().lamports();
@@ -409,7 +409,7 @@ pub mod state {
                 None,
             )
             .invoke_signed(seeds)?;
-            Ok(())
+            Ok(true)
         }
     }
 }

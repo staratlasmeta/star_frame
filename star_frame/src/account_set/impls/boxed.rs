@@ -159,7 +159,7 @@ where
         arg: A,
         account_seeds: Option<&[&[u8]]>,
         ctx: &Context,
-    ) -> Result<()> {
+    ) -> Result<bool> {
         T::init_account::<IF_NEEDED>(self, arg, account_seeds, ctx)
     }
 }
