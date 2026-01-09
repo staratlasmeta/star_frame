@@ -3083,7 +3083,7 @@ dependencies = [
 
 [[package]]
 name = "star_frame"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "advancer",
  "array-init",
@@ -3114,7 +3114,7 @@ dependencies = [
 
 [[package]]
 name = "star_frame_cli"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "clap",
  "colored",
@@ -3125,7 +3125,7 @@ dependencies = [
 
 [[package]]
 name = "star_frame_idl"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "codama-nodes",
  "derive_more 2.0.1",
@@ -3140,7 +3140,7 @@ dependencies = [
 
 [[package]]
 name = "star_frame_proc"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "bs58",
  "bytemuck",
@@ -3161,7 +3161,7 @@ dependencies = [
 
 [[package]]
 name = "star_frame_spl"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "borsh",
  "bytemuck",
