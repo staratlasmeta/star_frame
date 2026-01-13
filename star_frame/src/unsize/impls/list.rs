@@ -672,11 +672,15 @@ where
     type Item = &'a T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.index >= self.list.len() {
+        self.nth(0)
+    }
+
+    fn nth(&mut self, n: usize) -> Option<Self::Item> {
+        if n >= self.list.len() - self.index {
             return None;
         }
-        let item = &self.list[self.index];
-        self.index += 1;
+        let item = &self.list[self.index + n];
+        self.index += n + 1;
         Some(item)
     }
 
@@ -715,6 +719,19 @@ where
     }
 }
 
+impl<'a, T, L> IntoIterator for &'a ListPtr<T, L>
+where
+    T: CheckedBitPattern + NoUninit + Align1,
+    L: ListLength,
+{
+    type Item = &'a T;
+    type IntoIter = ListIter<'a, T, L>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
 impl<'a, T, L> Iterator for ListIterMut<'a, T, L>
 where
     T: CheckedBitPattern + NoUninit + Align1,
@@ -722,18 +739,26 @@ where
 {
     type Item = &'a mut T;
 
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.remaining == 0 {
+    fn nth(&mut self, n: usize) -> Option<Self::Item> {
+        if self.remaining <= n {
             return None;
         }
 
         let mut list_bytes = unsafe { &mut *self.list_bytes_ptr };
+        // Advance past the first n elements
+        let _discarded = list_bytes.advance(size_of::<T>() * n);
+
         let item_data = list_bytes.advance(size_of::<T>());
         let item = checked::from_bytes_mut(item_data);
 
-        self.remaining -= 1;
+        // We never underflow because we checked that self.remaining > n (so remaining can never be 0 in this case)
+        self.remaining -= n + 1;
         self.list_bytes_ptr = list_bytes;
         Some(item)
+    }
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.nth(0)
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -759,6 +784,18 @@ where
 }
 
 impl<'a, T, L> IntoIterator for &'a mut List<T, L>
+where
+    T: CheckedBitPattern + NoUninit + Align1,
+    L: ListLength,
+{
+    type Item = &'a mut T;
+    type IntoIter = ListIterMut<'a, T, L>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter_mut()
+    }
+}
+
+impl<'a, T, L> IntoIterator for &'a mut ListPtr<T, L>
 where
     T: CheckedBitPattern + NoUninit + Align1,
     L: ListLength,
