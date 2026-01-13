@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 -   Improved performance of Unsized Type iterators with `nth` override (#312)
+-   Removed `.max(1)` call during rent exempt amount calculation during init (#315)
+
 
 ## [0.28.0] - 2026-01-09
 

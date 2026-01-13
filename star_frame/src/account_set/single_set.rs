@@ -362,7 +362,7 @@ where
             .invoke_signed(seeds)
             .ctx("System::CreateAccount CPI failed")?;
         } else {
-            let required_lamports = exempt_lamports.saturating_sub(current_lamports).max(1);
+            let required_lamports = exempt_lamports.saturating_sub(current_lamports);
             if required_lamports > 0 {
                 CanFundRent::fund_rent(funder, &account, required_lamports, ctx)
                     .ctx("Failed to fund rent")?;
