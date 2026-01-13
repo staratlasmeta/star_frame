@@ -34,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 -   Fixed generated Mollusk template test stability by using a deterministic authority key and clearer skip messaging when the SBF artifact is missing.
+-   Removed `.max(1)` call during rent exempt amount calculation during init (#315)
 
 ## [0.28.0] - 2026-01-09
 
