@@ -676,7 +676,7 @@ where
     }
 
     fn nth(&mut self, n: usize) -> Option<Self::Item> {
-        if self.index + n >= self.list.len() {
+        if n >= self.list.len() - self.index {
             return None;
         }
         let item = &self.list[self.index + n];
