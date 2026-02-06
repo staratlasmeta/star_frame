@@ -20,7 +20,7 @@ jobs:
   lint:
     runs-on: warp-ubuntu-latest-x64-4x
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           cache-provider: warpbuild
@@ -29,7 +29,7 @@ jobs:
   fmt:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           cache: "false"
@@ -40,7 +40,7 @@ jobs:
     env:
       RUSTDOCFLAGS: "-Dwarnings"
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           cache-provider: warpbuild
@@ -49,16 +49,39 @@ jobs:
   test:
     runs-on: warp-ubuntu-latest-x64-4x
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           cache-provider: warpbuild
       - run: cargo test --all-features
 
+  scaffold_smoke:
+    runs-on: warp-ubuntu-latest-x64-4x
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache-provider: warpbuild
+      - name: Scaffold and test generated project
+        run: |
+          set -euo pipefail
+          tmp_dir="$(mktemp -d)"
+          pushd "$tmp_dir"
+          cargo run --manifest-path "$GITHUB_WORKSPACE/star_frame_cli/Cargo.toml" -- new smoke_counter
+          cd smoke_counter
+          export CARGO_TARGET_DIR="$PWD/target"
+          cargo fmt --all --check
+          cargo clippy --all-features --all-targets -- -D warnings
+          cargo build
+          cargo test
+          cargo test --features idl
+          test -f "$CARGO_TARGET_DIR/idl/smoke_counter.json"
+          test ! -e idl.json
+
   miri:
     runs-on: warp-ubuntu-latest-x64-4x
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           cache-provider: warpbuild

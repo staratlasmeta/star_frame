@@ -1,21 +1,38 @@
 use std::collections::HashMap;
-use std::{env, error::Error};
+use std::{env, error::Error, path::PathBuf};
+
 use mollusk_svm::result::Check;
 use mollusk_svm::{program::keyed_account_for_system_program, Mollusk};
 use solana_account::Account as SolanaAccount;
-use star_frame::{client::MakeInstruction, prelude::*, program::StarFrameProgram};
+use star_frame::{
+    client::{MakeInstruction, SerializeAccount},
+    prelude::{GetSeeds as _, Pubkey, System},
+    program::StarFrameProgram,
+};
+
 use crate::states::*;
 use crate::*;
 
 #[test]
-#[allow(unused)]
 fn program_test() -> Result<(), Box<dyn Error>> {
+    let sbf_out_dir = env::var_os("SBF_OUT_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("target/deploy"));
+    let program_binary = sbf_out_dir.join("{name_lowercase}.so");
+    if !program_binary.exists() {
+        println!(
+            "Skipping program_test because `{}` is missing. Run `cargo build-sbf` first.",
+            program_binary.display()
+        );
+        return Ok(());
+    }
+
     let mollusk = Mollusk::new(&{name_pascalcase}Program::ID, "{name_lowercase}");
-    let authority = Pubkey::new_unique();
+    let authority = Pubkey::new_from_array([7; 32]);
 
     let start_at = Some(2u64);
     let seeds = CounterAccountSeeds { authority };
-    let (counter_account, bump) =
+    let (counter_account, _bump) =
         Pubkey::find_program_address(&seeds.seeds(), &StarFrameDeclaredProgram::ID);
 
     let mollusk = mollusk.with_context(HashMap::from_iter([
@@ -69,12 +86,19 @@ fn program_test() -> Result<(), Box<dyn Error>> {
 //Idl Generation Test
 #[cfg(feature = "idl")]
 #[test]
-fn generate_idl() -> Result<()> {
+fn generate_idl() -> star_frame::prelude::Result<()> {
     use star_frame::prelude::*;
+
     let idl = {name_pascalcase}Program::program_to_idl()?;
     let codama_idl: ProgramNode = idl.try_into()?;
     let idl_json = codama_idl.to_json()?;
-    std::fs::write("idl.json", &idl_json)?;
+    let target_dir = env::var_os("CARGO_TARGET_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("target"));
+    let idl_path = target_dir.join("idl").join("{name_lowercase}.json");
+    if let Some(parent) = idl_path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::write(&idl_path, &idl_json)?;
     Ok(())
 }
-
