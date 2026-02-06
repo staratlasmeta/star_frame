@@ -1,5 +1,5 @@
-use star_frame::prelude::*;
 use crate::{name_pascalcase}Error;
+use star_frame::prelude::*;
 
 #[derive(Debug, GetSeeds, Clone)]
 #[get_seeds(seed_const = b"COUNTER")]
@@ -19,7 +19,11 @@ pub struct Authority(pub Pubkey);
 
 impl AccountValidate<Authority> for CounterAccount {
     fn validate_account(self_ref: &Self::Ptr, arg: Authority) -> Result<()> {
-        ensure_eq!(&self_ref.authority, &arg.0, {name_pascalcase}Error::IncorrectAuthority);
+        ensure_eq!(
+            &self_ref.authority,
+            &arg.0,
+            {name_pascalcase}Error::IncorrectAuthority
+        );
         Ok(())
     }
 }
