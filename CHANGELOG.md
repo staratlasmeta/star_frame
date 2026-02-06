@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+-   Added stricter `sf new` validation and safety checks: reject existing destinations, validate program names, and scaffold via an atomic staging directory before rename.
+-   Added clearer `sf new` post-scaffold guidance with explicit next steps for build, test, SBF build/test, and IDL generation.
+-   Added scaffold smoke coverage in CI for generated projects, including `cargo fmt --all --check`, `cargo clippy --all-features --all-targets -- -D warnings`, `cargo build`, `cargo test`, and `cargo test --features idl`.
+
+### Changed
+
+-   Updated generated template crate configuration to use `crate-type = ["cdylib", "lib"]` for better local test/dev-tooling compatibility while preserving deployable output.
+-   Updated generated IDL test output to write under `${CARGO_TARGET_DIR:-target}/idl/<program>.json` instead of writing `idl.json` at repo root.
+-   Documented and pinned template dependency `az = "=1.2.1"` as a temporary `cargo build-sbf` compatibility guard, with an explicit removal TODO once build-sbf toolchains support parsing `edition2024` crates.
+
+### Fixed
+
+-   Fixed generated Mollusk template test stability by using a deterministic authority key and clearer skip messaging when the SBF artifact is missing.
+
 ## [0.28.0] - 2026-01-09
 
 ### Added
