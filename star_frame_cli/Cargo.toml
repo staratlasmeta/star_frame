@@ -17,4 +17,5 @@ clap = { workspace = true, features = ["derive", "env"]}
 colored = { workspace = true }
 eyre = { workspace = true }
 convert_case = { workspace = true }
-solana-pubkey = { workspace = true }
+solana-keypair = { workspace = true }
+solana-signer = { workspace = true }

@@ -9,7 +9,8 @@ use clap::Parser;
 use colored::*;
 use convert_case::{Case, Casing};
 use eyre::{bail, eyre, WrapErr};
-use solana_pubkey::Pubkey;
+use solana_keypair::{write_keypair_file, Keypair};
+use solana_signer::Signer;
 
 #[derive(Parser, Debug)]
 pub struct NewArgs {
@@ -27,6 +28,7 @@ fn new_project_in(output_dir: &Path, args: NewArgs) -> eyre::Result<()> {
     let destination = output_dir.join(&project_name);
 
     scaffold_project(&destination, &project_name)?;
+    let keypair_path = program_keypair_relative_path(&project_name);
 
     println!(
         "{}",
@@ -44,6 +46,7 @@ fn new_project_in(output_dir: &Path, args: NewArgs) -> eyre::Result<()> {
         "  cargo test --features idl  # writes target/idl/{}.json",
         project_name
     );
+    println!("  # Program keypair: {}", keypair_path.display());
 
     Ok(())
 }
@@ -57,7 +60,8 @@ fn scaffold_project(destination: &Path, project_name: &str) -> eyre::Result<()> 
     }
 
     let staging_dir = staging_directory_for(destination)?;
-    let values = TemplateValues::new(project_name);
+    let program_keypair = Keypair::new();
+    let values = TemplateValues::new(project_name, program_keypair.pubkey().to_string());
 
     let scaffold_result = (|| -> eyre::Result<()> {
         create_project_directories(&staging_dir).wrap_err_with(|| {
@@ -72,6 +76,7 @@ fn scaffold_project(destination: &Path, project_name: &str) -> eyre::Result<()> 
                 staging_dir.display()
             )
         })?;
+        write_program_keypair(&staging_dir, project_name, &program_keypair)?;
         Ok(())
     })();
 
@@ -144,6 +149,36 @@ fn create_project_directories(base: &Path) -> io::Result<()> {
     ] {
         fs::create_dir_all(directory)?;
     }
+
+    Ok(())
+}
+
+fn program_keypair_relative_path(project_name: &str) -> PathBuf {
+    let artifact_name = project_name.replace('-', "_");
+    Path::new("target")
+        .join("deploy")
+        .join(format!("{artifact_name}-keypair.json"))
+}
+
+fn write_program_keypair(base: &Path, project_name: &str, keypair: &Keypair) -> eyre::Result<()> {
+    let keypair_path = base.join(program_keypair_relative_path(project_name));
+    let keypair_directory = keypair_path
+        .parent()
+        .ok_or_else(|| eyre!("Invalid keypair path `{}`", keypair_path.display()))?;
+    fs::create_dir_all(keypair_directory).wrap_err_with(|| {
+        format!(
+            "Failed to create keypair directory `{}`",
+            keypair_directory.display()
+        )
+    })?;
+    write_keypair_file(keypair, &keypair_path)
+        .map(|_json| ())
+        .map_err(|err| {
+            eyre!(
+                "Failed to write program keypair `{}`: {err}",
+                keypair_path.display()
+            )
+        })?;
 
     Ok(())
 }
@@ -334,13 +369,13 @@ struct TemplateValues {
 }
 
 impl TemplateValues {
-    fn new(project_name: &str) -> Self {
+    fn new(project_name: &str, pubkey: String) -> Self {
         Self {
             name_lowercase: project_name.to_owned(),
             name_lowercase_underscore: project_name.replace('-', "_"),
             name_uppercase: project_name.to_ascii_uppercase(),
             name_pascalcase: project_name.to_case(Case::Pascal),
-            pubkey: Pubkey::new_unique().to_string(),
+            pubkey,
         }
     }
 }
@@ -348,6 +383,8 @@ impl TemplateValues {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use solana_keypair::read_keypair_file;
+    use solana_signer::Signer;
 
     #[test]
     fn validates_expected_program_names() {
@@ -415,6 +452,8 @@ mod tests {
         assert!(project_dir.join("Cargo.toml").exists());
         assert!(project_dir.join("src/lib.rs").exists());
         assert!(project_dir.join("src/tests/counter.rs").exists());
+        let keypair_path = project_dir.join(program_keypair_relative_path("counter-program"));
+        assert!(keypair_path.exists());
 
         let cargo_toml = fs::read_to_string(project_dir.join("Cargo.toml")).unwrap();
         assert!(cargo_toml.contains("crate-type = [\"cdylib\", \"lib\"]"));
@@ -431,6 +470,35 @@ mod tests {
         assert!(counter_test.contains("Run `cargo build-sbf` first"));
         assert!(counter_test.contains("target_dir.join(\"idl\")"));
         assert!(!counter_test.contains("std::fs::write(\"idl.json\""));
+
+        let lib_rs = fs::read_to_string(project_dir.join("src/lib.rs")).unwrap();
+        let id = extract_program_id(&lib_rs).expect("missing generated program id");
+        let keypair = read_keypair_file(keypair_path).unwrap();
+        assert_eq!(id, keypair.pubkey().to_string());
+    }
+
+    #[test]
+    fn generates_distinct_program_ids() {
+        let temp_dir = TestDir::new("sf-new-distinct-ids");
+
+        new_project_in(
+            temp_dir.path(),
+            NewArgs {
+                name: "alpha".to_owned(),
+            },
+        )
+        .unwrap();
+        new_project_in(
+            temp_dir.path(),
+            NewArgs {
+                name: "beta".to_owned(),
+            },
+        )
+        .unwrap();
+
+        let alpha_id = read_program_id(&temp_dir.path().join("alpha"));
+        let beta_id = read_program_id(&temp_dir.path().join("beta"));
+        assert_ne!(alpha_id, beta_id);
     }
 
     struct TestDir {
@@ -465,5 +533,21 @@ mod tests {
         fn drop(&mut self) {
             let _ = fs::remove_dir_all(&self.path);
         }
+    }
+
+    fn read_program_id(project_dir: &Path) -> String {
+        let lib_rs = fs::read_to_string(project_dir.join("src/lib.rs")).unwrap();
+        extract_program_id(&lib_rs)
+            .unwrap_or_else(|| panic!("missing program id in `{}`", project_dir.display()))
+    }
+
+    fn extract_program_id(lib_rs: &str) -> Option<String> {
+        lib_rs.lines().find_map(|line| {
+            let trimmed = line.trim();
+            trimmed
+                .strip_prefix("id = \"")
+                .and_then(|value| value.strip_suffix('"'))
+                .map(str::to_owned)
+        })
     }
 }
