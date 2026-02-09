@@ -466,7 +466,7 @@ mod tests {
 
         let counter_test = fs::read_to_string(project_dir.join("src/tests/counter.rs")).unwrap();
         assert!(!counter_test.contains("SF_RUN_SBF_TESTS"));
-        assert!(counter_test.contains("let authority = Pubkey::new_from_array([7; 32]);"));
+        assert!(counter_test.contains("let authority = Pubkey::new_unique();"));
         assert!(counter_test.contains("Run `cargo build-sbf` first"));
         assert!(counter_test.contains("target_dir.join(\"idl\")"));
         assert!(!counter_test.contains("std::fs::write(\"idl.json\""));
