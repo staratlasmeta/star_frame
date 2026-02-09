@@ -28,7 +28,7 @@ fn program_test() -> Result<(), Box<dyn Error>> {
     }
 
     let mollusk = Mollusk::new(&{name_pascalcase}Program::ID, "{name_lowercase}");
-    let authority = Pubkey::new_from_array([7; 32]);
+    let authority = Pubkey::new_unique();
 
     let start_at = Some(2u64);
     let seeds = CounterAccountSeeds { authority };
