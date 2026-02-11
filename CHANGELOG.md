@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+-   Added fail-closed structural IDL verification behind the `verifier` feature in `star_frame_idl`, with compatibility-default and strict-graph verification modes, including deterministic verifier rule IDs (`SFIDL001`-`SFIDL011`) in verifier diagnostics.
+-   Added verifier feature-gate compile checks to ensure `star_frame_idl::verifier` is unavailable when the `verifier` feature is disabled.
+-   Added `docs/IDL_VERIFIER_SCOPE.md` documenting verifier guarantees, rule scope, and explicit non-goals.
+
 ## [0.29.0] - 2026-02-11
 
 ### Added

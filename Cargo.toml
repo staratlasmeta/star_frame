@@ -67,6 +67,7 @@ static_assertions = "^1.1.0"
 syn = { version = "^2.0.40", features = ["extra-traits"] }
 typenum = "^1.17.0"
 thiserror = "2.0.7"
+trybuild = "=1.0.115"
 
 
 [profile.release]
