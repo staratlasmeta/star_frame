@@ -62,13 +62,35 @@ jobs:
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           cache-provider: warpbuild
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       - name: Scaffold and test generated project
         run: |
           set -euo pipefail
           tmp_dir="$(mktemp -d)"
           pushd "$tmp_dir"
           cargo run --manifest-path "$GITHUB_WORKSPACE/star_frame_cli/Cargo.toml" -- new smoke_counter
+          mkdir -p "$tmp_dir/.cargo"
+          printf '%s\n' \
+            '[patch.crates-io]' \
+            "star_frame = { path = \"$GITHUB_WORKSPACE/star_frame\" }" \
+            "star_frame_idl = { path = \"$GITHUB_WORKSPACE/star_frame_idl\" }" \
+            "star_frame_proc = { path = \"$GITHUB_WORKSPACE/star_frame_proc\" }" \
+            "star_frame_spl = { path = \"$GITHUB_WORKSPACE/star_frame_spl\" }" \
+            > "$tmp_dir/.cargo/config.toml"
           cd smoke_counter
+          workspace_pkgid="$(cargo pkgid --manifest-path "$GITHUB_WORKSPACE/star_frame/Cargo.toml")"
+          workspace_version="${workspace_pkgid##*#}"
+          workspace_version="${workspace_version##*@}"
+          generated_req="$(
+            cargo metadata --format-version 1 --no-deps | python3 -c "import json,sys; metadata=json.load(sys.stdin); resolve=metadata.get('resolve') or {}; root_id=resolve.get('root') or (metadata.get('workspace_members') or [None])[0]; packages_by_id={package['id']: package for package in metadata['packages']}; root_package=packages_by_id.get(root_id); dependency=next((dep for dep in root_package.get('dependencies', []) if dep.get('name') == 'star_frame' or dep.get('package') == 'star_frame'), None) if root_package else None; (root_id is not None) or (_ for _ in ()).throw(SystemExit('No workspace members found in generated project metadata')); (root_package is not None) or (_ for _ in ()).throw(SystemExit(f'Root package {root_id} not found in metadata packages')); (dependency is not None) or (_ for _ in ()).throw(SystemExit('Generated project root package does not depend on star_frame')); print(dependency['req'])"
+          )"
+          generated_req_normalized="${generated_req#^}"
+          if [[ "$generated_req_normalized" != "$workspace_version" ]]; then
+            echo "Generated template star_frame requirement ($generated_req) does not match workspace version ($workspace_version)" >&2
+            exit 1
+          fi
           export CARGO_TARGET_DIR="$PWD/target"
           cargo fmt --all --check
           cargo clippy --all-features --all-targets -- -D warnings
