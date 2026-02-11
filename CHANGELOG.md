@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.29.0] - 2026-02-11
+
 ### Added
 
 -   Added stricter `sf new` validation and safety checks: reject existing destinations, validate program names, and scaffold via an atomic staging directory before rename.
@@ -158,7 +160,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 -   Additional documentation improvements (#223).
 
-[unreleased]: https://github.com/staratlasmeta/star_frame/compare/v0.28.0...HEAD
+[unreleased]: https://github.com/staratlasmeta/star_frame/compare/v0.29.0...HEAD
+[0.29.0]: https://github.com/staratlasmeta/star_frame/compare/v0.28.0...v0.29.0
 [0.28.0]: https://github.com/staratlasmeta/star_frame/compare/v0.27.0...v0.28.0
 [0.27.0]: https://github.com/staratlasmeta/star_frame/compare/v0.26.3...v0.27.0
 [0.26.3]: https://github.com/staratlasmeta/star_frame/compare/v0.26.2...v0.26.3
