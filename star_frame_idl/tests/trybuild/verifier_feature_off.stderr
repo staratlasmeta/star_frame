@@ -1,0 +1,13 @@
+error[E0432]: unresolved import `star_frame_idl::verifier`
+ --> tests/trybuild/verifier_feature_off.rs:1:21
+  |
+1 | use star_frame_idl::verifier::verify_idl_definitions;
+  |                     ^^^^^^^^ could not find `verifier` in `star_frame_idl`
+  |
+note: found an item that was configured out
+ --> src/lib.rs
+  |
+  | #[cfg(feature = "verifier")]
+  |       -------------------- the item is gated behind the `verifier` feature
+  | pub mod verifier;
+  |         ^^^^^^^^
