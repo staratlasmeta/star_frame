@@ -128,15 +128,40 @@ fn WrapperProbe(accounts: &mut WrapperProbeAccounts) -> Result<()> {
         ProgramError::InvalidInstructionData
     );
 
-    let mut infos_with_program = [std::mem::MaybeUninit::uninit(); 2];
-    let mut with_program_index = 1;
-    CpiConstWrapper::<Option<()>, 0>::write_account_infos(
+    let mut wrapper_infos_with_program = [std::mem::MaybeUninit::uninit(); 2];
+    let mut inner_infos_with_program = [std::mem::MaybeUninit::uninit(); 2];
+    let mut wrapper_with_program_index = 1;
+    let mut inner_with_program_index = 1;
+    let wrapper_with_program = CpiConstWrapper::<Option<()>, 0>::write_account_infos(
         Some(accounts.system_program.account_info()),
         &wrapper_accounts,
-        &mut with_program_index,
-        &mut infos_with_program,
-    )?;
-    ensure_eq!(with_program_index, 2, ProgramError::InvalidInstructionData);
+        &mut wrapper_with_program_index,
+        &mut wrapper_infos_with_program,
+    );
+    let inner_with_program = <Option<()> as CpiAccountSet>::write_account_infos(
+        Some(accounts.system_program.account_info()),
+        &inner_accounts,
+        &mut inner_with_program_index,
+        &mut inner_infos_with_program,
+    );
+    ensure!(
+        wrapper_with_program.is_ok(),
+        ProgramError::InvalidInstructionData
+    );
+    ensure!(
+        inner_with_program.is_ok(),
+        ProgramError::InvalidInstructionData
+    );
+    ensure_eq!(
+        wrapper_with_program_index,
+        inner_with_program_index,
+        ProgramError::InvalidInstructionData
+    );
+    ensure_eq!(
+        wrapper_with_program_index,
+        2,
+        ProgramError::InvalidInstructionData
+    );
 
     let mut wrapper_infos_without_program = [std::mem::MaybeUninit::uninit(); 2];
     let mut inner_infos_without_program = [std::mem::MaybeUninit::uninit(); 2];
