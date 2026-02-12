@@ -1,7 +1,7 @@
 //! This program is used as a testing ground for on chain compute and unsized type behavior
 
 use star_frame::{
-    account_set::{modifiers::MaybeMut, CheckKey as _},
+    account_set::{modifiers::MaybeMut, CheckKey as _, CpiAccountSet, CpiConstWrapper},
     borsh::{BorshDeserialize, BorshSerialize},
     pinocchio::syscalls::sol_remaining_compute_units,
     prelude::*,
@@ -23,6 +23,7 @@ pub struct AccountTest;
 #[derive(InstructionSet)]
 pub enum AccountTestInstructionSet {
     Run(Run),
+    WrapperProbe(WrapperProbe),
 }
 
 #[derive(BorshSerialize, BorshDeserialize, InstructionArgs, Copy, Clone)]
@@ -108,6 +109,107 @@ fn Run(accounts: &mut RunAccounts<true>, arg: Run) -> Result<()> {
     Ok(())
 }
 
+#[derive(BorshSerialize, BorshDeserialize, Debug, Copy, Clone, InstructionArgs)]
+#[borsh(crate = "star_frame::borsh")]
+pub struct WrapperProbe;
+
+#[derive(AccountSet)]
+pub struct WrapperProbeAccounts {
+    pub system_program: Program<System>,
+}
+
+#[star_frame_instruction]
+fn WrapperProbe(accounts: &mut WrapperProbeAccounts) -> Result<()> {
+    let wrapper_accounts = None::<()>;
+    let inner_accounts = None::<()>;
+    ensure_eq!(
+        wrapper_accounts,
+        inner_accounts,
+        ProgramError::InvalidInstructionData
+    );
+
+    let mut infos_with_program = [std::mem::MaybeUninit::uninit(); 2];
+    let mut with_program_index = 1;
+    CpiConstWrapper::<Option<()>, 0>::write_account_infos(
+        Some(accounts.system_program.account_info()),
+        &wrapper_accounts,
+        &mut with_program_index,
+        &mut infos_with_program,
+    )?;
+    ensure_eq!(with_program_index, 2, ProgramError::InvalidInstructionData);
+
+    let mut wrapper_infos_without_program = [std::mem::MaybeUninit::uninit(); 2];
+    let mut inner_infos_without_program = [std::mem::MaybeUninit::uninit(); 2];
+    let mut wrapper_without_program_index = 1;
+    let mut inner_without_program_index = 1;
+    let wrapper_without_program = CpiConstWrapper::<Option<()>, 0>::write_account_infos(
+        None,
+        &wrapper_accounts,
+        &mut wrapper_without_program_index,
+        &mut wrapper_infos_without_program,
+    );
+    let inner_without_program = <Option<()> as CpiAccountSet>::write_account_infos(
+        None,
+        &inner_accounts,
+        &mut inner_without_program_index,
+        &mut inner_infos_without_program,
+    );
+    ensure!(
+        wrapper_without_program.is_err(),
+        ProgramError::InvalidInstructionData
+    );
+    ensure!(
+        inner_without_program.is_err(),
+        ProgramError::InvalidInstructionData
+    );
+
+    let wrapper_without_program_error = ProgramError::from(wrapper_without_program.unwrap_err());
+    let inner_without_program_error = ProgramError::from(inner_without_program.unwrap_err());
+    ensure_eq!(
+        wrapper_without_program_error,
+        inner_without_program_error,
+        ProgramError::InvalidInstructionData
+    );
+    ensure_eq!(
+        wrapper_without_program_index,
+        inner_without_program_index,
+        ProgramError::InvalidInstructionData
+    );
+    ensure_eq!(
+        wrapper_without_program_index,
+        1,
+        ProgramError::InvalidInstructionData
+    );
+
+    let program_id = accounts.system_program.pubkey();
+    let mut wrapper_meta_index = 3;
+    let mut inner_meta_index = 3;
+    let mut wrapper_metas: [std::mem::MaybeUninit<PinocchioAccountMeta<'_>>; 4] =
+        std::array::from_fn(|_| std::mem::MaybeUninit::uninit());
+    let mut inner_metas: [std::mem::MaybeUninit<PinocchioAccountMeta<'_>>; 4] =
+        std::array::from_fn(|_| std::mem::MaybeUninit::uninit());
+    CpiConstWrapper::<Option<()>, 0>::write_account_metas(
+        program_id,
+        &wrapper_accounts,
+        &mut wrapper_meta_index,
+        &mut wrapper_metas,
+    );
+    <Option<()> as CpiAccountSet>::write_account_metas(
+        program_id,
+        &inner_accounts,
+        &mut inner_meta_index,
+        &mut inner_metas,
+    );
+    ensure_eq!(
+        wrapper_meta_index,
+        inner_meta_index,
+        ProgramError::InvalidInstructionData
+    );
+    ensure_eq!(wrapper_meta_index, 4, ProgramError::InvalidInstructionData);
+
+    Ok(())
+}
+
 #[cfg(test)]
 #[allow(unused)]
 mod tests {
@@ -118,10 +220,42 @@ mod tests {
     use star_frame::client::{DeserializeAccount, SerializeAccount};
     use std::{collections::HashMap, env};
 
+    enum SbfCiPolicy {
+        OptionalInCi,
+        RequiredInCi,
+    }
+
+    fn env_is_truthy(name: &str) -> bool {
+        env::var(name)
+            .map(|value| {
+                let normalized = value.to_ascii_lowercase();
+                normalized == "1" || normalized == "true" || normalized == "yes"
+            })
+            .unwrap_or(false)
+    }
+
+    fn should_run_sbf_test(test_name: &str, ci_policy: SbfCiPolicy) -> bool {
+        if env::var_os("SBF_OUT_DIR").is_some() {
+            return true;
+        }
+
+        let required_in_ci = env_is_truthy("CI")
+            && env_is_truthy("SF_REQUIRE_SBF_TESTS")
+            && matches!(ci_policy, SbfCiPolicy::RequiredInCi);
+
+        assert!(
+            !required_in_ci,
+            "SBF_OUT_DIR must be set in CI for `{}`. Build the SBF artifact and export SBF_OUT_DIR.",
+            test_name
+        );
+
+        println!("SBF_OUT_DIR is not set, skipping test `{}`", test_name);
+        false
+    }
+
     #[test]
     fn test_ix() -> Result<()> {
-        if env::var("SBF_OUT_DIR").is_err() {
-            println!("SBF_OUT_DIR is not set, skipping test");
+        if !should_run_sbf_test("test_ix", SbfCiPolicy::OptionalInCi) {
             return Ok(());
         }
         let mut mollusk = Mollusk::new(&AccountTest::ID, "account_test");
@@ -197,6 +331,30 @@ mod tests {
                 .data,
         )?;
         assert_eq!(borsh_account_data.vec, vec![1, 2, 3, 4]);
+
+        Ok(())
+    }
+
+    #[test]
+    fn wrapper_probe_ix() -> Result<()> {
+        if !should_run_sbf_test("wrapper_probe_ix", SbfCiPolicy::RequiredInCi) {
+            return Ok(());
+        }
+
+        let mollusk = Mollusk::new(&AccountTest::ID, "account_test");
+        let account_store: HashMap<Pubkey, SolanaAccount> =
+            HashMap::from_iter([keyed_account_for_system_program()]);
+        let mollusk = mollusk.with_context(account_store);
+
+        let _res = mollusk.process_and_validate_instruction(
+            &AccountTest::instruction(
+                &WrapperProbe,
+                WrapperProbeClientAccounts {
+                    system_program: None,
+                },
+            )?,
+            &[Check::success()],
+        );
 
         Ok(())
     }
