@@ -86,11 +86,33 @@ jobs:
       - name: Locate account_test SBF output
         run: |
           set -euo pipefail
-          program_so="$(find . -type f -path '*/deploy/account_test.so' | head -n 1)"
+          expected_paths=(
+            "$GITHUB_WORKSPACE/target/deploy/account_test.so"
+            "$GITHUB_WORKSPACE/example_programs/account_test/target/deploy/account_test.so"
+          )
+          program_so=""
+          for candidate in "${expected_paths[@]}"; do
+            if [[ -f "$candidate" ]]; then
+              program_so="$candidate"
+              break
+            fi
+          done
+
           if [[ -z "${program_so}" ]]; then
-            echo "Unable to find account_test.so after cargo build-sbf" >&2
-            exit 1
+            mapfile -t matches < <(find "$GITHUB_WORKSPACE" -type f -path '*/deploy/account_test.so')
+            if (( ${#matches[@]} == 0 )); then
+              echo "Unable to find account_test.so after cargo build-sbf" >&2
+              exit 1
+            fi
+            if (( ${#matches[@]} > 1 )); then
+              echo "Found multiple account_test.so artifacts; resolve ambiguity:" >&2
+              printf ' - %s\n' "${matches[@]}" >&2
+              exit 1
+            fi
+            program_so="${matches[0]}"
           fi
+
+          echo "Resolved account_test.so at $program_so"
           echo "SBF_OUT_DIR=$(dirname "$program_so")" >> "$GITHUB_ENV"
       - name: Run wrapper probe SBF test
         run: cargo test -p account_test tests::wrapper_probe_ix -- --exact --nocapture
