@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 -   Added verifier feature-gate compile checks to ensure `star_frame_idl::verifier` is unavailable when the `verifier` feature is disabled.
 -   Added `docs/IDL_VERIFIER_SCOPE.md` documenting verifier guarantees, rule scope, and explicit non-goals.
 
+### Fixed
+
+-   Hardened scaffold smoke CI for unreleased versions by patching generated project dependencies to local workspace crates and asserting the generated `star_frame` version requirement matches the workspace version.
+
 ## [0.29.0] - 2026-02-11
 
 ### Added
