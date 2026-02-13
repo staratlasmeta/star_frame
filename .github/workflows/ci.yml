@@ -82,7 +82,7 @@ jobs:
             exit 1
           fi
       - name: Build account_test SBF artifact
-        run: cargo build-sbf --manifest-path example_programs/account_test/Cargo.toml
+        run: cargo build-sbf --manifest-path example_programs/account_test/Cargo.toml --features probe_ix
       - name: Locate account_test SBF output
         run: |
           set -euo pipefail
@@ -115,7 +115,11 @@ jobs:
           echo "Resolved account_test.so at $program_so"
           echo "SBF_OUT_DIR=$(dirname "$program_so")" >> "$GITHUB_ENV"
       - name: Run wrapper probe SBF test
-        run: cargo test -p account_test tests::wrapper_probe_ix -- --exact --nocapture
+        run: cargo test -p account_test --features probe_ix tests::wrapper_probe_ix -- --exact --nocapture
+      - name: Run borsh probe SBF test
+        run: cargo test -p account_test --features probe_ix tests::borsh_probe_invalid_access_ix -- --exact --nocapture
+      - name: Run borsh non-writable probe SBF test
+        run: cargo test -p account_test --features probe_ix tests::borsh_probe_non_writable_ix -- --exact --nocapture
 
   scaffold_smoke:
     runs-on: warp-ubuntu-latest-x64-4x

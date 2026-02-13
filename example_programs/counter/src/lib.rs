@@ -75,7 +75,7 @@ fn CreateCounter(accounts: &mut CreateCounterAccounts, start_at: Option<u64>) ->
         version: 0,
         signer: *accounts.owner.pubkey(),
         owner: *accounts.owner.pubkey(),
-        bump: accounts.counter.access_seeds().bump,
+        bump: accounts.counter.access_seeds()?.bump,
         count: start_at.unwrap_or(0),
         data: Default::default(),
     };

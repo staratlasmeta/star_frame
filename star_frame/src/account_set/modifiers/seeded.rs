@@ -280,8 +280,17 @@ where
     S: GetSeeds + Clone,
     P: SeedProgram,
 {
-    pub fn access_seeds(&self) -> &SeedsWithBump<S> {
-        self.seeds.as_ref().expect("Seeds not set!")
+    /// Returns validated seeds for call sites that require explicit failure semantics.
+    ///
+    /// Use this accessor when missing seeds should be treated as an error. For optional
+    /// signer material, use [`SignedAccount::signer_seeds`] which returns `None`.
+    pub fn access_seeds(&self) -> Result<&SeedsWithBump<S>> {
+        self.seeds.as_ref().ok_or_else(|| {
+            error!(
+                ErrorCode::SeedsNotSet,
+                "Seeds not set for `Seeded` account access."
+            )
+        })
     }
 }
 
@@ -292,7 +301,7 @@ where
     S: GetSeeds + Clone,
 {
     fn signer_seeds(&self) -> Option<Vec<&[u8]>> {
-        Some(self.access_seeds().seeds_with_bump())
+        self.seeds.as_ref().map(SeedsWithBump::seeds_with_bump)
     }
 }
 
@@ -419,9 +428,12 @@ fn _unnamed_seed_structs_fail() {}
 
 #[cfg(test)]
 mod tests {
+    use super::{CurrentProgram, Seeded, SignedAccount};
     use crate::prelude::*;
+    use crate::{errors::StarFrameError as _, ErrorCode};
 
     use solana_pubkey::Pubkey;
+    use std::marker::PhantomData;
 
     #[derive(Debug, GetSeeds, Clone)]
     pub struct UnitSeeds {}
@@ -518,5 +530,69 @@ mod tests {
         let seeds = account.seeds();
         let intended_seeds = vec![b"TEST_CONST".as_ref(), &[]];
         assert_eq!(seeds, intended_seeds);
+    }
+
+    #[derive(Debug, Clone)]
+    struct DummySeeds;
+
+    impl GetSeeds for DummySeeds {
+        fn seeds(&self) -> Vec<&[u8]> {
+            vec![&[]]
+        }
+    }
+
+    #[derive(Debug, Clone, Copy, Default)]
+    struct DummySingleAccount;
+
+    impl SingleAccountSet for DummySingleAccount {
+        fn meta() -> crate::account_set::single_set::SingleSetMeta
+        where
+            Self: Sized,
+        {
+            crate::account_set::single_set::SingleSetMeta::default()
+        }
+
+        fn account_info(&self) -> &AccountInfo {
+            unreachable!("DummySingleAccount::account_info is not used in this test")
+        }
+    }
+
+    #[test]
+    fn seeded_access_seeds_unset_returns_seed_not_set_error() {
+        let seeded = Seeded::<DummySingleAccount, DummySeeds, CurrentProgram> {
+            account: DummySingleAccount,
+            seeds: None,
+            phantom_p: PhantomData,
+        };
+
+        let result = seeded.access_seeds();
+        assert!(result.is_err());
+
+        let Err(err) = result else {
+            unreachable!("Seeded::access_seeds unexpectedly succeeded");
+        };
+        assert_eq!(
+            ProgramError::from(err),
+            ProgramError::Custom(ErrorCode::SeedsNotSet.code())
+        );
+    }
+
+    #[test]
+    fn seeded_signer_seeds_unset_returns_none_without_panicking() {
+        let seeded = Seeded::<DummySingleAccount, DummySeeds, CurrentProgram> {
+            account: DummySingleAccount,
+            seeds: None,
+            phantom_p: PhantomData,
+        };
+
+        let signer_call = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            SignedAccount::signer_seeds(&seeded)
+        }));
+        assert!(signer_call.is_ok());
+
+        let Ok(signer_seeds) = signer_call else {
+            unreachable!("Seeded::signer_seeds unexpectedly panicked");
+        };
+        assert!(signer_seeds.is_none());
     }
 }

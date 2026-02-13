@@ -17,6 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 -   Hardened scaffold smoke CI for unreleased versions by patching generated project dependencies to local workspace crates and asserting the generated `star_frame` version requirement matches the workspace version.
 -   Replaced `CpiConstWrapper` CPI `unimplemented!()` stubs with direct delegation to inner `T`, and strengthened coverage with zero-new-unsafe delegation tests, explicit `write_account_infos` error-propagation checks, a structural delegation guard, and CI-enforced runtime-backed `Some(&AccountInfo)` probe execution.
+-   Replaced `UnCallable::dispatch` panic behavior with a fail-closed `ProgramError::InvalidInstructionData` error return.
+-   Made `Seeded::access_seeds` fallible (`Result`) and updated `Seeded::signer_seeds` to return `None` when seeds are unset, removing reachable panic/expect behavior from signer flows.
+
+### Changed
+
+-   Breaking: removed `Deref`/`DerefMut` from `BorshAccount`; callers must use explicit fallible accessors `inner()` and `inner_mut()`.
 
 ## [0.29.0] - 2026-02-11
 
