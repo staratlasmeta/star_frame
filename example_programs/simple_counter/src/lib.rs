@@ -53,7 +53,7 @@ pub struct InitializeAccounts {
     pub authority: Signer<Mut<SystemAccount>>,
     #[validate(arg = (
         Create(()),
-        Seeds(CounterSeeds { authority: *self.authority.pubkey() }),
+        CounterSeeds { authority: *self.authority.pubkey() },
     ))]
     #[idl(arg = Seeds(FindCounterSeeds { authority: seed_path("authority") }))]
     pub counter: Init<Seeded<Account<CounterAccount>>>,

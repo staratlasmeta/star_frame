@@ -15,10 +15,10 @@ pub struct InitializeAccounts {
     pub market_token: MintAccount,
     #[validate(arg = (
       Create(()),
-      Seeds(MarketSeeds {
+      MarketSeeds {
         currency: *self.currency.key_for(),
         market_token: *self.market_token.key_for()
-      })
+      }
     ))]
     #[idl(
       arg = Seeds(FindMarketSeeds {

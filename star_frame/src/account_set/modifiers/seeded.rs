@@ -3,7 +3,7 @@
 //! The `Seeded<T>` modifier wraps accounts that are derived from seeds using Solana's PDA system.
 //! It automatically validates that the provided account matches the expected PDA derived from the
 //! given seeds and program, and can generate the correct PDA addresses for account creation.
-
+#![allow(deprecated)]
 use crate::{
     account_set::{
         modifiers::{CanInitAccount, CanInitSeeds, HasSeeds, SignedAccount},
@@ -95,6 +95,10 @@ where
 }
 
 /// Wrapper type for seed validation arguments.
+#[deprecated(
+    since = "0.28.0",
+    note = "Seeds is no longer required. You can use the inner struct directly"
+)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Hash, PartialOrd, Ord)]
 #[repr(transparent)]
 pub struct Seeds<T>(pub T);
@@ -144,14 +148,25 @@ where
 #[derive_where(Debug, Clone; T, SeedsWithBump<S>)]
 #[account_set(skip_default_idl, skip_default_validate)]
 #[validate(
-    id = "seeds",
+    id = "seeds_deprecated",
     generics = [where T: AccountSetValidate<()> + SingleAccountSet],
     arg = Seeds<S>,
+    before_validation = self.validate_and_set_seeds(&arg.0, ctx)
+)]
+#[validate(
+    id = "seeds_generic_deprecated",
+    arg = (Seeds<S>, A),
+    before_validation = self.validate_and_set_seeds(&arg.0.0, ctx)
+)]
+#[validate(
+    id = "seeds",
+    generics = [where T: AccountSetValidate<()> + SingleAccountSet],
+    arg = S,
     before_validation = self.validate_and_set_seeds(&arg, ctx)
 )]
 #[validate(
     id = "seeds_generic",
-    arg = (Seeds<S>, A),
+    arg = (S, A),
     before_validation = self.validate_and_set_seeds(&arg.0, ctx)
 )]
 #[validate(
@@ -177,6 +192,7 @@ where
         skip_can_init_account
     )]
     #[validate(id = "seeds_generic", arg = arg.1)]
+    #[validate(id = "seeds_generic_deprecated", arg = arg.1)]
     #[validate(id = "seeds_with_bump_generic", arg = arg.1)]
     #[deref]
     #[deref_mut]
@@ -188,24 +204,24 @@ where
     phantom_p: PhantomData<P>,
 }
 
-impl<T, S, P, A> CanInitSeeds<(Seeds<S>, A)> for Seeded<T, S, P>
+impl<T, S, P, A> CanInitSeeds<(S, A)> for Seeded<T, S, P>
 where
     T: SingleAccountSet + AccountSetValidate<A>,
     S: GetSeeds + Clone,
     P: SeedProgram,
 {
-    fn init_seeds(&mut self, arg: &(Seeds<S>, A), ctx: &Context) -> Result<()> {
+    fn init_seeds(&mut self, arg: &(S, A), ctx: &Context) -> Result<()> {
         self.validate_and_set_seeds(&arg.0, ctx)
     }
 }
 
-impl<T, S, P> CanInitSeeds<Seeds<S>> for Seeded<T, S, P>
+impl<T, S, P> CanInitSeeds<S> for Seeded<T, S, P>
 where
     T: SingleAccountSet + AccountSetValidate<()>,
     S: GetSeeds + Clone,
     P: SeedProgram,
 {
-    fn init_seeds(&mut self, arg: &Seeds<S>, ctx: &Context) -> Result<()> {
+    fn init_seeds(&mut self, arg: &S, ctx: &Context) -> Result<()> {
         self.validate_and_set_seeds(arg, ctx)
     }
 }
@@ -238,11 +254,11 @@ where
     S: GetSeeds + Clone,
     P: SeedProgram,
 {
-    fn validate_and_set_seeds(&mut self, seeds: &Seeds<S>, ctx: &Context) -> Result<()> {
+    fn validate_and_set_seeds(&mut self, seeds: &S, ctx: &Context) -> Result<()> {
         if self.seeds.is_some() {
             return Ok(());
         }
-        let seeds = seeds.clone().0;
+        let seeds = seeds.clone();
         let (address, bump) = Pubkey::find_program_address(&seeds.seeds(), &P::id(ctx)?);
         let expected = self.account.account_info().pubkey();
         ensure!(
@@ -346,7 +362,7 @@ mod idl_impl {
     use super::*;
     use star_frame_idl::{account_set::IdlAccountSetDef, seeds::IdlFindSeeds, IdlDefinition};
 
-    impl<T, A, S, P, F> AccountSetToIdl<(Seeds<F>, A)> for Seeded<T, S, P>
+    impl<T, A, S, P, F> AccountSetToIdl<(F, A)> for Seeded<T, S, P>
     where
         T: AccountSetToIdl<A> + SingleAccountSet,
         S: GetSeeds + Clone,
@@ -355,7 +371,7 @@ mod idl_impl {
     {
         fn account_set_to_idl(
             idl_definition: &mut IdlDefinition,
-            arg: (Seeds<F>, A),
+            arg: (F, A),
         ) -> crate::IdlResult<IdlAccountSetDef> {
             let mut set = T::account_set_to_idl(idl_definition, arg.1)?;
             let single = set.single()?;
@@ -370,12 +386,42 @@ mod idl_impl {
                 )));
             }
             let seeds = IdlFindSeeds {
-                seeds: F::find_seeds(&arg.0 .0)?,
+                seeds: F::find_seeds(&arg.0)?,
                 program: P::idl_program(),
             };
             single.seeds = Some(seeds);
 
             Ok(set)
+        }
+    }
+
+    impl<T, A, S, P, F> AccountSetToIdl<(Seeds<F>, A)> for Seeded<T, S, P>
+    where
+        T: AccountSetToIdl<A> + SingleAccountSet,
+        S: GetSeeds + Clone,
+        P: SeedProgram,
+        F: FindIdlSeeds,
+    {
+        fn account_set_to_idl(
+            idl_definition: &mut IdlDefinition,
+            arg: (Seeds<F>, A),
+        ) -> crate::IdlResult<IdlAccountSetDef> {
+            Self::account_set_to_idl(idl_definition, (arg.0 .0, arg.1))
+        }
+    }
+
+    impl<T, S, P, F> AccountSetToIdl<F> for Seeded<T, S, P>
+    where
+        T: AccountSetToIdl<()> + SingleAccountSet,
+        S: GetSeeds + Clone,
+        P: SeedProgram,
+        F: FindIdlSeeds,
+    {
+        fn account_set_to_idl(
+            idl_definition: &mut IdlDefinition,
+            arg: F,
+        ) -> crate::IdlResult<IdlAccountSetDef> {
+            Self::account_set_to_idl(idl_definition, (arg, ()))
         }
     }
 
@@ -390,7 +436,7 @@ mod idl_impl {
             idl_definition: &mut IdlDefinition,
             arg: Seeds<F>,
         ) -> crate::IdlResult<IdlAccountSetDef> {
-            Self::account_set_to_idl(idl_definition, (arg, ()))
+            Self::account_set_to_idl(idl_definition, (arg.0, ()))
         }
     }
 
