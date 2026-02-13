@@ -23,6 +23,10 @@ pub struct AccountTest;
 #[derive(InstructionSet)]
 pub enum AccountTestInstructionSet {
     Run(Run),
+    #[cfg(feature = "probe_ix")]
+    BorshProbe(BorshProbe),
+    #[cfg(feature = "probe_ix")]
+    BorshProbeNonWritable(BorshProbeNonWritable),
 }
 
 #[derive(BorshSerialize, BorshDeserialize, InstructionArgs, Copy, Clone)]
@@ -95,7 +99,7 @@ fn Run(accounts: &mut RunAccounts<true>, arg: Run) -> Result<()> {
         .borsh_account
         .set_inner(MyBorshAccount { vec: vec![1, 2, 3] })?;
 
-    accounts.borsh_account.vec.push(4);
+    accounts.borsh_account.inner_mut()?.vec.push(4);
 
     list.insert(
         0,
@@ -107,21 +111,140 @@ fn Run(accounts: &mut RunAccounts<true>, arg: Run) -> Result<()> {
 
     Ok(())
 }
+#[cfg(feature = "probe_ix")]
+#[derive(BorshSerialize, BorshDeserialize, Debug, Copy, Clone, InstructionArgs)]
+#[borsh(crate = "star_frame::borsh")]
+pub struct BorshProbe;
+
+#[cfg(feature = "probe_ix")]
+#[derive(AccountSet)]
+pub struct BorshProbeAccounts {
+    pub borsh_account: Signer<BorshAccount<MyBorshAccount>>,
+}
+
+#[cfg(feature = "probe_ix")]
+#[star_frame_instruction]
+fn BorshProbe(accounts: &mut BorshProbeAccounts) -> Result<()> {
+    let read_result = accounts.borsh_account.inner();
+    ensure!(read_result.is_err(), ProgramError::InvalidInstructionData);
+
+    let read_error = match read_result {
+        Ok(_) => {
+            bail!(
+                ProgramError::InvalidInstructionData,
+                "BorshProbe expected inner() to fail on uninitialized data"
+            );
+        }
+        Err(err) => ProgramError::from(err),
+    };
+    ensure_eq!(
+        read_error,
+        ProgramError::InvalidAccountData,
+        ProgramError::InvalidInstructionData
+    );
+
+    let write_result = accounts.borsh_account.inner_mut();
+    ensure!(write_result.is_err(), ProgramError::InvalidInstructionData);
+
+    let write_error = match write_result {
+        Ok(_) => {
+            bail!(
+                ProgramError::InvalidInstructionData,
+                "BorshProbe expected inner_mut() to fail on uninitialized data"
+            );
+        }
+        Err(err) => ProgramError::from(err),
+    };
+    ensure_eq!(
+        write_error,
+        ProgramError::InvalidAccountData,
+        ProgramError::InvalidInstructionData
+    );
+
+    Ok(())
+}
+
+#[cfg(feature = "probe_ix")]
+#[derive(BorshSerialize, BorshDeserialize, Debug, Copy, Clone, InstructionArgs)]
+#[borsh(crate = "star_frame::borsh")]
+pub struct BorshProbeNonWritable;
+
+#[cfg(feature = "probe_ix")]
+#[derive(AccountSet)]
+pub struct BorshProbeNonWritableAccounts {
+    pub borsh_account: MaybeMut<false, Signer<BorshAccount<MyBorshAccount>>>,
+}
+
+#[cfg(feature = "probe_ix")]
+#[star_frame_instruction]
+fn BorshProbeNonWritable(accounts: &mut BorshProbeNonWritableAccounts) -> Result<()> {
+    let write_result = accounts.borsh_account.inner_mut();
+    ensure!(write_result.is_err(), ProgramError::InvalidInstructionData);
+
+    let write_error = match write_result {
+        Ok(_) => {
+            bail!(
+                ProgramError::InvalidInstructionData,
+                "BorshProbeNonWritable expected inner_mut() to fail on non-writable account"
+            );
+        }
+        Err(err) => ProgramError::from(err),
+    };
+    ensure_eq!(
+        write_error,
+        ProgramError::AccountBorrowFailed,
+        ProgramError::InvalidInstructionData
+    );
+
+    Ok(())
+}
 
 #[cfg(test)]
 #[allow(unused)]
 mod tests {
     use super::*;
-    use mollusk_svm::{program::keyed_account_for_system_program, result::Check, Mollusk};
+    use mollusk_svm::{result::Check, Mollusk};
     use pretty_assertions::assert_eq;
     use solana_account::Account as SolanaAccount;
     use star_frame::client::{DeserializeAccount, SerializeAccount};
     use std::{collections::HashMap, env};
 
+    enum SbfCiPolicy {
+        OptionalInCi,
+        RequiredInCi,
+    }
+
+    fn env_is_truthy(name: &str) -> bool {
+        env::var(name)
+            .map(|value| {
+                let normalized = value.to_ascii_lowercase();
+                normalized == "1" || normalized == "true" || normalized == "yes"
+            })
+            .unwrap_or(false)
+    }
+
+    fn should_run_sbf_test(test_name: &str, ci_policy: SbfCiPolicy) -> bool {
+        if env::var_os("SBF_OUT_DIR").is_some() {
+            return true;
+        }
+
+        let required_in_ci = env_is_truthy("CI")
+            && env_is_truthy("SF_REQUIRE_SBF_TESTS")
+            && matches!(ci_policy, SbfCiPolicy::RequiredInCi);
+
+        assert!(
+            !required_in_ci,
+            "SBF_OUT_DIR must be set in CI for `{}`. Build the SBF artifact and export SBF_OUT_DIR.",
+            test_name
+        );
+
+        println!("SBF_OUT_DIR is not set, skipping test `{}`", test_name);
+        false
+    }
+
     #[test]
     fn test_ix() -> Result<()> {
-        if env::var("SBF_OUT_DIR").is_err() {
-            println!("SBF_OUT_DIR is not set, skipping test");
+        if !should_run_sbf_test("test_ix", SbfCiPolicy::OptionalInCi) {
             return Ok(());
         }
         let mut mollusk = Mollusk::new(&AccountTest::ID, "account_test");
@@ -197,6 +320,68 @@ mod tests {
                 .data,
         )?;
         assert_eq!(borsh_account_data.vec, vec![1, 2, 3, 4]);
+
+        Ok(())
+    }
+    #[cfg(feature = "probe_ix")]
+    #[test]
+    fn borsh_probe_invalid_access_ix() -> Result<()> {
+        if !should_run_sbf_test("borsh_probe_invalid_access_ix", SbfCiPolicy::RequiredInCi) {
+            return Ok(());
+        }
+
+        let mollusk = Mollusk::new(&AccountTest::ID, "account_test");
+        let borsh_account = Pubkey::new_unique();
+        let borsh_account_data = MyBorshAccount::discriminant_bytes();
+        let account_store: HashMap<Pubkey, SolanaAccount> = HashMap::from_iter([(
+            borsh_account,
+            SolanaAccount {
+                lamports: 1_000_000_000,
+                data: borsh_account_data,
+                owner: AccountTest::ID,
+                executable: false,
+                rent_epoch: 0,
+            },
+        )]);
+        let mollusk = mollusk.with_context(account_store);
+
+        let _res = mollusk.process_and_validate_instruction(
+            &AccountTest::instruction(&BorshProbe, BorshProbeClientAccounts { borsh_account })?,
+            &[Check::success()],
+        );
+
+        Ok(())
+    }
+
+    #[cfg(feature = "probe_ix")]
+    #[test]
+    fn borsh_probe_non_writable_ix() -> Result<()> {
+        if !should_run_sbf_test("borsh_probe_non_writable_ix", SbfCiPolicy::RequiredInCi) {
+            return Ok(());
+        }
+
+        let mollusk = Mollusk::new(&AccountTest::ID, "account_test");
+        let borsh_account = Pubkey::new_unique();
+        let borsh_account_data = MyBorshAccount::serialize_account(&MyBorshAccount::default())?;
+        let account_store: HashMap<Pubkey, SolanaAccount> = HashMap::from_iter([(
+            borsh_account,
+            SolanaAccount {
+                lamports: 1_000_000_000,
+                data: borsh_account_data,
+                owner: AccountTest::ID,
+                executable: false,
+                rent_epoch: 0,
+            },
+        )]);
+        let mollusk = mollusk.with_context(account_store);
+
+        let _res = mollusk.process_and_validate_instruction(
+            &AccountTest::instruction(
+                &BorshProbeNonWritable,
+                BorshProbeNonWritableClientAccounts { borsh_account },
+            )?,
+            &[Check::success()],
+        );
 
         Ok(())
     }

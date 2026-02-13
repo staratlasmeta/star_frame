@@ -2,7 +2,6 @@
 
 use borsh::object_length;
 use derive_more::Debug;
-use std::ops::{Deref, DerefMut};
 
 use crate::{
     account_set::{
@@ -18,6 +17,7 @@ use crate::{
 /// A [`ProgramAccount`] that is serialized and deserialized using [`BorshSerialize`] and [`BorshDeserialize`].
 ///
 /// This is much less effecient than using [`Account`] because this is not zero-copy.
+/// Access is explicit and fallible through [`Self::inner`] and [`Self::inner_mut`].
 ///
 /// Calls [`ProgramAccount::validate_account_info`] during validation to ensure the owner and discriminant match, and writes back the
 /// updated `T` to the account info when the account is writable during `AccountSetCleanup`
@@ -121,46 +121,6 @@ pub struct BorshAccount<T: ProgramAccount + BorshSerialize + BorshDeserialize> {
     data: Option<T>,
 }
 
-impl<T> Deref for BorshAccount<T>
-where
-    T: BorshDeserialize + BorshSerialize + ProgramAccount,
-{
-    type Target = T;
-    fn deref(&self) -> &Self::Target {
-        self.data.as_ref().unwrap_or_else(|| {
-            panic!(
-                "Accessing BorshAccount `{}` data before it is initialized",
-                self.info.pubkey()
-            );
-        })
-    }
-}
-
-impl<T> DerefMut for BorshAccount<T>
-where
-    T: BorshDeserialize + BorshSerialize + ProgramAccount,
-{
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        if !self.is_writable() {
-            // TODO: Perhaps put this behind a debug flag?
-            msg!(
-                "Tried to borrow mutably from BorshAccount `{}` which is not writable",
-                self.pubkey()
-            );
-            panic!(
-                "Tried to borrow mutably from BorshAccount `{}` which is not writable",
-                self.pubkey()
-            );
-        }
-        self.data.as_mut().unwrap_or_else(|| {
-            panic!(
-                "Accessing BorshAccount `{}` data before it is initialized",
-                self.info.pubkey()
-            );
-        })
-    }
-}
-
 impl<'a, T> AccountSetDecode<'a, ()> for BorshAccount<T>
 where
     T: BorshDeserialize + BorshSerialize + ProgramAccount + Default,
@@ -183,6 +143,41 @@ where
 }
 
 impl<T: ProgramAccount + BorshSerialize + BorshDeserialize> BorshAccount<T> {
+    fn missing_inner_error(pubkey: &Pubkey) -> Error {
+        error!(
+            ProgramError::InvalidAccountData,
+            "Accessing BorshAccount `{}` data before it is initialized", pubkey
+        )
+    }
+
+    /// Returns an immutable reference to the deserialized account data.
+    ///
+    /// Returns [`ProgramError::InvalidAccountData`] when data has not been initialized yet.
+    pub fn inner(&self) -> Result<&T> {
+        self.data
+            .as_ref()
+            .ok_or_else(|| Self::missing_inner_error(self.info.pubkey()))
+    }
+
+    /// Returns a mutable reference to the deserialized account data.
+    ///
+    /// Returns [`ProgramError::AccountBorrowFailed`] when the account is not writable, and
+    /// [`ProgramError::InvalidAccountData`] when data has not been initialized yet.
+    pub fn inner_mut(&mut self) -> Result<&mut T> {
+        if !self.is_writable() {
+            bail!(
+                ProgramError::AccountBorrowFailed,
+                "Tried to borrow mutably from BorshAccount `{}` which is not writable",
+                self.pubkey()
+            );
+        }
+        let pubkey = *self.info.pubkey();
+        match self.data.as_mut() {
+            Some(data) => Ok(data),
+            None => Err(Self::missing_inner_error(&pubkey)),
+        }
+    }
+
     /// Serializes the inner data `T` back to the account info if the account is writable, still owned by this program, and not closed.
     ///
     /// This is called during `AccountSetCleanup` and can be useful to call manually if you need the data to be serialized prior to a CPI.
@@ -213,8 +208,8 @@ impl<T: ProgramAccount + BorshSerialize + BorshDeserialize> BorshAccount<T> {
 
     /// Sets the inner data `T`.
     ///
-    /// While you can do this through the `DerefMut` implementation, this will auto deref
-    /// through wrapper types, so you don't need to add explicit `*`s.
+    /// To mutate existing data, use [`Self::inner_mut`]. This method replaces the entire
+    /// deserialized value.
     ///
     /// Returns an error if the account is not writable.
     pub fn set_inner(&mut self, data: T) -> Result<()> {

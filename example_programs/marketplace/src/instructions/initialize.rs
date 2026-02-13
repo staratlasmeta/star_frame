@@ -46,7 +46,7 @@ fn Initialize(accounts: &mut InitializeAccounts) -> Result<()> {
             authority: *accounts.authority.pubkey(),
             currency: *accounts.currency.key_for(),
             market_token: *accounts.market_token.key_for(),
-            bump: accounts.market_account.access_seeds().bump,
+            bump: accounts.market_account.access_seeds()?.bump,
         });
 
     Ok(())
