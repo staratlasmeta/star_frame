@@ -621,7 +621,13 @@ mod test {
         let normalized_impl: String = source[impl_start..impl_end].split_whitespace().collect();
 
         let unimplemented_token = concat!("unimplemented", "!(");
+        let todo_token = concat!("todo", "!(");
+        let panic_token = concat!("panic", "!(");
+        let unreachable_token = concat!("unreachable", "!(");
         assert!(!normalized_impl.contains(unimplemented_token));
+        assert!(!normalized_impl.contains(todo_token));
+        assert!(!normalized_impl.contains(panic_token));
+        assert!(!normalized_impl.contains(unreachable_token));
     }
 
     #[test]
