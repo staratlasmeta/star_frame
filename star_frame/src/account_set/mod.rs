@@ -253,26 +253,29 @@ where
     type ContainsOption = T::ContainsOption;
     type AccountLen = T::AccountLen;
 
+    #[inline]
     fn to_cpi_accounts(&self) -> Self::CpiAccounts {
-        unimplemented!()
+        T::to_cpi_accounts(&self.0)
     }
 
+    #[inline]
     fn write_account_infos<'a>(
-        _program: Option<&'a AccountInfo>,
-        _accounts: &'a Self::CpiAccounts,
-        _index: &mut usize,
-        _infos: &mut [MaybeUninit<&'a AccountInfo>],
+        program: Option<&'a AccountInfo>,
+        accounts: &'a Self::CpiAccounts,
+        index: &mut usize,
+        infos: &mut [MaybeUninit<&'a AccountInfo>],
     ) -> Result<()> {
-        unimplemented!()
+        T::write_account_infos(program, accounts, index, infos)
     }
 
+    #[inline]
     fn write_account_metas<'a>(
-        _program_id: &'a Pubkey,
-        _accounts: &'a Self::CpiAccounts,
-        _index: &mut usize,
-        _metas: &mut [MaybeUninit<PinocchioAccountMeta<'a>>],
+        program_id: &'a Pubkey,
+        accounts: &'a Self::CpiAccounts,
+        index: &mut usize,
+        metas: &mut [MaybeUninit<PinocchioAccountMeta<'a>>],
     ) {
-        unimplemented!()
+        T::write_account_metas(program_id, accounts, index, metas);
     }
 }
 
@@ -440,8 +443,13 @@ pub(crate) mod prelude {
 
 #[cfg(test)]
 mod test {
-    use crate::{account_set::AccountSetValidate, prelude::Context};
+    use super::{CpiAccountSet, CpiConstWrapper};
+    use crate::{
+        account_set::AccountSetValidate,
+        prelude::{Context, PinocchioAccountMeta, ProgramError, Pubkey},
+    };
     use star_frame_proc::AccountSet;
+    use std::mem::MaybeUninit;
 
     #[derive(AccountSet)]
     #[validate(arg = &mut Vec<usize>, extra_validation = { arg.push(N); Ok(()) })]
@@ -489,6 +497,137 @@ mod test {
         b: InnerAccount<2>,
         #[validate(arg = &mut *arg)]
         c: InnerAccount<3>,
+    }
+
+    #[test]
+    fn cpi_const_wrapper_to_cpi_accounts_delegates_to_inner() {
+        let inner_none = None::<()>;
+        let wrapper_none = CpiConstWrapper::<Option<()>, 0>(inner_none);
+        assert_eq!(wrapper_none.to_cpi_accounts(), inner_none.to_cpi_accounts());
+
+        let inner_some = Some(());
+        let wrapper_some = CpiConstWrapper::<Option<()>, 1>(inner_some);
+        assert_eq!(wrapper_some.to_cpi_accounts(), inner_some.to_cpi_accounts());
+    }
+
+    #[test]
+    fn cpi_const_wrapper_write_account_infos_delegates_and_propagates_errors() {
+        let inner = None::<()>;
+        let wrapper = CpiConstWrapper::<Option<()>, 2>(inner);
+        let wrapper_accounts = wrapper.to_cpi_accounts();
+        let inner_accounts = inner.to_cpi_accounts();
+        let mut wrapper_index = 3;
+        let mut inner_index = 3;
+        let mut wrapper_infos = [MaybeUninit::uninit(); 4];
+        let mut inner_infos = [MaybeUninit::uninit(); 4];
+
+        let wrapper_result = CpiConstWrapper::<Option<()>, 2>::write_account_infos(
+            None,
+            &wrapper_accounts,
+            &mut wrapper_index,
+            &mut wrapper_infos,
+        );
+        let inner_result = <Option<()> as CpiAccountSet>::write_account_infos(
+            None,
+            &inner_accounts,
+            &mut inner_index,
+            &mut inner_infos,
+        );
+
+        assert!(wrapper_result.is_err());
+        assert!(inner_result.is_err());
+        assert_eq!(
+            ProgramError::from(wrapper_result.unwrap_err()),
+            ProgramError::from(inner_result.unwrap_err())
+        );
+        assert_eq!(wrapper_index, inner_index);
+        assert_eq!(wrapper_index, 3);
+    }
+
+    #[test]
+    fn cpi_const_wrapper_write_account_metas_delegates_and_preserves_index_progression() {
+        let program_id = Pubkey::new_unique();
+
+        let inner_none = None::<()>;
+        let wrapper_none = CpiConstWrapper::<Option<()>, 3>(inner_none);
+        let wrapper_none_accounts = wrapper_none.to_cpi_accounts();
+        let inner_none_accounts = inner_none.to_cpi_accounts();
+        let mut wrapper_none_index = 5;
+        let mut inner_none_index = 5;
+        let mut wrapper_none_metas: [MaybeUninit<PinocchioAccountMeta<'_>>; 6] =
+            std::array::from_fn(|_| MaybeUninit::uninit());
+        let mut inner_none_metas: [MaybeUninit<PinocchioAccountMeta<'_>>; 6] =
+            std::array::from_fn(|_| MaybeUninit::uninit());
+
+        CpiConstWrapper::<Option<()>, 3>::write_account_metas(
+            &program_id,
+            &wrapper_none_accounts,
+            &mut wrapper_none_index,
+            &mut wrapper_none_metas,
+        );
+        <Option<()> as CpiAccountSet>::write_account_metas(
+            &program_id,
+            &inner_none_accounts,
+            &mut inner_none_index,
+            &mut inner_none_metas,
+        );
+
+        assert_eq!(wrapper_none_index, inner_none_index);
+        assert_eq!(wrapper_none_index, 6);
+
+        let inner_some = Some(());
+        let wrapper_some = CpiConstWrapper::<Option<()>, 4>(inner_some);
+        let wrapper_some_accounts = wrapper_some.to_cpi_accounts();
+        let inner_some_accounts = inner_some.to_cpi_accounts();
+        let mut wrapper_some_index = 7;
+        let mut inner_some_index = 7;
+        let mut wrapper_some_metas: [MaybeUninit<PinocchioAccountMeta<'_>>; 8] =
+            std::array::from_fn(|_| MaybeUninit::uninit());
+        let mut inner_some_metas: [MaybeUninit<PinocchioAccountMeta<'_>>; 8] =
+            std::array::from_fn(|_| MaybeUninit::uninit());
+
+        CpiConstWrapper::<Option<()>, 4>::write_account_metas(
+            &program_id,
+            &wrapper_some_accounts,
+            &mut wrapper_some_index,
+            &mut wrapper_some_metas,
+        );
+        <Option<()> as CpiAccountSet>::write_account_metas(
+            &program_id,
+            &inner_some_accounts,
+            &mut inner_some_index,
+            &mut inner_some_metas,
+        );
+
+        assert_eq!(wrapper_some_index, inner_some_index);
+        assert_eq!(wrapper_some_index, 7);
+    }
+
+    #[test]
+    fn cpi_const_wrapper_structural_delegation_guard() {
+        let source = include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/src/account_set/mod.rs"
+        ));
+        let start_anchor = "unsafe impl<T, const N: usize> CpiAccountSet for CpiConstWrapper<T, N>";
+        let end_anchor = "pub trait ClientAccountSet {";
+        let impl_start = source
+            .find(start_anchor)
+            .expect("CpiConstWrapper impl start anchor must exist");
+        let impl_end = source[impl_start..]
+            .find(end_anchor)
+            .map(|offset| impl_start + offset)
+            .expect("CpiConstWrapper impl end anchor must exist");
+        let normalized_impl: String = source[impl_start..impl_end].split_whitespace().collect();
+
+        let unimplemented_token = concat!("unimplemented", "!(");
+        let todo_token = concat!("todo", "!(");
+        let panic_token = concat!("panic", "!(");
+        let unreachable_token = concat!("unreachable", "!(");
+        assert!(!normalized_impl.contains(unimplemented_token));
+        assert!(!normalized_impl.contains(todo_token));
+        assert!(!normalized_impl.contains(panic_token));
+        assert!(!normalized_impl.contains(unreachable_token));
     }
 
     #[test]
