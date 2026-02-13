@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 -   Breaking: removed `Deref`/`DerefMut` from `BorshAccount`; callers must use explicit fallible accessors `inner()` and `inner_mut()`.
+-   Breaking: `Seeded::access_seeds` now returns `Result<&SeedsWithBump<_>>` instead of `&SeedsWithBump<_>`; required-seed call sites must handle failure (for example with `?` or `match`).
 
 ## [0.29.0] - 2026-02-11
 

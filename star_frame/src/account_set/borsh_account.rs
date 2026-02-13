@@ -161,16 +161,15 @@ impl<T: ProgramAccount + BorshSerialize + BorshDeserialize> BorshAccount<T> {
 
     /// Returns a mutable reference to the deserialized account data.
     ///
-    /// Returns [`ProgramError::AccountBorrowFailed`] when the account is not writable, and
+    /// Returns [`ErrorCode::ExpectedWritable`] when the account is not writable, and
     /// [`ProgramError::InvalidAccountData`] when data has not been initialized yet.
     pub fn inner_mut(&mut self) -> Result<&mut T> {
-        if !self.is_writable() {
-            bail!(
-                ProgramError::AccountBorrowFailed,
-                "Tried to borrow mutably from BorshAccount `{}` which is not writable",
-                self.pubkey()
-            );
-        }
+        ensure!(
+            self.is_writable(),
+            ErrorCode::ExpectedWritable,
+            "BorshAccount {} is not writable",
+            self.pubkey()
+        );
         let pubkey = *self.info.pubkey();
         match self.data.as_mut() {
             Some(data) => Ok(data),

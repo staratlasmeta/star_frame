@@ -324,9 +324,18 @@ fn BorshProbeNonWritable(accounts: &mut BorshProbeNonWritableAccounts) -> Result
         }
         Err(err) => ProgramError::from(err),
     };
+    let expected_write_error = match accounts.borsh_account.set_inner(MyBorshAccount::default()) {
+        Ok(_) => {
+            bail!(
+                ProgramError::InvalidInstructionData,
+                "BorshProbeNonWritable expected set_inner() to fail on non-writable account"
+            );
+        }
+        Err(err) => ProgramError::from(err),
+    };
     ensure_eq!(
         write_error,
-        ProgramError::AccountBorrowFailed,
+        expected_write_error,
         ProgramError::InvalidInstructionData
     );
 
