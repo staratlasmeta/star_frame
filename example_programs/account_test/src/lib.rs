@@ -3,6 +3,7 @@
 use star_frame::{
     account_set::{modifiers::MaybeMut, CheckKey as _},
     borsh::{BorshDeserialize, BorshSerialize},
+    errors::{ErrorCode, StarFrameError as _},
     pinocchio::syscalls::sol_remaining_compute_units,
     prelude::*,
 };
@@ -202,6 +203,11 @@ fn BorshProbeNonWritable(accounts: &mut BorshProbeNonWritableAccounts) -> Result
     ensure_eq!(
         write_error,
         expected_write_error,
+        ProgramError::InvalidInstructionData
+    );
+    ensure_eq!(
+        write_error,
+        ProgramError::Custom(ErrorCode::ExpectedWritable.code()),
         ProgramError::InvalidInstructionData
     );
 
