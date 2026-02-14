@@ -100,3 +100,26 @@ where
         }
     }
 }
+
+#[cfg(all(feature = "idl", not(target_os = "solana")))]
+mod idl_impl {
+    use super::*;
+    use star_frame::{
+        idl::TypeToIdl,
+        star_frame_idl::{ty::IdlTypeDef, IdlDefinition},
+    };
+
+    impl<T> TypeToIdl for PodOption<T>
+    where
+        T: TypeToIdl + Pod + Default,
+    {
+        type AssociatedProgram = <T as TypeToIdl>::AssociatedProgram;
+
+        fn type_to_idl(idl_definition: &mut IdlDefinition) -> star_frame::IdlResult<IdlTypeDef> {
+            Ok(IdlTypeDef::Option {
+                ty: Box::new(T::type_to_idl(idl_definition)?),
+                fixed: true,
+            })
+        }
+    }
+}
