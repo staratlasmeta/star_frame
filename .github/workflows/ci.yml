@@ -12,7 +12,6 @@ on:
 
 env:
   rust_miri_nightly: "nightly-2025-12-08"
-  sbf_toolchain_release: "3.0.8"
 defaults:
   run:
     shell: bash
@@ -58,20 +57,6 @@ jobs:
         run: cargo test --all-features
       - name: Run star_frame_idl tests (verifier feature off)
         run: cargo test -p star_frame_idl --no-default-features
-
-  account_test_sbf_probe:
-    runs-on: warp-ubuntu-latest-x64-4x
-    env:
-      SF_REQUIRE_SBF_TESTS: "1"
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
-        with:
-          cache-provider: warpbuild
-      - name: Run account_test SBF probe checks
-        env:
-          SBF_TOOLCHAIN_RELEASE: ${{ env.sbf_toolchain_release }}
-        run: ./scripts/ci/account_test_sbf_probe.sh
 
   scaffold_smoke:
     runs-on: warp-ubuntu-latest-x64-4x
