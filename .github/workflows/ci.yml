@@ -92,7 +92,7 @@ jobs:
                  // die("No workspace members found in generated project metadata")) as $root_id
               | (($metadata.packages | map(select(.id == $root_id)) | first)
                  // die("Root package \($root_id) not found in metadata packages")) as $root_package
-              | (($root_package.dependencies
+              | (($root_package.dependencies // []
                    | map(select(.name == "star_frame" or .package == "star_frame"))
                    | first)
                  // die("Generated project root package does not depend on star_frame")) as $dependency
