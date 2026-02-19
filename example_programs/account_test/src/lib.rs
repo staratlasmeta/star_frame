@@ -120,7 +120,7 @@ pub struct BorshProbe;
 #[cfg(feature = "probe_ix")]
 #[derive(AccountSet)]
 pub struct BorshProbeAccounts {
-    pub borsh_account: Signer<BorshAccount<MyBorshAccount>>,
+    pub borsh_account: Mut<Signer<BorshAccount<MyBorshAccount>>>,
 }
 
 #[cfg(feature = "probe_ix")]
@@ -191,7 +191,13 @@ fn BorshProbeNonWritable(accounts: &mut BorshProbeNonWritableAccounts) -> Result
         }
         Err(err) => ProgramError::from(err),
     };
-    let expected_write_error = match accounts.borsh_account.set_inner(MyBorshAccount::default()) {
+    ensure_eq!(
+        write_error,
+        ProgramError::Custom(ErrorCode::ExpectedWritable.code()),
+        ProgramError::InvalidInstructionData
+    );
+
+    let set_inner_error = match accounts.borsh_account.set_inner(MyBorshAccount::default()) {
         Ok(_) => {
             bail!(
                 ProgramError::InvalidInstructionData,
@@ -201,12 +207,7 @@ fn BorshProbeNonWritable(accounts: &mut BorshProbeNonWritableAccounts) -> Result
         Err(err) => ProgramError::from(err),
     };
     ensure_eq!(
-        write_error,
-        expected_write_error,
-        ProgramError::InvalidInstructionData
-    );
-    ensure_eq!(
-        write_error,
+        set_inner_error,
         ProgramError::Custom(ErrorCode::ExpectedWritable.code()),
         ProgramError::InvalidInstructionData
     );
