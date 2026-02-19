@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 -   Added verifier feature-gate compile checks to ensure `star_frame_idl::verifier` is unavailable when the `verifier` feature is disabled.
 -   Added `docs/IDL_VERIFIER_SCOPE.md` documenting verifier guarantees, rule scope, and explicit non-goals.
 
+### Changed
+
+-   Updated scaffold smoke CI metadata parsing to use `jq` instead of inline Python, and removed the now-unneeded Python setup step.
+
 ## [0.29.0] - 2026-02-11
 
 ### Added

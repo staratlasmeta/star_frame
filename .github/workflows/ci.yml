@@ -65,9 +65,6 @@ jobs:
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           cache-provider: warpbuild
-      - uses: actions/setup-python@v6
-        with:
-          python-version: '3.12'
       - name: Scaffold and test generated project
         run: |
           set -euo pipefail
@@ -87,7 +84,20 @@ jobs:
           workspace_version="${workspace_pkgid##*#}"
           workspace_version="${workspace_version##*@}"
           generated_req="$(
-            cargo metadata --format-version 1 --no-deps | python3 -c "import json,sys; metadata=json.load(sys.stdin); resolve=metadata.get('resolve') or {}; root_id=resolve.get('root') or (metadata.get('workspace_members') or [None])[0]; packages_by_id={package['id']: package for package in metadata['packages']}; root_package=packages_by_id.get(root_id); dependency=next((dep for dep in root_package.get('dependencies', []) if dep.get('name') == 'star_frame' or dep.get('package') == 'star_frame'), None) if root_package else None; (root_id is not None) or (_ for _ in ()).throw(SystemExit('No workspace members found in generated project metadata')); (root_package is not None) or (_ for _ in ()).throw(SystemExit(f'Root package {root_id} not found in metadata packages')); (dependency is not None) or (_ for _ in ()).throw(SystemExit('Generated project root package does not depend on star_frame')); print(dependency['req'])"
+            cargo metadata --format-version 1 --no-deps | jq -er '
+              def die($msg): $msg | halt_error(1);
+
+              . as $metadata
+              | (($metadata.resolve.root // $metadata.workspace_members[0])
+                 // die("No workspace members found in generated project metadata")) as $root_id
+              | (($metadata.packages | map(select(.id == $root_id)) | first)
+                 // die("Root package \($root_id) not found in metadata packages")) as $root_package
+              | (($root_package.dependencies // []
+                   | map(select(.name == "star_frame" or .package == "star_frame"))
+                   | first)
+                 // die("Generated project root package does not depend on star_frame")) as $dependency
+              | ($dependency.req // die("Generated project star_frame dependency has no req field"))
+            '
           )"
           generated_req_normalized="${generated_req#^}"
           if [[ "$generated_req_normalized" != "$workspace_version" ]]; then
