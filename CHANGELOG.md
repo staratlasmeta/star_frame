@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 -   Hardened scaffold smoke CI for unreleased versions by patching generated project dependencies to local workspace crates and asserting the generated `star_frame` version requirement matches the workspace version.
--   Replaced `CpiConstWrapper` CPI `unimplemented!()` stubs with direct delegation to inner `T`, and strengthened coverage with zero-new-unsafe delegation tests, explicit `write_account_infos` error-propagation checks, a structural delegation guard, and CI-enforced runtime-backed `Some(&AccountInfo)` probe execution.
+-   Internalized `CpiConstWrapper` as proc-macro plumbing only (re-exported through `__private::macro_prelude`) so downstream code cannot access it through `star_frame::account_set`, and replaced direct-call paths with an explicit internal-use panic.
 
 ## [0.29.0] - 2026-02-11
 
