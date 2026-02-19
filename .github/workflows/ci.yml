@@ -68,56 +68,10 @@ jobs:
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           cache-provider: warpbuild
-      - name: Install Solana SBF tooling
-        run: |
-          set -euo pipefail
-          sh -c "$(curl -sSfL https://release.anza.xyz/v${{ env.sbf_toolchain_release }}/install)"
-          solana_bin_dir="$HOME/.local/share/solana/install/active_release/bin"
-          echo "$solana_bin_dir" >> "$GITHUB_PATH"
-          export PATH="$solana_bin_dir:$PATH"
-          solana_version="$(solana --version)"
-          echo "$solana_version"
-          if [[ "$solana_version" != *"${{ env.sbf_toolchain_release }}"* ]]; then
-            echo "Expected Solana CLI version to contain '${{ env.sbf_toolchain_release }}'" >&2
-            exit 1
-          fi
-      - name: Build account_test SBF artifact
-        run: cargo build-sbf --manifest-path example_programs/account_test/Cargo.toml --features probe_ix
-      - name: Locate account_test SBF output
-        run: |
-          set -euo pipefail
-          expected_paths=(
-            "$GITHUB_WORKSPACE/target/deploy/account_test.so"
-            "$GITHUB_WORKSPACE/example_programs/account_test/target/deploy/account_test.so"
-          )
-          program_so=""
-          for candidate in "${expected_paths[@]}"; do
-            if [[ -f "$candidate" ]]; then
-              program_so="$candidate"
-              break
-            fi
-          done
-
-          if [[ -z "${program_so}" ]]; then
-            mapfile -t matches < <(find "$GITHUB_WORKSPACE" -type f -path '*/deploy/account_test.so')
-            if (( ${#matches[@]} == 0 )); then
-              echo "Unable to find account_test.so after cargo build-sbf" >&2
-              exit 1
-            fi
-            if (( ${#matches[@]} > 1 )); then
-              echo "Found multiple account_test.so artifacts; resolve ambiguity:" >&2
-              printf ' - %s\n' "${matches[@]}" >&2
-              exit 1
-            fi
-            program_so="${matches[0]}"
-          fi
-
-          echo "Resolved account_test.so at $program_so"
-          echo "SBF_OUT_DIR=$(dirname "$program_so")" >> "$GITHUB_ENV"
-      - name: Run borsh probe SBF test
-        run: cargo test -p account_test --features probe_ix tests::borsh_probe_invalid_access_ix -- --exact --nocapture
-      - name: Run borsh non-writable probe SBF test
-        run: cargo test -p account_test --features probe_ix tests::borsh_probe_non_writable_ix -- --exact --nocapture
+      - name: Run account_test SBF probe checks
+        env:
+          SBF_TOOLCHAIN_RELEASE: ${{ env.sbf_toolchain_release }}
+        run: ./scripts/ci/account_test_sbf_probe.sh
 
   scaffold_smoke:
     runs-on: warp-ubuntu-latest-x64-4x
