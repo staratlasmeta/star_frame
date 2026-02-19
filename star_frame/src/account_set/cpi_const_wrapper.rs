@@ -2,10 +2,8 @@ use super::CpiAccountSet;
 use crate::prelude::*;
 use std::mem::MaybeUninit;
 
-#[cold]
-#[inline(never)]
-fn internal_only_panic() -> ! {
-    panic!("CpiConstWrapper is an internal macro helper and must not be called directly")
+fn internal_only_unimplemented() -> ! {
+    unimplemented!("CpiConstWrapper is an internal macro helper and must not be called directly")
 }
 
 /// Internal helper type used by proc-macro-generated CPI trait bounds.
@@ -23,7 +21,7 @@ where
 
     #[inline]
     fn to_cpi_accounts(&self) -> Self::CpiAccounts {
-        internal_only_panic()
+        internal_only_unimplemented()
     }
 
     #[inline]
@@ -33,7 +31,7 @@ where
         _index: &mut usize,
         _infos: &mut [MaybeUninit<&'a AccountInfo>],
     ) -> Result<()> {
-        internal_only_panic()
+        internal_only_unimplemented()
     }
 
     #[inline]
@@ -43,6 +41,6 @@ where
         _index: &mut usize,
         _metas: &mut [MaybeUninit<PinocchioAccountMeta<'a>>],
     ) {
-        internal_only_panic();
+        internal_only_unimplemented();
     }
 }
