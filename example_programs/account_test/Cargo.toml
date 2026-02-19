@@ -25,5 +25,6 @@ bytemuck = { workspace = true }
 [dev-dependencies]
 mollusk-svm = { workspace = true }
 solana-account = { workspace = true }
+solana-instruction = { workspace = true }
 mollusk-svm-programs-token = { workspace = true }
 pretty_assertions = { workspace = true }
