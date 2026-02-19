@@ -1,5 +1,6 @@
 pub mod macro_prelude {
     pub use crate::{
+        account_set::cpi_const_wrapper::CpiConstWrapper,
         account_set::{
             internal_reverse::{_account_set_cleanup_reverse, _account_set_validate_reverse},
             modifiers::{
@@ -8,7 +9,7 @@ pub mod macro_prelude {
             },
             single_set::{SingleAccountSet, SingleSetMeta},
             AccountSet, AccountSetValidate, CheckKey, ClientAccountSet, CpiAccountSet,
-            CpiConstWrapper, DynamicCpiAccountSetLen, ProgramAccount,
+            DynamicCpiAccountSetLen, ProgramAccount,
         },
         align1::Align1,
         bail,
