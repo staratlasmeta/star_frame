@@ -167,16 +167,26 @@ my_program/
 | Feature | Description |
 |---------|-------------|
 | `idl` | Enables Codama IDL generation |
-| `test_helpers` | Testing utilities (required for `cargo test`) |
+| `test_helpers` | Testing utilities (required when tests use Star Frame's built-in test helpers, e.g. `MockContext`) |
 | `cleanup_rent_warning` | Warns if account has excess lamports after cleanup |
 | `aggressive_inline` | More aggressive inlining (may increase binary size) |
+
+## Pre-Deploy Checklist
+
+- [ ] All funders use `Signer<Mut<SystemAccount>>` (not just `Signer<SystemAccount>`)
+- [ ] `Init` account sets include `Program<System>`
+- [ ] No `bool` in zero-copy (`#[zero_copy(pod)]`) types — use `u8`
+- [ ] PDA seeds produce unique addresses (no hardcoded/default seed values)
+- [ ] `CloseAccount` cleanup has a `#[validate(recipient)]` tagged account
+- [ ] No Edition 2024 transitive dependencies (check with `cargo tree`)
+- [ ] Instruction variant names are stable (renaming changes discriminants)
+- [ ] Unsized accounts use `#[cleanup(arg = NormalizeRent(()))]`
 
 ## Documentation
 
 - [Architecture Guide](ARCHITECTURE.md) — How Star Frame works internally
 - [Developer Guide](GUIDE.md) — Step-by-step tutorial with a complete example
 - [API Reference](API_REFERENCE.md) — Traits, types, macros reference
-- [Pitfalls & Gotchas](PITFALLS.md) — Common mistakes to avoid
 - [Anchor Comparison](ANCHOR_COMPARISON.md) — Migration guide for Anchor developers
 - [Production Learnings](LEARNINGS.md) — Practical lessons from production usage
 

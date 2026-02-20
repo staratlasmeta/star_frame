@@ -41,9 +41,9 @@ pub struct OverEngineeredSeeds {
 
 **Lesson:** Every seed field is something the client needs to provide. Keep seeds minimal — just enough to guarantee uniqueness.
 
-## 3. Store the Bump
+## 3. Store the Bump and PDA Seed Fields
 
-Always store the PDA bump in the account data:
+Always store the PDA bump in the account data. Also store all fields used to derive the PDA seeds (e.g., `proposal_id`, `config_type`) unless there's a strong reason not to — this makes re-derivation straightforward and avoids requiring the client to track seed values off-chain:
 
 ```rust
 #[zero_copy(pod)]

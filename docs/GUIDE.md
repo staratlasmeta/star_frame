@@ -167,14 +167,14 @@ pub enum VotingError {
 ```rust
 #[derive(BorshSerialize, BorshDeserialize, Debug, InstructionArgs)]
 pub struct CreateProposal {
-    #[ix_args(run)]
+    #[ix_args(decode, run)]
     pub proposal_id: u64,
     #[ix_args(run)]
     pub title: Vec<u8>,       // Borsh supports Vec for instruction data
 }
 ```
 
-`#[ix_args(run)]` means these fields are passed to the `process` function. The instruction data itself is Borsh-serialized (variable-length is fine for instruction data — just not for zero-copy accounts).
+`#[ix_args(run)]` means these fields are passed to the `process` function. `#[ix_args(decode, run)]` passes the field to both `decode_accounts` (so it's available for PDA seed derivation) and `process`. The instruction data itself is Borsh-serialized (variable-length is fine for instruction data — just not for zero-copy accounts).
 
 ### Account Set
 
@@ -198,8 +198,8 @@ pub struct CreateProposalAccounts {
     // System program is required for account creation
     pub system_program: Program<System>,
 
-    // Hidden field: proposal_id is set during decode for use in validation
-    #[account_set(skip_decode)]
+    // Hidden field: populated from instruction args during decode for use in validation
+    #[account_set(skip = 0u64)]
     #[validate(skip)]
     proposal_id: u64,
 }
@@ -219,7 +219,7 @@ This is a tuple of validation arguments that get distributed to the modifier sta
 #[star_frame_instruction]
 fn CreateProposal(
     accounts: &mut CreateProposalAccounts,
-    CreateProposal { proposal_id: _, title }: CreateProposal,
+    CreateProposal { proposal_id, title }: CreateProposal,
 ) -> Result<()> {
     let mut proposal = accounts.proposal.data_mut()?;
 
@@ -333,7 +333,7 @@ pub struct CloseProposalAccounts {
     #[validate(recipient)]
     pub funds_to: Mut<SystemAccount>,
 
-    // CloseAccount sends lamports to the cached recipient and zeros the data
+    // CloseAccount invalidates the discriminant (fills with 0xFF) and drains lamports to recipient
     #[cleanup(arg = CloseAccount(()))]
     pub proposal: Mut<Account<Proposal>>,
 }
@@ -349,9 +349,10 @@ fn CloseProposal(accounts: &mut CloseProposalAccounts) -> Result<()> {
 **How account closing works:**
 1. `#[validate(recipient)]` caches `funds_to` in the Context
 2. `#[cleanup(arg = CloseAccount(()))]` runs after `process`:
-   - Transfers all lamports from `proposal` to the cached recipient
-   - Zeros out the account data (writes `0xFF` to discriminant)
-3. The account is effectively closed
+   - Resizes the account to the discriminant size
+   - Invalidates the account discriminant (fills with `0xFF`)
+   - Drains all lamports to the cached recipient
+3. The account is effectively closed — the runtime will garbage-collect it at the end of the epoch
 
 ## Step 8: Putting It All Together
 
@@ -443,7 +444,7 @@ impl AccountValidate<ValidateProposalActive> for Proposal {
 
 #[derive(BorshSerialize, BorshDeserialize, Debug, InstructionArgs)]
 pub struct CreateProposal {
-    #[ix_args(run)]
+    #[ix_args(decode, run)]
     pub proposal_id: u64,
     #[ix_args(run)]
     pub title: Vec<u8>,
@@ -457,17 +458,21 @@ pub struct CreateProposalAccounts {
         Create(()),
         Seeds(ProposalSeeds {
             admin: *self.admin.pubkey(),
-            proposal_id: 0, // Set in decode
+            proposal_id: self.proposal_id,
         }),
     ))]
     pub proposal: Init<Seeded<Account<Proposal>>>,
     pub system_program: Program<System>,
+    // Populated from instruction args during decode for use in PDA validation
+    #[account_set(skip = 0u64)]
+    #[validate(skip)]
+    proposal_id: u64,
 }
 
 #[star_frame_instruction]
 fn CreateProposal(
     accounts: &mut CreateProposalAccounts,
-    CreateProposal { proposal_id: _, title }: CreateProposal,
+    CreateProposal { proposal_id, title }: CreateProposal,
 ) -> Result<()> {
     let mut proposal = accounts.proposal.data_mut()?;
     let len = title.len().min(64);
@@ -643,8 +648,59 @@ solana program deploy target/deploy/voting_program.so
 cargo test --features idl -- generate_idl
 ```
 
+## Common Pitfalls
+
+These are the most common mistakes when building with Star Frame. Keep them in mind as you develop.
+
+### Funder Must Be Writable
+
+If an account pays for anything (rent, transfers), it needs `Mut`. Always use `Signer<Mut<SystemAccount>>` for funders:
+
+```rust
+// ❌ Wrong — can't debit lamports
+#[validate(funder)]
+pub authority: Signer<SystemAccount>,
+
+// ✅ Right
+#[validate(funder)]
+pub authority: Signer<Mut<SystemAccount>>,
+```
+
+### Init Requires Both Create and Seeds
+
+`Init<Seeded<Account<T>>>` needs both `Create`/`CreateIfNeeded` AND `Seeds` in the validation tuple:
+
+```rust
+// ❌ Missing seeds
+#[validate(arg = Create(()))]
+pub account: Init<Seeded<Account<MyAccount>>>,
+
+// ✅ Correct
+#[validate(arg = (Create(()), Seeds(MySeeds { ... })))]
+pub account: Init<Seeded<Account<MyAccount>>>,
+```
+
+### No Bool in Zero-Copy Types
+
+`bytemuck::Pod` doesn't allow `bool` — use `u8` with 0/1 values instead.
+
+### Don't Forget System Program for Init
+
+`Init` performs a CPI to the System Program. Include `pub system_program: Program<System>` in any account set that creates accounts.
+
+### Account Closing Behavior
+
+`CloseAccount` resizes to the discriminant size, fills with `0xFF`, and drains lamports. It does **not** zero the full account data. Check discriminant or lamports to detect closed accounts — not `data == [0; N]`.
+
+### Edition 2024 / SBF Toolchain Conflicts
+
+Rust Edition 2024 crates don't compile with the Solana SBF toolchain. Pin transitive dependencies to Edition 2021 or earlier versions.
+
+### Account Field Order = Transaction Account Order
+
+Fields in your `AccountSet` struct are decoded in order from the transaction's accounts array. The generated `ClientAccounts` handles this, but manual instruction building must match the field order.
+
 ## Next Steps
 
 - Read the [API Reference](API_REFERENCE.md) for all available types and traits
-- Check [Pitfalls](PITFALLS.md) before going to production
 - Look at the [marketplace example](https://github.com/staratlasmeta/star_frame/tree/main/example_programs/marketplace) for a more complex program with SPL tokens and unsized types

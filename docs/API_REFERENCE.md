@@ -1,5 +1,11 @@
 # Star Frame API Reference
 
+> **Note:** This reference is manually maintained. Always verify against the source code in
+> `star_frame_proc/src/lib.rs` and `star_frame/src/` for the authoritative API. Attribute names
+> and signatures may drift between releases.
+>
+> <!-- TODO: Add CI step to detect doc/source drift (e.g., grep-based attribute inventory check) -->
+
 Quick reference for all key traits, types, macros, and their usage.
 
 ## Table of Contents
@@ -295,8 +301,8 @@ let bump = seeds.bump;
 
 | Attribute | Description |
 |-----------|-------------|
-| `#[cleanup(arg = CloseAccount(()))]` | Close account, send lamports to cached recipient |
-| `#[cleanup(arg = CloseAccount(&recipient))]` | Close account, send lamports to explicit recipient |
+| `#[cleanup(arg = CloseAccount(()))]` | Close account: resizes to discriminant size, fills with `0xFF`, drains lamports to cached recipient |
+| `#[cleanup(arg = CloseAccount(&recipient))]` | Close account: resizes to discriminant size, fills with `0xFF`, drains lamports to explicit recipient |
 | `#[cleanup(arg = NormalizeRent(()))]` | Adjust rent to match current data size |
 | `#[cleanup(arg = RefundRent(()))]` | Refund excess rent to cached recipient |
 
@@ -304,8 +310,7 @@ let bump = seeds.bump;
 
 | Attribute | Description |
 |-----------|-------------|
-| `#[account_set(skip = default_expr)]` | Skip field during decode, use default value |
-| `#[account_set(skip_decode)]` | Don't decode from accounts slice |
+| `#[account_set(skip = default_expr)]` | Skip field during account set processing; initialized with the provided default value |
 
 ### Struct-level validation
 
