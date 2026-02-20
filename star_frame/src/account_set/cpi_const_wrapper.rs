@@ -6,9 +6,9 @@ fn internal_only_unimplemented() -> ! {
     unimplemented!("CpiConstWrapper is an internal macro helper and must not be called directly")
 }
 
-/// Internal helper type used by proc-macro-generated `CpiAccountSet` trait bounds 
+/// Internal helper type used by proc-macro-generated `CpiAccountSet` trait bounds
 /// due to an issue with the rustc trait solver
-/// 
+///
 /// See [discussion in Discord](https://discord.com/channels/273534239310479360/1120124565591425034/1414399888006971432) for details.
 #[doc(hidden)]
 #[derive(Debug)]
