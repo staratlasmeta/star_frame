@@ -7,10 +7,6 @@ name = "account_test"
 version = "0.0.1"
 dependencies = [
  "bytemuck",
- "mollusk-svm",
- "mollusk-svm-programs-token",
- "pretty_assertions",
- "solana-account",
  "star_frame",
 ]
 

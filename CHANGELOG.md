@@ -16,6 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 -   Internalized `CpiConstWrapper` as proc-macro plumbing only (re-exported through `__private::macro_prelude`) so downstream code cannot access it through `star_frame::account_set`, and replaced direct-call paths with an explicit internal-use panic.
+-   Replaced `UnCallable::dispatch` panic behavior with a fail-closed `ProgramError::InvalidInstructionData` error return.
+-   Made `Seeded::access_seeds` fallible (`Result`) and updated `Seeded::signer_seeds` to return `None` when seeds are unset, removing reachable panic/expect behavior from signer flows.
+
+### Changed
+
+-   Breaking: removed `Deref`/`DerefMut` from `BorshAccount`; callers must use explicit fallible accessors `inner()` and `inner_mut()`.
+-   Breaking: `Seeded::access_seeds` now returns `Result<&SeedsWithBump<_>>` instead of `&SeedsWithBump<_>`; required-seed call sites must handle failure (for example with `?` or `match`).
 
 ## [0.29.0] - 2026-02-11
 

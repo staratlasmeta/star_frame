@@ -20,9 +20,3 @@ idl = ["star_frame/idl"]
 [dependencies]
 star_frame = { workspace = true }
 bytemuck = { workspace = true }
-
-[dev-dependencies]
-mollusk-svm = { workspace = true }
-solana-account = { workspace = true }
-mollusk-svm-programs-token = { workspace = true }
-pretty_assertions = { workspace = true }
