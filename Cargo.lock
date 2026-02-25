@@ -16,9 +16,9 @@ dependencies = [
 
 [[package]]
 name = "advancer"
-version = "0.1.0"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d9b098ecb3c27a4c4fb80027810ef8d9e89e672565abc85cd743512052be0977"
+checksum = "8c1bbc1cb6619daa77bc4f85f26eee54c42bed15691ad372a6a0c9fd5284ab55"
 dependencies = [
  "thiserror 2.0.16",
 ]
