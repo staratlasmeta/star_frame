@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.30.0] - 2026-02-25
+
 ### Added
 
 -   Added fail-closed structural IDL verification behind the `verifier` feature in `star_frame_idl`, with compatibility-default and strict-graph verification modes, including deterministic verifier rule IDs (`SFIDL001`-`SFIDL011`) in verifier diagnostics.
@@ -171,7 +173,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 -   Additional documentation improvements (#223).
 
-[unreleased]: https://github.com/staratlasmeta/star_frame/compare/v0.29.0...HEAD
+[unreleased]: https://github.com/staratlasmeta/star_frame/compare/v0.30.0...HEAD
+[0.30.0]: https://github.com/staratlasmeta/star_frame/compare/v0.29.0...v0.30.0
 [0.29.0]: https://github.com/staratlasmeta/star_frame/compare/v0.28.0...v0.29.0
 [0.28.0]: https://github.com/staratlasmeta/star_frame/compare/v0.27.0...v0.28.0
 [0.27.0]: https://github.com/staratlasmeta/star_frame/compare/v0.26.3...v0.27.0
