@@ -45,12 +45,21 @@ pub unsafe trait UnsizedType: 'static {
     const ZST_STATUS: bool;
 
     /// # Safety
-    /// Implementations are allowed to modify the pointer and read from the data it points to, but should not write to it.
+    /// `data` must point to the unread tail of a single contiguous backing allocation for the parent value.
+    ///
+    /// Implementations may:
+    /// - read bytes from `*data`,
+    /// - advance `*data` forward by the number of bytes consumed for `Self`,
+    /// - construct and return `Self::Ptr` into that same allocation.
+    ///
+    /// Implementations must:
+    /// - never write through `data` or derived pointers,
+    /// - ensure `Self::start_ptr(&returned_ptr)` and `Self::data_len(&returned_ptr)` describe exactly
+    ///   the bytes consumed from the original `*data`,
+    /// - keep all pointers in `Self::Ptr` within the same allocation used for `data`.
     ///
     /// We use raw pointers here to avoid invalidating the main data pointer through reborrowing, allowing us to pass Miri with the
     /// Tree Borrows aliasing model.
-    ///
-    /// This implementation should probably be correct as well. TODO: check if unsafe code relies on this being correct.
     unsafe fn get_ptr(data: &mut *mut [u8]) -> Result<Self::Ptr>;
 
     /// Gets the pointer to the start of the data for Self
@@ -61,13 +70,29 @@ pub unsafe trait UnsizedType: 'static {
 
     fn owned(data: &[u8]) -> Result<Self::Owned> {
         let data: *const [u8] = data;
+        // SAFETY:
+        // `data` comes from a live shared slice and points to a contiguous allocation.
+        // `owned` only needs to parse bytes into `Self::Ptr`; it does not write through the pointer.
         Self::owned_from_ptr(&unsafe { Self::get_ptr(&mut data.cast_mut()) }?)
     }
 
     fn owned_from_ptr(r: &Self::Ptr) -> Result<Self::Owned>;
 
     /// # Safety
-    /// No resize operations should be performed on the data.
+    /// Called after bytes were inserted/removed in the backing allocation that `self_mut` points into.
+    ///
+    /// Contract for arguments:
+    /// - `change > 0`: `change` bytes were inserted.
+    /// - `change < 0`: `-change` bytes were removed.
+    /// - `source_ptr`: start pointer of the value that initiated the resize (same allocation as `self_mut`).
+    ///
+    /// Required behavior:
+    /// - update only internal pointers/metadata in `self_mut` so they continue to reference the moved data,
+    /// - do not perform additional resize operations on the backing allocation,
+    /// - preserve all pointer-order assumptions used by `check_pointers`.
+    ///
+    /// Pointer comparisons with `source_ptr` are only meaningful when all compared pointers belong to the
+    /// same allocation.
     #[allow(unused_variables)]
     unsafe fn resize_notification(
         self_mut: &mut Self::Ptr,
