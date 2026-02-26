@@ -945,10 +945,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "five8"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "23f76610e969fa1784327ded240f1e28a3fd9520c9cec93b636fcf62dd37f772"
+dependencies = [
+ "five8_core",
+]
+
+[[package]]
 name = "five8_const"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "26dec3da8bc3ef08f2c04f61eab298c3ab334523e55f076354d6d6f613799a7b"
+dependencies = [
+ "five8_core",
+]
+
+[[package]]
+name = "five8_const"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1a0f1728185f277989ca573a402716ae0beaaea3f76a8ff87ef9dd8fb19436c5"
 dependencies = [
  "five8_core",
 ]
@@ -2134,8 +2152,8 @@ dependencies = [
  "bytemuck",
  "bytemuck_derive",
  "curve25519-dalek",
- "five8",
- "five8_const",
+ "five8 0.2.1",
+ "five8_const 0.1.4",
  "serde",
  "serde_derive",
  "solana-atomic-u64",
@@ -2143,6 +2161,17 @@ dependencies = [
  "solana-program-error",
  "solana-sanitize",
  "solana-sha256-hasher",
+]
+
+[[package]]
+name = "solana-address"
+version = "2.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "68c5d02824391b072dc5cd0aaa85fb0af9784a21d23286a767994d1e8a322131"
+dependencies = [
+ "five8 1.0.0",
+ "five8_const 1.0.0",
+ "solana-program-error",
 ]
 
 [[package]]
@@ -2227,7 +2256,7 @@ dependencies = [
  "solana-svm-log-collector",
  "solana-svm-measure",
  "solana-svm-type-overrides",
- "solana-system-interface",
+ "solana-system-interface 2.0.0",
  "solana-transaction-context",
 ]
 
@@ -2346,7 +2375,7 @@ checksum = "8a063723b9e84c14d8c0d2cdf0268207dc7adecf546e31251f9e07c7b00b566c"
 dependencies = [
  "bytemuck",
  "bytemuck_derive",
- "five8",
+ "five8 0.2.1",
  "serde",
  "serde_derive",
  "solana-atomic-u64",
@@ -2447,7 +2476,7 @@ dependencies = [
  "solana-instruction",
  "solana-pubkey",
  "solana-sdk-ids",
- "solana-system-interface",
+ "solana-system-interface 2.0.0",
 ]
 
 [[package]]
@@ -2470,7 +2499,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "85666605c9fd727f865ed381665db0a8fc29f984a030ecc1e40f43bfb2541623"
 dependencies = [
  "lazy_static",
- "solana-address",
+ "solana-address 1.0.0",
  "solana-hash",
  "solana-instruction",
  "solana-sanitize",
@@ -2621,7 +2650,7 @@ dependencies = [
  "solana-svm-timings",
  "solana-svm-transaction",
  "solana-svm-type-overrides",
- "solana-system-interface",
+ "solana-system-interface 2.0.0",
  "solana-sysvar",
  "solana-sysvar-id",
  "solana-transaction-context",
@@ -2633,7 +2662,7 @@ version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8909d399deb0851aa524420beeb5646b115fd253ef446e35fe4504c904da3941"
 dependencies = [
- "solana-address",
+ "solana-address 1.0.0",
 ]
 
 [[package]]
@@ -2732,7 +2761,7 @@ version = "3.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4bb8057cc0e9f7b5e89883d49de6f407df655bb6f3a71d0b7baf9986a2218fd9"
 dependencies = [
- "five8",
+ "five8 0.2.1",
  "solana-sanitize",
 ]
 
@@ -2786,7 +2815,7 @@ dependencies = [
  "solana-instruction",
  "solana-program-error",
  "solana-pubkey",
- "solana-system-interface",
+ "solana-system-interface 2.0.0",
  "solana-sysvar",
  "solana-sysvar-id",
 ]
@@ -2874,6 +2903,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "solana-system-interface"
+version = "3.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a95a6f2e23ed861d6444ad4a6d6896c418d7d101b960787e65a8e33157cee81b"
+dependencies = [
+ "num-traits",
+ "solana-address 2.2.0",
+ "solana-msg",
+ "solana-program-error",
+]
+
+[[package]]
 name = "solana-system-program"
 version = "3.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2895,7 +2936,7 @@ dependencies = [
  "solana-sdk-ids",
  "solana-svm-log-collector",
  "solana-svm-type-overrides",
- "solana-system-interface",
+ "solana-system-interface 2.0.0",
  "solana-sysvar",
  "solana-transaction-context",
 ]
@@ -2948,7 +2989,7 @@ version = "3.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "64928e6af3058dcddd6da6680cbe08324b4e071ad73115738235bbaa9e9f72a5"
 dependencies = [
- "solana-address",
+ "solana-address 1.0.0",
  "solana-hash",
  "solana-instruction",
  "solana-instruction-error",
@@ -3052,7 +3093,7 @@ dependencies = [
  "solana-instruction",
  "solana-program-memory",
  "solana-pubkey",
- "solana-system-interface",
+ "solana-system-interface 3.1.0",
  "star_frame_idl",
  "star_frame_proc",
  "static_assertions",
