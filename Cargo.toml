@@ -53,7 +53,7 @@ semver = { version = "^1.0.23", features = ["serde"] }
 serde = { version = "^1.0.192", features = ["derive"] }
 serde_json = "^1.0.108"
 sha2 = "^0.10.8"
-solana-account = "3.0.0"
+solana-account = "4.0.0"
 solana-instruction = "3.0.0"
 solana-keypair = "=3.0.0"
 solana-program-memory = "3.1.0"
