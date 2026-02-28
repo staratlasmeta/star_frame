@@ -23,6 +23,7 @@ use star_frame::{
 /// It validates the account data on validate and provides cheap accessor methods for accessing fields
 /// without deserializing the entire account data.
 #[derive(AccountSet, Debug, Clone)]
+#[account_set(skip_default_idl)]
 #[validate(extra_validation = self.validate())]
 #[validate(
     id = "validate_mint", arg = ValidateMint<'a>, generics = [<'a>],
@@ -46,8 +47,19 @@ impl HasInnerType for MintAccount {
 
 /// See [`spl_token_interface::state::Mint`].
 #[derive(
-    Debug, Clone, PartialEq, Eq, Copy, Default, Zeroable, CheckedBitPattern, Align1, NoUninit,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Copy,
+    Default,
+    Zeroable,
+    CheckedBitPattern,
+    Align1,
+    NoUninit,
+    TypeToIdl,
 )]
+#[type_to_idl(program = crate::token::Token)]
 #[repr(C, packed)]
 pub struct MintAccountData {
     pub mint_authority: PodOption<Pubkey>,
@@ -267,6 +279,7 @@ where
 /// It validates the account data on validate and provides cheap accessor methods for accessing fields
 /// without deserializing the entire account data, although it does provide full deserialization methods.
 #[derive(AccountSet, Debug, Clone)]
+#[account_set(skip_default_idl)]
 #[validate(extra_validation = self.validate())]
 #[validate(
     id = "validate_token",
@@ -292,8 +305,19 @@ impl HasInnerType for TokenAccount {
 
 /// See [`spl_token_interface::state::AccountState`].
 #[derive(
-    Debug, Clone, PartialEq, Eq, Copy, Default, Zeroable, CheckedBitPattern, Align1, NoUninit,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Copy,
+    Default,
+    Zeroable,
+    CheckedBitPattern,
+    Align1,
+    NoUninit,
+    TypeToIdl,
 )]
+#[type_to_idl(program = crate::token::Token)]
 #[repr(u8)]
 pub enum AccountState {
     /// Account is not yet initialized
@@ -308,7 +332,10 @@ pub enum AccountState {
 }
 
 /// See [`spl_token_interface::state::Account`].
-#[derive(Clone, Copy, Debug, Default, PartialEq, CheckedBitPattern, Zeroable, NoUninit)]
+#[derive(
+    Clone, Copy, Debug, Default, PartialEq, CheckedBitPattern, Zeroable, NoUninit, TypeToIdl,
+)]
+#[type_to_idl(program = crate::token::Token)]
 #[repr(C, packed)]
 pub struct TokenAccountData {
     pub mint: KeyFor<MintAccount>,
@@ -493,9 +520,268 @@ where
     }
 }
 
+#[cfg(all(feature = "idl", not(target_os = "solana")))]
+mod idl_impl {
+    use super::*;
+    use star_frame::{
+        idl::{AccountSetToIdl, AccountToIdl, ProgramToIdl, TypeToIdl},
+        star_frame_idl::{
+            account::{IdlAccount, IdlAccountId},
+            account_set::IdlAccountSetDef,
+            item_source, IdlDefinition,
+        },
+    };
+
+    fn register_spl_account<T: TypeToIdl>(
+        idl_definition: &mut IdlDefinition,
+    ) -> star_frame::IdlResult<IdlAccountId> {
+        let type_def = T::type_to_idl(idl_definition)?;
+        let type_id = type_def.assert_defined()?.clone();
+        let namespace = <T::AssociatedProgram as ProgramToIdl>::crate_metadata().name;
+        let idl_account = IdlAccount {
+            discriminant: Vec::new(),
+            type_id,
+            seeds: None,
+        };
+        let namespace = idl_definition.add_account(idl_account, namespace)?;
+        Ok(IdlAccountId {
+            namespace,
+            source: item_source::<T>(),
+        })
+    }
+
+    impl AccountToIdl for MintAccountData {
+        fn account_to_idl(
+            idl_definition: &mut IdlDefinition,
+        ) -> star_frame::IdlResult<IdlAccountId> {
+            register_spl_account::<Self>(idl_definition)
+        }
+    }
+
+    impl AccountToIdl for TokenAccountData {
+        fn account_to_idl(
+            idl_definition: &mut IdlDefinition,
+        ) -> star_frame::IdlResult<IdlAccountId> {
+            register_spl_account::<Self>(idl_definition)
+        }
+    }
+
+    impl<A> AccountSetToIdl<A> for MintAccount
+    where
+        AccountInfo: AccountSetToIdl<A>,
+    {
+        fn account_set_to_idl(
+            idl_definition: &mut IdlDefinition,
+            arg: A,
+        ) -> star_frame::IdlResult<IdlAccountSetDef> {
+            let mut set = AccountInfo::account_set_to_idl(idl_definition, arg)?;
+            set.single()?
+                .program_accounts
+                .push(MintAccountData::account_to_idl(idl_definition)?);
+            Ok(set)
+        }
+    }
+
+    impl<A> AccountSetToIdl<A> for TokenAccount
+    where
+        AccountInfo: AccountSetToIdl<A>,
+    {
+        fn account_set_to_idl(
+            idl_definition: &mut IdlDefinition,
+            arg: A,
+        ) -> star_frame::IdlResult<IdlAccountSetDef> {
+            let mut set = AccountInfo::account_set_to_idl(idl_definition, arg)?;
+            set.single()?
+                .program_accounts
+                .push(TokenAccountData::account_to_idl(idl_definition)?);
+            Ok(set)
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(all(feature = "idl", not(target_os = "solana")))]
+    use star_frame::empty_star_frame_instruction;
+
+    #[cfg(all(feature = "idl", not(target_os = "solana")))]
+    mod mini_program {
+        use super::*;
+        use star_frame::star_frame_idl::{CrateMetadata, Version};
+
+        #[derive(
+            Copy, Clone, Debug, Eq, PartialEq, InstructionArgs, BorshDeserialize, BorshSerialize,
+        )]
+        #[type_to_idl(program = crate::token::state::tests::mini_program::MintTokenTestProgram)]
+        pub struct TouchSplAccounts;
+
+        #[derive(Debug, Clone, AccountSet)]
+        pub struct TouchSplAccountsAccounts {
+            pub mint: MintAccount,
+            pub token: TokenAccount,
+        }
+        empty_star_frame_instruction!(TouchSplAccounts, TouchSplAccountsAccounts);
+
+        #[allow(dead_code)]
+        #[derive(Copy, Debug, Clone, PartialEq, Eq, InstructionSet)]
+        #[ix_set(use_repr)]
+        #[repr(u8)]
+        pub enum MintTokenInstructionSet {
+            TouchSplAccounts(TouchSplAccounts),
+        }
+
+        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+        pub struct MintTokenTestProgram;
+
+        impl StarFrameProgram for MintTokenTestProgram {
+            type InstructionSet = MintTokenInstructionSet;
+            type AccountDiscriminant = ();
+            const ID: Pubkey = pubkey!("11111111111111111111111111111111");
+        }
+
+        impl ProgramToIdl for MintTokenTestProgram {
+            type Errors = ();
+            fn crate_metadata() -> CrateMetadata {
+                CrateMetadata {
+                    name: "mint_token_test_program".to_string(),
+                    version: Version::new(0, 0, 1),
+                    ..Default::default()
+                }
+            }
+        }
+    }
+
+    #[cfg(all(feature = "idl", not(target_os = "solana")))]
+    #[test]
+    fn mint_and_token_accounts_emit_idl_entries() -> Result<()> {
+        use star_frame::{
+            idl::{AccountSetToIdl, AccountToIdl, ProgramToIdl},
+            star_frame_idl::{account_set::IdlAccountSetDef, IdlDefinition, IdlMetadata},
+        };
+
+        let mut idl = IdlDefinition {
+            address: Token::ID,
+            metadata: IdlMetadata {
+                crate_metadata: Token::crate_metadata(),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        let mint_account_id = MintAccountData::account_to_idl(&mut idl)?;
+        assert!(
+            idl.accounts.contains_key(&mint_account_id.source),
+            "MintAccountData definition missing from IDL"
+        );
+        assert!(
+            idl.types.contains_key(&mint_account_id.source),
+            "MintAccountData TypeToIdl definition missing"
+        );
+
+        let token_account_id = TokenAccountData::account_to_idl(&mut idl)?;
+        assert!(
+            idl.accounts.contains_key(&token_account_id.source),
+            "TokenAccountData definition missing from IDL"
+        );
+        assert!(
+            idl.types.contains_key(&token_account_id.source),
+            "TokenAccountData TypeToIdl definition missing"
+        );
+
+        match MintAccount::account_set_to_idl(&mut idl, ())? {
+            IdlAccountSetDef::Single(single) => {
+                assert!(
+                    single.program_accounts.contains(&mint_account_id),
+                    "MintAccount did not register its program account entry",
+                );
+            }
+            other => panic!("MintAccount should produce a single account set, got {other:?}"),
+        }
+
+        match TokenAccount::account_set_to_idl(&mut idl, ())? {
+            IdlAccountSetDef::Single(single) => {
+                assert!(
+                    single.program_accounts.contains(&token_account_id),
+                    "TokenAccount did not register its program account entry",
+                );
+            }
+            other => panic!("TokenAccount should produce a single account set, got {other:?}"),
+        }
+
+        Ok(())
+    }
+
+    #[cfg(all(feature = "idl", not(target_os = "solana")))]
+    #[test]
+    fn mini_program_uses_spl_accounts_in_idl() -> Result<()> {
+        use mini_program::*;
+        use star_frame::{
+            idl::ProgramToIdl,
+            star_frame_idl::{
+                account_set::{IdlAccountSetDef, IdlAccountSetStructField},
+                item_source, IdlDefinition,
+            },
+        };
+
+        fn struct_fields<'a>(
+            idl: &'a IdlDefinition,
+            def: &'a IdlAccountSetDef,
+        ) -> &'a [IdlAccountSetStructField] {
+            let set = def
+                .get_defined(idl)
+                .expect("Missing referenced account set");
+            match &set.account_set_def {
+                IdlAccountSetDef::Struct(fields) => fields.as_slice(),
+                other => panic!("Expected struct account set, found {other:?}"),
+            }
+        }
+
+        fn expect_field<'a>(
+            fields: &'a [IdlAccountSetStructField],
+            name: &str,
+        ) -> &'a IdlAccountSetStructField {
+            fields
+                .iter()
+                .find(|field| field.path.as_deref() == Some(name))
+                .unwrap_or_else(|| panic!("Missing field `{name}` in account set"))
+        }
+
+        fn assert_has_program_account(field: &IdlAccountSetStructField, source: &str) {
+            match &field.account_set_def {
+                IdlAccountSetDef::Single(single) => {
+                    assert!(
+                        single
+                            .program_accounts
+                            .iter()
+                            .any(|account| account.source == source),
+                        "Expected `{source}` in program account list, found {:?}",
+                        single.program_accounts
+                    );
+                }
+                other => panic!("Expected single account set, found {other:?}"),
+            }
+        }
+
+        let idl = MintTokenTestProgram::program_to_idl()?;
+        let instruction = idl
+            .instructions
+            .values()
+            .find(|ix| ix.definition.type_id.source.ends_with("TouchSplAccounts"))
+            .expect("Instruction not found in IDL");
+        let fields = struct_fields(&idl, &instruction.definition.account_set);
+
+        let mint_source = item_source::<MintAccountData>();
+        let token_source = item_source::<TokenAccountData>();
+
+        let mint_field = expect_field(fields, "mint");
+        assert_has_program_account(mint_field, &mint_source);
+
+        let token_field = expect_field(fields, "token");
+        assert_has_program_account(token_field, &token_source);
+
+        Ok(())
+    }
 
     #[test]
     fn test_mint_accessors() -> Result<()> {
