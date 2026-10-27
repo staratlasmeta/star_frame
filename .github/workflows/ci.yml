@@ -18,12 +18,12 @@ defaults:
 
 jobs:
   lint:
-    runs-on: warp-ubuntu-latest-x64-4x
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          cache-provider: warpbuild
+          cache-provider: github
       - run: cargo clippy --all-targets --all-features --no-deps
 
   fmt:
@@ -36,35 +36,35 @@ jobs:
       - run: cargo fmt --all --check
 
   doc:
-    runs-on: warp-ubuntu-latest-x64-4x
+    runs-on: ubuntu-24.04
     env:
       RUSTDOCFLAGS: "-Dwarnings"
     steps:
       - uses: actions/checkout@v6
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          cache-provider: warpbuild
+          cache-provider: github
       - run: cargo doc --all-features --no-deps --document-private-items
 
   test:
-    runs-on: warp-ubuntu-latest-x64-4x
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          cache-provider: warpbuild
+          cache-provider: github
       - name: Run workspace tests (all features)
         run: cargo test --all-features
       - name: Run star_frame_idl tests (verifier feature off)
         run: cargo test -p star_frame_idl --no-default-features
 
   scaffold_smoke:
-    runs-on: warp-ubuntu-latest-x64-4x
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          cache-provider: warpbuild
+          cache-provider: github
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
@@ -104,12 +104,12 @@ jobs:
           test ! -e idl.json
 
   miri:
-    runs-on: warp-ubuntu-latest-x64-4x
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          cache-provider: warpbuild
+          cache-provider: github
           toolchain: ${{ env.rust_miri_nightly }}
           components: miri,rust-src
       - name: Set up Miri and nightly
