@@ -6,7 +6,7 @@ use mollusk_svm::{program::keyed_account_for_system_program, Mollusk};
 use solana_account::Account as SolanaAccount;
 use star_frame::{
     client::{MakeInstruction, SerializeAccount},
-    prelude::{GetSeeds as _, Pubkey, System},
+    prelude::{Pubkey, System},
     program::StarFrameProgram,
 };
 
