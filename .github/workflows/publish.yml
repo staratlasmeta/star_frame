@@ -16,7 +16,7 @@ defaults:
 
 jobs:
   publish-crates:
-    runs-on: warp-ubuntu-latest-x64-32x
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -24,7 +24,7 @@ jobs:
       - name: Setup Rust toolchain
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          cache-provider: 'warpbuild'
+          cache-provider: 'github'
 
       - name: Add cargo-release
         uses: taiki-e/install-action@v2
