@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+-   Added focused `unsize` safety regression tests covering byte-shift layout preservation and enum start-pointer tracking across resizes.
+
+### Changed
+
+-   Tightened `unsize` safety contracts and unsafe-site rationale in `UnsizedType` and wrapper resize paths, including explicit `sol_memmove` and resize-notification invariants.
+
 ## [0.30.0] - 2026-02-25
 
 ### Added

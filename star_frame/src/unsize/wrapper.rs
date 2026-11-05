@@ -107,6 +107,9 @@ impl<'top, T> SharedWrapper<'top, T> {
 
         Ok(SharedWrapper {
             _to_drop: Box::new(data),
+            // SAFETY:
+            // `data_ptr` comes from a live borrow held by `_to_drop`, so the backing allocation stays valid
+            // for the lifetime of this wrapper. `get_ptr` only parses and advances pointers.
             top_ref: unsafe { U::get_ptr(&mut data_ptr.cast_mut())? },
         })
     }
@@ -199,6 +202,9 @@ where
         let data = data_ptr;
         Ok(Self(ExclusiveWrapperEnum::Top {
             top_drop: ExclusiveTopDrop {
+                // SAFETY:
+                // `data_ptr` is derived from the exclusive data borrow returned by `data_mut`, and `_drop_guard`
+                // keeps that borrow alive for the entire wrapper lifetime.
                 top_mut: Box::new(unsafe { Top::get_ptr(&mut data_ptr)? }),
                 range,
             },
@@ -225,6 +231,9 @@ impl<Mut: UnsizedTypePtr, P> ExclusiveWrapper<'_, '_, Mut, P> {
             } = &self.0
             {
                 use crate::unsize::miri_static_root;
+                // SAFETY:
+                // We only pass stable addresses of heap allocations (`top_mut` and `_drop_guard`) to Miri so it
+                // treats them as roots; this does not dereference or mutate through the raw pointers.
                 unsafe {
                     miri_static_root((&raw const **top_mut).cast::<()>());
                     miri_static_root((&raw const **_drop_guard).cast::<()>());
@@ -281,7 +290,10 @@ mod sealed {
 
 pub trait ExclusiveRecurse: sealed::Sealed + Sized {
     /// # Safety
-    /// Is this actually unsafe? If bounds are checked, everything should be fine? We have exclusive access to self right now.
+    /// `wrapper` must have exclusive access to its entire backing allocation while the operation runs.
+    /// `start` must be within that allocation and represent the insertion point for `amount` bytes.
+    /// `source_ptr` must come from the same allocation and identify the value that triggered the resize
+    /// notification chain.
     unsafe fn add_bytes(
         wrapper: &mut Self,
         source_ptr: *const (),
@@ -289,7 +301,10 @@ pub trait ExclusiveRecurse: sealed::Sealed + Sized {
         amount: usize,
     ) -> Result<()>;
     /// # Safety
-    /// Is this actually unsafe? If bounds are checked, everything should be fine? We have exclusive access to self right now.
+    /// `wrapper` must have exclusive access to its entire backing allocation while the operation runs.
+    /// `range` must be a valid byte range inside that allocation.
+    /// `source_ptr` must come from the same allocation and identify the value that triggered the resize
+    /// notification chain.
     unsafe fn remove_bytes(
         wrapper: &mut Self,
         source_ptr: *const (),
@@ -314,6 +329,9 @@ where
                 // SAFETY:
                 // We have exclusive access to self right now, and no other references to parent can exist.
                 let parent = unsafe { &mut **parent };
+                // SAFETY:
+                // `parent` was derived from the current wrapper and points to the same allocation.
+                // All safety requirements are forwarded unchanged from this method contract.
                 unsafe { P::add_bytes(parent, source_ptr, start, amount) }
             }
         }
@@ -331,6 +349,9 @@ where
                 // SAFETY:
                 // We have exclusive access to self right now, so no other references to parent can exist.
                 let parent = unsafe { &mut **parent };
+                // SAFETY:
+                // `parent` was derived from the current wrapper and points to the same allocation.
+                // All safety requirements are forwarded unchanged from this method contract.
                 unsafe { P::remove_bytes(parent, source_ptr, range) }
             }
         }
@@ -390,7 +411,9 @@ where
             }
             let new_len = old_len + amount;
 
-            // realloc
+            // SAFETY:
+            // `data_ptr` comes from `UnsizedTypeDataAccess::data_mut` and is the same allocation for `top_meta.info`.
+            // We hold exclusive access to the wrapper, so no aliased references to that data exist.
             unsafe {
                 UnsizedTypeDataAccess::unsized_data_realloc(top_meta.info, data_ptr, new_len)
             }?;
@@ -399,7 +422,8 @@ where
                 let dst = start as usize + amount;
                 let src = start as usize;
                 // SAFETY:
-                // todo
+                // Source and destination are within the same reallocated backing allocation, and the length is
+                // exactly the tail bytes after `start`. `sol_memmove` permits overlapping regions.
                 unsafe {
                     sol_memmove(
                         // Use provenance of main data ptr
@@ -411,7 +435,9 @@ where
             }
         }
 
-        // TODO: Figure out the safety requirements of calling this. I think it is safe to call here assuming the UnsizedType is implemented correctly.
+        // SAFETY:
+        // We just completed the backing-buffer resize and memmove, and `top_mut` is the live root pointer for `Top`.
+        // `source_ptr` and `change` describe that completed resize operation for pointer/metadata fixups only.
         unsafe {
             Top::resize_notification(top_mut, source_ptr, amount.try_into()?)?;
         }
@@ -520,6 +546,9 @@ where
             }
 
             if end as usize != data_addr + old_len {
+                // SAFETY:
+                // Source and destination are within the same backing allocation, and the moved range is the
+                // remaining tail after `end`. `sol_memmove` handles overlap.
                 unsafe {
                     sol_memmove(
                         data_ptr.with_addr(start as usize).cast(),
@@ -531,7 +560,9 @@ where
 
             let new_len = old_len - amount;
             // SAFETY:
-            // Data ptr is derived from the info.
+            // `data_ptr` comes from `UnsizedTypeDataAccess::data_mut(top_meta.info)` and still points to
+            // the same backing allocation. We hold exclusive access to the wrapper, so there are no aliased
+            // references while the reallocation updates pointer metadata.
             unsafe {
                 UnsizedTypeDataAccess::unsized_data_realloc(top_meta.info, data_ptr, new_len)?;
             }
@@ -539,6 +570,9 @@ where
             amount
         };
 
+        // SAFETY:
+        // The removal and any required memmove have already completed, so this is a pure pointer/metadata update
+        // on the parsed `Top` pointer graph.
         unsafe {
             Top::resize_notification(top_mut, source_ptr, -amount.try_into()?)?;
         }
@@ -560,6 +594,8 @@ where
     where
         O: UnsizedType + ?Sized,
     {
+        // SAFETY:
+        // `map_mut` has the same contract as `try_map_mut`; we simply adapt an infallible mapper.
         unsafe { Self::try_map_mut::<O, Infallible>(parent, |m| Ok(mapper(m))) }.unwrap()
     }
 
@@ -602,6 +638,8 @@ where
 {
     #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
+        // SAFETY:
+        // `deref_mut` takes `&mut self`, guaranteeing unique access to the wrapper while this reference lives.
         unsafe { &mut *Self::mut_mut(self) }
     }
 }
@@ -635,14 +673,17 @@ impl<T> StartPointer<T> {
     }
 
     /// # Safety
-    /// todo
+    /// `start` must be the start pointer for the same backing allocation that `data` points into.
+    /// Pointer-order checks rely on `start` being stable and in the same allocation as pointers in `data`.
     #[inline]
     pub unsafe fn new(data: T, start: *mut ()) -> Self {
         Self { data, start }
     }
 
     /// # Safety
-    /// todo
+    /// `source_ptr` and `s.start` must belong to the same allocation.
+    /// `change` must describe a resize operation already applied to that allocation.
+    /// This function only adjusts `start`; it must not trigger additional resizes.
     #[inline]
     pub unsafe fn handle_resize_notification(s: &mut Self, source_ptr: *const (), change: isize) {
         if source_ptr < s.start {
@@ -669,12 +710,16 @@ where
 
         match current_len.cmp(&new_len) {
             Ordering::Less => {
-                // TODO: might be safe
+                // SAFETY:
+                // We have `&mut self`, so this wrapper has exclusive access to its backing allocation.
+                // `start_ptr` identifies this value's start and belongs to that allocation.
                 unsafe { Self::add_bytes(self, start_ptr, start_ptr, new_len - current_len) }?;
             }
             Ordering::Equal => {}
             Ordering::Greater => {
-                // TODO: might be safe
+                // SAFETY:
+                // We have `&mut self`, so this wrapper has exclusive access to its backing allocation.
+                // The removal range is within this value's current byte span.
                 unsafe {
                     Self::remove_bytes(
                         self,
@@ -697,7 +742,7 @@ where
             }
             // SAFETY:
             // The underlying data is valid for 'top, and we just created the slice so it's length is valid.
-            // We just resizd the underlying data to be enough for `len`
+            // We just resized the underlying data to be enough for `len`.
             let res: U::Ptr = unsafe { U::get_ptr(&mut slice_ptr)? };
             debug_assert_eq!(<U as UnsizedType>::data_len(&res), new_len);
             debug_assert_eq!(<U as UnsizedType>::start_ptr(&res), start_ptr);
