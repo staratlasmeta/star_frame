@@ -174,7 +174,7 @@ pub enum CounterErrors {
 #[cfg(test)]
 #[allow(unused)]
 mod tests {
-    use std::{collections::HashMap, env};
+    use std::collections::HashMap;
 
     use super::*;
     use mollusk_svm::{
@@ -197,11 +197,8 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires SBF_OUT_DIR"]
     fn program_test() -> Result<()> {
-        if env::var("SBF_OUT_DIR").is_err() {
-            println!("SBF_OUT_DIR is not set, skipping test");
-            return Ok(());
-        }
         let mollusk = Mollusk::new(&CounterProgram::ID, "counter");
 
         let owner = Pubkey::new_unique();

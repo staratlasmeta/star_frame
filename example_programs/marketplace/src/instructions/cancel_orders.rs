@@ -41,7 +41,7 @@ mod tests {
     use mollusk_svm::result::Check;
     use solana_account::Account as SolanaAccount;
     use star_frame_spl::associated_token::AssociatedToken;
-    use std::{collections::HashMap, env};
+    use std::collections::HashMap;
 
     fn price(v: u64) -> Price {
         Price::new(PackedValue(v))
@@ -51,11 +51,8 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires SBF_OUT_DIR"]
     fn cancel_orders() -> Result<()> {
-        if env::var("SBF_OUT_DIR").is_err() {
-            println!("SBF_OUT_DIR is not set, skipping test");
-            return Ok(());
-        }
         let mollusk = crate::test_utils::new_mollusk();
 
         // Keys
