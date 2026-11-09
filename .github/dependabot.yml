@@ -7,4 +7,11 @@ updates:
   - package-ecosystem: "cargo"
     directory: "/"
     schedule:
-        interval: "daily"
+        interval: "weekly"
+    groups:
+        cargo-minor-patch:
+            update-types: ["minor", "patch"]
+    ignore:
+        # Majors (esp. solana-*) must move together; done manually.
+        - dependency-name: "*"
+          update-types: ["version-update:semver-major"]
