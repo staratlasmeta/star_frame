@@ -116,14 +116,11 @@ mod tests {
     use pretty_assertions::assert_eq;
     use solana_account::Account as SolanaAccount;
     use star_frame::client::{DeserializeAccount, SerializeAccount};
-    use std::{collections::HashMap, env};
+    use std::collections::HashMap;
 
     #[test]
+    #[ignore = "requires SBF_OUT_DIR"]
     fn test_ix() -> Result<()> {
-        if env::var("SBF_OUT_DIR").is_err() {
-            println!("SBF_OUT_DIR is not set, skipping test");
-            return Ok(());
-        }
         let mut mollusk = Mollusk::new(&AccountTest::ID, "account_test");
         mollusk_svm_programs_token::token::add_program(&mut mollusk);
         mollusk_svm_programs_token::associated_token::add_program(&mut mollusk);
@@ -180,9 +177,7 @@ mod tests {
                     borsh_account,
                     funder,
                     system_program: None,
-                    inner: RunAccountsInnerClientAccounts {
-                        inner2: Pubkey::new_unique(),
-                    },
+                    inner: RunAccountsInnerClientAccounts { inner2: System::ID },
                 },
             )?,
             &[Check::success()],

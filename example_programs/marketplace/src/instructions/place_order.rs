@@ -94,16 +94,13 @@ mod tests {
     use solana_account::Account as SolanaAccount;
     use star_frame::{itertools::Itertools, solana_pubkey::Pubkey};
     use star_frame_spl::associated_token::AssociatedToken;
-    use std::{collections::HashMap, env};
+    use std::collections::HashMap;
     const STARTING_USER_CURRENCY_BALANCE: u64 = 1_000_000_000;
     const STARTING_USER_MARKET_TOKEN_BALANCE: u64 = 1_000_000;
 
     #[test]
+    #[ignore = "requires SBF_OUT_DIR"]
     fn place_bid() -> Result<()> {
-        if env::var("SBF_OUT_DIR").is_err() {
-            println!("SBF_OUT_DIR is not set, skipping test");
-            return Ok(());
-        }
         let mollusk = crate::test_utils::new_mollusk();
 
         // Keys

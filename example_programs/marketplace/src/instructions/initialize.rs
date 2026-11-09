@@ -62,15 +62,11 @@ mod tests {
     use mollusk_svm::{result::Check, Mollusk};
     use solana_account::Account as SolanaAccount;
     use star_frame::{client::SerializeAccount, solana_pubkey::Pubkey};
-    use std::{collections::HashMap, env};
+    use std::collections::HashMap;
 
     #[test]
+    #[ignore = "requires SBF_OUT_DIR"]
     fn initialize_creates_market_account() -> Result<()> {
-        if env::var("SBF_OUT_DIR").is_err() {
-            println!("SBF_OUT_DIR is not set, skipping test");
-            return Ok(());
-        }
-
         let mut mollusk: Mollusk = Mollusk::new(&crate::Marketplace::ID, "marketplace");
         mollusk_svm_programs_token::token::add_program(&mut mollusk);
 
