@@ -191,11 +191,13 @@ impl<T: ProgramAccount + BorshSerialize + BorshDeserialize> BorshAccount<T> {
             && self.info.data_len() > size_of::<OwnerProgramDiscriminant<T>>()
             && self.owner_pubkey() == T::OwnerProgram::ID
         {
-            let new_size = size_of::<OwnerProgramDiscriminant<T>>() + object_length(&self.data)?;
-            self.info.resize(new_size)?;
-            let mut account_data = self.info.account_data_mut()?;
-            self.data
-                .serialize(&mut &mut account_data[size_of::<OwnerProgramDiscriminant<T>>()..])?;
+            // Serialize `T`, not `Option<T>`, which would add a tag byte the decoder doesn't expect.
+            if let Some(data) = &self.data {
+                let new_size = size_of::<OwnerProgramDiscriminant<T>>() + object_length(data)?;
+                self.info.resize(new_size)?;
+                let mut account_data = self.info.account_data_mut()?;
+                data.serialize(&mut &mut account_data[size_of::<OwnerProgramDiscriminant<T>>()..])?;
+            }
         }
         Ok(())
     }
