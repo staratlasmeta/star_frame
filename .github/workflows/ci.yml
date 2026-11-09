@@ -58,6 +58,37 @@ jobs:
       - name: Run star_frame_idl tests (verifier feature off)
         run: cargo test -p star_frame_idl --no-default-features
 
+  sbf_test:
+    runs-on: ubuntu-24.04
+    env:
+      SOLANA_VERSION: "3.1.13"
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache-provider: github
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ~/.local/share/solana
+            ~/.cache/solana
+          key: solana-${{ runner.os }}-${{ env.SOLANA_VERSION }}
+      - name: Install Solana CLI
+        run: |
+          if [[ ! -x "$HOME/.local/share/solana/install/active_release/bin/cargo-build-sbf" ]]; then
+            sh -c "$(curl -sSfL "https://release.anza.xyz/v${SOLANA_VERSION}/install")"
+          fi
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+      - name: Build example programs (SBF)
+        run: |
+          for program in counter account_test marketplace; do
+            cargo build-sbf --manifest-path "example_programs/$program/Cargo.toml"
+          done
+      - name: Run SBF tests
+        run: cargo test --all-features -p counter -p account_test -p marketplace -- --ignored
+        env:
+          SBF_OUT_DIR: ${{ github.workspace }}/target/deploy
+
   scaffold_smoke:
     runs-on: ubuntu-24.04
     steps:
