@@ -53,10 +53,13 @@ jobs:
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           cache-provider: github
+      - uses: taiki-e/install-action@nextest
       - name: Run workspace tests (all features)
-        run: cargo test --all-features
+        run: cargo nextest run --all-features
+      - name: Run doc tests (all features)
+        run: cargo test --doc --all-features
       - name: Run star_frame_idl tests (verifier feature off)
-        run: cargo test -p star_frame_idl --no-default-features
+        run: cargo nextest run -p star_frame_idl --no-default-features
 
   sbf_test:
     runs-on: ubuntu-24.04
